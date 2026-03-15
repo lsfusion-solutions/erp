@@ -14,5 +14,6 @@ calcAccountPriceGestori (ShipmentDetail d) =
 
 // пока без PREV, так как нужно хитро пересчитывать при изменении той же даты
 WHEN (SETCHANGED(sku(ShipmentDetail d)) OR SETCHANGED(customerStock(d)) OR SETCHANGED(dateTime(d)) OR
-    SETCHANGED(quantity(d)) OR SETCHANGED(price(d))) AND NOT disableCalcAccountPrice() ORDER d DO
+    SETCHANGED(quantity(d)) OR SETCHANGED(price(d))) AND NOT disableCalcAccountPrice() ORDER d AND
+    (GROUP SUM 1 IF shipment(ShipmentDetail d1) = shipment(d) AND sku(d1) = sku(d)) > 1 DO
     accountPrice(d) <- calcAccountPriceGestori(d);

@@ -1,0 +1,413 @@
+MODULE ProductionOrderGestori;
+
+REQUIRE ProductionOrder, ProductionOutput, ManufacturingTransferDashboard, ManufacturingTransferDashboardReturn,
+        BOMOperation, BomStock,ProductionConsumption;
+
+NAMESPACE Production;
+
+isProduction 'Производство' = DATA BOOLEAN (Operation);
+isElaboration 'Проработка' = DATA BOOLEAN (Operation);
+
+isRecComponents 'Рекурсивно' = DATA BOOLEAN (Order)  IN documentPrm;
+isRecComponents 'Рекурсивно' = DATA BOOLEAN (ProductDetail);
+EXTEND FORM order
+    PROPERTIES(o) isRecComponents
+    PROPERTIES(pd) isRecComponents
+;
+
+productionDetail = DATA ProductDetail(ComponentDetail);
+componentDetail = DATA ComponentDetail(ProductDetail);
+
+WHEN LOCAL FORMS order SETCHANGED(productsStock(Order o)) DO {
+    componentsStock(o) <- productsStock(o);
+}
+
+isDefault 'По умолчанию'  = DATA BOOLEAN (BOM) IN documentPrm;
+
+EXTEND FORM BOM
+    PROPERTIES (b) isDefault
+;
+
+CONSTRAINT (SET(isDefault(BOM bom)) OR CHANGED(in(bom, Stock st))) AND isDefault(bom) AND (GROUP SUM 1 IF isDefault(BOM b) AND NOT b = bom AND products(b) = products(bom)
+    AND in(b, st) = in(bom, st) AND isActive(b)) MESSAGE 'Спецификация по умолчанию может быть только 1';
+
+countProductsKirovsky (sku, Stock stock, DATE date) = GROUP SUM 1 IF isActive(BOM(Product p), stock, date) AND isDefault(BOM(p)) BY sku(p);
+defaultProductKirovsky (sku, Stock stock, DATE date)= GROUP MIN Product p IF isActive(BOM(p), stock, date) AND isDefault(BOM(p)) BY sku(p);
+
+WHEN LOCAL FORMS order CHANGED(sku(ProductDetail d)) AND NOT CHANGED(product(d)) AND countProductsKirovsky(sku(d), componentsStock(d), date(d)) NOINLINE DO{
+    product(d) <- defaultProductKirovsky(sku(d), componentsStock(d), date(d));
+}
+
+countComponentsKirovsky (sku, Stock stock, DATE date) = GROUP SUM 1 IF isActive(BOM(Component p), stock, date) AND isDefault(BOM(p)) BY sku(p);
+defaultComponentKirovsky (sku, Stock stock, DATE date)= GROUP MIN Component p IF isActive(BOM(p), stock, date) AND isDefault(BOM(p)) BY sku(p);
+
+WHEN LOCAL FORMS order CHANGED(bruttoSku(ComponentDetail d)) AND NOT CHANGED(component(d)) AND countComponentsKirovsky(sku(d), componentsStock(d), date(d)) NOINLINE DO{
+    component(d) <- defaultComponentKirovsky(sku(d), componentsStock(d), date(d));
+    BOM(d) <- BOM(defaultComponentKirovsky(sku(d), componentsStock(d), date(d)));
+}
+skipCheckProduction = DATA BOOLEAN (Order);
+skipCheckComponent = DATA BOOLEAN (Order);
+
+WHEN LOCAL FORMS order (CHANGED(BOM(ProductDetail pd))  OR CHANGED(quantity(pd))) AND BOM(pd) AND quantity(pd) AND NOT isRecComponents(pd) AND isProduction(operation(pd)) DO {
+    skipCheckProduction(order(pd)) <- TRUE;
+    DELETE ComponentDetail cd WHERE productionDetail(cd) = pd;
+    FOR BOM(pd) = BOM(Component c) AND quantityProducts(BOM(pd), order(pd)) NEW cd = ComponentDetail DO {
+        order(cd) <- order(pd);
+        productionDetail(cd) <- pd;
+        component(cd) <- c;
+        BOM(cd) <- BOM(pd);
+        bruttoQuantity(cd) <- bruttoQuantity(c, date(order(pd))) * quantityProducts(BOM(pd),order(pd));
+        BOMQuantity(cd) <- bruttoQuantity(c, date(order(pd)));
+        IF material(c) IS Sku THEN {
+            bruttoSku(cd) <- material(c);
+        } ELSE {
+            IF material(c) IS Product THEN {
+                product(cd) <- material(c);
+                bruttoSku(cd) <- sku[Product](material(c));
+            }
+        }
+        product(cd) <- defaultProductKirovsky(sku(cd), componentsStock(cd), date(cd));
+        markup(productionDetail(cd)) <- 0.0;
+    }
+}
+
+WHEN LOCAL FORMS order (CHANGED(BOM(ProductDetail pd)) OR CHANGED(quantity(pd))) AND BOM(pd) AND quantity(pd) AND isRecComponents(pd)  AND isProduction(operation(pd))  DO {
+    skipCheckProduction(order(pd)) <- TRUE;
+    DELETE ComponentDetail cd WHERE productionDetail(cd) = pd;
+    FOR BOM(pd) = BOM(Component c) AND NUMERIC[91,46] q == recBruttoQuantity(BOM(pd), order(pd), c) IF material(c) IS Sku ORDER BOM(pd) NEW d = ComponentDetail DO {
+        productionDetail(d) <- pd;
+        order(d) <- order(pd);
+        BOM(d) <- BOM(pd);
+        bruttoSku(d) <- material(c);
+        component(d) <- c;
+        bruttoQuantity(d) <- q;
+        BOMQuantity(d) <- recBOMQuantity(BOM(pd), order(pd), c);
+        product(d) <- defaultProductKirovsky(sku(d), componentsStock(d), date(d));
+    }
+    FOR product(ComponentDetail d) AND isRecComponents(productionDetail(d)) DO expand(d);
+}
+
+WHEN LOCAL FORMS order (CHANGED(BOM(ComponentDetail cd))  OR CHANGED(quantity(cd))) AND BOM(cd) AND quantity(cd) AND isElaboration(operation(cd)) DO {
+    DELETE ProductDetail pd WHERE  componentDetail(pd) = cd;
+    FOR NUMERIC[35,19] q == quantityComponents(BOM(cd), order(cd)) AND BOM(cd) = BOM(Product product) NEW d = ProductDetail DO {
+        componentDetail(d) <- cd;
+        order(d) <- order(cd);
+        sku(d) <- sku(product);
+        product(d) <- product;
+        quantity(d) <- round3(quantity(product) * q);
+        BOMQuantity(d) <- quantity(product);
+        pricePercent(d) <- pricePercent(product);
+    }
+}
+
+overCreate(ComponentDetail new, ComponentDetail old) + {
+    productionDetail(new) <- productionDetail(old);
+}
+
+WHEN LOCAL FORMS order CHANGED(price(ComponentDetail cd)) OR CHANGED(quantity(cd)) DO {
+    IF isProduction(operation(cd)) THEN fillPrice(productionDetail(cd));
+    FOR isElaboration(operation(cd)) AND componentDetail(ProductDetail pd) = cd DO fillPrice(pd);
+    FOR isElaboration(operation(cd)) AND NOT sum(cd) = (GROUP SUM sum(ProductDetail pd) IF componentDetail(pd) = cd) AND
+        ProductDetail d = (GROUP LAST ProductDetail pd IF componentDetail(pd) = cd ORDER price(pd)) DO {
+        sum(d) <- (sum(d) + (sum(cd) (-)(GROUP SUM sum(ProductDetail pd) IF componentDetail(pd) = cd)));
+        price(d) <- round(sum(d)/quantity(d), 2);
+        outputProductsSum(d) <- sum(d);
+    }
+}
+
+WHEN LOCAL FORMS order isElaboration(operation(ComponentDetail cd)) AND CHANGED(GROUP SUM quantity(ProductDetail idetail) IF  componentDetail(idetail) =cd) DO {
+    FOR isElaboration(operation(cd)) AND componentDetail(ProductDetail pd) = cd DO fillPrice(pd);
+    FOR isElaboration(operation(cd)) AND NOT sum(cd) = (GROUP SUM sum(ProductDetail pd) IF componentDetail(pd) = cd) AND
+        ProductDetail d = (GROUP LAST ProductDetail pd IF componentDetail(pd) = cd ORDER price(pd)) DO {
+        sum(d) <- (sum(d) + (sum(cd) (-)(GROUP SUM sum(ProductDetail pd) IF componentDetail(pd) = cd)));
+        price(d) <- round(sum(d)/quantity(d), 2);
+        outputProductsSum(d) <- sum(d);
+    }
+}
+
+overFillPriceAfter(ProductDetail detail) + {
+    IF isProduction(operation(detail)) THEN {
+        markup(detail) <- 0.0;
+        changeValueMarkup(detail);
+    }
+    IF isElaboration(operation(detail)) THEN {
+        componentsPrice(detail) <- NUMERIC[16,4](quantity(componentDetail(detail))*price(componentDetail(detail))*pricePercent(detail)/(GROUP SUM quantity(ProductDetail d)*pricePercent(d) IF componentDetail(detail) = componentDetail(d)));
+        costPrice(detail) <- NUMERIC[16,4](calcCost(detail));
+        changeValueMarkup(detail);
+        sum(detail) <- NUMERIC[18,4](round2(quantity(detail) * price(detail)));
+        outputProductsSum(detail) <- sum(detail);
+    }
+}
+
+WHEN LOCAL FORMS order DROPPED(productionDetail(ComponentDetail cd)) DO {
+    DELETE cd;
+}
+
+WHEN LOCAL FORMS order DROPPED(componentDetail(ProductDetail pd)) DO {
+    DELETE pd;
+}
+
+idBruttoSku 'Код ' (ComponentDetail componentDetail) = id(bruttoSku(componentDetail));
+idBarcodeBruttoSku 'Штрихкод' (ComponentDetail componentDetail) = idBarcode(bruttoSku(componentDetail));
+
+EXTEND FORM order
+    //    PROPERTIES READONLY nameProductsPriceListType 'Вид цен (изделие)'= nameProductsPriceListType(o)
+    PROPERTIES READONLY createConsumption 'Создать документ списания сырья'= createConsumption(o)
+    PROPERTIES READONLY createOutput 'Создать документ производства'= createOutput(o)
+    PROPERTIES (pd) idSku, idBarcodeSku
+    PROPERTIES (cd) AFTER bruttoNameSku(cd) idBruttoSku, idBarcodeBruttoSku
+;
+
+DESIGN order{
+    REMOVE PROPERTY (nameComponentsStock(o));
+    REMOVE PROPERTY (fromDate(o));
+    REMOVE PROPERTY (toDate(o));
+    REMOVE PROPERTY (nameCalcPriceListType(o));
+    REMOVE PROPERTY (VATProduct(o));
+    REMOVE PROPERTY (createConsumption(o));
+    REMOVE PROPERTY (createOutput(o));
+    REMOVE PROPERTY (VATProduct(o));
+    REMOVE PROPERTY (nameProductsPriceListType(o));
+    REMOVE PROPERTY (createComponents(o));
+    REMOVE PROPERTY (createProducts(o));
+    REMOVE PROPERTY (createRecComponents(o));
+    REMOVE PROPERTY (createForRecComponents(o));
+    REMOVE PROPERTY (deleteComponents(o));
+    REMOVE PROPERTY (deleteComponents(o));
+    REMOVE PROPERTY (fillOutputQuantityProductDetail(o));
+    REMOVE PROPERTY (useBatchSkuAllFIFO(o));
+    REMOVE PROPERTY (deleteProductDetail(o));
+    REMOVE PROPERTY (fillPriceProducts(o));
+    PROPERTY (add) {showIf = isElaboration(operation(o)) OR NOT isProduction(operation(o));};
+    PROPERTY (newpd) {showIf = isProduction(operation(o)) OR NOT isElaboration(operation(o));};
+    REMOVE PROPERTY (createOutputComponent(o));
+    REMOVE PROPERTY (useBatchSkuAll(o));
+    PROPERTY(isRecComponents(o)) {showIf = isProduction(operation(o));}
+    PROPERTY(isRecComponents(pd)) {showIf = isProduction(operation(o));}
+    //    row111 {
+    //        PROPERTY (nameProductsPriceListType);
+    //    }
+    selectPane{
+        showIf = isProduction(operation(o)) OR NOT isElaboration(operation(o));
+    }
+    selectPane1{
+        showIf = isElaboration(operation(o)) OR NOT isProduction(operation(o));
+    }
+
+    headerRow112{
+        PROPERTY (createConsumption);
+    }
+    headerRow112{
+        PROPERTY (createOutput);
+    }
+    REMOVE price;
+    REMOVE options;
+
+}
+
+isRecComponents 'Значение по умолчанию Рекурсивно' = DATA BOOLEAN (Operation);
+
+WHEN LOCAL FORMS operation SET(isProduction(Operation o)) DO isElaboration(o) <- NULL;
+WHEN LOCAL FORMS operation SET(isElaboration(Operation o)) DO isProduction(o) <- NULL;
+
+WHEN LOCAL FORMS order SETCHANGED(operation(Order o)) DO isRecComponents(o) <- isRecComponents(operation(o));
+WHEN LOCAL FORMS order SET(ProductDetail pd IS ProductDetail) DO isRecComponents(pd) <- isRecComponents(order(pd));
+
+EXTEND FORM operation
+    PROPERTIES(o) isRecComponents, isProduction, isElaboration
+;
+
+DESIGN operation {
+    paramsContainer {
+        MOVE PROPERTY(isRecComponents(o));
+        MOVE PROPERTY(isProduction(o));
+        MOVE PROPERTY(isElaboration(o));
+    }
+}
+
+@defineOperationProperty(isPrice, 'Запрет проведения производственного заказа с нулевой ценой компонент или изделий', BOOLEAN, constraintContainer);
+
+CONSTRAINT SET(isPosted(Order o)) AND isPrice(operation(o)) AND ((GROUP SUM 1 IF NOT(price(ProductDetail pd)) AND order(pd) = o) OR  (GROUP SUM 1 IF NOT(price(ComponentDetail cd)) AND order(cd) = o))
+    MESSAGE 'Запрещено проведения производственного заказа с нулевой ценой компонент или изделий';
+
+NAVIGATOR {
+    manufacturingTransfer 'Перемещение в цех производства';
+    manufacturingTransferReturn 'Возврат из цеха производства';
+}
+
+//WHEN LOCAL FORMS order SET(ProductDetail pd IS ProductDetail) AND isElaboration(operation(pd)) AND NOT skipCheckComponent(order(pd)) DO {
+//    MESSAGE 'Это проработка';
+//    DELETE pd;
+//};
+
+WHEN LOCAL FORMS order SET(ComponentDetail cd IS ComponentDetail) AND isProduction(operation(cd)) AND NOT skipCheckProduction(order(cd)) DO {
+    MESSAGE 'Это производство';
+    DELETE cd;
+};
+
+WHEN LOCAL FORMS order (CHANGED(bruttoQuantity(ComponentDetail d)) OR CHANGED(cost(d)) OR (CHANGED(price(d)) AND PREV(price(d))) OR (CHANGED(sum(d)) AND PREV(sum(d))) OR
+    CHANGED(component(d)) OR CHANGED(bruttoSku(d)) OR CHANGED(BOM(d))) AND isProduction(operation(d)) AND NOT skipCheckProduction(order(d)) DO {
+    MESSAGE 'Это производство';
+    component(d) <- PREV(component(d));
+    BOM(d) <- PREV(BOM(d));
+    bruttoSku(d) <- PREV(bruttoSku(d));
+
+    bruttoQuantity(d) <- PREV(bruttoQuantity(d));
+    cost(d) <- PREV(cost(d));
+    price(d) <- PREV(price(d));
+    sum(d) <- PREV(sum(d));
+};
+
+WHEN LOCAL FORMS order (CHANGED(quantity(ProductDetail d)) OR (CHANGED(price(d)) AND PREV(price(d))) OR CHANGED(sum(d)) OR
+    CHANGED(sku(d))) AND isElaboration(operation(d)) AND NOT skipCheckComponent(order(d)) AND NULL DO {
+    MESSAGE 'Это проработка';
+    sku(d) <- PREV(sku(d));
+
+    quantity(d) <- PREV(quantity(d));
+    price(d) <- PREV(price(d));
+    sum(d) <- PREV(sum(d));
+};
+
+WHEN LOCAL FORMS order GOAFTER sum[ComponentDetail] CHANGED(sum(ComponentDetail d)) DO
+    skipCheckProduction(order(d)) <- NULL;
+
+
+WHEN LOCAL FORMS BOM SET(Product p IS Product) AND isProduction(operation(BOM(p))) AND (GROUP SUM 1 IF BOM(Product pr) = BOM(p)) > 1 DO {
+    MESSAGE 'Это производство. Изделия может быть только 1';
+    DELETE p;
+};
+
+WHEN LOCAL FORMS BOM SET(Component c IS Component) AND isElaboration(operation(BOM(c))) AND (GROUP SUM 1 IF BOM(Component co) = BOM(c)) > 1 DO {
+    MESSAGE 'Это проработка. Компонентов может быть только 1';
+    DELETE c;
+};
+
+EXTEND FORM productsChange
+    FILTERS isActiveCurrent(BOM(p))
+;
+
+DESIGN productsChange {REMOVE FILTERGROUP (inactiveBOM);}
+
+idStrictChangeSubstitutes 'Cтрогая замена' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES() idStrictChangeSubstitutes
+;
+DESIGN options {
+    manufacturing {
+        MOVE PROPERTY(idStrictChangeSubstitutes());
+    }
+}
+
+DESIGN substitutesSku {
+    FILTERGROUP (filter2){ showIf = NOT idStrictChangeSubstitutes();}
+    FILTERGROUP (filter3){ showIf = NOT idStrictChangeSubstitutes();}
+}
+
+CONSTRAINT CHANGED(component(ComponentDetail d)) AND component(d) AND NOT operation(d) == operation(BOM(component(d))) AND NOT skipBom(order(d))
+    CHECKED BY component[ComponentDetail] MESSAGE 'Операция спецификации должна быть равна операции заказа';
+
+CONSTRAINT CHANGED(product(ComponentDetail d)) AND product(d) AND isElaboration(operation(d)) AND NOT skipBom(order(d))
+    CHECKED BY product[ComponentDetail] MESSAGE 'Операция спецификации должна быть равна операции заказа';
+
+BOMQuantity(ComponentDetail d) <- quantity(component(d))
+    WHEN CHANGED (component(d)) AND isElaboration(operation(d));
+
+copyGestori 'Копировать'(Order order)  {
+    NEWSESSION {
+        NEW o = Order {
+            company(o) <- company(order);
+            componentsStock(o) <- componentsStock(order);
+            productsStock(o) <- productsStock(order);
+            date(o) <- currentDate();
+            time(o) <- currentTime();
+            productsPriceListType(o) <- productsPriceListType(order);
+            priceListType(o) <- priceListType(order);
+            VATProduct(o) <- VATProduct(order);
+            VATComponent(o) <- VATComponent(order);
+            note(o) <- note(order);
+            operation(o) <- operation(order);
+            isRecComponents(o) <- isRecComponents(order);
+
+            IF isProduction(operation(o)) THEN {
+                FOR order(ProductDetail productDetail) == order NEW p=ProductDetail DO {
+                    order(p) <- o;
+                    sku(p) <- sku(productDetail);
+                    product(p) <- product(productDetail);
+                    quantity(p) <- quantity(productDetail);
+                    BOMQuantity(p) <- BOMQuantity(productDetail);
+                    markup(p) <- markup(productDetail);
+                    pricePercent(p) <- pricePercent(productDetail);
+                    IF isRecComponents(o) THEN {
+                        FOR BOM(p) = BOM(Component c) AND NUMERIC[91,46] q == recBruttoQuantity(BOM(p), order(p), c) IF material(c) IS Sku ORDER BOM(p) NEW d = ComponentDetail DO {
+                            productionDetail(d) <- p;
+                            order(d) <- order(p);
+                            BOM(d) <- BOM(p);
+                            bruttoSku(d) <- material(c);
+                            component(d) <- c;
+                            bruttoQuantity(d) <- q;
+                            BOMQuantity(d) <- recBOMQuantity(BOM(p), order(p), c);
+                            product(d) <- defaultProductKirovsky(sku(d), componentsStock(d), date(d));
+                        }
+                        FOR product(ComponentDetail d) AND isRecComponents(productionDetail(d)) DO expand(d);
+                    }ELSE {
+                        FOR BOM(p) = BOM(Component c) AND quantityProducts(BOM(p), order(p)) NEW cd = ComponentDetail DO {
+                            order(cd) <- order(p);
+                            productionDetail(cd) <- p;
+                            component(cd) <- c;
+                            BOM(cd) <- BOM(p);
+                            bruttoQuantity(cd) <- bruttoQuantity(c, date(order(p))) * quantityProducts(BOM(p),order(p));
+                            BOMQuantity(cd) <- bruttoQuantity(c, date(order(p)));
+                            IF material(c) IS Sku THEN {
+                                bruttoSku(cd) <- material(c);
+                            } ELSE {
+                                IF material(c) IS Product THEN {
+                                    product(cd) <- material(c);
+                                    bruttoSku(cd) <- sku[Product](material(c));
+                                }
+                            }
+                            product(cd) <- defaultProductKirovsky(sku(cd), componentsStock(cd), date(cd));
+                            markup(productionDetail(cd)) <- 0.0;
+                        }
+                    }
+                }
+            }
+            IF isElaboration(operation(o)) THEN
+                FOR order(ComponentDetail componentDetail) == order NEW c=ComponentDetail DO {
+                order(c) <- o;
+                bruttoSku(c) <- bruttoSku(componentDetail);
+                substituteSku(c) <- substituteSku(componentDetail);
+                substituteQuantity(c) <- substituteQuantity(componentDetail);
+                product(c) <- product(componentDetail);
+                component(c) <- component(componentDetail);
+                bruttoQuantity(c) <- bruttoQuantity(componentDetail);
+                //            BOMQuantityComponentDetail(c) <- BOMQuantityComponentDetail(componentDetail);
+                BOM(c) <- BOM(componentDetail);
+                price(c) <- prevAccountPriceB(bruttoSku(c), componentsStock(c), dateTime(c));
+                FOR BOM(c) = BOM(Product product) NEW d = ProductDetail DO {
+                    componentDetail(d) <- c;
+                    order(d) <- order(c);
+                    sku(d) <- sku(product);
+                    product(d) <- product;
+                    quantity(d) <- round3(quantity(product) * quantityComponents(BOM(c), order(c)));
+                    BOMQuantity(d) <- quantity(product);
+                    pricePercent(d) <- pricePercent(product);
+                    componentsPrice(d) <- NUMERIC[16,4](quantity(componentDetail(d))*price(componentDetail(d))*pricePercent(d)/(GROUP SUM quantity(ProductDetail d1)*pricePercent(d1) IF componentDetail(d) = componentDetail(d1)));
+                    costPrice(d) <- NUMERIC[16,4](calcCost(d));
+                    changeValueMarkup(d);
+                    sum(d) <- NUMERIC[18,4](round2(quantity(d) * price(d)));
+                    outputProductsSum(d) <- sum(d);
+                }
+            }
+            SHOW order OBJECTS o = o DOCKED NOCANCEL;
+        }
+    }
+} TOOLBAR;
+
+EXTEND FORM orders
+    PROPERTIES(o) copyGestori
+;
+
+DESIGN orders{
+    REMOVE PROPERTY (copy(o));
+}

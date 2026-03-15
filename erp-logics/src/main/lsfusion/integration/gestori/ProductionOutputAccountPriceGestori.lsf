@@ -11,5 +11,6 @@ calcAccountPriceGestori (OutputDetail d) =
             (quantity(d) (+) calcAccountPriceBalance(d) (+) (GROUP SUM quantity(OutputDetail d1) IF output(d1) = output(d) AND sku(d1) = sku(d) AND d1 < d)));
 
 WHEN (SETCHANGED(sku(OutputDetail d)) OR SETCHANGED(stock(d)) OR SETCHANGED(dateTime(d)) OR
-    SETCHANGED(quantity(d)) OR SETCHANGED(price(d))) AND NOT disableCalcAccountPrice() DO
+    SETCHANGED(quantity(d)) OR SETCHANGED(price(d))) AND NOT disableCalcAccountPrice() AND 
+    (GROUP SUM 1 IF output(OutputDetail d1) = output(d) AND sku(d1) = sku(d)) > 1 DO
     accountPrice(d) <- calcAccountPriceGestori(d);
