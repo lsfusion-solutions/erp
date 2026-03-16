@@ -10,7 +10,7 @@ CLASS QuantityFilterType 'Тип фильтра по количеству' {
     equal 'Равно'
 }
 
-CLASS SkuFilterType 'Тип фильтра по товарам'{
+CLASS SkuFilterMode 'Тип фильтра по товарам'{
     sku 'Товары',
     skuGroups 'Товарные группы',
     skuLists 'Списки товаров'
@@ -50,12 +50,12 @@ filterForPerformanceReport(Receipt r) = filterByDates(r) AND inSaleReport(depart
     AND ((NOT GROUP SUM 1 IF in(CashRegister cr)) OR in(cashRegister(r)))
     AND ((NOT GROUP SUM 1 IF in(Employee e)) OR in(employee(r)));
 
-skuFilterType = DATA LOCAL SkuFilterType();
-nameSkuFilterType 'Выбор товаров' = staticCaption(skuFilterType());
+skuFilterMode = DATA LOCAL SkuFilterMode();
+nameSkuFilterMode 'Выбор товаров' = staticCaption(skuFilterMode());
 
 filterBySku(ReceiptDetail rd) = CASE
-    WHEN skuFilterType() = SkuFilterType.skuGroups THEN ((NOT GROUP SUM 1 IF inSession(SkuGroup g)) OR inSession(skuGroup(sku(rd))))
-    WHEN skuFilterType() = SkuFilterType.sku OR skuFilterType() = SkuFilterType.skuLists THEN (NOT GROUP SUM 1 IF in(Sku s)) OR in(sku(rd))
+    WHEN skuFilterMode() = SkuFilterMode.skuGroups THEN ((NOT GROUP SUM 1 IF inSession(SkuGroup g)) OR inSession(skuGroup(sku(rd))))
+    WHEN skuFilterMode() = SkuFilterMode.sku OR skuFilterMode() = SkuFilterMode.skuLists THEN (NOT GROUP SUM 1 IF in(Sku s)) OR in(sku(rd))
     ELSE TRUE ;
 
 filterByQuantity(ReceiptDetail rd) = NOT filterQuantityType() OR NOT filterQuantity() OR
@@ -95,17 +95,17 @@ FORM selectSku 'Выбор товара'
     ORDERS name(s)
 ;
 
-FORM skuFilterType 'Тип фильтра по товарам'
-    OBJECTS t = SkuFilterType
+FORM dialogSkuFilterMode 'Тип фильтра по товарам'
+    OBJECTS t = SkuFilterMode
     PROPERTIES(t) READONLY '' = staticCaption
-    LIST SkuFilterType OBJECT t;
+    LIST SkuFilterMode OBJECT t;
 
 askSkuFilterType 'Фильтр по товарам'() {
-    DIALOG skuFilterType OBJECTS t INPUT DO {
-        skuFilterType() <- t;
-        IF t = SkuFilterType.sku THEN SHOW selectSku ;
-        ELSE IF t = SkuFilterType.skuGroups THEN SHOW filterGroupType;
-        ELSE IF t = SkuFilterType.skuLists THEN addSkuLists();
+    DIALOG dialogSkuFilterMode OBJECTS t INPUT DO {
+        skuFilterMode() <- t;
+        IF t = SkuFilterMode.sku THEN SHOW selectSku ;
+        ELSE IF t = SkuFilterMode.skuGroups THEN SHOW filterGroupType;
+        ELSE IF t = SkuFilterMode.skuLists THEN addSkuLists();
     }
 }
 
