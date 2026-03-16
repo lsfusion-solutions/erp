@@ -1,0 +1,21 @@
+MODULE FitCashRegisterBatch;
+
+REQUIRE FitCashRegister, ZReportBatch;
+
+NAMESPACE Fit;
+
+fitOverParse(CashRegister cr) + {
+    FOR STRING srl = receiptString(INTEGER j) AND left(srl, 2) = '12' AND substr(srl, 77, 1) = '+' AND
+        INTEGER sl = (GROUP MAX INTEGER l IF left(receiptString(l), 2) = '01' AND l < j) AND
+        STRING rs = receiptString(sl) AND
+        ReceiptSaleDetail d = receiptDetail(STRING[100](substr(rs, 92, 4) + substr(rs, 96, 8) + lpad(STRING(cr), 18, '0') + substr(rs, 56, 12) + substr(rs, 27, 6) + substr(rs, 48, 5) + lpad(STRING(j - sl), 10, '0'))) AS ReceiptSaleDetail DO {
+        batch(d) <- (GROUP MIN Batch b IF currentBalance(b, departmentStore(d)) > 0 AND sku(b) = sku(d));
+    }
+    FOR STRING srl = receiptString(INTEGER j) AND left(srl, 2) = '12' AND substr(srl, 77, 1) = '-' AND
+        INTEGER sl = (GROUP MAX INTEGER l IF left(receiptString(l), 2) = '01' AND l < j) AND
+        STRING rs = receiptString(sl) AND
+        ReceiptReturnDetail d = receiptDetail(STRING[100](substr(rs, 92, 4) + substr(rs, 96, 8) + lpad(STRING(cr), 18, '0') + substr(rs, 56, 12) + substr(rs, 27, 6) + substr(rs, 48, 5) + lpad(STRING(j - sl), 10, '0'))) AS ReceiptReturnDetail DO {
+        batch(d) <- (GROUP LAST Batch b IF NOT currentBalance(b, departmentStore(d)) >= shippedQuantity(b) AND sku(b) = sku(d) AND
+            batch(ReceiptSaleDetail d1) = b AND departmentStore(d1) = departmentStore(d) ORDER d1, b);
+    }
+}
