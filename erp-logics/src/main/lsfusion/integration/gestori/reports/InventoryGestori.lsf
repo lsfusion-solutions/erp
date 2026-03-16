@@ -301,11 +301,15 @@ selectSkus 'Фильтр по товарам' () {
 }
 
 selectedSkuNames = GROUP CONCAT name(Sku s) IF in(s), '; ' ORDER name(s), s;
-skuNamesFromGroups = GROUP CONCAT name(Sku s) IF inSession(skuGroup2(s)) AND name(s), '; ' ORDER name(s), s;
+
+inSessionParent(Sku s) = GROUP MAX inSession(SkuGroup g) IF isParent(g, s);
+
+skuNamesFromGroups = GROUP CONCAT name(Sku s) IF inSessionParent(s) AND name(s), '; ' ORDER name(s), s;
+
 inSkus 'Товары' = OVERRIDE selectedSkuNames(), skuNamesFromGroups();
 
 anySkuSelected() = (GROUP MAX in(Sku s)) OR anySkuGroup();
-inSkuFilter (SkuLedger o) = NOT anySkuSelected() OR in(sku(o)) OR inSession(skuGroup2(sku(o)));
+inSkuFilter (SkuLedger o) = NOT anySkuSelected() OR in(sku(o)) OR inSessionParent(sku(o));
 
 inOperation 'Вкл.' = DATA LOCAL BOOLEAN (Operation.Operation);
 cntSelectedOps() = GROUP SUM 1 IF inOperation(Operation.Operation op);
