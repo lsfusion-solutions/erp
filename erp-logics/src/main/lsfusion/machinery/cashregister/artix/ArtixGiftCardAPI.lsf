@@ -28,19 +28,42 @@ groupFullySpend 'Полное списание' = ABSTRACT BOOLEAN (GiftCard);
 
 skipGroupDiscountCampaing 'Не использовать акции сертификата' = ABSTRACT BOOLEAN (GiftCard);
 overGroupDiscountCampaing 'Акция сертификата' = ABSTRACT STRING (GiftCard);
-defaultGroupDiscountCampaing 'Акция сертификата по умолчанию' (DATE dateFrom, INTEGER days) = STRING(CONCAT '\\r\\n',
-    ('!!python/object:artixds.domain.DiscountCampaign active: true'),
-    ('beginBonusesDateCalculate: null'),
-    ('beginBonusesIntervalCondition: !!python/unicode \'begin_current\' beginBonusesIntervalMetric: !!python/unicode \'day\' beginBonusesIntervalValue: 0 beginDate: null'),
-    ('beginDateWithBeginCurrentMetric: !!python/unicode \'day\' beginDateWithBeginNextMetric: !!python/unicode \'day\' beginRangeDate: '
-        + toDateISO(dateFrom) + ' beginTime: null checkedTags: null daysOfWeek: [] discounts: []'),
-    ('endBonusesDateCalculate: null'),
-    ('endBonusesIntervalCondition: !!python/unicode \'through\' endBonusesIntervalMetric: !!python/unicode \'day\' endBonusesIntervalValue: '
-        + days + ' endDate: null endRangeDate: '
-        + toDateISO(dateFrom) + ' endTime: null id: 282563697264015 interactionType: all labels: null manualActivate: null name: !!python/unicode \'\' parent: null'),
-    ('parentGroup: null priority: null qualifiers: !!set ' + '\{' + '\} tagsIsAllowed: false weight: 300'));
+defaultGroupDiscountCampaing 'Акция сертификата по умолчанию' (DATE dateFrom, INTEGER days, DATE dateTo) = STRING(CONCAT '\\r\\n',
+    '!!python/object:artixds.domain.DiscountCampaign active: true',
+    'active: true',
+    'beginBonusesDateCalculate: null',
+    'beginBonusesIntervalCondition: !!python/unicode \'' + (OVERRIDE 'date' IF NOT days > 0, 'through') + '\'',
+    'beginBonusesIntervalMetric: !!python/unicode \'day\'',
+    'beginBonusesIntervalValue: 0',
+    'beginDate: null',
+    'beginDateWithBeginCurrentMetric: !!python/unicode \'day\'',
+    'beginDateWithBeginNextMetric: !!python/unicode \'day\'',
+    'beginRangeDate: ' + toDateISO(dateFrom),
+    'beginTime: null',
+    'checkedTags: null',
+    'daysOfWeek: []',
+    'discounts: []',
+    'endBonusesDateCalculate: null',
+    'endBonusesIntervalCondition: !!python/unicode \'' + (OVERRIDE 'date' IF NOT days > 0, 'through') + '\'',
+    'endBonusesIntervalMetric: !!python/unicode \'day\'',
+    'endBonusesIntervalValue: ' + days,
+    'endDate: null',
+    'endRangeDate: ' + toDateISO(dateTo),
+    'endTime: null',
+    'id: 282563697264015',
+    'interactionType: all',
+    'labels: null',
+    'manualActivate: null',
+    'name: !!python/unicode \'\'',
+    'parent: null',
+    'parentGroup: null',
+    'priority: null',
+    'qualifiers: !!set \{\}',
+    'tagsIsAllowed: false',
+    'weight: 300');
 groupDiscountCampaign 'Акция сертификата' (GiftCard c) = (OVERRIDE overGroupDiscountCampaing(c),
-    defaultGroupDiscountCampaing(date(c), expiryDays(c)) IF date(c) AND expiryDays(c)) IF NOT skipGroupDiscountCampaing(c);
+    defaultGroupDiscountCampaing(date(c), 0, expireDate(c)) IF date(c) AND expireDate(c),
+    defaultGroupDiscountCampaing(date(c), expiryDays(c), date(c)) IF date(c) AND expiryDays(c)) IF NOT skipGroupDiscountCampaing(c);
 
 FORM createArtixGiftCardGroup 'Создание группы сертификатов'
     OBJECTS c = GiftCard PANEL
