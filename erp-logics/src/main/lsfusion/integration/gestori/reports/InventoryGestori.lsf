@@ -188,11 +188,6 @@ DESIGN inventoryRegister {
 
 netTotalWeight 'Вес общий' (SkuLedger o) = signedQuantity(o) * netWeight(sku(o));
 
-cost 'Бух. себестоимость' (SkuLedger o) =
-    NUMERIC[18,4](round2(costSum(o) / signedQuantity(o))) IF signedQuantity(o);
-
-sumCost 'Сумма по бух. себест-ти' (SkuLedger o) = costSum(o);
-
 retailPrice 'Отпускная цена' (SkuLedger o) =
     prevPriceB(retailPriceListType(stock(o)), sku(o), stock(o), dateTime(o));
 
@@ -201,10 +196,17 @@ sumRetail 'Сумма по отпускной цене' (SkuLedger o) =
 
 valueVAT 'Ставка НДС' (SkuLedger o) = valueVAT(sku(o), date(o));
 
-sumVAT 'Сумма НДС' (SkuLedger o) = round2(sumRetail(o) * valueVAT(o) / 100);
+sumVAT 'Сумма НДС' (SkuLedger o) = round2(sumRetail(o) * valueVAT(o) / (100 (+) valueVAT(o)));
+
+sumCost 'Сумма по бух. себест-ти' (SkuLedger o) =
+    round2(signedSum(o) * 100.0 / (100 (+) valueVAT(o)));
+
+cost 'Бух. себестоимость' (SkuLedger o) =
+    NUMERIC[18,4](round2(sumCost(o) / signedQuantity(o))) IF signedQuantity(o);
 
 profit 'Прибыль (%)' (SkuLedger o) =
-    round2(sumRetail(o) * 100 / signedSum(o) - 100) IF signedSum(o);
+    round2(((sumRetail(o) (-) sumVAT(o)) (-) sumCost(o)) * 100 / (sumRetail(o) (-) sumVAT(o)))
+        IF (sumRetail(o) (-) sumVAT(o));
 
 EXTEND FORM skuLedger
     PROPERTIES(s) netTotalWeight, cost, sumCost, retailPrice,
@@ -363,7 +365,7 @@ FORM operationReport 'Отчет по хозяйственной операци�
     EVENTS ON INIT initDates()
 ;
 
-printOperationReport 'Отчет' () { PRINT operationReport PDF; } IMAGE 'print.png';
+printOperationReport 'Отчет' () { PRINT operationReport XLSX; } IMAGE 'print.png';
 
 EXTEND FORM operationReport
     PROPERTIES() DISABLEIF NOT dateFrom() OR NOT dateTo() printOperationReport
