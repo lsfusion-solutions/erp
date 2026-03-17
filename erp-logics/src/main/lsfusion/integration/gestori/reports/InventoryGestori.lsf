@@ -185,7 +185,6 @@ DESIGN inventoryRegister {
         MOVE PROPERTY(inSaleReportStocks) { alignment = STRETCH; }
     }
 }
-
 netTotalWeight 'Вес общий' (SkuLedger o) = signedQuantity(o) * netWeight(sku(o));
 
 retailPrice 'Отпускная цена' (SkuLedger o) =
@@ -320,7 +319,7 @@ inOpFilter (SkuLedger o) = allOperations() OR inOperation(operationDocument(o));
 
 hasData (Operation.Operation op) = GROUP SUM 1 IF inInterval(SkuLedger o)
     AND inSaleReport(stock(o))
-    AND signedQuantity(o) > 0
+    AND signedQuantity(o)
     AND operationDocument(o) = op;
 
 inOperations 'Операции' () = IF allOperations() THEN 'ВСЕ'
@@ -356,7 +355,7 @@ FORM operationReport 'Отчет по хозяйственной операци�
         sumByAccPrice, retailPrice, sumRetail, valueVAT, sumVAT, profit
     FILTERS inInterval(o),
         inSaleReport(stock(o)),
-        signedQuantity(o) > 0,
+        signedQuantity(o),
         inOpFilter(o),
         inSkuFilter(o)
     PROPERTIES title = 'Отчет по хозяйственной операции ' + titleInterval()
