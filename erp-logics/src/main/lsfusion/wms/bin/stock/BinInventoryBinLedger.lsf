@@ -1,15 +1,36 @@
 MODULE BinInventoryBinLedger;
 
-REQUIRE BinSkuLedger;
+REQUIRE BinLedger, Operation;
 
 NAMESPACE BinInventory;
 
-CLASS BinInventory;
+//Операция
+@defineOperation(' (Инвентаризация по ячейкам)');
+
+@defineOperationRole();
+
+DESIGN operation {
+    tabContainer{
+        NEW showContainer {
+            caption = 'Отображение свойств';
+        }
+        NEW createContainer {
+            caption = 'Производные документы';
+        }
+        NEW constraintContainer {
+            caption = 'Ограничения';
+        }
+        NEW paramsContainer {
+            caption = 'Параметры';
+        }
+    }
+}
+
+CLASS BinInventory 'Инвентаризация по ячейкам';
 
 @defineDocumentHeaderCreated(BinInventory);
 
 @defineDocumentHeaderPosted(BinInventory);
-
 
 @defineDocumentHeaderTime(BinInventory);
 
@@ -477,3 +498,12 @@ needToCreate(BinInventory binInventory, Sku sku, Bin bin) += isPosted(binInvento
     AND diffBinInventory(binInventory, sku, bin)
     AND stock(binInventory) = stock(bin)
     AND NOT skipBinInventoryBinLedger(binInventory);
+
+NAVIGATOR {
+    WMSNavigator {
+        NEW FOLDER binInventoryNavigator 'Инвентаризация по ячейкам' {
+            NEW binInventory;
+            NEW operation;
+        }
+    }
+}
