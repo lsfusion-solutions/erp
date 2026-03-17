@@ -47,7 +47,6 @@ DESIGN warehouse {
 }
 
 overCloseDate (Order o) += sum(shipmentDate(o), delayDaysOrder(supplierStock(o)) + 1);
-
 filterStatus = DATA LOCAL StatusOrder();
 nameFilterStatus 'Статус' = name(filterStatus());
 filterStatus(Purchase.Order o) = status(o) == filterStatus() OR (o IS Purchase.Order AND NOT filterStatus());
@@ -87,6 +86,9 @@ specPrice 'Цена из спецификации' (Purchase.OrderDetail d) =
     prevPriceA(priceListType(d), sku(d), customerStock(d), supplier(d), dateTime(d));
 
 orderSum 'Сумма заказа (с НДС)' (Purchase.OrderDetail d) = invoiceSum(d);
+
+receivedSum 'Сумма из приходной накладной (с НДС)' (Purchase.OrderDetail d) =
+    shipped(d) * receivedPrice(d);
 
 reportDateFrom 'Дата с' = DATA LOCAL DATE();
 reportDateTo 'Дата по' = DATA LOCAL DATE();
@@ -193,6 +195,8 @@ deleteReportSkuGroups 'Сбросить группы' () {
     inReportSkuGroup(SkuGroup g) <- NULL;
 } ASON CONTEXTMENU nameReportSkuGroups;
 
+inReportSkuByGroup(Sku s) = GROUP MAX inReportSkuGroup(SkuGroup g) IF isParent(g, s);
+
 FORM selectReportSku 'Выбор товаров'
     TREE skuTree sg = SkuGroup PARENT parent(sg)
     PROPERTIES READONLY order(sg), skuGroupName = name(sg)
@@ -247,7 +251,7 @@ selectReportSkus 'Фильтр по товарам' () {
 }
 
 selectedReportSkuNames = GROUP CONCAT name(Sku s) IF inReportSku(s), '; ' ORDER name(s), s;
-skuNamesFromReportGroups = GROUP CONCAT name(Sku s) IF inReportSkuGroup(skuGroup2(s)) AND name(s), '; ' ORDER name(s), s;
+skuNamesFromReportGroups = GROUP CONCAT name(Sku s) IF inReportSkuByGroup(s) AND name(s), '; ' ORDER name(s), s;
 reportInSkus 'Товары' = OVERRIDE selectedReportSkuNames(), skuNamesFromReportGroups();
 
 anyReportSkuSelected() = (GROUP MAX inReportSku(Sku s)) OR anyReportSkuGroup();
@@ -258,7 +262,7 @@ inReportStatus(Purchase.OrderDetail d) = status(order(d)) == reportStatus() OR (
 inReportSupplierFilter(Purchase.OrderDetail d) =
     NOT anyReportSupplier() OR inReportSupplier(supplier(order(d)));
 inReportStockFilter(Purchase.OrderDetail d) = inSaleReport(customerStock(order(d)));
-inReportSkuFilter(Purchase.OrderDetail d) = NOT anyReportSkuSelected() OR inReportSku(sku(d)) OR inReportSkuGroup(skuGroup2(sku(d)));
+inReportSkuFilter(Purchase.OrderDetail d) = NOT anyReportSkuSelected() OR inReportSku(sku(d)) OR inReportSkuByGroup(sku(d));
 
 FORM purchaseOrderReportForm 'Отчет по заказам поставщикам'
     PROPERTIES() reportDateFrom, reportDateTo, nameReportStatus
@@ -275,7 +279,7 @@ FORM purchaseOrderReportForm 'Отчет по заказам поставщик�
         idSku, nameSku,
         quantity, shipped,
         invoicePrice, specPrice, receivedPrice,
-        orderSum, invoiceSum,
+        orderSum, invoiceSum, receivedSum,
         invoices
     ORDERS nameSupplier(d), idNameCustomerStock(d), date(d)
     FILTERS inReportDateFrom(d),
@@ -306,7 +310,7 @@ inReportDateFromOrder(Purchase.InvoiceDetail d) = date(d) >= reportDateFrom() OR
 inReportDateToOrder(Purchase.InvoiceDetail d) = date(d) <= reportDateTo() OR (d IS Purchase.InvoiceDetail AND NOT reportDateTo());
 inReportSupplierFilterOrder(Purchase.InvoiceDetail d) = NOT anyReportSupplier() OR inReportSupplier(supplier(d));
 inReportStockFilterOrder(Purchase.InvoiceDetail d) = inSaleReport(customerStock(d));
-inReportSkuFilterOrder(Purchase.InvoiceDetail d) = NOT anyReportSkuSelected() OR inReportSku(sku(d)) OR inReportSkuGroup(skuGroup2(sku(d)));
+inReportSkuFilterOrder(Purchase.InvoiceDetail d) = NOT anyReportSkuSelected() OR inReportSku(sku(d)) OR inReportSkuByGroup(sku(d));
 
 quantityUnconfirmed 'Количество неподтвержд.' = DATA LOCAL NUMERIC[16,5] (Sku, LegalEntity, Stock);
 quantityAgreed 'Количество согласованное' = DATA LOCAL NUMERIC[16,5] (Sku, LegalEntity, Stock);
@@ -327,42 +331,43 @@ FORM printPurchaseOrderReportSummary
 ;
 
 orderReceiptReconSummary 'Акт сверки (сводная)' () {
-    
-    LOCAL orderDetail = OrderDetail ();
-    
+
+    LOCAL lastOrderDetail = Purchase.OrderDetail (Sku, LegalEntity, Stock);
+
     quantityUnconfirmed(Sku sk, LegalEntity l, Stock st) <- NULL;
     quantityAgreed(Sku sk, LegalEntity l, Stock st) <- NULL;
     quantityShipped(Sku sk, LegalEntity l, Stock st) <- NULL;
     priceContract(Sku sk, LegalEntity l, Stock st) <- NULL;
     sumPurchase(Sku sk, LegalEntity l, Stock st) <- NULL;
-    
-    quantityUnconfirmed(Sku sk, LegalEntity l, Stock st) <- GROUP SUM quantity(Purchase.OrderDetail d) IF NOT isConfirmed(d) AND 
+
+    quantityUnconfirmed(Sku sk, LegalEntity l, Stock st) <- GROUP SUM quantity(Purchase.OrderDetail d) IF NOT isConfirmed(d) AND
         sku(d)=sk AND supplier(d)=l AND customerStock(d)=st AND
         inReportDateFrom(d) AND inReportDateTo(d) AND inReportStatus(d) AND
         inReportSupplierFilter(d) AND inReportStockFilter(d) AND inReportSkuFilter(d);
-        
+
     quantityAgreed(Sku sk, LegalEntity l, Stock st) <- GROUP SUM quantity(Purchase.OrderDetail d) IF isConfirmed(d) AND
         sku(d)=sk AND supplier(d)=l AND customerStock(d)=st AND
         inReportDateFrom(d) AND inReportDateTo(d) AND inReportStatus(d) AND
         inReportSupplierFilter(d) AND inReportStockFilter(d) AND inReportSkuFilter(d);
-    
-    quantityShipped(Sku sk, LegalEntity l, Stock st) <- GROUP SUM shipped(Purchase.OrderDetail d) IF 
+
+    quantityShipped(Sku sk, LegalEntity l, Stock st) <- GROUP SUM shipped(Purchase.OrderDetail d) IF
         sku(d)=sk AND supplier(d)=l AND customerStock(d)=st AND
+            inReportDateFrom(d) AND inReportDateTo(d) AND inReportStatus(d) AND
+            inReportSupplierFilter(d) AND inReportStockFilter(d) AND inReportSkuFilter(d);
+
+    lastOrderDetail(Sku sk, LegalEntity l, Stock st) <- GROUP LAST Purchase.OrderDetail d ORDER dateTime(d), d WHERE
+    sku(d)=sk AND supplier(d)=l AND customerStock(d)=st AND
         inReportDateFrom(d) AND inReportDateTo(d) AND inReportStatus(d) AND
         inReportSupplierFilter(d) AND inReportStockFilter(d) AND inReportSkuFilter(d);
-    
-    orderDetail() <- GROUP LAST Purchase.OrderDetail d ORDER dateTime(d), d WHERE
-        inReportDateFrom(d) AND inReportDateTo(d) AND inReportStatus(d) AND
-        inReportSupplierFilter(d) AND inReportStockFilter(d) AND inReportSkuFilter(d);
-    
-    priceContract(Sku sk, LegalEntity l, Stock st) <- 
-        prevPriceA(priceListType(orderDetail()), sk, st, l, dateTime(orderDetail()));
-    
-    sumPurchase(Sku sk, LegalEntity l, Stock st) <- GROUP SUM invoiceSum(Purchase.InvoiceDetail d) IF 
+
+    priceContract(Sku sk, LegalEntity l, Stock st) <-
+    prevPriceA(priceListType(lastOrderDetail(sk, l, st)), sk, st, l, dateTime(lastOrderDetail(sk, l, st)));
+
+    sumPurchase(Sku sk, LegalEntity l, Stock st) <- GROUP SUM invoiceSum(Purchase.InvoiceDetail d) IF
         sku(d)=sk AND supplier(d)=l AND customerStock(d)=st AND
-        inReportDateFromOrder(d) AND inReportDateToOrder(d) AND 
-        inReportSupplierFilterOrder(d) AND inReportStockFilterOrder(d) AND inReportSkuFilterOrder(d);
-    
+            inReportDateFromOrder(d) AND inReportDateToOrder(d) AND
+            inReportSupplierFilterOrder(d) AND inReportStockFilterOrder(d) AND inReportSkuFilterOrder(d);
+
     template() <- 'OrderReceiptReconSummaryGestori.jrxml';
     PRINT printPurchaseOrderReportSummary XLSX ;
 } IMAGE 'print.png';
@@ -374,7 +379,7 @@ FORM printPurchaseOrderReport
         idSku, nameSku,
         quantity, shipped,
         invoicePrice, specPrice, receivedPrice,
-        orderSum, invoiceSum,
+        orderSum, invoiceSum, receivedSum,
         invoices, isConfirmed
     ORDERS nameSupplier(d), idNameCustomerStock(d), date(d)
     FILTERS inReportStatus(d),
