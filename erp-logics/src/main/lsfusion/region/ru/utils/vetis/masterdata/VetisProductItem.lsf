@@ -121,6 +121,8 @@ TABLE productItem (ProductItem);
 
 guid 'Код' = DATA STRING (ProductItem) CHARWIDTH 36 INDEXED;
 productItem 'Номенклатура' = GROUP AGGR ProductItem i BY guid(i);
+isExported 'Экспортируемый' = DATA BOOLEAN (ProductItem);
+uuid 'Код uuid' = DATA STRING (ProductItem) CHARWIDTH 36 INDEXED;
 
 globalID 'GTIN' = DATA STRING (ProductItem) CHARWIDTH 14 INDEXED;
 productItemGlobalID 'Номенклатура' = GROUP MAX ProductItem i BY globalID(i);
@@ -136,11 +138,36 @@ nameSubProduct 'Вид продукции' (ProductItem i) = name(subProduct(i))
 producer = DATA BusinessEntity (ProductItem);
 nameProducer 'Производитель' (ProductItem i) = name(producer(i));
 
+owner = DATA BusinessEntity (ProductItem);
+nameOwner 'Владелец' (ProductItem i) = name(owner(i));
+
 inactive 'Неактивен' = DATA BOOLEAN (ProductItem);
+
+in = DATA BOOLEAN (ProductItem, Enterprise);
+nameEnterprises 'Площадки' (ProductItem pi) = GROUP CONCAT name(Enterprise e) IF in(pi, e) , ', ' ORDER e;
+
+in 'Отм.' = DATA BOOLEAN (Enterprise);
+
+FORM dialogChangeEnterprises 'Выбор площадкок'
+    OBJECTS b = BusinessEntity PANEL 
+    OBJECTS e = Enterprise
+    PROPERTIES(e) in
+    PROPERTIES(e) READONLY guid, name, nameOwner
+    FILTERS owner(e) = b
+;
+changeEnterprises(ProductItem o)  {
+    DIALOG dialogChangeEnterprises OBJECTS b = producer(o),e INPUT DO {
+        IF NOT (GROUP SUM 1 IF in(Enterprise en)) THEN
+            in(o, e) <- TRUE;
+            ELSE in(o, Enterprise en) <-in(en);
+    }
+}
 
 FORM productItem 'Номенклатура'
     OBJECTS o = ProductItem PANEL
-    PROPERTIES(o) guid, name, globalID, code, nameSubProduct, nameProducer, inactive
+    PROPERTIES(o) READONLY isExported, guid, uuid
+    PROPERTIES(o) READONLYIF isExported(o) name, globalID, code, nameSubProduct, nameProducer, nameOwner, inactive,
+        nameEnterprises ON CHANGE changeEnterprises(o)
     
     EDIT ProductItem OBJECT o
 ;
@@ -158,7 +185,7 @@ FORM productItems 'Номенклатура'
         FILTER 'Активные' NOT inactive(p) AND NOT inactive(sp) DEFAULT
 
     OBJECTS o = ProductItem
-    PROPERTIES(o) READONLY guid, name, globalID, code, nameSubProduct, nameProducer, inactive
+    PROPERTIES(o) READONLY isExported, guid, uuid, name, globalID, code, nameSubProduct, nameProducer, nameOwner, nameEnterprises, inactive
     PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
 
     FILTERGROUP active

@@ -1,0 +1,169 @@
+MODULE VetisProductItemExport;
+
+REQUIRE VetisAMSReceiveResponse, VetisEnterprise, VetisProduct, VetisProductItem;
+
+NAMESPACE Vetis;
+
+CLASS ProductItemRequest 'Создание номенклатуры' : ApplicationRequest;
+
+productItem = DATA ProductItem (ProductItemRequest) INDEXED NONULL;
+guidProductItem 'Код номенклатуры' (ProductItemRequest r) = guid(productItem(r));
+
+localTransactionId (ProductItemRequest r) = LONG(r AS ProductItemRequest);
+
+GROUP modificationOperation EXTID 'merc:modificationOperation';
+GROUP resultingList EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:resultingList' : modificationOperation;
+GROUP productItem EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:productItem' : resultingList;
+GROUP product EXTID 'dt:product' : productItem;
+GROUP subProduct EXTID 'dt:subProduct' : productItem;
+GROUP producer EXTID 'dt:producer' : productItem;
+GROUP tmOwner EXTID 'dt:tmOwner' : productItem;
+GROUP producing EXTID 'dt:producing' : productItem;
+GROUP location EXTID 'dt:location';
+
+type = DATA LOCAL STRING(ProductItemRequest);
+guid = DATA LOCAL STRING(ProductItemRequest);
+uuid = DATA LOCAL STRING(ProductItemRequest);
+globalID = DATA LOCAL STRING(ProductItemRequest);
+nameE = DATA LOCAL STRING(ProductItemRequest);
+code = DATA LOCAL STRING(ProductItemRequest);
+productType = DATA LOCAL STRING(ProductItemRequest);
+guid1 = DATA LOCAL STRING(ProductItemRequest);
+guid2 = DATA LOCAL STRING(ProductItemRequest);
+guid3 = DATA LOCAL STRING(ProductItemRequest);
+guid4 = DATA LOCAL STRING(ProductItemRequest);
+guid5 = DATA LOCAL STRING(ProductItemRequest, Enterprise);
+
+FORM modifyProducerStockList FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:modifyProducerStockListRequest'
+    OBJECTS r = ProductItemRequest PANEL
+    PROPERTIES(r) localTransactionId EXTID 'merc:localTransactionId'
+    PROPERTIES(r) IN initiator loginMercury EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:login'
+
+    PROPERTIES(r) IN modificationOperation type EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:type'
+    PROPERTIES(r) IN productItem guid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid', uuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid', globalID EXTID 'dt:globalID', nameE EXTID 'dt:name', code EXTID 'dt:code', productType EXTID 'dt:productType'
+    PROPERTIES(r) IN product guid1 EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
+    PROPERTIES(r) IN subProduct guid2 EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
+    PROPERTIES(r) IN producer guid3 EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
+    PROPERTIES(r) IN tmOwner guid4 EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
+    OBJECTS producing = Enterprise IN productItem EXTID 'dt:producing'
+    PROPERTIES(r, producing) IN location guid5 EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
+        FILTERS guid5(r, producing);
+
+createModifyProducerStockList 'Создание наменклатуры' (ProductItem p) {
+    NEWSESSION {
+        NEW r = ProductItemRequest {
+            businessEntity(r) <- producer(p);
+            productItem(r) <- p;
+//            date(r) <- currentDateTime();
+
+            type(r) <- 'CREATE';
+            isExported(p)<-TRUE;
+            globalID(r) <- globalID(p);
+            nameE(r) <- name(p);
+            code(r) <- code(p);
+            productType(r) <- STRING(id(productType(product(subProduct(p)))));
+            guid1(r) <- guid(product(subProduct(p)));
+            guid2(r) <- guid(subProduct(p));
+            guid3(r) <- guid(producer(p));
+            guid4(r) <- guid(owner(p));
+            FOR in(p, Enterprise e) DO guid5(r, e) <- guid(e);
+
+            EXPORT modifyProducerStockList OBJECTS r=r XML;
+            submit(r, exportFile());
+        }
+        APPLY;
+    }
+}
+
+updateModifyProducerStockList 'Изменение наменклатуры' (ProductItem p) {
+    NEWSESSION {
+        NEW r = ProductItemRequest {
+            businessEntity(r) <- producer(p);
+            productItem(r) <- p;
+            //            date(r) <- currentDateTime();
+
+            type(r) <- 'UPDATE';
+            isExported(p)<-TRUE;
+            uuid(r) <- uuid(p);
+            globalID(r) <- globalID(p);
+            nameE(r) <- name(p);
+            code(r) <- code(p);
+            productType(r) <- STRING(id(productType(product(subProduct(p)))));
+            guid1(r) <- guid(product(subProduct(p)));
+            guid2(r) <- guid(subProduct(p));
+            guid3(r) <- guid(producer(p));
+            guid4(r) <- guid(owner(p));
+            FOR in(p, Enterprise e) DO guid5(r, e) <- guid(e);
+
+            EXPORT modifyProducerStockList OBJECTS r=r XML;
+            submit(r, exportFile());
+        }
+        APPLY;
+    }
+}
+
+EXTEND FORM productItems
+    PROPERTIES(o) createModifyProducerStockList, updateModifyProducerStockList DRAW o TOOLBAR
+;
+
+GROUP productItemListR EXTID 'merc:productItemList';
+GROUP productItemR EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:productItem' : productItemListR;
+GROUP productR EXTID 'dt:product' : productItemR;
+GROUP subProductR EXTID 'dt:subProduct' : productItemR;
+GROUP producerR EXTID 'dt:producer' : productItemR;
+GROUP tmOwnerR EXTID 'dt:tmOwner' : productItemR;
+
+GROUP locationR EXTID 'dt:location';
+
+uuidR = DATA LOCAL STRING();
+guidR = DATA LOCAL STRING();
+activeR = DATA LOCAL STRING();
+lastR = DATA LOCAL STRING();
+statusR = DATA LOCAL STRING();
+createDateR = DATA LOCAL ZDATETIME();
+updateDateR = DATA LOCAL ZDATETIME();
+globalIDR = DATA LOCAL STRING();
+nameR = DATA LOCAL STRING();
+productTypeR = DATA LOCAL STRING();
+uuidR1 = DATA LOCAL STRING();
+guidR1 = DATA LOCAL STRING();
+uuidR2 = DATA LOCAL STRING();
+guidR2 = DATA LOCAL STRING();
+correspondsToGostR = DATA LOCAL STRING();
+uuidR3 = DATA LOCAL STRING();
+guidR3 = DATA LOCAL STRING();
+uuidR4 = DATA LOCAL STRING();
+guidR4 = DATA LOCAL STRING();
+uuidR5 = DATA LOCAL STRING(INTEGER);
+guidR5 = DATA LOCAL STRING(INTEGER);
+isPublicR = DATA LOCAL STRING();
+countR = DATA LOCAL STRING();
+totalR = DATA LOCAL STRING();
+offsetR = DATA LOCAL STRING();
+
+FORM modifyProducerStockListResponse FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:modifyProducerStockListResponse'
+    PROPERTIES() IN productItemListR countR ATTR, totalR ATTR, offsetR ATTR
+    PROPERTIES() IN productItemR uuidR EXTID 'bs:uuid', guidR EXTID 'bs:guid', activeR EXTID 'bs:active', lastR EXTID 'bs:last', statusR EXTID 'bs:status', createDateR EXTID 'bs:createDate', updateDateR EXTID 'bs:updateDate', globalIDR EXTID 'dt:globalID', nameR EXTID 'dt:name', productTypeR EXTID 'dt:productType', correspondsToGostR EXTID 'dt:correspondsToGost', isPublicR EXTID 'dt:isPublic'
+    PROPERTIES() IN productR uuidR1 EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid', guidR1 EXTID 'bs:guid'
+    PROPERTIES() IN subProductR uuidR2 EXTID 'bs:uuid', guidR2 EXTID 'bs:guid'
+    PROPERTIES() IN producerR uuidR3 EXTID 'bs:uuid', guidR3 EXTID 'bs:guid'
+    PROPERTIES() IN tmOwnerR uuidR4 EXTID 'bs:uuid', guidR4 EXTID 'bs:guid'
+
+    OBJECTS producing = INTEGER EXTID 'dt:producing' IN productItemR
+
+    PROPERTIES(producing) IN location uuidR5 EXTID 'bs:uuid', guidR5 EXTID 'bs:guid';
+
+process (ProductItemRequest r) + {
+    NEWSESSION {
+        stringToFile(response(r));
+        IMPORT modifyProducerStockListResponse XML FROM resultFile();
+        isExported(productItem(r))<-NULL;
+
+        globalID(productItem(r)) <- globalIDR();
+        name(productItem(r)) <- nameR();
+        uuid(productItem(r)) <- uuidR();
+        guid(productItem(r)) <- guidR();
+        processed(r) <- TRUE;
+        APPLY;
+    }
+}
