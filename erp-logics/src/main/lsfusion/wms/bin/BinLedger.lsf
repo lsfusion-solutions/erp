@@ -931,3 +931,107 @@ END
 @defineBinAttribute(picking, 'Комплектация');
 
 select 'Отм.' = DATA LOCAL NESTED BOOLEAN (Sku, Bin);
+
+META defineAddDocumentDetail(object, caption)
+    idBarcodeLocal 'Штрихкод' = DATA LOCAL STRING[15] (###object);
+    skuLocal = DATA LOCAL Sku (###object);
+    nameSkuLocal 'Товар' (###object o)= name(skuLocal(o));
+    quantityLocal 'Кол-во' = DATA LOCAL NUMERIC[16,5] (###object);
+
+    overChangeBarcodeLocal ABSTRACT LIST (###object);
+    changeBarcodeLocal(###object o) {
+        INPUT s=STRING[15] DO {
+            IF skuBarcode(s, currentDate()) THEN {
+                idBarcodeLocal(o) <- s;
+                skuLocal(o) <- skuBarcode(s, currentDate());
+                quantityLocal(o) <- NULL;
+                overChangeBarcodeLocal(o);
+            } ELSE {
+                MESSAGE 'Штрихкод не найден';
+            }
+        }
+    }
+
+    FORM add###object###Detail caption
+        OBJECTS o=###object PANEL
+        PROPERTIES idBarcodeLocal(o) ON CHANGE changeBarcodeLocal(o) EVENTID 'SCANNER', nameSkuLocal(o), quantityLocal(o)
+    ;
+
+    DESIGN add###object###Detail {
+        OBJECTS {
+            NEW propHorizontalContainer {
+                horizontal = TRUE;
+                MOVE PROPERTY(idBarcodeLocal(o)) {
+                    font = 'bold 24';
+                    panelCaptionVertical = TRUE;
+                    charWidth = 15;
+                }
+                MOVE PROPERTY(nameSkuLocal(o)) {
+                    font = 'bold 24';
+                    panelCaptionVertical = TRUE;
+                    charWidth = 10;
+                }
+                MOVE PROPERTY(quantityLocal(o)) {
+                    font = 'bold 24';
+                    panelCaptionVertical = TRUE;
+                    charWidth = 5;
+                }
+            }
+        }
+    }
+
+    overAdd###object###Detail ABSTRACT LIST (###object, ###object###Detail);
+    WHEN LOCAL FORMS add###object###Detail SET(skuLocal(###object o) AND quantityLocal(o)) DO {
+        NEWSESSION NESTED (idBarcodeLocal, skuLocal, quantityLocal) {
+            NEW detail=###object###Detail {
+                object(detail) <- o;
+                idBarcode(detail) <- idBarcodeLocal(o);
+                sku(detail) <- skuLocal(o);
+                quantity(detail) <- quantityLocal(o);
+                overAdd###object###Detail(o, detail);
+            }
+            APPLY NESTED LOCAL ;
+        }
+    }
+
+    overAdd###object###Detail ABSTRACT LIST (###object);
+    add###object###Detail 'Добавить' (###object o) {
+        idBarcodeLocal(o) <- NULL;
+        skuLocal(o) <- NULL;
+        quantityLocal(o) <- NULL;
+        overAdd###object###Detail(o);
+        SHOW add###object###Detail OBJECTS o=o;
+    } IMAGE 'add.png';
+
+END    
+
+META defineConsolidationKey(object)
+    consolidationKeyLocal 'Ключ группировки' = DATA LOCAL NESTED STRING (###object);
+    overConsolidationKeyLocal 'Ключ группировки' (###object o) = OVERRIDE consolidationKeyLocal(o), ('Не указан' IF o IS ###object);
+
+    overChangeBarcodeLocal(###object o) + {
+        consolidationKeyLocal(o) <- NULL;
+    }
+    
+    EXTEND FORM add###object###Detail
+        PROPERTIES overConsolidationKeyLocal(o)
+    ;
+
+    DESIGN add###object###Detail {
+        propHorizontalContainer {
+            MOVE PROPERTY(overConsolidationKeyLocal(o)) AFTER PROPERTY(nameSkuLocal(o)){
+                font = 'bold 24';
+                panelCaptionVertical = TRUE;
+                charWidth = 15;
+            }
+        }
+    }
+
+    overAdd###object###Detail(###object o, ###object###Detail detail) + {
+        consolidationKey(detail) <- consolidationKeyLocal(o);        
+    }
+
+    overAdd###object###Detail (###object o) + {
+        consolidationKeyLocal(o) <- NULL;        
+    }
+END 

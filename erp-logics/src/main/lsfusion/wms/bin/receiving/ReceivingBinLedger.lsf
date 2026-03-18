@@ -145,27 +145,7 @@ countReceivingStocks = GROUP SUM 1 IF countReceivingStocks(Stock stock, Receivin
 CONSTRAINT SET(countReceivingStocks(Receiving receiving) > 1)
     MESSAGE 'Приёмку можно делать в ячейки одного склада';
 
-idBarcodeLocal 'Штрихкод' = DATA LOCAL STRING[15] (Receiving);
-skuLocal = DATA LOCAL Sku (Receiving);
-nameSkuLocal 'Товар' (Receiving r)= name(skuLocal(r));
-quantityLocal 'Кол-во' = DATA LOCAL NUMERIC[16,5] (Receiving);
-
 expiryDate 'Срок годности' = DATA DATE (ReceivingDetail) CHARWIDTH 7;
-
-overChangeBarcodeLocal ABSTRACT LIST (Receiving);
-
-changeBarcodeLocal(Receiving r) {
-    INPUT s=STRING[15] DO {
-        IF skuBarcode(s, currentDate()) THEN {
-            idBarcodeLocal(r) <- s;
-            skuLocal(r) <- skuBarcode(s, currentDate());
-            quantityLocal(r) <- NULL;
-            overChangeBarcodeLocal(r);            
-        } ELSE {
-            MESSAGE 'Штрихкод не найден';
-        }    
-    }
-}
 
 CONSTRAINT DROPPED(Receiving r IS Receiving) AND PREV(countReceivingDetail(r))
     MESSAGE 'Нельзя удалять приемку с существующими строками, удалите строки перед удалением документа';
@@ -202,77 +182,9 @@ nameStatus 'Статус' (Sku s, STRING consolidationKey, Receiving receiving) 
         WHEN completeStatus(receiving) AND NOT quantityCompleted(s, consolidationKey, receiving)==expectedQuantity(s, consolidationKey, receiving) THEN 'Принят с расхождением'
         ELSE 'В работе';
 
-consolidationKeyLocal 'Ключ группировки' = DATA LOCAL NESTED STRING (Receiving);
-overConsolidationKeyLocal 'Ключ группировки' (Receiving d) = OVERRIDE consolidationKeyLocal(d), ('Не указан' IF d IS Receiving);
+@defineAddDocumentDetail(receiving, 'Приемка');
 
-FORM addReceivingDetail 'Приемка'
-    OBJECTS r=Receiving PANEL 
-    PROPERTIES idBarcodeLocal(r) ON CHANGE changeBarcodeLocal(r) EVENTID 'SCANNER', nameSkuLocal(r), overConsolidationKeyLocal(r), quantityLocal(r)
-;
-
-DESIGN addReceivingDetail {
-    OBJECTS {
-        NEW propHorizontalContainer {
-            horizontal = TRUE;
-            MOVE PROPERTY(idBarcodeLocal(r)) {
-                font = 'bold 24';
-                panelCaptionVertical = TRUE;
-                charWidth = 15;
-            }
-            MOVE PROPERTY(nameSkuLocal(r)) {
-                font = 'bold 24';
-                panelCaptionVertical = TRUE;
-                charWidth = 10;
-            }
-            MOVE PROPERTY(overConsolidationKeyLocal(r)){
-                font = 'bold 24';
-                panelCaptionVertical = TRUE;
-                charWidth = 15;
-            }            
-            MOVE PROPERTY(quantityLocal(r)) {
-                font = 'bold 24';
-                panelCaptionVertical = TRUE;
-                charWidth = 5;
-            }
-        }
-    }
-}
- 
-overAddReceivingDetail ABSTRACT LIST (Receiving, ReceivingDetail);
-
-WHEN LOCAL FORMS addReceivingDetail SET(skuLocal(Receiving r) AND quantityLocal(r)) DO {
-    NEWSESSION NESTED (idBarcodeLocal, skuLocal, quantityLocal) {
-        NEW detail=ReceivingDetail {
-            receiving(detail) <- r;
-            idBarcode(detail) <- idBarcodeLocal(r);
-            sku(detail) <- skuLocal(r);
-            quantity(detail) <- quantityLocal(r);
-            overAddReceivingDetail(r, detail);
-        } 
-        APPLY NESTED LOCAL ;
-    }
-}
-
-overAddReceivingDetail ABSTRACT LIST (Receiving);
-addReceivingDetail 'Добавить' (Receiving r) {
-    idBarcodeLocal(r) <- NULL;
-    skuLocal(r) <- NULL;
-    quantityLocal(r) <- NULL;
-    overAddReceivingDetail(r);
-    SHOW addReceivingDetail OBJECTS r=r; 
-} IMAGE 'add.png';
-
-overAddReceivingDetail(Receiving r) + {
-    consolidationKeyLocal(r) <- NULL;
-}
-
-overAddReceivingDetail(Receiving r, ReceivingDetail d) + {
-    consolidationKey(d) <- consolidationKeyLocal(r);
-}
-
-overChangeBarcodeLocal(Receiving r) + {
-    consolidationKeyLocal(r) <- NULL;
-}
+@defineConsolidationKey(receiving);                                                   
 
 @defineBinAttribute(receiving, 'Приемка');
 
