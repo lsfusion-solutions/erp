@@ -1,0 +1,16 @@
+MODULE ZReportDiscountCardUKM;
+
+REQUIRE ZReportDiscountCard, ZReportDiscountUKM;
+
+NAMESPACE ZReport;
+
+overImportDiscounts() + {
+    FOR [GROUP SUM 1 BY card_number(INTEGER r)] (STRING card_number)  AND NOT discountSeriesNumber(card_number) NEW d = DiscountCard DO {
+        id(d) <- card_number;
+        number(d) <- card_number;
+    }
+
+    FOR [GROUP SUM 1 BY idReceipt(INTEGER r), card_number(r)] (STRING idReceipt, STRING card_number) AND idReceipt == id(Receipt rd) AND NOT discountCard(rd) DO {
+        discountCard(rd) <- discountSeriesNumber(card_number);
+    }
+}

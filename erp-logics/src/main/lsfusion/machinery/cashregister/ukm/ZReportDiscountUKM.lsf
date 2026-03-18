@@ -1,8 +1,11 @@
 MODULE ZReportDiscountUKM;
 
-REQUIRE ZReportDiscount, CashRegister, ZReportDiscountCard;
+REQUIRE ZReportDiscount, CashRegister;
 
 NAMESPACE ZReport;
+
+useGlobalNumberUKM = DATA BOOLEAN () PREREAD;
+useCashIdUKM = DATA BOOLEAN () PREREAD;
 
 checkIndex (STRING connectionString, STRING index, STRING table, STRING columns) {
     LOCAL i = INTEGER ();
@@ -23,6 +26,11 @@ checkIndex (STRING connectionString, STRING index, STRING table, STRING columns)
 
 cashRegister = GROUP AGGR CashRegister r WHERE active(groupCashRegister(r)) AND sidModel(groupCashRegister(r)) == 'Ukm4-mysql' BY sectionGroupMachinery(r), npp(r);
 
+
+idReceipt = DATA LOCAL STRING[100](INTEGER );
+card_number = DATA LOCAL STRING[100](INTEGER );
+overImportDiscounts ABSTRACT LIST ();
+
 importDiscounts (STRING connectionString, DATE date) {
 
     checkIndex (connectionString, 'date', 'receipt', 'date');
@@ -32,10 +40,10 @@ importDiscounts (STRING connectionString, DATE date) {
     EXTERNAL SQL connectionString
         EXEC 'SELECT
                 r.store,
-                r.cash_number,
+                r.' + (IF useCashIdUKM() THEN 'cash_id' ELSE 'cash_number') + ',
                 s.number,
                 s.date,
-                r.local_number,
+                r.' + (IF useGlobalNumberUKM() THEN 'global_number' ELSE 'local_number') +', 
                 ri.item,
                 rid.increment, 
                 rd.card_number,
@@ -54,7 +62,7 @@ importDiscounts (STRING connectionString, DATE date) {
               ORDER BY r.cash_id, r.id, ri.position'
         TO file;
     
-    LOCAL store, item, name, card_number, idReceipt, idDetail = STRING (INTEGER);
+    LOCAL store, item, name, idDetail = STRING (INTEGER);
     LOCAL cash_number, number, local_number, discount_type, index = INTEGER (INTEGER );
     LOCAL date = DATETIME (INTEGER );
     LOCAL increment = NUMERIC (INTEGER );
@@ -63,6 +71,7 @@ importDiscounts (STRING connectionString, DATE date) {
     
     IMPORT FROM file() TO store, cash_number, number, date, local_number, item, increment, card_number, discount_type, name;
 
+    idReceipt(INTEGER r) <- NULL;
     idReceipt(INTEGER r) <- CONCAT '_', npp(groupCashRegister(cashRegister(store(r), cash_number(r)))), cash_number(r), number(r), toChar(date(r), 'DDMMYYYY'), local_number(r);
     index(INTEGER r)  <- PARTITION SUM 1 ORDER r BY idReceipt(r), item(r);
     
@@ -83,15 +92,8 @@ importDiscounts (STRING connectionString, DATE date) {
     FOR receipt(ReceiptDetail d)  == receipt(INTEGER i) AND idSku(d) == item(i) AND index(d) == index(i) AND STRING(discount_type(i)) == mode(Discount dis) DO {
         discountSum(d, dis) <- -increment(i);
     }
-    
-    FOR [GROUP SUM 1 BY card_number(INTEGER r)] (STRING card_number)  AND NOT discountSeriesNumber(card_number) NEW d = DiscountCard DO {
-        id(d) <- card_number;
-        number(d) <- card_number;
-    }
-    
-    FOR [GROUP SUM 1 BY idReceipt(INTEGER r), card_number(r)] (STRING idReceipt, STRING card_number) AND idReceipt == id(Receipt rd) AND NOT discountCard(rd) DO {
-        discountCard(rd) <- discountSeriesNumber(card_number);
-    } 
+
+    overImportDiscounts();
 }
 
 importDiscountsUKM (DATE d) {
