@@ -80,7 +80,7 @@ idNameCustomerStock 'Склад покупателя' (Purchase.OrderDetail d) =
 idNameStock 'Склад' (Stock st) = CONCAT ' — ', id(st), name(st);
 
 receivedPrice 'Цена из приходной накладной (с НДС)' (Purchase.OrderDetail d) =
-    GROUP LAST invoicePrice(Purchase.InvoiceDetail id) IF orderDetail(id) = d ORDER dateTime(id), id;
+    GROUP LAST invoicePrice(Purchase.InvoiceDetail id) IF countInvoiceDetail(order(d), invoice(id)) AND sku(id) = sku(d) ORDER dateTime(id), id;
 
 specPrice 'Цена из спецификации' (Purchase.OrderDetail d) =
     prevPriceA(priceListType(d), sku(d), customerStock(d), supplier(d), dateTime(d));
@@ -89,6 +89,25 @@ orderSum 'Сумма заказа (с НДС)' (Purchase.OrderDetail d) = invoic
 
 receivedSum 'Сумма из приходной накладной (с НДС)' (Purchase.OrderDetail d) =
     shipped(d) * receivedPrice(d);
+
+dateConfirmed 'Дата подтверждения' = DATA DATE (Purchase.Order);
+dateConfirmed 'Дата подтверждения' (Purchase.OrderDetail d) = dateConfirmed(order(d));
+dateUnconfirmed 'Дата неподтв. заказа' (Purchase.OrderDetail d) = date(order(d));
+
+WHEN SET(isConfirmed(Purchase.Order o)) AND NOT dateConfirmed(o) DO
+    dateConfirmed(o) <- currentDate();
+
+discrepancyOrderConfirm 'Расхождение заказ/подтв.' (Purchase.OrderDetail d) =
+    ((OVERRIDE originalQuantity(d), quantity(d)) (-) quantity(d)) IF isConfirmed(d);
+
+discrepancyConfirmReceived 'Расхождение подтв./приход' (Purchase.OrderDetail d) =
+    quantity(d) (-) shipped(d);
+
+numberInvoiceDetail 'Номер накладной' (Purchase.InvoiceDetail id) = number(invoice(id));
+dateInvoiceDetail 'Дата накладной' (Purchase.InvoiceDetail id) = date(invoice(id));
+quantityInvoiceDetail 'Кол-во в накладной' (Purchase.InvoiceDetail id) = quantity(id);
+priceInvoiceDetail 'Цена в накладной (с НДС)' (Purchase.InvoiceDetail id) = invoicePrice(id);
+sumInvoiceDetail 'Сумма в накладной (с НДС)' (Purchase.InvoiceDetail id) = invoiceSum(id);
 
 reportDateFrom 'Дата с' = DATA LOCAL DATE();
 reportDateTo 'Дата по' = DATA LOCAL DATE();
@@ -275,9 +294,10 @@ FORM purchaseOrderReportForm 'Отчет по заказам поставщик�
     PROPERTIES reportSkus 'Товары' = reportInSkus() ON CHANGE selectReportSkus() READONLYIF anyReportSkuList() OR anyReportSkuGroup()
 
     OBJECTS d = Purchase.OrderDetail
-    PROPERTIES(d) READONLY nameSupplier, idNameCustomerStock, number, date, shipmentDate, nameStatus,
+    PROPERTIES(d) READONLY nameSupplier, idNameCustomerStock, number, date, dateConfirmed, shipmentDate, nameStatus,
         idSku, nameSku,
-        quantity, shipped,
+        originalQuantity, quantity, shipped,
+        discrepancyOrderConfirm, discrepancyConfirmReceived,
         invoicePrice, specPrice, receivedPrice,
         orderSum, invoiceSum, receivedSum,
         invoices
@@ -391,9 +411,33 @@ FORM printPurchaseOrderReport
     REPORT template()
 ;
 
+FORM printPurchaseOrderReportDetailed 'Акт сверки (детальная)'
+    OBJECTS ss = (d = Purchase.OrderDetail, id = Purchase.InvoiceDetail)
+    PROPERTIES() reportDateFrom, reportDateTo
+    PROPERTIES(d) READONLY
+    nameSupplier, idNameCustomerStock, number,
+        dateUnconfirmed, dateConfirmed, shipmentDate, nameStatus,
+        idSku, nameSku,
+        originalQuantity, quantity, shipped,
+        discrepancyOrderConfirm, discrepancyConfirmReceived,
+        invoicePrice, specPrice, receivedPrice,
+        orderSum, receivedSum
+    ORDERS idNameCustomerStock(d), nameSupplier(d), dateUnconfirmed(d), number(d), idSku(d)
+    FILTERS inReportStatus(d),
+        inReportDateFrom(d),
+        inReportDateTo(d),
+        inReportSupplierFilter(d),
+        inReportStockFilter(d),
+        inReportSkuFilter(d)
+    PROPERTIES(id) READONLY
+    numberInvoiceDetail, dateInvoiceDetail,
+        quantityInvoiceDetail, priceInvoiceDetail, sumInvoiceDetail
+    FILTERS countInvoiceDetail(order(d), invoice(id)) AND sku(id) = sku(d)
+    ORDERS dateInvoiceDetail(id)
+;
+
 orderReceiptReconDetailed 'Акт сверки (детальная по заказам)' () {
-    template() <- 'OrderReceiptReconDetailedGestori.jrxml';
-    PRINT printPurchaseOrderReport XLSX ;
+    PRINT printPurchaseOrderReportDetailed XLSX;
 } IMAGE 'print.png';
 
 EXTEND FORM purchaseOrderReportForm
