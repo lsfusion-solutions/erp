@@ -8,21 +8,40 @@ TABLE position(Position);
 
 @defineExternalizable(position, STRING[100]);
 
+// Неактивная
+inactive 'Неактивная' = DATA BOOLEAN (Position);
+active 'Активная' (Position p) = p IS Position AND NOT inactive(p);
+
 name 'Наименование' = DATA ISTRING[200](Position);
 
 position(employee) = DATA Position (Employee);
 
+CONSTRAINT DROPPED(Position position IS Position) AND (GROUP MAX Employee employee IF PREV(position(employee))==position)
+    MESSAGE 'Нельзя удалять должности, которые используются в карточках сотрудников';
+
 FORM position 'Должность'
     OBJECTS of=Position PANEL
-    PROPERTIES(of) name, id
+    PROPERTIES(of) inactive, name, id
     EDIT Position OBJECT of
+;
+
+FORM dialogPositions 'Должности'
+    OBJECTS of=Position
+    PROPERTIES(of) READONLY inactive, name, id SHOWIF showIDs()
+    ORDERS name(of)
+    FILTERGROUP inactivePosition 
+        FILTER 'Активная' active(of) DEFAULT
+    
+    LIST Position OBJECT of
 ;
 
 FORM positions 'Должности'
     OBJECTS of=Position
-    PROPERTIES(of) READONLY name, id SHOWIF showIDs()
+    PROPERTIES(of) READONLY inactive, name, id SHOWIF showIDs()
     PROPERTIES(of) NEWSESSION NEW, EDIT, DELETE 
-    LIST Position OBJECT of
+    ORDERS name(of)
+    FILTERGROUP inactivePosition
+        FILTER 'Активная' active(of) DEFAULT
 ;
 
 // ------------------------------------- Доступ ------------------------------------------ //
@@ -68,7 +87,7 @@ DESIGN options{
     }
 }
 
-WHEN SET (Employee e IS Employee AND NOT login(e)) DO {
+WHEN SET(Employee e IS Employee AND NOT login(e)) DO {
     limitAccess(e) <- TRUE;
     IF NOT notLockedEmployee() THEN {
         isLocked(e)<- TRUE;       
@@ -208,7 +227,11 @@ DESIGN employees {
 
 NAVIGATOR {
     masterData {
-        NEW employees BEFORE regionalData;
+        NEW FOLDER employeesNavigator 'Сотрудники' BEFORE regionalData{
+            NEW employees;
+            NEW positions;
+        }
+        
     }
 }
 
