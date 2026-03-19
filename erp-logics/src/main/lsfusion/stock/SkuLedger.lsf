@@ -1054,6 +1054,8 @@ backgroundBalanceId (Sku s, Stock st) += backgroundBalance(s, st);
 overFilterGroup = ABSTRACT BOOLEAN (Sku);
 overFilterStock = ABSTRACT BOOLEAN (Stock);
 
+overSeekStock = ABSTRACT Stock();
+
 FORM currentBalanceSkuStock 'Текущие остатки'
     PROPERTIES() multipleStores
     
@@ -1121,6 +1123,10 @@ FORM currentBalanceSkuStock 'Текущие остатки'
             countLedger(bt, st)
     
     ORDERS dateTime(bt) DESC
+    
+    EVENTS ON INIT {
+        SEEK currentBalanceSkuStock.ss = OVERRIDE stock(currentUser()), overSeekStock();
+    }
 ;
 
 DESIGN currentBalanceSkuStock {
@@ -1250,6 +1256,11 @@ FORM balanceSkuStock 'Остатки на дату'
             sku(bt) == s,
             countLedger(bt, st)
     ORDERS dateTime(bt) DESC
+
+    EVENTS
+        ON INIT {
+            SEEK balanceSkuStock.ss = OVERRIDE stock(currentUser()), overSeekStock();
+        }
 ;
 
 DESIGN balanceSkuStock {
@@ -1361,7 +1372,12 @@ FORM currentBalanceBatchStock 'Текущие остатки по партиям
         FILTER 'Партии с истекшим сроком годности' expiryDate(bt) < currentDate()
         FILTER 'Партии со сроком годности, истекающим через 1 день' expires(bt, currentDate(), 1) 
         FILTER 'Партии со сроком годности, истекающим через 7 дней' expires(bt, currentDate(), 7) 
-        FILTER 'Партии со сроком годности, истекающим через 30 дней' expires(bt, currentDate(), 30) 
+        FILTER 'Партии со сроком годности, истекающим через 30 дней' expires(bt, currentDate(), 30)
+
+    EVENTS
+        ON INIT {
+            SEEK currentBalanceBatchStock.ss = OVERRIDE stock(currentUser()), overSeekStock();
+        }
 ;
 
 DESIGN currentBalanceBatchStock {
@@ -1473,7 +1489,12 @@ FORM balanceBatchStock 'Остатки по партиям на дату'
         FILTER 'Партии с истекшим сроком годности' expiryDate(bt) < toDate(t) 
         FILTER 'Партии со сроком годности, истекающим через 1 день' expires(bt, t, 1) 
         FILTER 'Партии со сроком годности, истекающим через 7 дней' expires(bt, t, 7)
-        FILTER 'Партии со сроком годности, истекающим через 30 дней' expires(bt, t, 30) 
+        FILTER 'Партии со сроком годности, истекающим через 30 дней' expires(bt, t, 30)
+
+    EVENTS
+        ON INIT {
+            SEEK balanceBatchStock.ss = OVERRIDE stock(currentUser()), overSeekStock();
+        }
 ;
 
 DESIGN balanceBatchStock {
