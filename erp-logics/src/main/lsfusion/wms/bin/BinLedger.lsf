@@ -932,7 +932,7 @@ END
 
 select 'Отм.' = DATA LOCAL NESTED BOOLEAN (Sku, Bin);
 
-META defineAddDocumentDetail(object, caption)
+META defineAddDocumentDetail(object, objectDetail, caption)
     idBarcodeLocal 'Штрихкод' = DATA LOCAL STRING[15] (###object);
     skuLocal = DATA LOCAL Sku (###object);
     nameSkuLocal 'Товар' (###object o)= name(skuLocal(o));
@@ -952,12 +952,12 @@ META defineAddDocumentDetail(object, caption)
         }
     }
 
-    FORM add###object###Detail caption
+    FORM add###objectDetail caption
         OBJECTS o=###object PANEL
         PROPERTIES idBarcodeLocal(o) ON CHANGE changeBarcodeLocal(o) EVENTID 'SCANNER', nameSkuLocal(o), quantityLocal(o)
     ;
 
-    DESIGN add###object###Detail {
+    DESIGN add###objectDetail {
         OBJECTS {
             NEW propHorizontalContainer {
                 horizontal = TRUE;
@@ -980,29 +980,33 @@ META defineAddDocumentDetail(object, caption)
         }
     }
 
-    overAdd###object###Detail ABSTRACT LIST (###object, ###object###Detail);
-    WHEN LOCAL FORMS add###object###Detail SET(skuLocal(###object o) AND quantityLocal(o)) DO {
+    overAdd###objectDetail ABSTRACT LIST (###object, ###objectDetail);
+    WHEN LOCAL FORMS add###objectDetail SET(skuLocal(###object o) AND quantityLocal(o)) DO {
         NEWSESSION NESTED (idBarcodeLocal, skuLocal, quantityLocal) {
-            NEW detail=###object###Detail {
+            NEW detail=###objectDetail {
                 object(detail) <- o;
                 idBarcode(detail) <- idBarcodeLocal(o);
                 sku(detail) <- skuLocal(o);
                 quantity(detail) <- quantityLocal(o);
-                overAdd###object###Detail(o, detail);
+                overAdd###objectDetail(o, detail);
             }
             APPLY NESTED LOCAL ;
         }
     }
 
-    overAdd###object###Detail ABSTRACT LIST (###object);
-    add###object###Detail 'Добавить' (###object o) {
+    overAdd###objectDetail ABSTRACT LIST (###object);
+    add###objectDetail 'Добавить' (###object o) {
         idBarcodeLocal(o) <- NULL;
         skuLocal(o) <- NULL;
         quantityLocal(o) <- NULL;
-        overAdd###object###Detail(o);
-        SHOW add###object###Detail OBJECTS o=o;
+        overAdd###objectDetail(o);
+        SHOW add###objectDetail OBJECTS o=o;
     } IMAGE 'add.png';
 
+END
+
+META defineAddDocumentDetail(object, caption)
+    @defineAddDocumentDetail(object, object###Detail, caption);
 END    
 
 META defineConsolidationKey(object)
