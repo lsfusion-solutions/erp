@@ -227,6 +227,7 @@ DESIGN dialogBins {
 
             MOVE BOX(TREE binTree) {
                 caption = 'Группы ячеек';
+                width = 200;
             }
 
             MOVE BOX(b) {
@@ -269,6 +270,57 @@ DESIGN bins {
 
             MOVE BOX(TREE binTree) {
                 caption = 'Группы ячеек';
+            }
+
+            MOVE BOX(b) {
+                fill = 2;
+                GRID(b) {
+                    defaultComponent = TRUE;
+                    PROPERTY(canonicalName(b)) {caption = 'Группа';}
+                    PROPERTY(canonicalId(b)) {defaultCompare = '=*';}
+                    PROPERTY(canonicalName(b)) {defaultCompare = '=*';}
+                }
+            }
+        }
+
+        MOVE TOOLBARBOX;
+    }
+}
+
+dataIn 'Отм.' = DATA LOCAL BOOLEAN (BinGroup);
+levelDataInBinGroup (BinGroup g) = GROUP MIN level(g, BinGroup parent) IF dataIn(parent);
+nearestParentDataInBinGroup (BinGroup g) = binGroup(g, levelDataInBinGroup(g));
+nearestDataInBinGroup (BinGroup g) =  dataIn(nearestParentDataInBinGroup(g));
+in 'Отм.' (BinGroup g) = OVERRIDE dataIn(g), nearestDataInBinGroup(g);
+
+dataIn 'Отм.' = DATA LOCAL BOOLEAN (Bin);
+in 'Отм.' (Bin g) = OVERRIDE dataIn(g), in(binGroup(g));
+
+FORM selectedBins 'Выбор ячеек'
+    TREE binTree bg = BinGroup PARENT parent(bg)
+    PROPERTIES in(bg)
+    PROPERTIES READONLY order(bg), canonicalId(bg), name(bg), canonicalName(bg), nameStock(bg)
+    FILTERGROUP active FILTER 'Активный' active(bg) DEFAULT
+    ORDERS order(bg), canonicalId(bg), name(bg)
+
+    OBJECTS b = Bin
+    PROPERTIES in(b)
+    PROPERTIES(b) READONLY order, canonicalId, id SHOWIF showIDs(), name, canonicalName, nameStock READONLY
+    FILTERS isParent(bg, b)
+    ORDERS order(b), canonicalId(b), name(b)
+;
+
+DESIGN selectedBins {
+    BOX {
+        size = (1024, 768);
+
+        NEW topContainer {
+            horizontal = TRUE;
+            fill = 1;
+
+            MOVE BOX(TREE binTree) {
+                caption = 'Группы ячеек';
+                width = 200;
             }
 
             MOVE BOX(b) {
