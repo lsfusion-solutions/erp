@@ -7,9 +7,11 @@ NAMESPACE Item;
 // связь 2х товаров для возможной замены в документах
 
 itemFuel 'Товар - топливо (в кг)' = DATA Item (Item);
+idItemFuel 'Код товара - топливо (в кг)' (Item i) = id(itemFuel(i));
 nameItemFuel 'Товар - топливо (в кг)' (Item i) = name(itemFuel(i));
 
 itemFuelLtr 'Товар - топливо (в литрах)' = GROUP MAX Item i BY itemFuel(i) MATERIALIZED;
+idItemFuelLtr 'Код товара - топливо (в литрах)' (Item i) = id(itemFuelLtr(i));
 nameItemFuelLtr 'Товар - топливо (в литрах)' (Item i) = name(itemFuelLtr(i));
 
 CONSTRAINT SET([GROUP SUM 1 BY itemFuel(Item i)](Item ii) > 1)
@@ -34,14 +36,15 @@ DESIGN item {
 
 FORM fuelMatch 'Соответствие топлива'
     OBJECTS i1 = Item
-    PROPERTIES (i1) name READONLY, nameItemFuel BACKGROUND RGB(255, 224, 255)
+    PROPERTIES (i1) READONLY id, name
+    PROPERTIES (i1) BACKGROUND RGB(255, 224, 255) idItemFuel, nameItemFuel
     ORDERS name(i1)
     FILTERS isFuelLtr(i1)
 
     FILTERGROUP active1 FILTER 'Активные' active(i1) DEFAULT
 
     OBJECTS i2 = Item
-    PROPERTIES (i2) READONLY name, nameItemFuelLtr
+    PROPERTIES (i2) READONLY id, name, idItemFuelLtr, nameItemFuelLtr
     ORDERS name(i2)
     FILTERS isFuel(i2)
 
