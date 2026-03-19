@@ -1,6 +1,6 @@
 MODULE SaleLedgerGestori;
 
-REQUIRE DateSkuLedger, Range, InventoryGestori;
+REQUIRE DateSkuLedger, Range, InventoryGestori, PurchaseShipment;
 
 NAMESPACE Sale;
 
@@ -273,6 +273,23 @@ retailSumAtEnd 'Сумма остатка в розничных ценах' (Sku
 
 daysOfSupply 'Запас в днях' (Sku s, Stock st) = round2(balanceAtEnd(s, st) * daysInPeriod() / salesQty(s, st));
 
+expiryText 'Срок годности' (Sku s) = CONCAT ' / ',
+    (STRING[10](expiryMonth(s)) + ' мес.') IF expiryMonth(s),
+    (STRING[10](expiryDays(s)) + ' дн.') IF expiryDays(s),
+    (STRING[10](hoursExpiryPack(s)) + ' ч.') IF hoursExpiryPack(s);
+
+lastPurchaseDetail(Sku s, Stock st) = GROUP LAST Purchase.InvoiceDetail d
+ORDER date(d), d
+WHERE isPosted(d) AND date(d) <= dateTo()
+BY sku(d), customerStock(d);
+
+lastSupplierText 'Поставщик по последнему приходу' (Sku s, Stock st) =
+    CONCAT ' - ', id(supplier(lastPurchaseDetail(s, st))), name(supplier(lastPurchaseDetail(s, st)));
+
+lastPurchaseDate 'Дата последнего прихода' (Sku s, Stock st) = date(lastPurchaseDetail(s, st));
+lastPurchaseQty 'Кол-во по последнему приходу' (Sku s, Stock st) = quantity(lastPurchaseDetail(s, st));
+lastExpiryDate 'Срок годности до' (Sku s, Stock st) = expiryDate(lastPurchaseDetail(s, st));
+
 order (Sku s, Stock st) = CASE
     WHEN criteriaDefault() = ProductCriteria.quantity THEN salesQty(s, st)
     WHEN criteriaDefault() = ProductCriteria.amount THEN salesSum(s, st)
@@ -313,13 +330,15 @@ subtitleBW() = CONCAT '   |   ',
 
 FORM bestProdPrint 'Лучшие товары по продажам'
     OBJECTS report = (sku = Sku, stock = Stock)
-    PROPERTIES(stock) READONLY 'Подразделение (код)' = id, displayName
-    PROPERTIES(sku) READONLY idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4, id, idBarcode, name
-    PROPERTIES READONLY 'Ассортиментные матрицы' = ranges(sku, stock, currentDate())
+    PROPERTIES(stock) READONLY 'Подразделение (код)' = id, name
+    PROPERTIES(sku) READONLY idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4, id, idBarcode, name, shortNameUOM, expiryText
+    PROPERTIES READONLY ranges 'Ассортиментные матрицы' = ranges(sku, stock, currentDate())
     PROPERTIES(sku) READONLY 'Ценовой сегмент' = namePriceSegment
     PROPERTIES(sku, stock) READONLY salesQty, accountPriceAtEnd, retailPrice, salesPrice, sumByAccPrice, sumByRetailPrice, salesSum, profit,
         balanceAtEnd, accountSumAtEnd, retailSumAtEnd,
-        daysOfSupply, daysInPeriod, productContributionPct, index SHOWIF 1 = 2
+        daysOfSupply, daysInPeriod, productContributionPct,
+        lastSupplierText, lastPurchaseDate, lastPurchaseQty, lastExpiryDate,
+        index SHOWIF 1 = 2
     PROPERTIES() salesTotalQty, totalSumByAccPrice, totalSumByRetailPrice, salesTotalSum, totalProfit
     PROPERTIES mainTitle = 'Лучшие товары по продажам'
     PROPERTIES subtitle = subtitleBW()
@@ -330,13 +349,15 @@ FORM bestProdPrint 'Лучшие товары по продажам'
 
 FORM worstProdPrint 'Худшие товары по продажам'
     OBJECTS report = (sku = Sku, stock = Stock)
-    PROPERTIES(stock) READONLY 'Подразделение (код)' = id, displayName
-    PROPERTIES(sku) READONLY idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4, id, idBarcode, name
-    PROPERTIES READONLY 'Ассортиментные матрицы' = ranges(sku, stock, currentDate())
+    PROPERTIES(stock) READONLY 'Подразделение (код)' = id, name
+    PROPERTIES(sku) READONLY idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4, id, idBarcode, name, shortNameUOM, expiryText
+    PROPERTIES READONLY ranges 'Ассортиментные матрицы' = ranges(sku, stock, currentDate())
     PROPERTIES(sku) READONLY 'Ценовой сегмент' = namePriceSegment
     PROPERTIES(sku, stock) READONLY salesQty, accountPriceAtEnd, retailPrice, salesPrice, sumByAccPrice, sumByRetailPrice, salesSum, profit,
         balanceAtEnd, accountSumAtEnd, retailSumAtEnd,
-        daysOfSupply, daysInPeriod, productContributionPctW, indexW SHOWIF 1 = 2
+        daysOfSupply, daysInPeriod, productContributionPctW,
+        lastSupplierText, lastPurchaseDate, lastPurchaseQty, lastExpiryDate,
+        indexW SHOWIF 1 = 2
     PROPERTIES() salesTotalQty, totalSumByAccPrice, totalSumByRetailPrice, salesTotalSum, totalProfit
     PROPERTIES mainTitle = 'Худшие товары по продажам'
     PROPERTIES subtitle = subtitleBW()
@@ -361,24 +382,28 @@ FORM bestWorstProducts 'Лучшие и худшие товары по прод�
     PROPERTIES inSkus 'Товары' = inSkus() ON CHANGE selectSkus() READONLYIF anySkuList() OR anySkuGroup()
 
     OBJECTS bestProducts = (sku = Sku, stock = Stock)
-    PROPERTIES(stock) READONLY 'Подразделение (код)' = id, displayName
-    PROPERTIES(sku) READONLY idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4, id, idBarcode, name
+    PROPERTIES(stock) READONLY 'Подразделение (код)' = id, 'Подразделение' = name
+    PROPERTIES(sku) READONLY idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4, id, idBarcode, name, shortNameUOM, expiryText
     PROPERTIES READONLY 'Ассортиментные матрицы' = ranges(sku, stock, currentDate())
     PROPERTIES(sku) READONLY 'Ценовой сегмент' = namePriceSegment
     PROPERTIES(sku, stock) READONLY salesQty, accountPriceAtEnd, retailPrice, salesPrice, sumByAccPrice, sumByRetailPrice, salesSum, profit,
         balanceAtEnd, accountSumAtEnd, retailSumAtEnd,
-        daysOfSupply, daysInPeriod, productContributionPct, index SHOWIF NULL
+        daysOfSupply, daysInPeriod, productContributionPct,
+        lastSupplierText, lastPurchaseDate, lastPurchaseQty, lastExpiryDate,
+        index SHOWIF NULL
     FILTERS formFilter(sku, stock)
     ORDERS index(sku, stock)
 
     OBJECTS worstProducts = (skuW = Sku, stockW = Stock)
-    PROPERTIES(stockW) READONLY 'Подразделение (код)' = id, displayName
-    PROPERTIES(skuW) READONLY idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4, id, idBarcode, name
+    PROPERTIES(stockW) READONLY 'Подразделение (код)' = id, 'Подразделение' = name
+    PROPERTIES(skuW) READONLY idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4, id, idBarcode, name, shortNameUOM, expiryText
     PROPERTIES READONLY 'Ассортиментные матрицы' = ranges(skuW, stockW, currentDate())
     PROPERTIES(skuW) READONLY 'Ценовой сегмент' = namePriceSegment
     PROPERTIES(skuW, stockW) READONLY salesQty, accountPriceAtEnd, retailPrice, salesPrice, sumByAccPrice, sumByRetailPrice, salesSum, profit,
         balanceAtEnd, accountSumAtEnd, retailSumAtEnd,
-        daysOfSupply, daysInPeriod, productContributionPctW, indexW SHOWIF NULL
+        daysOfSupply, daysInPeriod, productContributionPctW,
+        lastSupplierText, lastPurchaseDate, lastPurchaseQty, lastExpiryDate,
+        indexW SHOWIF NULL
     FILTERS formFilterW(skuW, stockW)
     ORDERS indexW(skuW, stockW)
 
