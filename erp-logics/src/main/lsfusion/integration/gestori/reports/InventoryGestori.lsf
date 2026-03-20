@@ -1,6 +1,6 @@
 MODULE InventoryGestori;
 
-REQUIRE SaleReportsRu;
+REQUIRE SaleReportsRu, DateSkuLedger;
 
 NAMESPACE Inventory;
 
@@ -185,6 +185,7 @@ DESIGN inventoryRegister {
         MOVE PROPERTY(inSaleReportStocks) { alignment = STRETCH; }
     }
 }
+
 netTotalWeight 'Вес общий' (SkuLedger o) = signedQuantity(o) * netWeight(sku(o));
 
 retailPrice 'Отпускная цена' (SkuLedger o) =
@@ -227,6 +228,25 @@ dateDocument 'Дата документа' (SkuLedger o) = date(stockDocumentLed
 accountPrice 'Учетная цена' (SkuLedger o) = signedPrice(o);
 sumByAccPrice 'Сумма по учетной цене' (SkuLedger o) = signedSum(o);
 supplier 'Поставщик' (SkuLedger o) = nameSupplier[Document](stockDocumentLedger(o));
+
+isRetailSale (SkuLedger o) = o IS DateSaleSkuLedger;
+isRetailReturn (SkuLedger o) = o IS DateReturnSkuLedger;
+isRetailOperation (SkuLedger o) = isRetailSale(o) OR isRetailReturn(o);
+
+nameOperationEx 'Операция' (SkuLedger o) =
+    IF isRetailSale(o) THEN 'Кассовые продажи'
+    ELSE IF isRetailReturn(o) THEN 'Кассовые возвраты'
+    ELSE nameOperationDocument(o);
+
+sortByDates 'Сортировка по датам' = DATA LOCAL BOOLEAN ();
+nameSortType 'Сортировка' () = IF sortByDates() THEN '📅 По датам' ELSE '📦 По товарам';
+changeSortType() {
+    sortByDates() <- NOT sortByDates();
+    formRefresh();
+}
+
+sortKey1 (SkuLedger o) = IF sortByDates() THEN STRING[200](date(o)) ELSE nameS(o);
+sortKey2 (SkuLedger o) = IF sortByDates() THEN nameS(o) ELSE STRING[200](date(o));
 
 inSkuList 'Отм.' = DATA LOCAL BOOLEAN (List);
 anySkuList() = GROUP MAX inSkuList(List l);
@@ -313,19 +333,45 @@ anySkuSelected() = (GROUP MAX in(Sku s)) OR anySkuGroup();
 inSkuFilter (SkuLedger o) = NOT anySkuSelected() OR in(sku(o)) OR inSessionParent(sku(o));
 
 inOperation 'Вкл.' = DATA LOCAL BOOLEAN (Operation.Operation);
+inRetailSaleOp 'Кассовые продажи' = DATA LOCAL BOOLEAN ();
+inRetailReturnOp 'Кассовые возвраты' = DATA LOCAL BOOLEAN ();
+
 cntSelectedOps() = GROUP SUM 1 IF inOperation(Operation.Operation op);
-allOperations() = NOT cntSelectedOps();
-inOpFilter (SkuLedger o) = allOperations() OR inOperation(operationDocument(o));
+anyRetailOp() = inRetailSaleOp() OR inRetailReturnOp();
+allOperations() = NOT cntSelectedOps() AND NOT anyRetailOp();
+
+inOpFilter (SkuLedger o) = allOperations()
+    OR inOperation(operationDocument(o))
+    OR (inRetailSaleOp() AND isRetailSale(o))
+    OR (inRetailReturnOp() AND isRetailReturn(o));
 
 hasData (Operation.Operation op) = GROUP SUM 1 IF inInterval(SkuLedger o)
     AND inSaleReport(stock(o))
     AND signedQuantity(o)
     AND operationDocument(o) = op;
 
+hasRetailSaleData() = GROUP SUM 1 IF inInterval(SkuLedger o)
+    AND inSaleReport(stock(o))
+    AND signedQuantity(o)
+    AND isRetailSale(o);
+
+hasRetailReturnData() = GROUP SUM 1 IF inInterval(SkuLedger o)
+    AND inSaleReport(stock(o))
+    AND signedQuantity(o)
+    AND isRetailReturn(o);
+
+selectedOpNames() = GROUP CONCAT name(Operation.Operation op) IF inOperation(op), ', ' ORDER name(op);
+
 inOperations 'Операции' () = IF allOperations() THEN 'ВСЕ'
-    ELSE GROUP CONCAT name(Operation.Operation op) IF inOperation(op), ', ' ORDER name(op);
+    ELSE CONCAT ', ',
+        selectedOpNames(),
+        (IF inRetailSaleOp() THEN 'Кассовые продажи'),
+        (IF inRetailReturnOp() THEN 'Кассовые возвраты');
 
 FORM selectOperationsForm 'Выбор операций'
+    PROPERTIES() inRetailSaleOp SHOWIF hasRetailSaleData(),
+        inRetailReturnOp SHOWIF hasRetailReturnData()
+
     OBJECTS op = Operation.Operation
     PROPERTIES(op) inOperation
     PROPERTIES(op) READONLY name, nameReturn
@@ -334,6 +380,11 @@ FORM selectOperationsForm 'Выбор операций'
 
 DESIGN selectOperationsForm {
     size = (600, 400);
+    NEW retailPanel FIRST {
+        horizontal = TRUE;
+        MOVE PROPERTY(inRetailSaleOp());
+        MOVE PROPERTY(inRetailReturnOp());
+    }
 }
 
 selectOperations 'Выбрать операции' () { DIALOG selectOperationsForm; }
@@ -344,22 +395,24 @@ FORM operationReport 'Отчет по хозяйственной операци�
     PROPERTIES inSaleReportStocks 'Подразделения' = inSaleReportStocks()
     ON CHANGE changeStocksInventory() READONLYIF stockList()
     PROPERTIES() inOperations ON CHANGE selectOperations()
+    PROPERTIES() nameSortType ON CHANGE changeSortType()
     PROPERTIES nameSkuLists() READONLY SHOWIF anySkuList()
     PROPERTIES opSelectedSkuGroups 'Товарные группы' = selectedSkuGroups() READONLY SHOWIF anySkuGroup()
     PROPERTIES opInSkus 'Товары' = inSkus() ON CHANGE selectSkus() READONLYIF anySkuList() OR anySkuGroup()
 
     OBJECTS o = SkuLedger
     PROPERTIES(o) READONLY idS, nameS, nameUOM, netWeight, idSt,
-        nameOperationDocument, numberDocument, dateDocument, supplier,
+        nameOperationEx, numberDocument, dateDocument, supplier,
         signedQuantity, netTotalWeight, cost, sumCost, accountPrice,
-        sumByAccPrice, retailPrice, sumRetail, valueVAT, sumVAT, profit
+        sumByAccPrice, retailPrice, sumRetail, valueVAT, sumVAT, profit,
+        sortKey1, sortKey2
+    ORDERS supplier(o), nameOperationEx(o), sortKey1(o), sortKey2(o)
     FILTERS inInterval(o),
         inSaleReport(stock(o)),
         signedQuantity(o),
         inOpFilter(o),
         inSkuFilter(o)
     PROPERTIES title = 'Отчет по хозяйственной операции ' + titleInterval()
-    REPORT 'OperationReport.jrxml'
 
     EVENTS ON INIT initDates()
 ;
@@ -377,6 +430,7 @@ DESIGN operationReport {
             horizontal = TRUE;
             MOVE PROPERTY(dateFrom());
             MOVE PROPERTY(dateTo());
+            MOVE PROPERTY(nameSortType()) { charWidth = 18; valueClass = 'btn-outline-warning'; }
             MOVE PROPERTY(printOperationReport()) { valueClass = 'btn-primary'; }
         }
         MOVE PROPERTY(nameStockList()) { alignment = STRETCH; }
@@ -388,6 +442,8 @@ DESIGN operationReport {
     }
     REMOVE PROPERTY(title);
     BOX(o) { caption = ''; }
+    PROPERTY(sortKey1(o)) { showIf = NULL; }
+    PROPERTY(sortKey2(o)) { showIf = NULL; }
 }
 
 NAVIGATOR {
