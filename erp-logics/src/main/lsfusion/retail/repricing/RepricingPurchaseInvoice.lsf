@@ -109,16 +109,18 @@ DESIGN Purchase.operation {
     }
 }
 
+allowCostLedgerRepricing = ABSTRACT BOOLEAN (DepartmentStore);
+
 filterToRepricingDate 'Фильтр' (Invoice invoice, Stock department, DATETIME timeFrom, DATETIME timeTo)= 
     customerStock(invoice) == department AND         
     shipmentDateTime(invoice) >= timeFrom AND
     isPosted(invoice) AND
     createShipment(invoice) AND
-    shipmentDateTime(invoice) <= timeTo AND NOT
-    costLedger(department) AND NOT
-    explicitBatchLedger[DepartmentStore](department) AND NOT
-    repricing(invoice) AND NOT 
-    skipRepricing(invoice)
+    shipmentDateTime(invoice) <= timeTo 
+    AND NOT (costLedger(department) AND NOT allowCostLedgerRepricing(department)) 
+    AND NOT explicitBatchLedger(department)
+    AND NOT repricing(invoice) 
+    AND NOT skipRepricing(invoice)
 ;                
                   
 overExtraValuation  ABSTRACT LIST ( RepricingDetail, InvoiceDetail);  
