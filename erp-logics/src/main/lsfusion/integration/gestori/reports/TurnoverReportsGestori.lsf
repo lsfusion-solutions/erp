@@ -1,0 +1,352 @@
+MODULE TurnoverReportsGestori;
+
+REQUIRE SaleLedgerGestori, AccountDocument;
+//REQUIRE SaleLedger;
+
+NAMESPACE Reports;
+
+dateFrom 'Дата с' = DATA LOCAL DATE();
+dateTo 'Дата по' = DATA LOCAL DATE();
+
+initReportDates() {
+    dateFrom() <- currentDate();
+    dateTo() <- currentDate();
+}
+
+CLASS PriceReportType 'Вид цены'{
+    accountingCost 'Бухгалтерская себестоимость (цена поставщика без НДС)',
+    purchase 'Цена закупочная (поставщика с НДС)',
+    retail 'Цена отпускная (розничная)'
+}
+
+priceReportType = DATA LOCAL PriceReportType();
+namePriceReportType 'Вид цены' = staticCaption(priceReportType());
+
+
+inReportSupplier 'Отм.' = DATA LOCAL BOOLEAN (LegalEntity);
+anyReportSupplier() = GROUP MAX inReportSupplier(LegalEntity l);
+nameReportSuppliers 'Поставщики' () = OVERRIDE
+    (GROUP CONCAT name(LegalEntity l) IF inReportSupplier(l), ', ' ORDER name(l), l),
+    'Все поставщики' CHARWIDTH 30;
+
+reportSupplierList = DATA LOCAL LegalEntityList();
+nameReportSupplierList 'Список организаций' () = name(reportSupplierList());
+
+changeReportSupplierList 'Список организаций'() {
+    DIALOG legalEntityLists OBJECTS o INPUT DO {
+        reportSupplierList() <- o;
+        inReportSupplier(LegalEntity s) <- in(s, o);
+    }
+}
+
+deleteReportSupplierList 'Сбросить список'() {
+    reportSupplierList() <- NULL;
+    inReportSupplier(LegalEntity l) <- NULL;
+} ASON CONTEXTMENU nameReportSupplierList;
+
+selectAllReportSuppliers 'Выбрать всех' () {
+    reportSupplierList() <- NULL;
+    inReportSupplier(LegalEntity l) <- TRUE WHERE isSupplier(l) AND active(l);
+} ASON CONTEXTMENU nameReportSuppliers;
+
+deselectAllReportSuppliers 'Сбросить всех' () {
+    reportSupplierList() <- NULL;
+    inReportSupplier(LegalEntity l) <- NULL;
+} ASON CONTEXTMENU nameReportSuppliers;
+
+FORM dialogReportSuppliers 'Выбор поставщиков'
+    TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parent(lg)
+    PROPERTIES READONLY lgTreeName = name(lg)
+
+    OBJECTS o = LegalEntity
+    PROPERTIES(o) inReportSupplier READONLYIF reportSupplierList()
+    PROPERTIES(o) READONLY name, id SHOWIF showIDs(), fullName, shortNameOwnership,
+        nameLegalEntityGroup, address, phone
+    PROPERTIES changeReportSupplierList() TOOLBAR
+    ORDERS name(o)
+    FILTERGROUP inactiveSupplier FILTER 'Активные' active(o) 'shift F10' DEFAULT
+    FILTERGROUP inReportSupplierFilter FILTER 'Отмеченные' inReportSupplier(o) 'F9'
+    FILTERS isSupplier(o)
+    FILTERS isParent(legalEntityGroup(o), lg) OR
+        o IS LegalEntity AND NOT lg IS LegalEntityGroup OR
+        o IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroup(o)
+;
+
+DESIGN dialogReportSuppliers {
+    BOX {
+        NEW topContainer {
+            horizontal = TRUE;
+            fill = 1;
+            MOVE BOX(TREE legalEntityGroupTree) { caption = 'Группы организаций'; }
+            MOVE BOX(o) { fill = 3; GRID(o) { defaultComponent = TRUE; } }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+changeReportStocks() { DIALOG dialogStocksSaleReportRu; }
+
+CLASS ReportSkuFilterType 'Тип фильтра по товарам' {
+    sku 'Товары',
+    skuGroups 'Товарные группы',
+    skuLists 'Списки товаров'
+}
+
+FORM reportSkuFilterType 'Типы фильтра по товарам'
+    OBJECTS t = ReportSkuFilterType
+    PROPERTIES(t) READONLY '' = staticCaption
+    LIST ReportSkuFilterType OBJECT t
+;
+
+inReportSkuList 'Отм.' = DATA LOCAL BOOLEAN (List);
+anyReportSkuList() = GROUP MAX inReportSkuList(List l);
+nameReportSkuLists 'Списки товаров' () = GROUP CONCAT name(List l) IF inReportSkuList(l), ', ' ORDER name(l), l CHARWIDTH 30;
+
+inReportSku 'Отм.' = DATA LOCAL BOOLEAN (Sku);
+
+deleteReportSkuLists 'Сбросить список' () {
+    inReportSkuList(List l) <- NULL;
+    inReportSku(Sku s) <- NULL;
+} ASON CONTEXTMENU nameReportSkuLists;
+
+inReportSkuGroup 'Отм.' = DATA LOCAL BOOLEAN (SkuGroup);
+anyReportSkuGroup() = GROUP MAX inReportSkuGroup(SkuGroup g);
+nameReportSkuGroups 'Товарные группы' () = GROUP CONCAT name(SkuGroup o) IF inReportSkuGroup(o) AND NOT inReportSkuGroup(parent(o)), '; ' ORDER o CHARWIDTH 30;
+
+deleteReportSkuGroups 'Сбросить группы' () {
+    inReportSkuGroup(SkuGroup g) <- NULL;
+} ASON CONTEXTMENU nameReportSkuGroups;
+
+FORM selectReportSku 'Выбор товаров'
+    TREE skuTree sg = SkuGroup PARENT parent(sg)
+    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F6' DEFAULT
+    ORDERS order(sg), skuGroupName
+
+    OBJECTS s = Sku
+    PROPERTIES(s) inReportSku
+    PROPERTIES(s) READONLY id SHOWIF showIDs()
+    PROPERTIES(s) READONLY name, idBarcode, shortNameUOM
+    FILTERS isParent(sg, s), name(s)
+    ORDERS name(s)
+;
+
+FORM dialogReportSkuLists 'Выбор списков товаров'
+    OBJECTS o = List
+    PROPERTIES(o) inReportSkuList
+    PROPERTIES(o) READONLY name
+    ORDERS name(o)
+;
+
+selectReportSkus 'Фильтр по товарам' () {
+    DIALOG reportSkuFilterType OBJECTS t INPUT DO {
+        CASE
+            WHEN t = ReportSkuFilterType.sku THEN {
+                inReportSkuList(List l) <- NULL;
+                inReportSkuGroup(SkuGroup g) <- NULL;
+                SHOW selectReportSku;
+            }
+            WHEN t = ReportSkuFilterType.skuGroups THEN {
+                inReportSkuList(List l) <- NULL;
+                inReportSku(Sku s) <- NULL;
+                SHOW filterGroupType;
+                
+            }
+            WHEN t = ReportSkuFilterType.skuLists THEN {
+                inReportSkuGroup(SkuGroup g) <- NULL;
+                DIALOG dialogReportSkuLists DO {
+                    inReportSku(Sku s) <- NULL;
+                    FOR inReportSkuList(list(ListDetail ld)) AND Sku sk = sku(ld) DO
+                        inReportSku(sk) <- TRUE;
+                }
+            };
+    }
+}
+
+selectedReportSkuNames = GROUP CONCAT name(Sku s) IF inReportSku(s), '; ' ORDER name(s), s;
+inSessionParent(Sku s) = GROUP MAX inSession(SkuGroup g) IF isParent(g, s);
+skuNamesFromReportGroups = GROUP CONCAT name(Sku s) IF inSessionParent(s) AND name(s), '; ' ORDER name(s), s;
+reportInSkus 'Товары' = OVERRIDE selectedReportSkuNames(), skuNamesFromReportGroups();
+
+anyReportSkuSelected() = (GROUP MAX inReportSku(Sku s)) OR anyReportSkuGroup();
+
+inReportSupplierFilter(Batch bt) = NOT anyReportSupplier() OR inReportSupplier(supplier(bt));
+inReportStockFilter(Stock st) = inSaleReport(st);
+inReportSkuFilter(Sku s) = NOT anyReportSkuSelected() OR inReportSku(s) OR inSessionParent(s);
+
+balanceB 'Остаток на начало' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
+quantityPurchase 'Приход' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
+quantitySale 'Расход' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
+balanceA 'Остаток на конец' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
+
+inReport 'Вкл. в отчет' (Sku s) = GROUP SUM 1 IF balanceB(s,Stock st) OR quantityPurchase(s,st) OR quantitySale(s,st) OR balanceA(s,st); 
+index '№ п/п' (Sku s) = PARTITION SUM 1 IF inReport(s) ORDER nameSkuGroup2(s), nameSkuGroup3(s), nameSkuGroup4(s), id(s), name(s) ;
+index '№ п/п' (Sku s, Stock st) = PARTITION SUM 1 IF balanceB(s,st) OR quantityPurchase(s,st) OR quantitySale(s,st) OR balanceA(s,st) ORDER id(st) BY s;
+
+FORM printTurnoverOnlyQuantityGestori
+    OBJECTS s = (s = Sku, st = Stock)
+    PROPERTIES(s) name, id, nameUOM, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, index
+    PROPERTIES(st) id, name
+    PROPERTIES() dateFrom, dateTo
+    PROPERTIES(s,st) balanceB, quantityPurchase, quantitySale, balanceA, index
+    ORDERS nameSkuGroup2(s), nameSkuGroup3(s), nameSkuGroup4(s), id(s), name(s), id(st)
+    FILTERS balanceB(s,st) OR quantityPurchase(s,st) OR quantitySale(s,st) OR balanceA(s,st)
+;
+
+fillTurnoverOnlyQuantityGestori 'Только количество' () {
+    balanceB(Sku s, Stock st) <- NULL ;
+    quantityPurchase(Sku s, Stock st) <- NULL ;
+    quantitySale(Sku s, Stock st) <- NULL ;
+    balanceA(Sku s, Stock st) <- NULL ;
+    
+    balanceB(Sku sk, Stock st) <- GROUP SUM balanceB(Batch bt, st, dateFrom()) IF sku(bt)=sk AND 
+        inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+    
+    balanceA(Sku sk, Stock st) <- GROUP SUM balanceA(Batch bt, st, dateTo()) IF sku(bt)=sk AND
+        inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+    
+    quantityPurchase(Sku sk, Stock st) <- GROUP SUM quantityPurchase(Batch bt, st, dateFrom(), dateTo()) IF sku(bt)=sk AND
+        inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+    
+    quantitySale(Sku sk, Stock st) <- GROUP SUM quantitySold(Batch bt, st, dateFrom(), dateTo()) IF sku(bt)=sk AND  
+        inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+    
+    PRINT printTurnoverOnlyQuantityGestori XLSX ;
+} IMAGE 'print.png';
+
+/////
+inReportStandart 'Вкл. в отчет' (Sku s) = GROUP SUM 1 IF balanceB(s,Stock st) OR quantityPurchase(s,st) OR quantitySale(s,st) OR balanceA(s,st);
+indexStandart '№ п/п' (Sku s) = PARTITION SUM 1 IF inReportStandart(s) ORDER nameSkuGroup2(s), nameSkuGroup3(s), nameSkuGroup4(s), id(s), name(s) ;
+indexStandart '№ п/п' (Sku s, Stock st) = PARTITION SUM 1 IF balanceB(s,st) OR quantityPurchase(s,st) OR quantitySale(s,st) OR balanceA(s,st) ORDER id(st) BY s;
+
+//invoiceSum 'Сумма поставщика (без НДС)' (SaleLedger ledger,Batch batch) = GROUP SUM (cost(ledger,batch) * price(invoiceDetail(batch)));
+
+sumB 'Остаток на начало' = DATA LOCAL NUMERIC[16,4] (Sku, Stock);
+sumPurchase 'Приход' = DATA LOCAL NUMERIC[16,4] (Sku, Stock);
+sumSale 'Расход' = DATA LOCAL NUMERIC[16,4] (Sku, Stock);
+sumA 'Остаток на конец' = DATA LOCAL NUMERIC[16,4] (Sku, Stock);
+
+FORM printTurnoverStandartGestori
+    OBJECTS s = (s = Sku, st = Stock)
+    PROPERTIES(s) name, id, nameUOM, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, indexStandart, index
+    PROPERTIES(st) id, name
+    PROPERTIES() dateFrom, dateTo
+    PROPERTIES(s,st) balanceB, quantityPurchase, quantitySale, balanceA, indexStandart, index
+    PROPERTIES(s,st) sumB, sumPurchase, sumSale, sumA
+    ORDERS nameSkuGroup2(s), nameSkuGroup3(s), nameSkuGroup4(s), id(s), name(s), id(st)
+    FILTERS balanceB(s,st) OR quantityPurchase(s,st) OR quantitySale(s,st) OR balanceA(s,st) OR
+            sumB(s,st) OR sumPurchase(s,st) OR sumSale(s,st) OR sumA(s,st)
+;
+
+fillTurnoverStandartGestori 'Стандартная' () {
+    balanceB(Sku s, Stock st) <- NULL ;
+    quantityPurchase(Sku s, Stock st) <- NULL ;
+    quantitySale(Sku s, Stock st) <- NULL ;
+    balanceA(Sku s, Stock st) <- NULL ;
+    sumB(Sku s, Stock st) <- NULL ;
+    sumPurchase(Sku s, Stock st) <- NULL ;
+    sumSale(Sku s, Stock st) <- NULL ;
+    sumA(Sku s, Stock st) <- NULL ;
+    
+    balanceB(Sku sk, Stock st) <- GROUP SUM balanceB(Batch bt, st, dateFrom()) IF sku(bt)=sk AND
+        inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+    
+    balanceA(Sku sk, Stock st) <- GROUP SUM balanceA(Batch bt, st, dateTo()) IF sku(bt)=sk AND
+        inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+    
+    quantityPurchase(Sku sk, Stock st) <- GROUP SUM quantityPurchase(Batch bt, st, dateFrom(), dateTo()) IF sku(bt)=sk AND
+        inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+    
+    quantitySale(Sku sk, Stock st) <- GROUP SUM quantitySold(Batch bt, st, dateFrom(), dateTo()) IF sku(bt)=sk AND
+        inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+    
+    IF priceReportType()=PriceReportType.accountingCost THEN {
+        sumB(Sku sk, Stock st) <- GROUP SUM balanceB(Batch bt, st, dateFrom()) * costPrice(sk, st, dateFrom()) IF sku(bt)=sk AND
+            inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+        sumA(Sku sk, Stock st) <- GROUP SUM balanceA(Batch bt, st, dateTo()) * costPrice(sk, st, dateTo()) IF sku(bt)=sk AND
+            inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+        sumPurchase(Sku sk, Stock st) <- GROUP SUM sumPurchase(Batch bt, st, DATE d) * costPrice(sk, st, d) IF sku(bt)=sk AND d>=dateFrom() AND d<=dateTo() AND 
+            inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+        sumSale(Sku sk, Stock st) <- GROUP SUM sumSold(Batch bt, st, DATE d) * costPrice(sk, st, d) IF sku(bt)=sk AND d>=dateFrom() AND d<=dateTo() AND
+            inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+    }
+    
+    IF priceReportType()=PriceReportType.purchase THEN {
+        sumB(Sku sk, Stock st) <- GROUP SUM balanceB(Batch bt, st, dateFrom()) * accountPrice(sk, st, dateFrom()) IF sku(bt)=sk AND
+            inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+        sumA(Sku sk, Stock st) <- GROUP SUM balanceA(Batch bt, st, dateTo()) * accountPrice(sk, st, dateTo()) IF sku(bt)=sk AND
+            inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+        sumPurchase(Sku sk, Stock st) <- GROUP SUM sumPurchase(Batch bt, st, DATE d) * accountPrice(sk, st, d) IF sku(bt)=sk AND d>=dateFrom() AND d<=dateTo() AND
+            inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+        sumSale(Sku sk, Stock st) <- GROUP SUM sumSold(Batch bt, st, DATE d) * accountPrice(sk, st, d) IF sku(bt)=sk AND d>=dateFrom() AND d<=dateTo() AND
+            inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+    }
+    
+    IF priceReportType()=PriceReportType.retail THEN {
+        sumB(Sku sk, Stock st) <- GROUP SUM balanceB(Batch bt, st, dateFrom()) * prevPriceA(dataPriceListType('retail'), sk, st, dateTimeToDateTime(dateTo(), 23:59)) IF sku(bt)=sk AND
+            inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+        sumA(Sku sk, Stock st) <- GROUP SUM balanceA(Batch bt, st, dateTo()) * prevPriceA(dataPriceListType('retail'), sk, st, dateTimeToDateTime(dateTo(), 23:59)) IF sku(bt)=sk AND
+            inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+        sumPurchase(Sku sk, Stock st) <- GROUP SUM sumPurchase(Batch bt, st, DATE d) * prevPriceA(dataPriceListType('retail'), sk, st, dateTimeToDateTime(dateTo(), 23:59)) IF sku(bt)=sk AND d>=dateFrom() AND d<=dateTo() AND
+            inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+        sumSale(Sku sk, Stock st) <- GROUP SUM sumSold(Batch bt, st, DATE d) * prevPriceA(dataPriceListType('retail'), sk, st, dateTimeToDateTime(dateTo(), 23:59)) IF sku(bt)=sk AND d>=dateFrom() AND d<=dateTo() AND
+            inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+    }
+    
+    PRINT printTurnoverStandartGestori XLSX ;
+} IMAGE 'print.png';
+
+/////
+
+
+FORM turnoverReportsGestori 'Оборотные ведомости'
+    PROPERTIES() dateFrom, dateTo
+    PROPERTIES() nameReportSupplierList READONLY SHOWIF reportSupplierList()
+    PROPERTIES() nameReportSuppliers ON CHANGE { DIALOG dialogReportSuppliers; } READONLYIF reportSupplierList()
+    PROPERTIES nameStockList() READONLY SHOWIF stockList()
+    PROPERTIES reportStocks 'Подразделения' = inSaleReportStocks() ON CHANGE changeReportStocks() READONLYIF stockList()
+    PROPERTIES() nameReportSkuLists READONLY SHOWIF anyReportSkuList()
+    PROPERTIES reportSelectedSkuGroups 'Товарные группы' = nameReportSkuGroups() READONLY SHOWIF anyReportSkuGroup()
+    PROPERTIES reportSkus 'Товары' = reportInSkus() ON CHANGE selectReportSkus() READONLYIF anyReportSkuList() OR anyReportSkuGroup()
+    PROPERTIES namePriceReportType()
+    
+    PROPERTIES() DISABLEIF NOT dateFrom() OR NOT dateTo() fillTurnoverOnlyQuantityGestori, fillTurnoverStandartGestori
+    
+    EVENTS ON INIT {
+        initReportDates();
+        priceReportType() <- PriceReportType.accountingCost;    
+    }
+;
+
+DESIGN turnoverReportsGestori {
+    NEW cnt {
+        fill = 1;
+        NEW filters FIRST {
+            alignment = STRETCH;
+            NEW topRow {
+                horizontal = TRUE;
+                MOVE PROPERTY(dateFrom());
+                MOVE PROPERTY(dateTo());
+            }
+            MOVE PROPERTY(nameReportSupplierList()) { alignment = STRETCH; }
+            MOVE PROPERTY(nameReportSuppliers()) { alignment = STRETCH; }
+            MOVE PROPERTY(nameStockList()) { alignment = STRETCH; }
+            MOVE PROPERTY(reportStocks) { alignment = STRETCH; }
+            MOVE PROPERTY(nameReportSkuLists()) { alignment = STRETCH; }
+            MOVE PROPERTY(reportSelectedSkuGroups) { alignment = STRETCH; }
+            MOVE PROPERTY(reportSkus) { alignment = STRETCH; }
+            MOVE PROPERTY(namePriceReportType()) { alignment = STRETCH; }
+        }
+
+        MOVE PROPERTY(fillTurnoverOnlyQuantityGestori()) { valueClass = 'btn-primary'; }
+        MOVE PROPERTY(fillTurnoverStandartGestori()) { valueClass = 'btn-primary'; }
+    }
+    MOVE TOOLBARBOX;
+}
+
+NAVIGATOR {
+    stockReports{
+        NEW turnoverReportsGestori;
+    }
+}
+
