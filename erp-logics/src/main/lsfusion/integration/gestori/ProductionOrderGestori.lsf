@@ -31,8 +31,8 @@ EXTEND FORM BOM
 CONSTRAINT (SET(isDefault(BOM bom)) OR CHANGED(in(bom, Stock st))) AND isDefault(bom) AND (GROUP SUM 1 IF isDefault(BOM b) AND NOT b = bom AND products(b) = products(bom)
     AND in(b, st) = in(bom, st) AND isActive(b)) MESSAGE 'Спецификация по умолчанию может быть только 1';
 
-countProductsKirovsky (sku, Stock stock, DATE date) = GROUP SUM 1 IF isActive(BOM(Product p), stock, date) AND isDefault(BOM(p)) BY sku(p);
-defaultProductKirovsky (sku, Stock stock, DATE date)= GROUP MIN Product p IF isActive(BOM(p), stock, date) AND isDefault(BOM(p)) BY sku(p);
+countProductsKirovsky (sku, Stock stock, DATE date) = GROUP SUM 1 IF isActive(BOM(Product p), stock, date) AND isDefault(BOM(p)) AND isProduction(operation(BOM(p))) BY sku(p);
+defaultProductKirovsky (sku, Stock stock, DATE date)= GROUP MIN Product p IF isActive(BOM(p), stock, date) AND isDefault(BOM(p)) AND isProduction(operation(BOM(p))) BY sku(p);
 
 WHEN LOCAL FORMS order CHANGED(sku(ProductDetail d)) AND NOT CHANGED(product(d)) AND countProductsKirovsky(sku(d), componentsStock(d), date(d)) NOINLINE DO{
     product(d) <- defaultProductKirovsky(sku(d), componentsStock(d), date(d));
