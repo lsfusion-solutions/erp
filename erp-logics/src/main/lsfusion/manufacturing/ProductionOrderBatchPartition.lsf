@@ -4,12 +4,15 @@ REQUIRE ProductionOrder;
 
 NAMESPACE Production;
 
+multiplierReturn = ABSTRACT NUMERIC[10,5](Substitute);
+multiplierOver (Substitute s) = OVERRIDE multiplierReturn(s), multiplier(s);
+
 subQuantity 'В заказ' = DATA NUMERIC[16,5](Order,Substitute);
-originalSubQuantity 'В заказ (исходный компонент)' (Order o, Substitute s) = subQuantity(o, s) / multiplier(s);
+originalSubQuantity 'В заказ (исходный компонент)' (Order o, Substitute s) = subQuantity(o, s) / multiplierOver(s);
 originalSubQuantity (Sku s, Order o) = NUMERIC[16,5] ( GROUP SUM originalSubQuantity(o, Substitute sb) IF fromSku(sb) = s);
 
-subQuantity 'В заказ' (Order o, Sku from, Sku to) = GROUP SUM subQuantity(o,Substitute su) IF multiplier(su) >0.0 AND  fromSku(su)==from AND toSku(su)==to;
-subQuantity 'В заказ' (Order o, Sku to) = GROUP SUM subQuantity(o,Substitute su) IF multiplier(su) > 0.0 AND toSku(su)==to;
+subQuantity 'В заказ' (Order o, Sku from, Sku to) = GROUP SUM subQuantity(o,Substitute su) IF multiplierOver(su) >0.0 AND  fromSku(su)==from AND toSku(su)==to;
+subQuantity 'В заказ' (Order o, Sku to) = GROUP SUM subQuantity(o,Substitute su) IF multiplierOver(su) > 0.0 AND toSku(su)==to;
 EXTEND FORM order
     PROPERTIES (o,su) subQuantity
 ;
@@ -67,7 +70,7 @@ createBatchComponentDetail 'Рассчитать партии по FIFO' (Order 
         LOCAL subDateTime = DATETIME (Substitute);
         LOCAL prevBalance = NUMERIC[16,5](Substitute);
         prevBalance(Substitute s) <- prevCurrentBalanceZero(toSku(s), o) WHERE lack(fromSku(s));    
-        subBalance(Substitute s) <- prevBalance(s) / multiplier(s) WHERE lack(fromSku(s));
+        subBalance(Substitute s) <- prevBalance(s) / multiplierOver(s) WHERE lack(fromSku(s));
         subDateTime(Substitute s) <- prevDateTimeLastOrderBatch(toSku(s), componentsStock(o)) WHERE lack(fromSku(s));
         
         replaceSub (Substitute s) <- subQuantity(o, s);
@@ -89,10 +92,10 @@ createBatchComponentDetail 'Рассчитать партии по FIFO' (Order 
         }
         
         // запоминаем коэффициент
-        multiplier(Sku s, BOM b, Sku r) <- GROUP MAX multiplier(Substitute sb) IF quantity(sb, b) AND fromSku(sb) = s AND toSku(sb) = r;
+        multiplier(Sku s, BOM b, Sku r) <- GROUP MAX multiplierOver(Substitute sb) IF quantity(sb, b) AND fromSku(sb) = s AND toSku(sb) = r;
         
         // считаем назад в единицах замен
-        quantity(Sku s, BOM b, Sku r) <- NUMERIC[16,5](GROUP SUM quantity(Substitute sb, b) * multiplier(sb) IF fromSku(sb) = s AND toSku(sb) = r);
+        quantity(Sku s, BOM b, Sku r) <- NUMERIC[16,5](GROUP SUM quantity(Substitute sb, b) * multiplierOver(sb) IF fromSku(sb) = s AND toSku(sb) = r);
         
         // все оставшееся пойдет по обычному товару
         quantity(Sku s, BOM b, Sku r) <- quantity(s, b) (-) taken(s, b) WHERE r = s;
@@ -269,10 +272,10 @@ createBatchComponentDetailNew 'Рассчитать партии по FIFO new' 
         LOCAL prevBalance = NUMERIC[16,5](Substitute, BOM);
 
         prevBalance(Substitute s, BOM bm) <- prevCurrentBalanceZero(toSku(s), o) WHERE lack(fromSku(s), bm);
-        subBalance(Substitute s, BOM bm) <- prevBalance(s, bm) / multiplier(s) WHERE lack(fromSku(s), bm);
+        subBalance(Substitute s, BOM bm) <- prevBalance(s, bm) / multiplierOver(s) WHERE lack(fromSku(s), bm);
         subDateTime(Substitute s, BOM bm) <- prevDateTimeLastOrderBatch(toSku(s), componentsStock(o)) WHERE lack(fromSku(s), bm);
 
-        replaceSub (Substitute s, BOM bm) <- NUMERIC[16,5](originalSubQuantity(bm,s)*multiplier(s));
+        replaceSub (Substitute s, BOM bm) <- NUMERIC[16,5](originalSubQuantity(bm,s)*multiplierOver(s));
         FOR lack(Sku s, BOM bm) DO {
             replaceSub (Substitute sb, bm) <- PARTITION UNGROUP lack
                 LIMIT (subBalance(sb, bm) (-) replaceSubBom(toSku(sb)) (-) brutto (toSku(sb))) IF use(sb,bm)
@@ -287,10 +290,10 @@ createBatchComponentDetailNew 'Рассчитать партии по FIFO new' 
         quantity(Substitute s, BOM bm) <- replaceSub(s,bm);
 
         // запоминаем коэффициент
-        multiplier(Sku s, BOM b, Sku r) <- GROUP MAX multiplier(Substitute sb) IF quantity(sb, b) AND fromSku(sb) = s AND toSku(sb) = r;
+        multiplier(Sku s, BOM b, Sku r) <- GROUP MAX multiplierOver(Substitute sb) IF quantity(sb, b) AND fromSku(sb) = s AND toSku(sb) = r;
 
         // считаем назад в единицах замен
-        quantity(Sku s, BOM b, Sku r) <- NUMERIC[16,5](GROUP SUM quantity(Substitute sb, b) * multiplier(sb) IF fromSku(sb) = s AND toSku(sb) = r);
+        quantity(Sku s, BOM b, Sku r) <- NUMERIC[16,5](GROUP SUM quantity(Substitute sb, b) * multiplierOver(sb) IF fromSku(sb) = s AND toSku(sb) = r);
 
         // все оставшееся пойдет по обычному товару
         quantity(Sku s, BOM b, Sku r) <- quantity(s, b) (-) taken(s, b) WHERE r = s;
@@ -423,10 +426,10 @@ createBatchComponentDetailComponent 'Расписать партии FIFO' (Orde
         LOCAL prevBalance = NUMERIC[16,5](Substitute, BOM, Component);
 
         prevBalance(Substitute s, BOM bm, Component c) <- prevCurrentBalanceZero(toSku(s), o) WHERE lack(fromSku(s), bm, c);
-        subBalance(Substitute s, BOM bm, Component c) <- prevBalance(s, bm, c) / multiplier(s) WHERE lack(fromSku(s), bm, c);
+        subBalance(Substitute s, BOM bm, Component c) <- prevBalance(s, bm, c) / multiplierOver(s) WHERE lack(fromSku(s), bm, c);
         subDateTime(Substitute s, BOM bm, Component c) <- prevDateTimeLastOrderBatch(toSku(s), componentsStock(o)) WHERE lack(fromSku(s), bm, c);
 
-        replaceSub (Substitute s, BOM bm, Component c) <- NUMERIC[16,5](originalSubQuantity(bm,s,c)*multiplier(s));
+        replaceSub (Substitute s, BOM bm, Component c) <- NUMERIC[16,5](originalSubQuantity(bm,s,c)*multiplierOver(s));
 
         FOR lack(Sku s, BOM bm, Component c)  DO {
             replaceSub (Substitute sb, bm, c) <- PARTITION UNGROUP lack
@@ -440,10 +443,10 @@ createBatchComponentDetailComponent 'Расписать партии FIFO' (Orde
         quantity(Substitute s, BOM bm, Component c) <- replaceSub(s,bm,c);
 
         // запоминаем коэффициент
-        multiplier(Sku s, BOM b, Sku r, Component c) <- GROUP MAX multiplier(Substitute sb) IF quantity(sb, b, c) AND fromSku(sb) = s AND toSku(sb) = r;
+        multiplier(Sku s, BOM b, Sku r, Component c) <- GROUP MAX multiplierOver(Substitute sb) IF quantity(sb, b, c) AND fromSku(sb) = s AND toSku(sb) = r;
 
         // считаем назад в единицах замен
-        quantity(Sku s, BOM b, Sku r, Component c) <- NUMERIC[16,5](GROUP SUM quantity(Substitute sb, b, c) * multiplier(sb) IF fromSku(sb) = s AND toSku(sb) = r);
+        quantity(Sku s, BOM b, Sku r, Component c) <- NUMERIC[16,5](GROUP SUM quantity(Substitute sb, b, c) * multiplierOver(sb) IF fromSku(sb) = s AND toSku(sb) = r);
 
         // все оставшееся пойдет по обычному товару
         quantity(Sku s, BOM b, Sku r, Component c) <- quantity(s, b, c) (-) taken(s, b, c) WHERE r = s;
