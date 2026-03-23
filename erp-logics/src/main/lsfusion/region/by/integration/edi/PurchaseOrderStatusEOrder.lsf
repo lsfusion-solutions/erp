@@ -90,7 +90,9 @@ WHEN SET (UserOrder o == eOrder(EOrderResponse od)) DO {
     }
 }
 
-orderConfirmation(UserOrder o) += isEOrder(o);
+skipEOrderConfirmation = ABSTRACT BOOLEAN (UserOrder);
+
+orderConfirmation(UserOrder o) += isEOrder(o) AND NOT skipEOrderConfirmation(o);
 
 notEqualPriceEDI = ABSTRACT CASE OVERRIDE BOOLEAN (Purchase.OrderDetail);
 notEqualPriceEDI(OrderDetail d) += WHEN d IS Purchase.OrderDetail AND NOT priceResponseEDI(d) == price(d) THEN TRUE ;
