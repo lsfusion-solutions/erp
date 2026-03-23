@@ -109,6 +109,8 @@ DESIGN integrationData {
         }
     }
 }
+httpHeadersePass(TEXT name) = CASE
+    WHEN name = 'Content-Type' THEN 'text/xml';
 
 //--Запрос токена
 
@@ -133,7 +135,7 @@ getToken_v1() {
     LOCAL file = XMLFILE ();
     LOCAL result = XMLFILE ();
     EXPORT envelopeA XML TO file;
-    EXTERNAL HTTP POST 'http://' + url() PARAMS file() TO result;
+    EXTERNAL HTTP POST 'http://' + url() HEADERS httpHeadersePass PARAMS file() TO result;
 
     IMPORT XML ROOT 'header' FROM result() TO () errorCode, sessiontoken;
 
@@ -177,7 +179,7 @@ getFunctionalnameByGTINCustom_v1 'Проверить ePass' (Item i) {
     LOCAL result = XMLFILE ();       
     
     EXPORT envelope2 XML TO file;
-    EXTERNAL HTTP POST 'http://'+url() PARAMS file() TO result;
+    EXTERNAL HTTP POST 'http://'+url() HEADERS httpHeadersePass PARAMS file() TO result;
     IMPORT XML ROOT 'return' FROM result() TO () errorCode, name;          
     NEWSESSION NESTED LOCAL {    
         IF upper(errorCode()) == 'OK' THEN {
