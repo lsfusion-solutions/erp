@@ -4,139 +4,135 @@ REQUIRE BinInventoryBinLedger, BatchBinLedger;
 
 NAMESPACE BinInventory;
 
-isBatch 'По партиям' = DATA BOOLEAN (BinInventory);
-skipBinInventoryBinLedger(BinInventory i) += isBatch(i);
-isReadonlyQuantity(BinInventory i) += isBatch(i);
+in 'Отм.' = DATA LOCAL BOOLEAN (Batch);
+FORM selectedBatches 'Выбор партий'
+    OBJECTS st=Stock PANEL
 
-quantityBalance 'Кол-во по остаткам' = DATA NUMERIC[16,5](BinInventory, Batch, Bin);
-quantity 'Кол-во по инвентаризации' = DATA NUMERIC[16,5](BinInventory, Batch, Bin);
-diffBinInventory 'Разница между остатками и инвентаризацией' (BinInventory i, Batch bt, Bin b) = quantity(i, bt, b) (-) quantityBalance(i, bt, b) IF quantity(i, bt, b) AND isBatch(i);
+    TREE skuTree sg = SkuGroup PARENT parent(sg)
+    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
+    ORDERS order(sg), skuGroupName
+    FILTERGROUP inactive
+        FILTER 'Активные' active(sg) 'F6' DEFAULT
 
-quantityBalance 'Кол-во в отмеченных ячейках' (BinInventory i, Batch bt) = GROUP SUM quantityBalance(i, bt, Bin b);
-quantity 'Кол-во по инвентаризации в отмеченных ячейках' (BinInventory i, Batch bt)  = GROUP SUM quantity(i, bt, Bin b);
-diffBinInventory 'Расхождение по инвентанризациив отмеченных ячейках' (BinInventory i, Batch bt) = GROUP SUM diffBinInventory(i, bt, Bin b);
-countDiffBinInventoryBatch 'Кол-во ячеек с расхождением по инвентаризации' (BinInventory i, Batch bt) = GROUP SUM 1 IF diffBinInventory(i, bt, Bin b);
+    OBJECTS bt = Batch
+    PROPERTIES(bt) in
+    PROPERTIES(bt) READONLY id SHOWIF showIDs()
+    PROPERTIES(bt) READONLY nameSku, name, idBarcodeSku, shortNameUOM
+    ORDERS name(bt)
+    FILTERS isParent(sg, bt),
+        name(bt)
+    FILTERGROUP groupFilters
+        FILTER 'С группами' isParent(sg, bt) OR overFilterGroup(sku(bt)) DEFAULT
+        FILTER 'Без групп' NOT skuGroup(sku(bt))
+    FILTERGROUP filterBalance
+        FILTER 'Партии с остатком' currentBalance(bt, st) DEFAULT
+        FILTER 'Партии с движением по складу' countLedger(bt, st)
+        FILTER 'Партии пришедшие за последний 1 день' date(bt) >= subtract(currentDate(), 1)
+        FILTER 'Партии пришедшие за последние 7 дней' date(bt) >= subtract(currentDate(), 7)
+        FILTER 'Партии пришедшие за последние 30 дней' date(bt) >= subtract(currentDate(), 30)
+;
 
-quantityBalanceBatch 'Кол-во товара по партиям в ячейке' (BinInventory i, Bin b) = GROUP SUM quantityBalance(i, Batch bt, b);
-quantityBatch 'Кол-во товара по партиям по инвентаризации в ячейке' (BinInventory i, Bin b) = GROUP SUM quantity(i, Batch bt, b);
-diffBinInventoryBatch 'Расхождение по партиям по инвентаризации' (BinInventory i, Bin b) = GROUP SUM diffBinInventory(i, Batch bt, b);
-countDiffBinInventoryBatch 'Кол-во партий с расхождением по инвентаризации'  (BinInventory i, Bin b) = GROUP SUM 1 IF diffBinInventory(i, Batch bt, b);
+DESIGN selectedBatches {
+    BOX {
+        size = (1024, 768);
 
-CLASS BinInventoryBatchBinLedger : BinLedger;
-needToCreate = ABSTRACT BOOLEAN (BinInventory, Batch, Bin);
-binInventoryBatchBinLedger = AGGR BinInventoryBatchBinLedger WHERE needToCreate(BinInventory binInventory, Batch batch, Bin bin) MATERIALIZED INDEXED;
+        NEW topContainer {
+            horizontal = TRUE;
+            fill = 1;
 
-dateTime[BinLedger] (BinInventoryBatchBinLedger ledger) += dateTime(binInventory(ledger));
-isPosted[BinLedger] (BinInventoryBatchBinLedger ledger) += isPosted(binInventory(ledger));
-isClosed[BinLedger] (BinInventoryBatchBinLedger ledger) += isClosed(binInventory(ledger));
-batch[BinLedger] (BinInventoryBatchBinLedger ledger) += batch(ledger);
-sku[BinLedger] (BinInventoryBatchBinLedger ledger) += skuLedger(batch(ledger), stock(bin(ledger)));
-quantity[BinLedger] (BinInventoryBatchBinLedger ledger) += abs(diffBinInventory(binInventory(ledger),batch(ledger),bin(ledger)));
-stock[BinLedger] (BinInventoryBatchBinLedger ledger) += stock(binInventory(ledger));
-description[BinLedger] (BinInventoryBatchBinLedger ledger) += description(binInventory(ledger));
-edit[BinLedger](BinInventoryBatchBinLedger ledger) + {edit(binInventory(ledger));}
-show[BinLedger](BinInventoryBatchBinLedger ledger) + {show(binInventory(ledger));}
+            MOVE BOX(TREE skuTree) {
+                caption = 'Группы SKU';
+                width = 200;
+            }
 
-inBin[BinLedger] (BinInventoryBatchBinLedger ledger) += bin(ledger) IF diffBinInventory(binInventory(ledger),batch(ledger),bin(ledger)) >0;
-outBin[BinLedger] (BinInventoryBatchBinLedger ledger) += bin(ledger) IF diffBinInventory(binInventory(ledger),batch(ledger),bin(ledger))<0;
-
-needToCreate(BinInventory binInventory, Batch batch, Bin bin) += isPosted(binInventory)
-    AND diffBinInventory(binInventory, batch, bin)
-    AND stock(binInventory) = stock(bin)
-    AND isBatch(binInventory);
-
-skipChangeSkuQuantity = DATA LOCAL BOOLEAN (BinInventory);
-
-WHEN LOCAL CHANGED(quantity(BinInventory i, Batch bt, Bin b)) AND isBatch(i) AND NOT skipChangeSkuQuantity(i) DO {
-    quantity(i, Sku s, b) <- quantityBalance(i, s, b)
-        (+) [GROUP SUM diffBinInventory(BinInventory i1, Batch bt1, Bin b1) BY i1, skuLedger(bt1, stock(b1)), b1](i,s,b);
-}
-
-WHEN DROPPED(isBatch(BinInventory i)) DO {
-    quantityBalance(i, Batch bt, Bin b) <- NULL;
-    quantity(i, Batch bt, Bin b) <- NULL;
-}
-
-extraFillBinInventories(BinInventory i) + {
-    IF isBatch(i) THEN {
-        skipChangeSkuQuantity(i) <- TRUE;
-        quantityBalance(i, Batch bt, Bin b) <- NULL;
-        quantity(i, Batch bt, Bin b) <- NULL;
-        IF typeOfAddition(i) = TypeOfAddition.bin THEN {
-            quantityBalance(i, Batch bt, Bin b) <- balanceB(bt, b, dateTime(i)) WHERE balanceB(bt, stock(i), dateTime(i)) AND stock(b) = stock(i) AND include(i, b);
-        } ELSE IF typeOfAddition(i) = TypeOfAddition.sku THEN {
-            quantityBalance(i, Batch bt, Bin b) <- balanceB(bt, b, dateTime(i)) WHERE balanceB(bt, stock(i), dateTime(i)) AND stock(b) = stock(i) AND include(i, skuLedger(bt, stock(i)));
-        } ELSE IF typeOfAddition(i) = TypeOfAddition.difference THEN {
-            quantityBalance(i, Batch bt, Bin b) <- balanceB(bt, b, dateTime(i)) WHERE stock(b) = stock(i) 
-                AND (diffBalanceBinB(bt, stock(i), dateTime(i)) OR diffBalanceBinB(skuLedger(bt, stock(i)), stock(i), dateTime(i)));
-            quantityBalance(i, Batch bt, Bin b) <- balanceB(bt, b, dateTime(i)) WHERE NOT quantityBalance(i, bt, b) AND stock(b) = stock(i) 
-                AND balanceB(skuLedger(bt, stock(i)), stock(i), dateTime(i)) = [GROUP SUM balanceB(Batch bt1, Stock st1, DATETIME dt1) BY skuLedger(bt1, st1), st1, dt1](skuLedger(bt, stock(i)), stock(i), dateTime(i))
-                AND NOT balanceB(skuLedger(bt, stock(i)), b, dateTime(i)) = [GROUP SUM balanceB(Batch bt1, Bin b1, DATETIME dt1) BY skuLedger(bt1, stock(b1)), b1, dt1](sku(bt), b, dateTime(i));
+            MOVE BOX(bt) {
+                fill = 2;
+            }
         }
-        quantity(i, Batch bt, Bin b) <- quantityBalance(i, bt, b);
-        skipChangeSkuQuantity(i) <- NULL;
+        MOVE TOOLBARBOX;
     }
 }
 
-WHEN LOCAL CHANGED(stock(BinInventory i)) OR CHANGED(dateTime(i)) OR CHANGED(typeOfAddition(i)) DO {
-    quantityBalance(i, Batch bt, Bin b) <- NULL;
-    quantity(i, Batch bt, Bin b) <- NULL;
+
+EXTEND CLASS InventoryScope {
+    byBatches 'По партиям',
+    byDiffBatches 'По расхождениям остатков партий'
 }
 
-extraDifferenceFilter(i, Sku s, Bin b) += (isBatch(i) AND 
-    [GROUP MAX Batch bt IF quantity(BinInventory i1, bt, Bin b1) OR quantityBalance(i1, bt, b1) BY i1, skuLedger(bt, stock(bt)), b1](i, s,b));
-extraDifferenceFilter(i, Sku s) += (isBatch(i) AND
-    [GROUP MAX Batch bt IF quantity(BinInventory i1, bt, Bin b1) OR quantityBalance(i1, bt, b1) BY i1, skuLedger(bt, stock(bt))](i, s));
+order(InventoryScope is) += WHEN is == InventoryScope.byBatches THEN 25;
+order(InventoryScope is) += WHEN is == InventoryScope.byDiffBatches THEN 35;
 
+customFillByDiffBatches ABSTRACT (BinInventory);
 
-EXTEND FORM binInventories
-    PROPERTIES(i) READONLY isBatch
-;
+in = DATA LOCAL BOOLEAN (Batch, Bin);
+
+overSelectedBins(InventoryScope is, BinInventory i) + {
+    CASE WHEN is == InventoryScope.byBatches THEN {
+        SHOW selectedBatches FILTERS st==stock(i) NOMANAGESESSION;
+        in(Batch bt, Bin bin) <- TRUE WHERE currentBalance(bt, bin) AND in(bt);
+        needCreateListBinInventory() <- GROUP MAX in(Batch bt, Bin bin);
+    } WHEN is == InventoryScope.byDiffBatches THEN {
+        IF useCustomFillByDiff() THEN {
+            customFillByDiffBatches(i);
+            needCreateListBinInventory() <- GROUP MAX in(Batch bt, Bin bin);
+        } ELSE {
+            in(Batch bt, Bin bin) <- TRUE WHERE (discrepancies(bt) OR currentDiffBalanceBin(bt, stock(i))) AND currentBalance(bt, bin);
+            needCreateListBinInventory() <- GROUP MAX in(Batch bt, Bin bin);
+        }    
+    }    
+}
+
+@defineDocumentDetailBatchCustom(outListBinInventoryDetail, batch);
+idBatch 'Код партии' (OutListBinInventoryDetail detail) = id(batch(detail));
 
 EXTEND FORM binInventory
-    PROPERTIES(i) isBatch
-    PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.bin AND isBatch(i))
-        quantityBatch(i, b1),
-        quantityBalanceBatch(i, b1),
-        diffBinInventoryBatch(i, b1),
-        countDiffBinInventoryBatch(i, b1)    
-    
-    OBJECTS bt1 = Batch
-    PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.bin AND isBatch(i)) name(bt1) READONLY, id(bt1) READONLY, quantityBalance(i, bt1, b1) READONLY,
-        quantity(i, bt1, b1), diffBinInventory(i, bt1, b1)
-    FILTERS skuLedger(bt1, st) = s1, balanceB(bt1, st, t)
-    FILTERGROUP isFilledBatch1
-        FILTER 'С количеством по остаткам' quantityBalance(i, bt1, b1)  DEFAULT
-        FILTER 'С расхождениями по остаткам' diffBinInventory(i, bt1, b1)
+    PROPERTIES READONLY nameBatch(olid) AFTER nameSkuTypeSku(olid)
+;
 
-    OBJECTS bt2 = Batch
-    PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.sku AND isBatch(i)) name(bt2) READONLY, id(bt2) READONLY,
-        quantityBalance(i, bt2, b2) READONLY, quantity(i, bt2, b2), diffBinInventory(i, bt2, b2)
-    FILTERS skuLedger(bt2, st) = s2, balanceB(bt2, st, t)
-    FILTERGROUP isFilledBatch2
-        FILTER 'С количеством по остаткам' quantityBalance(i, bt2, b2)
-        FILTER 'С расхождениями по остаткам' diffBinInventory(i, bt2, b2)
+batch[BinLedger] (OutListBinInventoryDetail ledger) += batch(ledger);
 
-    OBJECTS bt3 = Batch
-    PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.difference AND isBatch(i)) name(bt3) READONLY, id(bt3) READONLY, quantityBalance(i, bt3, b3) READONLY,
-        quantity(i, bt3, b3), diffBinInventory(i, bt3, b3)
-    FILTERS skuLedger(bt3,st) = s3, balanceB(bt3, st, t)
-    FILTERGROUP isFilledBatch3
-        FILTER 'С количеством по остаткам' quantityBalance(i, bt3, b3) DEFAULT
-        FILTER 'С расхождениями по остаткам' diffBinInventory(i, bt3, b3)
+replace(Sku s, Batch b) + {sku(OutListBinInventoryDetail detail) <- s WHERE batch(detail) == b;}
+
+@defineDocumentDetailBatchCustom(inListBinInventoryDetail, batch);
+idBatch 'Код партии' (InListBinInventoryDetail detail) = id(batch(detail));
+
+EXTEND FORM binInventory
+    PROPERTIES READONLY nameBatch(ilid) AFTER nameSkuTypeSku(ilid)
+;
+
+batch[BinLedger] (InListBinInventoryDetail ledger) += batch(ledger);
+
+replace(Sku s, Batch b) + {sku(InListBinInventoryDetail detail) <- s WHERE batch(detail) == b;}
+
+overCreateInListBinInventoryDetail (InListBinInventoryDetail ilid, OutListBinInventoryDetail olid) + {
+    batch(ilid) <- batch(olid);
+}
+
+useCustomFillListBinInventory() += TRUE;
+customFillListBinInventory(ListBinInventory li) + {
+    IF NOT (GROUP MAX in(Batch bt)) THEN {
+        in(Batch bt, Bin bin) <- TRUE WHERE in(sku(bt), bin) AND currentBalance(bt, bin);
+    }
+    FOR in(Batch batch, Bin bin) INLINE NEW olid = OutListBinInventoryDetail DO {
+        listBinInventory(olid) <- li;
+        include(bin, li) <- TRUE;
+        sku(olid) <- sku(batch);
+        batch(olid) <- batch;
+        bin(olid) <- bin;
+        quantity(olid) <- currentBalance(batch, bin);
+    }
+}
+
+EXTEND FORM binInventory
+    OBJECTS bt = Batch
+    PROPERTIES(bt) READONLY name, id
 ;
 
 DESIGN binInventory {
-    headHorizontal2 {
-        MOVE PROPERTY(isBatch(i)) FIRST;
-    }
-    s1ContSplit {
-        MOVE BOX (bt1) {fill = 1;};
-    }
-    bin2Cont {
-        MOVE BOX (bt2) {fill = 1;}
-    }
-    sbSkuBinCont {
-        MOVE BOX(bt3);
+    tabbedContainer {
+        NEW batchesContainer {
+            caption = 'Партии инвентаризации';
+            MOVE BOX(bt);    
+        }
     }
 }
