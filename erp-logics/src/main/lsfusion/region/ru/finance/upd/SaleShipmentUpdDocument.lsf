@@ -1,7 +1,8 @@
 MODULE SaleShipmentUpdDocument;
 
-REQUIRE SaleShipmentConsignmentRu, ConsignmentUpdDocument;
+REQUIRE SaleShipmentConsignmentRu, ConsignmentUpdDocumentLot, SaleOperation, SaleShipmentLot, VolumeAccountLotRu;
 
+PRIORITY LegalEntity;
 NAMESPACE Sale;
 
 shipment = DATA Shipment(UpdDocument);
@@ -22,21 +23,211 @@ showUpd 'Просмотреть УПД' (Shipment i) {
     show(updDocument(i));
 }
 
+overFill(UpdDocumentDetail d, Sale.ShipmentDetail id) {
+    isTabacco(d) <- TRUE IF lotType(sku(id))=LotType.tobacco OR lotType(sku(id))=LotType.tobaccoProduct;
+    FOR quantity(id, Lot lot) AND NOT volumeAccount(lot) NEW ld = UpdLotDetail DO {
+        updDocumentDetail(ld) <- d;
+        id(ld) <- left(id(lot), 31);
+    }
+    FOR quantity(id, Lot lot) AND volumeAccount(lot) NEW ld = UpdPackDetail DO {
+        updDocumentDetail(ld) <- d;
+        id(ld) <- id(lot);
+    }
+}
+
+fill(ShipmentDetail d, UpdDocumentDetail ed) {
+    //updDocument(ed) <- ei;
+    shipmentDetail(ed) <- d;
+    number(ed) <- index(d);
+    idUOM(ed) <- OVERRIDE codeOKEI(UOM(sku(d))), idUOM(d);
+    nameUOM(ed) <- nameUOM(sku(d));
+    idSku(ed) <- barCode(d);
+    nameSku(ed) <- nameSku(d);
+    quantity(ed) <- quantity(d);
+    price(ed) <- price(d);
+    sum(ed) <- sum(d);
+    idCountry(ed) <- sid(country(sku(d)));
+    nameCountry(ed) <- name(country(sku(d)));
+
+    VATStatus(ed)<- VATStatus.vatNot
+    ;//todo: со временем надо остальные добавить
+
+    invoiceSum(ed) <- sum(d);
+//    VATSum(ed) <- sumVAT(d);
+    withoutDuty(ed) <- TRUE;
+    overFill(ed, d);
+}
+
+createDetails (Shipment c, UpdDocument upd) {
+    FOR shipment(ShipmentDetail d) == c NEW ed = UpdDocumentDetail  DO {
+        updDocument(ed) <- upd;
+        fill(d, ed);
+    }
+}
+
+fillHeader(Shipment invoice, UpdDocument ei) {
+    shipment(ei) <- invoice;
+    idConsignor(ei) <- idEdi(supplier(invoice));
+    idConsignee(ei) <- idEdi(customer(invoice));
+
+    operatorEdi(ei) <- supplier(invoice);
+    nameOperatorConsignor(ei) <- fullName(operatorEdi(supplier(invoice)));
+    innOperatorConsignor(ei) <- STRING[10](inn(operatorEdi(supplier(invoice))));
+    codeOperatorConsignor(ei) <- codeOperatorEdi(supplier(invoice));
+
+    type(ei) <- UpdDocumentType.SALE;
+    status(ei) <- updStatus(Sale.operation(invoice));
+
+    businessNameDocument(ei) <- 'Документ об отгрузке товаров (выполнении работ), передаче имущественных прав (документ об оказании услуг)'
+        IF status(ei)=UpdDocumentStatus.DOP OR status(ei)=UpdDocumentStatus.SHCFDOP;
+
+    supplierNameDocument(ei) <- 'Счет-фактура и документ об отгрузке товаров (выполнении работ), передаче имущественных прав (документ об оказании услуг)'
+        WHERE status(ei)=UpdDocumentStatus.SHCFDOP;
+
+    supplierNameDocument(ei) <- 'Документ об отгрузке товаров (выполнении работ), передаче имущественных прав (документ об оказании услуг)'
+        WHERE status(ei)=UpdDocumentStatus.DOP;
+
+    dateSupplier(ei) <- currentDate();
+    timeSupplier(ei) <- currentTime();
+    nameOriginatorSupplier(ei) <- fullNameSupplier(invoice);
+
+    showMessage(ei) <- TRUE;
+
+    //invoiceNumerator(ei) <- defaultNumeratorConsignmentUpd(); //возможно нужно будет сделать параметризацию нумератора для организации
+    dateInvoice(ei) <- date(invoice);
+    nameCurrency(ei) <- name(currency(invoice));
+    codeCurrency(ei) <- sid(currency(invoice));
+
+    supplier(ei) <- supplier(invoice);
+    numberAccountSupplier(ei) <-  STRING[20](numberAccount(supplier(invoice)));
+    nameBankSupplier(ei) <- nameBank(account(supplier(invoice)));
+    MFOBankSupplier(ei) <- STRING[9](MFOBank(account(supplier(invoice))));
+    corrAccountBankSupplier(ei) <- corrAccount(bank(account(supplier(invoice))));
+
+    nameSupplier(ei) <- fullNameSupplier(invoice);
+    innSupplier(ei) <- inn(supplier(invoice));
+    kppSupplier(ei) <- kpp(supplier(invoice), date(invoice));
+    regionCodeSupplier(ei) <- STRING[2](id(region(supplierStock(invoice))));
+
+    countryCodeAddressSupplier(ei) <- sid(country(supplier(invoice)));
+    countryNameAddressSupplier(ei) <- name(country(supplier(invoice)));
+    addressSupplier(ei) <- address(supplier(invoice), date(invoice));
+
+    //    isConsignerSupplier(ei) <- TRUE IF invoice IS Consignment;
+    nameConsignorCompany(ei) <- nameSupplierStock(invoice);
+    innConsignorCompany(ei) <- inn(supplier(invoice));
+    countryCodeAddressConsignorCompany(ei) <- sid(country(supplier(invoice)));
+    countryNameAddressConsignorCompany(ei) <- name(country(supplier(invoice)));
+    addressConsignorCompany(ei) <- address(supplierStock(invoice));
+
+    nameReceiverCompany(ei) <- nameCustomerStock(invoice) WHERE NOT typeCompany(customer(invoice))=TypeCompany.individualEntrepreneur;
+    innReceiverCompany(ei) <- inn(customer(invoice)) WHERE NOT typeCompany(customer(invoice))=TypeCompany.individualEntrepreneur;
+    innReceiverCompanyIE(ei) <- inn(customer(invoice)) WHERE typeCompany(customer(invoice))=TypeCompany.individualEntrepreneur;
+    receiverCompanyIELastName(ei) <- getWord(name(customer(invoice)), ' ', 1) WHERE typeCompany(customer(invoice))=TypeCompany.individualEntrepreneur;
+    receiverCompanyIEFirstName(ei) <- getWord(name(customer(invoice)), ' ', 2) WHERE typeCompany(customer(invoice))=TypeCompany.individualEntrepreneur;
+    receiverCompanyIEMiddleName(ei) <- getWord(name(customer(invoice)), ' ', 3) WHERE typeCompany(customer(invoice))=TypeCompany.individualEntrepreneur;
+
+    countryCodeAddressReceiverCompany(ei) <- sid(country(customer(invoice)));
+    countryNameAddressReceiverCompany(ei) <- name(country(customer(invoice)));
+    addressReceiverCompany(ei) <- address(customerStock(invoice));
+
+    customer(ei) <- customer(invoice);
+    nameCustomer(ei) <- fullName(customer(invoice));
+    innCustomer(ei) <- inn(customer(invoice)) WHERE NOT typeCompany(customer(invoice))=TypeCompany.individualEntrepreneur;
+    kppCustomer(ei) <- kpp(customer(invoice), date(invoice)) WHERE NOT typeCompany(customer(invoice))=TypeCompany.individualEntrepreneur;
+    innCustomerIE(ei) <- inn(customer(invoice)) WHERE typeCompany(customer(invoice))=TypeCompany.individualEntrepreneur;
+    customerIELastName(ei) <- getWord(name(customer(invoice)), ' ', 1) WHERE typeCompany(customer(invoice))=TypeCompany.individualEntrepreneur;
+    customerIEFirstName(ei) <- getWord(name(customer(invoice)), ' ', 2) WHERE typeCompany(customer(invoice))=TypeCompany.individualEntrepreneur;
+    customerIEMiddleName(ei) <- getWord(name(customer(invoice)), ' ', 3) WHERE typeCompany(customer(invoice))=TypeCompany.individualEntrepreneur;
+
+    regionCodeCustomer(ei) <- STRING[2](id(region(customerStock(invoice))));
+
+    countryCodeAddressCustomer(ei) <- sid(country(customer(invoice)));
+    countryNameAddressCustomer(ei) <- name(country(customer(invoice)));
+    addressCustomer(ei) <- address(customer(invoice), date(invoice));
+
+    description(ei) <- 'Товары переданы, результаты работ сдал, услуги оказаны в полном объеме' IF invoice IS Consignment;
+    descriptionContract(ei) <- 'Договор: (руб.)' IF invoice IS Consignment;
+    numberContract(ei) <- number(contract(invoice));
+    dateContract(ei) <- dateFrom(contract(invoice));
+
+    accountantSupplier(ei) <- shortName(booker(supplier(invoice)));
+
+    supplierSignerCredentials(ei) <- Credential.c1 IF invoice IS Consignment;
+    supplierSignerStatus(ei) <- CStatus.c1 IF invoice IS Consignment;
+    supplierSignerCredentialsBase(ei) <- 'Должностные обязанности' IF invoice IS Consignment; //todo: переделать на проверку
+
+    supplierSignerInn(ei) <- inn(supplier(invoice));
+    supplierSignerPosition(ei) <- name(position(managerSupplier(invoice)));
+
+    supplierSignerAgentLastName(ei) <- lastName(managerSupplier(invoice));
+    supplierSignerAgentFirstName(ei) <- firstName(managerSupplier(invoice));
+    supplierSignerAgentMiddleName(ei) <- middleName(managerSupplier(invoice));
+
+    sum(ei) <- [GROUP SUM sum(ShipmentDetail d) BY shipment(d)](invoice);
+    invoiceSum(ei) <- [GROUP SUM sum(ShipmentDetail d) BY shipment(d)](invoice);
+    quantityDetail(ei) <- [GROUP SUM quantity(ShipmentDetail d) BY shipment(d)](invoice);
+//    VATSum(ei) <- [GROUP SUM sumVAT(ShipmentDetail d) BY shipment(d)](invoice);
+    overFillHeader(invoice, ei);
+}
+
+fillShipment(Shipment invoice, UpdDocument ei) {
+    fillHeader(invoice, ei);
+
+    createDetails(invoice, ei);
+}
+
 editUpd 'Редактировать УПД' (Shipment i) {
     edit(updDocument(i));
 } IMAGE 'edit.png';
 
+recreateUpdDocument (Shipment invoice) {
+    DELETE UpdDocumentDetail d WHERE updDocument(d)=updDocument(invoice);
+    DELETE UpdDocumentInfoDetail d WHERE updDocument(d)=updDocument(invoice);
+    fillShipment(invoice, updDocument(invoice));
+}
+
+createUpd 'Создать УПД' (Shipment invoice)  {
+    IF NOT updDocument(invoice) THEN NEWSESSION {
+        NEW ei = UpdDocument {
+            fillShipment(invoice, ei);
+        }
+        APPLY;
+        IF NOT canceled() THEN {
+            MESSAGE 'УПД создан';
+        }
+    }
+}
+recreateUpd 'Перезаполнить УПД' (Shipment invoice) {
+    IF updDocument(invoice) THEN {
+        IF isTransferred(updDocument(invoice)) THEN {
+            MESSAGE 'Документ УПД не может быть пересоздан, т.к. уже отправлен' NOWAIT;
+        } ELSE {
+            recreateUpdDocument(invoice);
+            APPLY;
+            IF NOT canceled() THEN {
+                MESSAGE 'УПД перезаполнен';
+            }
+        }
+    } ELSE {
+        createUpd(invoice);
+    }
+}
+
+inclS 'Отм.' = DATA LOCAL BOOLEAN (Shipment);
+countInclS = GROUP SUM 1 IF inclS(Shipment c);
+
 createUpdDocumentsShipment 'Создать УПД (отм.)' () {
-    IF countIncl() THEN {
-        NEWSESSION NESTED(incl[Shipment]) {
+    IF countInclS() THEN {
+        NEWSESSION NESTED(inclS[Shipment]) {
             LOCAL count = INTEGER ();
             count() <- countIncl();
-            FOR incl(Shipment i) DO {
+            FOR inclS(Shipment i) DO {
                 IF updDocument(i) THEN {
                     recreateUpdDocument(i);
                 } ELSE {
                     NEW ei = UpdDocument {
-                        fill(i, ei);
+                        fillShipment(i, ei);
                     }
                 }
             }
@@ -49,7 +240,7 @@ createUpdDocumentsShipment 'Создать УПД (отм.)' () {
 }
 
 createUpdDocuments (Shipment invoice) {
-    IF countIncl() THEN {
+    IF countInclS() THEN {
         createUpdDocumentsShipment();
     } ELSE {
         recreateUpd(invoice);
