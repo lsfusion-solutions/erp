@@ -96,9 +96,44 @@ replace(Sku s, Batch b) + {sku(OutListBinInventoryDetail detail) <- s WHERE batc
 @defineDocumentDetailBatchCustom(inListBinInventoryDetail, batch);
 idBatch 'Код партии' (InListBinInventoryDetail detail) = id(batch(detail));
 
+changeBatch(InListBinInventoryDetail detail) {
+    NEWSESSION {
+        DIALOG batches OBJECTS bt=batch(detail) INPUT FILTERS skuLedger(bt, stock(detail))==sku(detail) DO {
+            batch(detail) <- bt;
+            APPLY;   
+        }
+    }
+}
+
 EXTEND FORM binInventory
-    PROPERTIES READONLY nameBatch(ilid) AFTER nameSkuTypeSku(ilid)
+    PROPERTIES AFTER nameSkuTypeSku(ilid) nameBatch(ilid) ON CHANGE changeBatch(ilid) READONLYIF NOT status(li)==ListBinInventoryStatus.inProgress
 ;
+
+batchLocal = DATA LOCAL NESTED Batch (ListBinInventory);
+nameBatchLocal 'Партия' (ListBinInventory o)= name(batchLocal(o)) CHARWIDTH 20;
+
+CONSTRAINT batchLocal(ListBinInventory li) IS Batch AND NOT skuLedger(batchLocal(li), stock(li))==skuLocal(li)
+    CHECKED BY batchLocal[ListBinInventory]
+    MESSAGE 'Партия должны быть с движение по складу инвентаризации';
+
+overAddInListBinInventoryDetail(ListBinInventory o, InListBinInventoryDetail detail) + {
+    batch(detail) <- batchLocal(o);
+    batchLocal(o) <- NULL;
+}
+
+EXTEND FORM addInListBinInventoryDetail
+    PROPERTIES nameBatchLocal(o)
+;
+
+DESIGN addInListBinInventoryDetail {
+    propHorizontalContainer {
+        MOVE PROPERTY(nameBatchLocal(o)) AFTER PROPERTY(nameSkuLocal(o)) {
+            font = 'bold 24';
+            panelCaptionVertical = TRUE;
+            charWidth = 35;
+        }
+    }
+}
 
 batch[BinLedger] (InListBinInventoryDetail ledger) += batch(ledger);
 
@@ -123,16 +158,73 @@ customFillListBinInventory(ListBinInventory li) + {
     }
 }
 
+outQuantity 'Кол-во (расход)' =
+    GROUP SUM quantity(OutListBinInventoryDetail detail) BY batch(detail), listBinInventory(detail) MATERIALIZED INDEXED;
+
+outQuantity 'Кол-во (расход)' =
+    GROUP SUM outQuantity(Batch batch, ListBinInventory li) BY batch, binInventory(li);
+
+inQuantity 'Кол-во (приход)' =
+    GROUP SUM quantity(InListBinInventoryDetail detail) BY batch(detail), listBinInventory(detail) MATERIALIZED INDEXED;
+
+inQuantity 'Кол-во (приход)' =
+    GROUP SUM inQuantity(Batch batch, ListBinInventory li) BY batch, binInventory(li);
+
+diffQuantity 'Расхождение' (Batch batch, ListBinInventory li) = outQuantity(batch, li) (-) inQuantity(batch, li);
+diffQuantity 'Расхождение' (Batch batch, BinInventory i) = outQuantity(batch, i) (-) inQuantity(batch, i);
+
+in 'Вкл.' = inQuantity(Batch batch, ListBinInventory li) OR outQuantity(batch, li) MATERIALIZED INDEXED;
+in 'Вкл.' = GROUP MAX in(Batch batch, ListBinInventory li) BY batch, binInventory(li);
+
 EXTEND FORM binInventory
+    TREE lbskuTree lbsg = SkuGroup PARENT parent(lbsg)
+    PROPERTIES READONLY order(lbsg), name(lbsg)
+    ORDERS order(lbsg), name(lbsg)
+    FILTERGROUP lbinactiveSkuGroup
+        FILTER 'Активные' active(lbsg) DEFAULT
+
+    OBJECTS lbt = Batch
+    PROPERTIES(lbt) READONLY nameSku, idBarcodeSku, name
+    ORDERS nameSku(lbt)
+    PROPERTIES(lbt, li) READONLY outQuantity, inQuantity, diffQuantity
+    FILTERS isParent(lbsg, lbt)
+    FILTERGROUP lbDiff
+        FILTER 'С расхождением' diffQuantity(lbt, li) DEFAULT
+        FILTER 'В описи' in(lbt, li)
+
+    TREE bskuTree bsg = SkuGroup PARENT parent(bsg)
+    PROPERTIES READONLY order(bsg), name(bsg)
+    ORDERS order(bsg), name(bsg)
+    FILTERGROUP binactiveSkuGroup
+        FILTER 'Активные' active(bsg) DEFAULT
+
     OBJECTS bt = Batch
-    PROPERTIES(bt) READONLY name, id
+    PROPERTIES(bt) READONLY nameSku, idBarcodeSku, name
+    ORDERS nameSku(bt)
+    PROPERTIES(bt, i) READONLY outQuantity, inQuantity, diffQuantity
+    FILTERS isParent(bsg, bt)
+    FILTERGROUP bDiff
+        FILTER 'С расхождением' diffQuantity(bt, i) DEFAULT
+        FILTER 'В инвентаризации' in(bt, i)    
 ;
 
 DESIGN binInventory {
     tabbedContainer {
+        listBinInventoryDetailContainer {
+            NEW listBinInventoryBatches {
+                caption = 'Партии "'+ name(li)+ '"';
+                horizontal = TRUE;
+                fill = 1;
+                MOVE BOX(TREE lbskuTree);
+                MOVE BOX(lbt) {fill = 2;}
+            }
+        }
         NEW batchesContainer {
             caption = 'Партии инвентаризации';
-            MOVE BOX(bt);    
+            horizontal = TRUE;
+            fill = 1;
+            MOVE BOX(TREE bskuTree);
+            MOVE BOX(bt) {fill = 2;}
         }
     }
 }
