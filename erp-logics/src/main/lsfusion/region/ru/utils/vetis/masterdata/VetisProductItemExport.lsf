@@ -102,10 +102,15 @@ updateModifyProducerStockList 'Изменение наменклатуры' (Pro
     }
 }
 
+readonlyProductItem(ProductItem i) += isExported(i) AND own(producer(i)) OR NOT own(producer(i));
+
 EXTEND FORM productItems
-    PROPERTIES(o) createModifyProducerStockList, updateModifyProducerStockList DRAW o TOOLBAR
+    PROPERTIES(o) TOOLBAR createModifyProducerStockList SHOWIF NOT uuid(o), updateModifyProducerStockList SHOWIF uuid(o) DRAW o
 ;
 
+CONSTRAINT producer(ProductItem o) AND NOT own(producer(o)) CHECKED BY producer[ProductItem] MESSAGE 'Можно выбрать только собственный ХС';
+CONSTRAINT owner(ProductItem o) AND NOT own(owner(o)) CHECKED BY owner[ProductItem] MESSAGE 'Можно выбрать только собственный ХС';
+    
 GROUP productItemListR EXTID 'merc:productItemList';
 GROUP productItemR EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:productItem' : productItemListR;
 GROUP productR EXTID 'dt:product' : productItemR;

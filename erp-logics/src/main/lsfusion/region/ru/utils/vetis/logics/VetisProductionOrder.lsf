@@ -1,0 +1,69 @@
+MODULE VetisProductionOrder;
+
+REQUIRE ProductionOrder, VetisItem, VetisStock, VetisStockEntry;
+
+PRIORITY Production;
+
+NAMESPACE VetisSale;
+
+volume 'Объем в документе' = DATA NUMERIC[16,5] (ComponentDetail, StockEntry);
+
+volumeDetail 'Объем в документе' (ComponentDetail vd, StockEntry s) = NUMERIC[16,5](bruttoQuantity(vd) * OVERRIDE factor(sku(vd), unit(s)), 1.0); 
+fillVolume 'Выбрать' (ComponentDetail d, StockEntry s) { volume(d, s) <- volumeDetail(d, s); }
+
+bruttoQuantity (ComponentDetail vd, StockEntry s) = volume(s) / OVERRIDE factor(sku(vd), unit(s)), 1.0;
+
+matches (ComponentDetail vd, StockEntry s) = in(componentsStock(vd), enterprise(s)) AND in(s, GROUP MIN ProductItem pi IF in(sku(vd), pi)) AND active(s);
+
+calcQuantity(ComponentDetail vd, StockEntry s) = 
+    PARTITION UNGROUP bruttoQuantity LIMIT bruttoQuantity(vd, s) IF matches(vd, s) ORDER expiryDate(s), s BY vd;
+
+fillVolume 'Заполнить' (Order d) {
+    volume(ComponentDetail vd, StockEntry s) <- NUMERIC[16,5](calcQuantity(vd, s) * OVERRIDE factor(sku(vd), unit(s)), 1.0) WHERE order(vd) = d;
+}
+
+numberStockEntry 'Номер складского журнала' (ComponentDetail d) =
+    GROUP CONCAT number(StockEntry s) IF volume(d, s), ',' ORDER s;
+
+volumeStockEntry 'Объем в документе' (ComponentDetail d) = GROUP SUM volume(d, StockEntry s) MATERIALIZED;
+
+EXTEND FORM order
+    OBJECTS vd = ComponentDetail
+    PROPERTIES(vd) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, bruttoQuantity,
+                            numberStockEntry, volumeStockEntry
+    ORDERS index(vd)
+    FILTERS order(vd) = o,
+        [GROUP SUM 1 IF in(sku(ComponentDetail vd1), ProductItem pi) BY vd1](vd) OR volumeStockEntry(vd)
+    
+    PROPERTIES(o) fillVolume DRAW vd TOOLBAR
+    
+    OBJECTS se = StockEntry
+    PROPERTIES(se) READONLY guid, number, nameProductItem, volume, expiryDate
+    PROPERTIES(vd, se)      volume, fillVolume GRID
+    FILTERS matches(vd, se)
+
+    FILTERGROUP active
+        FILTER 'Активные' active(se) OR volume(vd, se) DEFAULT 
+;
+
+DESIGN order {
+    tabContainerComponent{
+        NEW vetis {
+            caption = 'ВСД';
+            NEW vetisHeader {
+                horizontal = TRUE;
+            }
+            NEW vetisDetail {
+                fill = 1;
+                horizontal = TRUE;
+                MOVE BOX(vd);
+                MOVE BOX(se);
+            }
+        }
+    }
+}
+
+// invoice detail
+//volume 'Объем в документе' = ABSTRACT NUMERIC[16,5] (ComponentDetail, StockEntry);
+//volume(ComponentDetail d, StockEntry s) += volume(d, s);
+
