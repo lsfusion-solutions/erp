@@ -344,14 +344,13 @@ FORM printPurchaseOrderReportSummary
     PROPERTIES(l) name
     PROPERTIES(st) idNameStock
     PROPERTIES() reportDateFrom, reportDateTo
-    PROPERTIES(s,l,st) quantityUnconfirmed, quantityAgreed, quantityShipped, priceContract, sumPurchase
+    PROPERTIES(s, l, st) quantityUnconfirmed, quantityAgreed, quantityShipped, priceContract, sumPurchase
     ORDERS name(l), idNameStock(st), name(s)
-    FILTERS quantityUnconfirmed(s,l,st) OR quantityAgreed(s,l,st) OR quantityShipped(s,l,st) OR sumPurchase(s,l,st)
+    FILTERS quantityUnconfirmed(s, l, st) OR quantityAgreed(s, l, st) OR quantityShipped(s, l, st) OR sumPurchase(s, l, st)
     REPORT template()
 ;
 
 orderReceiptReconSummary 'Акт сверки (сводная)' () {
-
     LOCAL lastOrderDetail = Purchase.OrderDetail (Sku, LegalEntity, Stock);
 
     quantityUnconfirmed(Sku sk, LegalEntity l, Stock st) <- NULL;
@@ -361,22 +360,22 @@ orderReceiptReconSummary 'Акт сверки (сводная)' () {
     sumPurchase(Sku sk, LegalEntity l, Stock st) <- NULL;
 
     quantityUnconfirmed(Sku sk, LegalEntity l, Stock st) <- GROUP SUM quantity(Purchase.OrderDetail d) IF NOT isConfirmed(d) AND
-        sku(d)=sk AND supplier(d)=l AND customerStock(d)=st AND
+        sku(d) = sk AND supplier(d) = l AND customerStock(d) = st AND
         inReportDateFrom(d) AND inReportDateTo(d) AND inReportStatus(d) AND
         inReportSupplierFilter(d) AND inReportStockFilter(d) AND inReportSkuFilter(d);
 
     quantityAgreed(Sku sk, LegalEntity l, Stock st) <- GROUP SUM quantity(Purchase.OrderDetail d) IF isConfirmed(d) AND
-        sku(d)=sk AND supplier(d)=l AND customerStock(d)=st AND
+        sku(d) = sk AND supplier(d) = l AND customerStock(d) = st AND
         inReportDateFrom(d) AND inReportDateTo(d) AND inReportStatus(d) AND
         inReportSupplierFilter(d) AND inReportStockFilter(d) AND inReportSkuFilter(d);
 
     quantityShipped(Sku sk, LegalEntity l, Stock st) <- GROUP SUM shipped(Purchase.OrderDetail d) IF
-        sku(d)=sk AND supplier(d)=l AND customerStock(d)=st AND
+        sku(d) = sk AND supplier(d) = l AND customerStock(d) = st AND
             inReportDateFrom(d) AND inReportDateTo(d) AND inReportStatus(d) AND
             inReportSupplierFilter(d) AND inReportStockFilter(d) AND inReportSkuFilter(d);
 
     lastOrderDetail(Sku sk, LegalEntity l, Stock st) <- GROUP LAST Purchase.OrderDetail d ORDER dateTime(d), d WHERE
-    sku(d)=sk AND supplier(d)=l AND customerStock(d)=st AND
+    sku(d) = sk AND supplier(d) = l AND customerStock(d) = st AND
         inReportDateFrom(d) AND inReportDateTo(d) AND inReportStatus(d) AND
         inReportSupplierFilter(d) AND inReportStockFilter(d) AND inReportSkuFilter(d);
 
@@ -384,64 +383,96 @@ orderReceiptReconSummary 'Акт сверки (сводная)' () {
     prevPriceA(priceListType(lastOrderDetail(sk, l, st)), sk, st, l, dateTime(lastOrderDetail(sk, l, st)));
 
     sumPurchase(Sku sk, LegalEntity l, Stock st) <- GROUP SUM invoiceSum(Purchase.InvoiceDetail d) IF
-        sku(d)=sk AND supplier(d)=l AND customerStock(d)=st AND
+        sku(d) = sk AND supplier(d) = l AND customerStock(d) = st AND
             inReportDateFromOrder(d) AND inReportDateToOrder(d) AND
             inReportSupplierFilterOrder(d) AND inReportStockFilterOrder(d) AND inReportSkuFilterOrder(d);
 
     template() <- 'OrderReceiptReconSummaryGestori.jrxml';
-    PRINT printPurchaseOrderReportSummary XLSX ;
+    PRINT printPurchaseOrderReportSummary XLSX;
 } IMAGE 'print.png';
 
-FORM printPurchaseOrderReport
-    OBJECTS d = Purchase.OrderDetail
-    PROPERTIES() reportDateFrom, reportDateTo
-    PROPERTIES(d) READONLY nameSupplier, idNameCustomerStock, number, date, shipmentDate, nameStatus,
-        idSku, nameSku,
-        quantity, shipped,
-        invoicePrice, specPrice, receivedPrice,
-        orderSum, invoiceSum, receivedSum,
-        invoices, isConfirmed
-    ORDERS nameSupplier(d), idNameCustomerStock(d), date(d)
-    FILTERS inReportStatus(d),
-        inReportDateFrom(d),
-        inReportDateTo(d),
-        inReportSupplierFilter(d),
-        inReportStockFilter(d),
-        inReportSkuFilter(d)
-    REPORT template()
-;
+odRpt = DATA LOCAL Purchase.OrderDetail (INTEGER);
+idRpt = DATA LOCAL Purchase.InvoiceDetail (INTEGER);
+
+supRpt(INTEGER i) = nameSupplier(odRpt(i));
+stRpt(INTEGER i) = idNameCustomerStock(odRpt(i));
+numRpt(INTEGER i) = number(odRpt(i));
+dtUncRpt(INTEGER i) = dateUnconfirmed(odRpt(i));
+dtCnfRpt(INTEGER i) = dateConfirmed(odRpt(i));
+dtShpRpt(INTEGER i) = shipmentDate(odRpt(i));
+statRpt(INTEGER i) = nameStatus(odRpt(i));
+idSkRpt(INTEGER i) = idSku(odRpt(i));
+nmSkRpt(INTEGER i) = nameSku(odRpt(i));
+origQtyRpt(INTEGER i) = originalQuantity(odRpt(i));
+qtyRpt(INTEGER i) = quantity(odRpt(i));
+shpRpt(INTEGER i) = shipped(odRpt(i));
+discOCRpt(INTEGER i) = discrepancyOrderConfirm(odRpt(i));
+discCRRpt(INTEGER i) = discrepancyConfirmReceived(odRpt(i));
+invPrcRpt(INTEGER i) = invoicePrice(odRpt(i));
+specPrcRpt(INTEGER i) = specPrice(odRpt(i));
+rcvPrcRpt(INTEGER i) = receivedPrice(odRpt(i));
+ordSumRpt(INTEGER i) = orderSum(odRpt(i));
+rcvSumRpt(INTEGER i) = receivedSum(odRpt(i));
+defSumRpt 'Сумма недопоставки' (INTEGER i) = rcvSumRpt(i) (-) ordSumRpt(i);
+
+invNumRpt(INTEGER i) = numberInvoiceDetail(idRpt(i));
+invDtRpt(INTEGER i) = dateInvoiceDetail(idRpt(i));
+invQtyRpt(INTEGER i) = quantityInvoiceDetail(idRpt(i));
+invPrcDtRpt(INTEGER i) = priceInvoiceDetail(idRpt(i));
+invSumRpt(INTEGER i) = sumInvoiceDetail(idRpt(i));
+
+deficiencySum 'Сумма недопоставки' (Purchase.OrderDetail d) = receivedSum(d) (-) orderSum(d);
 
 FORM printPurchaseOrderReportDetailed 'Акт сверки (детальная)'
-    OBJECTS ss = (d = Purchase.OrderDetail, id = Purchase.InvoiceDetail)
+    OBJECTS d = INTEGER
     PROPERTIES() reportDateFrom, reportDateTo
     PROPERTIES(d) READONLY
-    nameSupplier, idNameCustomerStock, number,
-        dateUnconfirmed, dateConfirmed, shipmentDate, nameStatus,
-        idSku, nameSku,
-        originalQuantity, quantity, shipped,
-        discrepancyOrderConfirm, discrepancyConfirmReceived,
-        invoicePrice, specPrice, receivedPrice,
-        orderSum, receivedSum
-    ORDERS idNameCustomerStock(d), nameSupplier(d), dateUnconfirmed(d), number(d), idSku(d)
-    FILTERS inReportStatus(d),
-        inReportDateFrom(d),
-        inReportDateTo(d),
-        inReportSupplierFilter(d),
-        inReportStockFilter(d),
-        inReportSkuFilter(d)
-    PROPERTIES(id) READONLY
-    numberInvoiceDetail, dateInvoiceDetail,
-        quantityInvoiceDetail, priceInvoiceDetail, sumInvoiceDetail
-    FILTERS countInvoiceDetail(order(d), invoice(id)) AND sku(id) = sku(d)
-    ORDERS dateInvoiceDetail(id)
+    supRpt, stRpt, numRpt,
+        dtUncRpt, dtCnfRpt, dtShpRpt,
+        statRpt, idSkRpt, nmSkRpt,
+        origQtyRpt, qtyRpt, shpRpt,
+        discOCRpt, discCRRpt,
+        invPrcRpt, specPrcRpt, rcvPrcRpt,
+        ordSumRpt, rcvSumRpt, defSumRpt,
+        invNumRpt, invDtRpt, invQtyRpt, invPrcDtRpt, invSumRpt
+    FILTERS odRpt(d)
+    ORDERS stRpt(d), supRpt(d), dtUncRpt(d), numRpt(d), idSkRpt(d), invDtRpt(d)
 ;
 
 orderReceiptReconDetailed 'Акт сверки (детальная по заказам)' () {
+    odRpt(INTEGER i) <- NULL;
+    idRpt(INTEGER i) <- NULL;
+
+    LOCAL idx = INTEGER();
+    idx() <- 0;
+
+    FOR inReportStatus(Purchase.OrderDetail od) AND inReportDateFrom(od) AND inReportDateTo(od) AND
+        inReportSupplierFilter(od) AND inReportStockFilter(od) AND inReportSkuFilter(od)
+        ORDER idNameCustomerStock(od), nameSupplier(od), dateUnconfirmed(od), number(od), idSku(od), od DO {
+
+        LOCAL hasInv = BOOLEAN();
+        hasInv() <- NULL;
+
+        FOR countInvoiceDetail(order(od), invoice(Purchase.InvoiceDetail id)) AND sku(id) = sku(od)
+            ORDER dateInvoiceDetail(id), id DO {
+            hasInv() <- TRUE;
+            idx() <- idx() + 1;
+            odRpt(idx()) <- od;
+            idRpt(idx()) <- id;
+        }
+
+        IF NOT hasInv() THEN {
+            idx() <- idx() + 1;
+            odRpt(idx()) <- od;
+        }
+    }
+
     PRINT printPurchaseOrderReportDetailed XLSX;
 } IMAGE 'print.png';
 
 EXTEND FORM purchaseOrderReportForm
     PROPERTIES() DISABLEIF NOT reportDateFrom() OR NOT reportDateTo() orderReceiptReconDetailed, orderReceiptReconSummary
+    PROPERTIES(d) READONLY deficiencySum AFTER receivedSum(d)
 ;
 
 DESIGN purchaseOrderReportForm {
