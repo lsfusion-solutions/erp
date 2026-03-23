@@ -99,12 +99,15 @@ overPrice2 'Цена2' = ABSTRACT NUMERIC[16,4] (MachineryPriceTransaction, Barc
 overPrice3 'Цена3' = ABSTRACT NUMERIC[16,4] (MachineryPriceTransaction, Barcode);
 overPrice4 'Цена4' = ABSTRACT NUMERIC[16,4] (MachineryPriceTransaction, Barcode);
 overPrice5 'Цена5' = ABSTRACT NUMERIC[16,4] (MachineryPriceTransaction, Barcode);
+overTypeMark 'Цена5' = ABSTRACT NUMERIC[16,4] (MachineryPriceTransaction, Barcode);
 
 price1 'Цена1' (MachineryPriceTransaction m, Barcode b) = OVERRIDE overPrice1(m, b), price(m,b);
 price2 'Цена2' (MachineryPriceTransaction m, Barcode b) = OVERRIDE overPrice2(m, b), price(m,b);
 price3 'Цена3' (MachineryPriceTransaction m, Barcode b) = OVERRIDE overPrice3(m, b), price(m,b);
 price4 'Цена4' (MachineryPriceTransaction m, Barcode b) = OVERRIDE overPrice4(m, b), price(m,b);
 price5 'Цена5' (MachineryPriceTransaction m, Barcode b) = OVERRIDE overPrice5(m, b), price(m,b);
+
+typeMark 'Тип Маркированной продукции' (MachineryPriceTransaction m, Barcode b) = OVERRIDE overTypeMark(m, b), 0;
 
 sendToFit (MachineryPriceTransaction t) {
     NEWSESSION {
@@ -164,7 +167,7 @@ sendToFit (MachineryPriceTransaction t) {
                      minPrice = numeric((OVERRIDE INTEGER(dataMinPrice(t, b) * 100), 0), 12), // 46. Минимальная цена
                      TNVED = alpha('', 22),                            // 47. ТН ВЭД
                      mark = (IF lotType(sku(b)) THEN '1' ELSE '0'),    // 48. Признак маркированной продукции
-                     typeMark = '    ',                                // 49. Тип маркированной продукции
+                     typeMark = numeric(typeMark(t, b), 4),            // 49. Тип маркированной продукции
                      codeCountry = numeric(INTEGER(trim(OVERRIDE sid(country(b)), sid(defaultCountry()))), 3), // 50. Код страны происхождения
                      excise = numeric(0, 9),                           // 51. Акциз
                      numberDeclaration = numeric(0, 32),               // 52. Номер таможенной декларации
