@@ -115,7 +115,7 @@ FORM priceCheckGestori 'Сверка цен по приходным наклад
     EVENTS ON INIT { filterPriceMode() <- 0; initDates(); }
 ;
 
-printPriceCheckGestori 'Отчет' () { PRINT priceCheckGestori PDF; } IMAGE 'print.png';
+printPriceCheckGestori 'Отчет' () { PRINT priceCheckGestori XLSX; } IMAGE 'print.png';
 
 EXTEND FORM priceCheckGestori
     PROPERTIES() DISABLEIF NOT dateFrom() OR NOT dateTo() printPriceCheckGestori
@@ -159,6 +159,144 @@ DESIGN priceCheckGestori {
 NAVIGATOR {
     purchasesReports {
         NEW priceCheckGestori;
+    }
+}
+
+orderNumForCheck 'Номер заказа' (InvoiceDetail d) = seriesNumber(order(orderDetail(d)));
+
+priceByOrder 'Цена из заказа' (InvoiceDetail d) =
+    IF includeVAT(priceListType(d)) THEN invoicePrice(orderDetail(d)) ELSE price(orderDetail(d));
+
+sumByOrder 'Сумма по цене заказа' (InvoiceDetail d) =
+    NUMERIC[18,4](round2(quantity(d) * priceByOrder(d)));
+
+priceDiffOrder 'Расхождение цен заказ-приход' (InvoiceDetail d) =
+    NUMERIC[16,4](priceForComparison(d) (-) priceByOrder(d));
+
+sumDiffOrder 'Расхождение сумм заказ-приход' (InvoiceDetail d) =
+    NUMERIC[18,4](sumForComparison(d) (-) sumByOrder(d));
+
+priceDiffPercentOrder '% расх. цен заказ-приход' (InvoiceDetail d) =
+    NUMERIC[10,2](priceDiffOrder(d) * 100.0 / priceByOrder(d)) IF priceByOrder(d) != 0;
+
+sumDiffPercentOrder '% расх. сумм заказ-приход' (InvoiceDetail d) =
+    NUMERIC[10,2](sumDiffOrder(d) * 100.0 / sumByOrder(d)) IF sumByOrder(d) != 0;
+
+maxAllowablePercentOrder 'Допустимый % отклонения вверх заказ-прих' (InvoiceDetail d) =
+    percDeviationUpPrice(agreement(invoice(d)), sku(d));
+
+minAllowablePercentOrder 'Допустимый % отклонения вниз зак-прих' (InvoiceDetail d) =
+    percDeviationDownPrice(agreement(invoice(d)), sku(d));
+
+exceedsAllowableOrder 'Выход за пределы зак-прих' (InvoiceDetail d) =
+    TRUE IF priceDiffPercentOrder(d) > maxAllowablePercentOrder(d)
+        OR (- priceDiffPercentOrder(d)) > minAllowablePercentOrder(d);
+
+backgroundExceedsOrder (InvoiceDetail d) = RGB(255, 100, 100) IF exceedsAllowableOrder(d);
+
+filterPassesPriceCheckOrder (InvoiceDetail d) =
+    CASE
+        WHEN filterPriceMode() == 1 THEN priceDiffPercentOrder(d) > filterPricePercent()
+        WHEN filterPriceMode() == 2 THEN priceDiffPercentOrder(d) < (- filterPricePercent())
+        WHEN filterPriceMode() == 3 THEN abs(priceDiffPercentOrder(d)) > filterPricePercent()
+        ELSE TRUE;
+
+FORM priceCheckByOrderGestori 'Сверка цен по приходным накладным и заказам'
+    PROPERTIES() dateFrom, dateTo, titleInterval
+    PROPERTIES nameStockList() READONLY SHOWIF stockList()
+    PROPERTIES inSaleReportStocksOrd 'Подразделения' = inSaleReportStocks() ON CHANGE changeStocksInventory() READONLYIF stockList()
+    PROPERTIES nameLegalEntityList() READONLY SHOWIF legalEntityList()
+    PROPERTIES inSaleReportSupplierOrd 'Поставщики' = inSaleReportSupplier() ON CHANGE { DIALOG dialogLegalEntitiesSupplier; } READONLYIF legalEntityList()
+    PROPERTIES()
+    setFilterNone,
+        setFilterAbove,
+        setFilterBelow,
+        setFilterBoth,
+        filterPricePercentInput,
+        filterApprovedOrdersOnly
+
+    OBJECTS d = InvoiceDetail
+    PROPERTIES READONLY
+    idSupplier 'Код поставщика' = id(supplier(d)),
+        nameSupplier(d),
+        nameCustomerStock 'Подразделение' = nameCustomerStock(d),
+        seriesNumberContract 'Номер договора' = seriesNumberContractSku(invoice(d)),
+        orderNum 'Номер заказа' = orderNumForCheck(d),
+        invoiceNumber 'Номер накладной' = seriesNumber(invoice(d)),
+        dateInvoice = date(d),
+        idSku(d),
+        nameSku = nameSku(d),
+        idBarcodeSku(d),
+        quantity(d),
+        priceForComparison(d),
+        sumForComparison(d),
+        priceByOrder(d),
+        sumByOrder(d),
+        priceDiffOrder(d),
+        sumDiffOrder(d),
+        priceDiffPercentOrder(d),
+        sumDiffPercentOrder(d),
+        maxAllowablePercentOrder(d),
+        minAllowablePercentOrder(d),
+        exceedsAllowableOrder(d) BACKGROUND backgroundExceedsOrder(d)
+
+    FILTERS isPosted(d),
+        orderDetail(d),
+        inInterval(d),
+        filterPassesStock(d),
+        filterPassesSupplier(d),
+        filterPassesPriceCheckOrder(d),
+        filterPassesOrder(d)
+
+    ORDERS idSupplier, nameCustomerStock, orderNum, dateInvoice, nameSku
+
+    EVENTS ON INIT { filterPriceMode() <- 0; initDates(); }
+;
+
+printPriceCheckByOrderGestori 'Отчет' () { PRINT priceCheckByOrderGestori XLSX; } IMAGE 'print.png';
+
+EXTEND FORM priceCheckByOrderGestori
+    PROPERTIES() DISABLEIF NOT dateFrom() OR NOT dateTo() printPriceCheckByOrderGestori
+;
+
+DESIGN priceCheckByOrderGestori {
+    NEW filters FIRST {
+        alignment = STRETCH;
+        NEW topRow {
+            horizontal = TRUE;
+            MOVE PROPERTY(dateFrom());
+            MOVE PROPERTY(dateTo());
+            MOVE PROPERTY(printPriceCheckByOrderGestori()) { valueClass = 'btn-primary'; }
+        }
+        MOVE PROPERTY(nameStockList()) { alignment = STRETCH; }
+        MOVE PROPERTY(inSaleReportStocksOrd) { alignment = STRETCH; }
+        MOVE PROPERTY(nameLegalEntityList()) { alignment = STRETCH; }
+        MOVE PROPERTY(inSaleReportSupplierOrd) { alignment = STRETCH; }
+        NEW filterPanelOrd {
+            horizontal = TRUE;
+            alignment = STRETCH;
+            NEW priceFilterOrd {
+                caption = 'Фильтр по цене';
+                horizontal = TRUE;
+                MOVE PROPERTY(setFilterNone()) { valueClass = IF filterPriceMode() == 0 THEN 'btn-secondary' ELSE 'btn-outline-secondary'; }
+                MOVE PROPERTY(setFilterAbove()) { valueClass = IF filterPriceMode() == 1 THEN 'btn-warning' ELSE 'btn-outline-warning'; }
+                MOVE PROPERTY(setFilterBelow()) { valueClass = IF filterPriceMode() == 2 THEN 'btn-info' ELSE 'btn-outline-info'; }
+                MOVE PROPERTY(setFilterBoth()) { valueClass = IF filterPriceMode() == 3 THEN 'btn-danger' ELSE 'btn-outline-danger'; }
+                MOVE PROPERTY(filterPricePercentInput());
+            }
+            NEW orderFilterOrd {
+                caption = 'Заказы';
+                MOVE PROPERTY(filterApprovedOrdersOnly());
+            }
+        }
+    }
+    BOX(d) { caption = 'Результат сверки'; }
+    REMOVE PROPERTY(titleInterval());
+}
+
+NAVIGATOR {
+    purchasesReports {
+        NEW priceCheckByOrderGestori;
     }
 }
 
