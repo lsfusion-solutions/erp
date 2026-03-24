@@ -233,10 +233,14 @@ isRetailSale (SkuLedger o) = o IS DateSaleSkuLedger;
 isRetailReturn (SkuLedger o) = o IS DateReturnSkuLedger;
 isRetailOperation (SkuLedger o) = isRetailSale(o) OR isRetailReturn(o);
 
+isReturnDocument (SkuLedger o) = signedQuantity(o) < 0 AND NOT isRetailOperation(o);
+
 nameOperationEx 'Операция' (SkuLedger o) =
     IF isRetailSale(o) THEN 'Кассовые продажи'
     ELSE IF isRetailReturn(o) THEN 'Кассовые возвраты'
-    ELSE nameOperationDocument(o);
+    ELSE IF isReturnDocument(o) AND nameReturn(operationDocument(o))
+        THEN nameReturn(operationDocument(o))
+        ELSE nameOperationDocument(o);
 
 sortByDates 'Сортировка по датам' = DATA LOCAL BOOLEAN ();
 nameSortType 'Сортировка' () = IF sortByDates() THEN '📅 По датам' ELSE '📦 По товарам';
@@ -348,16 +352,19 @@ inOpFilter (SkuLedger o) = allOperations()
 hasData (Operation.Operation op) = GROUP SUM 1 IF inInterval(SkuLedger o)
     AND inSaleReport(stock(o))
     AND signedQuantity(o)
+    AND active(o)
     AND operationDocument(o) = op;
 
 hasRetailSaleData() = GROUP SUM 1 IF inInterval(SkuLedger o)
     AND inSaleReport(stock(o))
     AND signedQuantity(o)
+    AND active(o)
     AND isRetailSale(o);
 
 hasRetailReturnData() = GROUP SUM 1 IF inInterval(SkuLedger o)
     AND inSaleReport(stock(o))
     AND signedQuantity(o)
+    AND active(o)
     AND isRetailReturn(o);
 
 selectedOpNames() = GROUP CONCAT name(Operation.Operation op) IF inOperation(op), ', ' ORDER name(op);
@@ -410,6 +417,7 @@ FORM operationReport 'Отчет по хозяйственной операци�
     FILTERS inInterval(o),
         inSaleReport(stock(o)),
         signedQuantity(o),
+        active(o),
         inOpFilter(o),
         inSkuFilter(o)
     PROPERTIES title = 'Отчет по хозяйственной операции ' + titleInterval()
