@@ -149,14 +149,31 @@ FORM pharmacyMarkups 'Ценовые группы'
     FILTERGROUP active
         FILTER 'Активные' active(g) DEFAULT
 
-    OBJECTS i=PharmacyPriceInterval
-    PROPERTIES fromDatePharmacy(i), toDatePharmacy(i), pricePharmacy(i),
-               wholesaleMarkup(i), retailMarkup(i)
-    PROPERTIES(i) NEW, DELETE GRID
-    FILTERS    pharmacyGroupPharmacy(i)==g
+    OBJECTS pi=PharmacyPriceInterval
+    PROPERTIES fromDatePharmacy(pi), toDatePharmacy(pi), pricePharmacy(pi),
+               wholesaleMarkup(pi), retailMarkup(pi)
+    PROPERTIES(pi) NEW, DELETE GRID
+    FILTERS    pharmacyGroupPharmacy(pi)==g
     FILTERGROUP isActive
-        FILTER 'Действующие' isActive(i) DEFAULT
-    ORDERS pricePharmacy(i)
+        FILTER 'Действующие' isActive(pi) DEFAULT
+    ORDERS pricePharmacy(pi)
+
+    TREE skuTree sg = SkuGroup PARENT parent(sg)
+    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
+    ORDERS order(sg), skuGroupName
+    FILTERGROUP inactiveG
+        FILTER 'Активные' active(sg) DEFAULT
+
+    OBJECTS s = Sku
+    PROPERTIES(s) READONLY id SHOWIF showIDs()
+    PROPERTIES(s) READONLY name, idBarcode, shortNameUOM
+    ORDERS name(s)
+    FILTERGROUP groupFilters
+        FILTER 'С группами' isParent(sg, s) OR overFilterGroup(s) DEFAULT
+        FILTER 'Без групп' NOT skuGroup(s)
+    FILTERGROUP inactiveS
+        FILTER 'Активные' active(s) DEFAULT
+    FILTERS pharmacyPriceGroup(s)==g
 
     OBJECTS nu=NUMERIC[14,3] PANEL
     PROPERTIES val = VALUE(nu)
@@ -170,7 +187,25 @@ FORM pharmacyMarkups 'Ценовые группы'
 DESIGN pharmacyMarkups {
     BOX {
         MOVE BOX(g);
-        MOVE BOX(i);
+        NEW tabContainer {
+            fill =1;
+            tabbed = TRUE;
+            MOVE BOX(pi);
+            NEW skusContainer {
+                horizontal = TRUE;
+                fill = 1;
+                caption = 'Товары';
+
+                MOVE BOX(TREE skuTree) {
+                    caption = 'Группы SKU';
+                    width = 200;
+                }
+
+                MOVE BOX(s) {
+                    fill = 2;
+                }
+            }
+        }
         NEW test {
             caption = 'Тестовая форма';
             horizontal = TRUE;
