@@ -12,15 +12,13 @@ FORM selectedSkus 'Выбор SKU'
     PROPERTIES READONLY order(sg), skuGroupName = name(sg)
     ORDERS order(sg), skuGroupName
     FILTERGROUP inactive 
-        FILTER 'Активные' active(sg) 'F6' DEFAULT
+        FILTER 'Активные' active(sg) DEFAULT
 
     OBJECTS s = Sku
     PROPERTIES(s) in
     PROPERTIES(s) READONLY id SHOWIF showIDs()
     PROPERTIES(s) READONLY name, idBarcode, shortNameUOM
     ORDERS name(s)
-    FILTERS isParent(sg, s), 
-        name(s)
     FILTERGROUP groupFilters
         FILTER 'С группами' isParent(sg, s) OR overFilterGroup(s) DEFAULT
         FILTER 'Без групп' NOT skuGroup(s)
@@ -285,7 +283,7 @@ changeQuantity(InListBinInventoryDetail detail) {
 
 FORM binInventories 'Инвентаризации по ячейкам'
     OBJECTS i = BinInventory
-    PROPERTIES(i) READONLY isClosed, isPosted, nameOperation, number, seriesNumber, note, date, time
+    PROPERTIES(i) READONLY isClosed, isPosted, nameOperation, nameStock, number, seriesNumber, note, date, time
     PROPERTIES(i) NEWSESSION addBinInventory = NEW[BinInventory], editBinInventory = EDIT[BinInventory] SHOWIF overShowEdit(i)
     PROPERTIES(i) close[BinInventory] SHOWIF showClose[BinInventory](i), open SHOWIF showOpen[BinInventory](i)
     PROPERTIES NEWSESSION deleteo=DELETE(i) SHOWIF overShowDelete(i)
@@ -296,6 +294,11 @@ FORM binInventories 'Инвентаризации по ячейкам'
 @defineFilterIsOpened (binInventory, binInventories, i);
 
 @extendFormFilterRoleAccess(binInventory, i, binInventories);
+
+overExtraOutBinFilter = ABSTRACT BOOLEAN (Bin, BinInventory);
+needExtraOutBinFilter = ABSTRACT BOOLEAN (Bin, BinInventory);
+extraOutBinFilter (Bin b, BinInventory i) =
+    needExtraOutBinFilter(b, i) AND overExtraOutBinFilter(b, i) OR i IS BinInventory AND b IS Bin AND NOT needExtraOutBinFilter(b, i);
 
 inBinLocal = DATA LOCAL NESTED Bin (ListBinInventory);
 nameInBinLocal 'Ячейка' (ListBinInventory li) = canonicalId(inBinLocal(li)) CHARWIDTH 20;
@@ -579,7 +582,7 @@ addListBinInventory 'Добавить опись' (BinInventory i) {
         NEWSESSION {
             DIALOG dialogInventoryScope OBJECTS is INPUT NOMANAGESESSION DO {
                 CASE WHEN is == InventoryScope.byBins THEN {
-                    SHOW selectedBins FILTERS stock(bg)==stock(i), NOT include(b, i) NOMANAGESESSION;
+                    SHOW selectedBins FILTERS stock(bg)==stock(i), NOT include(b, i), extraOutBinFilter(b, i) NOMANAGESESSION;
                     in(Sku sku, Bin bin) <- TRUE WHERE currentBalance(sku, bin) AND in(bin);
                     needCreateListBinInventory() <- GROUP MAX in(Sku sku, Bin bin);
                 } WHEN is == InventoryScope.bySkus THEN {
@@ -621,7 +624,7 @@ addListBinInventory 'Добавить опись' (BinInventory i) {
 
 addBins 'Добавить ячейки' (ListBinInventory li) {
     NEWSESSION {
-        SHOW selectedBins FILTERS stock(bg)==stock(binInventory(li)), NOT include(b, binInventory(li)) NOMANAGESESSION;
+        SHOW selectedBins FILTERS stock(bg)==stock(binInventory(li)), NOT include(b, binInventory(li)), extraOutBinFilter(b, binInventory(li)) NOMANAGESESSION;
         in(Sku sku, Bin bin) <- TRUE WHERE currentBalance(sku, bin) AND in(bin);
         needCreateListBinInventory() <- GROUP MAX in(Sku sku, Bin bin);
         IF needCreateListBinInventory() THEN {

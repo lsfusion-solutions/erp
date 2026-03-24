@@ -1,0 +1,66 @@
+MODULE DepartmentBinInventory;
+
+REQUIRE DepartmentBin, BinInventoryBinLedger;
+
+NAMESPACE BinInventory;
+
+needDepartment 'Отдел обязателен' = DATA BOOLEAN (Operation);
+
+EXTEND FORM operation
+    PROPERTIES(o) needDepartment
+;
+
+DESIGN operation {
+    constraintContainer {
+        caption = 'Ограничения';
+        MOVE PROPERTY(needDepartment(o));
+    }
+}
+
+department = DATA Department (BinInventory);
+nameDepartment 'Отдел' (BinInventory binInventory) = name(department(binInventory)) CHARWIDTH 15;
+
+CONSTRAINT stock(BinInventory binInventory) AND department(binInventory) AND NOT
+    stock(binInventory) = stock(department(binInventory))
+    CHECKED BY department[BinInventory]
+    MESSAGE 'Cклад и отдел для инвентаризации не имеют связи';
+
+CONSTRAINT (CHANGED(operation(BinInventory binInventory)) OR CHANGED(department(binInventory))) AND NOT 
+    department(binInventory) AND needDepartment(operation(binInventory))
+    MESSAGE 'Отдел обязателен для заданной операции инвентаризации';
+
+changeDepartment(BinInventory o) {
+    DIALOG dialogDepartments OBJECTS d INPUT NULL FILTERS stock(d) = stock(o) DO {
+        department(o) <- d;
+        IF NOT stock(o) THEN stock(o) <- stock(d);
+    }
+}
+
+EXTEND FORM binInventory
+    PROPERTIES nameDepartment(i) ON CHANGE changeDepartment(i)
+;
+
+DESIGN binInventory {
+    topRow2 {
+        MOVE PROPERTY(nameDepartment(i));
+    }
+}
+
+EXTEND FORM binInventories 
+    PROPERTIES(i) READONLY nameDepartment AFTER nameStock(i)
+;
+
+binDepartment 'Ячейки должны принадлежать отделу' = DATA BOOLEAN (Operation);
+
+EXTEND FORM operation
+    PROPERTIES(o) binDepartment
+;
+
+DESIGN operation {
+    constraintContainer {
+        MOVE PROPERTY(binDepartment(o));
+    }
+}
+
+overExtraOutBinFilter(Bin b, BinInventory i) += department(i)==department(b);
+needExtraOutBinFilter(Bin b, BinInventory i) += department(i) AND binDepartment(operation(i)) AND b IS Bin;
