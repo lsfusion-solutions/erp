@@ -190,6 +190,7 @@ FORM bindingArtixCard 'Привязка карты'
 ;
 
 afterExportArtixDiscountCard ABSTRACT LIST (DiscountCard);
+requestAfterCatchExportArtixDiscountCard ABSTRACT LIST (DiscountCard, STRING, STRING);
 
 exportRequestArtixDiscountCards 'Отправить запрос выгрузки дисконтных карт' () {
     inExport(DiscountCard d) <- NULL WHERE skipArtixExport(d);
@@ -242,6 +243,8 @@ exportRequestArtixDiscountCards 'Отправить запрос выгрузк�
             IMPORT JSON FROM result() TO() code = 'errorCode', message = 'message';
             artixLMMessage() <- CONCAT '\n', artixLMMessage(),
                 seriesNumber(d) + (OVERRIDE (' : [' + code() + '] ' + message()), ' : Неизвестная ошибка');
+
+            requestAfterCatchExportArtixDiscountCard(d, code(), message());
         }
     }
 }
@@ -254,6 +257,7 @@ exportArtixDiscountCards 'Выгрузить дисконтные карты' ()
     NEWSESSION {
         inExport(DiscountCard d) <- TRUE WHERE toExport(d);
         exportRequestArtixDiscountCards();
+        inExport(DiscountCard d) <- NULL;
         IF artixLMMessage() THEN {
             MESSAGE 'Во время выгрузки дисконтных карт Artix возникли ошибки:\n' + artixLMMessage();
             artixLMMessage() <- NULL;
@@ -275,6 +279,7 @@ exportArtix 'Выгрузить в Artix' (DiscountCard d) {
     NEWSESSION {
         inExport(d) <- TRUE WHERE toExport(d);
         exportRequestArtixDiscountCards();
+        inExport(DiscountCard dc) <- NULL;
         IF artixLMMessage() THEN {
             MESSAGE 'Во время выгрузки дисконтной карты Artix возникли ошибки:\n' + artixLMMessage();
             artixLMMessage() <- NULL;
