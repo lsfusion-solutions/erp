@@ -29,7 +29,7 @@ groupFullySpend 'Полное списание' = ABSTRACT BOOLEAN (GiftCard);
 skipGroupDiscountCampaing 'Не использовать акции сертификата' = ABSTRACT BOOLEAN (GiftCard);
 overGroupDiscountCampaing 'Акция сертификата' = ABSTRACT STRING (GiftCard);
 defaultGroupDiscountCampaing 'Акция сертификата по умолчанию' (DATE dateFrom, INTEGER days, DATE dateTo) = STRING(CONCAT '\r\n',
-    '!!python/object:artixds.domain.DiscountCampaign active: true',
+    '!!python/object:artixds.domain.DiscountCampaign',
     'active: true',
     'beginBonusesDateCalculate: null',
     'beginBonusesIntervalCondition: !!python/unicode \'' + (OVERRIDE 'date' IF NOT days > 0, 'through') + '\'',
@@ -114,6 +114,7 @@ skipCreateGiftCardGroupArtix = ABSTRACT BOOLEAN (GiftCard);
 actionAfterCreateArtixGiftCardGroup ABSTRACT LIST (GiftCard);
 actionAfterExportArtixGiftCard ABSTRACT LIST (GiftCard);
 requestAfterExportArtixGiftCard ABSTRACT LIST (GiftCard);
+requestAfterCatchExportArtixGiftCard ABSTRACT LIST (GiftCard, STRING, STRING);
 
 exportRequestArtixGiftCards 'Отправить запрос выгрузки сертификатов' () {
     inExport(GiftCard c) <- NULL WHERE skipArtixExport(c);
@@ -163,6 +164,8 @@ exportRequestArtixGiftCards 'Отправить запрос выгрузки с
             IMPORT JSON FROM result() TO() code = 'errorCode', message = 'message';
             artixLMMessage() <- CONCAT '\n', artixLMMessage(),
                 number(c) + (OVERRIDE (' : [' + code() + '] ' + message()), ' : Неизвестная ошибка');
+
+            requestAfterCatchExportArtixGiftCard(c, code(), message());
         }
     }
 }
@@ -175,6 +178,7 @@ exportArtix 'Выгрузить в Artix' (GiftCard c) {
     NEWSESSION {
         inExport(c) <- TRUE WHERE toExport(c);
         exportRequestArtixGiftCards();
+        inExport(GiftCard gc) <- NULL;
         IF artixLMMessage() THEN {
             MESSAGE 'Во время выгрузки сертификата Artix возникли ошибки:\n' + artixLMMessage();
             artixLMMessage() <- NULL;
