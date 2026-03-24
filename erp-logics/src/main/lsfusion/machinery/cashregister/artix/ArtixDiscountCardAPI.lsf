@@ -359,6 +359,10 @@ FORM calculateArtixBalance 'Начисление баланса'
     PROPERTIES(d) IN base seriesNumber EXTID 'cardNumber', acceptId EXTID 'acceptId'
 ;
 
+cancelOtherBalanceRequests 'Аннулировать предыдущие начисления' = ABSTRACT BOOLEAN ();
+artixBalanceRequestURL 'URL начисления баланса' () =
+    urlArtixLM() + 'assets' + (OVERRIDE '?cancelOthers=true' IF cancelOtherBalanceRequests(), '');
+
 calculateRequestArtixBalance 'Отправить запрос начисления баланса' (STRING i, ArtixCardAssetType t, DiscountCard d, NUMERIC[14,2] s, DATETIME from, DATETIME to) {
     IF denyArtixRequest(d) THEN {
         MESSAGE 'Запрещено обращение к Artix для выбранной карты';
@@ -372,8 +376,8 @@ calculateRequestArtixBalance 'Отправить запрос начислени
     EXPORT calculateArtixBalance OBJECTS id = i, type = t, d = d, sum = s, from = from, to = to JSON;
     TRY {
         IF recordArtixLMLog() THEN logToFile('artix',
-            (CONCAT'\n', '[ArtixLM-POST] ' + urlArtixLM() + 'assets', '[ArtixLM-EXPORT] ' + exportFile()));
-        EXTERNAL HTTP POST urlArtixLM() + 'assets' HEADERS headers PARAMS exportFile() TO result;
+            (CONCAT'\n', '[ArtixLM-POST] ' + artixBalanceRequestURL(), '[ArtixLM-EXPORT] ' + exportFile()));
+        EXTERNAL HTTP POST artixBalanceRequestURL() HEADERS headers PARAMS exportFile() TO result;
         IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-RESULT] ' + result());
     } CATCH {
         IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-CATCH] ' + result());
