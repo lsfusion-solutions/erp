@@ -199,9 +199,9 @@ backgroundExceedsOrder (InvoiceDetail d) = RGB(255, 100, 100) IF exceedsAllowabl
 
 filterPassesPriceCheckOrder (InvoiceDetail d) =
     CASE
-        WHEN filterPriceMode() == 1 THEN priceDiffPercentOrder(d) > filterPricePercent()
-        WHEN filterPriceMode() == 2 THEN priceDiffPercentOrder(d) < (- filterPricePercent())
-        WHEN filterPriceMode() == 3 THEN abs(priceDiffPercentOrder(d)) > filterPricePercent()
+        WHEN filterPriceMode() == 1 THEN NOT orderDetail(d) OR priceDiffPercentOrder(d) > filterPricePercent()
+        WHEN filterPriceMode() == 2 THEN NOT orderDetail(d) OR priceDiffPercentOrder(d) < (- filterPricePercent())
+        WHEN filterPriceMode() == 3 THEN NOT orderDetail(d) OR abs(priceDiffPercentOrder(d)) > filterPricePercent()
         ELSE TRUE;
 
 FORM priceCheckByOrderGestori 'Сверка цен по приходным накладным и заказам'
@@ -244,12 +244,11 @@ FORM priceCheckByOrderGestori 'Сверка цен по приходным на�
         exceedsAllowableOrder(d) BACKGROUND backgroundExceedsOrder(d)
 
     FILTERS isPosted(d),
-        orderDetail(d),
         inInterval(d),
         filterPassesStock(d),
         filterPassesSupplier(d),
         filterPassesPriceCheckOrder(d),
-        filterPassesOrder(d)
+        (NOT orderDetail(d) OR filterPassesOrder(d))
 
     ORDERS idSupplier, nameCustomerStock, orderNum, dateInvoice, nameSku
 
