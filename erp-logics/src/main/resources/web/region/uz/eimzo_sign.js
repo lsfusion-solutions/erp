@@ -40,7 +40,7 @@ function listCert(func, controller) {
                 func(controller, JSON.stringify(items));
               },
               function (e, r) {
-                uiShowMessage(errorCAPIWS);
+                uiShowMessage(errorCAPIWS + " : " + e + " : " + r);
               }
             );
           },
