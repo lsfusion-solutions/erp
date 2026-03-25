@@ -1,6 +1,9 @@
 MODULE TerminalPreferences;
 
-REQUIRE System, Terminal; //, A1LotStatus;
+REQUIRE System, Terminal;
+
+usernameLotStatus = ABSTRACT STRING (STRING);
+passwordLotStatus = ABSTRACT STRING (STRING);
 
 CLASS Preference 'Настройки' {
 // nameGroup|order|jsonName|name|type
@@ -232,11 +235,11 @@ getTerminalPreferences(terminalID, CustomUser user) {
         name() <- namePreference(p);
         value() <- jsonValue(p);
 
-//        CASE
-//            WHEN p = Preference.MARKING_A1_LOGIN AND useA1ForLotStatus() THEN
-//                value() <- OVERRIDE overUsernameA1(userLogin()), jsonValue(p);
-//            WHEN p = Preference.MARKING_A1_PASSWORD AND useA1ForLotStatus() THEN
-//                value() <- OVERRIDE overPasswordA1(userLogin()), jsonValue(p);
+        CASE
+            WHEN p = Preference.MARKING_A1_LOGIN THEN
+                value() <- OVERRIDE usernameLotStatus(userLogin()), jsonValue(p);
+            WHEN p = Preference.MARKING_A1_PASSWORD THEN
+                value() <- OVERRIDE passwordLotStatus(userLogin()), jsonValue(p);
         
         json() <- json() + '"' + name() + '":' + (OVERRIDE value(), 'null');
     }
