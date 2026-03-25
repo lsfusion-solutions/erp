@@ -1,6 +1,6 @@
 MODULE TerminalPreferences;
 
-REQUIRE System, Terminal;
+REQUIRE System, Terminal, A1LotStatus;
 
 CLASS Preference 'Настройки' {
 // nameGroup|order|jsonName|name|type
@@ -216,14 +216,29 @@ jsonValue(Preference p) = CASE
 
 terminalPreferencesJSON = DATA LOCAL STRING();
 
-getTerminalPreferences(terminalID) {
+getTerminalPreferences(terminalID, CustomUser user) {
 
     LOCAL json = STRING();
     json() <- '';
+
+    LOCAL userLogin = STRING();
+    userLogin() <- login(user);
     
     FOR Preference p IS Preference AND enable(p) DO {
-        IF length(json()) > 0 THEN json() <- json() + ','; 
-        json() <- json() + '"' + namePreference(p) + '":' + (OVERRIDE jsonValue(p), 'null');
+        IF length(json()) > 0 THEN json() <- json() + ',';
+
+        LOCAL name = STRING();
+        LOCAL value = STRING();
+        name() <- namePreference(p);
+        value() <- jsonValue(p);
+
+        CASE
+            WHEN p = Preference.MARKING_A1_LOGIN AND useA1ForLotStatus() THEN
+                value() <- OVERRIDE overUsernameA1(userLogin()), jsonValue(p);
+            WHEN p = Preference.MARKING_A1_PASSWORD AND useA1ForLotStatus() THEN
+                value() <- OVERRIDE overPasswordA1(userLogin()), jsonValue(p);
+        
+        json() <- json() + '"' + name() + '":' + (OVERRIDE value(), 'null');
     }
     IF length(json()) > 0 THEN json() <- '[\{' + json() + '\}]'; ELSE json() <- NULL;
     

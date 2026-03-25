@@ -10,9 +10,30 @@ passwordA1 'Пароль для API' = DATA STRING() ECHO;
 UID 'UID для тестирования' = DATA STRING ();
 
 useA1ForLotStatus 'Использовать для проверки статуса марок' = DATA BOOLEAN ();
+useA1LegalEntity 'Использовать организации' = DATA BOOLEAN ();
+
+usernameA1 'Пользователь' = DATA STRING(LegalEntity);
+passwordA1 'Пароль для API' = DATA STRING(LegalEntity) ECHO;
+UID 'UID для тестирования' = DATA STRING (LegalEntity);
+
+userLegalEntity = legalEntity(currentUser());
+overUsernameA1 = OVERRIDE usernameA1(userLegalEntity()) IF useA1LegalEntity(), usernameA1();
+overPasswordA1 = OVERRIDE passwordA1(userLegalEntity()) IF useA1LegalEntity(), passwordA1();
+overUIDA1 = OVERRIDE UID(userLegalEntity()) IF useA1LegalEntity(), UID();
+
+// Для пользователя ТСД
+userLegalEntity (STRING login) = legalEntity(customUserLogin(login));
+overUsernameA1(STRING login) = OVERRIDE usernameA1(userLegalEntity(login)) IF useA1LegalEntity(), usernameA1();
+overPasswordA1(STRING login) = OVERRIDE passwordA1(userLegalEntity(login)) IF useA1LegalEntity(), passwordA1();
+
 
 EXTEND FORM integrationData
-    PROPERTIES() urlA1, usernameA1, passwordA1, UID, useA1ForLotStatus
+    PROPERTIES() urlA1, usernameA1, passwordA1, UID, useA1ForLotStatus, useA1LegalEntity
+
+    OBJECTS lA1 = LegalEntity
+    PROPERTIES(lA1) READONLY id, name
+    PROPERTIES(lA1) usernameA1, passwordA1, UID
+    FILTERS isCompany(lA1)
 ;
 
 DESIGN integrationData {
@@ -24,6 +45,8 @@ DESIGN integrationData {
             MOVE PROPERTY(passwordA1());
             MOVE PROPERTY(UID());
             MOVE PROPERTY(useA1ForLotStatus());
+            MOVE PROPERTY(useA1LegalEntity());
+            MOVE BOX(lA1) { showIf = useA1LegalEntity(); }
         }
     }
 }
@@ -51,9 +74,9 @@ overGetStatus() + {
         exception(Lot l) <- NULL WHERE in(l);
 
         headers(STRING s) <- NULL;
-        encodeBase64(usernameA1() + ':' + passwordA1());
+        encodeBase64(overUsernameA1() + ':' + overPasswordA1());
         headers('Authorization') <- 'Basic ' + encodedBase64();
-        headers('UID') <- OVERRIDE UID(), hostnameCurrentComputer();
+        headers('UID') <- OVERRIDE overUIDA1(), hostnameCurrentComputer();
         
         WHILE countInLot() DO {
             EXPORT exportLots JSON TOP 1000;

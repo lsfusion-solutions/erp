@@ -62,6 +62,7 @@ public class DefaultTerminalHandler {
     static ScriptingLogicsModule ediGtinLM;
     static ScriptingLogicsModule terminalTeamWorkLM;
     static ScriptingLogicsModule machineryPriceTransactionLM;
+    static ScriptingLogicsModule terminalTemplatesLM;
 
     static String ID_APPLICATION_TSD = "1";
     static String ID_APPLICATION_ORDER = "2";
@@ -90,6 +91,7 @@ public class DefaultTerminalHandler {
         ediGtinLM = getLogicsInstance().getBusinessLogics().getModule("EDIGTIN");
         terminalTeamWorkLM = getLogicsInstance().getBusinessLogics().getModule("TerminalTeamWork");
         machineryPriceTransactionLM = getLogicsInstance().getBusinessLogics().getModule("MachineryPriceTransaction");
+        terminalTemplatesLM = getLogicsInstance().getBusinessLogics().getModule("TerminalDocumentTemplates");
     }
 
     public List<Object> readHostPort(DataSession session) {
@@ -511,16 +513,39 @@ public class DefaultTerminalHandler {
         return null;
     }
 
-    public String getPreferences(DataSession session, ExecutionStack stack, String idTerminal) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public String getPreferences(DataSession session, ExecutionStack stack, String idTerminal, UserInfo userInfo) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String result = null;
         ScriptingLogicsModule terminalPreferencesLM = getLogicsInstance().getBusinessLogics().getModule("TerminalPreferences");
         if(terminalPreferencesLM != null) {
-            terminalPreferencesLM.findAction("getTerminalPreferences[STRING]").execute(session, stack, new DataObject(idTerminal));
+            terminalPreferencesLM.findAction("getTerminalPreferences[STRING, CustomUser]").execute(session, stack, new DataObject(idTerminal), userInfo.user);
             result = (String) terminalPreferencesLM.findProperty("terminalPreferencesJSON[]").read(session);
         }
         return result;
     }
-
+    
+    public RawFileData getDocumentTemplates(DataSession session, ExecutionStack stack, UserInfo userInfo, String ids) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        if(terminalTemplatesLM != null) {
+            terminalTemplatesLM.findAction("getTerminalTemplates[STRING]").execute(session, stack, StringUtils.isEmpty(ids) ? NullValue.instance : new DataObject(ids));
+            FileData fileData = (FileData) terminalTemplatesLM.findProperty("exportFile[]").read(session);
+            if (fileData != null)
+                return fileData.getRawFile();
+            
+        }
+        return null;
+    }
+    
+    public String saveDocumentTemplate(DataSession session, ExecutionStack stack, String json, UserInfo userInfo) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        if (terminalTemplatesLM != null) {
+            FileData jsonFile = null;
+            if (!BaseUtils.isEmpty(json))
+                jsonFile = new FileData(new RawFileData(json.getBytes()), "json");
+    
+            terminalTemplatesLM.findAction("saveDocumentTemplate[FILE]").execute(session, stack, new DataObject(jsonFile, DynamicFormatFileClass.get()));
+        }
+        return null;
+    }
+    
+    
     private List<TerminalBarcode> readBarcodeList(DataSession session, ObjectValue stockObject, boolean imagesInReadBase, DataObject user) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalBarcode> result = new ArrayList<>();
         if(terminalHandlerLM != null) {

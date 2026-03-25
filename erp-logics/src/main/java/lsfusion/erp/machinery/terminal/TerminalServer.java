@@ -62,7 +62,7 @@ public class TerminalServer extends MonitorServer {
     public static String UNKNOWN_COMMAND_TEXT = "Неизвестный запрос";
     public static byte GET_PREFERENCES_NOPREFERENCES = 112;
     public static String GET_PREFERENCES_NOPREFERENCES_TEXT = "Конфигурация для ТСД не определена";
-    public static byte LOT_NOT_FOUND = 104;
+    public static byte LOT_NOT_FOUND = 113;
     public static String LOT_NOT_FOUND_TEXT = "Марка не найдена";
 
 
@@ -89,6 +89,8 @@ public class TerminalServer extends MonitorServer {
     public static final byte GET_MOVES = 15;
     public static final byte GET_LOT_INFO = 16;
     public static final byte CHECK_UNITLOAD = 17;
+    public static final byte GET_DOCUMENT_TEMPLATES = 18;
+    public static final byte SAVE_DOCUMENT_TEMPLATE = 19;
 
     private static final Logger logger = ERPLoggers.terminalLogger;
     private static final Logger priceCheckerLogger = ERPLoggers.priceCheckerLogger;
@@ -199,9 +201,9 @@ public class TerminalServer extends MonitorServer {
         listenThread.start();
     }
 
-    protected String getPreferences(String idTerminal) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    protected String getPreferences(String idTerminal, UserInfo userInfo) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         try (DataSession session = createSession()) {
-            return terminalHandler.getPreferences(session, getStack(), idTerminal);
+            return terminalHandler.getPreferences(session, getStack(), idTerminal, userInfo);
         }
     }
 
@@ -354,6 +356,19 @@ public class TerminalServer extends MonitorServer {
     }
 
 
+    protected RawFileData getDocumentTemplates(UserInfo userInfo, String ids) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+        try (DataSession session = createSession()) {
+            return terminalHandler.getDocumentTemplates(session, getStack(), userInfo, ids);
+        }
+    }
+    
+    public String saveDocumentTemplate(String json, UserInfo userInfo) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException {
+        try (DataSession session = createSession()) {
+            return terminalHandler.saveDocumentTemplate(session, getStack(), json, userInfo);
+        }
+    }
+    
+    
     public class SocketCallable implements Callable {
         private Socket socket;
 
@@ -895,7 +910,7 @@ public class TerminalServer extends MonitorServer {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
-                                    result = getPreferences(userInfo.idTerminal);
+                                    result = getPreferences(userInfo.idTerminal, userInfo);
                                     if (result == null) {
                                         errorCode = GET_PREFERENCES_NOPREFERENCES;
                                         errorText = GET_PREFERENCES_NOPREFERENCES_TEXT;
@@ -907,6 +922,67 @@ public class TerminalServer extends MonitorServer {
                             }
                         } catch (Exception e) {
                             logger.error(getLogPrefix(socket) + "GetPreferences Unknown error", e);
+                            errorCode = UNKNOWN_ERROR;
+                            errorText = getUnknownErrorText(e);
+                        }
+                        break;
+                    case GET_DOCUMENT_TEMPLATES:
+                        try {
+                            logger.info(getLogPrefix(socket) + "GetDocumentTemplates");
+                            String[] params = readParams(inFromClient);
+                            if (params.length >= 1) {
+                                sessionId = params[0];
+                                UserInfo userInfo = userMap.get(sessionId);
+                                if (userInfo == null || userInfo.user == null) {
+                                    errorCode = AUTHORISATION_REQUIRED;
+                                    errorText = AUTHORISATION_REQUIRED_TEXT;
+                                } else {
+                                    String ids = null;
+                                    if (params.length >= 2)
+                                        ids = params[1];
+                                    logger.info(getLogPrefix(socket, userInfo) + String.format("GetDocumentTemplates: command=%s, ids=%s", command, ids));
+                                    fileData = getDocumentTemplates(userInfo, ids);
+                                    if (fileData == null) {
+                                        errorCode = UNKNOWN_ERROR;
+                                        errorText = UNKNOWN_ERROR_TEXT;
+                                    }
+                                }
+                            } else {
+                                errorCode = WRONG_PARAMETER_COUNT;
+                                errorText = WRONG_PARAMETER_COUNT_TEXT;
+                            }
+                        } catch (Exception e) {
+                            logger.error(getLogPrefix(socket) + "GetDocumentTemplates Unknown error", e);
+                            errorCode = UNKNOWN_ERROR;
+                            errorText = getUnknownErrorText(e);
+                        }
+                        break;
+                    case SAVE_DOCUMENT_TEMPLATE:
+                        try {
+                            logger.info(getLogPrefix(socket) + "requested SaveDocumentTemplate");
+                            String[] params = readParams(inFromClient);
+                            if (params.length >= 2) {
+                                sessionId = params[0];
+                                String json = params[1];
+                                
+                                UserInfo userInfo = userMap.get(sessionId);
+                                if (userInfo == null || userInfo.user == null) {
+                                    errorCode = AUTHORISATION_REQUIRED;
+                                    errorText = AUTHORISATION_REQUIRED_TEXT;
+                                } else {
+                                    logger.info(getLogPrefix(socket) + String.format("document: '%s'", json));
+                                    result = saveDocumentTemplate(json, userInfo);
+                                    if (result != null) {
+                                        errorCode = UNKNOWN_ERROR;
+                                        errorText = UNKNOWN_ERROR_TEXT;
+                                    }
+                                }
+                            } else {
+                                errorCode = WRONG_PARAMETER_COUNT;
+                                errorText = WRONG_PARAMETER_COUNT_TEXT;
+                            }
+                        } catch (Exception e) {
+                            logger.error(getLogPrefix(socket) + "request failed: ", e);
                             errorCode = UNKNOWN_ERROR;
                             errorText = getUnknownErrorText(e);
                         }
@@ -1037,6 +1113,7 @@ public class TerminalServer extends MonitorServer {
                         case CHECK_UNITLOAD:
                         case CHANGE_ORDER_STATUS:
                         case SET_STOCK:
+                        case SAVE_DOCUMENT_TEMPLATE:
                             if (result != null) {
                                 write(outToClient, result);
                             }
@@ -1053,6 +1130,7 @@ public class TerminalServer extends MonitorServer {
                         case GET_ALL_BASE:
                         case TEAMWORK_DOCUMENT:
                         case GET_MOVES:
+                        case GET_DOCUMENT_TEMPLATES:
                             int bytes = fileData != null ? fileData.getLength() : 0;
                             write(outToClient, String.valueOf(bytes));
                             writeByte(outToClient, etx);
