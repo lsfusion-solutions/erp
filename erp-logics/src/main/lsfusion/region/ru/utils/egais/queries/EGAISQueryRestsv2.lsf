@@ -156,3 +156,127 @@ process (Ticket t) + {
         processed() <- TRUE;
     }
 }
+
+//mini
+
+CLASS QueryRestsvMini 'Запрос остатков мини' : OutDoc;
+TABLE queryRestsvMini(QueryRestsvMini);
+
+EXTEND CLASS DocType { QueryRests_Mini 'Запрос остатков мини' }
+docType (QueryRestsvMini r) += DocType.QueryRests_Mini IF r IS QueryRestsvMini;
+
+queryRestsMiniName (INTEGER i) = CASE WHEN i = 0 THEN 'СИО';
+queryRestsMiniValue (QueryRestsvMini r, INTEGER i) = CASE WHEN i = 0 THEN idClient(r);
+
+FORM queryRestsMini FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:QueryRests_Mini'
+    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:qp'
+
+    OBJECTS r = QueryRestsvMini PANEL
+
+    OBJECTS i = INTEGER IN parameters EXTID 'qp:Parameter'
+    PROPERTIES queryRestsMiniName(i) EXTID 'qp:Name', queryRestsMiniValue(r, i) EXTID 'qp:Value'
+    FILTERS queryRestsMiniName(i)
+;
+
+queryRestsvMini (QueryRestsvMini r) {
+    EXPORT queryRestsMini OBJECTS r = r XML;
+    submit(r, exportFile());
+}
+
+queryRestsMiniForScheduler 'Запросить остатки мини (для планировщика)' () {
+    FOR Client c IS Client AND own(c) DO NEWSESSION
+    TRY {
+        NEW r = QueryRestsvMini {
+            client(r) <- c;
+            utm(r) <- utm(client(r));
+            queryRestsvMini(r);
+            APPLY;
+        }
+    } CATCH {
+        MESSAGE 'Ошибка при отправке запроса в ЕГАИС на получение остатков' + messageCaughtException();
+    }
+}
+
+// response
+EXTEND CLASS DocType { ReplyRests_Mini 'Ответ на запрос остатков мини' }
+
+GROUP replyRests_Mini EXTID 'ns:ReplyRests_Mini' : document;
+GROUP productsMini EXTID 'rst:Products' : replyRests_Mini;
+
+inform1RegId = DATA LOCAL STRING(INTEGER);
+inform2RegId = DATA LOCAL STRING(INTEGER);
+alcCode = DATA LOCAL STRING(INTEGER);
+
+FORM replyRestsMini FORMEXTID 'ns:Documents'
+    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:oref', ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:pref', ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:qp', ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:rst', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    PROPERTIES() IN owner FSRAR_ID EXTID 'ns:FSRAR_ID'
+    PROPERTIES() IN replyRests_Mini restsDate EXTID 'rst:RestsDate'
+
+    OBJECTS stockPosition = INTEGER EXTID 'rst:StockPosition' IN productsMini
+
+    PROPERTIES(stockPosition) quantity EXTID 'rst:Quantity', 
+                              inform1RegId EXTID 'rst:Inform1RegId', 
+                              inform2RegId EXTID 'rst:Inform2RegId', 
+                              alcCode EXTID 'rst:AlcCode'
+    FILTERS imported(stockPosition)
+;
+
+processReplyRests_Mini ABSTRACT LIST(InDoc);
+
+process (InDoc d) + {
+    IF docType(d) = DocType.ReplyRests_Mini THEN {
+        NEWSESSION {
+            stringToFile(document(d));
+            IMPORT replyRestsMini XML FROM resultFile();
+
+            FOR INTEGER j = [GROUP MIN INTEGER i BY inform1RegId(i)](STRING idF1) AND NOT f1Reg(idF1) DO NEW r = F1Reg {
+                id(r) <- idF1;
+                product(r) <- product(alcCode(j));
+            }
+
+            FOR informF2RegId(INTEGER i) AND NOT f2Reg(inform2RegId(i)) DO NEW r = F2Reg {
+                id(r) <- inform2RegId(i);
+                f1Reg(r) <- f1Reg(inform1RegId(i));
+                client(r) <- OVERRIDE client(outDoc(d)), (GROUP  MAX Client c IF utm(c)==utm(d) AND own(c));
+            }
+
+            NEW a = ActChargeOn {
+                client(a) <- OVERRIDE client(outDoc(d)), (GROUP  MAX Client c IF utm(c)==utm(d) AND own(c));
+                dateTime(a) <- restsDate();
+                posted(a) <- postActChargeOnRests();
+                note(a) <- 'Запрос остатков из ЕГАИС мини';
+
+                FOR NUMERIC[16,5] delta = (quantity(INTEGER i) (-) currentBalance(f2Reg(inform2RegId(i)))) NEW p = ActChargeOnPosition DO {
+                    actChargeOn(p) <- a;
+
+                    product(p) <- product(alcCode(i));
+
+                    quantity(p) <- delta;
+
+                    f2Reg(p) <- f2Reg(inform2RegId(i));
+                }
+                FOR NUMERIC[16,5] delta = currentBalance(F2Reg r) AND client(r) = client(a) AND NOT (GROUP SUM 1 IF inform2RegId(INTEGER i) = id(r)) NEW p = ActChargeOnPosition DO {
+                    actChargeOn(p) <- a;
+
+                    product(p) <- product(r);
+
+                    quantity(p) <- -delta;
+
+                    f2Reg(p) <- r;
+                }
+                IF NOT GROUP SUM 1 IF actChargeOn(ActChargeOnPosition p) = a THEN DELETE a;
+            }
+
+            processed(d) <- TRUE;
+            processReplyRests_Mini(d);
+            APPLY;
+        }
+    }
+}
+
+// ticket
+process (Ticket t) + {
+    IF docType(t) = 'QueryRests_Mini' THEN {
+        processed() <- TRUE;
+    }
+}
