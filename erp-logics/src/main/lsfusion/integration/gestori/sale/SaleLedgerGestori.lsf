@@ -1,6 +1,6 @@
 MODULE SaleLedgerGestori;
 
-REQUIRE DateSkuLedger, Range, InventoryGestori, PurchaseShipment;
+REQUIRE Range, InventoryGestori, PurchaseShipment;
 
 NAMESPACE Sale;
 
@@ -737,9 +737,192 @@ DESIGN salesDynamicsReport {
     REMOVE PROPERTY(selectedIncludeReturns());
 }
 
+inAMSku 'Отм.' = DATA LOCAL BOOLEAN (Sku);
+inAMSkuList 'Отм.' = DATA LOCAL BOOLEAN (List);
+anyAMSkuList() = GROUP MAX inAMSkuList(List l);
+nameAMSkuLists 'Списки товаров' () = GROUP CONCAT name(List l) IF inAMSkuList(l), ', ' ORDER name(l), l CHARWIDTH 30;
+
+deleteAMSkuLists 'Сбросить список'() {
+    inAMSkuList(List l) <- NULL;
+    inAMSku(Sku s) <- NULL;
+} ASON CONTEXTMENU nameAMSkuLists;
+
+inAMSkuGroup 'Отм.' = DATA LOCAL BOOLEAN (SkuGroup);
+anyAMSkuGroup() = GROUP MAX inAMSkuGroup(SkuGroup g);
+nameAMSkuGroups 'Товарные группы' () = GROUP CONCAT name(SkuGroup o) IF inAMSkuGroup(o) AND NOT inAMSkuGroup(parent(o)), '; ' ORDER o CHARWIDTH 30;
+
+deleteAMSkuGroups 'Сбросить группы'() {
+    inAMSkuGroup(SkuGroup g) <- NULL;
+} ASON CONTEXTMENU nameAMSkuGroups;
+
+inAMSkuByGroup(Sku s) = GROUP MAX inAMSkuGroup(SkuGroup g) IF isParent(g, s);
+
+FORM selectAMSku 'Выбор товаров'
+    TREE skuTree sg = SkuGroup PARENT parent(sg)
+    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F6' DEFAULT
+    ORDERS order(sg), skuGroupName
+
+    OBJECTS s = Sku
+    PROPERTIES(s) inAMSku
+    PROPERTIES(s) READONLY id SHOWIF showIDs()
+    PROPERTIES(s) READONLY name, idBarcode, shortNameUOM
+    FILTERS isParent(sg, s), name(s)
+    ORDERS name(s)
+;
+
+FORM dialogAMSkuGroups 'Выбор товарных групп'
+    TREE skuGroupTree sg = SkuGroup PARENT parent(sg)
+    PROPERTIES(sg) inAMSkuGroup
+    PROPERTIES READONLY order(sg), sgName = name(sg)
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F6' DEFAULT
+    ORDERS order(sg), sgName
+;
+
+FORM dialogAMSkuLists 'Выбор списков товаров'
+    OBJECTS o = List
+    PROPERTIES(o) inAMSkuList
+    PROPERTIES(o) READONLY name
+    ORDERS name(o)
+;
+
+selectAMSkus 'Фильтр по товарам' () {
+    DIALOG skuFilterType OBJECTS t INPUT DO {
+        CASE
+            WHEN t = SkuFilterType.sku THEN {
+                inAMSkuList(List l) <- NULL;
+                inAMSkuGroup(SkuGroup g) <- NULL;
+                SHOW selectAMSku;
+            }
+            WHEN t = SkuFilterType.skuGroups THEN {
+                inAMSkuList(List l) <- NULL;
+                inAMSku(Sku s) <- NULL;
+                SHOW dialogAMSkuGroups;
+            }
+            WHEN t = SkuFilterType.skuLists THEN {
+                inAMSkuGroup(SkuGroup g) <- NULL;
+                DIALOG dialogAMSkuLists DO {
+                    inAMSku(Sku s) <- NULL;
+                    FOR inAMSkuList(list(ListDetail ld)) AND Sku sk = sku(ld) DO
+                        inAMSku(sk) <- TRUE;
+                }
+            };
+    }
+}
+
+selectedAMSkuNames = GROUP CONCAT name(Sku s) IF inAMSku(s), '; ' ORDER name(s), s;
+skuNamesFromAMGroups = GROUP CONCAT name(Sku s) IF inAMSkuByGroup(s) AND name(s), '; ' ORDER name(s), s;
+amInSkus 'Товары' = OVERRIDE selectedAMSkuNames(), skuNamesFromAMGroups();
+
+anyAMSkuSelected() = (GROUP MAX inAMSku(Sku s)) OR anyAMSkuGroup();
+
+CLASS AMFilterMode 'Фильтр ассортимента' {
+    all 'Все товары подразделения',
+    matrix 'Только товары в ассортиментных матрицах'
+}
+name 'Фильтр ассортимента' (AMFilterMode o) = staticCaption(o) IF o IS AMFilterMode CHARWIDTH 15;
+
+FORM amFilterModes 'Фильтр ассортимента'
+    OBJECTS o = AMFilterMode
+    PROPERTIES(o) READONLY staticCaption
+    LIST AMFilterMode OBJECT o
+;
+
+amFilterMode = DATA LOCAL AMFilterMode ();
+amFilterModeDefault = OVERRIDE amFilterMode(), AMFilterMode.all;
+nameAMFilterMode 'Фильтр ассортимента' = name(amFilterModeDefault());
+
+amInSkuFilter(Sku s) = NOT anyAMSkuSelected() OR inAMSku(s) OR inAMSkuByGroup(s);
+
+amInMatrix(Sku s, Stock st) = countRange(s, st, dateTo());
+
+amRanges 'Ассортиментные матрицы' (Sku s, Stock st) = ranges(s, st, dateTo());
+
+amFilter(Sku s, Stock st) = inSaleReport(st) AND amInSkuFilter(s)
+    AND (amFilterModeDefault() = AMFilterMode.all OR amInMatrix(s, st));
+
+amSupplierID 'Код поставщика' (Sku s, Stock st) = id(supplier(lastPurchaseDetail(s, st)));
+amSupplierName 'Наименование поставщика' (Sku s, Stock st) = name(supplier(lastPurchaseDetail(s, st)));
+
+amPackQuantity 'Количество в упаковке' (Sku s) = amountPack(s);
+
+amSkuSupplierID 'Код поставщика' (Sku s) = GROUP MAX amSupplierID(s, Stock st) IF inSaleReport(st);
+amSkuSupplierName 'Наименование поставщика' (Sku s) = GROUP MAX amSupplierName(s, Stock st) IF inSaleReport(st);
+
+amHasData(Sku s) = GROUP MAX amFilter(s, Stock st);
+
+amStockHeader(Stock st) = id(st) + ' — ' + name(st);
+
+changeStocksAM() { DIALOG dialogStocksSaleReportRu; }
+
+FORM assortmentMatrixReport 'Отчёт по ассортиментным матрицам'
+    PROPERTIES() dateTo, nameAMFilterMode
+    PROPERTIES nameStockList() READONLY SHOWIF stockList()
+    PROPERTIES amStocks 'Подразделения' = inSaleReportStocks() ON CHANGE changeStocksAM() READONLYIF stockList()
+    PROPERTIES() nameAMSkuLists READONLY SHOWIF anyAMSkuList()
+    PROPERTIES amSkuGroups 'Товарные группы' = nameAMSkuGroups() READONLY SHOWIF anyAMSkuGroup()
+    PROPERTIES amSkus 'Товары' = amInSkus() ON CHANGE selectAMSkus() READONLYIF anyAMSkuList() OR anyAMSkuGroup()
+
+    OBJECTS st = Stock
+    FILTERS inSaleReport(st)
+
+    OBJECTS s = Sku
+    PROPERTIES(s) READONLY 'Код товара' = id, 'Наименование товара' = name, idBarcode, shortNameUOM, amPackQuantity,
+        amSkuSupplierID, amSkuSupplierName
+    PROPERTIES READONLY amRanges(s, st) COLUMNS 'stock' (st) HEADER amStockHeader(st)
+    FILTERS amHasData(s)
+    ORDERS name(s)
+
+    EVENTS ON INIT initDates()
+;
+
+FORM assortmentMatrixReportPrint 'Отчёт по ассортиментным матрицам'
+    PROPERTIES() dateTo
+
+    OBJECTS st = Stock
+    FILTERS inSaleReport(st)
+
+    OBJECTS s = Sku
+    PROPERTIES(s) READONLY 'Код товара' = id, 'Наименование товара' = name, 'Штрихкод' = idBarcode,
+        'Единица измерения' = shortNameUOM, 'Количество в упаковке' = amPackQuantity, 'Код поставщика' = amSkuSupplierID,
+        'Наименование поставщика' = amSkuSupplierName
+    PROPERTIES READONLY amRanges(s, st) COLUMNS 'stock' (st) HEADER amStockHeader(st)
+    FILTERS amHasData(s)
+    ORDERS name(s)
+;
+
+printAMReport 'Отчёт' () { PRINT assortmentMatrixReportPrint XLSX; } IMAGE 'print.png';
+
+EXTEND FORM assortmentMatrixReport
+    PROPERTIES() DISABLEIF NOT (GROUP SUM 1 IF inSaleReport(Stock sst)) printAMReport
+;
+
+DESIGN assortmentMatrixReport {
+    REMOVE BOX(st);
+    NEW filters FIRST {
+        alignment = STRETCH;
+        NEW topRow {
+            horizontal = TRUE;
+            alignment = STRETCH;
+            MOVE PROPERTY(dateTo());
+            MOVE PROPERTY(printAMReport()) { valueClass = 'btn-primary'; }
+            MOVE PROPERTY(nameAMFilterMode());
+        }
+        MOVE PROPERTY(nameStockList()) { alignment = STRETCH; }
+        MOVE PROPERTY(amStocks) { alignment = STRETCH; }
+        MOVE PROPERTY(nameAMSkuLists()) { alignment = STRETCH; }
+        MOVE PROPERTY(amSkuGroups) { alignment = STRETCH; }
+        MOVE PROPERTY(amSkus) { alignment = STRETCH; }
+    }
+    BOX(s) {
+        caption = 'Товары';
+    }
+}
+
 NAVIGATOR {
     salesReports {
         NEW bestWorstProducts;
         NEW salesDynamicsReport;
+        NEW assortmentMatrixReport;
     }
 }
