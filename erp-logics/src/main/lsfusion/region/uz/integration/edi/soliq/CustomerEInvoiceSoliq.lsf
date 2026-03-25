@@ -1,6 +1,6 @@
-MODULE CustomerEInvoiceUz;
+MODULE CustomerEInvoiceSoliq;
 
-REQUIRE EInvoiceUz, EDIUz, EImzoUz;
+REQUIRE EInvoiceUz, Soliq, EImzoUz;
 
 NAMESPACE EDI;
 
@@ -364,18 +364,29 @@ waybillConsignee 'Отклонить' (EInvoice ei) {
     waybillConsignee(ei, defaultCustomer(), 'reject');
 }
 
+accept(EInvoice ei) + {
+    IF EDIProvider(supplier(ei)) == EDIProvider.soliq THEN {
+        waybillConsigneeAccept(ei);
+    }
+}
+
+decline(EInvoice ei) + {
+    IF EDIProvider(supplier(ei)) == EDIProvider.soliq THEN {
+        waybillConsignee(ei);
+    }
+}
+
 waybillCancel 'Отменить' (EInvoice ei) {
     waybillCancel(ei, defaultCustomer());
 }
 
 EXTEND FORM eInvoices
-    PROPERTIES(e) SHOWIF NOT isAccepted(e) AND NOT isRejected(e) waybillConsigneeAccept, waybillConsignee//, waybillCancel
+//    PROPERTIES(e) SHOWIF NOT isAccepted(e) AND NOT isRejected(e) waybillConsigneeAccept//, waybillCancel
 ;
 
 DESIGN eInvoices{
     TOOLBARBOX (e) {
         horizontal = TRUE;
-        MOVE PROPERTY (waybillConsigneeAccept(e)) { alignment = STRETCH; };
-        MOVE PROPERTY (waybillConsignee(e)) { alignment = STRETCH; };
+        //MOVE PROPERTY (waybillConsigneeAccept(e)) { alignment = STRETCH; };
     }
 }

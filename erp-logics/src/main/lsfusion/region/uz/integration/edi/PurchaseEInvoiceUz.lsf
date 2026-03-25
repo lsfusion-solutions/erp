@@ -93,9 +93,32 @@ copyData(EInvoice ei, Invoice i)  {
     }
 }
 
+createUserInvoice 'Создать накладную (закупка)' (EInvoice ei) {
+    NEWSESSION {
+        NEW i = UserInvoice {
+            copyData(ei, i);
+            executeLocalEvents('Purchase.userInvoice');
+            APPLY;
+        }
+    }
+}
+
+EXTEND FORM eInvoices
+    PROPERTIES(e) createUserInvoice
+;
+
+DESIGN eInvoices {
+    actionContainer {
+        NEW purchase {
+            caption = 'Закупки';
+            horizontal = TRUE;
+            MOVE PROPERTY(createUserInvoice(e));
+        }
+    }
+}
 
 overImportFromEInvoice  ABSTRACT LIST (UserInvoice);
-importFromEInvoice 'Импорт из накладной EDI' (UserInvoice i)  {
+importFromEInvoice 'Импорт из ЭСФ' (UserInvoice i)  {
     IF isPosted(i) THEN {
         MESSAGE 'Вы пытаетесь импортировать в проведенный документ. Распроведите его.';
         RETURN;
@@ -114,7 +137,7 @@ importFromEInvoice 'Импорт из накладной EDI' (UserInvoice i)  {
     }
 }
 
-FORM dialogEInvoiceCustomer 'Выбор электронной накладной'
+FORM dialogEInvoiceCustomer 'Выбор ЭСФ'
     OBJECTS i = EInvoice
     PROPERTIES(i) READONLY deliveryNoteNumber, nameSupplier, nameCustomer, nameCustomerStock
 ;
@@ -142,6 +165,29 @@ DESIGN userInvoice {
             flex = 1;
             MOVE PROPERTY(seriesNumberEInvoice(i));
             MOVE PROPERTY(importFromEInvoice(i));
+        }
+    }
+}
+
+accept 'Подтвердить (покупатель)' (Invoice i) {
+    accept(eInvoice(i));
+} CONFIRM;
+
+decline 'Отклонить (покупатель)' (Invoice i) {
+    decline(eInvoice(i));
+} CONFIRM;
+
+EXTEND FORM invoices
+    PROPERTIES(i) SHOWIF eInvoice(i) AND EDIProvider(supplier(i)) accept, decline
+;
+
+DESIGN invoices {
+    actionContainer {
+        NEW ediUz {
+            caption = 'ЭСФ';
+            horizontal = TRUE;
+            MOVE PROPERTY(accept(i));
+            MOVE PROPERTY(decline(i));
         }
     }
 }

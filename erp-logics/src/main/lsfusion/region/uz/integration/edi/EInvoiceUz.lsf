@@ -61,14 +61,12 @@ addressSupplierStock 'Адрес пункта погрузки' (EInvoice i) = O
 // Consignee (Грузополучатель)
 dataCustomer 'Покупатель' = DATA LegalEntity (EInvoice);
 dataNameCustomer = DATA STRING[9] (EInvoice);
-
-dataAddressCustomerFirst = DATA STRING[150] (EInvoice);
-
+dataAddressCustomer = DATA STRING[250] (EInvoice);
 dataInnCustomer = DATA STRING[9] (EInvoice);
 
 customer 'Покупатель' (EInvoice e) = OVERRIDE dataCustomer(e), legalEntityByInn(dataInnCustomer(e));
 innCustomer 'ИНН покупателя' (EInvoice i) = OVERRIDE dataInnCustomer(i), INN(customer(i));// TinOrPinfl
-addressCustomer 'Адрес покупателя' (EInvoice i) = OVERRIDE dataAddressCustomerFirst(i), address(customer(i));
+addressCustomer 'Адрес покупателя' (EInvoice i) = OVERRIDE dataAddressCustomer(i), address(customer(i));
 nameCustomer 'Покупатель' (EInvoice i) = OVERRIDE fullName(customer(i)), dataNameCustomer(i); // Name
 
 // Склад разгрузки (выбор вручную)
@@ -167,6 +165,26 @@ quantityDespatched 'Кол-во отгружаемого товара' = DATA NU
 lineItemPrice 'Цена за единицу товара' = DATA NUMERIC[16,2] (EInvoiceDetail); // Price
 lineItemDeliverySum 'Cумма товарной позиции' = DATA NUMERIC[18,2] (EInvoiceDetail);// DeliverySum
 
+lineItemVATRate 'Ставка НДС, %' = DATA NUMERIC[10,2] (EInvoiceDetail); // nds_rate
+lineItemVATSum 'Сумма НДС' = DATA NUMERIC[18,2] (EInvoiceDetail); // nds_value
+lineItemTotalWithVAT 'Сумма с НДС' = DATA NUMERIC[18,2] (EInvoiceDetail); // total_with_nds
+
+notes 'Примечания' = DATA STRING (EInvoice);
+
+CLASS EInvoiceLotDetail 'Марки электронной накладной EDI';
+TABLE eInvoiceLotDetail (EInvoiceLotDetail);
+
+eInvoiceDetail = DATA EInvoiceDetail (EInvoiceLotDetail) NONULL DELETE INDEXED;
+eInvoice (EInvoiceLotDetail d) = eInvoice(eInvoiceDetail(d));
+
+id 'Код маркировки единицы товара' = DATA STRING[200] (EInvoiceLotDetail);
+type 'Тип' = DATA STRING[100] (EInvoiceLotDetail);
+eInvoiceLotDetail = GROUP AGGR EInvoiceLotDetail d BY id(d), eInvoiceDetail(d);
+quantity 'Кол-во' = DATA NUMERIC[14,3] (EInvoiceLotDetail);
+
+parent = DATA EInvoiceLotDetail(EInvoiceLotDetail) INDEXED;
+idParent 'Родитель' (EInvoiceLotDetail d) = id(parent(d));
+
 //Итого
 totalDeliverySum 'Общая сумма' (eInvoice) = GROUP SUM lineItemDeliverySum(EInvoiceDetail d) BY eInvoice(d);
 totalLineItem 'Всего количество товарных позиций' (eInvoice) = GROUP SUM 1 BY eInvoice(EInvoiceDetail d);
@@ -178,6 +196,8 @@ CONSTRAINT SET(EInvoice i IS EInvoice) AND NOT (GROUP SUM 1 IF eInvoice(EInvoice
     MESSAGE 'Запрещено создавать электронную накладную без строк';
 
 background = ABSTRACT CASE COLOR (EInvoice);
+accept 'Подтвердить (покупатель)' ABSTRACT LIST (EInvoice);
+decline 'Отклонить (покупатель)' ABSTRACT LIST (EInvoice);
 
 FORM eInvoices 'Электронные накладные'
     OBJECTS e = EInvoice LAST
@@ -192,6 +212,7 @@ FORM eInvoices 'Электронные накладные'
         transportRegNo, transportModel, 
         trailerRegNo, trailerModel,
         totalDeliverySum, totalLineItem, totalLineItemQuantity, totalGrossWeight, totalNetWeight,
+        notes,
         isAccepted, isRejected, isCancelled
 
     OBJECTS eg = EInvoiceDetailGroup
@@ -203,9 +224,23 @@ FORM eInvoices 'Электронные накладные'
     PROPERTIES(ed) READONLY lineItemNumber, 
         nameCommittent, innCommittent,
         lineItemProductName, lineItemCatalogCode, lineItemCatalogName, lineItemPackageCode, lineItemPackageName,
-        grossWeightValue, netWeightValue, quantityDespatched, lineItemPrice, lineItemDeliverySum
+        grossWeightValue, netWeightValue, quantityDespatched, lineItemPrice, lineItemDeliverySum,
+        lineItemVATRate, lineItemVATSum, lineItemTotalWithVAT
                                
     FILTERS eInvoice(ed) == e, eInvoiceDetailGroup(ed) == eg
+
+    OBJECTS dl = EInvoiceDetail
+    PROPERTIES (dl) READONLY lineItemNumber, lineItemProductName
+    FILTERS eInvoice(dl) == e
+    FILTERGROUP marked
+        FILTER 'С марками' GROUP SUM 1 IF eInvoiceDetail(EInvoiceLotDetail eld1) = dl DEFAULT
+
+    TREE eLotTr eld = EInvoiceLotDetail PARENT parent(eld)
+    PROPERTIES(eld) READONLY id, type, quantity
+    FILTERS eInvoiceDetail(eld) = dl
+
+    EVENTS ON CHANGE dl {EXPAND ALL eInvoices.eld;}
+    PROPERTIES accept(e), decline(e)
 ;
 @extendFormEditable(eInvoices);
 
@@ -228,10 +263,26 @@ DESIGN eInvoices {
                 MOVE BOX(eg);
                 MOVE BOX(ed);
             }
-            
             NEW actionContainer {
                 caption = 'Действия';
                 horizontal = TRUE;
+                NEW acceptContainer {
+                    caption = 'Подтверждение';
+                    horizontal = TRUE;
+                    MOVE PROPERTY(accept(e));
+                }
+                NEW declineContainer {
+                    caption = 'Отклонение';
+                    horizontal = TRUE;
+                    MOVE PROPERTY(decline(e));
+                }
+            }
+            NEW eLotDetail {
+                caption = 'Маркировка';
+                horizontal = TRUE;
+                fill = 1;
+                MOVE BOX(dl);
+                MOVE BOX(TREE eLotTr);
             }
             NEW printTab {
                 fill = 1;
@@ -271,6 +322,7 @@ FORM eInvoice 'Электронная накладная'
         transportRegNo, transportModel,
         trailerRegNo, trailerModel,
         totalDeliverySum, totalLineItem, totalLineItemQuantity, totalGrossWeight, totalNetWeight,
+        notes,
         isAccepted, isRejected, isCancelled
 
     OBJECTS g = EInvoiceDetailGroup
@@ -282,9 +334,22 @@ FORM eInvoice 'Электронная накладная'
     PROPERTIES (ed) lineItemNumber,
         nameCommittent, innCommittent,
         lineItemProductName, lineItemCatalogCode, lineItemCatalogName, lineItemPackageCode, lineItemPackageName,
-        grossWeightValue, netWeightValue, quantityDespatched, lineItemPrice, lineItemDeliverySum
+        grossWeightValue, netWeightValue, quantityDespatched, lineItemPrice, lineItemDeliverySum,
+        lineItemVATRate, lineItemVATSum, lineItemTotalWithVAT
     FILTERS eInvoice(ed) == e,  eInvoiceDetailGroup(ed) == g
-    
+
+    OBJECTS dl = EInvoiceDetail
+    PROPERTIES (dl) READONLY lineItemNumber, lineItemProductName
+    FILTERS eInvoice(dl) == e
+    FILTERGROUP marked
+        FILTER 'С марками' GROUP SUM 1 IF eInvoiceDetail(EInvoiceLotDetail eld1) = dl DEFAULT
+
+    TREE eLotTr eld = EInvoiceLotDetail PARENT parent(eld)
+    PROPERTIES(eld) READONLY id, type, quantity
+    FILTERS eInvoiceDetail(eld) = dl
+
+    EVENTS ON CHANGE dl {EXPAND ALL eInvoice.eld;}
+
     EDIT EInvoice OBJECT e
 ;
 
@@ -352,14 +417,35 @@ DESIGN eInvoice {
                         MOVE PROPERTY (contractNumber(e));
                         MOVE PROPERTY (contractDate(e));
                     }
+                    NEW totals {
+                        align = STRETCH;
+                        caption = 'Итого';
+                        MOVE PROPERTY (totalDeliverySum(e));
+                        MOVE PROPERTY (totalLineItem(e));
+                        MOVE PROPERTY (totalLineItemQuantity(e));
+                        MOVE PROPERTY (totalGrossWeight(e));
+                        MOVE PROPERTY (totalNetWeight(e));
+                    }
+                    NEW notes {
+                        align = STRETCH;
+                        MOVE PROPERTY (notes(e));
+                    }
                 }                
                 NEW tabs {
                     tabbed = TRUE;
                     fill = 1;
                     NEW detail {
                         fill = 1;
+                        caption = 'Спецификация';
                         MOVE BOX(g);
                         MOVE BOX(ed);
+                    }
+                    NEW eLotDetail {
+                        caption = 'Маркировка';
+                        horizontal = TRUE;
+                        fill = 1;
+                        MOVE BOX(dl);
+                        MOVE BOX(TREE eLotTr);
                     }
                 }
             }

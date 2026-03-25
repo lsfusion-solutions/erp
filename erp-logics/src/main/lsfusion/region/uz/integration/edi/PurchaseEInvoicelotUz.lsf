@@ -1,0 +1,25 @@
+MODULE PurchaseEInvoicelotUz;
+
+REQUIRE PurchaseEInvoiceUz, PurchaseShipmentLot, LotAggregate;
+
+NAMESPACE Purchase;
+
+overCopy(EInvoiceDetail eid, UserInvoiceDetail id) + {
+    FOR [GROUP SUM 1 BY eInvoiceDetail(EInvoiceLotDetail dd), idParent(dd)](eid, STRING[200] str) AND NOT lot(str) NEW l = Lot DO {
+        id(l) <- str;
+        sku(l) <- sku(id);
+        aggregated(l) <- TRUE;
+    }
+
+    FOR EInvoiceLotDetail el == [GROUP MAX EInvoiceLotDetail dd BY eInvoiceDetail(dd), id(dd)](eid, STRING[200] str) AND NOT lot(barcodeToId(str)) AND NOT lot(str) NEW l = Lot DO {
+        id(l) <- barcodeToId(str);
+        tail(l) <- barcodeToTail(str);
+        sku(l) <- sku(id);
+    }
+
+    FOR eInvoiceDetail(EInvoiceLotDetail dd) == eid AND idParent(dd) AND Lot l == OVERRIDE lot(id(dd)), lot(barcodeToId(id(dd))) DO {
+        parent(l) <- lot(idParent(dd));
+    }
+
+    quantity(id, Lot l) <- (GROUP SUM 1 IF eInvoiceDetail(EInvoiceLotDetail dd) == eid AND id(l) == barcodeToId(id(dd)) AND NOT aggregated(l));
+}

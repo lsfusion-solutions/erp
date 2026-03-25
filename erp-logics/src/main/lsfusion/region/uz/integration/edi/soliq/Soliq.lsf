@@ -1,0 +1,42 @@
+MODULE Soliq;
+
+REQUIRE EDIUz;
+
+// Provider Soliq
+loginSoliq 'Имя пользователя Soliq' = DATA STRING[100] (LegalEntity);
+passwordSoliq 'Пароль Soliq' = DATA STRING[100] (LegalEntity) ECHO;
+hostSoliq 'Хост' = DATA STRING[100] (LegalEntity);
+portSoliq 'Порт' = DATA INTEGER (LegalEntity);
+ipSoliq 'IP' = DATA STRING[100] (LegalEntity);
+appendPkcs7Attached'Добавить подпись в существующий документ' = DATA BOOLEAN ();
+
+EXTEND CLASS EDIProvider {
+    soliq 'Soliq'
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() appendPkcs7Attached
+
+    OBJECTS lSoliq = LegalEntity
+    FILTERS isCompany(lSoliq)
+    PROPERTIES(lSoliq) name READONLY, loginSoliq, passwordSoliq, hostSoliq, portSoliq, ipSoliq
+;
+
+DESIGN integrationData {
+    edi {
+        NEW vsSoliq {
+            caption = 'Soliq';
+            horizontal = TRUE;
+            NEW col1EDN {
+                NEW params {
+                    caption = 'Общие';
+                    MOVE PROPERTY (appendPkcs7Attached());
+                }
+            }
+            NEW col2EDN {
+                fill = 1;
+                MOVE BOX(lSoliq);
+            }
+        }
+    }
+}

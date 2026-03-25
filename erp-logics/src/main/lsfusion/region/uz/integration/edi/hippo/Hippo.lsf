@@ -1,0 +1,89 @@
+MODULE Hippo;
+
+REQUIRE EDIUz;
+
+EXTEND CLASS EDIProvider {
+    hippo 'Hippo'
+}
+
+connectionStringHippo 'Строка подключения (ftp://username:password@host:port/path/)' = DATA STRING[250]();
+outPathHippo 'Путь для выгрузки файлов (с /)' = DATA STRING[100]();
+inPathHippo 'Путь для ответов (с /)' = DATA STRING[100]();
+confirmNotFoundOrdersHippo 'Подтверждать ответы по которым не найден заказ' = DATA BOOLEAN ();
+
+archiveInDirHippo 'Архив принятых сообщений' = DATA STRING[100] ();
+archiveOutDirHippo 'Архив отправленных сообщений' = DATA STRING[100] ();
+
+apiUrlHippo 'URL API Hippo' = DATA STRING[250]();
+clientIDHippo 'Client ID Hippo' = DATA STRING[250]();
+clientSecretHippo 'Client Secret Hippo' = DATA STRING[250]() ECHO;
+
+//------------------ Ответы ------------------
+
+overReceiveMessagesHippo ABSTRACT LIST (INTEGER, STRING, STRING[100], BOOLEAN, STRING[100]);
+
+id = DATA LOCAL NESTED STRING (INTEGER);
+data = DATA LOCAL NESTED FILE(INTEGER);
+
+importAnswer (STRING url, STRING[100] archiveDir, STRING[100] provider){
+    fileName(INTEGER i) <- NULL;
+    TRY {
+        listFiles(url);
+    } CATCH {
+        logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+        MESSAGE 'Сообщения не получены. Ошибка чтения списка каталогов. Обратитесь к администратору' NOWAIT;
+        RETURN;
+    }
+    fillStartParams();
+    FOR STRING[250] fileName == fileName(INTEGER i) AND NOT fileIsDirectory(i) DO {
+        TRY {
+            id(i) <- fileName;
+            READ url + id(i) TO file;
+            data(i) <- file();
+            IF archiveDir THEN {
+                TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(), 'yyyyMMdd')); }
+                WRITE file() TO archiveDir + '/received/' + toChar(currentDate(), 'yyyyMMdd') + '/' + fileName;
+            }
+        } CATCH {
+            MESSAGE 'Ошибка при чтении сообщения ' + id(i) + '. Обратитесь к администратору' NOWAIT;
+            logToFile('edi', CONCAT '\n', provider + ' Parse ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+        }
+        overReceiveMessagesHippo(i, url, archiveDir, TRUE, provider);
+    }
+    fillEndParams();
+    IF textMessage() THEN {
+        MESSAGE textMessage() NOWAIT;
+    }
+}
+
+overImportAnswerHippo ABSTRACT LIST ();
+importAnswerHippo 'Прием ответов' (){
+    checkIsServer();
+    IF isServer() THEN {
+        overImportAnswerHippo();
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES () connectionStringHippo, apiUrlHippo, clientIDHippo, clientSecretHippo, importAnswerHippo
+;
+
+DESIGN integrationData {
+    edi {
+        NEW hippo {
+            caption = 'Hippo';
+            NEW paramsC {
+                caption = 'Общие';
+                MOVE PROPERTY (connectionStringHippo());
+                MOVE PROPERTY (apiUrlHippo());
+                MOVE PROPERTY (clientIDHippo());
+                MOVE PROPERTY (clientSecretHippo());
+                MOVE PROPERTY (importAnswerHippo());
+            }
+            NEW colC {
+                horizontal = TRUE;
+                fill = 1;
+            }
+        }
+    }
+}
