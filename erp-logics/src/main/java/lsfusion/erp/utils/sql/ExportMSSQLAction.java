@@ -43,20 +43,26 @@ public abstract class ExportMSSQLAction extends ExportSQLAction {
 
     @Override
     public String getTruncateStatement() {
-        return "TRUNCATE TABLE [" + table + "]";
+        return "TRUNCATE TABLE " + getTable();
     }
 
     @Override
     public String getInsertStatement(String columns, String params) {
-        return String.format("INSERT INTO [%s](%s) VALUES (%s)", table, columns, params);
+        return String.format("INSERT INTO %s(%s) VALUES (%s)", getTable(), columns, params);
     }
 
     @Override
     public String getUpdateStatement(String set, String wheres, String columns, String params) {
         return noInsert ?
-                String.format("UPDATE [%s] SET %s WHERE %s", table, set, wheres) :
-                String.format("UPDATE [%s] SET %s WHERE %s IF @@ROWCOUNT=0 INSERT INTO %s(%s) VALUES (%s)",
-                        table, set, wheres, table, columns, params);
+                String.format("UPDATE %s SET %s WHERE %s", getTable(), set, wheres) :
+                String.format("UPDATE %s SET %s WHERE %s IF @@ROWCOUNT=0 INSERT INTO %s(%s) VALUES (%s)",
+                        getTable(), set, wheres, getTable(), columns, params);
+    }
+
+    private String getTable() {
+        String[] parts = table.split("\\.");
+        String joined = String.join("].[", parts);
+        return "[" + joined + "]";
     }
 
     public void setObject(PreparedStatement ps, int index, Object value) throws SQLException {
