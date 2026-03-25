@@ -1,0 +1,161 @@
+MODULE BinInventoryBinSkuLedger;
+
+REQUIRE BinInventoryBinLedger, SkuLedger, Inventory;
+
+NAMESPACE BinInventory;
+
+NAVIGATOR {
+    binInventoryNavigator {
+        NEW binInventoryCommittees 'Комиссии для инвентаризации' = inventoryCommittees;        
+    }
+}
+
+committee = DATA InventoryCommittee (BinInventory);
+nameCommittee 'Название комиссии' (BinInventory binInventory) = name(committee(binInventory)) IN inventoryCommittee CHARWIDTH 30 NOSELECT;
+nameChairmanCommittee 'Председатель комиссии' (BinInventory binInventory) = nameChairman(committee(binInventory)) IN inventoryCommittee CHARWIDTH 30;
+namePositionChairman 'Должность председателя' (BinInventory binInventory)  = namePositionChairman(committee(binInventory)) IN inventoryCommittee CHARWIDTH 30;
+nameEmployee 'Члены комиссии' (BinInventory binInventory) = nameEmployee(committee(binInventory)) IN inventoryCommittee CHARWIDTH 30;
+in 'Является членом комиссии' (BinInventory binInventory, Employee employee) = in(committee(binInventory), employee);
+
+EXTEND FORM binInventory
+    PROPERTIES(i) nameCommittee
+;
+
+DESIGN binInventory {
+    topRow3 {
+        MOVE PROPERTY(nameCommittee(i)) BEFORE PROPERTY(note(i));
+    }
+}
+
+CLASS TypeSkuLedger 'Тип проведения инвентаризации по регистру движения' {
+    bySkus 'По товарам'
+}
+
+createSkuLedger 'Проводить по регистру движения' = DATA BOOLEAN (Operation);
+typeSkuLedger = DATA TypeSkuLedger (Operation);
+nameTypeSkuLedger 'Тип проведения по регистру движения' (Operation o)= caption(typeSkuLedger(o)) NOSELECT;
+
+EXTEND FORM operation
+    PROPERTIES(o) createSkuLedger
+    PROPERTIES(o) nameTypeSkuLedger SHOWIF createSkuLedger(o)
+;
+
+DESIGN operation {
+    createContainer {
+        MOVE PROPERTY(createSkuLedger(o));
+        MOVE PROPERTY(nameTypeSkuLedger(o));
+    }
+}
+
+createSkuLedger 'Проводить по регистру движения' = DATA BOOLEAN (BinInventory);
+typeSkuLedger = DATA TypeSkuLedger (BinInventory);
+nameTypeSkuLedger 'Тип проведения по регистру движения' (BinInventory o)= caption(typeSkuLedger(o)) NOSELECT;
+
+createSkuLedger (BinInventory o) <- createSkuLedger(operation(o)) WHEN CHANGED(operation(o));
+typeSkuLedger (BinInventory o) <- typeSkuLedger(operation(o)) WHEN CHANGED(operation(o));
+
+CONSTRAINT SET(createSkuLedger(BinInventory i) AND NOT typeSkuLedger(i)) 
+    MESSAGE 'При проведении инвентаризации по ячейкам по регистру движения необходимо выбрать тип';
+
+EXTEND FORM binInventory
+    PROPERTIES(i) createSkuLedger
+    PROPERTIES(i) nameTypeSkuLedger SHOWIF createSkuLedger(i)
+;
+
+DESIGN binInventory {
+    topRow2 {
+        MOVE PROPERTY(createSkuLedger(i));
+        MOVE PROPERTY(nameTypeSkuLedger(i));
+    }
+}
+
+TABLE skuBinInventory (Sku, BinInventory);
+
+price 'Цена' = DATA NUMERIC[16,4] (Sku, BinInventory) CHARWIDTH 7 PATTERN '#,##0.00##';
+sum 'Сумма по описям' = DATA NUMERIC[18,4] (Sku, BinInventory) CHARWIDTH 9 PATTERN '#,##0.00##';
+
+priceRound = ABSTRACT CASE INTEGER (BinInventory);
+priceRound (BinInventory i) += WHEN i IS BinInventory THEN 2;
+
+calcSum = ABSTRACT VALUE NUMERIC[18,4] (Sku, BinInventory);
+calcSum(Sku sku, BinInventory i) += NUMERIC[18,4](Utils.round(inQuantity(sku, i) * price(sku, i), priceRound(i)));
+
+quantityBalance 'Кол-во по остаткам' = DATA NUMERIC[16,5] (Sku, BinInventory);
+sumBalance 'Сумма по остаткам' = DATA NUMERIC[18,4] (Sku, BinInventory) CHARWIDTH 9 PATTERN '#,##0.00##';
+
+quantityShortage 'Кол-во недостачи / излишка' (Sku sku, BinInventory binInventory) =
+    quantityBalance(sku, binInventory) (-) inQuantity(sku, binInventory) MATERIALIZED;
+sumShortage 'Сумма недостачи / излишка' (Sku sku, BinInventory binInventory) =
+    sumBalance(sku, binInventory) (-) sum(sku, binInventory) MATERIALIZED PATTERN '#,##0.00##';
+
+overFillCollationSheet ABSTRACT (BinInventory);
+fillCollationSheet 'Заполнить сличительную ведомость' (BinInventory i) {
+    IF typeSkuLedger(i)==TypeSkuLedger.bySkus THEN {
+        price(Sku sku, i)  <- prevAccountPriceB(sku, stock(i), dateTime(i)) WHERE in(sku, i);
+        sum(Sku sku, i) <- calcSum(sku, i) WHERE in(sku, i);
+        quantityBalance(Sku sku, i) <- balanceB(sku, stock(i), dateTime(i)) WHERE in(sku, i);            
+        sumBalance(Sku sku, i) <- sumB(sku, stock(i), dateTime(i)) WHERE in(sku, i);            
+    }
+    overFillCollationSheet(i);
+} CONFIRM;
+
+EXTEND FORM binInventory
+    PROPERTIES(i) fillCollationSheet
+    
+    TREE cskuTree csg = SkuGroup PARENT parent(csg)
+    PROPERTIES READONLY order(csg), name(csg)
+    ORDERS order(csg), name(csg)
+    FILTERGROUP inactiveCSkuGroup
+        FILTER 'Активные' active(csg) DEFAULT
+
+    OBJECTS cs = Sku
+    PROPERTIES(cs) READONLY name, nameSkuType, idBarcode
+    PROPERTIES(cs, i) READONLY inQuantity, quantityBalance, quantityShortage, price, sum, sumBalance, sumShortage
+    ORDERS name(cs)
+    FILTERS isParent(csg, cs),
+        in(cs, i)
+;
+
+DESIGN binInventory {
+    tabbedContainer {
+        NEW collationSheet {
+            showIf = createSkuLedger(i);
+            fill = 1;
+            caption = 'Сличительная ведомость';
+            MOVE PROPERTY(fillCollationSheet(i));
+            NEW collationSheetDetail {
+                horizontal = TRUE;
+                fill = 1;
+                MOVE BOX(TREE cskuTree);
+                MOVE BOX(cs) {
+                    showIf = typeSkuLedger(i)==TypeSkuLedger.bySkus; 
+                    fill = 2;
+                    PROPERTY(inQuantity(cs, i)) {caption = 'Кол-во по описям';}
+                }                
+            }
+        }
+    }
+}
+
+//---------------------------- Изменение остатка инвентаризации sku----------------------------//
+
+CLASS ABSTRACT InventorySkuDetail 'Изменение остатка инвентаризацией' : DataSkuLedger;
+TABLE inventorySkuDetail (InventorySkuDetail);
+
+CLASS OutInventorySkuDetail 'Недостача инвентаризации' : InventorySkuDetail;
+CLASS InInventorySkuDetail 'Излишки инвентаризации' : InventorySkuDetail;
+
+needToOutLedger (Sku sku, BinInventory binInventory) =
+    (inQuantity(sku, binInventory) > 0  OR (sumShortage(sku, binInventory) > 0 AND NOT inQuantity(sku, binInventory)))
+        AND in(sku, binInventory)
+        AND typeSkuLedger(binInventory) == TypeSkuLedger.bySkus
+        AND isPosted(binInventory);
+
+needToInLedger (Sku sku, BinInventory binInventory) =
+    (inQuantity(sku, binInventory) < 0 OR (sumShortage(sku, binInventory) < 0 AND NOT inQuantity(sku, binInventory)))
+        AND in(sku, binInventory)
+        AND typeSkuLedger(binInventory) == TypeSkuLedger.bySkus
+        AND isPosted(binInventory);
+
+outInventorySkuDetail = AGGR OutInventorySkuDetail WHERE needToOutLedger(Sku sku, BinInventory binInventory) MATERIALIZED INDEXED;
+inInventorySkuDetail = AGGR InInventorySkuDetail WHERE needToInLedger(Sku sku, BinInventory binInventory) MATERIALIZED INDEXED;

@@ -1,6 +1,6 @@
 MODULE DepartmentBinInventory;
 
-REQUIRE DepartmentBin, BinInventoryBinLedger;
+REQUIRE DepartmentBin, BinInventoryBinLedger, Inventory, BinInventoryBinSkuLedger;
 
 NAMESPACE BinInventory;
 
@@ -42,7 +42,7 @@ EXTEND FORM binInventory
 
 DESIGN binInventory {
     topRow2 {
-        MOVE PROPERTY(nameDepartment(i));
+        MOVE PROPERTY(nameDepartment(i)) AFTER PROPERTY(nameStock(i));
     }
 }
 
@@ -64,3 +64,26 @@ DESIGN operation {
 
 overExtraOutBinFilter(Bin b, BinInventory i) += department(i)==department(b);
 needExtraOutBinFilter(Bin b, BinInventory i) += department(i) AND binDepartment(operation(i)) AND b IS Bin;
+
+inventoryCommittee = DATA InventoryCommittee (Department);
+nameInventoryCommittee 'Комиссия инвентаризации отдела' (Department department) = name(inventoryCommittee(department)) IN committee;
+is 'По умолчанию' (InventoryCommittee committee, Department department) = inventoryCommittee(department) == committee;
+inInventoryCommittee (Department department, Employee employee) = in(inventoryCommittee(department), employee);
+nameEmployeInventoryCommittee 'Члены комиссии' (Department department) = namePositionEmployee(inventoryCommittee(department));
+shortNameEmployeeInventoryCommittee 'Члены комиссии' (Department department) = shortNamePositionEmployee(inventoryCommittee(department));
+nameChairmanInventoryCommittee 'Председатель комиссии' (Department department) = nameChairman(inventoryCommittee(department));
+shortNameChairmanInventoryCommittee 'Председатель комиссии' (Department department) = shortNameChairman(inventoryCommittee(department));
+namePositionChairmanInventoryCommittee 'Должность' (Department department) = namePositionChairman(inventoryCommittee(department));
+CONSTRAINT inventoryCommittee(Department department) AND NOT in(inventoryCommittee(department), stock(department))
+    CHECKED BY inventoryCommittee[Department] MESSAGE 'Для отдела выбрана комиссия, которая для него не действует';
+
+EXTEND FORM department
+    PROPERTIES(d) nameInventoryCommittee
+;
+
+EXTEND FORM departments
+    PROPERTIES(d) READONLY nameInventoryCommittee
+;
+
+committee (BinInventory binInventory) <- inventoryCommittee(department(binInventory))
+    WHEN CHANGED(department(binInventory));

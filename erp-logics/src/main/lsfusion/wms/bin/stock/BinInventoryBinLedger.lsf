@@ -109,7 +109,7 @@ showOpen (BinInventory o) = isClosed(o) AND NOT skipOpen(o);
 
 @defineNumeratedDefault(BinInventory, 'Инвентаризации по ячейкам', 'ЯН');
 
-@defineDocumentHeaderNote(BinInventory);
+note '{document.note}' = DATA ISTRING[500] (BinInventory) CHARWIDTH 200 IN documentPrm MATERIALIZED;
 
 description '{document.description.object}' (BinInventory o) =
     STRING[200](CONCAT ' ', 'Инвентаризация по ячейкам' IF o IS BinInventory, '{document.desription.number} ' + seriesNumber(o), '{document.desription.of} ' + date(o)) CHARWIDTH 30;
@@ -371,7 +371,7 @@ FORM binInventory 'Инвентаризация по ячейкам'
         FILTER 'Активные' active(lsg) DEFAULT
 
     OBJECTS ls = Sku
-    PROPERTIES(ls) READONLY name, idBarcode
+    PROPERTIES(ls) READONLY name, nameSkuType, idBarcode
     ORDERS name(ls)
     PROPERTIES(ls, li) READONLY outQuantity, inQuantity, diffQuantity 
     FILTERS isParent(lsg, ls)
@@ -379,7 +379,7 @@ FORM binInventory 'Инвентаризация по ячейкам'
         FILTER 'С расхождением' diffQuantity(ls, li) DEFAULT
         FILTER 'В описи' in(ls, li)
 
-    TREE binTree bg = BinGroup  PARENT parent(bg)
+    TREE binTree bg = BinGroup PARENT parent(bg)
     PROPERTIES bgTreeName = name(bg) READONLY
     ORDERS bgTreeName
     FILTERS stock(bg) = stock(i)
@@ -400,7 +400,7 @@ FORM binInventory 'Инвентаризация по ячейкам'
         FILTER 'Активные' active(sg) DEFAULT
     
     OBJECTS s = Sku
-    PROPERTIES(s) READONLY name, idBarcode
+    PROPERTIES(s) READONLY name, nameSkuType, idBarcode
     PROPERTIES(s, i) READONLY outQuantity, inQuantity, diffQuantity
     ORDERS name(s)
     FILTERS isParent(sg, s)

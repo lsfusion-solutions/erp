@@ -1,0 +1,61 @@
+MODULE BinInventoryBatchBinSkuLedger;
+
+REQUIRE BinInventoryBinSkuLedger, BinInventoryBatchBinLedger;
+
+NAMESPACE BinInventory;
+
+EXTEND CLASS TypeSkuLedger {
+    byBatches 'По партиям'
+}
+
+TABLE batchBinInventory (Batch, BinInventory);
+
+price 'Цена' = DATA NUMERIC[16,4] (Batch, BinInventory) CHARWIDTH 7 PATTERN '#,##0.00##';
+sum 'Сумма по описям' = DATA NUMERIC[18,4] (Batch, BinInventory) CHARWIDTH 9 PATTERN '#,##0.00##';
+
+calcSum = ABSTRACT VALUE NUMERIC[18,4] (Batch, BinInventory);
+calcSum(Batch batch, BinInventory i) += NUMERIC[18,4](Utils.round(inQuantity(batch, i) * price(batch, i), priceRound(i)));
+
+quantityBalance 'Кол-во по остаткам' = DATA NUMERIC[16,5] (Batch, BinInventory);
+sumBalance 'Сумма по остаткам' = DATA NUMERIC[18,4] (Batch, BinInventory) CHARWIDTH 9 PATTERN '#,##0.00##';
+
+quantityShortage 'Кол-во недостачи / излишка' (Batch batch, BinInventory binInventory) =
+    quantityBalance(batch, binInventory) (-) inQuantity(batch, binInventory) MATERIALIZED;
+sumShortage 'Сумма недостачи / излишка' (Batch batch, BinInventory binInventory) =
+    sumBalance(batch, binInventory) (-) sum(batch, binInventory) MATERIALIZED PATTERN '#,##0.00##';
+
+overFillCollationSheet (BinInventory i) + {
+    IF typeSkuLedger(i)==TypeSkuLedger.byBatches THEN {
+        price(Batch batch, i)  <- prevAccountPriceB(batch, stock(i), dateTime(i)) WHERE in(batch, i);
+        sum(Batch batch, i) <- calcSum(batch, i) WHERE in(batch, i);
+        quantityBalance(Batch batch, i) <- balanceB(batch, stock(i), dateTime(i)) WHERE in(batch, i);
+        sumBalance(Batch batch, i) <- sumB(batch, stock(i), dateTime(i)) WHERE in(batch, i);
+    }
+}
+
+EXTEND FORM binInventory
+    OBJECTS cbt = Batch
+    PROPERTIES(cbt) READONLY nameSku, nameSkuType, idBarcodeSku, name
+    ORDERS nameSku(cbt)
+    PROPERTIES(cbt, i) READONLY inQuantity, quantityBalance, quantityShortage, price, sum, sumBalance, sumShortage
+    FILTERS isParent(csg, cbt),
+        in(cbt, i)
+;
+
+DESIGN binInventory {
+    collationSheetDetail {
+        MOVE BOX(cbt) {
+            showIf = typeSkuLedger(i)==TypeSkuLedger.byBatches;
+            fill = 2;
+            PROPERTY(inQuantity(cbt, i)) {caption = 'Кол-во по описям';}
+        }
+    }
+}
+
+//---------------------------- Изменение остатка инвентаризации batch----------------------------//
+
+CLASS ABSTRACT InventoryBatchDetail 'Изменение остатка инвентаризацией' : DataSkuLedger;
+TABLE inventoryBatchDetail (InventoryBatchDetail);
+
+CLASS OutInventoryBatchDetail 'Недостача инвентаризации' : InventoryBatchDetail;
+CLASS InInventoryBatchDetail 'Излишки инвентаризации' : InventoryBatchDetail;
