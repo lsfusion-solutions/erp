@@ -1,0 +1,94 @@
+MODULE ConsignmentEInvoiceUz;
+
+REQUIRE EInvoiceUz, Invoice;
+
+NAMESPACE Invoice;
+
+//исходящие (Sale OR PurchaseReturn)
+invoice = DATA Invoice(EInvoice) INDEXED;
+invoiceDetail = DATA InvoiceDetail(EInvoiceDetail) INDEXED;
+eInvoice = GROUP LAST EInvoice ei IF NOT isCancel(ei) ORDER deliveryNoteDate(ei), ei BY invoice(ei) MATERIALIZED INDEXED;
+
+numberInvoice 'Номер накладной EDI (расход)' (EInvoice i) = number(invoice(i));
+EXTEND FORM eInvoices
+    PROPERTIES (e) READONLY SaleNumberInvoice = numberInvoice
+;
+
+CONSTRAINT DROPPED (Invoice i IS Invoice) AND PREV(exportedSupplier(eInvoice(i)))
+    MESSAGE 'Запрещено удалять накладную по которой была отправлена ЭТТН. Сначала необходимо отменить ЭТТН';
+
+numberEInvoice 'Номер ЭТТН'(Invoice i) = deliveryNoteNumber(eInvoice(i));
+isEInvoice 'ЭТТН' (Invoice i) = TRUE IF eInvoice(i);
+
+sign 'Подписать и отправить (поставщик)' (Invoice i) {
+    NEWSESSION {
+        send(eInvoice(i));
+    }
+}
+
+cancel 'Отменить (поставщик)' (Invoice i) {
+    NEWSESSION {
+        cancel(eInvoice(i));
+    }
+}
+
+overCreate ABSTRACT LIST(EInvoice, Invoice);
+overCreate ABSTRACT LIST(EInvoiceDetail, InvoiceDetail);
+
+beforeCreateEInvoice ABSTRACT (Invoice);
+
+fillEInvoiceData(EInvoice ei, Invoice invoice) {
+    invoice(ei) <- invoice;
+    deliveryNoteNumber(ei) <- seriesNumber(invoice);
+    deliveryNoteDate(ei) <- date(invoice);
+    
+    dataSupplier(ei) <- supplier(invoice);
+    supplierStock(ei) <- supplierStock(invoice);
+    
+    dataCustomer(ei) <- customer(invoice);
+    
+    customerStock(ei) <- customerStock(invoice);
+    
+    contractNumber(ei) <- seriesNumberContractSku(invoice);
+    contractDate(ei) <- dateFromContractSku(invoice);
+    
+    notes(ei) <- note(invoice);
+}
+
+fillEInvoiceDetailData(EInvoiceDetail ed, InvoiceDetail detail) {
+    invoiceDetail(ed) <- detail;
+    dataIndex(ed) <- index(detail);
+    
+    productName(ed) <- nameSku(detail);
+    barcode(ed) <- idBarcode(sku(detail));
+    
+    catalogCode(ed) <- ikpu(sku(detail));
+    
+    grossWeightValue(ed) <- grossWeight(sku(detail)) * quantity(detail);
+    netWeightValue(ed) <- netWeight(sku(detail)) * quantity(detail);
+    
+    quantityDespatched(ed) <- quantity(detail);
+    price(ed) <- NUMERIC[16,2](price(detail));
+    sum(ed) <- sum(detail);
+    
+    valueVAT(ed) <- valueVAT(detail);
+    VATSum(ed) <- NUMERIC[18,2](VATSum(detail));
+    invoiceSum(ed) <- invoiceSum(detail);
+}
+
+createEInvoice 'Создать ЭСФ' (Invoice invoice) {
+    IF NOT eInvoice(invoice) THEN NEWSESSION {
+        beforeCreateEInvoice(invoice);
+        NEW ei = EInvoice {
+            fillEInvoiceData(ei, invoice);
+
+            FOR invoice(InvoiceDetail detail) == invoice ORDER index(detail) INLINE NEW ed = EInvoiceDetail DO {
+                eInvoice(ed) <- ei;
+                fillEInvoiceDetailData(ed, detail);
+                overCreate(ed, detail);
+            }
+            overCreate(ei, invoice);
+        }
+        APPLY;
+    }
+}

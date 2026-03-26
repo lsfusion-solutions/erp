@@ -79,6 +79,7 @@ package_type3 = DATA LOCAL STRING(INTEGER);
 package_type4 = DATA LOCAL STRING(INTEGER);
 package_type5 = DATA LOCAL STRING(INTEGER);
 nameCatalog = DATA LOCAL STRING(INTEGER);
+codeCatalog = DATA LOCAL STRING(INTEGER);
 codePackage = DATA LOCAL STRING(INTEGER);
 namePackage = DATA LOCAL STRING(INTEGER);
 valueItems1 = DATA LOCAL INTEGER(INTEGER);
@@ -107,7 +108,7 @@ FORM invoiceInfo
     FILTERS valueItems1(items1) == value
     PROPERTIES(items1) total, price, total_with_nds, itemBarcode EXTID 'barcode', itemQuantity EXTID 'quantity',
         itemOrderingNumber EXTID 'ordering_number', itemName EXTID 'name', nds_value, nds_rate
-    PROPERTIES(items1) IN catalog nameCatalog EXTID 'name'
+    PROPERTIES(items1) IN catalog codeCatalog EXTID 'code', nameCatalog EXTID 'name'
     PROPERTIES(items1) IN package codePackage EXTID 'code', namePackage EXTID 'name'
 
     OBJECTS ident_trans_upak = INTEGER IN marking
@@ -206,18 +207,19 @@ overReceiveMessagesHippo(INTEGER i, STRING url, STRING[100] archiveDir, BOOLEAN 
                                 eInvoice(ed) <- ei;
                                 eInvoiceDetailGroup(ed) <- eig;
                                 dataIndex(ed) <- INTEGER(itemOrderingNumber(items1));
-                                lineItemProductName(ed) <- itemName(items1);
-                                lineItemCatalogCode(ed) <- itemBarcode(items1);
+                                productName(ed) <- itemName(items1);
+                                barcode(ed) <- itemBarcode(items1);
                                 quantityDespatched(ed) <- itemQuantity(items1);
-                                lineItemPrice(ed) <- price(items1);
-                                lineItemDeliverySum(ed) <- total(items1);
-                                lineItemVATRate(ed) <- nds_rate(items1);
-                                lineItemVATSum(ed) <- nds_value(items1);
-                                lineItemTotalWithVAT(ed) <- total_with_nds(items1);
+                                price(ed) <- price(items1);
+                                sum(ed) <- total(items1);
+                                valueVAT(ed) <- nds_rate(items1);
+                                VATSum(ed) <- nds_value(items1);
+                                invoiceSum(ed) <- total_with_nds(items1);
 
-                                lineItemCatalogName(ed) <- nameCatalog(items1);
-                                lineItemPackageCode(ed) <- codePackage(items1);
-                                lineItemPackageName(ed) <- namePackage(items1);
+                                catalogCode(ed) <- codeCatalog(items1);
+                                catalogName(ed) <- nameCatalog(items1);
+                                packageCode(ed) <- codePackage(items1);
+                                packageName(ed) <- namePackage(items1);
 
                                 // Режим с транспортной упаковкой: создаем только переданные идентификаторы для этой строки
                                 FOR markingIdent_trans_upak(INTEGER it) == items1 AND importAggregateLots() AND NOT eInvoiceLotDetail(ident_trans_upak(it), ed) INLINE NEW ld = EInvoiceLotDetail DO {
@@ -269,15 +271,15 @@ overReceiveMessagesHippo(INTEGER i, STRING url, STRING[100] archiveDir, BOOLEAN 
     }
 }
 
-declineReasonHippo 'Причина отклонения (Hippo)' = DATA STRING[500] (EInvoice);
+rejectReasonHippo 'Причина отклонения (Hippo)' = DATA STRING[500] (EInvoice);
 
-FORM declineReasonHippoForm 'Причина отклонения'
+FORM rejectReasonHippoForm 'Причина отклонения'
     OBJECTS e = EInvoice PANEL
-    PROPERTIES(e) declineReasonHippo
+    PROPERTIES(e) rejectReasonHippo
 ;
 
-DESIGN declineReasonHippoForm {
-    PROPERTY(declineReasonHippo(e)) {
+DESIGN rejectReasonHippoForm {
+    PROPERTY(rejectReasonHippo(e)) {
         fill = 1;
         caption = 'Причина';
     }
@@ -287,53 +289,142 @@ DESIGN declineReasonHippoForm {
 accept(EInvoice ei) + {
     IF EDIProvider(supplier(ei)) == EDIProvider.hippo THEN {
         IF NOT apiUrlHippo() OR NOT clientIDHippo() OR NOT clientSecretHippo() THEN {
-            logToFile('edi', externalId(ei) + ' ' + 'Не настроены параметры API Hippo');
+            logToFile('edi', (OVERRIDE externalId(ei), '---') + ' ' + 'Не настроены параметры API Hippo');
             MESSAGE 'Не настроены параметры API Hippo' NOWAIT;
             RETURN;
         }
 
         IF NOT externalId(ei) THEN {
-            logToFile('edi', externalId(ei) + ' ' + 'Отсутствует External ID для счета-фактуры');
-            MESSAGE 'Отсутствует External ID для счета-фактуры' NOWAIT;
-            RETURN;
-        }
-
-        MESSAGE 'Подтверждение для Hippo будет реализовано позже' NOWAIT;
-    }
-}
-
-// Отклонение
-decline(EInvoice ei) + {
-    IF EDIProvider(supplier(ei)) == EDIProvider.hippo THEN {
-        IF NOT apiUrlHippo() OR NOT clientIDHippo() OR NOT clientSecretHippo() THEN {
-            logToFile('edi', externalId(ei) + ' ' + 'Не настроены параметры API Hippo');
-            MESSAGE 'Не настроены параметры API Hippo' NOWAIT;
-            RETURN;
-        }
-
-        IF NOT externalId(ei) THEN {
-            logToFile('edi', externalId(ei) + ' ' + 'Отсутствует External ID для счета-фактуры');
+            logToFile('edi', (OVERRIDE externalId(ei), '---') + ' ' + 'Отсутствует External ID для счета-фактуры');
             MESSAGE 'Отсутствует External ID для счета-фактуры' NOWAIT;
             RETURN;
         }
 
         NEWSESSION {
-            SHOW declineReasonHippoForm OBJECTS e = ei;
+            LOCAL hashcodeAccept = STRING ();
+            LOCAL signatureAccept = STRING ();
+            LOCAL pkcs7Accept = STRING ();
 
-            IF NOT declineReasonHippo(ei) THEN {
+            TRY {
+                // 1. Получение хеш-кода
+                sendGetRequestEDI(clientIDHippo(), clientSecretHippo(),
+                    apiUrlHippo() + '/roaming-client-api/invoice/hashcode/accept/' + externalId(ei),
+                    TRUE, NULL);
+
+                IF sendRequestEDIStatus() != 200 THEN {
+                    logToFile('edi', externalId(ei) + ' ' + 'Ошибка при получении хеш-кода для подтверждения: ' + sendRequestEDIStatus());
+                    MESSAGE 'Ошибка при получении хеш-кода для подтверждения: ' + sendRequestEDIStatus() NOWAIT;
+                    RETURN;
+                }
+
+                IMPORT JSON FROM sendRequestEDIResponse() TO() hashcodeAccept;
+
+                IF NOT hashcodeAccept() THEN {
+                    logToFile('edi', externalId(ei) + ' ' + 'Не удалось получить хеш-код для подтверждения');
+                    MESSAGE 'Не удалось получить хеш-код для подтверждения' NOWAIT;
+                    RETURN;
+                }
+
+                // 2. Подписание (attach = TRUE)
+                stringToFile(hashcodeAccept());
+                signClientAction(RAWFILE(resultFile()), customer(ei), TRUE);
+                signatureAccept() <- encodedSignature();
+
+                IF NOT signatureAccept() THEN {
+                    logToFile('edi', externalId(ei) + ' ' + 'Не удалось получить подпись EImzo для подтверждения');
+                    MESSAGE 'Не удалось получить подпись EImzo для подтверждения' NOWAIT;
+                    RETURN;
+                }
+
+                // 3. Attach timestamp
+                LOCAL timestampRequestFile = FILE();
+                EXPORT JSON FROM signature = signatureAccept() TO timestampRequestFile;
+                sendPostRequestEDI(clientIDHippo(), clientSecretHippo(),
+                    apiUrlHippo() + '/eimzo-client-api/pkcs7/attach-timestamp',
+                    timestampRequestFile(), TRUE, NULL);
+
+                IF sendRequestEDIStatus() != 200 THEN {
+                    logToFile('edi', externalId(ei) + ' ' + 'Ошибка при получении метки времени для подтверждения: ' + sendRequestEDIStatus());
+                    MESSAGE 'Ошибка при получении метки времени для подтверждения: ' + sendRequestEDIStatus() NOWAIT;
+                    RETURN;
+                }
+
+                IMPORT JSON FROM sendRequestEDIResponse() TO() pkcs7Accept;
+
+                IF NOT pkcs7Accept() THEN {
+                    logToFile('edi', externalId(ei) + ' ' + 'Не удалось получить метку времени для подтверждения (attach-timestamp)');
+                    MESSAGE 'Не удалось получить метку времени для подтверждения (attach-timestamp)' NOWAIT;
+                    RETURN;
+                }
+
+                // 4. Финальное подтверждение
+                signatureAccept() <- pkcs7Accept();
+
+                LOCAL requestFile = FILE();
+                EXPORT JSON FROM signature = signatureAccept() TO requestFile;
+
+                sendPostRequestEDI(clientIDHippo(), clientSecretHippo(),
+                    apiUrlHippo() + '/roaming-client-api/invoice/customer/accept/' + externalId(ei),
+                    requestFile(), TRUE, NULL);
+
+                IF sendRequestEDIStatus() != 200 THEN {
+                    logToFile('edi', externalId(ei) + ' ' + 'Ошибка при подтверждении счета-фактуры: ' + sendRequestEDIStatus());
+                    MESSAGE 'Ошибка при подтверждении счета-фактуры: ' + sendRequestEDIStatus() NOWAIT;
+                    RETURN;
+                }
+
+                isAccepted(ei) <- TRUE;
+                APPLY;
+
+                IF NOT canceled() THEN {
+                    logToFile('edi', externalId(ei) + ' ' + 'Счет-фактура успешно подтвержден (Hippo)');
+                    MESSAGE 'Счет-фактура успешно подтвержден (Hippo)' NOWAIT;
+                } ELSE {
+                    logToFile('edi', externalId(ei) + ' ' + 'Ошибка при применении изменений подтверждения');
+                    MESSAGE 'Ошибка при применении изменений подтверждения' NOWAIT;
+                }
+
+            } CATCH {
+                logToFile('edi', externalId(ei) + ' ' + 'Критическая ошибка при подтверждении Hippo: ' + messageCaughtException());
+                logToFile('edi', externalId(ei) + ' ' + javaStackTraceCaughtException());
+                MESSAGE 'Критическая ошибка при подтверждении Hippo. Подробности в логе.' NOWAIT;
+            }
+        }
+    }
+}
+
+// Отклонение
+reject(EInvoice ei) + {
+    IF EDIProvider(supplier(ei)) == EDIProvider.hippo THEN {
+        IF NOT apiUrlHippo() OR NOT clientIDHippo() OR NOT clientSecretHippo() THEN {
+            logToFile('edi', (OVERRIDE externalId(ei), '---') + ' ' + 'Не настроены параметры API Hippo');
+            MESSAGE 'Не настроены параметры API Hippo' NOWAIT;
+            RETURN;
+        }
+
+        IF NOT externalId(ei) THEN {
+            logToFile('edi', (OVERRIDE externalId(ei), '---') + ' ' + 'Отсутствует External ID для счета-фактуры');
+            MESSAGE 'Отсутствует External ID для счета-фактуры' NOWAIT;
+            RETURN;
+        }
+
+        NEWSESSION {
+            SHOW rejectReasonHippoForm OBJECTS e = ei;
+
+            IF NOT rejectReasonHippo(ei) THEN {
                 logToFile('edi', externalId(ei) + ' ' + 'Причина отклонения обязательна');
                 MESSAGE 'Причина отклонения обязательна' NOWAIT;
                 RETURN;
             }
 
-            LOCAL hashcodeDecline = STRING ();
-            LOCAL signatureDecline = STRING ();
-            LOCAL pkcs7Decline = STRING ();
+            LOCAL hashcodeReject = STRING ();
+            LOCAL signatureReject = STRING ();
+            LOCAL pkcs7Reject = STRING ();
 
             TRY {
                 // 1. Получение хеш-кода
                 sendGetRequestEDI(clientIDHippo(), clientSecretHippo(),
-                    apiUrlHippo() + '/roaming-client-api/invoice/hashcode/decline/' + externalId(ei) + '?comment=' + declineReasonHippo(ei),
+                    apiUrlHippo() + '/roaming-client-api/invoice/hashcode/decline/' + externalId(ei) + '?comment=' + rejectReasonHippo(ei),
                     TRUE, NULL);
 
                 IF sendRequestEDIStatus() != 200 THEN {
@@ -342,20 +433,20 @@ decline(EInvoice ei) + {
                     RETURN;
                 }
 
-                IMPORT JSON FROM sendRequestEDIResponse() TO() hashcodeDecline;
+                IMPORT JSON FROM sendRequestEDIResponse() TO() hashcodeReject;
 
-                IF NOT hashcodeDecline() THEN {
+                IF NOT hashcodeReject() THEN {
                     logToFile('edi', externalId(ei) + ' ' + 'Не удалось получить хеш-код для отклонения');
                     MESSAGE 'Не удалось получить хеш-код для отклонения' NOWAIT;
                     RETURN;
                 }
 
                 // 2. Подписание
-                stringToFile(hashcodeDecline());
+                stringToFile(hashcodeReject());
                 signClientAction(RAWFILE(resultFile()), customer(ei), NULL);
-                signatureDecline() <- encodedSignature();
+                signatureReject() <- encodedSignature();
 
-                IF NOT signatureDecline() THEN {
+                IF NOT signatureReject() THEN {
                     logToFile('edi', externalId(ei) + ' ' + 'Не удалось получить подпись EImzo');
                     MESSAGE 'Не удалось получить подпись EImzo' NOWAIT;
                     RETURN;
@@ -363,7 +454,7 @@ decline(EInvoice ei) + {
 
                 // 3. Attach timestamp
                 LOCAL timestampRequestFile = FILE();
-                EXPORT JSON FROM signature = signatureDecline() TO timestampRequestFile;
+                EXPORT JSON FROM signature = signatureReject() TO timestampRequestFile;
                 sendPostRequestEDI(clientIDHippo(), clientSecretHippo(),
                     apiUrlHippo() + '/eimzo-client-api/pkcs7/attach-timestamp',
                     timestampRequestFile(), TRUE, NULL); 
@@ -374,19 +465,19 @@ decline(EInvoice ei) + {
                     RETURN;
                 }
 
-                IMPORT JSON FROM sendRequestEDIResponse() TO() pkcs7Decline;
+                IMPORT JSON FROM sendRequestEDIResponse() TO() pkcs7Reject;
 
-                IF NOT pkcs7Decline() THEN {
+                IF NOT pkcs7Reject() THEN {
                     logToFile('edi', externalId(ei) + ' ' + 'Не удалось получить метку времени (attach-timestamp)');
                     MESSAGE 'Не удалось получить метку времени (attach-timestamp)' NOWAIT;
                     RETURN;
                 }
 
                 // 4. Финальное отклонение
-                signatureDecline() <- pkcs7Decline();
+                signatureReject() <- pkcs7Reject();
 
                 LOCAL requestFile = FILE();
-                EXPORT JSON FROM signature = signatureDecline(), comment = declineReasonHippo(ei) TO requestFile;
+                EXPORT JSON FROM signature = signatureReject(), comment = rejectReasonHippo(ei) TO requestFile;
 
                 sendPostRequestEDI(clientIDHippo(), clientSecretHippo(),
                     apiUrlHippo() + '/roaming-client-api/invoice/customer/decline/' + externalId(ei),
@@ -414,22 +505,22 @@ decline(EInvoice ei) + {
 }
 
 EXTEND FORM eInvoices
-    PROPERTIES(e) READONLY declineReasonHippo PANEL
+    PROPERTIES(e) READONLY rejectReasonHippo PANEL
 ;
 
 DESIGN eInvoices {
-    declineContainer {
-        MOVE PROPERTY(declineReasonHippo(e));
+    customerActions {
+        MOVE PROPERTY(rejectReasonHippo(e));
     }
 }
 
 EXTEND FORM eInvoice
-    PROPERTIES(e) READONLY declineReasonHippo
+    PROPERTIES(e) READONLY rejectReasonHippo
 ;
 
 DESIGN eInvoice {
     mainPanel {
-        MOVE PROPERTY(declineReasonHippo(e)) AFTER PROPERTY(isRejected(e));
+        MOVE PROPERTY(rejectReasonHippo(e));
     }
 }
 

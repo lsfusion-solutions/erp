@@ -20,10 +20,10 @@ DESIGN legalEntity {
 }
 
 eInvoiceDetail 'Строка ЭТТН' = DATA EInvoiceDetail (Purchase.InvoiceDetail) INDEXED;
-numberEInvoiceDetail 'Строка ЭТТН' (Purchase.InvoiceDetail d) = lineItemNumber(eInvoiceDetail(d));
+numberEInvoiceDetail 'Строка ЭТТН' (Purchase.InvoiceDetail d) = index(eInvoiceDetail(d));
 
 overPrevList = ABSTRACT NUMERIC[16,4] (EInvoiceDetail);
-prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND eInvoiceDetail(d) THEN (OVERRIDE overPrevList(eInvoiceDetail(d)), NUMERIC[16,4](lineItemPrice(eInvoiceDetail(d))));
+prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND eInvoiceDetail(d) THEN (OVERRIDE overPrevList(eInvoiceDetail(d)), NUMERIC[16,4](price(eInvoiceDetail(d))));
 
 filterDate 'Дата' = DATA LOCAL DATE ();
 filterDate (EInvoice i) = deliveryNoteDate(i) == filterDate() OR NOT filterDate();
@@ -82,11 +82,11 @@ copyData(EInvoice ei, Invoice i)  {
     
     FOR eInvoice(EInvoiceDetail eid) == eInvoice(i) AND NOT ignoreDetail(eid) NEW id = UserInvoiceDetail DO {
         userInvoice(id) <- i;
-        sku(id) <- OVERRIDE sku(lineItemCatalogCode(eid)), sku(lineItemPackageCode(eid)), skuName(lineItemProductName(eid)), skuGTIN(lineItemCatalogCode(eid)), skuGTIN(lineItemPackageCode(eid));
+        sku(id) <- OVERRIDE sku(catalogCode(eid)), sku(packageCode(eid)), skuName(productName(eid)), skuGTIN(catalogCode(eid)), skuGTIN(packageCode(eid));
         quantity(id) <- quantityDespatched(eid);
-        price(id) <- lineItemPrice(eid);
+        price(id) <- price(eid);
         invoicePrice(id) <- round2(price(id) * (100 + valueVAT(id))/100);
-        invoiceSum(id) <- lineItemDeliverySum(eid);
+        invoiceSum(id) <- sum(eid);
         eInvoiceDetail(id) <- eid;
 
         overCopy(eid,id);
@@ -173,12 +173,12 @@ accept 'Подтвердить (покупатель)' (Invoice i) {
     accept(eInvoice(i));
 } CONFIRM;
 
-decline 'Отклонить (покупатель)' (Invoice i) {
-    decline(eInvoice(i));
+reject 'Отклонить (покупатель)' (Invoice i) {
+    reject(eInvoice(i));
 } CONFIRM;
 
 EXTEND FORM invoices
-    PROPERTIES(i) SHOWIF eInvoice(i) AND EDIProvider(supplier(i)) accept, decline
+    PROPERTIES(i) SHOWIF eInvoice(i) AND EDIProvider(supplier(i)) accept, reject
 ;
 
 DESIGN invoices {
@@ -187,7 +187,7 @@ DESIGN invoices {
             caption = 'ЭСФ';
             horizontal = TRUE;
             MOVE PROPERTY(accept(i));
-            MOVE PROPERTY(decline(i));
+            MOVE PROPERTY(reject(i));
         }
     }
 }
