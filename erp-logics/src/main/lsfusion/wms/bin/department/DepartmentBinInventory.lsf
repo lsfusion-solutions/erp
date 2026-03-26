@@ -50,6 +50,12 @@ EXTEND FORM binInventories
     PROPERTIES(i) READONLY nameDepartment AFTER nameStock(i)
 ;
 
+department(InListBinInventoryDetail d) = department(binInventory(listBinInventory(d)));
+nameDepartment 'Отдел' = name(department(InListBinInventoryDetail d)) CHARWIDTH 30;
+
+department(OutListBinInventoryDetail d) = department(binInventory(listBinInventory(d)));
+nameDepartment 'Отдел' = name(department(OutListBinInventoryDetail d)) CHARWIDTH 30;
+
 binDepartment 'Ячейки должны принадлежать отделу' = DATA BOOLEAN (Operation);
 
 EXTEND FORM operation
@@ -64,6 +70,14 @@ DESIGN operation {
 
 overExtraOutBinFilter(Bin b, BinInventory i) += department(i)==department(b);
 needExtraOutBinFilter(Bin b, BinInventory i) += department(i) AND binDepartment(operation(i)) AND b IS Bin;
+
+CONSTRAINT (CHANGED(operation(InListBinInventoryDetail d)) OR CHANGED(department(d))) AND 
+    binDepartment(operation(d)) AND bin(d) AND NOT department(bin(d))==department(d) 
+    MESSAGE 'Отдел строки описи должен совпадать с отделом инвентаризации';
+
+CONSTRAINT (CHANGED(operation(OutListBinInventoryDetail d)) OR CHANGED(department(d))) AND
+    binDepartment(operation(d)) AND bin(d) AND NOT department(bin(d))==department(d)
+    MESSAGE 'Отдел строки описи должен совпадать с отделом инвентаризации';
 
 inventoryCommittee = DATA InventoryCommittee (Department);
 nameInventoryCommittee 'Комиссия инвентаризации отдела' (Department department) = name(inventoryCommittee(department)) IN committee;

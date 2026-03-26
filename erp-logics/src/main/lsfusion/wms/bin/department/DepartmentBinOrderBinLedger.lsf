@@ -88,6 +88,14 @@ needExtraInBinFilter(Bin b, UserBinOrder d) += inDepartment(d) AND inDepartment(
 overExtraOutBinFilter(Bin b, UserBinOrder d) += outDepartment(d)==department(b);
 needExtraOutBinFilter(Bin b, UserBinOrder d) += outDepartment(d) AND outDepartment(operation(d)) AND b IS Bin;
 
+CONSTRAINT (CHANGED(operation(UserBinOrderDetail d)) OR CHANGED(outDepartment(d))) AND
+    outDepartment(operation(d)) AND outBin(d) AND NOT department(outBin(d))==outDepartment(d)
+    MESSAGE 'Отдел ячейки(из) строки заказа на перемещение должен совпадать с отделом(из) заказа на перемещение';
+
+CONSTRAINT (CHANGED(operation(UserBinOrderDetail d)) OR CHANGED(inDepartment(d))) AND
+    inDepartment(operation(d)) AND inBin(d) AND NOT department(inBin(d))==inDepartment(d)
+    MESSAGE 'Отдел ячейки(в) строки заказа на перемещение должен совпадать с отделом(в) заказа на перемещение';
+
 EXTEND FORM binOrders
     PROPERTIES READONLYIF isReadonly() AFTER nameStock(o) nameOutDepartment(o), nameInDepartment(o)
     FILTERS accessCompany(currentUser(), outDepartment(o)) OR o IS BinOrder AND NOT outDepartment(o)

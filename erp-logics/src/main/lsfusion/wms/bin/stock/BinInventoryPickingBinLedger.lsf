@@ -1,0 +1,17 @@
+MODULE BinInventoryPickingBinLedger;
+
+REQUIRE BinInventoryBinLedger, OrderPickingOrderBinLedger;
+
+NAMESPACE BinInventory;
+
+in 'Вкл.' (ListBinInventory li, PickingGroup pg) = GROUP MAX in(Sku sku, li) IF pickingGroup(sku)==pg;
+nonePickingGroup (ListBinInventory li) = GROUP MAX in(Sku sku, li) IF NOT pickingGroup(sku);
+
+dataPickingGroups 'Группы комплектации' (ListBinInventory li) = 
+    GROUP CONCAT name(PickingGroup pg) IF in(li, pg) , ', ' ORDER id(pg);
+pickingGroups 'Группы комплектации' (ListBinInventory li) =
+    CONCAT ', ', 'Не задана' IF nonePickingGroup(li), dataPickingGroups(li);
+
+EXTEND FORM binInventory
+    PROPERTIES(li) BACKGROUND background(li) READONLY pickingGroups
+;
