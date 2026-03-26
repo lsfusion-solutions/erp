@@ -1,6 +1,6 @@
 MODULE DepartmentBinInventory;
 
-REQUIRE DepartmentBin, BinInventoryBinLedger, Inventory, BinInventoryBinSkuLedger;
+REQUIRE DepartmentBin, BinInventoryBinLedger, Inventory, BinInventoryBinSkuLedger, StockDocumentBinLedger;
 
 NAMESPACE BinInventory;
 
@@ -87,3 +87,25 @@ EXTEND FORM departments
 
 committee (BinInventory binInventory) <- inventoryCommittee(department(binInventory))
     WHEN CHANGED(department(binInventory));
+
+//---------------------------- Проведение по StockDocumentBinLedger----------------------------//
+
+CLASS BinInventorySDBinLedger 'Инвентаризация' : OutStockDocumentBinLedger; ////BinInventoryStockDocumentBinLedger
+
+needToStockDocumentBinLedger(BinInventory binInventory) =
+    createSkuLedger(binInventory) AND isPosted(binInventory);
+
+binInventorySDBinLedger = AGGR BinInventorySDBinLedger WHERE needToStockDocumentBinLedger(BinInventory binInventory) MATERIALIZED INDEXED;
+
+series[OutStockDocumentBinLedger] (BinInventorySDBinLedger ledger) += series(binInventory(ledger));
+number[OutStockDocumentBinLedger] (BinInventorySDBinLedger ledger) += number(binInventory(ledger));
+dateTime[OutStockDocumentBinLedger] (BinInventorySDBinLedger ledger) += dateTime(binInventory(ledger));
+isPosted[OutStockDocumentBinLedger] (BinInventorySDBinLedger ledger) += isPosted(binInventory(ledger));
+isClosed[OutStockDocumentBinLedger] (BinInventorySDBinLedger ledger) += isClosed(binInventory(ledger));
+stock[OutStockDocumentBinLedger] (BinInventorySDBinLedger ledger) += stock(binInventory(ledger));
+description[OutStockDocumentBinLedger] (BinInventorySDBinLedger ledger) += STRING[200](description(binInventory(ledger)));
+sumItem[OutStockDocumentBinLedger](BinInventorySDBinLedger ledger) += -sumItemShortage(binInventory(ledger));
+sumContainer[OutStockDocumentBinLedger] (BinInventorySDBinLedger ledger) += -sumContainerShortage(binInventory(ledger));
+operation[StockDocumentBinLedger](BinInventorySDBinLedger ledger) += operation(binInventory(ledger));
+department[StockDocumentBinLedger] (BinInventorySDBinLedger ledger) += department(binInventory(ledger));
+skip[StockDocumentBinLedger] (BinInventorySDBinLedger ledger) += ledger IS BinInventorySDBinLedger AND NOT department(ledger);

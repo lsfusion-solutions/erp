@@ -80,7 +80,9 @@ priceRound (BinInventory i) += WHEN i IS BinInventory THEN 2;
 calcSum = ABSTRACT VALUE NUMERIC[18,4] (Sku, BinInventory);
 calcSum(Sku sku, BinInventory i) += NUMERIC[18,4](Utils.round(inQuantity(sku, i) * price(sku, i), priceRound(i)));
 
+overQuantityBalance = ABSTRACT NUMERIC[16,5] (Sku, BinInventory);
 quantityBalance 'Кол-во по остаткам' = DATA NUMERIC[16,5] (Sku, BinInventory);
+overSumBalance = ABSTRACT NUMERIC[18,4] (Sku, BinInventory);
 sumBalance 'Сумма по остаткам' = DATA NUMERIC[18,4] (Sku, BinInventory) CHARWIDTH 9 PATTERN '#,##0.00##';
 
 quantityShortage 'Кол-во недостачи / излишка' (Sku sku, BinInventory binInventory) =
@@ -88,19 +90,36 @@ quantityShortage 'Кол-во недостачи / излишка' (Sku sku, Bin
 sumShortage 'Сумма недостачи / излишка' (Sku sku, BinInventory binInventory) =
     sumBalance(sku, binInventory) (-) sum(sku, binInventory) MATERIALIZED PATTERN '#,##0.00##';
 
+sumSku 'Сумма по описям' = GROUP SUM sum(Sku sku, BinInventory i) BY i CHARWIDTH 12 PATTERN '#,##0.00##';
+sumSkuBalance 'Сумма по остаткам'  = GROUP SUM sumBalance(Sku sku, BinInventory i) BY i CHARWIDTH 12 PATTERN '#,##0.00##';
+sumSkuShortage 'Сумма недостачи / излишка' = GROUP SUM sumShortage(Sku sku, BinInventory i) BY i CHARWIDTH 12 PATTERN '#,##0.00##';
+
+sumItemSkuShortage 'Сумма недостачи / излишка, товар' (BinInventory binInventory) = 
+    GROUP SUM sumShortage(Sku sku, binInventory) IF in(sku, binInventory) IF isItem(sku) MATERIALIZED;
+sumContainerSkuShortage 'Сумма недостачи / излишка, тара' (BinInventory binInventory) = 
+    GROUP SUM sumShortage(Sku sku, binInventory) IF in(sku, binInventory) IF isContainer(sku) MATERIALIZED;
+
+sumItemShortage 'Сумма недостачи / излишка, товар' = ABSTRACT CASE NUMERIC[18,4] (BinInventory) CHARWIDTH 12 PATTERN '#,##0.00##';
+sumItemShortage(BinInventory i) += WHEN typeSkuLedger(i)==TypeSkuLedger.bySkus THEN sumItemSkuShortage(i);
+
+sumContainerShortage 'Сумма недостачи / излишка, тара' = ABSTRACT CASE NUMERIC[18,4] (BinInventory) CHARWIDTH 12 PATTERN '#,##0.00##';
+sumContainerShortage(BinInventory i) += WHEN typeSkuLedger(i)==TypeSkuLedger.bySkus THEN sumContainerSkuShortage(i);
+
 overFillCollationSheet ABSTRACT (BinInventory);
 fillCollationSheet 'Заполнить сличительную ведомость' (BinInventory i) {
     IF typeSkuLedger(i)==TypeSkuLedger.bySkus THEN {
         price(Sku sku, i)  <- prevAccountPriceB(sku, stock(i), dateTime(i)) WHERE in(sku, i);
         sum(Sku sku, i) <- calcSum(sku, i) WHERE in(sku, i);
-        quantityBalance(Sku sku, i) <- balanceB(sku, stock(i), dateTime(i)) WHERE in(sku, i);            
-        sumBalance(Sku sku, i) <- sumB(sku, stock(i), dateTime(i)) WHERE in(sku, i);            
+        quantityBalance(Sku sku, i) <- (OVERRIDE overQuantityBalance(sku, i), balanceB(sku, stock(i), dateTime(i))) WHERE in(sku, i);            
+        sumBalance(Sku sku, i) <- (OVERRIDE overSumBalance(sku, i), sumB(sku, stock(i), dateTime(i))) WHERE in(sku, i);            
     }
     overFillCollationSheet(i);
 } CONFIRM;
 
 EXTEND FORM binInventory
     PROPERTIES(i) fillCollationSheet
+    
+    PROPERTIES(i) READONLY sumSku, sumSkuBalance, sumSkuShortage, sumItemShortage, sumContainerShortage
     
     TREE cskuTree csg = SkuGroup PARENT parent(csg)
     PROPERTIES READONLY order(csg), name(csg)
@@ -114,6 +133,12 @@ EXTEND FORM binInventory
     ORDERS name(cs)
     FILTERS isParent(csg, cs),
         in(cs, i)
+    FILTERGROUP balanceSku
+        FILTER 'В описях' inQuantity(cs, i)
+        FILTER 'С остатком' quantityBalance(cs, i) OR (sumBalance(cs, i) AND NOT quantityBalance(cs, i))
+
+    FILTERGROUP diffSku
+        FILTER 'C расхождением' quantityShortage(cs, i) OR sumShortage(cs, i)
 ;
 
 DESIGN binInventory {
@@ -122,8 +147,25 @@ DESIGN binInventory {
             showIf = createSkuLedger(i);
             fill = 1;
             caption = 'Сличительная ведомость';
-            MOVE PROPERTY(fillCollationSheet(i));
-            NEW collationSheetDetail {
+            NEW topCollationSheet {
+                horizontal = TRUE;
+                NEW actionCollationSheet {
+                    horizontal = TRUE;
+                    caption = 'Действия';
+                    MOVE PROPERTY(fillCollationSheet(i));
+                }
+                NEW sumSkuCollationSheet {
+                    horizontal = TRUE;
+                    showIf = typeSkuLedger(i)==TypeSkuLedger.bySkus;
+                    caption = 'Итоговые суммы';
+                    MOVE PROPERTY(sumSku(i));
+                    MOVE PROPERTY(sumSkuBalance(i));
+                    MOVE PROPERTY(sumSkuShortage(i));
+                    MOVE PROPERTY(sumItemShortage(i));
+                    MOVE PROPERTY(sumContainerShortage(i));
+                }
+            }
+            NEW bottomCollationSheet {
                 horizontal = TRUE;
                 fill = 1;
                 MOVE BOX(TREE cskuTree);
@@ -137,7 +179,28 @@ DESIGN binInventory {
     }
 }
 
-//---------------------------- Изменение остатка инвентаризации sku----------------------------//
+//---------------------------- Проведение по StockDocumentLedger----------------------------//
+
+CLASS BinInventorySDLedger 'Инвентаризация' : OutStockDocumentLedger; //BinInventoryStockDocumentLedger
+
+needToStockDocumentLedger(BinInventory binInventory) =
+    createSkuLedger(binInventory) AND isPosted(binInventory);
+
+binInventorySDLedger = AGGR BinInventorySDLedger WHERE needToStockDocumentLedger(BinInventory binInventory) MATERIALIZED INDEXED;
+
+series[StockDocumentLedger] (BinInventorySDLedger ledger) += series(binInventory(ledger));
+number[StockDocumentLedger] (BinInventorySDLedger ledger) += number(binInventory(ledger));
+dateTime[StockDocumentLedger] (BinInventorySDLedger ledger) += dateTime(binInventory(ledger));
+isPosted[StockDocumentLedger] (BinInventorySDLedger ledger) += isPosted(binInventory(ledger));
+isClosed[StockDocumentLedger] (BinInventorySDLedger ledger) += isClosed(binInventory(ledger));
+stock[StockDocumentLedger] (BinInventorySDLedger ledger) += stock(binInventory(ledger));
+description[StockDocumentLedger] (BinInventorySDLedger ledger) += STRING[200](description(binInventory(ledger)));
+
+type(BinInventorySDLedger l) += STRING[50]('Инвентаризация') IF l IS BinInventorySDLedger;
+sumItem (BinInventorySDLedger ledger) += sumItemShortage(binInventory(ledger));
+sumContainer (BinInventorySDLedger ledger) += sumContainerShortage(binInventory(ledger));
+
+//---------------------------- Проведение по SkuLedger-------------------------------------//
 
 CLASS ABSTRACT InventorySkuDetail 'Изменение остатка инвентаризацией' : DataSkuLedger;
 TABLE inventorySkuDetail (InventorySkuDetail);
@@ -146,16 +209,85 @@ CLASS OutInventorySkuDetail 'Недостача инвентаризации' : 
 CLASS InInventorySkuDetail 'Излишки инвентаризации' : InventorySkuDetail;
 
 needToOutLedger (Sku sku, BinInventory binInventory) =
-    (inQuantity(sku, binInventory) > 0  OR (sumShortage(sku, binInventory) > 0 AND NOT inQuantity(sku, binInventory)))
+    (quantityShortage(sku, binInventory) > 0 OR (sumShortage(sku, binInventory) > 0 AND NOT quantityShortage(sku, binInventory)))
         AND in(sku, binInventory)
         AND typeSkuLedger(binInventory) == TypeSkuLedger.bySkus
         AND isPosted(binInventory);
 
 needToInLedger (Sku sku, BinInventory binInventory) =
-    (inQuantity(sku, binInventory) < 0 OR (sumShortage(sku, binInventory) < 0 AND NOT inQuantity(sku, binInventory)))
+    (quantityShortage(sku, binInventory) < 0 OR (sumShortage(sku, binInventory) < 0 AND NOT quantityShortage(sku, binInventory)))
         AND in(sku, binInventory)
         AND typeSkuLedger(binInventory) == TypeSkuLedger.bySkus
         AND isPosted(binInventory);
 
 outInventorySkuDetail = AGGR OutInventorySkuDetail WHERE needToOutLedger(Sku sku, BinInventory binInventory) MATERIALIZED INDEXED;
 inInventorySkuDetail = AGGR InInventorySkuDetail WHERE needToInLedger(Sku sku, BinInventory binInventory) MATERIALIZED INDEXED;
+
+binInventory(InventorySkuDetail inventorySkuDetail) = 
+    MULTI binInventory[OutInventorySkuDetail](inventorySkuDetail), binInventory[InInventorySkuDetail](inventorySkuDetail) MATERIALIZED INDEXED;
+
+@defineDocumentDetailTime(binInventory, InventorySkuDetail);
+@defineDocumentDetailPosted(binInventory, InventorySkuDetail);
+
+@defineDocumentDetailClosed(binInventory, InventorySkuDetail);
+
+@defineDocumentDetailStock(binInventory, inventorySkuDetail, stock, stock, 'Склад');
+stock(InInventorySkuDetail detail) = stock[InventorySkuDetail](detail) IF detail IS InInventorySkuDetail;
+stock(OutInventorySkuDetail detail) = stock[InventorySkuDetail](detail) IF detail IS OutInventorySkuDetail;
+
+quantity (OutInventorySkuDetail inventorySkuDetail) = quantityShortage(sku(inventorySkuDetail), binInventory(inventorySkuDetail));
+quantity (InInventorySkuDetail inventorySkuDetail) = -quantityShortage(sku(inventorySkuDetail), binInventory(inventorySkuDetail));
+
+sum (OutInventorySkuDetail inventorySkuDetail) = sumShortage(sku(inventorySkuDetail), binInventory(inventorySkuDetail));
+sum (InInventorySkuDetail inventorySkuDetail) = -sumShortage(sku(inventorySkuDetail), binInventory(inventorySkuDetail));
+
+sku(InventorySkuDetail inventorySkuDetail) = 
+    MULTI sku[OutInventorySkuDetail](inventorySkuDetail), sku[InInventorySkuDetail](inventorySkuDetail) MATERIALIZED;
+nameSku 'Товар' (InventorySkuDetail inventorySkuDetail) = name(sku(inventorySkuDetail)) CHARWIDTH 15;
+idBarcode 'Штрихкод' (InventorySkuDetail inventorySkuDetail) = idBarcode(sku(inventorySkuDetail));
+
+quantity 'Кол-во недостачи / излишка' (InventorySkuDetail inventorySkuDetail) = quantityShortage(sku(inventorySkuDetail), binInventory(inventorySkuDetail)) MATERIALIZED;
+sum 'Сумма недостачи / излишка' (InventorySkuDetail inventorySkuDetail) = sumShortage(sku(inventorySkuDetail), binInventory(inventorySkuDetail)) MATERIALIZED;
+
+description 'Название документа' (OutInventorySkuDetail inventorySkuDetail) =
+    'Недостача по инвентаризации ' + number(binInventory(inventorySkuDetail)) + ' от ' + date(binInventory(inventorySkuDetail));
+
+description 'Название документа' (InInventorySkuDetail inventorySkuDetail) =
+    'Излишек по инвентаризации ' + number(binInventory(inventorySkuDetail)) + ' от ' + date(binInventory(inventorySkuDetail));
+
+description 'Название документа' (InventorySkuDetail inventorySkuDetail) =
+    MULTI description[InInventorySkuDetail](inventorySkuDetail), description[OutInventorySkuDetail](inventorySkuDetail);
+
+dateTime[DataSkuLedger] (InventorySkuDetail ledger) += dateTime(ledger);
+isPosted[DataSkuLedger] (InventorySkuDetail ledger) += isPosted(ledger);
+isClosed[DataSkuLedger] (InventorySkuDetail ledger) += isClosed(ledger);
+sku[DataSkuLedger] (InventorySkuDetail ledger) += sku(ledger);
+stock[DataSkuLedger] (InventorySkuDetail ledger) += stock(ledger);
+description[DataSkuLedger] (InventorySkuDetail ledger) += ISTRING[200](description(ledger));
+
+EXTEND CLASS OutInventorySkuDetail : OutFIFOSkuLedger;
+quantity (OutInventorySkuDetail ledger) += quantity(ledger);
+sum (OutInventorySkuDetail ledger) += sum(ledger);
+stockDocumentLedger(OutInventorySkuDetail ledger) += binInventorySDLedger(binInventory(ledger));
+
+EXTEND CLASS InInventorySkuDetail : InLIFOSkuLedger;
+quantity (InInventorySkuDetail ledger) += quantity(ledger);
+sum (InInventorySkuDetail ledger) += sum(ledger);
+stockDocumentLedger(InInventorySkuDetail ledger) += binInventorySDLedger(binInventory(ledger));
+
+edit(InInventorySkuDetail d) + { DIALOG binInventory OBJECTS i = binInventory(d), cs = sku(d) DOCKED; }
+edit(OutInventorySkuDetail d) + { DIALOG binInventory OBJECTS i = binInventory(d), cs = sku(d) DOCKED; }
+
+show 'Просмотреть' (InInventorySkuDetail d)  {
+    NEWSESSION {
+        SHOW binInventory OBJECTS i = binInventory(d), cs = sku(d) DOCKED READONLY;
+    }
+}
+show(InInventorySkuDetail d) + { show(d); }
+
+show 'Просмотреть' (OutInventorySkuDetail d)  {
+    NEWSESSION {
+        SHOW binInventory OBJECTS i = binInventory(d), cs = sku(d) DOCKED READONLY;
+    }
+}
+show(OutInventorySkuDetail d) + { show(d); }
