@@ -1,6 +1,6 @@
 MODULE SaleLedgerGestori;
 
-REQUIRE Range, InventoryGestori, PurchaseShipment;
+REQUIRE Range, InventoryGestori, PurchaseShipment, RangeLevelLog;
 
 NAMESPACE Sale;
 
@@ -919,10 +919,132 @@ DESIGN assortmentMatrixReport {
     }
 }
 
+anySkuSelected() = (GROUP MAX in(Sku s)) OR anySkuGroup();
+
+ahInSkuFilter(Sku s) = NOT anySkuSelected() OR in(s) OR inSelectedSkuGroup(s);
+
+ahSkuGroup2Full 'Код и наименование Отдела' (Sku s) = CONCAT ' ', idSkuGroup2(s), nameSkuGroup2(s);
+ahSkuGroup3Full 'Код и наименование Группы' (Sku s) = CONCAT ' ', idSkuGroup3(s), nameSkuGroup3(s);
+ahSkuGroup4Full 'Код и наименование Подгруппы' (Sku s) = CONCAT ' ', idSkuGroup4(s), nameSkuGroup4(s);
+
+ahInRangeAtStart(Sku s, Range.Range r, Store st) = in(s, r, st, dateFrom());
+ahInRangeAtEnd(Sku s, Range.Range r, Store st) = in(s, r, st, dateTo());
+
+ahDateIncludedByRev(Sku s, Range.Range r, Store st) = GROUP LAST date(RangeRev v)
+ORDER date(v), v
+WHERE range(v) = r AND date(v) >= dateFrom() AND date(v) <= dateTo()
+    AND in(s, r, st, date(v))
+    AND NOT in(s, r, st, sum(date(v), -1));
+
+ahDateIncludedByStore(Sku s, Range.Range r, Store st) = GROUP LAST DATE d
+ORDER d
+WHERE hasLevel(r, st, d) AND d >= dateFrom() AND d <= dateTo()
+    AND in(s, r, st, d)
+    AND NOT in(s, r, st, sum(d, -1));
+
+ahDateIncludedByStoreType(Sku s, Range.Range r, Store st) = GROUP LAST DATE d
+ORDER d
+WHERE hasLevel(r, storeType(st), d) AND d >= dateFrom() AND d <= dateTo()
+    AND NOT skipStoreType(r, st)
+    AND in(s, r, st, d)
+    AND NOT in(s, r, st, sum(d, -1));
+
+ahDateIncluded(Sku s, Range.Range r, Store st) =
+    MAX ahDateIncludedByRev(s, r, st), ahDateIncludedByStore(s, r, st), ahDateIncludedByStoreType(s, r, st);
+
+ahDateIncludedDisplay 'Дата включения в ассортимент' (Sku s, Range.Range r, Store st) =
+    OVERRIDE ahDateIncluded(s, r, st), (dateFrom() IF ahInRangeAtStart(s, r, st));
+
+ahDateExcludedByRev(Sku s, Range.Range r, Store st) = GROUP LAST date(RangeRev v)
+ORDER date(v), v
+WHERE range(v) = r AND date(v) >= dateFrom() AND date(v) <= dateTo()
+    AND NOT in(s, r, st, date(v))
+    AND in(s, r, st, sum(date(v), -1));
+
+ahDateExcludedByStore(Sku s, Range.Range r, Store st) = GROUP LAST DATE d
+ORDER d
+WHERE hasLevel(r, st, d) AND d >= dateFrom() AND d <= dateTo()
+    AND NOT in(s, r, st, d)
+    AND in(s, r, st, sum(d, -1));
+
+ahDateExcludedByStoreType(Sku s, Range.Range r, Store st) = GROUP LAST DATE d
+ORDER d
+WHERE hasLevel(r, storeType(st), d) AND d >= dateFrom() AND d <= dateTo()
+    AND NOT skipStoreType(r, st)
+    AND NOT in(s, r, st, d)
+    AND in(s, r, st, sum(d, -1));
+
+ahDateExcluded 'Дата удаления из ассортимента' (Sku s, Range.Range r, Store st) =
+    MAX ahDateExcludedByRev(s, r, st), ahDateExcludedByStore(s, r, st), ahDateExcludedByStoreType(s, r, st);
+
+ahIsExcluding 'Выводим из ассортимента' (Sku s, Range.Range r, Store st) =
+    'Да' IF NOT ahInRangeAtEnd(s, r, st) AND (ahInRangeAtStart(s, r, st) OR ahDateExcluded(s, r, st));
+
+ahChanged(Sku s, Range.Range r, Store st) =
+    ahDateIncluded(s, r, st) OR ahDateExcluded(s, r, st)
+        OR (ahInRangeAtStart(s, r, st) AND NOT ahInRangeAtEnd(s, r, st))
+        OR (NOT ahInRangeAtStart(s, r, st) AND ahInRangeAtEnd(s, r, st));
+
+ahHasData(Sku s, Range.Range r, DepartmentStore ds) =
+    inSaleReport(ds) AND ahInSkuFilter(s) AND inChild(r, s)
+        AND NOT inactive(r)
+        AND ahChanged(s, r, store(ds));
+
+changeStocksAH() { DIALOG dialogStocksSaleReportRu; }
+
+FORM assortmentHistoryReport 'История изменения ассортимента'
+    PROPERTIES() dateFrom, dateTo
+    PROPERTIES nameStockList() READONLY SHOWIF stockList()
+    PROPERTIES ahStocks 'Подразделения' = inSaleReportStocks() ON CHANGE changeStocksAH() READONLYIF stockList()
+    PROPERTIES() nameSkuLists READONLY SHOWIF anySkuList()
+    PROPERTIES ahSkuGroups 'Товарные группы' = selectedSkuGroups() READONLY SHOWIF anySkuGroup()
+    PROPERTIES ahSkus 'Товары' = inSkus() ON CHANGE selectSkus() READONLYIF anySkuList() OR anySkuGroup()
+
+    OBJECTS report = (s = Sku, r = Range.Range, ds = DepartmentStore)
+    PROPERTIES(ds) READONLY 'Код подразделения' = id, 'Наименование подразделения' = name
+    PROPERTIES(s) READONLY ahSkuGroup2Full, ahSkuGroup3Full, ahSkuGroup4Full
+    PROPERTIES(s) READONLY 'Код товара' = id, 'Наименование товара' = name
+    PROPERTIES READONLY 'Дата включения в ассортимент' = ahDateIncludedDisplay(s, r, store(ds)),
+        'Дата удаления из ассортимента' = ahDateExcluded(s, r, store(ds)),
+        'Выводим из ассортимента' = ahIsExcluding(s, r, store(ds))
+    FILTERS ahHasData(s, r, ds)
+    ORDERS name(ds), ahSkuGroup2Full(s), ahSkuGroup3Full(s), ahSkuGroup4Full(s), name(s)
+
+    EVENTS ON INIT initDates()
+;
+
+printAHReport 'Отчёт' () { PRINT assortmentHistoryReport XLSX; } IMAGE 'print.png';
+
+EXTEND FORM assortmentHistoryReport
+    PROPERTIES() DISABLEIF NOT dateFrom() OR NOT dateTo() OR NOT (GROUP SUM 1 IF inSaleReport(Stock sst)) printAHReport
+;
+
+DESIGN assortmentHistoryReport {
+    NEW filters FIRST {
+        alignment = STRETCH;
+        NEW topRow {
+            horizontal = TRUE;
+            alignment = STRETCH;
+            MOVE PROPERTY(dateFrom());
+            MOVE PROPERTY(dateTo());
+            MOVE PROPERTY(printAHReport()) { valueClass = 'btn-primary'; }
+        }
+        MOVE PROPERTY(nameStockList()) { alignment = STRETCH; }
+        MOVE PROPERTY(ahStocks) { alignment = STRETCH; }
+        MOVE PROPERTY(nameSkuLists()) { alignment = STRETCH; }
+        MOVE PROPERTY(ahSkuGroups) { alignment = STRETCH; }
+        MOVE PROPERTY(ahSkus) { alignment = STRETCH; }
+    }
+    BOX(report) {
+        caption = 'История изменения ассортимента';
+    }
+}
+
 NAVIGATOR {
     salesReports {
         NEW bestWorstProducts;
         NEW salesDynamicsReport;
         NEW assortmentMatrixReport;
+        NEW assortmentHistoryReport;
     }
 }
