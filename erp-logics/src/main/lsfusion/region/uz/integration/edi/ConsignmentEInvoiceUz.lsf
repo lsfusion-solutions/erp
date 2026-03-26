@@ -15,10 +15,9 @@ EXTEND FORM eInvoices
 ;
 
 CONSTRAINT DROPPED (Invoice i IS Invoice) AND PREV(exportedSupplier(eInvoice(i)))
-    MESSAGE 'Запрещено удалять накладную по которой была отправлена ЭТТН. Сначала необходимо отменить ЭТТН';
+    MESSAGE 'Запрещено удалять накладную по которой была отправлена ЭСФ. Сначала необходимо отменить ЭСФ';
 
-numberEInvoice 'Номер ЭТТН'(Invoice i) = deliveryNoteNumber(eInvoice(i));
-isEInvoice 'ЭТТН' (Invoice i) = TRUE IF eInvoice(i);
+numberEInvoice 'Номер ЭСФ'(Invoice i) = deliveryNoteNumber(eInvoice(i));
 
 sign 'Подписать и отправить (поставщик)' (Invoice i) {
     NEWSESSION {
@@ -80,6 +79,7 @@ createEInvoice 'Создать ЭСФ' (Invoice invoice) {
     IF NOT eInvoice(invoice) THEN NEWSESSION {
         beforeCreateEInvoice(invoice);
         NEW ei = EInvoice {
+            docType(ei) <- EInvoiceDocType.esf;
             fillEInvoiceData(ei, invoice);
 
             FOR invoice(InvoiceDetail detail) == invoice ORDER index(detail) INLINE NEW ed = EInvoiceDetail DO {

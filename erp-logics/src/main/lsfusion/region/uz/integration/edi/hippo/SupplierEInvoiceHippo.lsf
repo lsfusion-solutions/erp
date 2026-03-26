@@ -1,0 +1,136 @@
+MODULE SupplierEInvoiceHippo;
+
+REQUIRE EInvoiceUz, Hippo, EImzoUz;
+
+NAMESPACE Hippo;
+
+GROUP contract_info;
+GROUP invoice_info;
+GROUP executor;
+GROUP marking;
+GROUP customer;
+
+FORM sendHashCode
+
+    OBJECTS value = EInvoice
+
+    PROPERTIES(value) invoiceTypeIndex EXTID 'type', singleSideTypeIndex EXTID 'single_sided_type', incomeTypeIndex EXTID 'income_type',
+                     deliveryNoteDate EXTID 'date', deliveryNoteNumber EXTID 'number'
+    
+    PROPERTIES(value) IN contract_info contractDate EXTID 'date', contractNumber EXTID 'number'
+    PROPERTIES IN invoice_info  dateInvoice = deliveryNoteDate(value) EXTID 'date', numberInvoice = deliveryNoteNumber(value) EXTID 'number'
+    PROPERTIES(value) IN executor addressSupplier EXTID 'address', nameSupplier EXTID 'name', innSupplier EXTID 'inn'
+    PROPERTIES(value) IN customer addressCustomer EXTID 'address', nameCustomer EXTID 'name', innCustomer EXTID 'inn'
+
+    OBJECTS items = EInvoiceDetail
+    FILTERS eInvoice(items) == value
+    PROPERTIES(items) VATSum EXTID 'vat_sum', invoiceSum EXTID 'total_with_vat', price, catalogCode EXTID 'catalog_code', 
+            barcode, valueVAT EXTID 'vat_rate', catalogName EXTID 'catalog_name', quantityDespatched EXTID 'quantity', 
+            productName EXTID 'name'
+    //PROPERTIES(items) IN marking product_type
+
+    OBJECTS ident_trans_upak = EInvoiceLotDetail IN marking
+    PROPERTIES(ident_trans_upak) id EXTID 'value'
+    FILTERS eInvoiceDetail(ident_trans_upak) == items, type(ident_trans_upak) == 'GROUP'
+
+    OBJECTS kiz = EInvoiceLotDetail IN marking
+    PROPERTIES(kiz) id EXTID 'value'
+    FILTERS eInvoiceDetail(kiz) == items, type(kiz) == 'UNIT'
+
+    OBJECTS nom_upak = EInvoiceLotDetail IN marking
+    PROPERTIES(nom_upak) id EXTID 'value'
+    FILTERS eInvoiceDetail(nom_upak) == items, type(nom_upak) == 'NOM'
+    
+;
+
+send(EInvoice ei) + {
+    IF EDIProvider(supplier(ei)) == EDIProvider.hippo THEN {
+        IF NOT apiUrlHippo() OR NOT clientIDHippo() OR NOT clientSecretHippo() THEN {
+            MESSAGE 'Не заполнены настройки API Hippo' NOWAIT;
+            logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Не заполнены настройки API Hippo');
+            RETURN;
+        }
+
+        NEWSESSION {
+            LOCAL hashcode = STRING();
+            LOCAL signature = STRING();
+            LOCAL pkcs7 = STRING();
+            LOCAL extId = STRING();
+            LOCAL resultFile = FILE();
+            LOCAL timestampRequestFile = FILE();
+            LOCAL finalRequestFile = FILE();
+
+            EXPORT sendHashCode OBJECTS value = ei JSON;
+            resultFile() <- exportFile();
+
+            // 1. Получение хеш-кода для отправки
+            sendPostRequestEDI(clientIDHippo(), clientSecretHippo(), apiUrlHippo() + '/roaming-client-api/invoice/hashcode/send/', resultFile(), NULL, NULL);
+            
+            IF sendRequestEDIStatus() == 200 THEN {
+                IMPORT JSON FROM sendRequestEDIResponse() TO() hashcode;
+                
+                IF hashcode() THEN {
+                    logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Получен хеш-код для отправки: ' + hashcode());
+                    
+                    EXPORT JSON FROM hashcode();
+                    resultFile() <- exportFile();
+                    
+                    // 2. Подписание хеш-кода (без attach для отправки)
+                    signClientAction(RAWFILE(resultFile()), supplier(ei), NULL);
+                    signature() <- encodedSignature();
+                    
+                    IF signature() THEN {
+                        logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Хеш-код успешно подписан');
+                        
+                        EXPORT JSON FROM signature = signature();
+                        timestampRequestFile() <- exportFile();
+                        
+                        // 3. Получение метки времени
+                        sendPostRequestEDI(clientIDHippo(), clientSecretHippo(), apiUrlHippo() + '/roaming-client-api/invoice/attach-timestamp/', timestampRequestFile(), NULL, NULL);
+                        
+                        IF sendRequestEDIStatus() == 200 THEN {
+                            IMPORT JSON FROM sendRequestEDIResponse() TO() pkcs7;
+                            
+                            IF pkcs7() THEN {
+                                logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Получена метка времени (pkcs7)');
+                                
+                                EXPORT JSON FROM document = resultFile(), pkcs7 = pkcs7();
+                                finalRequestFile() <- exportFile();
+                                
+                                // 4. Финальная отправка документа
+                                sendPostRequestEDI(clientIDHippo(), clientSecretHippo(), apiUrlHippo() + '/roaming-client-api/invoice/supplier/send/', finalRequestFile(), NULL, NULL);
+                                
+                                IF sendRequestEDIStatus() == 200 THEN {
+                                    IMPORT JSON FROM sendRequestEDIResponse() TO() extId;
+                                    externalId(ei) <- extId();
+                                    exportedSupplier(ei) <- TRUE;
+                                    logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Документ успешно отправлен в Hippo. Внешний ID: ' + extId());
+                                    APPLY;
+                                } ELSE {
+                                    logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Ошибка при финальной отправке (Hippo): ' + sendRequestEDIStatus());
+                                    MESSAGE 'Ошибка при финальной отправке (Hippo): ' + sendRequestEDIStatus() NOWAIT;
+                                }
+                            } ELSE {
+                                logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Не получен pkcs7 в ответе attach-timestamp (Hippo)');
+                                MESSAGE 'Не получен pkcs7 (Hippo)' NOWAIT;
+                            }
+                        } ELSE {
+                            logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Ошибка при получении метки времени (Hippo): ' + sendRequestEDIStatus());
+                            MESSAGE 'Ошибка при получении метки времени (Hippo): ' + sendRequestEDIStatus() NOWAIT;
+                        }
+                    } ELSE {
+                        logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Отмена: подпись не сформирована');
+                        MESSAGE 'Подпись не сформирована' NOWAIT;
+                    }
+                } ELSE {
+                    logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Не получен хеш-код в ответе (Hippo)');
+                    MESSAGE 'Не получен хеш-код (Hippo)' NOWAIT;
+                }
+            } ELSE {
+                logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Ошибка при получении хеш-кода для отправки (Hippo): ' + sendRequestEDIStatus());
+                MESSAGE 'Ошибка при получении хеш-кода для отправки (Hippo): ' + sendRequestEDIStatus() NOWAIT;
+            }
+        }
+    }
+}
+    ;

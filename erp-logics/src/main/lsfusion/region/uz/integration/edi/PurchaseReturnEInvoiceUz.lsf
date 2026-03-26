@@ -1,0 +1,22 @@
+MODULE PurchaseReturnEInvoiceUz;
+
+REQUIRE PurchaseReturnInvoice, ConsignmentEInvoiceUz;
+
+NAMESPACE PurchaseReturn;
+
+EXTEND FORM invoices
+    PROPERTIES(i) SHOWIF NOT eInvoice(i) createEInvoice
+    PROPERTIES(i) SHOWIF eInvoice(i) AND EDIProvider(supplier(i)) sign, cancel
+;
+
+DESIGN invoices {
+    actionContainer {
+        NEW ediUz {
+            caption = 'ЭДО';
+            horizontal = TRUE;
+            MOVE PROPERTY(createEInvoice(i));
+            MOVE PROPERTY(sign(i));
+            MOVE PROPERTY(cancel(i));
+        }
+    }
+}

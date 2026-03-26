@@ -5,7 +5,7 @@ REQUIRE EDIUz, LegalEntityUz, ItemUz;
 NAMESPACE EDI;
 
 //-----------------------------------------Электронная накладная----------------------------------------------//
-CLASS EInvoice 'Электронная накладная';
+CLASS EInvoice 'Электронный документ';
 TABLE eInvoice(EInvoice);
 
 waybillJSON = DATA JSONFILE (EInvoice);
@@ -28,9 +28,8 @@ isRejected 'Отклонена (покупатель)' = DATA BOOLEAN (EInvoice)
 isCancel(EInvoice ei) = isCancelled(ei) OR isRejected(ei);
 
 // WaybillDoc
-deliveryNoteNumber 'Номер накладной' = DATA STRING[43] (EInvoice) INDEXED IN id CHARWIDTH 30; // WaybillNo
-eInvoiceDeliveryNoteNumber (number) = GROUP NAGGR EInvoice e BY deliveryNoteNumber(e);
-deliveryNoteDate 'Дата накладной' = DATA DATE (EInvoice) INDEXED; // WaybillDate
+deliveryNoteNumber 'Номер' = DATA STRING[43] (EInvoice) NONULL INDEXED IN id CHARWIDTH 30; // WaybillNo
+deliveryNoteDate 'Дата' = DATA DATE (EInvoice) NONULL INDEXED; // WaybillDate
 
 //Contract
 contractNumber 'Документ, который служит основанием отпуска' = DATA STRING[70] (EInvoice); //ContractNo
@@ -40,27 +39,21 @@ legalEntityByInn = GROUP MAX LegalEntity le BY INN(le);
 
 //Consignor (Грузоотправитель)
 dataSupplier 'Поставщик' = DATA LegalEntity (EInvoice);
-dataNameSupplierFirst = DATA STRING[200] (EInvoice); 
 dataNameSupplier = DATA STRING[275] (EInvoice);
-
-dataAddressSupplierFirst = DATA STRING[150] (EInvoice);
 dataAddressSupplier = DATA STRING[150] (EInvoice);
-
 dataInnSupplier = DATA STRING[9] (EInvoice);
 
 supplier 'Покупатель' (EInvoice e) = OVERRIDE dataSupplier(e), legalEntityByInn(dataInnSupplier(e));
-nameSupplier 'Поставщик' (EInvoice i) = OVERRIDE dataNameSupplierFirst(i), fullName(supplier(i)), dataNameSupplier(i); // Name
-addressSupplier 'Адрес поставщика' (EInvoice i) = OVERRIDE dataAddressSupplierFirst(i), address(supplier(i)), dataAddressSupplier(i);
+nameSupplier 'Поставщик' (EInvoice i) = OVERRIDE fullName(supplier(i)), dataNameSupplier(i); // Name
+addressSupplier 'Адрес поставщика' (EInvoice i) = OVERRIDE address(supplier(i)), dataAddressSupplier(i);
 innSupplier 'ИНН поставщика' (EInvoice i) = OVERRIDE INN(supplier(i)), dataInnSupplier(i); //TinOrPinfl
 
 // Склад погрузки (выбор вручную)
 supplierStock 'Пункт погрузки' = DATA Stock (EInvoice);
 dataNameSupplierStock = DATA STRING[150] (EInvoice);
 nameSupplierStock 'Пункт погрузки' (EInvoice i) = OVERRIDE name(supplierStock(i)), dataNameSupplierStock(i);
-dataAddressSupplierStockFirst = DATA STRING[150] (EInvoice);
 dataAddressSupplierStock = DATA STRING[150] (EInvoice);
-overAddressSupplierStock = ABSTRACT ISTRING[250] (EInvoice);
-addressSupplierStock 'Адрес пункта погрузки' (EInvoice i) = OVERRIDE dataAddressSupplierStockFirst(i), overAddressSupplierStock(i), address(supplierStock(i)), dataAddressSupplierStock(i);
+addressSupplierStock 'Адрес пункта погрузки' (EInvoice i) = OVERRIDE address(supplierStock(i)), dataAddressSupplierStock(i);
 
 // Consignee (Грузополучатель)
 dataCustomer 'Покупатель' = DATA LegalEntity (EInvoice);
@@ -69,23 +62,22 @@ dataAddressCustomer = DATA STRING[250] (EInvoice);
 dataInnCustomer = DATA STRING[9] (EInvoice);
 
 customer 'Покупатель' (EInvoice e) = OVERRIDE dataCustomer(e), legalEntityByInn(dataInnCustomer(e));
-innCustomer 'ИНН покупателя' (EInvoice i) = OVERRIDE dataInnCustomer(i), INN(customer(i));// TinOrPinfl
-addressCustomer 'Адрес покупателя' (EInvoice i) = OVERRIDE dataAddressCustomer(i), address(customer(i));
+innCustomer 'ИНН покупателя' (EInvoice i) = OVERRIDE INN(customer(i)), dataInnCustomer(i) ;// TinOrPinfl
+addressCustomer 'Адрес покупателя' (EInvoice i) = OVERRIDE address(customer(i)), dataAddressCustomer(i);
 nameCustomer 'Покупатель' (EInvoice i) = OVERRIDE fullName(customer(i)), dataNameCustomer(i); // Name
 
 // Склад разгрузки (выбор вручную)
 customerStock 'Склад покупателя' = DATA Stock (EInvoice);
 nameCustomerStock 'Склад покупателя' (EInvoice i) = name(customerStock(i));
-dataAddressCustomerStockFirst = DATA STRING[150] (EInvoice);
-overAddressCustomerStock = ABSTRACT ISTRING[350] (EInvoice); // иногда пункт разгрузки указан только в атрибутах накладной
-addressCustomerStock 'Адрес склада покупателя' (EInvoice i) = OVERRIDE dataAddressCustomerStockFirst(i), overAddressCustomerStock(i), address(customerStock(i));
+dataAddressCustomerStock = DATA STRING[150] (EInvoice);
+addressCustomerStock 'Адрес склада покупателя' (EInvoice i) = OVERRIDE address(customerStock(i)), dataAddressCustomerStock(i);
 
 // Carrier (Перевозчик)
 transporter 'Автомобильный перевозчик' = DATA LegalEntity (EInvoice);
 dataNameTransporter = DATA STRING[9] (EInvoice);
 nameTransporter 'Автомобильный перевозчик' (EInvoice i) = OVERRIDE fullName(transporter(i)), dataNameTransporter(i); // Name
 dataInnTransporter = DATA STRING[9] (EInvoice);
-innTransporter 'ИНН автомобильного перевозчика' (EInvoice i) = OVERRIDE dataInnTransporter(i), INN(transporter(i)); // TinOrPinfl
+innTransporter 'ИНН автомобильного перевозчика' (EInvoice i) = OVERRIDE INN(transporter(i)), dataInnTransporter(i); // TinOrPinfl
 
 // Driver
 pinflTransportContact'id водителя' = DATA STRING[100] (EInvoice); // Pinfl
@@ -101,7 +93,96 @@ trailerModel 'Марка и рег. номер автомобиля' = DATA STRI
 
 notes 'Примечания' = DATA STRING (EInvoice);
 
-CLASS EInvoiceDetailGroup 'Группа строк электронной накладной';
+CLASS EInvoiceType 'Тип электронного документа' {
+    default 'Стандартный (0)',
+    additional 'Дополнительный (1)',
+    amendOfExpenses 'Возмещение расходов (2)',
+    withoutPayment 'Без оплаты (3)',
+    corrective 'Исправительный (4)',
+    correctiveAmendOfExpenses 'Исправительный с возмещением расходов (5)',
+    additionalAmendOfExpenses 'Дополнительный с возмещением расходов (6)',
+    correctiveWithoutPayment 'Исправительный без оплаты (8)',
+    additionalWithoutPayment 'Дополнительный без оплаты (9)'
+}
+invoiceType = DATA EInvoiceType (EInvoice);
+nameInvoiceType 'Тип документа' (EInvoice i) = caption(invoiceType(i));
+
+CLASS EInvoiceDocType 'Вид электронного документа' {
+    esf 'ЭСФ',
+    ettn 'ЭТТН'
+}
+docType = DATA EInvoiceDocType (EInvoice);
+nameDocType 'Вид документа' (EInvoice i) = caption(docType(i));
+index 'Тип инвойса (индекс)' (EInvoiceType t) = CASE
+    WHEN t == EInvoiceType.default THEN 0
+    WHEN t == EInvoiceType.additional THEN 1
+    WHEN t == EInvoiceType.amendOfExpenses THEN 2
+    WHEN t == EInvoiceType.withoutPayment THEN 3
+    WHEN t == EInvoiceType.corrective THEN 4
+    WHEN t == EInvoiceType.correctiveAmendOfExpenses THEN 5
+    WHEN t == EInvoiceType.additionalAmendOfExpenses THEN 6
+    WHEN t == EInvoiceType.correctiveWithoutPayment THEN 8
+    WHEN t == EInvoiceType.additionalWithoutPayment THEN 9
+;
+invoiceTypeIndex (EInvoice i) = index(invoiceType(i));
+
+CLASS EInvoiceSingleSideType 'Односторонний тип документа' {
+    forPerson 'Физическому лицу (1)',
+    forForeignExportService 'Экспорт услуг иностранному лицу (2)',
+    forImportService 'Импорт услуг (3)',
+    forGovernmentSecret 'Государственная тайна (4)',
+    forFinancialService 'Финансовые услуги (5)',
+    belowMarketPrice 'Ниже рыночной цены (6)',
+    belowCustomsPrice 'Ниже таможенной цены (7)',
+    forExportService 'Экспорт услуг (8)',
+    otherIncome 'Прочие доходы (9)',
+    exciseSubmissionForOwnNeeds 'Акциз - представление для собственных нужд (10)',
+    exciseUsageForOwnNeeds 'Акциз - использование для собственных нужд (11)',
+    priceAndPrimeCostDifference 'Разница в цене и себестоимости (12)',
+    lossAndDamageOfGoods 'Потеря или порча товаров (13)'
+}
+singleSideType = DATA EInvoiceSingleSideType (EInvoice);
+nameSingleSideType 'Односторонний тип' (EInvoice i) = caption(singleSideType(i));
+index 'Односторонний тип (индекс)' (EInvoiceSingleSideType t) = CASE
+    WHEN t == EInvoiceSingleSideType.forPerson THEN 1
+    WHEN t == EInvoiceSingleSideType.forForeignExportService THEN 2
+    WHEN t == EInvoiceSingleSideType.forImportService THEN 3
+    WHEN t == EInvoiceSingleSideType.forGovernmentSecret THEN 4
+    WHEN t == EInvoiceSingleSideType.forFinancialService THEN 5
+    WHEN t == EInvoiceSingleSideType.belowMarketPrice THEN 6
+    WHEN t == EInvoiceSingleSideType.belowCustomsPrice THEN 7
+    WHEN t == EInvoiceSingleSideType.forExportService THEN 8
+    WHEN t == EInvoiceSingleSideType.otherIncome THEN 9
+    WHEN t == EInvoiceSingleSideType.exciseSubmissionForOwnNeeds THEN 10
+    WHEN t == EInvoiceSingleSideType.exciseUsageForOwnNeeds THEN 11
+    WHEN t == EInvoiceSingleSideType.priceAndPrimeCostDifference THEN 12
+    WHEN t == EInvoiceSingleSideType.lossAndDamageOfGoods THEN 13
+;
+singleSideTypeIndex (EInvoice i) = index(singleSideType(i));
+
+CLASS EInvoiceIncomeType 'Тип дохода' {
+    exitValueOfTransferredGoods 'Стоимость выбывших переданных товаров (1) ',
+    redemptionValueOfTransferredGoodsToShareholders 'Выкупная стоимость переданных товаров акционерам (2)',
+    goodAndServicesTransferAsCompensationToIndividuals 'Передача товаров и услуг в качестве компенсации физлицам (3)',
+    transferOfGoodsAndOtherAssetsOnBailmentBasis 'Передача товаров и других активов на основе ответственного хранения (4)',
+    voucherValueForRedeemableGoodsAndServices 'Стоимость ваучера для товаров и услуг (5)',
+    valueOfSoldFixedAssetsAndOtherProperty 'Стоимость проданных основных средств и другого имущества (6)',
+    revenuesFromTheSaleOfBusinessAsGoingConcern 'Доходы от продажи бизнеса как действующего предприятия (7)'
+}
+incomeType = DATA EInvoiceIncomeType (EInvoice);
+nameIncomeType 'Тип дохода' (EInvoice i) = caption(incomeType(i));
+index 'Тип дохода (индекс)' (EInvoiceIncomeType t) = CASE
+    WHEN t == EInvoiceIncomeType.exitValueOfTransferredGoods THEN 1
+    WHEN t == EInvoiceIncomeType.redemptionValueOfTransferredGoodsToShareholders THEN 2
+    WHEN t == EInvoiceIncomeType.goodAndServicesTransferAsCompensationToIndividuals THEN 3
+    WHEN t == EInvoiceIncomeType.transferOfGoodsAndOtherAssetsOnBailmentBasis THEN 4
+    WHEN t == EInvoiceIncomeType.voucherValueForRedeemableGoodsAndServices THEN 5
+    WHEN t == EInvoiceIncomeType.valueOfSoldFixedAssetsAndOtherProperty THEN 6
+    WHEN t == EInvoiceIncomeType.revenuesFromTheSaleOfBusinessAsGoingConcern THEN 7
+;
+incomeTypeIndex (EInvoice i) = index(incomeType(i));
+
+CLASS EInvoiceDetailGroup 'Группа строк электронного документа';
 eInvoice = DATA EInvoice(EInvoiceDetailGroup) NONULL DELETE INDEXED;
 
 //LoadingPoint (пункт погрузки)
@@ -136,7 +217,7 @@ addressUnloadingPoint 'Адрес разгрузки'  = DATA STRING[150] (EInvo
 pinflUnloadingTrustee 'id доверенного лица разгрузки' = DATA STRING[100] (EInvoiceDetailGroup); // Pinfl
 fullUnloadingTrustee 'Доверенное лицо разгрузки' = DATA STRING[150] (EInvoiceDetailGroup); // FullName
 
-CLASS EInvoiceDetail 'Строка электронной накладной';
+CLASS EInvoiceDetail 'Строка электронного документа';
 TABLE eInvoiceDetail(EInvoiceDetail);
 
 @defineExternalizable(eInvoiceDetail, STRING[100]);
@@ -175,7 +256,7 @@ valueVAT 'Ставка НДС, %' = DATA NUMERIC[10,2] (EInvoiceDetail); // nds_
 VATSum 'Сумма НДС' = DATA NUMERIC[18,2] (EInvoiceDetail); // nds_value
 invoiceSum 'Сумма с НДС' = DATA NUMERIC[18,2] (EInvoiceDetail); // total_with_nds
 
-CLASS EInvoiceLotDetail 'Марки электронной накладной EDI';
+CLASS EInvoiceLotDetail 'Марки электронного документа EDI';
 TABLE eInvoiceLotDetail (EInvoiceLotDetail);
 
 eInvoiceDetail = DATA EInvoiceDetail (EInvoiceLotDetail) NONULL DELETE INDEXED;
@@ -197,7 +278,7 @@ totalGrossWeight 'Всего масса груза брутто' (eInvoice) = GR
 totalNetWeight 'Всего масса груза нетто' (eInvoice) = GROUP SUM netWeightValue(EInvoiceDetail d) BY eInvoice(d);
 
 CONSTRAINT SET(EInvoice i IS EInvoice) AND NOT (GROUP SUM 1 IF eInvoice(EInvoiceDetail d) == i)
-    MESSAGE 'Запрещено создавать электронную накладную без строк';
+    MESSAGE 'Запрещено создавать электронный документ без строк';
 
 background = ABSTRACT CASE COLOR (EInvoice);
 accept 'Подтвердить (покупатель)' ABSTRACT LIST (EInvoice);
@@ -210,11 +291,11 @@ openWaybillJSON 'Открыть JSON' (EInvoice e) {
     open(waybillJSON(e));
 }
 
-FORM eInvoices 'Электронные накладные'
+FORM eInvoices 'Электронные документы'
     OBJECTS e = EInvoice LAST
     PROPERTIES(e) in
     PROPERTIES(e) BACKGROUND background(e) READONLY exportedSupplier, isAccepted, isRejected, isCancelled, deliveryNoteNumber, 
-        deliveryNoteDate, contractNumber, contractDate, notes,
+        deliveryNoteDate, nameInvoiceType, nameSingleSideType, nameIncomeType, contractNumber, contractDate, notes,
         nameSupplier, addressSupplier, innSupplier, nameSupplierStock, addressSupplierStock,
         nameCustomer, addressCustomer, innCustomer, nameCustomerStock, addressCustomerStock,
         nameTransporter, innTransporter, transportContact, transportRegNo, transportModel, trailerRegNo, trailerModel,
@@ -317,10 +398,10 @@ NAVIGATOR {
     }
 }
 
-FORM eInvoice 'Электронная накладная'
+FORM eInvoice 'Электронный документ'
     OBJECTS e = EInvoice PANEL
     PROPERTIES(e) BACKGROUND background(e) deliveryNoteNumber,
-        deliveryNoteDate, contractNumber, contractDate, notes,
+        deliveryNoteDate, nameDocType, nameInvoiceType, nameSingleSideType, nameIncomeType, contractNumber, contractDate, notes,
         nameSupplier, addressSupplier, innSupplier, nameSupplierStock, addressSupplierStock,
         nameCustomer, addressCustomer, innCustomer, nameCustomerStock, addressCustomerStock,
         nameTransporter, innTransporter, transportContact, transportRegNo, transportModel, trailerRegNo, trailerModel,
@@ -360,7 +441,7 @@ DESIGN eInvoice {
             tabbed = TRUE;
             fill = 1;
             NEW main {
-                caption = 'Данные накладной';
+                caption = 'Данные документа';
                 fill = 1;
                 NEW mainPanel{
                     lines = 2;
@@ -403,6 +484,7 @@ DESIGN eInvoice {
                     NEW carrier2 {
                         align = STRETCH;
                         caption = 'Информация о транспортировке';
+                        showIf = docType(e) == EInvoiceDocType.ettn;
                         MOVE PROPERTY (nameTransporter(e));
                         MOVE PROPERTY (innTransporter(e));
                         MOVE PROPERTY (transportRegNo(e));
@@ -414,6 +496,18 @@ DESIGN eInvoice {
                         align = STRETCH;
                         MOVE PROPERTY (contractNumber(e));
                         MOVE PROPERTY (contractDate(e));
+                    }
+                    NEW docTypeBlock {
+                        align = STRETCH;
+                        MOVE PROPERTY (nameDocType(e));
+                    }
+                    NEW types {
+                        align = STRETCH;
+                        caption = 'Типы документа';
+                        showIf = docType(e) == EInvoiceDocType.esf;
+                        MOVE PROPERTY (nameInvoiceType(e));
+                        MOVE PROPERTY (nameSingleSideType(e));
+                        MOVE PROPERTY (nameIncomeType(e));
                     }
                     NEW totals {
                         align = STRETCH;
@@ -455,7 +549,7 @@ DESIGN eInvoice {
     }
 }
 
-editAttributesEInvoice 'Заполнить атрибуты ЭТТН' (EInvoice i) {
+editAttributesEInvoice 'Редактировать' (EInvoice i) {
     NEWSESSION {
         SHOW eInvoice OBJECTS e = i DOCKED;
     }
