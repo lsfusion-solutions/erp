@@ -1,6 +1,6 @@
 MODULE InventoryGestori;
 
-REQUIRE SaleReportsRu, DateSkuLedger;
+REQUIRE SaleReportsRu, DateSkuLedger, PurchaseReturnShipment, SaleReturnShipment;
 
 NAMESPACE Inventory;
 
@@ -233,7 +233,9 @@ isRetailSale (SkuLedger o) = o IS DateSaleSkuLedger;
 isRetailReturn (SkuLedger o) = o IS DateReturnSkuLedger;
 isRetailOperation (SkuLedger o) = isRetailSale(o) OR isRetailReturn(o);
 
-isReturnDocument (SkuLedger o) = signedQuantity(o) < 0 AND NOT isRetailOperation(o);
+isPurchaseReturnInvoice (SkuLedger o) = stockDocumentLedger(o) IS PurchaseReturn.InvoiceShipment;
+isSaleReturnInvoice (SkuLedger o) = stockDocumentLedger(o) IS SaleReturn.InvoiceShipment;
+isReturnDocument (SkuLedger o) = isPurchaseReturnInvoice(o) OR isSaleReturnInvoice(o);
 
 nameOperationEx 'Операция' (SkuLedger o) =
     IF isRetailSale(o) THEN 'Кассовые продажи'
