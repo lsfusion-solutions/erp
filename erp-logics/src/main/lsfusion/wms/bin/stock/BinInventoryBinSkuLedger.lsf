@@ -69,13 +69,37 @@ DESIGN binInventory {
     }
 }
 
+priceRound = ABSTRACT CASE INTEGER (BinInventory);
+priceRound (BinInventory i) += WHEN i IS BinInventory THEN 2;
+
+TABLE skuListBinInventory (Sku, ListBinInventory);
+
+price 'Цена' = DATA NUMERIC[16,4] (Sku, ListBinInventory) CHARWIDTH 7 PATTERN '#,##0.00##';
+
+calcOutSum = ABSTRACT VALUE NUMERIC[18,4] (Sku, ListBinInventory);
+calcOutSum(Sku sku, ListBinInventory li) += NUMERIC[18,4](Utils.round(outQuantity(sku, li) * price(sku, li), priceRound(binInventory(li))));
+outSum 'Сумма по описям (расход)' = DATA NUMERIC[18,4] (Sku, ListBinInventory) CHARWIDTH 9 PATTERN '#,##0.00##';
+
+calcInSum = ABSTRACT VALUE NUMERIC[18,4] (Sku, ListBinInventory);
+calcInSum(Sku sku, ListBinInventory li) += NUMERIC[18,4](Utils.round(inQuantity(sku, li) * price(sku, li), priceRound(binInventory(li))));
+inSum 'Сумма по описям (приход)' = DATA NUMERIC[18,4] (Sku, ListBinInventory) CHARWIDTH 9 PATTERN '#,##0.00##';
+
+sumShortage 'Сумма недостачи / излишка' (Sku sku, ListBinInventory li)= outSum(sku, li) (-) inSum(sku, li) CHARWIDTH 9 PATTERN '#,##0.00##';
+
+overFillSkuSum ABSTRACT (ListBinInventory);
+fillSkuSum 'Заполнить суммы описи' (ListBinInventory li) {
+    IF typeSkuLedger(binInventory(li))==TypeSkuLedger.bySkus THEN {
+        price(Sku sku, li)  <- prevAccountPriceB(sku, stock(li), dateTime(li)) WHERE in(sku, li);
+        outSum(Sku sku, li) <- calcOutSum(sku, li) WHERE in(sku, li);
+        inSum(Sku sku, li) <- calcInSum(sku, li) WHERE in(sku, li);
+    }
+    overFillSkuSum(li);
+}
+
 TABLE skuBinInventory (Sku, BinInventory);
 
 price 'Цена' = DATA NUMERIC[16,4] (Sku, BinInventory) CHARWIDTH 7 PATTERN '#,##0.00##';
 sum 'Сумма по описям' = DATA NUMERIC[18,4] (Sku, BinInventory) CHARWIDTH 9 PATTERN '#,##0.00##';
-
-priceRound = ABSTRACT CASE INTEGER (BinInventory);
-priceRound (BinInventory i) += WHEN i IS BinInventory THEN 2;
 
 calcSum = ABSTRACT VALUE NUMERIC[18,4] (Sku, BinInventory);
 calcSum(Sku sku, BinInventory i) += NUMERIC[18,4](Utils.round(inQuantity(sku, i) * price(sku, i), priceRound(i)));
@@ -111,12 +135,19 @@ fillCollationSheet 'Заполнить сличительную ведомост
         price(Sku sku, i)  <- prevAccountPriceB(sku, stock(i), dateTime(i)) WHERE in(sku, i);
         sum(Sku sku, i) <- calcSum(sku, i) WHERE in(sku, i);
         quantityBalance(Sku sku, i) <- (OVERRIDE overQuantityBalance(sku, i), balanceB(sku, stock(i), dateTime(i))) WHERE in(sku, i);            
-        sumBalance(Sku sku, i) <- (OVERRIDE overSumBalance(sku, i), sumB(sku, stock(i), dateTime(i))) WHERE in(sku, i);            
+        sumBalance(Sku sku, i) <- (OVERRIDE overSumBalance(sku, i), sumB(sku, stock(i), dateTime(i))) WHERE in(sku, i);
+
+        price(Sku sku, ListBinInventory li)  <- prevAccountPriceB(sku, stock(li), dateTime(li)) WHERE in(sku, li) AND binInventory(li)==i;
+        outSum(Sku sku, ListBinInventory li) <- calcOutSum(sku, li) WHERE in(sku, li) AND binInventory(li)==i;
+        inSum(Sku sku, ListBinInventory li) <- calcInSum(sku, li) WHERE in(sku, li) AND binInventory(li)==i;
     }
     overFillCollationSheet(i);
 } CONFIRM;
 
 EXTEND FORM binInventory
+    PROPERTIES(ls, li) SHOWIF typeSkuLedger(i)==TypeSkuLedger.bySkus READONLY price, outSum, inSum, sumShortage
+    PROPERTIES(li) fillSkuSum DRAW ls PANEL TOOLBAR SHOWIF typeSkuLedger(i)==TypeSkuLedger.bySkus 
+    
     PROPERTIES(i) fillCollationSheet
     
     PROPERTIES(i) READONLY sumSku, sumSkuBalance, sumSkuShortage, sumItemShortage, sumContainerShortage

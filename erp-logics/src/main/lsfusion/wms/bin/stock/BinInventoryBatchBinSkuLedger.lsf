@@ -8,6 +8,30 @@ EXTEND CLASS TypeSkuLedger {
     byBatches 'По партиям'
 }
 
+TABLE batchListBinInventory (Batch, ListBinInventory);
+
+price 'Цена' = DATA NUMERIC[16,4] (Batch, ListBinInventory) CHARWIDTH 7 PATTERN '#,##0.00##';
+
+calcOutSum = ABSTRACT VALUE NUMERIC[18,4] (Batch, ListBinInventory);
+calcOutSum(Batch batch, ListBinInventory li) += NUMERIC[18,4](Utils.round(outQuantity(batch, li) * price(batch, li), priceRound(binInventory(li))));
+outSum 'Сумма по описям (расход)' = DATA NUMERIC[18,4] (Batch, ListBinInventory) CHARWIDTH 9 PATTERN '#,##0.00##';
+
+calcInSum = ABSTRACT VALUE NUMERIC[18,4] (Batch, ListBinInventory);
+calcInSum(Batch batch, ListBinInventory li) += NUMERIC[18,4](Utils.round(inQuantity(batch, li) * price(batch, li), priceRound(binInventory(li))));
+inSum 'Сумма по описям (приход)' = DATA NUMERIC[18,4] (Batch, ListBinInventory) CHARWIDTH 9 PATTERN '#,##0.00##';
+
+sumShortage 'Сумма недостачи / излишка' (Batch batch, ListBinInventory li)= outSum(batch, li) (-) inSum(batch, li) CHARWIDTH 9 PATTERN '#,##0.00##';
+
+overFillBatchSum ABSTRACT (ListBinInventory);
+fillBatchSum 'Заполнить суммы описи' (ListBinInventory li) {
+    IF typeSkuLedger(binInventory(li)) == TypeSkuLedger.byBatches THEN {
+        price(Batch batch, li) <- prevAccountPriceB(batch, stock(li), dateTime(li)) WHERE in(batch, li);
+        outSum(Batch batch, li) <- calcOutSum(batch, li) WHERE in(batch, li);
+        inSum(Batch batch, li) <- calcInSum(batch, li) WHERE in(batch, li);
+    }
+    overFillBatchSum(li);
+}    
+
 TABLE batchBinInventory (Batch, BinInventory);
 
 price 'Цена' = DATA NUMERIC[16,4] (Batch, BinInventory) CHARWIDTH 7 PATTERN '#,##0.00##';
@@ -44,10 +68,17 @@ overFillCollationSheet (BinInventory i) + {
         sum(Batch batch, i) <- calcSum(batch, i) WHERE in(batch, i);
         quantityBalance(Batch batch, i) <- (OVERRIDE overQuantityBalance(batch, i), balanceB(batch, stock(i), dateTime(i))) WHERE in(batch, i);
         sumBalance(Batch batch, i) <- (OVERRIDE overSumBalance(batch, i), sumB(batch, stock(i), dateTime(i))) WHERE in(batch, i);
+
+        price(Batch batch, ListBinInventory li)  <- prevAccountPriceB(batch, stock(li), dateTime(li)) WHERE in(batch, li) AND binInventory(li)==i;
+        outSum(Batch batch, ListBinInventory li) <- calcOutSum(batch, li) WHERE in(batch, li) AND binInventory(li)==i;
+        inSum(Batch batch, ListBinInventory li) <- calcInSum(batch, li) WHERE in(batch, li) AND binInventory(li)==i;
     }
 }
 
 EXTEND FORM binInventory
+    PROPERTIES(lbt, li) SHOWIF typeSkuLedger(i)==TypeSkuLedger.byBatches READONLY price, outSum, inSum, sumShortage
+    PROPERTIES(li) fillBatchSum DRAW lbt PANEL TOOLBAR SHOWIF typeSkuLedger(i)==TypeSkuLedger.byBatches
+
     PROPERTIES(i) READONLY sumBatch, sumBatchBalance, sumBatchShortage
 
     OBJECTS cbt = Batch
