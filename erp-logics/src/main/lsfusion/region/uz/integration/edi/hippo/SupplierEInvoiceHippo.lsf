@@ -64,7 +64,7 @@ send(EInvoice ei) + {
             resultFile() <- exportFile();
 
             // 1. Получение хеш-кода для отправки
-            sendPostRequestEDI(clientIDHippo(), clientSecretHippo(), apiUrlHippo() + '/roaming-client-api/invoice/hashcode/send/', resultFile(), NULL, NULL);
+            sendPostRequestEDI(clientIDHippo(), clientSecretHippo(), apiUrlHippo() + '/document-generator-client-api/roaming/invoice/generate/send-hash-code', resultFile(), NULL, NULL);
             
             IF sendRequestEDIStatus() == 200 THEN {
                 IMPORT JSON FROM sendRequestEDIResponse() TO() hashcode;
@@ -86,19 +86,19 @@ send(EInvoice ei) + {
                         timestampRequestFile() <- exportFile();
                         
                         // 3. Получение метки времени
-                        sendPostRequestEDI(clientIDHippo(), clientSecretHippo(), apiUrlHippo() + '/roaming-client-api/invoice/attach-timestamp/', timestampRequestFile(), NULL, NULL);
+                        sendPostRequestEDI(clientIDHippo(), clientSecretHippo(), apiUrlHippo() + '/eimzo-client-api/pkcs7/attach-timestamp', timestampRequestFile(), NULL, NULL);
                         
                         IF sendRequestEDIStatus() == 200 THEN {
-                            IMPORT JSON FROM sendRequestEDIResponse() TO() pkcs7;
+                            IMPORT JSON FROM sendRequestEDIResponse() TO() pkcs7 = pkcs7b64;
                             
                             IF pkcs7() THEN {
                                 logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Получена метка времени (pkcs7)');
                                 
-                                EXPORT JSON FROM document = resultFile(), pkcs7 = pkcs7();
+                                EXPORT JSON FROM signature = pkcs7(), lan = 'ru';
                                 finalRequestFile() <- exportFile();
                                 
                                 // 4. Финальная отправка документа
-                                sendPostRequestEDI(clientIDHippo(), clientSecretHippo(), apiUrlHippo() + '/roaming-client-api/invoice/supplier/send/', finalRequestFile(), NULL, NULL);
+                                sendPostRequestEDI(clientIDHippo(), clientSecretHippo(), apiUrlHippo() + '/roaming-client-api/invoice/send', finalRequestFile(), NULL, NULL);
                                 
                                 IF sendRequestEDIStatus() == 200 THEN {
                                     IMPORT JSON FROM sendRequestEDIResponse() TO() extId;
