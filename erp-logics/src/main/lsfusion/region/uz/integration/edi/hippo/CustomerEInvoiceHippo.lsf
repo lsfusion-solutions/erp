@@ -318,17 +318,14 @@ accept(EInvoice ei) + {
                     RETURN;
                 }
 
-                IMPORT JSON FROM sendRequestEDIResponse() TO() hashcodeAccept;
-
-                IF NOT hashcodeAccept() THEN {
+                IF NOT sendRequestEDIResponse() THEN {
                     logToFile('edi', externalId(ei) + ' ' + 'Не удалось получить хеш-код для подтверждения');
                     MESSAGE 'Не удалось получить хеш-код для подтверждения' NOWAIT;
                     RETURN;
                 }
 
                 // 2. Подписание (attach = TRUE)
-                stringToFile(hashcodeAccept());
-                signClientAction(RAWFILE(resultFile()), customer(ei), TRUE);
+                signClientAction(RAWFILE(sendRequestEDIResponse()), customer(ei), TRUE);
                 signatureAccept() <- encodedSignature();
 
                 IF NOT signatureAccept() THEN {
@@ -433,18 +430,15 @@ reject(EInvoice ei) + {
                     MESSAGE 'Ошибка при получении хеш-кода: ' + sendRequestEDIStatus() NOWAIT;
                     RETURN;
                 }
-
-                IMPORT JSON FROM sendRequestEDIResponse() TO() hashcodeReject;
-
-                IF NOT hashcodeReject() THEN {
+                
+                IF NOT sendRequestEDIResponse() THEN {
                     logToFile('edi', externalId(ei) + ' ' + 'Не удалось получить хеш-код для отклонения');
                     MESSAGE 'Не удалось получить хеш-код для отклонения' NOWAIT;
                     RETURN;
                 }
 
                 // 2. Подписание
-                stringToFile(hashcodeReject());
-                signClientAction(RAWFILE(resultFile()), customer(ei), NULL);
+                signClientAction(RAWFILE(sendRequestEDIResponse()), customer(ei), NULL);
                 signatureReject() <- encodedSignature();
 
                 IF NOT signatureReject() THEN {
