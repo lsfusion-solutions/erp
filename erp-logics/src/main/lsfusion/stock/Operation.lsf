@@ -28,6 +28,8 @@ TABLE userOperation (User, Operation);
 in (user, operation) = ABSTRACT BOOLEAN (User, Operation) MATERIALIZED;
 countUsers (Operation operation) = GROUP SUM 1 IF in (User user, operation);
 
+@defineOption(allowDuplicateIdOperation, 'Разрешить дублирование ID операций', commons);
+
 // -------------------------------------- Макросы по созданию операций ---------------------------------- //
 
 META defineOperation(postfix)
@@ -49,6 +51,9 @@ META defineOperation(postfix, navigator)
     id(Operation operation) += id(operation);
     operation (id) = GROUP MAX Operation operation BY id(operation);
 
+    CONSTRAINT SET([GROUP SUM 1 BY id(Operation o)](ISTRING[100] id) > 1) AND NOT allowDuplicateIdOperation()
+        MESSAGE 'Запрещено дублировать ID операции';
+        
     FORM operation 'Операция'##postfix
         OBJECTS o = Operation PANEL
         PROPERTIES(o) name, id, priceRound
