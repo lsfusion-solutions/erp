@@ -143,6 +143,8 @@ nameOperation 'Операция' = name(operation(ListBinInventory d)) CHARWIDTH
 
 @defineDocumentDetailTime(binInventory, ListBinInventory);
 
+@defineDocumentDetailNumber(binInventory, ListBinInventory);
+
 @defineDocumentDetailIndex(binInventory, ListBinInventory);
 
 @defineDocumentDetailStock(binInventory, listBinInventory, stock, stock, 'Склад');
@@ -192,7 +194,8 @@ nameListBinInventory 'Опись' (Bin bin, BinInventory i) = name(listBinInvent
 nameStatusListBinInventory 'Статус описи' (Bin bin, BinInventory i) = nameStatus(listBinInventory(bin, i));
 backgroundListBinInventory (Bin bin, BinInventory i) = background(listBinInventory(bin, i));
 
-include 'Вкл' = GROUP MAX include(Bin bin, ListBinInventory listBinInventory) BY bin, binInventory(listBinInventory) MATERIALIZED INDEXED;
+include 'Вкл' =
+    GROUP MIN include(Bin bin, ListBinInventory listBinInventory) BY bin, binInventory(listBinInventory) MATERIALIZED INDEXED;
 
 CLASS OutListBinInventoryDetail 'Строка описи(расход)';
 TABLE outListBinInventoryDetail (OutListBinInventoryDetail);
@@ -277,7 +280,7 @@ diffQuantity 'Расхождение' (Sku sku, ListBinInventory li) = outQuanti
 diffQuantity 'Расхождение' (Sku sku, BinInventory i) = outQuantity(sku, i) (-) inQuantity(sku, i);
 
 in 'Вкл.' = inQuantity(Sku sku, ListBinInventory li) OR outQuantity(sku, li) MATERIALIZED INDEXED;
-in 'Вкл.' = GROUP MAX in(Sku sku, ListBinInventory li) BY sku, binInventory(li);
+in 'Вкл.' = GROUP MIN in(Sku sku, ListBinInventory li) BY sku, binInventory(li);
 
 @defineAddDocumentDetail(listBinInventory, inListBinInventoryDetail, 'Добавление строк описи');
 
@@ -308,6 +311,11 @@ overExtraOutBinFilter = ABSTRACT BOOLEAN (Bin, BinInventory);
 needExtraOutBinFilter = ABSTRACT BOOLEAN (Bin, BinInventory);
 extraOutBinFilter (Bin b, BinInventory i) =
     needExtraOutBinFilter(b, i) AND overExtraOutBinFilter(b, i) OR i IS BinInventory AND b IS Bin AND NOT needExtraOutBinFilter(b, i);
+
+overExtraOutBinFilter = ABSTRACT BOOLEAN (Sku, BinInventory);
+needExtraOutBinFilter = ABSTRACT BOOLEAN (Sku, BinInventory);
+extraOutBinFilter (Sku sku, BinInventory i) =
+    needExtraOutBinFilter(sku, i) AND overExtraOutBinFilter(sku, i) OR i IS BinInventory AND sku IS Sku AND NOT needExtraOutBinFilter(sku, i);
 
 inBinLocal = DATA LOCAL NESTED Bin (ListBinInventory);
 nameInBinLocal 'Ячейка' (ListBinInventory li) = canonicalId(inBinLocal(li)) CHARWIDTH 20;
@@ -546,7 +554,7 @@ DESIGN dialogInventoryScope{
 useCustomFillByDiff = ABSTRACT BOOLEAN ();
 customFillByDiffSkus ABSTRACT (BinInventory);
 
-overSelectedBins ABSTRACT (InventoryScope, BinInventory);
+overSelectedBins ABSTRACT LIST (InventoryScope, BinInventory);
 
 useCustomFillListBinInventory = ABSTRACT BOOLEAN ();
 customFillListBinInventory ABSTRACT (ListBinInventory);
@@ -586,6 +594,10 @@ addListBinInventory 'Добавить опись' (BinInventory i) {
             error() <- TRUE;
         }
     }
+    
+    IF PREV(i IS BinInventory) AND NOT error() THEN {
+        APPLY NESTED LOCAL; //сохраняем все изменнеия до создания описей  
+    }
 
     IF NOT error() THEN {
         NEWSESSION {
@@ -595,15 +607,16 @@ addListBinInventory 'Добавить опись' (BinInventory i) {
                     in(Sku sku, Bin bin) <- TRUE WHERE currentBalance(sku, bin) AND in(bin);
                     needCreateListBinInventory() <- GROUP MAX in(Sku sku, Bin bin);
                 } WHEN is == InventoryScope.bySkus THEN {
-                    SHOW selectedSkus FILTERS st==stock(i) NOMANAGESESSION;
-                    in(Sku sku, Bin bin) <- TRUE WHERE currentBalance(sku, bin) AND in(sku);
+                    SHOW selectedSkus FILTERS st==stock(i), extraOutBinFilter(s, i) NOMANAGESESSION;
+                    in(Sku sku, Bin bin) <- TRUE WHERE currentBalance(sku, bin) AND in(sku) AND extraOutBinFilter(bin, i);
                     needCreateListBinInventory() <- GROUP MAX in(Sku sku, Bin bin);
                 } WHEN is == InventoryScope.byDiffSkus THEN {
                     IF useCustomFillByDiff() THEN {
                         customFillByDiffSkus(i);
                         needCreateListBinInventory() <- GROUP MAX in(Sku sku, Bin bin);
                     } ELSE {
-                        in(Sku sku, Bin bin) <- TRUE WHERE (discrepancies(sku) OR currentDiffBalanceBin(sku, stock(i))) AND currentBalance(sku, bin);
+                        in(Sku sku, Bin bin) <- TRUE WHERE 
+                            (discrepancies(sku) OR currentDiffBalanceBin(sku, stock(i))) AND currentBalance(sku, bin) AND extraOutBinFilter(bin, i);
                         needCreateListBinInventory() <- GROUP MAX in(Sku sku, Bin bin);
                     }   
                 } ELSE {

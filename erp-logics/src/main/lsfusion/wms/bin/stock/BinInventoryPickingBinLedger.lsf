@@ -4,13 +4,53 @@ REQUIRE BinInventoryBinLedger, OrderPickingOrderBinLedger;
 
 NAMESPACE BinInventory;
 
-in 'Вкл.' (ListBinInventory li, PickingGroup pg) = GROUP MAX in(Sku sku, li) IF pickingGroup(sku)==pg;
-nonePickingGroup (ListBinInventory li) = GROUP MAX in(Sku sku, li) IF NOT pickingGroup(sku);
+idPickingGroup 'Группа комплектации' = DATA INTEGER (InListBinInventoryDetail) INDEXED;
+idPickingGroup 'Группа комплектации' = DATA INTEGER (OutListBinInventoryDetail) INDEXED;
 
-dataPickingGroups 'Группы комплектации' (ListBinInventory li) = 
-    GROUP CONCAT name(PickingGroup pg) IF in(li, pg) , ', ' ORDER id(pg);
-pickingGroups 'Группы комплектации' (ListBinInventory li) =
-    CONCAT ', ', 'Не задана' IF nonePickingGroup(li), dataPickingGroups(li);
+WHEN LOCAL CHANGED(sku(InListBinInventoryDetail detail)) DO {
+    idPickingGroup(detail) <- idPickingGroup(sku(detail));
+}
+
+WHEN LOCAL CHANGED(sku(OutListBinInventoryDetail detail)) DO {
+    idPickingGroup(detail) <- idPickingGroup(sku(detail));
+}
+
+EXTEND FORM binInventory
+    PROPERTIES(ilid) READONLY idPickingGroup
+    PROPERTIES(olid) READONLY idPickingGroup
+;
+
+inListBinInventoryDetail = 
+    GROUP MIN InListBinInventoryDetail d BY idPickingGroup(d), listBinInventory(d) MATERIALIZED INDEXED;
+outListBinInventoryDetail = 
+    GROUP MIN OutListBinInventoryDetail d BY idPickingGroup(d), listBinInventory(d) MATERIALIZED INDEXED;
+
+in 'Вкл.' (INTEGER idPickingGroup, ListBinInventory li)  =
+    inListBinInventoryDetail(idPickingGroup, li) OR outListBinInventoryDetail(idPickingGroup, li);
+
+countPickingGroups 'Кол-во групп комплектаций' = 
+    GROUP SUM 1 IF in(INTEGER idPickingGroup, ListBinInventory li) BY li;
+
+onlyOnePickingGroupByListBinInventory 'Только одна группа комплектации в описи' = DATA BOOLEAN (Operation);
+
+EXTEND FORM operation
+    PROPERTIES(o) onlyOnePickingGroupByListBinInventory
+;
+
+DESIGN operation {
+    constraintContainer {
+        caption = 'Ограничения';
+        MOVE PROPERTY(onlyOnePickingGroupByListBinInventory(o));
+    }
+}
+
+CONSTRAINT (SET(countPickingGroups(ListBinInventory li) > 1) OR (CHANGED(operation(li)) AND countPickingGroups(li) > 1)) AND 
+    onlyOnePickingGroupByListBinInventory(operation(li)) 
+    MESSAGE 'В опись могут быть включены товары из одной группы комплектации';
+
+pickingGroups 'Группы комплектации'  = 
+    GROUP CONCAT (OVERRIDE name(pickingGroup(INTEGER idPickingGroup)), 'Не задана' IF idPickingGroup IS INTEGER ), ', ' 
+        IF in(idPickingGroup, ListBinInventory li) ORDER idPickingGroup BY li;
 
 EXTEND FORM binInventory
     PROPERTIES(li) BACKGROUND background(li) READONLY pickingGroups

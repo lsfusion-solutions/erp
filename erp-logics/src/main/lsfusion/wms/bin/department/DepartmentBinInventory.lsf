@@ -1,6 +1,7 @@
 MODULE DepartmentBinInventory;
 
-REQUIRE DepartmentBin, BinInventoryBinLedger, Inventory, BinInventoryBinSkuLedger, StockDocumentBinLedger;
+REQUIRE DepartmentBin, BinInventoryBinLedger, Inventory, BinInventoryBinSkuLedger, StockDocumentBinLedger, 
+        DepartmentBinLedger, BinInventoryBatchBinLedger;
 
 NAMESPACE BinInventory;
 
@@ -50,6 +51,9 @@ EXTEND FORM binInventories
     PROPERTIES(i) READONLY nameDepartment AFTER nameStock(i)
 ;
 
+department(ListBinInventory li) = department(binInventory(li));
+nameDepartment 'Отдел' (ListBinInventory li) = name(department(li)) CHARWIDTH 30;
+
 department(InListBinInventoryDetail d) = department(binInventory(listBinInventory(d)));
 nameDepartment 'Отдел' = name(department(InListBinInventoryDetail d)) CHARWIDTH 30;
 
@@ -70,6 +74,12 @@ DESIGN operation {
 
 overExtraOutBinFilter(Bin b, BinInventory i) += department(i)==department(b);
 needExtraOutBinFilter(Bin b, BinInventory i) += department(i) AND binDepartment(operation(i)) AND b IS Bin;
+
+overExtraOutBinFilter(Sku sku, BinInventory i) += TRUE IF currentBalance(sku, department(i));
+needExtraOutBinFilter(Sku sku, BinInventory i) += department(i) AND binDepartment(operation(i)) AND sku IS Sku;
+
+overExtraOutBinFilter(Batch batch, BinInventory i) += TRUE IF currentBalance(batch, department(i));
+needExtraOutBinFilter(Batch batch, BinInventory i) += department(i) AND binDepartment(operation(i)) AND batch IS Batch;
 
 CONSTRAINT (CHANGED(operation(InListBinInventoryDetail d)) OR CHANGED(department(d))) AND 
     binDepartment(operation(d)) AND bin(d) AND NOT department(bin(d))==department(d) 

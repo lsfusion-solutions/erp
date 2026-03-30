@@ -4,6 +4,11 @@ REQUIRE BinInventoryBinLedger, BatchBinLedger;
 
 NAMESPACE BinInventory;
 
+overExtraOutBinFilter = ABSTRACT BOOLEAN (Batch, BinInventory);
+needExtraOutBinFilter = ABSTRACT BOOLEAN (Batch, BinInventory);
+extraOutBinFilter (Batch batch, BinInventory i) =
+    needExtraOutBinFilter(batch, i) AND overExtraOutBinFilter(batch, i) OR i IS BinInventory AND batch IS Batch AND NOT needExtraOutBinFilter(batch, i);
+
 in 'Отм.' = DATA LOCAL BOOLEAN (Batch);
 FORM selectedBatches 'Выбор партий'
     OBJECTS st=Stock PANEL
@@ -66,15 +71,16 @@ in = DATA LOCAL BOOLEAN (Batch, Bin);
 
 overSelectedBins(InventoryScope is, BinInventory i) + {
     CASE WHEN is == InventoryScope.byBatches THEN {
-        SHOW selectedBatches FILTERS st==stock(i) NOMANAGESESSION;
-        in(Batch bt, Bin bin) <- TRUE WHERE currentBalance(bt, bin) AND in(bt);
+        SHOW selectedBatches FILTERS st==stock(i), extraOutBinFilter(bt, i) NOMANAGESESSION;
+        in(Batch bt, Bin bin) <- TRUE WHERE currentBalance(bt, bin) AND in(bt) AND extraOutBinFilter(bin, i);
         needCreateListBinInventory() <- GROUP MAX in(Batch bt, Bin bin);
     } WHEN is == InventoryScope.byDiffBatches THEN {
         IF useCustomFillByDiff() THEN {
             customFillByDiffBatches(i);
             needCreateListBinInventory() <- GROUP MAX in(Batch bt, Bin bin);
         } ELSE {
-            in(Batch bt, Bin bin) <- TRUE WHERE (discrepancies(bt) OR currentDiffBalanceBin(bt, stock(i))) AND currentBalance(bt, bin);
+            in(Batch bt, Bin bin) <- TRUE WHERE 
+                (discrepancies(bt) OR currentDiffBalanceBin(bt, stock(i))) AND currentBalance(bt, bin) AND extraOutBinFilter(bin, i);
             needCreateListBinInventory() <- GROUP MAX in(Batch bt, Bin bin);
         }    
     }    
@@ -172,7 +178,7 @@ diffQuantity 'Расхождение' (Batch batch, ListBinInventory li) = outQu
 diffQuantity 'Расхождение' (Batch batch, BinInventory i) = outQuantity(batch, i) (-) inQuantity(batch, i);
 
 in 'Вкл.' = inQuantity(Batch batch, ListBinInventory li) OR outQuantity(batch, li) MATERIALIZED INDEXED;
-in 'Вкл.' = GROUP MAX in(Batch batch, ListBinInventory li) BY batch, binInventory(li);
+in 'Вкл.' = GROUP MIN in(Batch batch, ListBinInventory li) BY batch, binInventory(li);
 
 EXTEND FORM binInventory
     TREE lbskuTree lbsg = SkuGroup PARENT parent(lbsg)
