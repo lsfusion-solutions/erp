@@ -1,6 +1,6 @@
 MODULE PurchaseOrderGestori;
 
-REQUIRE PurchaseOrder, Store, Warehouse, PurchaseOrderStatus, SaleReportsRu;
+REQUIRE PurchaseOrderStatus, SaleReportsRu;
 
 NAMESPACE Purchase;
 
@@ -75,6 +75,10 @@ filterCustomer(Purchase.OrderDetail d) = filterCustomer(order(d));
 filterCustomerStock(Purchase.OrderDetail d) = filterCustomerStock(order(d));
 filterCustomUser(Purchase.OrderDetail d) = filterCustomUser(order(d));
 filterComputer(Purchase.OrderDetail d) = filterComputer(order(d));
+
+codeSupplier 'Код поставщика' (LegalEntity l) = id(l);
+idNameSupplier 'Поставщик' (LegalEntity l) = CONCAT ' — ', id(l), name(l);
+idNameSupplier 'Поставщик' (Purchase.OrderDetail d) = idNameSupplier(supplier(order(d)));
 
 idNameCustomerStock 'Склад покупателя' (Purchase.OrderDetail d) = CONCAT ' — ', id(customerStock(order(d))), nameCustomerStock(d);
 idNameStock 'Склад' (Stock st) = CONCAT ' — ', id(st), name(st);
@@ -300,6 +304,178 @@ inReportSupplierFilter(Purchase.OrderDetail d) =
 inReportStockFilter(Purchase.OrderDetail d) = inSaleReport(customerStock(order(d)));
 inReportSkuFilter(Purchase.OrderDetail d) = NOT anyReportSkuSelected() OR inReportSku(sku(d)) OR inReportSkuByGroup(sku(d));
 
+deliveryDateChanged (Order order) = shipmentDate(order) AND date(order) AND shipmentDate(order) != date(order);
+
+countDeliveryDateChanged (LegalEntity supplier, DATE dateFrom, DATE dateTo) =
+    GROUP SUM 1 IF deliveryDateChanged(Order order)
+        AND date(order) >= dateFrom
+        AND date(order) <= dateTo
+        AND isPosted(order)
+    BY supplier(order);
+
+countDeliveryDateChangedZ 'Число изменений даты поставки' (LegalEntity s, DATE dFrom, DATE dTo) =
+    OVERRIDE countDeliveryDateChanged(s, dFrom, dTo), 0;
+
+quantityOrder (LegalEntity supplier, DATE dateFrom, DATE dateTo) =
+    GROUP SUM quantityOrderDetail(Purchase.Order order)
+        IF date(order) >= dateFrom AND date(order) <= dateTo AND isPosted(order)
+    BY supplier(order);
+
+quantityShippedSupplier (LegalEntity supplier, DATE dateFrom, DATE dateTo) =
+    GROUP SUM shippedShipmentDetail(Purchase.Order order)
+        IF date(order) >= dateFrom AND date(order) <= dateTo AND isPosted(order)
+    BY supplier(order);
+
+sumOrder (LegalEntity supplier, DATE dateFrom, DATE dateTo) =
+    GROUP SUM sumOrderDetail(Purchase.Order order)
+        IF date(order) >= dateFrom AND date(order) <= dateTo AND isPosted(order)
+    BY supplier(order);
+
+quantityOrderZ 'Количество (заказ)' (LegalEntity s, DATE dFrom, DATE dTo) =
+    OVERRIDE quantityOrder(s, dFrom, dTo), 0.0;
+
+quantityShippedSupplierZ 'Количество (приход)' (LegalEntity s, DATE dFrom, DATE dTo) =
+    OVERRIDE quantityShippedSupplier(s, dFrom, dTo), 0.0;
+
+sumOrderZ 'Сумма (заказ)' (LegalEntity s, DATE dFrom, DATE dTo) =
+    OVERRIDE sumOrder(s, dFrom, dTo), 0.0;
+
+sumShippedZ 'Сумма (приход)' (LegalEntity s, DATE dFrom, DATE dTo) =
+    OVERRIDE sumShipped(s, dFrom, dTo), 0.0;
+
+percentQuantityExecutionZ '% исполнения (кол-во)' (LegalEntity s, DATE dFrom, DATE dTo) =
+    OVERRIDE percentQuantityExecution(s, dFrom, dTo), 0.0;
+
+percentSumExecutionZ '% исполнения (сумма)' (LegalEntity s, DATE dFrom, DATE dTo) =
+    OVERRIDE percentSumExecution(s, dFrom, dTo), 0.0;
+
+anyReportStock() = GROUP MAX inSaleReport(Stock s);
+
+orderHasFilteredSku(Purchase.Order o) = NOT anyReportSkuSelected() OR
+    (GROUP MAX TRUE IF order(Purchase.OrderDetail d) = o AND (inReportSku(sku(d)) OR inReportSkuByGroup(sku(d))));
+
+quantityOrderFiltered(LegalEntity supplier, DATE dateFrom, DATE dateTo) =
+    GROUP SUM quantity(Purchase.OrderDetail d)
+        IF date(order(d)) >= dateFrom AND date(order(d)) <= dateTo AND isPosted(order(d))
+            AND (NOT anyReportStock() OR inSaleReport(customerStock(order(d))))
+            AND (NOT anyReportSkuSelected() OR inReportSku(sku(d)) OR inReportSkuByGroup(sku(d)))
+            AND (status(order(d)) == reportStatus() OR NOT reportStatus())
+    BY supplier(order(d));
+
+quantityOrderFilteredZ 'Количество (заказ)' (LegalEntity s, DATE dFrom, DATE dTo) =
+    OVERRIDE quantityOrderFiltered(s, dFrom, dTo), 0.0;
+
+quantityShippedFiltered(LegalEntity supplier, DATE dateFrom, DATE dateTo) =
+    GROUP SUM shipped(Purchase.OrderDetail d)
+        IF date(order(d)) >= dateFrom AND date(order(d)) <= dateTo AND isPosted(order(d))
+            AND (NOT anyReportStock() OR inSaleReport(customerStock(order(d))))
+            AND (NOT anyReportSkuSelected() OR inReportSku(sku(d)) OR inReportSkuByGroup(sku(d)))
+            AND (status(order(d)) == reportStatus() OR NOT reportStatus())
+    BY supplier(order(d));
+
+quantityShippedFilteredZ 'Количество (приход)' (LegalEntity s, DATE dFrom, DATE dTo) =
+    OVERRIDE quantityShippedFiltered(s, dFrom, dTo), 0.0;
+
+percentQuantityExecutionFiltered(LegalEntity s, DATE dFrom, DATE dTo) =
+    (NUMERIC[18,4](quantityShippedFiltered(s, dFrom, dTo)) * 100.0 / quantityOrderFiltered(s, dFrom, dTo)) IF quantityOrderFiltered(s, dFrom, dTo);
+
+percentQuantityExecutionFilteredZ '% исполнения (кол-во)' (LegalEntity s, DATE dFrom, DATE dTo) =
+    OVERRIDE percentQuantityExecutionFiltered(s, dFrom, dTo), 0.0;
+
+sumOrderFiltered(LegalEntity supplier, DATE dateFrom, DATE dateTo) =
+    GROUP SUM invoiceSum(Purchase.OrderDetail d)
+        IF date(order(d)) >= dateFrom AND date(order(d)) <= dateTo AND isPosted(order(d))
+            AND (NOT anyReportStock() OR inSaleReport(customerStock(order(d))))
+            AND (NOT anyReportSkuSelected() OR inReportSku(sku(d)) OR inReportSkuByGroup(sku(d)))
+            AND (status(order(d)) == reportStatus() OR NOT reportStatus())
+    BY supplier(order(d));
+
+sumOrderFilteredZ 'Сумма (заказ)' (LegalEntity s, DATE dFrom, DATE dTo) =
+    OVERRIDE sumOrderFiltered(s, dFrom, dTo), 0.0;
+
+sumShippedFiltered(LegalEntity supplier, DATE dateFrom, DATE dateTo) =
+    GROUP SUM receivedSum(Purchase.OrderDetail d)
+        IF date(order(d)) >= dateFrom AND date(order(d)) <= dateTo AND isPosted(order(d))
+            AND (NOT anyReportStock() OR inSaleReport(customerStock(order(d))))
+            AND (NOT anyReportSkuSelected() OR inReportSku(sku(d)) OR inReportSkuByGroup(sku(d)))
+            AND (status(order(d)) == reportStatus() OR NOT reportStatus())
+    BY supplier(order(d));
+
+sumShippedFilteredZ 'Сумма (приход)' (LegalEntity s, DATE dFrom, DATE dTo) =
+    OVERRIDE sumShippedFiltered(s, dFrom, dTo), 0.0;
+
+percentSumExecutionFiltered(LegalEntity s, DATE dFrom, DATE dTo) =
+    (sumShippedFiltered(s, dFrom, dTo) * 100.0 / sumOrderFiltered(s, dFrom, dTo)) IF sumOrderFiltered(s, dFrom, dTo);
+
+percentSumExecutionFilteredZ '% исполнения (сумма)' (LegalEntity s, DATE dFrom, DATE dTo) =
+    OVERRIDE percentSumExecutionFiltered(s, dFrom, dTo), 0.0;
+
+countDeliveryDateChangedFiltered(LegalEntity supplier, DATE dateFrom, DATE dateTo) =
+    GROUP SUM 1 IF deliveryDateChanged(Purchase.Order order)
+        AND date(order) >= dateFrom AND date(order) <= dateTo AND isPosted(order)
+        AND (NOT anyReportStock() OR inSaleReport(customerStock(order)))
+        AND orderHasFilteredSku(order)
+        AND (status(order) == reportStatus() OR NOT reportStatus())
+    BY supplier(order);
+
+countDeliveryDateChangedFilteredZ 'Число изменений даты поставки' (LegalEntity s, DATE dFrom, DATE dTo) =
+    OVERRIDE countDeliveryDateChangedFiltered(s, dFrom, dTo), 0;
+
+quantityOrderFilteredReport 'Количество (заказ)' (LegalEntity s) = quantityOrderFilteredZ(s, reportDateFrom(), reportDateTo());
+quantityShippedFilteredReport 'Количество (приход)' (LegalEntity s) = quantityShippedFilteredZ(s, reportDateFrom(), reportDateTo());
+percentQuantityExecutionFilteredReport '% исполнения (кол-во)' (LegalEntity s) = percentQuantityExecutionFilteredZ(s, reportDateFrom(), reportDateTo());
+sumOrderFilteredReport 'Сумма (заказ)' (LegalEntity s) = sumOrderFilteredZ(s, reportDateFrom(), reportDateTo());
+sumShippedFilteredReport 'Сумма (приход)' (LegalEntity s) = sumShippedFilteredZ(s, reportDateFrom(), reportDateTo());
+percentSumExecutionFilteredReport '% исполнения (сумма)' (LegalEntity s) = percentSumExecutionFilteredZ(s, reportDateFrom(), reportDateTo());
+countDeliveryDateChangedFilteredReport 'Число изменений даты поставки' (LegalEntity s) = countDeliveryDateChangedFilteredZ(s, reportDateFrom(), reportDateTo());
+hasDataFilteredReport(LegalEntity s) = quantityOrderFiltered(s, reportDateFrom(), reportDateTo()) OR quantityShippedFiltered(s, reportDateFrom(), reportDateTo());
+
+deficiencySum 'Сумма недопоставки' (Purchase.OrderDetail d) = receivedSum(d) (-) orderSum(d);
+
+EXTEND FORM executionSupplierOrder
+    PROPERTIES READONLY countDeliveryDateChangedZ(s, dFrom, dTo)
+;
+
+FORM execSupplierReportPrint 'Отчет по исполнению заказов поставщиками'
+    OBJECTS dFrom = DATE, dTo = DATE
+
+    OBJECTS s = LegalEntity
+    PROPERTIES(s) READONLY idNameSupplier, codeSupplier, name
+    PROPERTIES(s, dFrom, dTo) READONLY
+    quantityOrderFilteredZ, quantityShippedFilteredZ, percentQuantityExecutionFilteredZ,
+        sumOrderFilteredZ, sumShippedFilteredZ, percentSumExecutionFilteredZ,
+        countDeliveryDateChangedFilteredZ
+    FILTERS isSupplier(s),
+        NOT anyReportSupplier() OR inReportSupplier(s),
+        quantityOrderFiltered(s, dFrom, dTo) OR quantityShippedFiltered(s, dFrom, dTo)
+;
+
+execSupplierReportPrint 'Отчет по исполнению' () {
+    PRINT execSupplierReportPrint OBJECTS dFrom = reportDateFrom(), dTo = reportDateTo() XLSX;
+} IMAGE 'print.png';
+
+FORM printPurchaseOrderReport 'Отчет по заказам поставщикам (печать)'
+    OBJECTS d = Purchase.OrderDetail
+    PROPERTIES(d) READONLY idNameSupplier, idNameCustomerStock, number, date, dateConfirmed, shipmentDate, nameStatus,
+        idSku, nameSku,
+        originalQuantity, quantity, shipped,
+        discrepancyOrderConfirm, discrepancyConfirmReceived,
+        invoicePrice, specPrice, receivedPrice,
+        orderSum, invoiceSum, receivedSum, deficiencySum,
+        invoices
+    PROPERTIES() reportDateFrom, reportDateTo
+    ORDERS idNameSupplier(d), idNameCustomerStock(d), date(d)
+    FILTERS isPosted(order(d)),
+        inReportDateFrom(d),
+        inReportDateTo(d),
+        inReportStatus(d),
+        inReportSupplierFilter(d),
+        inReportStockFilter(d),
+        inReportSkuFilter(d)
+;
+
+printReport 'Отчет' () { PRINT printPurchaseOrderReport XLSX; } IMAGE 'print.png';
+
 FORM purchaseOrderReportForm 'Отчет по заказам поставщикам'
     PROPERTIES() reportDateFrom, reportDateTo, nameReportStatus
     PROPERTIES() nameReportSupplierList READONLY SHOWIF reportSupplierList()
@@ -311,14 +487,14 @@ FORM purchaseOrderReportForm 'Отчет по заказам поставщик�
     PROPERTIES reportSkus 'Товары' = reportInSkus() ON CHANGE selectReportSkus() READONLYIF anyReportSkuList() OR anyReportSkuGroup()
 
     OBJECTS d = Purchase.OrderDetail
-    PROPERTIES(d) READONLY nameSupplier, idNameCustomerStock, number, date, dateConfirmed, shipmentDate, nameStatus,
+    PROPERTIES(d) READONLY idNameSupplier, idNameCustomerStock, number, date, dateConfirmed, shipmentDate, nameStatus,
         idSku, nameSku,
         originalQuantity, quantity, shipped,
         discrepancyOrderConfirm, discrepancyConfirmReceived,
         invoicePrice, specPrice, receivedPrice,
-        orderSum, invoiceSum, receivedSum,
+        orderSum, invoiceSum, receivedSum, deficiencySum,
         invoices
-    ORDERS nameSupplier(d), idNameCustomerStock(d), date(d)
+    ORDERS idNameSupplier(d), idNameCustomerStock(d), date(d)
     FILTERS isPosted(order(d)),
         inReportDateFrom(d),
         inReportDateTo(d),
@@ -327,15 +503,22 @@ FORM purchaseOrderReportForm 'Отчет по заказам поставщик�
         inReportStockFilter(d),
         inReportSkuFilter(d)
 
-    REPORT 'PurchaseOrderReportGestori.jrxml'
+    OBJECTS s = LegalEntity
+    PROPERTIES(s) READONLY idNameSupplier
+    PROPERTIES(s) READONLY
+    quantityOrderFilteredReport, quantityShippedFilteredReport, percentQuantityExecutionFilteredReport,
+        sumOrderFilteredReport, sumShippedFilteredReport, percentSumExecutionFilteredReport,
+        countDeliveryDateChangedFilteredReport
+    ORDERS idNameSupplier(s)
+    FILTERS isSupplier(s),
+        NOT anyReportSupplier() OR inReportSupplier(s),
+        hasDataFilteredReport(s)
 
     EVENTS ON INIT initReportDates()
 ;
 
-printReport 'Отчет' () { PRINT purchaseOrderReportForm XLSX; } IMAGE 'print.png';
-
 EXTEND FORM purchaseOrderReportForm
-    PROPERTIES() DISABLEIF NOT reportDateFrom() OR NOT reportDateTo() printReport
+    PROPERTIES() DISABLEIF NOT reportDateFrom() OR NOT reportDateTo() printReport, execSupplierReportPrint
 ;
 
 NAVIGATOR {
@@ -359,11 +542,11 @@ sumPurchase 'Сумма прихода' = DATA LOCAL NUMERIC[16,4] (Sku, LegalEn
 FORM printPurchaseOrderReportSummary
     OBJECTS s = (s = Sku, l = LegalEntity, st = Stock)
     PROPERTIES(s) name, id
-    PROPERTIES(l) name
+    PROPERTIES(l) idNameSupplier, name
     PROPERTIES(st) idNameStock
     PROPERTIES() reportDateFrom, reportDateTo
     PROPERTIES(s, l, st) quantityUnconfirmed, quantityAgreed, quantityShipped, priceContract, sumPurchase
-    ORDERS name(l), idNameStock(st), name(s)
+    ORDERS idNameSupplier(l), idNameStock(st), name(s)
     FILTERS quantityUnconfirmed(s, l, st) OR quantityAgreed(s, l, st) OR quantityShipped(s, l, st) OR sumPurchase(s, l, st)
     REPORT template()
 ;
@@ -412,7 +595,7 @@ orderReceiptReconSummary 'Акт сверки (сводная)' () {
 odRpt = DATA LOCAL Purchase.OrderDetail (INTEGER);
 idRpt = DATA LOCAL Purchase.InvoiceDetail (INTEGER);
 
-supRpt(INTEGER i) = nameSupplier(odRpt(i));
+supRpt(INTEGER i) = idNameSupplier(odRpt(i));
 stRpt(INTEGER i) = idNameCustomerStock(odRpt(i));
 numRpt(INTEGER i) = number(odRpt(i));
 dtUncRpt(INTEGER i) = dateUnconfirmed(odRpt(i));
@@ -439,8 +622,6 @@ invQtyRpt(INTEGER i) = quantityInvoiceDetail(idRpt(i));
 invPrcDtRpt(INTEGER i) = priceInvoiceDetail(idRpt(i));
 invSumRpt(INTEGER i) = sumInvoiceDetail(idRpt(i));
 
-deficiencySum 'Сумма недопоставки' (Purchase.OrderDetail d) = receivedSum(d) (-) orderSum(d);
-
 FORM printPurchaseOrderReportDetailed 'Акт сверки (детальная)'
     OBJECTS d = INTEGER
     PROPERTIES() reportDateFrom, reportDateTo
@@ -466,7 +647,7 @@ orderReceiptReconDetailed 'Акт сверки (детальная по зака
 
     FOR isPosted(order(Purchase.OrderDetail od)) AND inReportStatus(od) AND inReportDateFrom(od) AND inReportDateTo(od) AND
         inReportSupplierFilter(od) AND inReportStockFilter(od) AND inReportSkuFilter(od)
-        ORDER idNameCustomerStock(od), nameSupplier(od), dateUnconfirmed(od), number(od), idSku(od), od DO {
+        ORDER idNameCustomerStock(od), idNameSupplier(od), dateUnconfirmed(od), number(od), idSku(od), od DO {
 
         LOCAL hasInv = BOOLEAN();
         hasInv() <- NULL;
@@ -490,7 +671,6 @@ orderReceiptReconDetailed 'Акт сверки (детальная по зака
 
 EXTEND FORM purchaseOrderReportForm
     PROPERTIES() DISABLEIF NOT reportDateFrom() OR NOT reportDateTo() orderReceiptReconDetailed, orderReceiptReconSummary
-    PROPERTIES(d) READONLY deficiencySum AFTER receivedSum(d)
 ;
 
 DESIGN purchaseOrderReportForm {
@@ -502,6 +682,7 @@ DESIGN purchaseOrderReportForm {
             MOVE PROPERTY(reportDateTo());
             MOVE PROPERTY(nameReportStatus()) { fill = 1; }
             MOVE PROPERTY(printReport()) { valueClass = 'btn-primary'; }
+            MOVE PROPERTY(execSupplierReportPrint()) { valueClass = 'btn-primary'; }
             MOVE PROPERTY(orderReceiptReconDetailed()) { valueClass = 'btn-primary'; }
             MOVE PROPERTY(orderReceiptReconSummary()) { valueClass = 'btn-primary'; }
         }
@@ -513,5 +694,12 @@ DESIGN purchaseOrderReportForm {
         MOVE PROPERTY(reportSelectedSkuGroups) { alignment = STRETCH; }
         MOVE PROPERTY(reportSkus) { alignment = STRETCH; }
     }
-    BOX(d) { caption = ''; }
+    OBJECTS {
+        NEW tabs {
+            tabbed = TRUE;
+            fill = 1;
+            MOVE BOX(d) { caption = 'Детали заказов'; }
+            MOVE BOX(s) { caption = 'Исполнение по поставщикам'; }
+        }
+    }
 }
