@@ -62,8 +62,17 @@ EXTEND CLASS InventoryScope {
     byDiffBatches 'По расхождениям остатков партий'
 }
 
-order(InventoryScope is) += WHEN is == InventoryScope.byBatches THEN 25;
-order(InventoryScope is) += WHEN is == InventoryScope.byDiffBatches THEN 35;
+setInventoryScopeBatch = DATA BOOLEAN () TABLE migrate;
+onStarted() + {
+    NEWSESSION {
+        IF NOT setInventoryScopeBatch() THEN {
+            setInventoryScopeBatch() <- TRUE;
+            order(InventoryScope.byBatches) <- 35;
+            order(InventoryScope.byDiffBatches) <- 45;
+            APPLY;
+        }
+    }
+}
 
 customFillByDiffBatches ABSTRACT (BinInventory);
 
@@ -71,17 +80,21 @@ in = DATA LOCAL BOOLEAN (Batch, Bin);
 
 overSelectedBins(InventoryScope is, BinInventory i) + {
     CASE WHEN is == InventoryScope.byBatches THEN {
-        SHOW selectedBatches FILTERS st==stock(i), extraOutBinFilter(bt, i) NOMANAGESESSION;
-        in(Batch bt, Bin bin) <- TRUE WHERE currentBalance(bt, bin) AND in(bt) AND extraOutBinFilter(bin, i);
-        needCreateListBinInventory() <- GROUP MAX in(Batch bt, Bin bin);
+        DIALOG selectedBatches OBJECTS bt INPUT FILTERS st==stock(i), extraOutBinFilter(bt, i) NOMANAGESESSION DO {
+            IF NOT (GROUP SUM 1 IF in(Batch batch)) THEN {
+                in(bt) <- TRUE;
+            }
+            in(Batch batch, Bin bin) <- TRUE WHERE currentBalance(batch, bin) AND in(batch) AND extraOutBinFilter(bin, i);
+            needCreateListBinInventory(0) <- GROUP MAX in(Batch batch, Bin bin);            
+        }
     } WHEN is == InventoryScope.byDiffBatches THEN {
         IF useCustomFillByDiff() THEN {
             customFillByDiffBatches(i);
-            needCreateListBinInventory() <- GROUP MAX in(Batch bt, Bin bin);
+            needCreateListBinInventory(0) <- GROUP MAX in(Batch bt, Bin bin);
         } ELSE {
             in(Batch bt, Bin bin) <- TRUE WHERE 
                 (discrepancies(bt) OR currentDiffBalanceBin(bt, stock(i))) AND currentBalance(bt, bin) AND extraOutBinFilter(bin, i);
-            needCreateListBinInventory() <- GROUP MAX in(Batch bt, Bin bin);
+            needCreateListBinInventory(0) <- GROUP MAX in(Batch bt, Bin bin);
         }    
     }    
 }
@@ -148,11 +161,11 @@ overCreateInListBinInventoryDetail (InListBinInventoryDetail ilid, OutListBinInv
 }
 
 useCustomFillListBinInventory() += TRUE;
-customFillListBinInventory(ListBinInventory li) + {
+customFillListBinInventory(ListBinInventory li, INTEGER idPartition) + {
     IF NOT (GROUP MAX in(Batch bt)) THEN {
         in(Batch bt, Bin bin) <- TRUE WHERE in(sku(bt), bin) AND currentBalance(bt, bin);
     }
-    FOR in(Batch batch, Bin bin) INLINE NEW olid = OutListBinInventoryDetail DO {
+    FOR in(Batch batch, Bin bin) AND idPartition(sku(batch))==idPartition ORDER order(bin) INLINE NEW olid = OutListBinInventoryDetail DO {
         listBinInventory(olid) <- li;
         include(bin, li) <- TRUE;
         sku(olid) <- sku(batch);

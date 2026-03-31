@@ -1,0 +1,21 @@
+MODULE BinInventoryBatchPickingBinLedger;
+
+REQUIRE BinInventoryPickingBinLedger, BinInventoryBatchBinLedger;
+
+NAMESPACE BinInventory;
+
+overSelectedBinsByPickingGroups(InventoryScope is, BinInventory i) + {
+    CASE WHEN is == InventoryScope.byAllPickingGroups THEN {
+        in(Batch batch, Bin bin) <- TRUE WHERE currentBalance(batch, bin) AND extraOutBinFilter(bin, i);
+        FOR [GROUP MAX in(Batch batch, Bin bin) BY idPickingGroup(sku(batch))](INTEGER idPickingGroup) INLINE DO {
+            needCreateListBinInventory(idPickingGroup) <- TRUE;
+        }        
+    }
+    WHEN is == InventoryScope.byPickingGroups THEN {
+        in(Batch batch) <- TRUE WHERE in(pickingGroup(sku(batch)));
+        in(Batch batch, Bin bin) <- TRUE WHERE currentBalance(batch, bin) AND in(batch) AND extraOutBinFilter(bin, i);
+        FOR in(PickingGroup pg) AND (GROUP MAX in(Batch batch, Bin bin)) INLINE DO {
+            needCreateListBinInventory(id(pg)) <- TRUE;
+        }
+    }
+}

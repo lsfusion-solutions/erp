@@ -4,6 +4,8 @@ REQUIRE BinInventoryBinLedger, OrderPickingOrderBinLedger;
 
 NAMESPACE BinInventory;
 
+dataIdPartition(Sku s) += id(pickingGroup(s)); 
+
 idPickingGroup 'Группа комплектации' = DATA INTEGER (InListBinInventoryDetail) INDEXED;
 idPickingGroup 'Группа комплектации' = DATA INTEGER (OutListBinInventoryDetail) INDEXED;
 
@@ -50,8 +52,67 @@ CONSTRAINT (SET(countPickingGroups(ListBinInventory li) > 1) OR (CHANGED(operati
 
 pickingGroups 'Группы комплектации'  = 
     GROUP CONCAT (OVERRIDE name(pickingGroup(INTEGER idPickingGroup)), 'Не задана' IF idPickingGroup IS INTEGER ), ', ' 
-        IF in(idPickingGroup, ListBinInventory li) ORDER idPickingGroup BY li;
+        IF in(idPickingGroup, ListBinInventory li) ORDER idPickingGroup BY li CHARWIDTH 20;
 
 EXTEND FORM binInventory
     PROPERTIES(li) BACKGROUND background(li) READONLY pickingGroups
 ;
+
+EXTEND CLASS InventoryScope {
+    byAllPickingGroups 'По всем группам комплектации',
+    byPickingGroups 'По отмеченным группам комплектации'
+}
+
+setInventoryScopePicking = DATA BOOLEAN () TABLE migrate;
+onStarted() + {
+    NEWSESSION {
+        IF NOT setInventoryScopePicking() THEN {
+            setInventoryScopePicking() <- TRUE;
+            order(InventoryScope.byAllPickingGroups) <- 5;
+            order(InventoryScope.byPickingGroups) <- 15;
+            APPLY;
+        }
+    }
+}
+
+in 'Отм.' = DATA LOCAL BOOLEAN (PickingGroup);
+FORM selectedPickingGroupes 'Выбор групп комплектаций'
+    OBJECTS g=PickingGroup
+    PROPERTIES in(g)
+    PROPERTIES(g) READONLY id, name
+    ORDERS id(g)
+;
+
+useCustomSelectedBinsByPickingGroups = ABSTRACT BOOLEAN ();
+overCustomSelectedBinsByPickingGroups ABSTRACT (InventoryScope, BinInventory);
+overSelectedBinsByPickingGroups ABSTRACT LIST (InventoryScope, BinInventory);
+overSelectedBins(InventoryScope is, BinInventory i) + {
+    CASE WHEN is == InventoryScope.byAllPickingGroups THEN {
+        ASK 'Для данного способа отбора ячеек необходимо удалить все существующие описи. Продолжить?' DO {
+            DELETE ListBinInventory li WHERE binInventory(li)==i;
+            APPLY;
+            overSelectedBinsByPickingGroups(is, i);
+            IF NOT (GROUP SUM 1 IF needCreateListBinInventory(INTEGER int)) THEN {
+                in(Sku sku, Bin bin) <- TRUE WHERE currentBalance(sku, bin) AND extraOutBinFilter(bin, i);
+                FOR [GROUP MAX in(Sku sku, Bin bin) BY idPickingGroup(sku)](INTEGER idPickingGroup) INLINE DO {
+                    needCreateListBinInventory(idPickingGroup) <- TRUE;
+                }
+            }            
+        }
+    }
+    WHEN is == InventoryScope.byPickingGroups THEN {
+        DIALOG selectedPickingGroupes OBJECTS g INPUT NOMANAGESESSION DO {
+            IF NOT (GROUP SUM 1 IF in(PickingGroup pg)) THEN {
+                in(g) <- TRUE;
+            }
+            overSelectedBinsByPickingGroups(is, i);
+            IF NOT (GROUP SUM 1 IF needCreateListBinInventory(INTEGER int)) THEN {
+                in(Sku sku) <- TRUE WHERE in(pickingGroup(sku));
+                in(Sku sku, Bin bin) <- TRUE WHERE currentBalance(sku, bin) AND in(sku) AND extraOutBinFilter(bin, i);
+                FOR in(PickingGroup pg) AND (GROUP MAX in(Sku sku, Bin bin)) INLINE DO {
+                    needCreateListBinInventory(id(pg)) <- TRUE;
+                }
+            }
+        }
+    }
+}

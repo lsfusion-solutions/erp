@@ -149,7 +149,7 @@ nameOperation 'Операция' = name(operation(ListBinInventory d)) CHARWIDTH
 
 @defineDocumentDetailStock(binInventory, listBinInventory, stock, stock, 'Склад');
 
-name 'Номер описи' = ABSTRACT CASE STRING[100] (ListBinInventory) CHARWIDTH 20;
+name 'Номер описи' = ABSTRACT CASE STRING[100] (ListBinInventory) CHARWIDTH 10;
 name(ListBinInventory listBinInventory) +=  WHEN listBinInventory IS ListBinInventory THEN STRING[100]('Опись ' + index(listBinInventory));
 
 description '{document.description.object}' (ListBinInventory listBinInventory) = description(binInventory(listBinInventory)) CHARWIDTH 30;
@@ -187,12 +187,9 @@ captionReWork (ListBinInventory li) = 'Вернуть в работу "'+name(li
 //Оставляем только одно свойство, что бы задним числом ячейки НЕ добавлялись в инвентаризацию
 include 'Вкл' = DATA BOOLEAN (Bin, ListBinInventory);
 countIncludeBin 'Кол-во ячеек в описи' (ListBinInventory listBinInventory) = GROUP SUM 1 IF include(Bin bin, listBinInventory);
-
-//ячейка может быть добавлена только в одну опись в рамках одной инвентаризации
-listBinInventory = GROUP AGGR ListBinInventory listBinInventory WHERE include(Bin bin, listBinInventory) BY bin, binInventory(listBinInventory); 
-nameListBinInventory 'Опись' (Bin bin, BinInventory i) = name(listBinInventory(bin, i));
-nameStatusListBinInventory 'Статус описи' (Bin bin, BinInventory i) = nameStatus(listBinInventory(bin, i));
-backgroundListBinInventory (Bin bin, BinInventory i) = background(listBinInventory(bin, i));
+ 
+nameListBinInventory 'Описи' (Bin bin, BinInventory i) =
+    GROUP CONCAT name(ListBinInventory li) IF include(bin, li) ,', ' ORDER name(li), li BY binInventory(li) CHARWIDTH 50;
 
 include 'Вкл' =
     GROUP MIN include(Bin bin, ListBinInventory listBinInventory) BY bin, binInventory(listBinInventory) MATERIALIZED INDEXED;
@@ -223,6 +220,7 @@ nameSkuTypeSku 'Тип товара' (OutListBinInventoryDetail detail) = nameSk
 
 bin 'Ячейка' = DATA Bin (OutListBinInventoryDetail) NONULL IN documentPrm;
 nameBin 'Ячейка' (OutListBinInventoryDetail detail) = canonicalId(bin(detail)) IN documentPrm CHARWIDTH 12;
+orderBin 'Порядок' (OutListBinInventoryDetail detail) = order(bin(detail)) IN documentPrm CHARWIDTH 12;
 
 @defineDocumentDetailQuantity(outListBinInventory);
 
@@ -263,6 +261,7 @@ nameSkuTypeSku 'Тип товара' (InListBinInventoryDetail detail) = nameSku
 
 bin 'Ячейка' = DATA Bin (InListBinInventoryDetail) NONULL IN documentPrm;
 nameBin 'Ячейка' (InListBinInventoryDetail detail) = canonicalId(bin(detail)) IN documentPrm CHARWIDTH 12;
+orderBin 'Порядок' (InListBinInventoryDetail detail) = order(bin(detail)) IN documentPrm CHARWIDTH 12;
 
 @defineDocumentDetailQuantity(inListBinInventory);
 
@@ -353,24 +352,43 @@ FORM binInventory 'Инвентаризация по ячейкам'
     FILTERS binInventory(li)==i
 
     PROPERTIES nameInBinLocal(li) PANEL
+
+    TREE ilbinTree ilbg = BinGroup  PARENT parent(ilbg)
+    PROPERTIES READONLY order(ilbg), canonicalId(ilbg), ilbgTreeName = name(ilbg)
+    ORDERS order(ilbg), canonicalId(ilbg), ilbgTreeName
+    FILTERS stock(ilbg) = stock(i)
+    FILTERGROUP ilInactiveBinGroup
+        FILTER 'Активные' active(ilbg) DEFAULT    
     
     OBJECTS ilid = InListBinInventoryDetail
-    PROPERTIES(ilid) READONLY index, nameSku, nameSkuTypeSku, nameBin
+    PROPERTIES(ilid) READONLY index, nameSku, nameSkuTypeSku, nameBin, orderBin SHOWIF NULL
     PROPERTIES(ilid) quantity BACKGROUND RGB(255, 224, 255) ON CHANGE changeQuantity(ilid) READONLYIF NOT status(li)==ListBinInventoryStatus.inProgress
     PROPERTIES NEWSESSION DELETE(ilid) GRID SHOWIF status(li)==ListBinInventoryStatus.inProgress
     PROPERTIES DRAW ilid PANEL TOOLBAR complete(li) HEADER captionComplete(li) SHOWIF status(li)==ListBinInventoryStatus.inProgress, 
         reWork(li) HEADER captionReWork(li) SHOWIF status(li)==ListBinInventoryStatus.completed
     PROPERTIES DRAW ilid PANEL TOOLBAR addInListBinInventoryDetail(li) SHOWIF status(li)==ListBinInventoryStatus.inProgress 
+    ORDERS orderBin(ilid)
     FILTERS listBinInventory(ilid) == li,
-        inBinLocal(li) == bin(ilid) OR ilid IS InListBinInventoryDetail AND NOT inBinLocal(li)
-    
-    OBJECTS olid = OutListBinInventoryDetail
-    PROPERTIES(olid) READONLY index, nameSku, nameSkuTypeSku, nameBin, quantity BACKGROUND RGB(212,255,212)
-    FILTERS listBinInventory(olid) == li
+        inBinLocal(li) == bin(ilid) OR ilid IS InListBinInventoryDetail AND NOT inBinLocal(li),
+        isParent(ilbg, bin(ilid))
 
-    TREE lbinTree lbg = BinGroup  PARENT parent(lbg)
-    PROPERTIES lbgTreeName = name(lbg) READONLY
-    ORDERS lbgTreeName
+    TREE olbinTree olbg = BinGroup  PARENT parent(olbg)
+    PROPERTIES READONLY order(olbg), canonicalId(olbg), olbgTreeName = name(olbg)
+    ORDERS order(olbg), canonicalId(olbg), olbgTreeName
+    FILTERS stock(olbg) = stock(i)
+    FILTERGROUP olInactiveBinGroup
+        FILTER 'Активные' active(olbg) DEFAULT
+
+    OBJECTS olid = OutListBinInventoryDetail
+    PROPERTIES(olid) READONLY index, nameSku, nameSkuTypeSku, nameBin, orderBin SHOWIF NULL, 
+        quantity BACKGROUND RGB(212,255,212)
+    ORDERS orderBin(olid)
+    FILTERS listBinInventory(olid) == li,
+        isParent(olbg, bin(olid))
+
+    TREE lbinTree lbg = BinGroup PARENT parent(lbg)
+    PROPERTIES READONLY order(lbg), canonicalId(lbg), lbgTreeName = name(lbg) 
+    ORDERS order(lbg), canonicalId(lbg), lbgTreeName
     FILTERS stock(lbg) = stock(i)
     FILTERGROUP lInactiveBinGroup
         FILTER 'Активные' active(lbg) DEFAULT
@@ -397,15 +415,15 @@ FORM binInventory 'Инвентаризация по ячейкам'
         FILTER 'В описи' in(ls, li)
 
     TREE binTree bg = BinGroup PARENT parent(bg)
-    PROPERTIES bgTreeName = name(bg) READONLY
-    ORDERS bgTreeName
+    PROPERTIES READONLY order(bg), canonicalId(bg), bgTreeName = name(bg)
+    ORDERS order(bg), canonicalId(bg), bgTreeName
     FILTERS stock(bg) = stock(i)
     FILTERGROUP inactiveBinGroup 
         FILTER 'Активные' active(bg) DEFAULT
     
     OBJECTS b = Bin
     PROPERTIES(b) READONLY order, canonicalId, name, id SHOWIF showIDs(), status
-    PROPERTIES(b, i) READONLY BACKGROUND backgroundListBinInventory(b, i) nameListBinInventory, nameStatusListBinInventory
+    PROPERTIES(b, i) READONLY nameListBinInventory
     FILTERS isParent(bg, b),
         include(b, i)
     ORDERS order(b), canonicalId(b), name(b)
@@ -471,24 +489,44 @@ DESIGN binInventory {
                         NEW ilidContainer {
                             caption = 'Строки "'+ name(li) + '"(приход)';
                             fill =1;
-                            NEW filterIlidContainer {
-                                horizontal = TRUE;
-                                caption = 'Фильтры';
-                                align = STRETCH;
-                                MOVE PROPERTY(nameInBinLocal(li)) {
-                                    align = STRETCH;
-                                    captionVertical = TRUE;
-                                    captionAlignmentHorz = CENTER;
-                                }                                
+                            horizontal = TRUE;
+                            MOVE BOX(TREE ilbinTree) {
+                                width = 100;
+                                PROPERTY(canonicalId(ilbg)) {charWidth = 20;}
                             }
-                            MOVE BOX(ilid);                            
+                            NEW ilidDetailContainer {
+                                fill =1;
+                                NEW filterIlidContainer {
+                                    horizontal = TRUE;
+                                    caption = 'Фильтры';
+                                    align = STRETCH;
+                                    MOVE PROPERTY(nameInBinLocal(li)) {
+                                        align = STRETCH;
+                                        captionVertical = TRUE;
+                                        captionAlignmentHorz = CENTER;
+                                    }
+                                }
+                                MOVE BOX(ilid);
+                            }
                         }
-                        MOVE BOX(olid) {caption = 'Строки "'+ name(li) + '"(расход)';}
+                        NEW olidContainer {
+                            caption = 'Строки "' + name(li) + '"(расход)';
+                            fill = 1;
+                            horizontal = TRUE;
+                            MOVE BOX(TREE olbinTree) {
+                                width = 100;
+                                PROPERTY(canonicalId(olbg)) {charWidth = 20;}
+                            }
+                            MOVE BOX(olid);
+                        }
                         NEW listBinInventoryBins {
                             caption = 'Ячейки "'+ name(li)+ '"';
                             horizontal = TRUE;
                             fill = 1;
-                            MOVE BOX(TREE lbinTree) {width = 150;};
+                            MOVE BOX(TREE lbinTree) {
+                                width = 150;
+                                PROPERTY(canonicalId(lbg)) {charWidth = 20;}
+                            }
                             MOVE BOX(lb) {fill = 2;}
                         }
                         NEW listBinInventorySkus {
@@ -526,10 +564,25 @@ CLASS InventoryScope 'Способ отбора ячеек' {
 }
 TABLE inventoryScope (InventoryScope);
 
-order 'Порядок сортировки' = ABSTRACT CASE INTEGER (InventoryScope);
-order(InventoryScope is) += WHEN is == InventoryScope.byBins THEN 10;
-order(InventoryScope is) += WHEN is == InventoryScope.bySkus THEN 20;
-order(InventoryScope is) += WHEN is == InventoryScope.byDiffSkus THEN 30;
+order 'Порядок сортировки' = DATA INTEGER (InventoryScope);
+setInventoryScope = DATA BOOLEAN () TABLE migrate;
+onStarted() + {
+    NEWSESSION {
+        IF NOT setInventoryScope() THEN {
+            setInventoryScope() <- TRUE;
+            order(InventoryScope.byBins) <- 20;
+            order(InventoryScope.bySkus) <- 30;
+            order(InventoryScope.byDiffSkus) <- 40;
+            APPLY;
+        }
+    }
+}
+
+FORM inventoryScopes 'Способы отбора ячеек'
+    OBJECTS is=InventoryScope
+    PROPERTIES(is) order, caption READONLY
+    ORDERS order(is)
+;
 
 FORM dialogInventoryScope 'Способ отбора ячеек'
     OBJECTS is=InventoryScope
@@ -557,16 +610,18 @@ customFillByDiffSkus ABSTRACT (BinInventory);
 overSelectedBins ABSTRACT LIST (InventoryScope, BinInventory);
 
 useCustomFillListBinInventory = ABSTRACT BOOLEAN ();
-customFillListBinInventory ABSTRACT (ListBinInventory);
+customFillListBinInventory ABSTRACT (ListBinInventory, INTEGER);
 
-needCreateListBinInventory = DATA LOCAL BOOLEAN ();
+needCreateListBinInventory = DATA LOCAL BOOLEAN (INTEGER);
 in = DATA LOCAL BOOLEAN (Sku, Bin);
+dataIdPartition = ABSTRACT INTEGER (Sku);
+idPartition (Sku sku) = OVERRIDE dataIdPartition(sku), 0;
 
-fillOutListBinInventoryDetail(ListBinInventory li) {
+fillOutListBinInventoryDetail(ListBinInventory li, INTEGER idPartition) {
     IF useCustomFillListBinInventory() THEN {
-        customFillListBinInventory(li);
+        customFillListBinInventory(li, idPartition);
     } ELSE {
-        FOR in(Sku sku, Bin bin) INLINE NEW olid = OutListBinInventoryDetail DO {
+        FOR in(Sku sku, Bin bin) AND idPartition(sku)==idPartition ORDER order(bin) INLINE NEW olid = OutListBinInventoryDetail DO {
             listBinInventory(olid) <- li;
             include(bin, li) <- TRUE;
             sku(olid) <- sku;
@@ -603,33 +658,41 @@ addListBinInventory 'Добавить опись' (BinInventory i) {
         NEWSESSION {
             DIALOG dialogInventoryScope OBJECTS is INPUT NOMANAGESESSION DO {
                 CASE WHEN is == InventoryScope.byBins THEN {
-                    SHOW selectedBins FILTERS stock(bg)==stock(i), NOT include(b, i), extraOutBinFilter(b, i) NOMANAGESESSION;
-                    in(Sku sku, Bin bin) <- TRUE WHERE currentBalance(sku, bin) AND in(bin);
-                    needCreateListBinInventory() <- GROUP MAX in(Sku sku, Bin bin);
+                    DIALOG selectedBins OBJECTS b INPUT FILTERS stock(bg)==stock(i), NOT include(b, i), extraOutBinFilter(b, i) NOMANAGESESSION DO {
+                        IF NOT (GROUP SUM 1 IF in(Bin bin)) THEN {
+                            dataIn(b) <- TRUE;
+                        }
+                        in(Sku sku, Bin bin) <- TRUE WHERE currentBalance(sku, bin) AND in(bin) AND extraOutBinFilter(bin, i);
+                        needCreateListBinInventory(0) <- GROUP MAX in(Sku sku, Bin bin);                        
+                    }
                 } WHEN is == InventoryScope.bySkus THEN {
-                    SHOW selectedSkus FILTERS st==stock(i), extraOutBinFilter(s, i) NOMANAGESESSION;
-                    in(Sku sku, Bin bin) <- TRUE WHERE currentBalance(sku, bin) AND in(sku) AND extraOutBinFilter(bin, i);
-                    needCreateListBinInventory() <- GROUP MAX in(Sku sku, Bin bin);
+                    DIALOG selectedSkus OBJECTS s INPUT FILTERS st==stock(i), extraOutBinFilter(s, i) NOMANAGESESSION DO {
+                        IF NOT (GROUP SUM 1 IF in(Sku sku)) THEN {
+                            in(s) <- TRUE;                           
+                        }
+                        in(Sku sku, Bin bin) <- TRUE WHERE currentBalance(sku, bin) AND in(sku) AND extraOutBinFilter(bin, i);
+                        needCreateListBinInventory(0) <- GROUP MAX in(Sku sku, Bin bin);                        
+                    }
                 } WHEN is == InventoryScope.byDiffSkus THEN {
                     IF useCustomFillByDiff() THEN {
                         customFillByDiffSkus(i);
-                        needCreateListBinInventory() <- GROUP MAX in(Sku sku, Bin bin);
+                        needCreateListBinInventory(0) <- GROUP MAX in(Sku sku, Bin bin);
                     } ELSE {
                         in(Sku sku, Bin bin) <- TRUE WHERE 
                             (discrepancies(sku) OR currentDiffBalanceBin(sku, stock(i))) AND currentBalance(sku, bin) AND extraOutBinFilter(bin, i);
-                        needCreateListBinInventory() <- GROUP MAX in(Sku sku, Bin bin);
+                        needCreateListBinInventory(0) <- GROUP MAX in(Sku sku, Bin bin);
                     }   
                 } ELSE {
                     overSelectedBins(is, i);
                 }
-                IF needCreateListBinInventory() THEN {
+                IF (GROUP SUM 1 IF needCreateListBinInventory(INTEGER int)) THEN {
                     ASK 'На период проведения инвентаризации остатки в указанных ячейках будут заблокированы (обнулены). Продолжить?' DO {
-                        NEW li = ListBinInventory {
+                        FOR needCreateListBinInventory(INTEGER int) ORDER int NEW li = ListBinInventory DO {
                             binInventory(li) <- i;
-                            fillOutListBinInventoryDetail(li);
-                            APPLY;
+                            fillOutListBinInventoryDetail(li, int);
                             SEEK binInventory.li = li;
                         }
+                        APPLY;
                     } ELSE {
                         CANCEL;
                         RETURN;
@@ -648,10 +711,10 @@ addBins 'Добавить ячейки' (ListBinInventory li) {
     NEWSESSION {
         SHOW selectedBins FILTERS stock(bg)==stock(binInventory(li)), NOT include(b, binInventory(li)), extraOutBinFilter(b, binInventory(li)) NOMANAGESESSION;
         in(Sku sku, Bin bin) <- TRUE WHERE currentBalance(sku, bin) AND in(bin);
-        needCreateListBinInventory() <- GROUP MAX in(Sku sku, Bin bin);
-        IF needCreateListBinInventory() THEN {
+        needCreateListBinInventory(0) <- GROUP MAX in(Sku sku, Bin bin);
+        IF needCreateListBinInventory(0) THEN {
             ASK 'На период проведения инвентаризации остатки в указанных ячейках будут заблокированы (обнулены). Продолжить?' DO {
-                fillOutListBinInventoryDetail(li);
+                fillOutListBinInventoryDetail(li, 0);
                 APPLY;
             }
         } ELSE {
@@ -680,7 +743,7 @@ createInListBinInventoryDetail 'Заполнить на основании ос�
                 DELETE InListBinInventoryDetail ilid WHERE ilid IS InListBinInventoryDetail AND listBinInventory(ilid)==li;
             }
         }
-        FOR listBinInventory(OutListBinInventoryDetail olid)==li INLINE NEW ilid=InListBinInventoryDetail DO {
+        FOR listBinInventory(OutListBinInventoryDetail olid)==li ORDER order(bin(olid)) INLINE NEW ilid=InListBinInventoryDetail DO {
             listBinInventory(ilid) <- li;
             sku(ilid) <- sku(olid);
             bin(ilid) <- bin(olid);
@@ -784,6 +847,7 @@ NAVIGATOR {
         NEW FOLDER binInventoryNavigator 'Инвентаризация по ячейкам' AFTER WMSDocument {
             NEW binInventories;
             NEW operations;
+            NEW inventoryScopes;
         }
     }
 }
