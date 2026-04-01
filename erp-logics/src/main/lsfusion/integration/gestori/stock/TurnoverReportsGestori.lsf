@@ -1,6 +1,6 @@
 MODULE TurnoverReportsGestori;
 
-REQUIRE SaleLedgerGestori, AccountDocument;
+REQUIRE SaleLedgerGestori, AccountDocument, ProductionOutput, ProductionConsumption;
 
 NAMESPACE StockReports;
 
@@ -315,6 +315,11 @@ sumSaleNaturalLoss 'Естественная убыль, расход' = DATA LO
 quantitySaleWriteOff 'Списание, расход' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
 sumSaleWriteOff 'Списание, расход' = DATA LOCAL NUMERIC[16,4] (Sku, Stock);
 
+quantityOutput 'Производство, приход' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
+sumOutput 'Производство, приход' = DATA LOCAL NUMERIC[16,4] (Sku, Stock);
+quantityConsumption 'Производство, расход' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
+sumConsumption 'Производство, расход' = DATA LOCAL NUMERIC[16,4] (Sku, Stock);
+
 quantityRetailSale 'Продажи, розница' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
 sumRetailSale 'Продажи, розница' = DATA LOCAL NUMERIC[16,4] (Sku, Stock);
 
@@ -327,11 +332,11 @@ quantityLosses 'Потери' = DATA LOCAL NUMERIC[7,2] (Sku, Stock);
 filterDetail(Sku s, Stock st) = balanceB(s,st) OR quantityPurchaseOut(s,st) OR quantityPurchaseIn(s,st) OR quantitySaleOut(s,st) OR quantitySaleIn(s,st) OR balanceA(s,st) OR
     quantityReturnPurchase(s,st) OR quantityReturnSale(s,st) OR quantityPurchaseInventory(s,st) OR quantitySaleInventory(s,st) OR quantityPurchaseDisparity(s,st) OR 
     quantitySaleDisparity(s,st) OR quantityPurchaseAdjustment(s,st) OR quantitySaleAdjustment(s,st) OR quantitySaleNaturalLoss(s,st) OR quantitySaleWriteOff(s,st) OR
-    quantityRetailSale(s,st) OR 
+    quantityOutput(s,st) OR quantityConsumption(s,st) OR quantityRetailSale(s,st) OR 
     sumB(s,st) OR sumPurchaseOut(s,st) OR sumPurchaseIn(s,st) OR sumSaleOut(s,st) OR sumSaleIn(s,st) OR sumA(s,st) OR
     sumReturnPurchase(s,st) OR sumReturnSale(s,st) OR sumPurchaseInventory(s,st) OR sumSaleInventory(s,st) OR sumPurchaseDisparity(s,st) OR
-    sumSaleDisparity(s,st) OR sumPurchaseAdjustment(s,st) OR sumSaleAdjustment(s,st) OR sumSaleNaturalLoss(s,st) OR sumSaleWriteOff(s,st) OR
-    sumRetailSale(s,st) ;
+    sumSaleDisparity(s,st) OR sumPurchaseAdjustment(s,st) OR sumSaleAdjustment(s,st) OR sumSaleNaturalLoss(s,st) OR sumSaleWriteOff(s,st) OR sumOutput(s,st) OR 
+    sumConsumption(s,st) OR sumRetailSale(s,st) ;
 
 FORM printTurnoverDetailGestori
     OBJECTS s = (s = Sku, st = Stock)
@@ -343,7 +348,7 @@ FORM printTurnoverDetailGestori
     PROPERTIES(s,st) quantityReturnPurchase, quantityReturnSale, quantityPurchaseInventory, quantitySaleInventory, quantityRetailSale, quantityPurchaseDisparity, quantitySaleDisparity
     PROPERTIES(s,st) sumReturnPurchase, sumReturnSale, sumPurchaseInventory, sumSaleInventory, sumRetailSale, sumPurchaseDisparity, sumSaleDisparity
     PROPERTIES(s,st) quantityPurchaseAdjustment, quantitySaleAdjustment, quantitySaleNaturalLoss, quantitySaleWriteOff
-    PROPERTIES(s,st) sumPurchaseAdjustment, sumSaleAdjustment, sumSaleNaturalLoss, sumSaleWriteOff
+    PROPERTIES(s,st) sumPurchaseAdjustment, sumSaleAdjustment, sumSaleNaturalLoss, sumSaleWriteOff, quantityOutput, sumOutput, quantityConsumption, sumConsumption
     PROPERTIES(s,st) quantityPurchaseAll, sumPurchaseAll, quantitySaleAll, sumSaleAll, quantityLosses
     ORDERS id(st), id(s)
     FILTERS filterDetail(s,st)
@@ -382,6 +387,10 @@ fillTurnoverDetailGestori 'Приходы-расходы подробно' () {
     sumSaleNaturalLoss(Sku s, Stock st) <- NULL ;
     quantitySaleWriteOff(Sku s, Stock st) <- NULL ;
     sumSaleWriteOff(Sku s, Stock st) <- NULL ;
+    quantityOutput(Sku s, Stock st) <- NULL ;
+    sumOutput(Sku s, Stock st) <- NULL ;
+    quantityConsumption(Sku s, Stock st) <- NULL ;
+    sumConsumption(Sku s, Stock st) <- NULL ;
     quantityRetailSale(Sku s, Stock st) <- NULL ;
     sumRetailSale(Sku s, Stock st) <- NULL ;
     quantityPurchaseAll(Sku s, Stock st) <- NULL ;
@@ -524,20 +533,30 @@ fillTurnoverDetailGestori 'Приходы-расходы подробно' () {
         active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND supplierStock(invoiceDetail(b))=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
         id(operationDocument(ledger)) == 'writeoffAccount' AND 
         inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+
+    quantityOutput(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) IF
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger)=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+        (ledger IS Production.OutputDetail) AND
+        inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+    sumOutput(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) * priceSku(sk,st,date(ledger)) IF
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger)=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+        (ledger IS Production.OutputDetail) AND
+        inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+    quantityConsumption(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) IF
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger)=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+        (ledger IS Production.ConsumptionDetail) AND 
+        inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+    sumConsumption(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) * priceSku(sk,st,date(ledger)) IF
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger)=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+        (ledger IS Production.ConsumptionDetail) AND 
+        inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
     
-    quantitySaleWriteOff(Sku sk, Stock st) <- GROUP SUM quantity(WriteOffDetail id) IF
-        isPosted(id) AND sku(id)=sk AND stock(id)=st AND date(id)>=dateFrom() AND date(id)<=dateTo() AND
-        inReportSupplierFilter(batch(id)) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-    sumSaleWriteOff(Sku sk, Stock st) <- GROUP SUM quantity(WriteOffDetail id) * priceSku(sk,st,date(id)) IF
-        isPosted(id) AND sku(id)=sk AND stock(id)=st AND date(id)>=dateFrom() AND date(id)<=dateTo() AND
-        inReportSupplierFilter(batch(id)) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-    
-//    quantityRetailSale(Sku sk, Stock st) <- GROUP SUM cost(SaleLedger ledger, Batch b) IF active(ledger) AND id(operation(ledger)) == '?????' AND
-//        sku(ledger)=sk AND sku(b)=sk AND stock(ledger)=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
-//        inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-//    sumRetailSale(Sku sk, Stock st) <- GROUP SUM cost(SaleLedger ledger, Batch b) * priceSku(sk,st,date(ledger)) IF active(ledger) AND id(operation(ledger)) == '?????' AND
-//        sku(ledger)=sk AND sku(b)=sk AND stock(ledger)=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
-//        inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+    quantityRetailSale(Sku sk, Stock st) <- GROUP SUM cost(SaleLedger ledger, Batch b) IF active(ledger) AND id(operation(ledger)) == '?????' AND
+        sku(ledger)=sk AND sku(b)=sk AND stock(ledger)=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+        inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+    sumRetailSale(Sku sk, Stock st) <- GROUP SUM cost(SaleLedger ledger, Batch b) * priceSku(sk,st,date(ledger)) IF active(ledger) AND id(operation(ledger)) == '?????' AND
+        sku(ledger)=sk AND sku(b)=sk AND stock(ledger)=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+        inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
     
     // Итоговые колонки
     sumPurchaseAll(Sku s, Stock st) <- NULL ;
@@ -545,15 +564,15 @@ fillTurnoverDetailGestori 'Приходы-расходы подробно' () {
     sumSaleAll(Sku s, Stock st) <- NULL ;
     quantityLosses(Sku s, Stock st) <- NULL ;
     quantityPurchaseAll(Sku s, Stock st) <- quantityPurchaseOut(s,st) (+) quantityPurchaseIn(s,st) (+) quantityReturnSale(s,st) (+) quantityPurchaseInventory(s,st) (+)
-        quantityPurchaseDisparity(s,st) (+) quantityPurchaseAdjustment(s,st);
+        quantityPurchaseDisparity(s,st) (+) quantityPurchaseAdjustment(s,st) (+) quantityOutput(s,st);
     sumPurchaseAll(Sku s, Stock st) <- sumPurchaseOut(s,st) (+) sumPurchaseIn(s,st) (+) sumReturnSale(s,st) (+) sumPurchaseInventory(s,st) (+)
-        sumPurchaseDisparity(s,st) (+) sumPurchaseAdjustment(s,st);
+        sumPurchaseDisparity(s,st) (+) sumPurchaseAdjustment(s,st) (+) sumOutput(s,st);
     quantitySaleAll(Sku s, Stock st) <- quantitySaleOut(s,st) (+) quantitySaleIn(s,st) (+) quantityReturnPurchase(s,st) (+) quantitySaleInventory(s,st) (+)
-        quantitySaleDisparity(s,st) (+) quantitySaleAdjustment(s,st) (+) quantitySaleNaturalLoss(s,st) (+) quantitySaleWriteOff(s,st) (+) quantityRetailSale(s,st);
+        quantitySaleDisparity(s,st) (+) quantitySaleAdjustment(s,st) (+) quantitySaleNaturalLoss(s,st) (+) quantitySaleWriteOff(s,st) (+) quantityConsumption(s,st) (+) quantityRetailSale(s,st);
     sumSaleAll(Sku s, Stock st) <- sumSaleOut(s,st) (+) sumSaleIn(s,st) (+) sumReturnPurchase(s,st) (+) sumSaleInventory(s,st) (+)
-        sumSaleDisparity(s,st) (+) sumSaleAdjustment(s,st) (+) sumSaleNaturalLoss(s,st) (+) sumSaleWriteOff(s,st) (+) sumRetailSale(s,st);
+        sumSaleDisparity(s,st) (+) sumSaleAdjustment(s,st) (+) sumSaleNaturalLoss(s,st) (+) sumSaleWriteOff(s,st) (+) sumConsumption(s,st) (+) sumRetailSale(s,st);
     quantityLosses(Sku s, Stock st) <- IF quantityRetailSale(s,st) THEN (quantitySaleWriteOff(s,st) (+) quantitySaleInventory(s,st) (-) quantityPurchaseInventory(s,st)) * 100 / quantityRetailSale(s,st);
-
+    
     PRINT printTurnoverDetailGestori XLSX ;
 } IMAGE 'print.png';
 
