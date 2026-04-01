@@ -1,6 +1,6 @@
 MODULE SaleLedgerGestori;
 
-REQUIRE Range, InventoryGestori, PurchaseShipment, RangeLevelLog;
+REQUIRE RangeSimple, InventoryGestori, PurchaseShipment, RangeLevelLog;
 
 NAMESPACE Sale;
 
@@ -37,7 +37,7 @@ nameSalesType 'Тип отбора продаж' = name(salesTypeDefault()) NOSE
 
 productsLimit = DATA LOCAL INTEGER ();
 productsLimitDefault 'Количество отобранных товаров' = OVERRIDE productsLimit(), 50;
-withAssortment 'С учетом ассортимента' = DATA LOCAL BOOLEAN ();
+withAssortment 'С учетом ассортмента' = DATA LOCAL BOOLEAN ();
 
 inSkuList 'Отм.' = DATA LOCAL BOOLEAN (List);
 anySkuList() = GROUP MAX inSkuList(List l);
@@ -834,9 +834,13 @@ nameAMFilterMode 'Фильтр ассортимента' = name(amFilterModeDefa
 
 amInSkuFilter(Sku s) = NOT anyAMSkuSelected() OR inAMSku(s) OR inAMSkuByGroup(s);
 
-amInMatrix(Sku s, Stock st) = countRange(s, st, dateTo());
+amSkuInRange(Sku s, Range.Range r, Stock st) =
+    (include(r, st, s, dateTo()) OR in(s, r, store(st), dateTo())) AND NOT inactive(r);
 
-amRanges 'Ассортиментные матрицы' (Sku s, Stock st) = ranges(s, st, dateTo());
+amInMatrix(Sku s, Stock st) = GROUP SUM 1 IF amSkuInRange(s, Range.Range r, st);
+
+amRanges 'Ассортиментные матрицы' (Sku s, Stock st) =
+    GROUP CONCAT name(Range.Range r) IF amSkuInRange(s, r, st), ', ' ORDER r CHARWIDTH 30;
 
 amFilter(Sku s, Stock st) = inSaleReport(st) AND amInSkuFilter(s)
     AND (amFilterModeDefault() = AMFilterMode.all OR amInMatrix(s, st));
