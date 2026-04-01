@@ -136,3 +136,48 @@ sumContainer[OutStockDocumentBinLedger] (BinInventorySDBinLedger ledger) += -sum
 operation[StockDocumentBinLedger](BinInventorySDBinLedger ledger) += operation(binInventory(ledger));
 department[StockDocumentBinLedger] (BinInventorySDBinLedger ledger) += department(binInventory(ledger));
 skip[StockDocumentBinLedger] (BinInventorySDBinLedger ledger) += ledger IS BinInventorySDBinLedger AND NOT department(ledger);
+
+isResponsiblePerson 'Материально ответственное лицо' = DATA BOOLEAN (Department, Employee);
+orderResponsiblePerson 'Порядок отображения в печатной форме' = DATA INTEGER (Department, Employee);
+
+namePositionResponsiblies 'МОЛ(ы)' (Department stock) = (GROUP
+    CONCAT positionName(Employee employee) IF isResponsiblePerson(stock, employee), ', '
+    ORDER employee)
+    CHARWIDTH 50;
+
+shortNamePositionResponsiblies 'МОЛ(ы)' (Department stock) = (GROUP
+    CONCAT positionShortName(Employee employee) IF isResponsiblePerson(stock, employee), ', '
+    ORDER employee)
+    CHARWIDTH 50;
+
+nameResponsiblies 'МОЛ(ы)' (Department stock) = (GROUP
+    CONCAT name[Contact](Employee employee) IF isResponsiblePerson(stock, employee), ', '
+    ORDER employee)
+    CHARWIDTH 50;
+
+shortNameResponsiblies 'МОЛ(ы)' (Department stock) = (GROUP
+    CONCAT shortName(Employee employee) IF isResponsiblePerson(stock, employee), ', '
+    ORDER employee)
+    CHARWIDTH 50;
+
+nameResponsibliesDepartment 'Материально-ответственные лица' (ListBinInventory li) = nameResponsiblies(department(li)) IN inventoryCommittee CHARWIDTH 30;
+
+EXTEND FORM department
+    OBJECTS e = Employee GRID
+    PROPERTIES(e) READONLY firstName, lastName
+    FILTERGROUP active FILTER 'Активные' active(e) 'F6'  DEFAULT
+    PROPERTIES  (d,e) isResponsiblePerson, orderResponsiblePerson
+;
+
+DESIGN department {
+    tabContainer {
+        fill = 1;
+        MOVE BOX(e) {
+            caption = 'Материально-ответственные лица';
+        };
+    }
+}
+
+EXTEND FORM employee
+    PROPERTIES isResponsiblePerson(department, e)
+;
