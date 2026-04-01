@@ -393,6 +393,8 @@ indexEOrderResponseDetail (INTEGER i) = PARTITION SUM 1 ORDER i BY ordrspGTIN(i)
 overReceiveMessageOrdrsp ABSTRACT (Message);
 canceledReceiveMessageOrdrsp ABSTRACT (Message);
 
+overImportOrdrsp ABSTRACT (EOrderResponse);
+
 overReceiveMessages () + {
     FOR nameFile(Message m) AND NOT dateTimeProcessed(m) AND NOT denyReceiveMessage(m) DO {
         IF nameFile(m) AND isISubstring(nameFile(m), 'ORDRSP_') AND NOT denyReceiveMessage(m) THEN {
@@ -450,6 +452,9 @@ overReceiveMessages () + {
                             FOR ordrspGTIN(INTEGER l) INLINE DO {
                                 responseDetail(EOrderDetail od) <- eOrderResponseDetail(idDetail(l)) WHERE eOrder(ordrspOrderNumber()) == order(od) AND sku(l) == sku(od) AND indexSku(l) == localIndexSku(od);
                             }
+                            
+                            overImportOrdrsp(r);
+                            
                             IF ordrspResponseType() != 'Cancelled' THEN {
                                 isConfirmed(Purchase.userOrder(ordrspOrderNumber())) <- TRUE;
                                 isPosted(Purchase.userOrder(ordrspOrderNumber())) <- TRUE;
