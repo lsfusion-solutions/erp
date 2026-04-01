@@ -1,0 +1,69 @@
+MODULE SaleInternetOrderInvoiceStore;
+
+REQUIRE SaleInternetOrderInvoice, Label, Store;
+
+NAMESPACE Sale;
+
+isDepartmentStoreDeliveryReport (DeliveryReport report) = GROUP SUM 1 IF inStockDeliveryReport(DepartmentStore d, report) AND d IS DepartmentStore;
+
+//-- С магазина 
+
+notRetailInternetOrderStore (DeliveryReport r)= r IS DeliveryReport AND NOT countDeliveryReport(r) AND isDepartmentStoreDeliveryReport(r);
+prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND internetOrderDetail(d) AND NOT notFillPriceInvoiceOrder(operation(d)) AND id(operation(d)) == 'saleInternetOrder'
+    AND NOT skipDeriveOrderPrice(d) THEN discountPrice(internetOrderDetail(d));
+
+
+overCreateRetailInvoiceStore  ABSTRACT LIST (DeliveryReport, UserInvoice);
+overCreateRetailInvoiceStore  ABSTRACT LIST (UserInvoiceDetail);
+useDiscountRetailPrice = DATA LOCAL BOOLEAN ();
+createRetailInvoiceStore 'Создать накладную (розница с магазина)' (DeliveryReport r)  {
+    select(r) <- TRUE;
+    IF (GROUP SUM 1 IF pickingSumInternetOrderDetail(DeliveryReport dr) AND NOT countDeliveryReport(dr) AND select(dr)) THEN {
+        NEWSESSION NESTED (select[DeliveryReport]){
+            FOR [ GROUP SUM pickingSum(InternetOrderDetail d) IF isItem(sku(d)) AND NOT userInvoiceDetail(d) AND select(deliveryReport(d))
+            BY deliveryReport(d), Sale.supplierStock[InternetOrderDetail](d)](r, Stock st) AND st IS DepartmentStore NEW i = UserInvoice DO {
+                date(i) <- currentDate();
+                time(i) <- currentTime();
+                supplier(i) <- legalEntity(st);
+                supplierStock(i) <- st;
+                customer(i) <- OVERRIDE legalEntity(legalEntityStock(carrier(r))), legalEntity(internetStock());
+                customerStock(i) <- OVERRIDE legalEntityStock(carrier(r)), internetStock();
+                operation(i) <- internetOperation();
+                priceListType(i) <- defaultPriceListType(operation(i));
+                createShipment(i) <- TRUE;
+                overCreateRetailInvoiceStore(r, i);
+
+                FOR pickingSum(InternetOrderDetail detail) > 0.0 AND isItem(sku(detail)) AND NOT userInvoiceDetail(detail) AND select(deliveryReport(detail))
+                    AND Sale.supplierStock[InternetOrderDetail](detail) == st NEW d = UserInvoiceDetail DO {
+                    userInvoice(d) <- i;
+                    internetOrderDetail(d) <- detail;
+                    sku(d) <- sku(detail);
+                    batch(d) <- batch(detail);
+                    quantity(d) <- pickingQuantity(detail);
+
+                    priceListType(d) <- OVERRIDE priceListType(agreement(userInvoice(d)), sku(d)),
+                        priceListType(userInvoice(d));
+
+                    executeLocalEvents();
+                    VAT(d) <- overVAT(d);
+                    valueVAT(d) <- calcSetValueVAT(d);
+
+                    invoiceSum(d) <- discountSumPicking(detail);
+                    VATSum(d) <- round(invoiceSum(d) * calcValueVAT(d) / (100.0 + calcValueVAT(d)), currency(d));
+                    sum(d) <- invoiceSum(d) (-) VATSum(d);
+
+                    invoicePrice(d) <- discountPrice(detail);
+                    price (d) <- round2(invoicePrice (d) * 100/(100 + calcValueVAT(d)));
+                    overCreateRetailInvoiceStore(d);
+
+                }
+                SHOW userInvoice OBJECTS i = i DOCKED NOCANCEL;
+            }
+        }
+    }
+    select(r) <- NULL;
+}
+
+EXTEND FORM deliveryDashboard
+    PROPERTIES (r) TOOLBAR DRAW i createRetailInvoiceStore SHOWIF notRetailInternetOrderStore(r)
+;

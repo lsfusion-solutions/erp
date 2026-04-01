@@ -1,0 +1,34 @@
+MODULE SaleInternetOrderDiscountCard;
+
+REQUIRE SaleInternetOrder, DiscountCard;
+
+NAMESPACE Sale;
+
+discountCard = DATA DiscountCard (InternetOrder);
+numberDiscountCard 'Номер дисконтной карты'(InternetOrder o) = number(discountCard(o));
+issueCard 'Оформить карту' = DATA BOOLEAN (InternetOrder);
+
+discountCard (InternetOrderDetail detail) = discountCard(internetOrder(detail));
+numberDiscountCard 'Номер дисконтной карты'(InternetOrderDetail detail) = numberDiscountCard(internetOrder(detail));
+
+EXTEND FORM internetOrder
+    PROPERTIES issueCard(o), numberDiscountCard(o) BACKGROUND background(o)
+;
+
+DESIGN internetOrder {
+    firstCol {
+        MOVE PROPERTY(numberDiscountCard(o)) BEFORE PROPERTY(nameInternetCustomer(o));
+    }
+    secondCol {
+        MOVE PROPERTY(issueCard(o)) BEFORE PROPERTY(phoneInternetCustomer(o));
+    }
+}
+
+EXTEND FORM internetOrders
+    PROPERTIES(o) READONLYIF isReadonly() BACKGROUND backgroundInternetOrder(o) AFTER deliveryDate(o) 
+        numberDiscountCard, issueCard
+;
+
+EXTEND FORM internetOrderPrint
+    PROPERTIES(o) READONLY numberDiscountCard, issueCard
+;

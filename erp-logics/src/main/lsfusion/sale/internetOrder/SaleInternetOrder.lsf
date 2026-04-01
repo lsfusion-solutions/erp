@@ -1,7 +1,7 @@
 MODULE SaleInternetOrder;
 
 REQUIRE Integration, Document, Historizable, LegalEntity, Stock, Sku, StockTax, PriceListType, SaleOperation, OrderLedger, 
-        SaleInvoice, SaleShipment, WarehouseSkuLedger, DiscountCard, Store;
+        SaleInvoice, SaleShipment, WarehouseSkuLedger;
 
 NAMESPACE Sale;
 
@@ -14,7 +14,8 @@ CLASS StatusInternetOrder 'Статус' {
     delivery 'Доставка',
     delivered 'Доставлен',
     completed 'Завершен',
-    closed 'Отмена покупателем до доставки'
+    closed 'Отмена покупателем до доставки',
+    cancel 'Отменен'
 }
 TABLE statusInternetOrder (StatusInternetOrder);
 overName = DATA STRING[100] (StatusInternetOrder);
@@ -200,15 +201,8 @@ background 'Цвет' = ABSTRACT CASE COLOR (InternetOrderDetail);
 deliveryDate 'Дата доставки' = DATA DATE (InternetOrder) INDEXED;
 deliveryDate 'Дата доставки' (InternetOrderDetail d)= deliveryDate(internetOrder(d));
 
-discountCard = DATA DiscountCard (InternetOrder);
-numberDiscountCard 'Номер дисконтной карты'(InternetOrder o) = number(discountCard(o));
-issueCard 'Оформить карту' = DATA BOOLEAN (InternetOrder);
-
 original 'Файл XML' = DATA FILE (InternetOrder);
 openOriginal 'Файл XML'(InternetOrder o)  { open(original(o)); }
-
-discountCard (InternetOrderDetail detail) = discountCard(internetOrder(detail));  
-numberDiscountCard 'Номер дисконтной карты'(InternetOrderDetail detail) = numberDiscountCard(internetOrder(detail));
 
 nameInternetCustomer 'Покупатель интернет магазина' = DATA STRING[255] (InternetOrder) CHARWIDTH 50;
 //nameInternetCustomer(InternetOrder o) <- nameLegalEntity(discountCard(o)) WHEN SET(discountCard(o)) AND nameLegalEntity(discountCard(o));
@@ -342,9 +336,8 @@ FORM internetOrder 'Интернет-заказ'
     OBJECTS o = InternetOrder PANEL
     PROPERTIES (o) isPosted, nameStatus ON CHANGE changeStatus(o), 
                    nameNumerator, number, series, date, time, nameCurrency, note,
-                   deliveryDate, issueCard, nameInternetCustomer SHOWIF showPersonalInfoUser(o), addressInternetCustomer SHOWIF showPersonalInfoUser(o), 
+                   deliveryDate, nameInternetCustomer SHOWIF showPersonalInfoUser(o), addressInternetCustomer SHOWIF showPersonalInfoUser(o), 
                    areaInternetCustomer, indexInternetCustomer, cityInternetCustomer, phoneInternetCustomer SHOWIF showPersonalInfoUser(o), emailCustomer SHOWIF showPersonalInfoUser(o)
-    PROPERTIES (o) numberDiscountCard BACKGROUND background(o)
     PROPERTIES (o) READONLY countInternetOrderDetail, quantityInternetOrderDetail, sumInternetOrderDetail, discountSumInternetOrderDetail BACKGROUND backgroundDiscount(o)
     
     PROPERTIES (o) namePaymentTypeInternetOrder, paymentCashSumInternetOrder, paymentCardSumInternetOrder, paymentERIPSumInternetOrder, paymentGiftCardSumInternetOrder, paymentDateInternetOrder,
@@ -416,7 +409,6 @@ DESIGN internetOrder {
                     horizontal = TRUE;
                     caption = 'Интернет покупатель';
                     NEW firstCol {
-                        MOVE PROPERTY(numberDiscountCard(o));
                         MOVE PROPERTY(nameInternetCustomer(o)){charWidth = 35;}
                         MOVE PROPERTY(areaInternetCustomer(o));
                         MOVE PROPERTY(indexInternetCustomer(o));
@@ -425,7 +417,6 @@ DESIGN internetOrder {
                         MOVE PROPERTY(customerComment(o));
                     }
                     NEW secondCol {
-                        MOVE PROPERTY(issueCard(o));
                         MOVE PROPERTY(phoneInternetCustomer(o)){charWidth = 35;}
                         MOVE PROPERTY(emailCustomer(o));
                         MOVE PROPERTY(deliveryDate(o));
@@ -537,12 +528,11 @@ backgroundInternetOrder (InternetOrder o) = ABSTRACT CASE COLOR (InternetOrder);
 hideEdit(InternetOrder o) = ABSTRACT BOOLEAN (InternetOrder);
 
 FORM internetOrders 'Интернет-заказы'
-
     OBJECTS o = InternetOrder LAST
     PROPERTIES (o) READONLYIF isReadonly() BACKGROUND backgroundInternetOrder(o) isClosed
     PROPERTIES (o) READONLYIF isReadonly() BACKGROUND backgroundInternetOrder(o) isPosted, nameStatus ON CHANGE changeStatus(o), fullNumber, number, series, date, time
     PROPERTIES (o) READONLYIF isReadonly() BACKGROUND backgroundInternetOrder(o) nameCurrency,
-                                           deliveryDate, numberDiscountCard, issueCard, nameInternetCustomer SHOWIF showPersonalInfoUser(), 
+                                           deliveryDate, nameInternetCustomer SHOWIF showPersonalInfoUser(), 
                                            areaInternetCustomer, indexInternetCustomer, cityInternetCustomer, 
                                            addressInternetCustomer SHOWIF showPersonalInfoUser(), phoneInternetCustomer SHOWIF showPersonalInfoUser(), 
                                            emailCustomer SHOWIF showPersonalInfoUser()
@@ -718,11 +708,11 @@ full 'Количество из заказа' = DATA LOCAL BOOLEAN();
 
 diffDiscountSum 'Сумма скидки' (InternetOrderDetail d) = sum(d) (-) discountSum(d);
 
-FORM  internetOrderPrint 'Интернет-заказ'
+FORM internetOrderPrint 'Интернет-заказ'
     OBJECTS o = InternetOrder SUBREPORT
     PROPERTIES (o) isPosted, nameStatus, shortNameCurrency,
                    nameNumerator, seriesNumber, number, series, date, time, nameCurrency, note,
-                   deliveryDate, numberDiscountCard, issueCard, nameInternetCustomer, addressInternetCustomer, 
+                   deliveryDate, nameInternetCustomer, addressInternetCustomer, 
                    areaInternetCustomer, indexInternetCustomer, cityInternetCustomer, phoneInternetCustomer, emailCustomer
     PROPERTIES () full              
     PROPERTIES (o) READONLY countInternetOrderDetail, quantityInternetOrderDetail, sumInternetOrderDetail, discountSumInternetOrderDetail BACKGROUND backgroundDiscount(o)
@@ -919,29 +909,24 @@ TABLE carrier(Carrier);
 
 name 'Наименование' = DATA STRING[255] (Carrier) IN id;
 
-departmentStore = DATA DepartmentStore (Carrier);
-nameDepartmentStore 'Интернет магазин(отдел магазина)' (Carrier c) = name(departmentStore(c));
-
-carrier = GROUP AGGR (Carrier carrier) BY departmentStore(carrier);
-
 legalEntityStock = DATA Stock (Carrier);
 nameLegalEntityStock 'Организация(сторонняя)' (Carrier c) = name(legalEntityStock(c));
 
 FORM carrier 'Перевозчик'
     OBJECTS c = Carrier PANEL 
-    PROPERTIES(c) id, name, nameDepartmentStore, nameLegalEntityStock
+    PROPERTIES(c) id, name, nameLegalEntityStock
     EDIT Carrier OBJECT c
 ;
 
 FORM carriers 'Перевозчики'
     OBJECTS c = Carrier
-    PROPERTIES(c) READONLY id, name, nameDepartmentStore, nameLegalEntityStock
+    PROPERTIES(c) READONLY id, name, nameLegalEntityStock
     LIST Carrier OBJECT c
 ;
 
 EXTEND FORM internetCatalogs
     OBJECTS carrier = Carrier
-    PROPERTIES(carrier) READONLY id, name, nameDepartmentStore, nameLegalEntityStock  
+    PROPERTIES(carrier) READONLY id, name, nameLegalEntityStock  
     PROPERTIES(carrier) NEWSESSION NEW, EDIT, DELETE
 ;
 
@@ -1030,7 +1015,3 @@ EXTEND FORM internetOrders
     PROPERTIES (o) countChangeDetail SHOWIF useReplaseInterntetOrder()
     PROPERTIES (d) READONLY nameSkuChangeDetail SHOWIF useReplaseInterntetOrder()
 ;
-
-EXTEND CLASS StatusInternetOrder {
-    cancel 'Отменен'
-}
