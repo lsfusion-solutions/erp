@@ -21,7 +21,7 @@ FORM importWBOrders
     OBJECTS orders = INTEGER
 
     PROPERTIES(orders) cargoType, groupId, nmId, finalPrice, rid, createdAt, isZeroOrder, price, convertedCurrencyCode, 
-        id, salePrice, deliveryType, article, convertedFinalPrice, convertedPrice, orderUid, warehouseId, comment, colorCode, 
+        id, salePrice, article, convertedFinalPrice, convertedPrice, orderUid, warehouseId, comment, colorCode,  
         chrtId, currencyCode
 
     OBJECTS skus = INTEGER
@@ -55,26 +55,31 @@ getOrdersDBSNew 'Получить список новых сборочных з�
             logToFile('WB', resultString());
             IMPORT importWBOrders JSON FROM response();
 
-            FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING number) AND NOT (GROUP MAX InternetOrder o IF number(o) == number AND carrier(o) == carrier('Own')) 
-                AND Warehouse w == warehouse(warehouseId(i)) INLINE DO NEW order = InternetOrder {
+            FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING number) AND NOT (GROUP MAX InternetOrder o IF number(o) == number AND carrier(o) == carrier('Own'))
+                AND NOT (GROUP MAX InternetOrder o IF orderRidID(o) == rid(i) AND carrier(o) == carrier('Own')) INLINE DO NEW order = InternetOrder {
                 number(order) <- number;
+                orderRidID(order) <- rid(i);
+                orderUID(order) <- orderUid(i);
                 date(order) <- currentDate();
                 isWBOrderDBS(order) <- TRUE;
                 carrier(order) <- carrier('Own');
                 status(order) <- StatusInternetOrder.new;
-//                supplierStock(order) <- stock(w); отключил, т.к. теперь связь к множеству собственных складов
+
+                IF NOT warehouse(warehouseId(i)) THEN messageOrder() <- 'В справочнике системы не найден warehouseId: ' + warehouseId(i);
+
+                //                supplierStock(order) <- stock(w); отключил, т.к. теперь связь к множеству собственных складов
                 addressInternetCustomer(order) <- fullAddress(i);
                 currency(order) <- GROUP MAX Currency c IF sid(c) == currencyCode(i);
 
-                FOR INTEGER ii = [GROUP MAX INTEGER j BY chrtId(j)](STRING chrtID) AND Size size == size(INTEGER (chrtID)) 
+                FOR INTEGER ii = [GROUP MAX INTEGER j BY chrtId(j)](STRING chrtID) AND Size size == size(INTEGER (chrtID))
                     AND Item item == itemNM(INTEGER (nmId(ii))) AND itemWB(size) == item INLINE DO NEW detail = InternetOrderDetail {
                     internetOrder(detail) <- order;
                     sku(detail) <- item(size);
-                    price(detail) <- finalPrice(ii)/100.0;
+                    price(detail) <- finalPrice(ii) / 100.0;
                 }
 
             }
-                messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+            messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + messageStatusHTTP(STRING(statusHttp()));
         } CATCH {
             logToFile('WB', messageCaughtException());
             IF statusHttp() == 403 THEN {
@@ -102,6 +107,7 @@ FORM importInfCustomer
 
     OBJECTS orders = INTEGER
     PROPERTIES(orders) firstName, orderID, phone, fullName, phoneCode, replacementPhone
+    FILTERS imported(orders)
 
     OBJECTS additionalPhoneCodes = INTEGER
     PROPERTIES(additionalPhoneCodes) additionalPhoneCodes EXTID 'value'
@@ -111,7 +117,7 @@ FORM importInfCustomer
 // https://marketplace-api.wildberries.ru/api/v3/dbs/orders/client
 postInfCustomer 'Получить информацию о клиенте сборочных заданий' () {
     NEWSESSION {
-        FOR isWBOrderDBS(InternetOrder order) AND order IS InternetOrder AND carrier(order) == carrier('Own') DO {
+        IF (GROUP SUM 1 IF isWBOrderDBS(InternetOrder order) AND order IS InternetOrder AND carrier(order) == carrier('Own')) THEN {
             setHttpHeadersIS();
             LOCAL messageOrder = STRING ();
             LOCAL response = FILE();
@@ -119,10 +125,9 @@ postInfCustomer 'Получить информацию о клиенте сбо�
             LOCAL statusText = STRING ();
             LOCAL status = STRING ();
 
-
             logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/v3/dbs/orders/client');
 
-            EXPORT JSON FROM 'value' = number(order) WHERE order IS InternetOrder;
+            EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isWBOrderDBS(order) AND carrier(order) == carrier('Own');
             fileToString(exportFile(), 'UTF-8');
             stringToFile('\{"orders":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
             TRY {
@@ -131,7 +136,7 @@ postInfCustomer 'Получить информацию о клиенте сбо�
                 logToFile('WB', resultString());
                 IMPORT importInfCustomer JSON FROM response();
 
-                FOR INTEGER i = [GROUP MAX INTEGER il BY orderID(i1)](STRING number) AND (GROUP MAX InternetOrder o IF number(o) == number
+                FOR INTEGER i = [GROUP MAX INTEGER i1 BY orderID(i1)](STRING number) AND InternetOrder order = (GROUP MAX InternetOrder o IF number(o) == number
                     AND carrier(o) == carrier('Own')) INLINE DO {
                     nameInternetCustomer(order) <- fullName(i);
                     phoneInternetCustomer(order) <- phone(i);
@@ -152,7 +157,6 @@ postInfCustomer 'Получить информацию о клиенте сбо�
         } ELSE {
             MESSAGE 'В списке нет сборочных заданий WB';
         }
-
     }
 }
 
@@ -167,14 +171,13 @@ cancelOrderDBS 'Отменить сборочное задание' (InternetOrd
             LOCAL statusText = STRING ();
             LOCAL status = STRING ();
 
-
             logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/v3/dbs/orders/' + number(order) + '/cancel');
 
             EXPORT JSON FROM 'value' = number(order) WHERE order IS InternetOrder;
             fileToString(exportFile(), 'UTF-8');
             stringToFile('\{"orders":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
             TRY {
-                EXTERNAL HTTP PATCH url(CategoryRequest.marketplace) + '/api/v3/dbs/orders/' + number(order) + '/cancel' HEADERS httpHeaders  TO response;
+                EXTERNAL HTTP PATCH url(CategoryRequest.marketplace) + '/api/v3/dbs/orders/' + number(order) + '/cancel' HEADERS httpHeaders TO response;
                 fileToString(response());
                 logToFile('WB', resultString());
                 messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
@@ -197,7 +200,7 @@ cancelOrderDBS 'Отменить сборочное задание' (InternetOrd
 }
 
 EXTEND FORM internetOrders
-    PROPERTIES(o) READONLY isWBOrderDBS AFTER isWBOrder(o) 
+    PROPERTIES(o) READONLY isWBOrderDBS AFTER isWBOrder(o)
     PROPERTIES(o) cancelOrderDBS GRID
     PROPERTIES() getOrdersDBSNew, postInfCustomer
 ;
@@ -205,9 +208,9 @@ EXTEND FORM internetOrders
 DESIGN internetOrders {
     wbContainer {
         NEW ordersDBS {
-                caption = 'Сборочные задания DBS';
-                MOVE PROPERTY (getOrdersDBSNew());
-                MOVE PROPERTY (postInfCustomer());
+            caption = 'Сборочные задания DBS';
+            MOVE PROPERTY (getOrdersDBSNew());
+            MOVE PROPERTY (postInfCustomer());
         }
     }
 }
