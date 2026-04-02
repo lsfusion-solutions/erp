@@ -1,6 +1,6 @@
 MODULE InventoryGestori;
 
-REQUIRE SaleReportsRu, DateSkuLedger, PurchaseReturnShipment, SaleReturnShipment, Range;
+REQUIRE SaleReportsRu, DateSkuLedger, PurchaseReturnShipment, SaleReturnShipment, RangeSimple, RangeLevel;
 
 NAMESPACE Inventory;
 
@@ -472,36 +472,80 @@ wrhRCNames 'Подразделения-склад' () = GROUP CONCAT (CONCAT ' '
 
 wrhRCCount() = GROUP SUM 1 IF inWrhRC(Stock s);
 
-FORM dialogWrhRC 'Выбор складов (РЦ)'
-    TREE stockTree sg = StockGroup PARENT parent(sg)
-    PROPERTIES READONLY sgName = name(sg)
+inWrhRCDialog 'Отм.' = DATA LOCAL BOOLEAN (Stock);
+
+wrhRCStockList = DATA LOCAL StockList();
+nameWrhRCStockList 'Список подразделений-склад' () = name(wrhRCStockList());
+
+changeWrhRCStockList 'Список подразделений-склад'() {
+    DIALOG stockLists OBJECTS o INPUT DO {
+        wrhRCStockList() <- o;
+        inWrhRCDialog(Stock s) <- in(o, s);
+    }
+}
+
+deleteIncludeWrhRCStockLists 'Сбросить список'() {
+    wrhRCStockList() <- NULL;
+    inWrhRCDialog(Stock s) <- NULL;
+} ASON CONTEXTMENU nameWrhRCStockList;
+
+FORM dialogWrhRCStocks 'Выбор складов (РЦ)'
+    TREE stockTree a = BPSTRING[3], sg = StockGroup PARENT parent(sg)
+    PROPERTIES READONLY VALUE(a), name(sg)
+    ORDERS name(sg)
+    FILTERS stringEqualsAll(a)
 
     OBJECTS s = Stock
-    PROPERTIES(s) inWrhRC
-    PROPERTIES(s) READONLY id, name
-    FILTERS isCompany(s), active(s)
-    FILTERS isParent(sg, s) OR s IS Stock AND NOT sg IS StockGroup
+    PROPERTIES(s) READONLY id, name, address, nameRegion
+    PROPERTIES(s) inWrhRCDialog READONLYIF wrhRCStockList()
+    PROPERTIES changeWrhRCStockList() TOOLBAR
     ORDERS name(s)
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
+        isCompany(s),
+        countCompanyStock(sg)
+
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT
+    FILTERGROUP select FILTER 'Отм.' inWrhRCDialog(s) 'F9'
+
+    EVENTS
+        ON INIT {
+            inWrhRCDialog(Stock st) <- inWrhRC(st);
+        },
+        ON OK {
+            inWrhRC(Stock st) <- inWrhRCDialog(st);
+        }
 ;
 
-DESIGN dialogWrhRC {
+DESIGN dialogWrhRCStocks {
     BOX {
+        size = (1024, 768);
         NEW topContainer {
             horizontal = TRUE;
             fill = 1;
-            MOVE BOX(TREE stockTree) { caption = 'Группы'; }
-            MOVE BOX(s) { fill = 3; GRID(s) { defaultComponent = TRUE; } }
+            MOVE BOX(TREE stockTree) {
+                caption = 'Склады';
+            }
+            MOVE BOX(s) {
+                fill = 3;
+                GRID(s) {
+                    defaultComponent = TRUE;
+                }
+                PROPERTY(name(s)){
+                    charWidth = 35;
+                }
+            }
         }
         MOVE TOOLBARBOX;
     }
 }
 
 changeWrhRC() {
-    DIALOG dialogWrhRC;
-    IF wrhRCCount() = 1 THEN {
-        wrhMasterStock() <- GROUP MIN Stock st IF inWrhRC(st);
-    } ELSE IF NOT inWrhRC(wrhMasterStock()) THEN {
-        wrhMasterStock() <- GROUP MIN Stock st IF inWrhRC(st);
+    DIALOG dialogWrhRCStocks DO {
+        IF wrhRCCount() = 1 THEN {
+            wrhMasterStock() <- GROUP MIN Stock st IF inWrhRC(st);
+        } ELSE IF NOT inWrhRC(wrhMasterStock()) THEN {
+            wrhMasterStock() <- GROUP MIN Stock st IF inWrhRC(st);
+        }
     }
 }
 
@@ -538,7 +582,12 @@ changeWrhRetailPriceStock() {
 
 inWrhRange 'Отм.' = DATA LOCAL BOOLEAN (Range.Range);
 
-wrhRangeNames 'Ассортиментные матрицы' () = GROUP CONCAT name(Range.Range r) IF inWrhRange(r), ', ' ORDER name(r), r CHARWIDTH 40;
+anyWrhRange() = GROUP MAX inWrhRange(Range.Range r);
+
+wrhRangeNames 'Ассортиментные матрицы' () =
+    IF anyWrhRange()
+    THEN (GROUP CONCAT name(Range.Range r) IF inWrhRange(r), ', ' ORDER name(r), r)
+    ELSE 'ВСЕ';
 
 FORM dialogWrhRange 'Выбор ассортиментных матриц'
     OBJECTS r = Range.Range
@@ -555,12 +604,19 @@ changeWrhRange() {
 wrhEffectiveDate() = OVERRIDE wrhReportDate(), currentDate();
 
 wrhSkuInRange(Sku s, Range.Range r) =
-    GROUP SUM 1 IF in(s, r, store(DepartmentStore ds), wrhEffectiveDate()) AND inSaleReport(ds);
+    (include(r, s, wrhEffectiveDate()) OR level(r, s, wrhEffectiveDate()))
+        IF NOT inactive(r);
 
 wrhInRange(Sku s, Range.Range r) = '+' IF wrhSkuInRange(s, r);
 
+wrhInAnySelectedRange(Sku s) =
+    NOT anyWrhRange() OR (GROUP SUM 1 IF inWrhRange(Range.Range r) AND wrhSkuInRange(s, r));
+
+wrhInAnyActiveRange(Sku s) =
+    GROUP SUM 1 IF wrhSkuInRange(s, Range.Range r);
+
 wrhMatrixBelonging 'Принадлежность к матрицам' (Sku s) =
-    GROUP CONCAT name(Range.Range r) IF NOT inactive(r) AND wrhSkuInRange(s, r), ', ' ORDER name(r), r CHARWIDTH 30;
+    GROUP CONCAT name(Range.Range r) IF wrhSkuInRange(s, r), ', ' ORDER name(r), r CHARWIDTH 30;
 
 wrhShippedQty 'Отгружено со склада за период, кол-во' (Sku s) =
     GROUP SUM abs(signedQuantity(OutFIFOSkuLedger l))
@@ -571,8 +627,6 @@ wrhLastReceiptDate 'Дата последнего прихода на склад
     GROUP LAST date(Purchase.ShipmentDetail d)
     ORDER date(d), d
     WHERE isPosted(d) AND inWrhRC(customerStock(d)) AND sku(d) = s;
-
-wrhAvgMonthlySales 'Ср мес продажи' = DATA LOCAL NUMERIC[14,3] (Sku);
 
 wrhSupplier(Sku s) =
     GROUP LAST supplier(Purchase.ShipmentDetail d)
@@ -622,10 +676,6 @@ wrhTotalBalance 'Итог остаток в сети в штуках' (Sku s) = 
 wrhTotalBalanceSum 'Итог остаток в сети в рублях' (Sku s) = wrhShopBalanceSum(s) (+) wrhRCBalanceSum(s);
 wrhTotalDaysOfSupply 'Итого запас в днях' (Sku s) = wrhShopDaysOfSupply(s) (+) wrhRCDaysOfSupply(s);
 
-wrhInTransit 'Кол-во товара в пути' = DATA LOCAL NUMERIC[14,3] (Sku);
-
-wrhPackQty 'Кол-во шт в месте на РЦ' = DATA LOCAL NUMERIC[14,3] (Sku);
-
 wrhAccountPrice 'Учетная цена на РЦ, руб.' (Sku s) =
     accountPriceA(s, wrhMasterStock(), wrhReportDateTime());
 
@@ -636,9 +686,6 @@ wrhMarkupPct '%ТН' (Sku s) =
     NUMERIC[10,2](round2((wrhRetailPriceSku(s) / wrhAccountPrice(s) - 1.0) * 100.0))
         IF wrhAccountPrice(s) > 0;
 
-wrhOrderFrequency 'Частота заказов в днях' = DATA LOCAL INTEGER (Sku);
-wrhDeliveryTime 'Время доставки в днях' = DATA LOCAL INTEGER (Sku);
-
 wrhReserve 'Резерв' (Sku s) =
     GROUP SUM currentReservePurchase(s, Stock st) IF inWrhRC(st);
 
@@ -646,46 +693,9 @@ wrhSpecPrice 'Цена в действующей спецификации' (Sku 
     priceA(SystemLedgerPriceListType.supplierPricingPriceListType, s, wrhMasterStock(), wrhReportDateTime())
         IF companyA(SystemLedgerPriceListType.supplierPricingPriceListType, s, wrhMasterStock(), wrhReportDateTime()) = wrhSupplier(s);
 
-wrhOrderQty 'Заказ шт' = DATA LOCAL NUMERIC[14,3] (Sku);
-
-wrhOrderPlaces 'Заказ мест' (Sku s) =
-    NUMERIC[10,2](round2(wrhOrderQty(s) / wrhPackQty(s))) IF wrhPackQty(s) > 0;
-
-wrhPlacesInLayer 'Кол-во мест в слое' = DATA LOCAL NUMERIC[10,0] (Sku);
-
-wrhPlacesInPallet 'Кол-во мест в паллете' = DATA LOCAL NUMERIC[10,0] (Sku);
-
-wrhRoundPallet 'Округление до паллет' (Sku s) =
-    NUMERIC[10,2](round2(wrhOrderPlaces(s) / wrhPlacesInPallet(s))) IF wrhPlacesInPallet(s) > 0;
-
-wrhRoundLayer 'Округление до слоев' (Sku s) =
-    NUMERIC[10,2](round2(wrhOrderPlaces(s) / wrhPlacesInLayer(s))) IF wrhPlacesInLayer(s) > 0;
-
-wrhCurDiscount 'Размер скидки от цены поставщика' = DATA LOCAL NUMERIC[10,2] (Sku);
-wrhCurActionPrice 'акц цена' = DATA LOCAL NUMERIC[14,2] (Sku);
-wrhCurActionPriceField 'акц цена на поле' = DATA LOCAL NUMERIC[14,2] (Sku);
-wrhCurActionMarkup '%ТН' = DATA LOCAL NUMERIC[10,2] (Sku);
-wrhCurActionStart 'Начало акции' = DATA LOCAL DATE (Sku);
-wrhCurActionEnd 'Окончание акции' = DATA LOCAL DATE (Sku);
-wrhCurShipStart 'Дата начало отгруз по ак цене' = DATA LOCAL DATE (Sku);
-wrhCurShipEnd 'Отгруз по ак цене до:' = DATA LOCAL DATE (Sku);
-wrhCurActionType 'Тип акции' = DATA LOCAL STRING[100] (Sku);
-
-wrhFutDiscount 'Размер скидки от цены поставщика' = DATA LOCAL NUMERIC[10,2] (Sku);
-wrhFutActionPrice 'акц цена' = DATA LOCAL NUMERIC[14,2] (Sku);
-wrhFutActionPriceField 'акц цена на поле' = DATA LOCAL NUMERIC[14,2] (Sku);
-wrhFutActionMarkup '%ТН' = DATA LOCAL NUMERIC[10,2] (Sku);
-wrhFutActionStart 'Начало акции' = DATA LOCAL DATE (Sku);
-wrhFutActionEnd 'Окончание акции' = DATA LOCAL DATE (Sku);
-wrhFutShipStart 'Дата начало отгруз по ак цене' = DATA LOCAL DATE (Sku);
-wrhFutShipEnd 'Отгруз по ак цене до:' = DATA LOCAL DATE (Sku);
-wrhFutActionType 'Тип акции' = DATA LOCAL STRING[100] (Sku);
-
-wrhTop500 'Порядковый № в ТОП 500' = DATA LOCAL INTEGER (Sku);
-
 wrhPriceSegment 'Ценовая сегментация' (Sku s) = namePriceSegment(s);
 
-wrhHasData(Sku s) = wrhSkuFilter(s) AND
+wrhHasData(Sku s) = wrhSkuFilter(s) AND wrhInAnySelectedRange(s) AND
     (wrhShippedQty(s) OR wrhRetailSalesQty(s) OR wrhShopBalance(s) OR wrhRCBalance(s) OR wrhAccountPrice(s));
 
 wrhInitDates() {
@@ -694,95 +704,10 @@ wrhInitDates() {
     wrhMasterStock() <- GROUP MIN Stock st IF inWrhRC(st);
 }
 
-wrhImportPromo 'Импорт акций из Excel' () {
-    INPUT f = EXCELFILE DO {
-        LOCAL impBarcode = STRING[30] (INTEGER);
-        LOCAL impDiscount = NUMERIC[10,2] (INTEGER);
-        LOCAL impPrice = NUMERIC[14,2] (INTEGER);
-        LOCAL impPriceF = NUMERIC[14,2] (INTEGER);
-        LOCAL impMargin = NUMERIC[10,2] (INTEGER);
-        LOCAL impStart = DATE (INTEGER);
-        LOCAL impEnd = DATE (INTEGER);
-        LOCAL impShipFrom = DATE (INTEGER);
-        LOCAL impShipTo = DATE (INTEGER);
-        LOCAL impType = STRING[100] (INTEGER);
-
-        IMPORT XLS FROM f TO impBarcode, impDiscount, impPrice, impPriceF, impMargin,
-                impStart, impEnd, impShipFrom, impShipTo, impType;
-
-        FOR Sku sk = skuBarcode(impBarcode(INTEGER i)) DO {
-            wrhCurDiscount(sk) <- impDiscount(i);
-            wrhCurActionPrice(sk) <- impPrice(i);
-            wrhCurActionPriceField(sk) <- impPriceF(i);
-            wrhCurActionMarkup(sk) <- impMargin(i);
-            wrhCurActionStart(sk) <- impStart(i);
-            wrhCurActionEnd(sk) <- impEnd(i);
-            wrhCurShipStart(sk) <- impShipFrom(i);
-            wrhCurShipEnd(sk) <- impShipTo(i);
-            wrhCurActionType(sk) <- impType(i);
-        }
-    }
-}
-
-wrhImportFutPromo 'Импорт акций будущего месяца' () {
-    INPUT f = EXCELFILE DO {
-        LOCAL impBarcode = STRING[30] (INTEGER);
-        LOCAL impDiscount = NUMERIC[10,2] (INTEGER);
-        LOCAL impPrice = NUMERIC[14,2] (INTEGER);
-        LOCAL impPriceF = NUMERIC[14,2] (INTEGER);
-        LOCAL impMargin = NUMERIC[10,2] (INTEGER);
-        LOCAL impStart = DATE (INTEGER);
-        LOCAL impEnd = DATE (INTEGER);
-        LOCAL impShipFrom = DATE (INTEGER);
-        LOCAL impShipTo = DATE (INTEGER);
-        LOCAL impType = STRING[100] (INTEGER);
-
-        IMPORT XLS FROM f TO impBarcode, impDiscount, impPrice, impPriceF, impMargin,
-                impStart, impEnd, impShipFrom, impShipTo, impType;
-
-        FOR Sku sk = skuBarcode(impBarcode(INTEGER i)) DO {
-            wrhFutDiscount(sk) <- impDiscount(i);
-            wrhFutActionPrice(sk) <- impPrice(i);
-            wrhFutActionPriceField(sk) <- impPriceF(i);
-            wrhFutActionMarkup(sk) <- impMargin(i);
-            wrhFutActionStart(sk) <- impStart(i);
-            wrhFutActionEnd(sk) <- impEnd(i);
-            wrhFutShipStart(sk) <- impShipFrom(i);
-            wrhFutShipEnd(sk) <- impShipTo(i);
-            wrhFutActionType(sk) <- impType(i);
-        }
-    }
-}
-
-wrhImportAvgSales 'Импорт ср. мес. продаж' () {
-    INPUT f = EXCELFILE DO {
-        LOCAL impBarcode = STRING[30] (INTEGER);
-        LOCAL impAvg = NUMERIC[14,3] (INTEGER);
-
-        IMPORT XLS FROM f TO impBarcode, impAvg;
-
-        FOR Sku sk = skuBarcode(impBarcode(INTEGER i)) DO {
-            wrhAvgMonthlySales(sk) <- impAvg(i);
-        }
-    }
-}
-
-wrhImportTop500 'Импорт ТОП-500' () {
-    INPUT f = EXCELFILE DO {
-        LOCAL impBarcode = STRING[30] (INTEGER);
-        LOCAL impRank = INTEGER (INTEGER);
-
-        IMPORT XLS FROM f TO impBarcode, impRank;
-
-        FOR Sku sk = skuBarcode(impBarcode(INTEGER i)) DO {
-            wrhTop500(sk) <- impRank(i);
-        }
-    }
-}
-
 FORM warehouseReport 'Отчет по складу'
     PROPERTIES() wrhReportDate, wrhDaysBack
-    PROPERTIES() wrhRCNames ON CHANGE changeWrhRC()
+    PROPERTIES() nameWrhRCStockList READONLY SHOWIF wrhRCStockList()
+    PROPERTIES() wrhRCNames ON CHANGE changeWrhRC() READONLYIF wrhRCStockList()
     PROPERTIES() nameWrhMasterStock ON CHANGE changeWrhMasterStock()
     PROPERTIES() nameWrhRetailPriceStock ON CHANGE changeWrhRetailPriceStock()
     PROPERTIES() wrhRangeNames ON CHANGE changeWrhRange()
@@ -793,49 +718,23 @@ FORM warehouseReport 'Отчет по складу'
     PROPERTIES wrhSkus 'Товары' = inSkus() ON CHANGE selectSkus() READONLYIF anySkuList() OR anySkuGroup()
 
     OBJECTS r = Range.Range
-    FILTERS inWrhRange(r)
-//    ORDERS name(r)
+    FILTERS (NOT anyWrhRange() OR inWrhRange(r)) AND NOT inactive(r)
 
     OBJECTS s = Sku
     PROPERTIES(s) READONLY
     id, idBarcode, name, wrhPriceSegment, wrhMatrixBelonging, wrhSupplierName,
-        wrhShippedQty, wrhLastReceiptDate
-    PROPERTIES(s)
-    wrhAvgMonthlySales
-    PROPERTIES(s) READONLY
-    wrhRetailSalesQty, wrhShopBalance, wrhShopBalanceSum, wrhShopDaysOfSupply,
+        wrhShippedQty, wrhLastReceiptDate,
+        wrhRetailSalesQty, wrhShopBalance, wrhShopBalanceSum, wrhShopDaysOfSupply,
         wrhRCBalance, wrhRCBalanceSum, wrhRCDaysOfSupply,
-        wrhTotalBalance, wrhTotalBalanceSum, wrhTotalDaysOfSupply
-    PROPERTIES(s)
-    wrhInTransit
-    PROPERTIES(s) READONLY
-    wrhPackQty, wrhAccountPrice, wrhRetailPriceSku, wrhMarkupPct
-    PROPERTIES(s)
-    wrhOrderFrequency, wrhDeliveryTime
-    PROPERTIES(s) READONLY
-    wrhReserve, wrhSpecPrice
-    PROPERTIES(s)
-    wrhOrderQty
-    PROPERTIES(s) READONLY
-    wrhOrderPlaces
-    PROPERTIES(s)
-    wrhPlacesInLayer, wrhPlacesInPallet
-    PROPERTIES(s) READONLY
-    wrhRoundPallet, wrhRoundLayer
-    PROPERTIES(s)
-    wrhCurDiscount, wrhCurActionPrice, wrhCurActionPriceField, wrhCurActionMarkup,
-        wrhCurActionStart, wrhCurActionEnd, wrhCurShipStart, wrhCurShipEnd, wrhCurActionType,
-        wrhFutDiscount, wrhFutActionPrice, wrhFutActionPriceField, wrhFutActionMarkup,
-        wrhFutActionStart, wrhFutActionEnd, wrhFutShipStart, wrhFutShipEnd, wrhFutActionType
+        wrhTotalBalance, wrhTotalBalanceSum, wrhTotalDaysOfSupply,
+        wrhAccountPrice, wrhRetailPriceSku, wrhMarkupPct,
+        wrhReserve, wrhSpecPrice
     PROPERTIES READONLY COLUMNS (r) HEADER name(r) wrhInRange(s, r)
-    PROPERTIES(s) wrhTop500
     FILTERS wrhHasData(s)
     ORDERS name(s)
 
     FILTERGROUP wrhDataFilter
         FILTER 'С остатками/продажами' wrhTotalBalance(s) OR wrhRetailSalesQty(s) OR wrhShippedQty(s) DEFAULT
-
-    PROPERTIES() wrhImportPromo, wrhImportFutPromo, wrhImportAvgSales, wrhImportTop500
 
     EVENTS ON INIT wrhInitDates()
 ;
@@ -855,13 +754,10 @@ DESIGN warehouseReport {
             MOVE PROPERTY(wrhReportDate());
             MOVE PROPERTY(wrhDaysBack()) { flex = 0; }
             MOVE PROPERTY(wrhPrintReport()) { valueClass = 'btn-primary'; }
-            MOVE PROPERTY(wrhImportAvgSales()) { valueClass = 'btn-outline-secondary'; }
-            MOVE PROPERTY(wrhImportPromo()) { valueClass = 'btn-outline-secondary'; }
-            MOVE PROPERTY(wrhImportFutPromo()) { valueClass = 'btn-outline-secondary'; }
-            MOVE PROPERTY(wrhImportTop500()) { valueClass = 'btn-outline-secondary'; }
         }
         NEW row2 {
             alignment = STRETCH;
+            MOVE PROPERTY(nameWrhRCStockList()) { alignment = STRETCH; }
             MOVE PROPERTY(wrhRCNames()) { alignment = STRETCH; }
             MOVE PROPERTY(nameWrhMasterStock()) { alignment = STRETCH; }
             MOVE PROPERTY(nameWrhRetailPriceStock()) { alignment = STRETCH; }
