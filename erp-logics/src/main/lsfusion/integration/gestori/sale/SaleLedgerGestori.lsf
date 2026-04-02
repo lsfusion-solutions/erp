@@ -232,13 +232,21 @@ initDates() {
     inSaleOp(Operation o) <- TRUE;
 }
 
+skuInRangeForStock(Sku s, Range.Range r, Stock st, DATE d) =
+    (include(r, s, d) OR in(s, r, store(st), d)) AND NOT inactive(r);
+
+countRangeAll(Sku s, Stock st, DATE d) = GROUP SUM 1 IF skuInRangeForStock(s, Range.Range r, st, d);
+
+rangesAll 'Ассортиментные матрицы' (Sku s, Stock st, DATE d) =
+    GROUP CONCAT name(Range.Range r) IF skuInRangeForStock(s, r, st, d), ', ' ORDER r CHARWIDTH 30;
+
 dateInRange(SaleLedger o) = dateFrom() <= date(o) AND dateTo() >= date(o);
 
 isRetailLedger(SaleLedger o) = o IS DateSaleSkuLedger OR o IS DateReturnSkuLedger;
 
 filterForSalesQty (SaleLedger o) = active(o) AND dateInRange(o) AND inSaleReport(stock(o))
     AND (in(sku(o)) OR inSelectedSkuGroup(sku(o)))
-    AND (NOT withAssortment() OR countRange(sku(o), stock(o), currentDate()))
+    AND (NOT withAssortment() OR countRangeAll(sku(o), stock(o), currentDate()))
     AND (NOT (o IS DateReturnSkuLedger) OR includeReturns())
     AND (
         (salesTypeDefault() != SalesFilterType.wholesale AND isRetailLedger(o))
@@ -332,7 +340,7 @@ FORM bestProdPrint 'Лучшие товары по продажам'
     OBJECTS report = (sku = Sku, stock = Stock)
     PROPERTIES(stock) READONLY 'Подразделение (код)' = id, name
     PROPERTIES(sku) READONLY idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4, id, idBarcode, name, shortNameUOM, expiryText
-    PROPERTIES READONLY ranges 'Ассортиментные матрицы' = ranges(sku, stock, currentDate())
+    PROPERTIES READONLY ranges 'Ассортиментные матрицы' = rangesAll(sku, stock, currentDate())
     PROPERTIES(sku) READONLY 'Ценовой сегмент' = namePriceSegment
     PROPERTIES(sku, stock) READONLY salesQty, accountPriceAtEnd, retailPrice, salesPrice, sumByAccPrice, sumByRetailPrice, salesSum, profit,
         balanceAtEnd, accountSumAtEnd, retailSumAtEnd,
@@ -351,7 +359,7 @@ FORM worstProdPrint 'Худшие товары по продажам'
     OBJECTS report = (sku = Sku, stock = Stock)
     PROPERTIES(stock) READONLY 'Подразделение (код)' = id, name
     PROPERTIES(sku) READONLY idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4, id, idBarcode, name, shortNameUOM, expiryText
-    PROPERTIES READONLY ranges 'Ассортиментные матрицы' = ranges(sku, stock, currentDate())
+    PROPERTIES READONLY ranges 'Ассортиментные матрицы' = rangesAll(sku, stock, currentDate())
     PROPERTIES(sku) READONLY 'Ценовой сегмент' = namePriceSegment
     PROPERTIES(sku, stock) READONLY salesQty, accountPriceAtEnd, retailPrice, salesPrice, sumByAccPrice, sumByRetailPrice, salesSum, profit,
         balanceAtEnd, accountSumAtEnd, retailSumAtEnd,
@@ -384,7 +392,7 @@ FORM bestWorstProducts 'Лучшие и худшие товары по прод�
     OBJECTS bestProducts = (sku = Sku, stock = Stock)
     PROPERTIES(stock) READONLY 'Подразделение (код)' = id, 'Подразделение' = name
     PROPERTIES(sku) READONLY idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4, id, idBarcode, name, shortNameUOM, expiryText
-    PROPERTIES READONLY 'Ассортиментные матрицы' = ranges(sku, stock, currentDate())
+    PROPERTIES READONLY 'Ассортиментные матрицы' = rangesAll(sku, stock, currentDate())
     PROPERTIES(sku) READONLY 'Ценовой сегмент' = namePriceSegment
     PROPERTIES(sku, stock) READONLY salesQty, accountPriceAtEnd, retailPrice, salesPrice, sumByAccPrice, sumByRetailPrice, salesSum, profit,
         balanceAtEnd, accountSumAtEnd, retailSumAtEnd,
@@ -397,7 +405,7 @@ FORM bestWorstProducts 'Лучшие и худшие товары по прод�
     OBJECTS worstProducts = (skuW = Sku, stockW = Stock)
     PROPERTIES(stockW) READONLY 'Подразделение (код)' = id, 'Подразделение' = name
     PROPERTIES(skuW) READONLY idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4, id, idBarcode, name, shortNameUOM, expiryText
-    PROPERTIES READONLY 'Ассортиментные матрицы' = ranges(skuW, stockW, currentDate())
+    PROPERTIES READONLY 'Ассортиментные матрицы' = rangesAll(skuW, stockW, currentDate())
     PROPERTIES(skuW) READONLY 'Ценовой сегмент' = namePriceSegment
     PROPERTIES(skuW, stockW) READONLY salesQty, accountPriceAtEnd, retailPrice, salesPrice, sumByAccPrice, sumByRetailPrice, salesSum, profit,
         balanceAtEnd, accountSumAtEnd, retailSumAtEnd,
@@ -835,12 +843,12 @@ nameAMFilterMode 'Фильтр ассортимента' = name(amFilterModeDefa
 amInSkuFilter(Sku s) = NOT anyAMSkuSelected() OR inAMSku(s) OR inAMSkuByGroup(s);
 
 amSkuInRange(Sku s, Range.Range r, Stock st) =
-    (include(r, st, s, dateTo()) OR in(s, r, store(st), dateTo())) AND NOT inactive(r);
+    skuInRangeForStock(s, r, st, dateTo());
 
 amInMatrix(Sku s, Stock st) = GROUP SUM 1 IF amSkuInRange(s, Range.Range r, st);
 
 amRanges 'Ассортиментные матрицы' (Sku s, Stock st) =
-    GROUP CONCAT name(Range.Range r) IF amSkuInRange(s, r, st), ', ' ORDER r CHARWIDTH 30;
+    GROUP CONCAT name(Range.Range r) IF amSkuInRange(s, r, st), ', ' ORDER name(r), r CHARWIDTH 30;
 
 amFilter(Sku s, Stock st) = inSaleReport(st) AND amInSkuFilter(s)
     AND (amFilterModeDefault() = AMFilterMode.all OR amInMatrix(s, st));
