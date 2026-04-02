@@ -20,8 +20,8 @@ FORM importWBOrders
 
     OBJECTS orders = INTEGER
 
-    PROPERTIES(orders) cargoType, groupId, nmId, finalPrice, rid, createdAt, isZeroOrder, price, convertedCurrencyCode, 
-        id, salePrice, article, convertedFinalPrice, convertedPrice, orderUid, warehouseId, comment, colorCode,  
+    PROPERTIES(orders) cargoType, groupId, nmId, finalPrice, rid, createdAt, isZeroOrder, price, convertedCurrencyCode,
+        id, salePrice, article, convertedFinalPrice, convertedPrice, orderUid, warehouseId, comment, colorCode,
         chrtId, currencyCode
 
     OBJECTS skus = INTEGER
@@ -171,16 +171,21 @@ cancelOrderDBS 'Отменить сборочное задание' (InternetOrd
             LOCAL statusText = STRING ();
             LOCAL status = STRING ();
 
-            logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/v3/dbs/orders/' + number(order) + '/cancel');
+            logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/marketplace/v3/dbs/orders/status/cancel');
 
-            EXPORT JSON FROM 'value' = number(order) WHERE order IS InternetOrder;
+            EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder o)) WHERE o = order;
             fileToString(exportFile(), 'UTF-8');
-            stringToFile('\{"orders":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
+            stringToFile('\{"ordersIds":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
+            
             TRY {
-                EXTERNAL HTTP PATCH url(CategoryRequest.marketplace) + '/api/v3/dbs/orders/' + number(order) + '/cancel' HEADERS httpHeaders TO response;
+                EXTERNAL HTTP POST url(CategoryRequest.marketplace) + '/api/marketplace/v3/dbs/orders/status/cancel' HEADERS httpHeaders PARAMS resultFile() TO response;
                 fileToString(response());
                 logToFile('WB', resultString());
                 messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+                IF statusHttp() == 200 THEN {
+                    status(order) <- StatusInternetOrder.cancel;
+                    APPLY NESTED LOCAL ;
+                }
             } CATCH {
                 logToFile('WB', messageCaughtException());
                 IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
@@ -191,7 +196,6 @@ cancelOrderDBS 'Отменить сборочное задание' (InternetOrd
             } FINALLY {
                 afterSendRequestIS();
                 MESSAGE messageOrder() NOWAIT;
-                APPLY;
             }
         } ELSE {
             MESSAGE 'Выбранный заказ уже в статусе "Отменен".';
@@ -201,7 +205,7 @@ cancelOrderDBS 'Отменить сборочное задание' (InternetOrd
 
 EXTEND FORM internetOrders
     PROPERTIES(o) READONLY isWBOrderDBS AFTER isWBOrder(o)
-    PROPERTIES(o) cancelOrderDBS GRID
+    PROPERTIES(o) cancelOrderDBS GRID SHOWIF isWBOrderDBS(o)
     PROPERTIES() getOrdersDBSNew, postInfCustomer
 ;
 
