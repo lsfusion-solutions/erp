@@ -67,13 +67,16 @@ importDiscounts (STRING connectionString, DATE date) {
     LOCAL date = DATETIME (INTEGER );
     LOCAL increment = NUMERIC (INTEGER );
     LOCAL index = INTEGER (ReceiptDetail);
-    LOCAL receipt = Receipt (INTEGER);     
+    LOCAL receipt = Receipt (INTEGER);
+    LOCAL sku = Sku(INTEGER );
     
     IMPORT FROM file() TO store, cash_number, number, date, local_number, item, increment, card_number, discount_type, name;
 
     idReceipt(INTEGER r) <- NULL;
     idReceipt(INTEGER r) <- CONCAT '_', npp(groupCashRegister(cashRegister(store(r), cash_number(r)))), cash_number(r), number(r), toChar(date(r), 'DDMMYYYY'), local_number(r);
     index(INTEGER r)  <- PARTITION SUM 1 ORDER r BY idReceipt(r), item(r);
+    
+    sku(INTEGER r) <- OVERRIDE sku(item(r)), skuBarcode(item(r));
     
     // у нас нет номеров строк из кассового сервера
     // там могут быть строки с ri.type != 0. При этом position сквозной. в id(ReceiptDetail) они пропущены и расходятся
@@ -89,7 +92,7 @@ importDiscounts (STRING connectionString, DATE date) {
         name(d) <- name + ' УКМ'; //В Артикс по имени ключ, чтобы не пересечься 
     }
     
-    FOR receipt(ReceiptDetail d)  == receipt(INTEGER i) AND idSku(d) == item(i) AND index(d) == index(i) AND STRING(discount_type(i)) == mode(Discount dis) DO {
+    FOR receipt(ReceiptDetail d)  == receipt(INTEGER i) AND sku(d) == sku(i) AND index(d) == index(i) AND STRING(discount_type(i)) == mode(Discount dis) DO {
         discountSum(d, dis) <- -increment(i);
     }
 
