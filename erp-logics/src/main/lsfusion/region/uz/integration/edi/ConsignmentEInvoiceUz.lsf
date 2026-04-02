@@ -81,11 +81,14 @@ createEInvoice 'Создать ЭСФ' (Invoice invoice) {
         NEW ei = EInvoice {
             docType(ei) <- EInvoiceDocType.esf;
             fillEInvoiceData(ei, invoice);
-
-            FOR invoice(InvoiceDetail detail) == invoice ORDER index(detail) INLINE NEW ed = EInvoiceDetail DO {
-                eInvoice(ed) <- ei;
-                fillEInvoiceDetailData(ed, detail);
-                overCreate(ed, detail);
+            NEW eig = EInvoiceDetailGroup {
+                eInvoice(eig) <- ei;
+                FOR invoice(InvoiceDetail detail) == invoice ORDER index(detail) INLINE NEW ed = EInvoiceDetail DO {
+                    eInvoice(ed) <- ei;
+                    eInvoiceDetailGroup(ed) <- eig;
+                    fillEInvoiceDetailData(ed, detail);
+                    overCreate(ed, detail);
+                }
             }
             overCreate(ei, invoice);
         }
