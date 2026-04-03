@@ -686,12 +686,13 @@ wrhMarkupPct '%ТН' (Sku s) =
     NUMERIC[10,2](round2((wrhRetailPriceSku(s) / wrhAccountPrice(s) - 1.0) * 100.0))
         IF wrhAccountPrice(s) > 0;
 
-wrhReserve 'Резерв' (Sku s) =
-    GROUP SUM currentReservePurchase(s, Stock st) IF inWrhRC(st);
+wrhAmountPack 'Кол-во шт в месте на РЦ' (Sku s) = amount(Purchase.packBarcode(s));
+
+wrhReserve 'Резерв' (Sku s) = abs(GROUP SUM currentReservePurchase(s, Stock st) IF inWrhRC(st));
 
 wrhSpecPrice 'Цена в действующей спецификации' (Sku s) =
-    priceA(SystemLedgerPriceListType.supplierPricingPriceListType, s, wrhMasterStock(), wrhReportDateTime())
-        IF companyA(SystemLedgerPriceListType.supplierPricingPriceListType, s, wrhMasterStock(), wrhReportDateTime()) = wrhSupplier(s);
+    GROUP MAX activePriceA(SystemLedgerPriceListType.supplierPricingPriceListType, s, Stock st, wrhSupplier(s), wrhReportDateTime())
+        IF inWrhRC(st);
 
 wrhPriceSegment 'Ценовая сегментация' (Sku s) = namePriceSegment(s);
 
@@ -727,7 +728,7 @@ FORM warehouseReport 'Отчет по складу'
         wrhRetailSalesQty, wrhShopBalance, wrhShopBalanceSum, wrhShopDaysOfSupply,
         wrhRCBalance, wrhRCBalanceSum, wrhRCDaysOfSupply,
         wrhTotalBalance, wrhTotalBalanceSum, wrhTotalDaysOfSupply,
-        wrhAccountPrice, wrhRetailPriceSku, wrhMarkupPct,
+        wrhAmountPack, wrhAccountPrice, wrhRetailPriceSku, wrhMarkupPct,
         wrhReserve, wrhSpecPrice
     PROPERTIES READONLY COLUMNS (r) HEADER name(r) wrhInRange(s, r)
     FILTERS wrhHasData(s)
