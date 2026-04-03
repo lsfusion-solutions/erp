@@ -18,18 +18,36 @@ inSessionSku 'Отм.' (Sku s) = OVERRIDE in(s), TRUE IF (GROUP SUM 1 IF inSessi
 printInSessionSku 'Товары' () =
     GROUP CONCAT name(Sku s) IF inSessionSku(s) ,', ' ORDER s CHARWIDTH 100;
 
-inSaleReportLegalEntities 'Покупатели' () =
-    GROUP CONCAT name(LegalEntity le) IF in(le) ,', ' ORDER le CHARWIDTH 30;
+inCustomer 'Отм.' = DATA LOCAL BOOLEAN (LegalEntity);
+inSaleReportCustomer 'Покупатели' () =
+    GROUP CONCAT name(LegalEntity le) IF inCustomer(le) ,', ' ORDER le CHARWIDTH 30;
+
+legalEntityCustomerList = DATA LOCAL LegalEntityList();
+nameLegalEntityCustomerList 'Список организаций' () = name(legalEntityCustomerList());
+
+changeLegalEntityCustomer 'Список организаций'() {
+    DIALOG legalEntityLists OBJECTS o INPUT DO {
+        legalEntityCustomerList() <- o;
+        inCustomer(LegalEntity s) <- in(s, o);
+    }
+}
+
+deleteIncludeLegalEntitiesCustomer 'Сбросить список'()  {
+    legalEntityCustomerList() <- NULL;
+    inCustomer(LegalEntity l) <- NULL;
+} ASON CONTEXTMENU nameLegalEntityCustomerList;
 
 FORM dialogLegalEntitiesSaleReport 'Выбор покупателя'
     TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parent(lg)
     PROPERTIES READONLY lgTreeName = name(lg)
 
     OBJECTS l = LegalEntity
-    PROPERTIES(l) in
+    PROPERTIES(l) inCustomer READONLYIF legalEntityCustomerList()
     PROPERTIES(l) READONLY name, id SHOWIF showIDs(), fullName, nameLegalEntityGroup
+    PROPERTIES changeLegalEntityCustomer() TOOLBAR
     ORDERS name(l)
     FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT
+    FILTERGROUP inCustomer FILTER 'Отмеченные' in(l) 'F9'
     FILTERGROUP include FILTER 'Отмеченные' in(l) 'F9'
     FILTERS isParent(legalEntityGroup(l), lg) OR
         l IS LegalEntity AND NOT lg IS LegalEntityGroup OR
@@ -204,21 +222,31 @@ changeStocksSalesReportRu(GroupType gt, DATE df, DATE dt, DATE dfc, DATE dtc)  {
     }
 }
 
-skuList = DATA LOCAL List();
-nameSkuList 'Список товаров' () = name(skuList());
+inReportSkuList 'Отм.' = DATA LOCAL BOOLEAN (List);
+anyReportSkuList() = GROUP MAX inReportSkuList(List l);
+nameSkuList 'Список товаров' () = GROUP CONCAT name(List l) IF inReportSkuList(l), ', ' ORDER name(l), l CHARWIDTH 30;;
+
+FORM dialogReportSkuLists 'Выбор списков товаров'
+    OBJECTS o = List
+    PROPERTIES(o) inReportSkuList
+    PROPERTIES(o) READONLY name
+    ORDERS name(o)
+
+    EVENTS ON OK {
+        inSessionSku(Sku sku) <- in(o, sku);
+    }
+;
 
 changeSkuList 'Список товаров'() {
-    DIALOG lists OBJECTS o INPUT DO {
-        skuList() <- o;
-        in(Sku s) <- NULL;
-        in(SkuGroup sg) <- NULL;
-        FOR list(ListDetail ld) = o DO
-        in(Sku s) <- TRUE WHERE s = sku(ld);
+    DIALOG dialogReportSkuLists OBJECTS o INPUT DO {
+        inSessionSku(Sku s) <- NULL;
+        FOR inReportSkuList(list(ListDetail ld)) AND Sku sk = sku(ld) DO
+            inSessionSku(sk) <- TRUE;
     }
 }
 
 deleteIncludeSkuLists 'Сбросить список'()  {
-    skuList() <- NULL;
+    inReportSkuList(List l) <- NULL;
 } ASON CONTEXTMENU nameSkuList;
 
 
@@ -320,7 +348,7 @@ shortNameUOM(STRING[100] n, Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP M
 FORM skuSaleReport 'Отчет по реализации'
     OBJECTS dates = (df = DATE, dt = DATE) PANEL
     PROPERTIES df 'Дата с' = VALUE(df), dt 'Дата по' = VALUE(dt), inSaleReportStocks(),
-        inSaleReportLegalEntities(), nameInOperations(), nameSkuList(), nameStockList(), nameLegalEntityList() 
+        nameLegalEntityCustomerList(), nameInOperations(), nameSkuList(), nameStockList() 
     
     OBJECTS st = Stock
     PROPERTIES name(st)
@@ -330,7 +358,7 @@ FORM skuSaleReport 'Отчет по реализации'
     OBJECTS l = LegalEntity
     PROPERTIES name(l)
     PROPERTIES(st,l,df,dt) quantity, shipmentSum, sum, sumVAT, sumNoVAT, discountSum, costSum, profitSum
-    FILTERS in(l) OR NOT inSaleReportLegalEntities(),
+    FILTERS inCustomer(l) OR NOT inSaleReportCustomer(),
         quantity(st,l,df,dt)
     
     OBJECTS s = Sku
@@ -358,9 +386,9 @@ printSkuSaleReportXLS 'Отчет по реализации (XLS)' (DATE df, DAT
 } IMAGE 'apply.png';
 
 EXTEND FORM salesReport
-    PROPERTIES inSaleReportLegalEntities() ON CHANGE {DIALOG dialogLegalEntitiesSaleReport; }
+    PROPERTIES nameLegalEntityCustomerList() READONLY SHOWIF legalEntityCustomerList(), inSaleReportCustomer() ON CHANGE {DIALOG dialogLegalEntitiesSaleReport; }
 //    PROPERTIES inSaleReportStocks() ON CHANGE changeStocksSalesReport(gt, df, dt, dfc, dtc)
-    PROPERTIES DRAW sku changeSkuList() TOOLBAR, nameSkuList() PANEL READONLY
+    PROPERTIES DRAW sku changeSkuList() PANEL, nameSkuList() PANEL READONLY
     PROPERTIES nameStockList() READONLY SHOWIF stockList(), inSaleReportStocks 'Склады' = inSaleReportStocks() ON CHANGE changeStocksSalesReportRu(gt, df, dt, dfc, dtc) READONLYIF stockList()
     PROPERTIES nameLegalEntityList() READONLY SHOWIF legalEntityList(), inSaleReportSupplier() ON CHANGE {DIALOG dialogLegalEntitiesSupplier;} READONLYIF legalEntityList()
     PROPERTIES nameInOperations() ON CHANGE {DIALOG selectOperations; }
@@ -372,8 +400,8 @@ DESIGN salesReport {
     top {
         NEW legalEntity {
             caption = 'Покупатели';
-            horizontal = TRUE;
-            MOVE PROPERTY(inSaleReportLegalEntities());
+            MOVE PROPERTY(nameLegalEntityCustomerList());
+            MOVE PROPERTY(inSaleReportCustomer());
         }
         
         stocks {
