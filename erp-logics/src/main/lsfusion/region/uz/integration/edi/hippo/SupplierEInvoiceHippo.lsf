@@ -64,7 +64,7 @@ send(EInvoice ei) + {
             resultFile() <- exportFile();
 
             // 1. Получение хеш-кода для отправки
-            sendPostRequestEDI(clientIDHippo(), clientSecretHippo(), apiUrlHippo() + '/document-generator-client-api/roaming/invoice/generate/send-hash-code', resultFile(), NULL, NULL);
+            sendPostRequestEDI(clientIDHippo(), clientSecretHippo(), apiUrlHippo() + '/document-generator-client-api/roaming/invoice/generate/send-hash-code', resultFile(), TRUE, NULL);
             
             IF sendRequestEDIStatus() == 200 THEN {
                 IMPORT JSON FROM sendRequestEDIResponse() TO() hashcode;
@@ -86,7 +86,7 @@ send(EInvoice ei) + {
                         timestampRequestFile() <- exportFile();
                         
                         // 3. Получение метки времени
-                        sendPostRequestEDI(clientIDHippo(), clientSecretHippo(), apiUrlHippo() + '/eimzo-client-api/pkcs7/attach-timestamp', timestampRequestFile(), NULL, NULL);
+                        sendPostRequestEDI(clientIDHippo(), clientSecretHippo(), apiUrlHippo() + '/eimzo-client-api/pkcs7/attach-timestamp', timestampRequestFile(), TRUE, NULL);
                         
                         IF sendRequestEDIStatus() == 200 THEN {
                             IMPORT JSON FROM sendRequestEDIResponse() TO() pkcs7 = pkcs7b64;
@@ -98,7 +98,7 @@ send(EInvoice ei) + {
                                 finalRequestFile() <- exportFile();
                                 
                                 // 4. Финальная отправка документа
-                                sendPostRequestEDI(clientIDHippo(), clientSecretHippo(), apiUrlHippo() + '/roaming-client-api/invoice/send', finalRequestFile(), NULL, NULL);
+                                sendPostRequestEDI(clientIDHippo(), clientSecretHippo(), apiUrlHippo() + '/roaming-client-api/invoice/send', finalRequestFile(), TRUE, NULL);
                                 
                                 IF sendRequestEDIStatus() == 200 THEN {
                                     IMPORT JSON FROM sendRequestEDIResponse() TO() extId;
