@@ -8,12 +8,12 @@ processEInvoiceMessage (INTEGER i, STRING[100] login, STRING[100] password, TEXT
     FOR EInvoice ei = eInvoiceDeliveryNoteNumber(eDeliveryNoteNumber()) DO {
         XMLPath(ei) <- archiveDir + '/received/' + toChar(currentDate(), 'yyyyMMdd') + '/' + id(i);
 
-        IF NOT eInvoiceMessage(ei, substr(currentDocumentType(), 4, 3) + eDocumentID(), EInvoiceMessageKind.in) THEN NEW m = EInvoiceMessage {
-            number(m) <- substr(currentDocumentType(), 4, 3) + eDocumentID();
+        IF NOT eInvoiceMessage(ei, eDocumentID(), EInvoiceMessageKind.in) THEN NEW m = EInvoiceMessage {
+            number(m) <- eDocumentID();
             eInvoice(m) <- ei;
             kind(m) <- EInvoiceMessageKind.in;
         }
-        FOR EInvoiceMessage m == eInvoiceMessage(ei, substr(currentDocumentType(), 4, 3) + eDocumentID(), EInvoiceMessageKind.in) DO {
+        FOR EInvoiceMessage m == eInvoiceMessage(ei, eDocumentID(), EInvoiceMessageKind.in) DO {
             dateTime(m) <- eDateTime();
             code(m) <- eFunctionCode();
             type(m) <- getEInvoiceMessageType(currentDocumentType());
@@ -240,7 +240,7 @@ signAndSendCustomerEInvoice (EInvoice ei, STRING[100] login, STRING[100] passwor
                                     dateCustomer(ei) <- exportBlrwbrDateTime();
                                     overExportCustomer(ei);
                                     NEW em = EInvoiceMessage {
-                                        number(em) <- 'wbr' + STRING[35](resultMilliseconds());
+                                        number(em) <- STRING[35](resultMilliseconds());
                                         eInvoice(em) <- ei;
                                         dateTime(em) <- toDateTimeFormat(toChar(exportBlrwbrDateTime(),'yyyy-MM-ddThh24:mi:ss'),'yyyy-MM-ddThh24:mi:ss');
                                         code(em) <- IF eCreditNote(ei) THEN '21' ELSE '11';
@@ -336,7 +336,7 @@ signAndSendCustomerEInvoiceTN2 (EInvoice ei, STRING[100] login, STRING[100] pass
                                     dateCustomer(ei) <- exportBlrdnrDateTime();
                                     overExportCustomer(ei);
                                     NEW em = EInvoiceMessage {
-                                        number(em) <- 'dnr' + STRING[35](resultMilliseconds());
+                                        number(em) <- STRING[35](resultMilliseconds());
                                         eInvoice(em) <- ei;
                                         dateTime(em) <- toDateTimeFormat(toChar(exportBlrdnrDateTime(),'yyyy-MM-ddThh24:mi:ss'),'yyyy-MM-ddThh24:mi:ss');
                                         code(em) <- IF eCreditNote(ei) THEN '21' ELSE '11';

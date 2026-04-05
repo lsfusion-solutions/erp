@@ -74,7 +74,7 @@ dataAddressSupplierStockFirst = DATA STRING[150] (EInvoice);
 dataAddressSupplierStock = DATA STRING[150] (EInvoice);
 overAddressSupplierStock = ABSTRACT ISTRING[250] (EInvoice);
 addressSupplierStock 'Адрес пункта погрузки' (EInvoice i) = OVERRIDE dataAddressSupplierStockFirst(i), overAddressSupplierStock(i), address(supplierStock(i)), dataAddressSupplierStock(i);
-contactSupplierStock 'Сдал грузоотправитель (должность и ФИО)' = DATA STRING[150] (EInvoice) INDEXED MATCH;
+contactSupplierStock 'Сдал грузоотправитель (должность и ФИО)' = DATA STRING[150] (EInvoice);
 
 userID 'Идентификатор пользователя' = ABSTRACT STRING[35] (Stock);
 stockGLNUserID (STRING[13] GLNLE, STRING[13] GLN, STRING[35] userID) = GROUP MIN Stock s IF active(s) AND GLNeInvoice(legalEntity(s)) == GLNLE AND GLN(s) == GLN AND (OVERRIDE userID(s), '') == userID;
@@ -125,15 +125,15 @@ glnTransporter 'GLN автомобильного перевозчика' (EInvoi
 nameTransporter 'Автомобильный перевозчик' (EInvoice i) = fullName(transporter(i));
 unpTransporter 'УНП автомобильного перевозчика' (EInvoice i) = taxpayerId(transporter(i));
 
-transportContact 'Водитель' = DATA STRING[150] (EInvoice) INDEXED MATCH;
-deliveryContact 'Товар к перевозке принял (должность и ФИО)' = DATA STRING[150] (EInvoice) INDEXED MATCH;
+transportContact 'Водитель' = DATA STRING[150] (EInvoice);
+deliveryContact 'Товар к перевозке принял (должность и ФИО)' = DATA STRING[150] (EInvoice);
 proxyID 'Номер доверенности' = DATA STRING[70] (EInvoice);
 proxyDate 'Дата доверенности' = DATA DATE (EInvoice);
 partyIssuingProxyName 'Наименование организации, выдавшей доверенность' = DATA STRING[175] (EInvoice);
 
 quantityTrip 'Количество ездок' = DATA STRING[70] (EInvoice);
-transportOwnerName 'Владелец автомобиля' = DATA STRING[175] (EInvoice) INDEXED MATCH;
-transportID 'Марка и рег. номер автомобиля' = DATA STRING[35] (EInvoice) INDEXED MATCH;
+transportOwnerName 'Владелец автомобиля' = DATA STRING[175] (EInvoice);
+transportID 'Марка и рег. номер автомобиля' = DATA STRING[35] (EInvoice);
 trailerID 'Марка и рег. номер прицепа' = DATA STRING[35] (EInvoice);
 
 orderID 'Номер заказа' = DATA STRING[35] (EInvoice);
@@ -310,7 +310,7 @@ createdComputer = DATA Computer (EInvoiceMessage);
 createdHostnameComputer '{historizable.created.host.name.computer}' (EInvoiceMessage m) = hostname(createdComputer(m)) CHARWIDTH 10;
 createdComputer (EInvoiceMessage m) <- currentComputer() WHEN SET(m IS EInvoiceMessage);
 
-number 'Номер' = DATA STRING[40] (EInvoiceMessage) INDEXED LIKE;
+number 'Номер' = DATA STRING[40] (EInvoiceMessage);
 eInvoice 'Накладная' = DATA EInvoice (EInvoiceMessage) NONULL DELETE;
 numberEInvoice 'Накладная' (EInvoiceMessage m) = deliveryNoteNumber(eInvoice(m));
 dateTime 'Дата/время сообщения' = DATA DATETIME (EInvoiceMessage);
@@ -331,7 +331,6 @@ nameKind 'Вид' (EInvoiceMessage o) = staticCaption(kind(o)) CHARWIDTH 20;
 
 INDEX eInvoice(EInvoiceMessage m), number(m), kind(m);
 eInvoiceMessage (eInvoice, number, kind) = GROUP AGGR EInvoiceMessage e BY eInvoice(e), number(e), kind(e);
-eInvoiceM(STRING num) = eInvoice(GROUP MAX EInvoiceMessage m IF number(m) LIKE '___'+num OR number(m) == num);//мы добавили тип документа или точное соответствие
 
 EXTEND CLASS EInvoiceMessageType {
     systemmessage_blrwbl 'SYSTEMMESSAGE-BLRWBL',
@@ -352,6 +351,7 @@ type 'Тип' = DATA EInvoiceMessageType (EInvoiceMessage);
 nameType 'Тип' (EInvoiceMessage o) = staticCaption(type(o)) CHARWIDTH 20;
 isSupplier 'Сообщение к исходящей накладной' (EInvoiceMessage m) = type(m) == EInvoiceMessageType.blrapn_blrwbl OR type(m) == EInvoiceMessageType.blrapn_blrdln;
 isCustomer 'Сообщение к входящей накладной' (EInvoiceMessage m) = type(m) == EInvoiceMessageType.blrapn_blrwbr OR type(m) == EInvoiceMessageType.blrapn_blrdnr;
+INDEX eInvoice(EInvoiceMessage m), type(m), code(m);
 
 FORM eInvoices 'Электронные накладные'
     OBJECTS e = EInvoice LAST
