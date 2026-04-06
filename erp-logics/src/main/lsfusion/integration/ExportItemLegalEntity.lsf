@@ -1,0 +1,141 @@
+MODULE ExportItemLegalEntity;
+
+REQUIRE ExportStockDocumentSkuLedger, LegalEntity, Sku, Item, ItemDescription, ItemNutrition, ItemDescription, Warehouse, LotType, PurchasePackItem, SalePackItem;
+
+NAMESPACE Stock;
+
+formatTime (DATETIME dt) = [ FORMULA STRING 'to_char(($1), \'YYYY_MM_DD_HH24_MI_SS\')'](dt);
+needOpen 'Открывать файлы' = DATA LOCAL BOOLEAN ();
+
+FORM exportLegalEntity
+    OBJECTS l = LegalEntity EXTID 'legalEntity'
+    PROPERTIES(l) READONLY id, name, fullName, nameOwnership, shortNameOwnership, nameLegalEntityGroup, countStock,
+        nameCountry, nameCurrency, address, postAddress, addressDefaultWarehouse, phone, email, site,
+        isCompany, isSupplier, isCustomer, nameChief, nameBooker, contacts, numberAccount
+    ORDERS name(l)
+    FILTERS active(l)
+;
+
+FORM exportItem
+    OBJECTS i = Item EXTID 'items'
+    PROPERTIES(i) READONLY id, name, nameAttribute, idItemGroup, canonicalNameItemGroup, nameUOM, 
+        nameManufacturer, nameCountry, nameBrand, composition, nameType, nameKind, nameSort, description,
+        nameConditionStorage, hoursExpiryPack, expiryDays, energy, fats, carbohydrates, proteins, containsGMO, isSupplement,
+        numberVAT, valueVAT, nameSkuType, nameLotType, split, idBarcode, allBarcodes,
+        netWeight, grossWeight, volume, PurchaseAmount=Purchase.amountPack, SaleAmount=Sale.amountPack 
+    FILTERS active(i)
+;
+
+actWriteFile(name) {
+    TRY {
+        mkdir(exportPath());
+        WRITE exportFile() TO exportPath() + '/' + name + '_' + formatTime(currentDateTime());
+    } CATCH {
+        throwException('Ошибка сохранения экспортированных данных: \n' + messageCaughtException());
+    }
+}
+
+actExportItem 'Выгрузка товаров' () {
+    IF NOT exportPath() THEN {
+        throwException('Не задан каталог экспорта');
+    }
+    exportFile() <- NULL;
+
+    TRY {
+        CASE
+            WHEN exportType() == ExportType.json THEN {
+                EXPORT exportItem JSON TO exportFile;
+            }
+            WHEN exportType() == ExportType.xml THEN {
+                EXPORT exportItem XML TO exportFile;
+            }
+            WHEN exportType() == ExportType.xlsx THEN {
+                EXPORT exportItem XLSX HEADER TO i = exportFile;
+            }
+            WHEN exportType() == ExportType.csv THEN {
+                EXPORT exportItem CSV HEADER TO i = exportFile;
+            }
+            ELSE throwException('Не задан тип экспорта');
+
+        actWriteFile('items');
+
+    } FINALLY {}
+}
+
+actExportLegalEntity 'Выгрузка организаций' () {
+    IF NOT exportPath() THEN {
+        throwException('Не задан каталог экспорта');
+    }
+    exportFile() <- NULL;
+    TRY {
+        CASE
+            WHEN exportType() == ExportType.json THEN {
+                EXPORT exportLegalEntity JSON TO exportFile;
+            }
+            WHEN exportType() == ExportType.xml THEN {
+                EXPORT exportLegalEntity XML TO exportFile;
+            }
+            WHEN exportType() == ExportType.xlsx THEN {
+                EXPORT exportLegalEntity XLSX HEADER TO l = exportFile;
+            }
+            WHEN exportType() == ExportType.csv THEN {
+                EXPORT exportLegalEntity CSV HEADER TO l = exportFile;
+            }
+            ELSE throwException('Не задан тип экспорта');
+
+        actWriteFile('legalEntity');
+
+    } FINALLY {}
+}
+
+uiActExportItem 'Выгрузка товаров' () {
+    TRY {
+        actExportItem();
+    } CATCH {
+        MESSAGE 'При выполнении экспорта возникла ошибка: \n' + messageCaughtException() ERROR;
+        RETURN;
+    }
+    MESSAGE 'Экспорт выполнен';
+    IF needOpen() THEN open(exportFile());
+}
+
+uiActExportLegalEntity 'Выгрузка организаций' () {
+    TRY {
+        actExportLegalEntity();
+    } CATCH {
+        MESSAGE 'При выполнении экспорта возникла ошибка: \n' + messageCaughtException() ERROR;
+        RETURN;
+    }
+    MESSAGE 'Экспорт выполнен';
+    IF needOpen() THEN open(exportFile());
+}
+
+EXTEND FORM integrationData
+    PROPERTIES () ctrlExportPath=exportPath, ctrlNameExportType=nameExportType, uiActExportItem, uiActExportLegalEntity, needOpen
+;
+
+DESIGN integrationData {
+    pane {
+        NEW exportData {
+            caption = 'Экспорт справочников';
+            MOVE PROPERTY (ctrlExportPath) {
+                charWidth = 64;
+                alignment = START;
+                flex = 0;
+            };
+            MOVE PROPERTY (ctrlNameExportType) {
+                charWidth = 8;
+                alignment = START;
+                flex = 0;
+            };
+            NEW actions {
+                caption = 'Выгрузка';
+                MOVE PROPERTY (needOpen());
+                MOVE PROPERTY (uiActExportItem());
+                MOVE PROPERTY (uiActExportLegalEntity());
+                flex = 0;
+                alignment = START;
+            }
+        }
+    }
+}
