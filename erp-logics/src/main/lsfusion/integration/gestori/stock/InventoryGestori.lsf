@@ -688,16 +688,31 @@ wrhMarkupPct '%ТН' (Sku s) =
 
 wrhAmountPack 'Кол-во шт в месте на РЦ' (Sku s) = Purchase.amountPack(s);
 
-wrhReserve 'Резерв' (Sku s) = abs(GROUP SUM currentReservePurchase(s, Stock st) IF inWrhRC(st));
+wrhReserve 'Резерв' (Sku s) =
+    OVERRIDE (abs(GROUP SUM currentReserve(s, Stock st) IF inWrhRC(st))), 0.0;
+
+wrhSupplierPriceListType() = dataPriceListType('supplier');
+
+wrhSupplierPriceOperation() = PriceList.operation('supplier');
+
+wrhSupplierPriceDetailByStock(Sku s, Stock st) =
+    GROUP LAST PriceListDetail d
+    ORDER fromDateTime(d), d
+    WHERE sku(d) = s
+        AND in(d, wrhSupplierPriceListType())
+        AND isPosted(d)
+        AND in(d, st)
+        AND PriceList.operation(priceList(d)) = wrhSupplierPriceOperation()
+        AND fromDateTime(d) <= wrhReportDateTime()
+        AND NOT (toDateTime(d) < wrhReportDateTime());
 
 wrhSpecPrice 'Цена в действующей спецификации' (Sku s) =
-    GROUP MAX activePriceA(SystemLedgerPriceListType.supplierPricingPriceListType, s, Stock st, wrhSupplier(s), wrhReportDateTime())
-        IF inWrhRC(st);
+    GROUP MAX price(wrhSupplierPriceDetailByStock(s, Stock st), wrhSupplierPriceListType()) IF inWrhRC(st);
 
 wrhPriceSegment 'Ценовая сегментация' (Sku s) = namePriceSegment(s);
 
 wrhHasData(Sku s) = wrhSkuFilter(s) AND wrhInAnySelectedRange(s) AND
-    (wrhShippedQty(s) OR wrhRetailSalesQty(s) OR wrhShopBalance(s) OR wrhRCBalance(s) OR wrhAccountPrice(s));
+    (wrhShippedQty(s) OR wrhRetailSalesQty(s) OR wrhShopBalance(s) OR wrhRCBalance(s) OR wrhAccountPrice(s) OR wrhReserve(s) OR wrhSpecPrice(s));
 
 wrhInitDates() {
     wrhReportDate() <- currentDate();
@@ -735,7 +750,7 @@ FORM warehouseReport 'Отчет по складу'
     ORDERS name(s)
 
     FILTERGROUP wrhDataFilter
-        FILTER 'С остатками/продажами' wrhTotalBalance(s) OR wrhRetailSalesQty(s) OR wrhShippedQty(s) DEFAULT
+        FILTER 'С остатками/продажами' wrhTotalBalance(s) OR wrhRetailSalesQty(s) OR wrhShippedQty(s) OR wrhReserve(s) OR wrhSpecPrice(s) DEFAULT
 
     EVENTS ON INIT wrhInitDates()
 ;
