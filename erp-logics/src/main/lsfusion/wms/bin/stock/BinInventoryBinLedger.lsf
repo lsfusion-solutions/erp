@@ -92,6 +92,16 @@ idOperation 'ID операции' = id(operation(BinInventory i));
 
 @defineDocumentHeaderTime(BinInventory);
 
+@defineDocumentAbstractHeaderTimePrefix(BinInventory, from, ' c');
+
+@deriveDocumentHeaderTimePrefix(BinInventory, from);
+
+@defineDocumentAbstractHeaderTimePrefix(BinInventory, to, ' по');
+
+WHEN LOCAL CHANGED(toDate(BinInventory o)) AND NOT CHANGED(toTime(o)) DO {
+    toTime(o) <- IF toDate(o) > currentDate() THEN 00:00 ELSE currentTime();
+} 
+
 @defineDocumentHeaderClosed(BinInventory);
 
 overShowEdit = ABSTRACT VALUE BOOLEAN (BinInventory);
@@ -117,6 +127,8 @@ description '{document.description.object}' (BinInventory o) =
 stock = DATA Stock (BinInventory);
 nameStock 'Склад' (BinInventory b) = name(stock(b));
 idStock  'Код склада' (BinInventory b) = id(stock(b));
+nameLegalEntity 'Организация' (BinInventory b) = name(legalEntity(stock(b)));
+idLegalEntity  'Код склада' (BinInventory b) = id(legalEntity(stock(b)));
 
 CONSTRAINT SET(BinInventory i IS BinInventory AND NOT stock(i))
     MESSAGE 'Склад обязателен для инвентаризации по ячейкам';
@@ -294,7 +306,7 @@ changeQuantity(InListBinInventoryDetail detail) {
 
 FORM binInventories 'Инвентаризации по ячейкам'
     OBJECTS i = BinInventory
-    PROPERTIES(i) READONLY isClosed, isPosted, nameOperation, nameStock, number, seriesNumber, note, date, time
+    PROPERTIES(i) READONLY isClosed, isPosted, nameOperation, nameStock, number, seriesNumber, note, date, time, fromDate, fromTime, toDate, toTime
     PROPERTIES(i) NEWSESSION addBinInventory = NEW[BinInventory], editBinInventory = EDIT[BinInventory] SHOWIF overShowEdit(i)
     PROPERTIES(i) close[BinInventory] SHOWIF showClose[BinInventory](i), open SHOWIF showOpen[BinInventory](i)
     PROPERTIES NEWSESSION deleteo=DELETE(i) SHOWIF overShowDelete(i)
@@ -343,7 +355,7 @@ DESIGN addInListBinInventoryDetail {
 
 FORM binInventory 'Инвентаризация по ячейкам'
     OBJECTS i = BinInventory PANEL 
-    PROPERTIES(i) date, nameNumerator, number, series, time, isPosted, nameOperation, 
+    PROPERTIES(i) date, nameNumerator, number, series, time, isPosted, nameOperation, fromDate, fromTime, toDate, toTime,
         nameStock ON CHANGE changeStockCompany(i), note
     
     OBJECTS li = ListBinInventory
@@ -472,6 +484,10 @@ DESIGN binInventory {
                 NEW topRow3 {
                     horizontal = TRUE;
                     alignment = STRETCH;
+                    MOVE PROPERTY(fromDate(i));
+                    MOVE PROPERTY(fromTime(i));
+                    MOVE PROPERTY(toDate(i));
+                    MOVE PROPERTY(toTime(i));
                     MOVE PROPERTY(note(i)){fill = 1;};
                 }
             }

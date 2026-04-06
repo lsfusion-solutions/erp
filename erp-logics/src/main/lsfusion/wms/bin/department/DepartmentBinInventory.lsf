@@ -140,6 +140,13 @@ skip[StockDocumentBinLedger] (BinInventorySDBinLedger ledger) += ledger IS BinIn
 isResponsiblePerson 'Материально ответственное лицо' = DATA BOOLEAN (Department, Employee);
 orderResponsiblePerson 'Порядок отображения в печатной форме' = DATA INTEGER (Department, Employee);
 
+WHEN DROPPED(isResponsiblePerson(Department d, Employee e)) DO {
+    orderResponsiblePerson(d, e) <- NULL;
+}
+
+CONSTRAINT isResponsiblePerson(Department d, Employee e) AND NOT accessCompany(e, d)
+    MESSAGE 'У материально-ответственного лица должен быть доступ к отделу';
+
 namePositionResponsiblies 'МОЛ(ы)' (Department stock) = (GROUP
     CONCAT positionName(Employee employee) IF isResponsiblePerson(stock, employee), ', '
     ORDER employee)
@@ -167,6 +174,7 @@ EXTEND FORM department
     PROPERTIES(e) READONLY firstName, lastName
     FILTERGROUP active FILTER 'Активные' active(e) 'F6'  DEFAULT
     PROPERTIES  (d,e) isResponsiblePerson, orderResponsiblePerson
+    FILTERGROUP accessCompany FILTER 'Доступ разрешен' accessCompany(e,d)
 ;
 
 DESIGN department {
@@ -181,3 +189,83 @@ DESIGN department {
 EXTEND FORM employee
     PROPERTIES isResponsiblePerson(department, e)
 ;
+
+isResponsiblePerson 'Материально ответственное лицо' = DATA BOOLEAN (BinInventory, Employee);
+orderResponsiblePerson 'Порядок отображения в печатной форме' = DATA INTEGER (BinInventory, Employee);
+
+WHEN LOCAL CHANGED(department(BinInventory binInventory)) DO {
+    isResponsiblePerson (binInventory, Employee e) <- isResponsiblePerson(department(binInventory), e) AND active(e);
+    orderResponsiblePerson(binInventory, Employee e) <- orderResponsiblePerson(department(binInventory), e) IF isResponsiblePerson(department(binInventory), e);
+}
+
+namePositionResponsiblies 'МОЛ(ы)' (BinInventory binInventory) = (GROUP
+    CONCAT positionName(Employee employee) IF isResponsiblePerson(binInventory, employee), ', '
+    ORDER employee)
+    CHARWIDTH 50;
+
+shortNamePositionResponsiblies 'МОЛ(ы)' (BinInventory binInventory) = (GROUP
+    CONCAT positionShortName(Employee employee) IF isResponsiblePerson(binInventory, employee), ', '
+    ORDER employee)
+    CHARWIDTH 50;
+
+nameResponsiblies 'МОЛ(ы)' (BinInventory binInventory) = (GROUP
+    CONCAT name[Contact](Employee employee) IF isResponsiblePerson(binInventory, employee), ', '
+    ORDER employee)
+    CHARWIDTH 50;
+
+shortNameResponsiblies 'МОЛ(ы)' (BinInventory binInventory) = (GROUP
+    CONCAT shortName(Employee employee) IF isResponsiblePerson(binInventory, employee), ', '
+    ORDER employee)
+    CHARWIDTH 50;
+
+CONSTRAINT SET(isResponsiblePerson(BinInventory i, Employee e)) AND NOT PREV(accessCompany(e,department(i)))
+    MESSAGE 'У материально-ответственного лица должен быть доступ к отделу инвентаризации';
+
+FORM dialogBinInventoryResponsiblePerson 'Материально-ответственные лица'
+    OBJECTS i = BinInventory PANEL
+    PROPERTIES READONLY nameDepartment(i)
+    OBJECTS e =Employee
+    PROPERTIES(i, e) isResponsiblePerson, orderResponsiblePerson
+    PROPERTIES READONLY name(e), namePosition(e), accessCompany 'Доступ разрешен (компания)' =accessCompany(e, department(i))
+    FILTERGROUP active FILTER 'Активные' active(e) 'F6'  DEFAULT
+    FILTERGROUP accessCompany 
+        FILTER 'Доступ разрешен' accessCompany(e,department(i)) DEFAULT
+        FILTER 'Материально-ответственные лица склада' isResponsiblePerson(department(i), e)
+    FILTERGROUP isSelected 
+        FILTER 'Выбранные' isResponsiblePerson(i,e)
+    
+;    
+
+changeResponsiblePerson 'Изменить материально-ответственных' (BinInventory i1) {
+    NEWSESSION {
+        DIALOG dialogBinInventoryResponsiblePerson OBJECTS i = i1 DO {
+            IF (GROUP MAX isResponsiblePerson(i1, Employee e) IF NOT PREV(isResponsiblePerson(i1, e)))
+                OR (GROUP MAX PREV(isResponsiblePerson(i1, Employee e)) IF NOT isResponsiblePerson(i1, e)) THEN APPLY;
+        }
+    }
+} TOOLBAR;
+
+EXTEND FORM binInventory
+    OBJECTS eResponsible = Employee
+    PROPERTIES(eResponsible) READONLY name, namePosition
+    PROPERTIES READONLY orderResponsiblePerson(i, eResponsible)
+    PROPERTIES changeResponsiblePerson(i) DRAW eResponsible
+    ORDERS orderResponsiblePerson(i, eResponsible)
+    FILTERS isResponsiblePerson(i, eResponsible)
+;    
+
+DESIGN binInventory {
+    tabbedContainer {
+        NEW responsibliesContainer LAST {
+            caption = 'Материально-ответственные лица';
+            MOVE BOX (eResponsible);
+        }
+    }
+}
+
+isResponsiblePerson 'Материально ответственное лицо' (ListBinInventory l, Employee e) = isResponsiblePerson(binInventory(l), e);
+orderResponsiblePerson 'Материально ответственное лицо' (ListBinInventory l, Employee e) = orderResponsiblePerson(binInventory(l), e);
+namePositionResponsiblies 'Материально-ответственные лица' (ListBinInventory li) = namePositionResponsiblies(binInventory(li)) IN inventoryCommittee CHARWIDTH 30;
+shortNamePositionResponsiblies 'Материально-ответственные лица' (ListBinInventory li) = shortNamePositionResponsiblies(binInventory(li)) IN inventoryCommittee CHARWIDTH 30;
+nameResponsiblies 'Материально-ответственные лица' (ListBinInventory li) = nameResponsiblies(binInventory(li)) IN inventoryCommittee CHARWIDTH 30;
+shortNameResponsiblies 'Материально-ответственные лица' (ListBinInventory li) = shortNameResponsiblies(binInventory(li)) IN inventoryCommittee CHARWIDTH 30;

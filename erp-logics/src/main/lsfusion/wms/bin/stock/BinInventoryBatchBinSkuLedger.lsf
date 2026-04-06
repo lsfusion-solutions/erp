@@ -75,7 +75,10 @@ overFillCollationSheet (BinInventory i) + {
     }
 }
 
+diffBinInventoryBatch 'C расхождением' = DATA LOCAL NESTED BOOLEAN ();
+
 EXTEND FORM binInventory
+    PROPERTIES diffBinInventoryBatch()
     PROPERTIES(lbt, li) SHOWIF typeSkuLedger(i)==TypeSkuLedger.byBatches READONLY price, outSum, inSum, sumShortage
     PROPERTIES(li) fillBatchSum DRAW lbt PANEL TOOLBAR SHOWIF typeSkuLedger(i)==TypeSkuLedger.byBatches
 
@@ -86,13 +89,11 @@ EXTEND FORM binInventory
     ORDERS nameSku(cbt)
     PROPERTIES(cbt, i) READONLY inQuantity, quantityBalance, quantityShortage, price, sum, sumBalance, sumShortage
     FILTERS isParent(csg, cbt),
-        in(cbt, i)
+        in(cbt, i),
+        quantityShortage(cbt, i) OR sumShortage(cbt, i) OR NOT diffBinInventoryBatch()
     FILTERGROUP balanceBatch
         FILTER 'В описях' inQuantity(cbt, i)
         FILTER 'С остатком' quantityBalance(cbt, i) OR (sumBalance(cbt, i) AND NOT quantityBalance(cbt, i))
-    
-    FILTERGROUP diffBatch 
-        FILTER 'C расхождением' quantityShortage(cbt, i) OR sumShortage(cbt, i)
 ;
 
 DESIGN binInventory {
@@ -111,6 +112,9 @@ DESIGN binInventory {
             showIf = typeSkuLedger(i)==TypeSkuLedger.byBatches;
             fill = 2;
             PROPERTY(inQuantity(cbt, i)) {caption = 'Кол-во по описям';}
+            TOOLBAR(cbt) {
+                MOVE PROPERTY(diffBinInventoryBatch());
+            }
         }
     }
 }
