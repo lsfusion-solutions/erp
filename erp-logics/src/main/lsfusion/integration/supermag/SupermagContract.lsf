@@ -105,6 +105,7 @@ importContract 'Импорт из контрактов с поставщикам
     // создаем новые ПСЦ
     FOR idDoc(INTEGER i) AND NOT userPriceList(idDoc(i)) DO NEW doc = UserPriceList {  id[UserPriceList](doc) <- idDoc(i);  }
     // обновляем ПСЦ
+    dateFromConstraintContractUserPriceList() <- currentDate();
     FOR UserPriceList doc == userPriceList(idDoc(INTEGER i))  DO {
         contractTypeInSuperMag(doc) <- contractType(i);
         operation(doc) <- IF contractType(i) == 2 THEN PriceList.operation('supplierPromotion') ELSE PriceList.operation('supplier');
@@ -114,8 +115,9 @@ importContract 'Импорт из контрактов с поставщикам
         isPosted(doc) <- docState(i) = 3; //OR docState(i) = 0;
         fromTime(doc) <- 00:00;
         toDate(doc) <- DATE(dateTo(i));
-        contractSku(doc) <- userContractSku(TEXT (idDoc(i)));
-        company(doc) <- legalEntity(idLE(i));
+        companyStock(doc) <- stock(idLE(i)) WHERE lpadId() AND isCompany(stock(idLE(i)));
+        company(doc) <- IF lpadId() AND isCompany(stock(idLE(i))) THEN legalEntity(stock(idLE(i))) ELSE legalEntity(idLE(i));
+        contractSku(doc) <- OVERRIDE userContractSku(TEXT (idDoc(i))), (GROUP MIN ContractSku s IF supplier(s) == legalEntity(idLE(i)) AND paymentCondition(paymentPeriod(paymentDelay(i), isBankDays(i))));
         note(doc) <- title(i);
         fromDate(doc) <- DATE(dateFrom(i));//, dateFrom(contractSku(doc)) ;
         delayPaymentInSuperMag(doc) <- paymentDelay(i);
