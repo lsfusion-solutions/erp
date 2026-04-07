@@ -133,8 +133,52 @@ EXTEND FORM statisticReports
     PROPERTIES  statistic12Print(r), excel12Print(r) 
 ;
 
+FORM statisticReport4UPrint '4-у'
+    OBJECTS r = StatisticReport PANEL SUBREPORT
+    PROPERTIES (r) READONLY name, nameStock, fullNameLegalEntityStock, addressLegalEntityStock, addressStock, note, fromDate, toDate,
+        fromMonth, toMonth, caption
+    PROPERTIES (r) READONLY countStatisticReportDetail, soldSumStatisticReportDetail, createdNameUser, createdTime, createdHostnameComputer
+
+    OBJECTS d = StatisticReportDetail
+    PROPERTIES(d) READONLY index, name, number, nameStatisticGroup, sidStatisticGroup,  soldSum
+    ORDERS index(d)
+
+    FILTERS statisticReport(d) == r
+;
+
+statisticReport4UPrint '4-у' (StatisticReport r) { PRINT statisticReport4UPrint OBJECTS r = r; }   IMAGE 'print.png' IN print;
+excelStatisticReport4U '4-у (xls)' (StatisticReport r) { PRINT statisticReport4UPrint OBJECTS r = r XLSX; }  IMAGE 'print.png' IN print;
+
+EXTEND FORM statisticReports PROPERTIES statisticReport4UPrint(r), excelStatisticReport4U(r);
+
 DESIGN statisticReports {
-    printContainer{
+    printContainer {
+        NEW statistic1Print {
+            caption = '1-торг';
+            horizontal = TRUE;
+            MOVE PROPERTY(statistic1Print(r));
+            MOVE PROPERTY(excel1Print(r));
+            MOVE PROPERTY(statistic124Print(r));
+            MOVE PROPERTY(excel124Print(r));
+        }
+        NEW statistic4Print {
+            caption = '4-торг';
+            horizontal = TRUE;
+            MOVE PROPERTY(statistic4Print(r));
+            MOVE PROPERTY(excel4Print(r));
+        }
+        NEW statistic12Print {
+            caption = '12-торг';
+            horizontal = TRUE;
+            MOVE PROPERTY(statistic12Print(r));
+            MOVE PROPERTY(excel12Print(r));
+        }
+        NEW statistic4Uprint {
+            caption = '4-у';
+            horizontal = TRUE;
+            MOVE PROPERTY(statisticReport4UPrint(r));
+            MOVE PROPERTY(excelStatisticReport4U(r));
+        }
         MOVE GROUP(print,r);
     }
 }
@@ -554,15 +598,85 @@ loadDefaultStStatisticReportTypeBy12torgOptApply 'Загрузить тип ст
     }
 }
 
+loadDefaultStStatisticReportTypeBy4U() {
+    loadDefaultStatisticReportType ('4-у (реализованная ТН)', 'OKRB', TRUE , 1000);
+
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 1, 'Розничная торговля в неспециализированных магазинах преимущественно продуктами питания, напитками и табачными изделиями', '47110', '47110', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 2, 'Прочая розничная торговля в неспециализированных магазинах', '47190', '47190', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 3, 'Розничная торговля свежими и переработанными фруктами и овощами в специализированных магазинах', '47210', '47210', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 4, 'Розничная торговля мясом (кроме мяса птицы) и мясными продуктами в специализированных магазинах', '47221', '47221', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 5, 'Розничная торговля мясом птицы и изделиями из мяса птицы в специализированных магазинах', '47222', '47222', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 6, 'Розничная торговля колбасными изделиями и копченостями в специализированных магазинах', '47223', '47223', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 7, 'Розничная торговля рыбой и морепродуктами в специализированных магазинах', '47230', '47230', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 8, 'Розничная торговля хлебобулочными, сухарными и бараночными изделиями в специализированных магазинах', '47241', '47241', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 9, 'Розничная торговля сахаристыми кондитерскими изделиями в специализированных магазинах', '47242', '47242', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 10, 'Розничная торговля алкогольными, слабоалкогольными напитками и пивом в специализированных магазинах', '47251', '47251', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 11, 'Розничная торговля безалкогольными напитками в специализированных магазинах', '47252', '47252', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 12, 'Розничная торговля табачными изделиями в специализированных магазинах', '47260', '47260', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 13, 'Розничная торговля молочными продуктами, яйцами, пищевыми маслами и жирами в специализированных магазинах', '47291', '47291', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 14, 'Розничная торговля прочими продуктами питания в специализированных магазинах, не включенными в другие группировки', '47299', '47299', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 15, 'Розничная торговля топливом в специализированных магазинах', '47300', '47300', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 16, 'Розничная торговля компьютерами, периферийным компьютерным оборудованием и программным обеспечением в специализированных магазинах', '47410', '47410', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 17, 'Розничная торговля коммуникационным оборудованием в специализированных магазинах', '47420', '47420', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 18, 'Розничная торговля радио- и телевизионным оборудованием в специализированных магазинах', '47430', '47430', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 19, 'Розничная торговля текстильными изделиями в специализированных магазинах', '47510', '47510', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 20, 'Розничная торговля скобяными изделиями, лакокрасочными материалами и стеклом в специализированных магазинах', '47520', '47520', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 21, 'Розничная торговля коврами, обоями и напольными покрытиями в специализированных магазинах', '47530', '47530', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 22, 'Розничная торговля электрическими бытовыми приборами в специализированных магазинах', '47540', '47540', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 23, 'Розничная торговля мебелью в специализированных магазинах', '47591', '47591', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 24, 'Розничная торговля осветительным оборудованием и прочими бытовыми товарами в специализированных магазинах', '47592', '47592', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 25, 'Розничная торговля книгами в специализированных магазинах', '47610', '47610', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 26, 'Розничная торговля газетами, журналами и канцелярскими товарами в специализированных магазинах', '47620', '47620', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 27, 'Розничная торговля аудио- и видеозаписями в специализированных магазинах', '47630', '47630', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 28, 'Розничная торговля спортивным оборудованием и инвентарем в специализированных магазинах', '47640', '47640', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 29, 'Розничная торговля играми и игрушками в специализированных магазинах', '47650', '47650', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 30, 'Розничная торговля одеждой в специализированных магазинах', '47710', '47710', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 31, 'Розничная торговля обувью в специализированных магазинах', '47721', '47721', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 32, 'Розничная торговля кожаными изделиями и дорожными принадлежностями в специализированных магазинах', '47722', '47722', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 33, 'Розничная торговля фармацевтическими препаратами в специализированных магазинах (аптеках, ветеринарных аптеках)', '47730', '47730', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 34, 'Розничная торговля медицинскими и ортопедическими изделиями в специализированных магазинах', '47740', '47740', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 35, 'Розничная торговля парфюмерными и косметическими товарами в специализированных магазинах', '47750', '47750', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 36, 'Розничная торговля цветами, комнатными растениями, семенами, удобрениями, домашними животными и кормами для домашних животных в специализированных магазинах', '47760', '47760', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 37, 'Розничная торговля часами и ювелирными изделиями в специализированных магазинах', '47770', '47770', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 38, 'Прочая розничная торговля непродовольственными товарами в специализированных магазинах', '47780', '47780', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 39, 'Розничная торговля подержанными товарами в специализированных магазинах', '47790', '47790', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 40, 'Розничная торговля продуктами питания, напитками и табачными изделиями в палатках, киосках и на рынках', '47810', '47810', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 41, 'Розничная торговля одеждой, обувью и текстильными изделиями в палатках, киосках и на рынках', '47820', '47820', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 42, 'Розничная торговля прочими товарами в палатках, киосках и на рынках', '47890', '47890', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 43, 'Розничная торговля путем заказа товаров по почте и через сеть Интернет', '47910', '47910', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('4-у (реализованная ТН)', 44, 'Прочая розничная торговля вне магазинов, палаток, киосков и рынков', '47990', '47990', 'тысяч  рублей', 0);
+}
+
+loadDefaultStStatisticReportTypeBy4UApply 'Загрузить тип стат отчета 4-у (реализованная ТН)'()  {
+    NEWSESSION {
+        loadDefaultStStatisticReportTypeBy4U();
+        APPLY;
+    }
+}
+
 EXTEND FORM options
-    PROPERTIES () loadDefaultStStatisticReportTypeBy2021Apply, loadDefaultStStatisticReportTypeBy2021torg1tab4Apply, loadDefaultStStatisticReportTypeBy12torgOptApply
+    PROPERTIES () loadDefaultStStatisticReportTypeBy2021Apply, loadDefaultStStatisticReportTypeBy2021torg1tab4Apply,
+        loadDefaultStStatisticReportTypeBy12torgOptApply, loadDefaultStStatisticReportTypeBy4UApply
 ;
 DESIGN options{
     statistics {
         MOVE PROPERTY (loadDefaultStStatisticReportTypeBy2021Apply());
         MOVE PROPERTY (loadDefaultStStatisticReportTypeBy2021torg1tab4Apply());
         MOVE PROPERTY (loadDefaultStStatisticReportTypeBy12torgOptApply());
+        MOVE PROPERTY (loadDefaultStStatisticReportTypeBy4UApply());
     }
+}
+
+resetParamsBy 'Сбросить значения строки' (StatisticReportDetail d) {
+    sold(d) <- NULL;
+    soldCatering(d) <- NULL;
+    balance(d) <- NULL;
+    balanceResident(d) <- NULL;
+    soldSum(d) <- NULL;
+    soldSumCatering(d) <- NULL;
+    soldSumResident(d) <- NULL;
+    soldSumCashCatering(d) <- NULL;
+    soldSumCash(d) <- NULL;
 }
 
 statisticGroup1T4T(StatisticReportDetail d)= sidStatisticGroup(d) == '47.71.10.600' OR sidStatisticGroup(d) =='47.71.10.110' OR sidStatisticGroup(d) =='47.71.10.210' OR sidStatisticGroup(d) =='47.72.11';
@@ -611,20 +725,11 @@ sumCashAll 'Продано всего за наличные' (Stock st, DATE dat
     GROUP
         SUM sumCash (ZReport z) IF departmentStore(z) == st AND dateFrom <= date(z) AND dateTo >= date(z);
 
-
 overFillData(StatisticReport report) + {
     IF id(statisticGroupType(report))=='BYRTNEW' AND name(report)=='4-торг (2021)'  THEN {
         FOR StatisticGroup s == statisticGroup(StatisticReportDetail d) AND statisticReport(d) == report AND statisticGroup2R4T(d) AND
             Stock st == stock(report) AND DATE dFrom == fromDate(report) AND DATE dTo == toDate(report) NOINLINE DO {
-            sold(d) <- NULL;
-            soldCatering(d) <- NULL;
-            balance(d) <- NULL;
-            balanceResident(d) <- NULL;
-            soldSum(d) <- NULL;
-            soldSumCatering(d) <- NULL;
-            soldSumResident(d) <- NULL;
-            soldSumCashCatering(d) <- NULL;
-            soldSumCash(d) <- NULL;
+            resetParamsBy(d);
 
             soldSum(d) <- NUMERIC[16,3](totalSumSoldBy(s, st, dFrom, dTo));
             soldSum(d) <- NUMERIC[16,3](soldSum(d) / 1000);
@@ -671,15 +776,7 @@ overFillDataRegion(StatisticReport report) + {
     IF id(statisticGroupType(report))=='BYRTNEW' AND name(report)=='4-торг (2021)'  THEN {
         FOR StatisticGroup s == statisticGroup(StatisticReportDetail d) AND statisticReport(d) == report AND statisticGroup2R4T(d) AND
             LegalEntity c == company(report) AND Region r == region(report) AND DATE dFrom == fromDate(report) AND DATE dTo == toDate(report) NOINLINE DO {
-            sold(d) <- NULL;
-            soldCatering(d) <- NULL;
-            balance(d) <- NULL;
-            balanceResident(d) <- NULL;
-            soldSum(d) <- NULL;
-            soldSumCatering(d) <- NULL;
-            soldSumResident(d) <- NULL;
-            soldSumCashCatering(d) <- NULL;
-            soldSumCash(d) <- NULL;
+            resetParamsBy(d);
 
             soldSum(d) <- NUMERIC[16,3](totalSumSoldBy(s, c, r, dFrom, dTo));
             soldSum(d) <- NUMERIC[16,3](soldSum(d) / 1000);
@@ -727,15 +824,7 @@ overFillDataLegalEntity(StatisticReport report) + {
     IF id(statisticGroupType(report))=='BYRTNEW' AND name(report)=='4-торг (2021)'  THEN {
         FOR StatisticGroup s == statisticGroup(StatisticReportDetail d) AND statisticReport(d) == report AND statisticGroup2R4T(d) AND
             LegalEntity c == company(report) AND DATE dFrom == fromDate(report) AND DATE dTo == toDate(report) NOINLINE DO {
-            sold(d) <- NULL;
-            soldCatering(d) <- NULL;
-            balance(d) <- NULL;
-            balanceResident(d) <- NULL;
-            soldSum(d) <- NULL;
-            soldSumCatering(d) <- NULL;
-            soldSumResident(d) <- NULL;
-            soldSumCashCatering(d) <- NULL;
-            soldSumCash(d) <- NULL;
+            resetParamsBy(d);
 
             soldSum(d) <- NUMERIC[16,3](totalSumSoldBy(s, c, dFrom, dTo));
             soldSum(d) <- NUMERIC[16,3](soldSum(d) / 1000);
@@ -795,5 +884,52 @@ DESIGN statisticReport {
             caption = 'II Раздел' ;
             showIf = showIf2R4T(r);
         };
+    }
+}
+
+markupSumSoldStatistic(sku, stock, DATE dateFrom, DATE dateTo) = GROUP SUM markupSum(SaleLedger ledger)
+    IF active(ledger) AND NOT skipStatistic(ledger) AND date(ledger) >= dateFrom AND date(ledger) <= dateTo BY sku(ledger), stock(ledger);
+
+totalMarkupSumSoldBy 'Надбавка проданного, руб.' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo)=
+    IF useCalcData() THEN (GROUP SUM calcTotalSumSoldBy(group,stock, DATE date) IF date >= dateFrom AND date <= dateTo)
+    ELSE (GROUP SUM markupSumSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF isParent(group, sku));
+
+totalMarkupSumResidentSoldBy 'Надбавка проданного отеч., руб.' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo)=
+    IF useCalcData() THEN (GROUP SUM calcTotalSumResidentSoldBy(group,stock, DATE date) IF date >= dateFrom AND date <= dateTo)
+    ELSE (GROUP SUM markupSumSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF resident (group, sku));
+
+overFillSumData(StatisticReport report) + {
+    IF id(statisticGroupType(report)) == 'OKRB' AND name(report) == '4-у (реализованная ТН)' THEN {
+        FOR StatisticGroup s == statisticGroup(StatisticReportDetail d) AND statisticReport(d) == report AND
+            Stock st == stock(report) AND DATE dFrom == fromDate(report) AND DATE dTo == toDate(report) NOINLINE DO {
+            resetParamsBy(d);
+
+            soldSum(d) <- NUMERIC[16,3](totalMarkupSumSoldBy(s, st, dFrom, dTo));
+            soldSum(d) <- NUMERIC[16,3](soldSum(d) / 1000);
+
+            soldSumResident(d) <- NUMERIC[16,3](totalMarkupSumResidentSoldBy(s, st, dFrom, dTo));
+            soldSumResident(d) <- NUMERIC[16,3](soldSumResident(d)/ 1000);
+        }
+    }
+}
+
+totalMarkupSumSoldBy 'Надбавка проданного, руб.' (StatisticGroup group, legalEntity, DATE dateFrom, DATE dateTo)=
+    GROUP SUM markupSumSold (Sku sku, Stock stock, dateFrom, dateTo) IF isParent(group, sku) AND NOT skipSale(stock) BY legalEntity(stock);
+
+totalMarkupSumResidentSoldBy 'Надбавка проданного отеч., руб.' (StatisticGroup group, legalEntity, DATE dateFrom, DATE dateTo)=
+    GROUP SUM markupSumSold (Sku sku, Stock stock, dateFrom, dateTo) IF resident (group, sku) AND NOT skipSale(stock) BY legalEntity(stock);
+
+overFillSumLegalEntityData(StatisticReport report) + {
+    IF id(statisticGroupType(report)) == 'OKRB' AND name(report) == '4-у (реализованная ТН)' THEN {
+        FOR StatisticGroup s == statisticGroup(StatisticReportDetail d) AND statisticReport(d) == report AND
+            LegalEntity c == company(report) AND DATE dFrom == fromDate(report) AND DATE dTo == toDate(report) NOINLINE DO {
+            resetParamsBy(d);
+
+            soldSum(d) <- NUMERIC[16,3](totalMarkupSumSoldBy(s, c, dFrom, dTo));
+            soldSum(d) <- NUMERIC[16,3](soldSum(d) / 1000);
+
+            soldSumResident(d) <- NUMERIC[16,3](totalMarkupSumResidentSoldBy(s, c, dFrom, dTo));
+            soldSumResident(d) <- NUMERIC[16,3](soldSumResident(d)/ 1000);
+        }
     }
 }

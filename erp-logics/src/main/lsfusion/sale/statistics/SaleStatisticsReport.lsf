@@ -240,7 +240,7 @@ loadDefaultStStatisticReportType 'Загрузить стандартные ст
 CLASS StatisticReport 'Статистический отчет';
 CLASS StatisticReportDetail 'Строка статистического отчета';
 
-name 'Наименование' = DATA ISTRING[255] (StatisticReport) CHARWIDTH 20;
+name 'Наименование' = DATA ISTRING[255] (StatisticReport) CHARWIDTH 25;
 @defineDocument(statisticReport);
 @deriveDocumentHeaderTimePrefix(StatisticReport, );
 
@@ -277,7 +277,7 @@ statisticGroupType = DATA StatisticGroupType (StatisticReport) AUTOSET NONULL DE
 nameStatisticGroupType 'Тип классификатора' = name(statisticGroupType(StatisticReport r)) IN documentPrm CHARWIDTH 20;
 
 statisticReportType = DATA StatisticReportType (StatisticReport);
-nameStatisticReportType 'Тип отчета' = name(statisticReportType(StatisticReport r)) CHARWIDTH 20 ;
+nameStatisticReportType 'Тип отчета' = name(statisticReportType(StatisticReport r)) CHARWIDTH 25;
 
 @defineDocumentDataStock(statisticReport, stock, 'Склад', );
 @defineDocumentDialogStocks(statisticReport, stock, company, , );
@@ -400,7 +400,10 @@ prevYearSoldSum 'Продано за соответствующий период
 balanceSum 'Запас всего' = DATA NUMERIC[16,3] (StatisticReportDetail);
 soldSumCash 'Продано всего (наличные)' = DATA NUMERIC[16,3] (StatisticReportDetail);
 soldSumCashCatering 'Продано в общественном питании(наличные)' = DATA NUMERIC[16,3] (StatisticReportDetail);
-  
+
+soldSumStatisticReportDetail 'Продано всего' (StatisticReport r) =
+    GROUP SUM soldSum(StatisticReportDetail d) BY statisticReport(d) IN documentSum;
+
 TABLE statisticReportDetailStatisticReportDetail(StatisticReportDetail, StatisticReportDetail);
 
 in 'Вкл.' = DATA BOOLEAN  (StatisticReportDetail, StatisticReportDetail );//(child,parent)
@@ -829,7 +832,7 @@ FORM statisticReport 'Статистический отчет'
                 nameNumerator, number, series, date, time,
                 note, fromDate, toDate, nameStatisticGroupType               
                 
-    PROPERTIES (r) countStatisticReportDetail
+    PROPERTIES (r) READONLY countStatisticReportDetail, soldSumStatisticReportDetail SHOWIF isSum(r)
 
     OBJECTS d = StatisticReportDetail
     PROPERTIES (d) index, name, number, nameStatisticGroup,
