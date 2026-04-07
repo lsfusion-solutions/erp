@@ -60,11 +60,10 @@ WHEN LOCAL DROPPED(limitAccess(Employee e)) DO {
 EXTEND FORM employee
     PROPERTIES(e) limitAccessCompanyStocksBin READONLYIF NOT limitAccess(e)
 
-    TREE binTree bg = BinGroup  PARENT parent(bg)
-    PROPERTIES READONLY bgTreeName = name(bg)
+    TREE binTree bg = BinGroup PARENT parent(bg)
+    PROPERTIES READONLY order(bg), canonicalId(bg), name(bg), nameStock(bg)
     PROPERTIES(e, bg) accessCompany ON CHANGE changeAccessCompany(e, bg)
-
-    ORDERS bgTreeName
+    ORDERS order(bg), canonicalId(bg), name(bg)
     FILTERS accessCompany(e, stock(bg))
     FILTERGROUP active FILTER 'Активный' active(bg) DEFAULT
 
@@ -72,8 +71,6 @@ EXTEND FORM employee
     PROPERTIES(b) READONLY order, canonicalId, name, id SHOWIF showIDs()
     PROPERTIES(e, b) accessCompany ON CHANGE changeAccessCompany(e, b)
     ORDERS order(b), canonicalId(b), name(b)
-    
-    ORDERS canonicalId(b)
     FILTERS isParent(bg, b)
 ;
 

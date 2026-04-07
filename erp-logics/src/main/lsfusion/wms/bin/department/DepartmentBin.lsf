@@ -27,62 +27,6 @@ department(id) = GROUP AGGR Department department BY id(department);
 inactive 'Неактивный' = DATA BOOLEAN (Department);
 active 'Активный' (Department department) = department IS Department AND NOT inactive(department) MATERIALIZED INDEXED;
 
-department = DATA Department (BinGroup);
-nameDepartment 'Отдел' (BinGroup binGroup) = name(department(binGroup)) CHARWIDTH 20;
-
-levelParentDepartment (BinGroup binGroup) = GROUP MIN level(binGroup, BinGroup parent) IF department(parent) MATERIALIZED;
-nearestParentDepartment (BinGroup binGroup) = binGroup(binGroup, levelParentDepartment(binGroup));
-parentDepartment (BinGroup binGroup) = department(nearestParentDepartment(binGroup)) MATERIALIZED INDEXED;
-nameParentDepartment 'Родительский отдел' (BinGroup binGroup) = name(parentDepartment(binGroup)) CHARWIDTH 20;
-
-CONSTRAINT department(BinGroup binGroup) AND NOT stock(binGroup)==stock(department(binGroup))
-    CHECKED BY department[BinGroup] MESSAGE 'Склад группы ячеек и отдела должен совпадать';
-
-EXTEND FORM dataBinGroup
-    PROPERTIES(g) nameDepartment, nameParentDepartment READONLY 
-;    
-
-DESIGN dataBinGroup {
-    mainContainer {
-        MOVE PROPERTY(nameDepartment(g));
-    }
-}
-
-EXTEND FORM binGroups
-    PROPERTIES(g) READONLY nameParentDepartment AFTER nameStock(g)
-;
-
-EXTEND FORM binStocks
-    PROPERTIES(bg) READONLY nameParentDepartment AFTER nameStock(bg) 
-;
-
-levelParentDepartment (Bin bin) = GROUP MIN level(binGroup(bin), BinGroup parent) IF department(parent) MATERIALIZED;
-nearestParentDepartment (Bin bin) = binGroup(binGroup(bin), levelParentDepartment(bin));
-department (Bin bin) = department(nearestParentDepartment(bin)) MATERIALIZED INDEXED;
-nameDepartment 'Отдел' (Bin bin) = name(department(bin)) CHARWIDTH 20;
-
-EXTEND FORM bin
-    PROPERTIES(b) READONLY nameDepartment AFTER nameStock(b)
-;
-
-DESIGN bin {
-    mainContainer {
-        MOVE PROPERTY(nameDepartment(b));   
-    }
-}
-
-EXTEND FORM bins
-    PROPERTIES(b) READONLY nameDepartment AFTER nameStock(b)
-;
-
-EXTEND FORM dialogBinStock
-    PROPERTIES(b) READONLY nameDepartment
-;
-
-EXTEND FORM binStocks
-    PROPERTIES(b) READONLY nameDepartment AFTER nameStock(b)
-;
-
 FORM department 'Отдел'
     OBJECTS d=Department PANEL
     PROPERTIES(d) inactive, id, order, name, nameStock, address
@@ -130,8 +74,70 @@ FORM departments 'Отделы'
 NAVIGATOR {
     binNavigator {
         NEW departments;
-    }   
+    }
 }
+
+department = DATA Department (BinGroup);
+nameDepartment 'Отдел' (BinGroup binGroup) = name(department(binGroup)) CHARWIDTH 20;
+
+levelParentDepartment (BinGroup binGroup) = GROUP MIN level(binGroup, BinGroup parent) IF department(parent) MATERIALIZED;
+nearestParentDepartment (BinGroup binGroup) = binGroup(binGroup, levelParentDepartment(binGroup));
+parentDepartment (BinGroup binGroup) = department(nearestParentDepartment(binGroup)) MATERIALIZED INDEXED;
+nameParentDepartment 'Родительский отдел' (BinGroup binGroup) = name(parentDepartment(binGroup)) CHARWIDTH 20;
+
+CONSTRAINT department(BinGroup binGroup) AND NOT stock(binGroup)==stock(department(binGroup))
+    CHECKED BY department[BinGroup] MESSAGE 'Склад группы ячеек и отдела должен совпадать';
+
+changeDepartment(BinGroup g) {
+    DIALOG dialogDepartments OBJECTS d INPUT NULL FILTERS stock(d) = stock(g) DO  {
+        department(g) <- d;
+    }
+}
+
+EXTEND FORM dataBinGroup
+    PROPERTIES(g) nameParentDepartment ON CHANGE changeDepartment(g)
+;    
+
+DESIGN dataBinGroup {
+    mainContainer {
+        MOVE PROPERTY(nameParentDepartment(g));
+    }
+}
+
+EXTEND FORM binGroups
+    PROPERTIES(g) READONLY nameParentDepartment AFTER nameStock(g)
+;
+
+EXTEND FORM binStocks
+    PROPERTIES(bg) READONLY nameParentDepartment AFTER nameStock(bg) 
+;
+
+levelParentDepartment (Bin bin) = GROUP MIN level(binGroup(bin), BinGroup parent) IF department(parent) MATERIALIZED;
+nearestParentDepartment (Bin bin) = binGroup(binGroup(bin), levelParentDepartment(bin));
+department (Bin bin) = department(nearestParentDepartment(bin)) MATERIALIZED INDEXED;
+nameDepartment 'Отдел' (Bin bin) = name(department(bin)) CHARWIDTH 20;
+
+EXTEND FORM bin
+    PROPERTIES(b) READONLY nameDepartment AFTER nameStock(b)
+;
+
+DESIGN bin {
+    mainContainer {
+        MOVE PROPERTY(nameDepartment(b));   
+    }
+}
+
+EXTEND FORM bins
+    PROPERTIES(b) READONLY nameDepartment AFTER nameStock(b)
+;
+
+EXTEND FORM dialogBinStock
+    PROPERTIES(b) READONLY nameDepartment
+;
+
+EXTEND FORM binStocks
+    PROPERTIES(b) READONLY nameDepartment AFTER nameStock(b)
+;
 
 EXTEND FORM warehouse
     OBJECTS d=Department
