@@ -1052,11 +1052,469 @@ DESIGN assortmentHistoryReport {
     }
 }
 
+CLASS CmpTurnoverCriterion 'Критерий для расчета оборачиваемости' {
+    retail 'Отпускные цены',
+    account 'Учетные цены',
+    quantity 'Количество'
+}
+name 'Критерий для расчета оборачиваемости' (CmpTurnoverCriterion o) = staticCaption(o) IF o IS CmpTurnoverCriterion CHARWIDTH 20;
+
+FORM cmpTurnoverCriteria 'Критерий для расчета оборачиваемости'
+    OBJECTS o = CmpTurnoverCriterion
+    PROPERTIES(o) READONLY staticCaption
+    LIST CmpTurnoverCriterion OBJECT o
+;
+
+cmpCriterion = DATA LOCAL CmpTurnoverCriterion();
+cmpCriterionDefault = OVERRIDE cmpCriterion(), CmpTurnoverCriterion.account;
+nameCmpCriterion 'Критерий для расчета оборачиваемости' = name(cmpCriterionDefault());
+
+cmpSalesType = DATA LOCAL SalesFilterType();
+cmpSalesTypeDefault = OVERRIDE cmpSalesType(), SalesFilterType.both;
+nameCmpSalesType 'Тип отбора продаж' = name(cmpSalesTypeDefault());
+
+cmpDateFrom 'Основной период (с)' = DATA LOCAL DATE ();
+cmpDateTo 'Основной период (по)' = DATA LOCAL DATE ();
+prevDateFrom 'Предыдущий период (с)' = DATA LOCAL DATE ();
+prevDateTo 'Предыдущий период (по)' = DATA LOCAL DATE ();
+
+cmpIncludeReturns 'Учитывать возвраты' = DATA LOCAL BOOLEAN();
+
+cmpDateFromRun = DATA LOCAL DATE();
+cmpDateToRun = DATA LOCAL DATE();
+prevDateFromRun = DATA LOCAL DATE();
+prevDateToRun = DATA LOCAL DATE();
+cmpSalesTypeRun = DATA LOCAL SalesFilterType();
+cmpCriterionRun = DATA LOCAL CmpTurnoverCriterion();
+cmpIncludeReturnsRun = DATA LOCAL BOOLEAN();
+inCmpSupplierRun = DATA LOCAL BOOLEAN (LegalEntity);
+inCmpSkuRun = DATA LOCAL BOOLEAN (Sku);
+inCmpSkuGroupRun = DATA LOCAL BOOLEAN (SkuGroup);
+inSaleReportRun = DATA LOCAL BOOLEAN (Stock);
+
+cmpSalesTypeRunDefault = OVERRIDE cmpSalesTypeRun(), SalesFilterType.both;
+cmpCriterionRunDefault = OVERRIDE cmpCriterionRun(), CmpTurnoverCriterion.account;
+
+initCmpDates() {
+    cmpDateTo() <- currentDate();
+    cmpDateFrom() <- firstDayOfMonth(cmpDateTo());
+    prevDateTo() <- sumYear(cmpDateTo(), -1);
+    prevDateFrom() <- sumYear(cmpDateFrom(), -1);
+    cmpSalesType() <- SalesFilterType.both;
+    cmpCriterion() <- CmpTurnoverCriterion.account;
+    cmpIncludeReturns() <- TRUE;
+}
+
+cmpDays () = daysBetweenDates(cmpDateToRun(), cmpDateFromRun()) + 1;
+prevDays () = daysBetweenDates(prevDateToRun(), prevDateFromRun()) + 1;
+
+inCmpSupplier 'Отм.' = DATA LOCAL BOOLEAN (LegalEntity);
+anyCmpSupplier() = GROUP MAX inCmpSupplier(LegalEntity l);
+nameCmpSuppliers 'Поставщики' () = OVERRIDE
+    (GROUP CONCAT name(LegalEntity l) IF inCmpSupplier(l), ', ' ORDER name(l), l),
+    'Все поставщики' CHARWIDTH 30;
+
+cmpSupplierList = DATA LOCAL LegalEntityList();
+nameCmpSupplierList 'Список поставщиков' () = name(cmpSupplierList());
+
+changeCmpSupplierList 'Список поставщиков'() {
+    DIALOG legalEntityLists OBJECTS o INPUT DO {
+        cmpSupplierList() <- o;
+        inCmpSupplier(LegalEntity s) <- NULL;
+        inCmpSupplier(LegalEntity s) <- TRUE WHERE in(s, o) AND isSupplier(s);
+    }
+}
+
+deleteIncludeCmpSupplierList 'Сбросить список'() {
+    cmpSupplierList() <- NULL;
+    inCmpSupplier(LegalEntity l) <- NULL;
+} ASON CONTEXTMENU nameCmpSupplierList;
+
+FORM dialogCmpSuppliers 'Выбор поставщиков'
+    TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parent(lg)
+    PROPERTIES READONLY lgTreeName = name(lg)
+
+    OBJECTS o = LegalEntity
+    PROPERTIES(o) inCmpSupplier READONLYIF cmpSupplierList()
+    PROPERTIES(o) READONLY name, id SHOWIF showIDs(), fullName, shortNameOwnership,
+        nameLegalEntityGroup, address, phone
+    PROPERTIES changeCmpSupplierList() TOOLBAR
+    ORDERS name(o)
+    FILTERGROUP inactiveSupplier FILTER 'Активные' active(o) 'shift F10' DEFAULT
+    FILTERGROUP selectedSupplier FILTER 'Отмеченные' inCmpSupplier(o) 'F9'
+    FILTERS isSupplier(o)
+    FILTERS isParent(legalEntityGroup(o), lg) OR
+        o IS LegalEntity AND NOT lg IS LegalEntityGroup OR
+        o IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroup(o)
+;
+
+DESIGN dialogCmpSuppliers {
+    BOX {
+        NEW topContainer {
+            horizontal = TRUE;
+            fill = 1;
+            MOVE BOX(TREE legalEntityGroupTree) {
+                caption = 'Группы организаций';
+            }
+            MOVE BOX(o) {
+                fill = 3;
+                GRID(o) {
+                    defaultComponent = TRUE;
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+selectAllCmpSuppliers 'Выбрать всех' () {
+    cmpSupplierList() <- NULL;
+    inCmpSupplier(LegalEntity l) <- TRUE WHERE isSupplier(l) AND active(l);
+} ASON CONTEXTMENU nameCmpSuppliers;
+
+deselectAllCmpSuppliers 'Сбросить всех' () {
+    cmpSupplierList() <- NULL;
+    inCmpSupplier(LegalEntity l) <- NULL;
+} ASON CONTEXTMENU nameCmpSuppliers;
+
+inCmpSku 'Отм.' = DATA LOCAL BOOLEAN (Sku);
+inCmpSkuList 'Отм.' = DATA LOCAL BOOLEAN (List);
+anyCmpSkuList() = GROUP MAX inCmpSkuList(List l);
+nameCmpSkuLists 'Списки товаров' () = GROUP CONCAT name(List l) IF inCmpSkuList(l), ', ' ORDER name(l), l CHARWIDTH 30;
+
+deleteCmpSkuLists 'Сбросить список'() {
+    inCmpSkuList(List l) <- NULL;
+    inCmpSku(Sku s) <- NULL;
+} ASON CONTEXTMENU nameCmpSkuLists;
+
+inCmpSkuGroup 'Отм.' = DATA LOCAL BOOLEAN (SkuGroup);
+anyCmpSkuGroup() = GROUP MAX inCmpSkuGroup(SkuGroup g);
+nameCmpSkuGroups 'Товарные группы' () = GROUP CONCAT name(SkuGroup o) IF inCmpSkuGroup(o) AND NOT inCmpSkuGroup(parent(o)), '; ' ORDER o CHARWIDTH 30;
+
+deleteCmpSkuGroups 'Сбросить группы'() {
+    inCmpSkuGroup(SkuGroup g) <- NULL;
+} ASON CONTEXTMENU nameCmpSkuGroups;
+
+inCmpSkuByGroup(Sku s) = GROUP MAX inCmpSkuGroup(SkuGroup g) IF isParent(g, s);
+inCmpSkuByGroupRun(Sku s) = GROUP MAX inCmpSkuGroupRun(SkuGroup g) IF isParent(g, s);
+
+FORM selectCmpSku 'Выбор товаров'
+    TREE skuTree sg = SkuGroup PARENT parent(sg)
+    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F6' DEFAULT
+    ORDERS order(sg), skuGroupName
+
+    OBJECTS s = Sku
+    PROPERTIES(s) inCmpSku
+    PROPERTIES(s) READONLY id SHOWIF showIDs()
+    PROPERTIES(s) READONLY name, idBarcode, shortNameUOM
+    FILTERS isParent(sg, s), name(s)
+    ORDERS name(s)
+;
+
+FORM dialogCmpSkuGroups 'Выбор товарных групп'
+    TREE skuGroupTree sg = SkuGroup PARENT parent(sg)
+    PROPERTIES(sg) inCmpSkuGroup
+    PROPERTIES READONLY order(sg), sgName = name(sg)
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F6' DEFAULT
+    ORDERS order(sg), sgName
+;
+
+FORM dialogCmpSkuLists 'Выбор списков товаров'
+    OBJECTS o = List
+    PROPERTIES(o) inCmpSkuList
+    PROPERTIES(o) READONLY name
+    ORDERS name(o)
+;
+
+selectCmpSkus 'Фильтр по товарам' () {
+    DIALOG skuFilterType OBJECTS t INPUT DO {
+        CASE
+            WHEN t = SkuFilterType.sku THEN {
+                inCmpSkuList(List l) <- NULL;
+                inCmpSkuGroup(SkuGroup g) <- NULL;
+                SHOW selectCmpSku;
+            }
+            WHEN t = SkuFilterType.skuGroups THEN {
+                inCmpSkuList(List l) <- NULL;
+                inCmpSku(Sku s) <- NULL;
+                SHOW dialogCmpSkuGroups;
+            }
+            WHEN t = SkuFilterType.skuLists THEN {
+                inCmpSkuGroup(SkuGroup g) <- NULL;
+                DIALOG dialogCmpSkuLists DO {
+                    inCmpSku(Sku s) <- NULL;
+                    FOR inCmpSkuList(list(ListDetail ld)) AND Sku sk = sku(ld) DO
+                        inCmpSku(sk) <- TRUE;
+                }
+            };
+    }
+}
+
+selectedCmpSkuNames = GROUP CONCAT name(Sku s) IF inCmpSku(s), '; ' ORDER name(s), s;
+skuNamesFromCmpGroups = GROUP CONCAT name(Sku s) IF inCmpSkuByGroup(s) AND name(s), '; ' ORDER name(s), s;
+cmpInSkus 'Товары' = OVERRIDE selectedCmpSkuNames(), skuNamesFromCmpGroups();
+
+anyCmpSkuSelected() = (GROUP MAX inCmpSku(Sku s)) OR anyCmpSkuGroup();
+anyCmpSkuSelectedRun() = (GROUP MAX inCmpSkuRun(Sku s)) OR (GROUP MAX inCmpSkuGroupRun(SkuGroup g));
+
+cmpSkuFilter(Sku s) = NOT anyCmpSkuSelectedRun() OR inCmpSkuRun(s) OR inCmpSkuByGroupRun(s);
+
+cmpLastPurchaseDetail(Sku s, Stock st) =
+    GROUP LAST Purchase.InvoiceDetail d
+    ORDER date(d), d
+    WHERE isPosted(d) AND date(d) <= cmpDateToRun()
+    BY sku(d), customerStock(d);
+
+cmpSupplier(Sku s, Stock st) = OVERRIDE supplier(cmpLastPurchaseDetail(s, st)), supplierSku(s);
+
+anyCmpSupplierRun() = GROUP MAX inCmpSupplierRun(LegalEntity l);
+cmpSupplierFilter(Sku s, Stock st) = NOT anyCmpSupplierRun() OR inCmpSupplierRun(cmpSupplier(s, st));
+
+cmpRowFilter(Sku s, Stock st) = inSaleReportRun(st) AND cmpSkuFilter(s) AND cmpSupplierFilter(s, st);
+
+cmpShowIncludeReturns() = cmpSalesTypeDefault() != SalesFilterType.wholesale;
+
+cmpInDocTypeFilter(SaleLedger sl, SalesFilterType sdt) =
+    (sdt = SalesFilterType.both AND (NOT isRetailReturn(sl) OR cmpIncludeReturnsRun()))
+        OR (sdt = SalesFilterType.retail AND (isRetailSale(sl) OR (isRetailReturn(sl) AND cmpIncludeReturnsRun())))
+        OR (sdt = SalesFilterType.wholesale AND NOT isRetail(sl));
+
+cmpSaleFilter (SaleLedger o) = active(o) AND inSaleReportRun(stock(o))
+    AND cmpSkuFilter(sku(o))
+    AND cmpSupplierFilter(sku(o), stock(o))
+    AND cmpInDocTypeFilter(o, cmpSalesTypeRunDefault());
+
+cSumRestQty (Sku s, Stock st) =
+    GROUP SUM balanceA(s, st, DATE d) IF iterate(d, cmpDateFromRun(), cmpDateToRun());
+
+cSumRestCost (Sku s, Stock st) =
+    GROUP SUM round2(balanceA(s, st, DATE d) * accountPriceA(s, st, toDateTime(d))) IF iterate(d, cmpDateFromRun(), cmpDateToRun());
+
+cSumRestRetail (Sku s, Stock st) =
+    GROUP SUM round2(balanceA(s, st, DATE d) * prevPriceA(retailPriceListType(st), s, st, toDateTime(d))) IF iterate(d, cmpDateFromRun(), cmpDateToRun());
+
+cAvgRestQty 'Средний остаток количество' (Sku s, Stock st) =
+    NUMERIC[18,2](round2(cSumRestQty(s, st) / cmpDays())) IF cmpDays();
+
+cAvgStockSum 'Средняя сумма остатка (учетные)' (Sku s, Stock st) =
+    NUMERIC[18,2](round2(cSumRestCost(s, st) / cmpDays())) IF cmpDays();
+
+cAvgRestRetail 'Средний остаток отпускные' (Sku s, Stock st) =
+    NUMERIC[18,2](round2(cSumRestRetail(s, st) / cmpDays())) IF cmpDays();
+
+cSalesQty 'Продажи (количество)' (Sku s, Stock st) =
+    GROUP SUM quantity(SaleLedger sl)
+        IF cmpSaleFilter(sl) AND date(sl) >= cmpDateFromRun() AND date(sl) <= cmpDateToRun()
+    BY sku(sl), stock(sl);
+
+cSalesSum 'Сумма продаж (продажные)' (Sku s, Stock st) =
+    GROUP SUM sum(SaleLedger sl)
+        IF cmpSaleFilter(sl) AND date(sl) >= cmpDateFromRun() AND date(sl) <= cmpDateToRun()
+    BY sku(sl), stock(sl);
+
+cSalesCost 'Сумма продаж (учетные)' (Sku s, Stock st) =
+    GROUP SUM costSum(SaleLedger sl)
+        IF cmpSaleFilter(sl) AND date(sl) >= cmpDateFromRun() AND date(sl) <= cmpDateToRun()
+    BY sku(sl), stock(sl);
+
+cMargin 'Маржинальный доход' (Sku s, Stock st) = cSalesSum(s, st) (-) cSalesCost(s, st);
+
+cProfitability 'Рентабельность %' (Sku s, Stock st) =
+    NUMERIC[18,2](round2(cMargin(s, st) * 100.0 / cSalesSum(s, st))) IF cSalesSum(s, st) != 0;
+
+cTurnoverBaseSales (Sku s, Stock st) = CASE
+    WHEN cmpCriterionRunDefault() = CmpTurnoverCriterion.quantity THEN cSalesQty(s, st)
+    WHEN cmpCriterionRunDefault() = CmpTurnoverCriterion.account THEN cSalesCost(s, st)
+    WHEN cmpCriterionRunDefault() = CmpTurnoverCriterion.retail THEN cSalesSum(s, st);
+
+cTurnoverBaseRest (Sku s, Stock st) = CASE
+    WHEN cmpCriterionRunDefault() = CmpTurnoverCriterion.quantity THEN cAvgRestQty(s, st)
+    WHEN cmpCriterionRunDefault() = CmpTurnoverCriterion.account THEN cAvgStockSum(s, st)
+    WHEN cmpCriterionRunDefault() = CmpTurnoverCriterion.retail THEN cAvgRestRetail(s, st);
+
+cTurnoverDays 'Оборачиваемость товарных остатков' (Sku s, Stock st) =
+    NUMERIC[18,3](round3(cTurnoverBaseRest(s, st) * cmpDays() / cTurnoverBaseSales(s, st)))
+        IF cTurnoverBaseSales(s, st) > 0 AND cTurnoverBaseRest(s, st) > 0;
+
+pSumRestQty (Sku s, Stock st) =
+    GROUP SUM balanceA(s, st, DATE d) IF iterate(d, prevDateFromRun(), prevDateToRun());
+
+pSumRestCost (Sku s, Stock st) =
+    GROUP SUM round2(balanceA(s, st, DATE d) * accountPriceA(s, st, toDateTime(d))) IF iterate(d, prevDateFromRun(), prevDateToRun());
+
+pSumRestRetail (Sku s, Stock st) =
+    GROUP SUM round2(balanceA(s, st, DATE d) * prevPriceA(retailPriceListType(st), s, st, toDateTime(d))) IF iterate(d, prevDateFromRun(), prevDateToRun());
+
+pAvgRestQty 'Средний остаток пред. количество' (Sku s, Stock st) =
+    NUMERIC[18,2](round2(pSumRestQty(s, st) / prevDays())) IF prevDays();
+
+pAvgStockSum 'Средняя сумма остатка пред. (учетные)' (Sku s, Stock st) =
+    NUMERIC[18,2](round2(pSumRestCost(s, st) / prevDays())) IF prevDays();
+
+pAvgRestRetail 'Средний остаток пред. отпускные' (Sku s, Stock st) =
+    NUMERIC[18,2](round2(pSumRestRetail(s, st) / prevDays())) IF prevDays();
+
+pSalesQty 'Продажи пред. (количество)' (Sku s, Stock st) =
+    GROUP SUM quantity(SaleLedger sl)
+        IF cmpSaleFilter(sl) AND date(sl) >= prevDateFromRun() AND date(sl) <= prevDateToRun()
+    BY sku(sl), stock(sl);
+
+pSalesSum 'Сумма продаж пред. (продажные)' (Sku s, Stock st) =
+    GROUP SUM sum(SaleLedger sl)
+        IF cmpSaleFilter(sl) AND date(sl) >= prevDateFromRun() AND date(sl) <= prevDateToRun()
+    BY sku(sl), stock(sl);
+
+pSalesCost 'Сумма продаж пред. (учетные)' (Sku s, Stock st) =
+    GROUP SUM costSum(SaleLedger sl)
+        IF cmpSaleFilter(sl) AND date(sl) >= prevDateFromRun() AND date(sl) <= prevDateToRun()
+    BY sku(sl), stock(sl);
+
+pMargin 'Маржинальный доход пред.' (Sku s, Stock st) = pSalesSum(s, st) (-) pSalesCost(s, st);
+
+pProfitability 'Рентабельность пред. %' (Sku s, Stock st) =
+    NUMERIC[18,2](round2(pMargin(s, st) * 100.0 / pSalesSum(s, st))) IF pSalesSum(s, st) != 0;
+
+pTurnoverBaseSales (Sku s, Stock st) = CASE
+    WHEN cmpCriterionRunDefault() = CmpTurnoverCriterion.quantity THEN pSalesQty(s, st)
+    WHEN cmpCriterionRunDefault() = CmpTurnoverCriterion.account THEN pSalesCost(s, st)
+    WHEN cmpCriterionRunDefault() = CmpTurnoverCriterion.retail THEN pSalesSum(s, st);
+
+pTurnoverBaseRest (Sku s, Stock st) = CASE
+    WHEN cmpCriterionRunDefault() = CmpTurnoverCriterion.quantity THEN pAvgRestQty(s, st)
+    WHEN cmpCriterionRunDefault() = CmpTurnoverCriterion.account THEN pAvgStockSum(s, st)
+    WHEN cmpCriterionRunDefault() = CmpTurnoverCriterion.retail THEN pAvgRestRetail(s, st);
+
+pTurnoverDays 'Оборачиваемость товарных остатков пред.' (Sku s, Stock st) =
+    NUMERIC[18,3](round3(pTurnoverBaseRest(s, st) * prevDays() / pTurnoverBaseSales(s, st)))
+        IF pTurnoverBaseSales(s, st) > 0 AND pTurnoverBaseRest(s, st) > 0;
+
+cmpDiffPercent(NUMERIC a, NUMERIC b) =
+    CASE
+        WHEN b != 0.0 THEN NUMERIC[18,2](round2(((OVERRIDE a, 0.0) - b) * 100.0 / abs(b)))
+        WHEN a != 0.0 THEN 100.0
+        ELSE 0.0;
+
+diffTurnover 'Оборачиваемость %' (Sku s, Stock st) = cmpDiffPercent(cTurnoverDays(s, st), pTurnoverDays(s, st));
+diffSalesSum 'Продажи (прод.ц.) %' (Sku s, Stock st) = cmpDiffPercent(cSalesSum(s, st), pSalesSum(s, st));
+diffSalesCost 'Продажи (учет.ц.) %' (Sku s, Stock st) = cmpDiffPercent(cSalesCost(s, st), pSalesCost(s, st));
+diffAvgStock 'Сред. остаток %' (Sku s, Stock st) = cmpDiffPercent(cAvgStockSum(s, st), pAvgStockSum(s, st));
+diffMargin 'Марж. доход %' (Sku s, Stock st) = cmpDiffPercent(cMargin(s, st), pMargin(s, st));
+diffProfitability 'Рентабельность (+/- %)' (Sku s, Stock st) = cProfitability(s, st) (-) pProfitability(s, st);
+
+cmpHasData(Sku s, Stock st) = cmpRowFilter(s, st) AND (
+    cSalesSum(s, st) OR cSalesCost(s, st) OR cSalesQty(s, st) OR
+        pSalesSum(s, st) OR pSalesCost(s, st) OR pSalesQty(s, st) OR
+        cAvgRestQty(s, st) OR cAvgStockSum(s, st) OR cAvgRestRetail(s, st) OR
+        pAvgRestQty(s, st) OR pAvgStockSum(s, st) OR pAvgRestRetail(s, st));
+
+changeStocksCmp() { DIALOG dialogStocksSaleReportRu; }
+
+cmpSupplierName 'Наименование поставщика' (Sku s, Stock st) = name(cmpSupplier(s, st));
+
+runCmpReport 'Сформировать отчет' () {
+    cmpDateFromRun() <- cmpDateFrom();
+    cmpDateToRun() <- cmpDateTo();
+    prevDateFromRun() <- prevDateFrom();
+    prevDateToRun() <- prevDateTo();
+    cmpSalesTypeRun() <- cmpSalesType();
+    cmpCriterionRun() <- cmpCriterion();
+    cmpIncludeReturnsRun() <- cmpIncludeReturns();
+    inCmpSupplierRun(LegalEntity l) <- inCmpSupplier(l);
+    inCmpSkuRun(Sku s) <- inCmpSku(s);
+    inCmpSkuGroupRun(SkuGroup g) <- inCmpSkuGroup(g);
+    inSaleReportRun(Stock st) <- inSaleReport(st);
+}
+
+FORM comparativeTurnoverReport 'Сравнительный анализ оборачиваемости'
+    PROPERTIES() cmpDateFrom, cmpDateTo, prevDateFrom, prevDateTo
+    PROPERTIES() nameCmpSalesType, nameCmpCriterion
+    PROPERTIES() cmpIncludeReturns SHOWIF cmpShowIncludeReturns()
+
+    PROPERTIES nameStockList() READONLY SHOWIF stockList()
+    PROPERTIES cmpStocks 'Подразделения' = inSaleReportStocks() ON CHANGE changeStocksCmp() READONLYIF stockList()
+
+    PROPERTIES nameCmpSkuLists() READONLY SHOWIF anyCmpSkuList()
+    PROPERTIES cmpSkuGroups 'Товарные группы' = nameCmpSkuGroups() READONLY SHOWIF anyCmpSkuGroup()
+    PROPERTIES cmpSkus 'Товары' = cmpInSkus() ON CHANGE selectCmpSkus() READONLYIF anyCmpSkuList() OR anyCmpSkuGroup()
+
+    PROPERTIES nameCmpSupplierList() READONLY SHOWIF cmpSupplierList()
+    PROPERTIES cmpSuppliers 'Поставщики' = nameCmpSuppliers() ON CHANGE { DIALOG dialogCmpSuppliers; } READONLYIF cmpSupplierList()
+
+    OBJECTS report = (st = Stock, s = Sku)
+    PROPERTIES(st) READONLY 'Код объекта учета' = id, 'Наименование объекта учета' = name
+    PROPERTIES(s) READONLY
+    'Код отдела' = idSkuGroup2, 'Наименование отдела' = nameSkuGroup2,
+        'Код группы' = idSkuGroup3, 'Наименование группы' = nameSkuGroup3,
+        'Код подгруппы' = idSkuGroup4, 'Наименование подгруппы' = nameSkuGroup4
+    PROPERTIES(s, st) READONLY cmpSupplierName
+    PROPERTIES(s) READONLY 'Код товара' = id, 'Наименование товара' = name
+
+    PROPERTIES(s, st) READONLY BACKGROUND RGB(240, 248, 255)
+    cTurnoverDays, cSalesSum, cSalesCost, cAvgStockSum, cMargin, cProfitability
+
+    PROPERTIES(s, st) READONLY BACKGROUND RGB(255, 245, 238)
+    pTurnoverDays, pSalesSum, pSalesCost, pAvgStockSum, pMargin, pProfitability
+
+    PROPERTIES(s, st) READONLY BACKGROUND RGB(245, 255, 245)
+    diffTurnover, diffSalesSum, diffSalesCost, diffAvgStock, diffMargin, diffProfitability
+
+    FILTERS cmpHasData(s, st)
+    ORDERS name(st), nameSkuGroup2(s), nameSkuGroup3(s), nameSkuGroup4(s), name(s)
+
+    EVENTS ON INIT initCmpDates()
+;
+
+printCmpTurnoverReport 'Печать' () { PRINT comparativeTurnoverReport XLSX; } IMAGE 'print.png';
+
+EXTEND FORM comparativeTurnoverReport
+    PROPERTIES() runCmpReport
+    PROPERTIES() DISABLEIF NOT cmpDateFromRun() OR NOT cmpDateToRun() OR NOT prevDateFromRun() OR NOT prevDateToRun() printCmpTurnoverReport
+;
+
+DESIGN comparativeTurnoverReport {
+    NEW filters FIRST {
+        alignment = STRETCH;
+        NEW periods {
+            horizontal = TRUE;
+            alignment = STRETCH;
+            MOVE PROPERTY(cmpDateFrom());
+            MOVE PROPERTY(cmpDateTo());
+            MOVE PROPERTY(prevDateFrom());
+            MOVE PROPERTY(prevDateTo());
+        }
+        NEW criteria {
+            horizontal = TRUE;
+            alignment = STRETCH;
+            MOVE PROPERTY(nameCmpSalesType());
+            MOVE PROPERTY(nameCmpCriterion());
+            MOVE PROPERTY(cmpIncludeReturns());
+        }
+        MOVE PROPERTY(nameStockList()) { alignment = STRETCH; }
+        MOVE PROPERTY(cmpStocks) { alignment = STRETCH; }
+        MOVE PROPERTY(nameCmpSkuLists()) { alignment = STRETCH; }
+        MOVE PROPERTY(cmpSkuGroups) { alignment = STRETCH; }
+        MOVE PROPERTY(cmpSkus) { alignment = STRETCH; }
+        MOVE PROPERTY(nameCmpSupplierList()) { alignment = STRETCH; }
+        MOVE PROPERTY(cmpSuppliers) { alignment = STRETCH; }
+        NEW buttons {
+            horizontal = TRUE;
+            alignment = STRETCH;
+            MOVE PROPERTY(runCmpReport()) { valueClass = 'btn-primary'; fontSize = 16; }
+            MOVE PROPERTY(printCmpTurnoverReport()) { valueClass = 'btn-primary'; }
+        }
+    }
+    BOX(report) {
+        caption = 'Данные сравнительного анализа';
+    }
+}
+
 NAVIGATOR {
     salesReports {
         NEW bestWorstProducts;
         NEW salesDynamicsReport;
         NEW assortmentMatrixReport;
         NEW assortmentHistoryReport;
+        NEW comparativeTurnoverReport;
     }
 }
