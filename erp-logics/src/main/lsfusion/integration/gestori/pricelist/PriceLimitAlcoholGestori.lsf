@@ -1,0 +1,213 @@
+MODULE PriceLimitAlcoholGestori;
+
+REQUIRE PriceList, EGAISProductType, EGAISItemGestori, ItemSize;
+
+NAMESPACE PriceLimitAlcohol;
+
+CLASS AlcoholLimit 'Минимальные цены на алкоголь';
+CLASS AlcoholLimitDetail 'Строка минимальных цен на алкоголь';
+
+@defineDocument(alcoholLimit);
+@deriveDocumentHeaderTimePrefix(AlcoholLimit, );
+
+@defineDocumentPosted(alcoholLimit);
+
+fromDate 'Дата с'= DATA DATE (AlcoholLimit) NONULL; 
+toDate 'Дата по'= DATA DATE (AlcoholLimit) NONULL;
+volume 'Объем, л' = DATA NUMERIC[10,4] (AlcoholLimitDetail) NONULL;
+in = DATA BOOLEAN (AlcoholLimit, ProductType);
+
+idProductTypes 'Виды продукции' (AlcoholLimit a)= GROUP CONCAT id(ProductType p) IF in(a, p) ,', ' ORDER id(p);
+
+FORM changeProductTypes
+    OBJECTS r = AlcoholLimit TOOLBAR
+    OBJECTS p = ProductType
+    PROPERTIES in(r, p)
+    PROPERTIES(p) id, name
+    FILTERGROUP in FILTER 'Отм' in(r, p)
+;
+
+changeProductTypes(AlcoholLimit r) {
+    DIALOG changeProductTypes;
+}
+
+
+productType = DATA ProductType(AlcoholLimitDetail) NONULL;
+idProductType 'Код вида продукции' (AlcoholLimitDetail d) = id(productType(d));
+nameProductType 'Наименование вида продукции' (AlcoholLimitDetail d) = name(productType(d));
+fromValueAlcohol 'Содержание алкоголя c, %' = DATA NUMERIC[10,2] (AlcoholLimitDetail) NONULL;
+toValueAlcohol 'Содержание алкоголя по, %' = DATA NUMERIC[10,2] (AlcoholLimitDetail) NONULL;
+//alcoholLimitDetail = GROUP AGGR AlcoholLimitDetail d BY volume(d), alcoholLimit(d);
+
+minPrice 'Цена за заданый объем' = DATA NUMERIC[16,5](AlcoholLimitDetail) NONULL;
+
+roundCondition  = DATA RoundCondition(AlcoholLimit);
+nameRoundCondition 'Условия округления'(AlcoholLimit h) = name(roundCondition(h));
+roundCondition (AlcoholLimitDetail h) = roundCondition(alcoholLimit(h));
+
+FORM alcoholLimit 'Минимальные цены на алкоголь'
+
+    OBJECTS r = AlcoholLimit PANEL
+    PROPERTIES (r) isPosted, date, time, fromDate, toDate, nameRoundCondition, note, idProductTypes ON CHANGE changeProductTypes(r)
+
+    PROPERTIES (r) READONLY countAlcoholLimitDetail
+
+    OBJECTS d = AlcoholLimitDetail
+    PROPERTIES (d) idProductType, nameProductType, fromValueAlcohol, toValueAlcohol, volume, minPrice
+
+    PROPERTIES (d) NEW, deleteid=DELETE GRID
+
+    PROPERTIES(r) DRAW d deleteAlcoholLimitDetail
+
+    FILTERS alcoholLimit(d) == r
+
+    EVENTS
+        ON OK prePost(r)
+
+    EDIT AlcoholLimit OBJECT r
+;
+
+DESIGN alcoholLimit {
+    BOX {
+        size = (1024, 768);
+        NEW headerBox {
+            horizontal = TRUE;
+
+            NEW headerParams {
+                fill = 1;
+                MOVE GROUP(documentHeader,r) {
+                    lines = 1;
+                    NEW first {
+                        horizontal = TRUE;
+                        MOVE PROPERTY (isPosted(r));
+                        MOVE PROPERTY(date(r));
+                        MOVE PROPERTY(time(r));
+                        MOVE PROPERTY(fromDate(r));
+                        MOVE PROPERTY(toDate(r));
+                    }
+                    NEW second {
+                        horizontal = TRUE;
+                        MOVE PROPERTY(nameRoundCondition(r));
+                        MOVE PROPERTY(idProductTypes(r));
+                    }
+
+                }
+                MOVE GROUP(documentPrm,r);
+            }
+            MOVE GROUP(documentSum,r) {
+                lines = 1;
+            }
+        }
+        NEW specificationBox {
+            fill = 1;
+            MOVE BOX(d) {
+                caption = 'Спецификация';
+            }
+        }
+        PROPERTY(formOk()) {
+            caption = 'Провести';
+        }
+        MOVE TOOLBARBOX;
+
+    }
+}
+
+CONSTRAINT productType(AlcoholLimitDetail d) AND NOT in(alcoholLimit(d), productType(d)) AND idProductTypes(alcoholLimit(d)) CHECKED BY productType[AlcoholLimitDetail] MESSAGE 'Запрещено в строка минимальных цен вида продукции не разрешенный в шапке';
+
+FORM alcoholLimits 'Минимальные цены на алкоголь'
+
+    OBJECTS r = AlcoholLimit
+    PROPERTIES (r) READONLY isPosted, date, time, fromDate, toDate, nameRoundCondition, note, idProductTypes
+    PROPERTIES (r) READONLY countAlcoholLimitDetail
+
+    PROPERTIES (r) NEWSESSION NEW, EDIT, deleter=DELETE
+//    PROPERTIES (r)            copy
+    PROPERTIES (r) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer,
+        postedNameUser, postedTime, postedHostnameComputer
+
+    OBJECTS d = AlcoholLimitDetail
+    PROPERTIES (d) READONLY idProductType, nameProductType, fromValueAlcohol, toValueAlcohol, volume, minPrice
+
+    FILTERS alcoholLimit(d) == r
+
+    LIST AlcoholLimit OBJECT r
+;
+DESIGN alcoholLimits {
+    BOX {
+        size = (1024, 768);
+
+        NEW documentContainer BEFORE TOOLBARBOX {
+            fill = 1;
+            MOVE BOX(r);
+
+            NEW documentDetail {
+                fill = 1;
+                tabbed = TRUE;
+                MOVE BOX(d) {
+                    fill = 1;
+                    caption = 'Спецификация';
+                }
+                NEW documentHistory {
+                    caption = 'История';
+                    MOVE GROUP(created,r);
+                    MOVE GROUP(posted,r);
+                }
+                NEW printTab {
+                    caption = 'Печатные формы';
+                    NEW printContainer {
+                        caption = 'Печать';
+                    }
+                }
+                NEW actionContainer {
+                    caption = 'Действия';
+                    horizontal = TRUE;
+                    NEW createdContainer {
+                        caption = 'Создание на основе';
+                    }
+                }
+            }
+        }
+    }
+}
+
+NAVIGATOR {
+    priceListDocuments{
+        NEW alcoholLimits;
+    }
+}
+minAlcoholLimitPrice = ABSTRACT CASE NUMERIC[16,4](Item , DATETIME);
+minAlcoholLimitPriceRB = ABSTRACT CASE NUMERIC[16,4](Item , DATETIME);
+useCustomAlcoholLimitPrice = ABSTRACT BOOLEAN ();
+
+skipAlcoholLimitPrice = ABSTRACT VALUE BOOLEAN (AlcoholLimitDetail);
+
+minAlcoholLimitPriceCalc (Item s, DATETIME dt) = GROUP
+    LAST NUMERIC[16,4](round2(minPrice(AlcoholLimitDetail ad)*volume(s)/volume(ad)))
+    ORDER dateTime(ad), ad
+    WHERE isPosted(ad) AND dateTime(ad) <= dt AND productType(s) == productType(ad) AND toDate(dt) >= fromDate(alcoholLimit(ad)) AND
+        toDate(dt) <= toDate(alcoholLimit(ad)) AND value(alcohol(s)) >= fromValueAlcohol(ad) AND value(alcohol(s)) <= toValueAlcohol(ad);
+
+//minAlcoholLimitPriceRBCalc (Item s, DATETIME dt) = GROUP
+//    LAST minPrice(AlcoholLimitDetail ad, Alcohol a)
+//    ORDER dateTime(ad), ad
+//    WHERE isPosted(ad) AND dateTime(ad) <= dt AND volume(s) == volume(ad) AND alcohol(s) == a AND NOT value(a) < minAlcoholValue(ad) AND isRB(ad) AND NOT skipAlcoholLimitPrice(ad);
+//
+minAlcoholLimitPrice (Item s, DATETIME dt) += WHEN s IS Item AND dt IS DATETIME AND NOT useCustomAlcoholLimitPrice() THEN minAlcoholLimitPriceCalc(s,dt);
+//minAlcoholLimitPriceRB (Item s, DATETIME dt) += WHEN s IS Item AND dt IS DATETIME AND NOT useCustomAlcoholLimitPrice() THEN minAlcoholLimitPriceRBCalc(s,dt);
+
+CONSTRAINT CHANGED(isPosted(UserPriceListDetail d)) AND isPosted(d) AND price(d, dataPriceListType('retail')) < minAlcoholLimitPrice(sku(d), fromDateTime(d)) MESSAGE 'Цена меньше МРЦ';
+
+EXTEND FORM alcoholLimits
+    OBJECTS i = Item
+    PROPERTIES (i) READONLY idBarcode, id, name, volume, nameProductType
+    PROPERTIES =minAlcoholLimitPrice(i,currentDateTime())
+    FILTERS dateTime(d) <= currentDateTime() AND currentDate() >= fromDate(alcoholLimit(d)) AND
+    currentDate() <= toDate(alcoholLimit(d)) AND
+        productType(i) == productType(d) AND value(alcohol(i)) >= fromValueAlcohol(d) AND value(alcohol(i)) <= toValueAlcohol(d)
+    ;
+
+DESIGN alcoholLimits {
+    documentDetail {
+        MOVE BOX (i);
+    }
+}
