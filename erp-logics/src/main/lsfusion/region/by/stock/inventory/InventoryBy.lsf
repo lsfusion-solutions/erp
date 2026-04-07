@@ -134,6 +134,8 @@ sumPageInventoryDetailSku 'Сумма по описям' = GROUP SUM sumPageInve
 sumBalanceSku 'Сумма по остаткам' = GROUP SUM sumBalance(CollationSheet sheet, Sku sku) BY sheet, skuGroup(sku);
 sumShortageSku 'Сумма недостачи' = GROUP SUM sumShortage(CollationSheet sheet, Sku sku) BY sheet, skuGroup(sku);     
     
+overQuantity = ABSTRACT NUMERIC[16,5] (CollationSheet, Batch);
+
 FORM printCollationSheetByGroup 'Сличительная ведомость(по группам)'
 
     OBJECTS          cs=CollationSheet PANEL SUBREPORT
@@ -168,7 +170,7 @@ FORM printCollationSheetByGroup 'Сличительная ведомость(п�
     PROPERTIES(cs,b) SELECTOR pricePageInventoryDetail, priceBalance
     PROPERTIES(cs,b) READONLY sumPageInventoryDetail, sumBalance, sumShortage
     FILTERS                   include(cs,b),
-                              quantityPageInventoryDetail(cs,b) OR quantityBalance(cs,b) OR sumBalance(cs,b),
+                              quantityPageInventoryDetail(cs,b) OR quantityBalance(cs,b) OR sumBalance(cs,b) OR overQuantity(cs, b),
                               skuGroup(sku(b)) == sk
     ORDERS nameSku(b)
 ;
