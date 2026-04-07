@@ -147,7 +147,6 @@ public class DefaultTerminalHandler {
                 Long flags = (Long) terminalHandlerLM.findProperty("flags[Barcode, Stock]").read(session, barcodeObject, stockObject);
 
                 String unit = (String) terminalHandlerLM.findProperty("shortNameUOM[Barcode]").read(session, barcodeObject);
-                String category = (String) terminalHandlerLM.findProperty("nameSkuGroup[Barcode]").read(session, barcodeObject);
     
                 BigDecimal trustAcceptPercent = (BigDecimal) terminalHandlerLM.findProperty("trustAcceptPercent[Barcode]").read(session, barcodeObject);
     
@@ -157,7 +156,7 @@ public class DefaultTerminalHandler {
                 
                 return Arrays.asList(barcode, BaseUtils.isEmpty(overNameSku) ? "" : overNameSku.toUpperCase(), priceValue == null ? "0" : priceValue,
                         quantityValue == null ? "0" : quantityValue, idSkuBarcode, nameManufacturer, fld3, fld4, fld5, isWeight,
-                        mainBarcode, color, ticket_data, flags == null ? "0" : flags.toString(), category, unit, trustAcceptPercent, backgrounColor, lotType, ukz ? "1" : "0", nameUkzType);
+                        mainBarcode, color, ticket_data, flags == null ? "0" : flags.toString(), null, unit, trustAcceptPercent, backgrounColor, lotType, ukz ? "1" : "0", nameUkzType);
             } else return null;
 
         } catch (Exception e) {
@@ -305,6 +304,7 @@ public class DefaultTerminalHandler {
 
                 boolean imagesInReadBase = terminalHandlerLM.findProperty("imagesInReadBase[]").read(session) != null;
                 String baseZipDirectory = (String) terminalHandlerLM.findProperty("baseZipDirectory[]").read(session);
+                boolean skipGtinAsBarcode = terminalHandlerLM.findProperty("skipGtinAsBarcode[]").read(session) != null;
 
                 ObjectValue stockObject;
                 if (!userInfo.idStock.isEmpty())
@@ -343,7 +343,7 @@ public class DefaultTerminalHandler {
                     updateCategoryTable(connection, skuGroupList);
                     
                     createGoodsTable(connection);
-                    updateGoodsTable(connection, barcodeList, orderList, skuExtraBarcodeList, orderImages, imagesInReadBase, userInfo);
+                    updateGoodsTable(connection, barcodeList, orderList, skuExtraBarcodeList, orderImages, imagesInReadBase, skipGtinAsBarcode, userInfo);
 
                     createBatchesTable(connection);
                     updateBatchesTable(connection, batchList, extraBatchList, prefix, userInfo);
@@ -584,7 +584,6 @@ public class DefaultTerminalHandler {
                     barcodeQuery.addProperty("image", terminalHandlerLM.findProperty("image[Barcode]").getExpr(session.getModifier(), barcodeExpr));
                 }
                 barcodeQuery.addProperty("amount", terminalHandlerLM.findProperty("amount[Barcode]").getExpr(session.getModifier(), barcodeExpr));
-                barcodeQuery.addProperty("nameSkuGroup", terminalHandlerLM.findProperty("nameSkuGroup[Barcode]").getExpr(session.getModifier(), barcodeExpr));
                 barcodeQuery.addProperty("idSkuGroup", terminalHandlerLM.findProperty("idSkuGroup[Barcode]").getExpr(session.getModifier(), barcodeExpr));
                 barcodeQuery.addProperty("fileNameImage", terminalHandlerLM.findProperty("fileNameImage[Barcode]").getExpr(session.getModifier(), barcodeExpr));
                 
@@ -637,7 +636,6 @@ public class DefaultTerminalHandler {
 
                     BigDecimal amount = (BigDecimal) entry.get("amount");
                     BigDecimal capacity = (BigDecimal) entry.get("capacity");
-                    String category = trim((String) entry.get("nameSkuGroup"));
                     String idCategory = String.valueOf(entry.get("idSkuGroup"));
     
                     BigDecimal trustAcceptPercent = (BigDecimal) entry.get("trustAcceptPercent");
@@ -652,7 +650,7 @@ public class DefaultTerminalHandler {
 
                     result.add(new TerminalBarcode(idBarcode, overNameSku, price, quantityBarcodeStock, idSkuBarcode,
                             nameManufacturer, isWeight, mainBarcode, color, extInfo, fld3, fld4, fld5, unit, flags, image,
-                            nameCountry, amount, capacity, category, GTIN, fileNameImage, trustAcceptPercent,
+                            nameCountry, amount, capacity, GTIN, fileNameImage, trustAcceptPercent,
                             nvl(hasImage, false), background_color, idCategory, isSplit, quantityBarcodeDefect, lotType, ukz, nameUkzType));
                 }
             }
@@ -887,7 +885,6 @@ public class DefaultTerminalHandler {
                 " flags INTEGER," +
                 " country TEXT, " +
                 " capacity REAL, " +
-                " category TEXT, " +
                 " id_category TEXT DEFAULT NULL, " +
                 " trust_accept_percent REAL DEFAULT NULL, " +
                 " quant_defect REAL DEFAULT NULL, " +
@@ -899,12 +896,12 @@ public class DefaultTerminalHandler {
         statement.close();
     }
 
-    private void updateGoodsTable(Connection connection, List<TerminalBarcode> barcodeList, List<TerminalOrder> orderList, List<SkuExtraBarcode> skuExtraBarcodeList, Map<String, RawFileData> orderImages, boolean imagesInReadBase, UserInfo userInfo) throws SQLException {
+    private void updateGoodsTable(Connection connection, List<TerminalBarcode> barcodeList, List<TerminalOrder> orderList, List<SkuExtraBarcode> skuExtraBarcodeList, Map<String, RawFileData> orderImages, boolean imagesInReadBase, boolean skipGtinAsBarcode, UserInfo userInfo) throws SQLException {
         if (!barcodeList.isEmpty() || !orderList.isEmpty()) {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
                 statement = connection.prepareStatement(sql);
                 Set<String> usedBarcodes = new HashSet<>();
 
@@ -919,16 +916,16 @@ public class DefaultTerminalHandler {
                                     barcode.idSkuBarcode, barcode.nameManufacturer, barcode.fld3, barcode.fld4, barcode.fld5,
                                     imageFileName, barcode.isWeight, barcode.isSplit, barcode.mainBarcode,
                                     barcode.color, barcode.extInfo, barcode.unit,
-                                    barcode.flags, barcode.nameCountry, barcode.amount, barcode.category, barcode.trustAcceptPercent,
+                                    barcode.flags, barcode.nameCountry, barcode.amount, barcode.trustAcceptPercent,
                                     barcode.background_color, barcode.idCategory, barcode.quantityBarcodeDefect, barcode.lotType, barcode.ukz, barcode.nameUkzType);
                             usedBarcodes.add(barcode.idBarcode);
                         }
-                        if (!BaseUtils.isEmpty(barcode.GTIN) && !usedBarcodes.contains(barcode.GTIN)) {
+                        if (!skipGtinAsBarcode && !BaseUtils.isEmpty(barcode.GTIN) && !usedBarcodes.contains(barcode.GTIN)) {
                             addGoodsRow(statement, barcode.GTIN, barcode.GTIN, barcode.nameSku, barcode.price, barcode.quantityBarcodeStock,
                                     barcode.idSkuBarcode, barcode.nameManufacturer, barcode.fld3, barcode.fld4, barcode.fld5,
                                     imageFileName, barcode.isWeight, barcode.isSplit, barcode.mainBarcode,
                                     barcode.color, barcode.extInfo, barcode.unit,
-                                    barcode.flags, barcode.nameCountry, barcode.amount, barcode.category, barcode.trustAcceptPercent,
+                                    barcode.flags, barcode.nameCountry, barcode.amount, barcode.trustAcceptPercent,
                                      barcode.background_color, barcode.idCategory, barcode.quantityBarcodeDefect, barcode.lotType, barcode.ukz, barcode.nameUkzType);
                             usedBarcodes.add(barcode.GTIN);
                         }
@@ -946,7 +943,7 @@ public class DefaultTerminalHandler {
                                             order.idItem, order.manufacturer, null, null, null,
                                             image, order.weight, order.split, order.barcode,
                                             null, null, null,
-                                            order.flags, null, BigDecimal.ZERO, order.category,
+                                            order.flags, null, BigDecimal.ZERO,
                                             order.trustAcceptPercent, order.background_color, null, null, order.lotType, order.ukz, order.nameUkzType);
                                     usedBarcodes.add(extraBarcode);
                                 }
@@ -956,16 +953,16 @@ public class DefaultTerminalHandler {
                                 addGoodsRow(statement, order.barcode, order.GTIN, order.name, order.price, null, order.idItem,
                                         order.manufacturer, null, null, null, image, order.weight, order.split, order.barcode,
                                         null, null, null, order.flags, null, BigDecimal.ZERO,
-                                        order.category, order.trustAcceptPercent, order.background_color, null, null, order.lotType, order.ukz, order.nameUkzType);
+                                        order.trustAcceptPercent, order.background_color, null, null, order.lotType, order.ukz, order.nameUkzType);
                                 usedBarcodes.add(order.barcode);
                             }
                         }
-                        if (!BaseUtils.isEmpty(order.GTIN) && !usedBarcodes.contains(order.GTIN)) {
+                        if (!skipGtinAsBarcode && !BaseUtils.isEmpty(order.GTIN) && !usedBarcodes.contains(order.GTIN)) {
                             addGoodsRow(statement, order.GTIN, order.GTIN, order.name, order.price, null,
                                     order.idItem, order.manufacturer, null, null, null,
                                     image, order.weight, order.split, order.barcode,
                                     null, null, null,
-                                    order.flags, null, BigDecimal.ZERO, order.category, order.trustAcceptPercent,
+                                    order.flags, null, BigDecimal.ZERO, order.trustAcceptPercent,
                                     order.background_color, null, null, order.lotType, order.ukz, order.nameUkzType);
                             usedBarcodes.add(order.GTIN);
                         }
@@ -975,7 +972,7 @@ public class DefaultTerminalHandler {
                 for (SkuExtraBarcode b : skuExtraBarcodeList) {
                     addGoodsRow(statement, b.idBarcode, null, b.nameSku, null, null, null, null,
                             null, null, null, null, null, null, b.mainBarcode, null, null,
-                            null, null, null, BigDecimal.ZERO, null, null,
+                            null, null, null, BigDecimal.ZERO, null,
                             null, null, null, null, null, null);
                 }
 
@@ -996,7 +993,7 @@ public class DefaultTerminalHandler {
 
     private void addGoodsRow(PreparedStatement statement, String idBarcode, String gtin, String name, BigDecimal price, BigDecimal quantity, String idItem, String manufacturer,
                              String fld3, String fld4, String fld5, String image, String weight, Integer split, String mainBarcode, String color, String ticketData, String unit,
-                             Long flags, String nameCountry, BigDecimal amountPack, String category, BigDecimal trustAcceptPercent, String background_color, String idCategory,
+                             Long flags, String nameCountry, BigDecimal amountPack, BigDecimal trustAcceptPercent, String background_color, String idCategory,
                              BigDecimal quantity_defect, String lotType, Boolean ukz, String nameUkzType) throws SQLException {
         
         int i = 0;
@@ -1021,7 +1018,6 @@ public class DefaultTerminalHandler {
         statement.setObject(++i, flags == null ? "0" : flags); //flags
         statement.setObject(++i, format(nameCountry)); //nameCountry
         statement.setObject(++i, amountPack); //amountPack
-        statement.setObject(++i, category); //category
         statement.setObject(++i, idCategory);
         statement.setObject(++i, trustAcceptPercent); //trustAcceptPercent
         statement.setObject(++i, quantity_defect);
@@ -1708,13 +1704,13 @@ public class DefaultTerminalHandler {
                 }
                 orderQuery.addProperty("idSupplierOrder", terminalOrderLM.findProperty("idSupplier[TerminalOrder,Stock]").getExpr(session.getModifier(), orderExpr, customerStockObject.getExpr()));
 
-                String[] orderDetailNames = new String[]{"idBarcodeSkuOrderDetail", "idSkuOrderDetail", "nameSkuOrderDetail", "nameSkuGroupOrderDetail", "priceOrderDetail",
+                String[] orderDetailNames = new String[]{"idBarcodeSkuOrderDetail", "idSkuOrderDetail", "nameSkuOrderDetail", "priceOrderDetail",
                         "quantityOrderDetail", "nameManufacturerSkuOrderDetail", "isWeighSkuOrderDetail", "isSplitSkuOrderDetail", "minDeviationQuantityOrderDetail",
                         "maxDeviationQuantityOrderDetail", "minDeviationPriceOrderDetail", "maxDeviationPriceOrderDetail",
                         "color", "headField1", "headField2", "headField3", "posField1", "posField2", "posField3",
                         "minDeviationDate", "maxDeviationDate", "dateShipment", "extraBarcodes", "sortTerminal", "unitLoad"};
                 LP<?>[] orderDetailProperties = terminalOrderLM.findProperties("idBarcodeSku[TerminalOrderDetail]", "idSku[TerminalOrderDetail]",
-                        "nameSku[TerminalOrderDetail]", "nameSkuGroup[TerminalOrderDetail]", "overPrice[TerminalOrderDetail]", "orderQuantity[TerminalOrderDetail]",
+                        "nameSku[TerminalOrderDetail]", "overPrice[TerminalOrderDetail]", "orderQuantity[TerminalOrderDetail]",
                         "nameManufacturerSku[TerminalOrderDetail]", "isWeighSku[TerminalOrderDetail]", "isSplitSku[TerminalOrderDetail]", "minDeviationQuantity[TerminalOrderDetail]",
                         "maxDeviationQuantity[TerminalOrderDetail]", "minDeviationPrice[TerminalOrderDetail]", "maxDeviationPrice[TerminalOrderDetail]",
                         "color[TerminalOrderDetail]", "headField1[TerminalOrderDetail]", "headField2[TerminalOrderDetail]", "headField3[TerminalOrderDetail]",
@@ -1751,7 +1747,7 @@ public class DefaultTerminalHandler {
 
                     String idItem = StringUtils.trim((String) entry.get("idSkuOrderDetail"));
                     String name = StringUtils.trim((String) entry.get("nameSkuOrderDetail"));
-                    String category = trim((String) entry.get("nameSkuGroupOrderDetail"));
+                    //String category = trim((String) entry.get("nameSkuGroupOrderDetail"));
                     BigDecimal price = (BigDecimal) entry.get("priceOrderDetail");
                     BigDecimal quantity = (BigDecimal) entry.get("quantityOrderDetail");
                     BigDecimal minQuantity = (BigDecimal) entry.get("minDeviationQuantityOrderDetail");
@@ -1782,9 +1778,7 @@ public class DefaultTerminalHandler {
                     BigDecimal trustAcceptPercent = (BigDecimal) entry.get("trustAcceptPercent");
                     String lotType = terminalOrderLotLM == null ? null : (String) entry.get("lotType");
 
-                    String GTIN = null;
-//                    if (terminalOrderLM != null)
-                    GTIN = trim((String) entry.get("GTIN"));
+                    String GTIN = trim((String) entry.get("GTIN"));
                     String unitLoad = (String) entry.get("unitLoad");
                     String fileNameImage = (String) entry.get("fileNameImage");
 
@@ -1796,7 +1790,7 @@ public class DefaultTerminalHandler {
                         terminalOrder.maxQuantity = safeAdd(terminalOrder.maxQuantity, maxQuantity);
                     } else
                         terminalOrderMap.put(key, new TerminalOrder(dateOrder, dateShipment, numberOrder, idSupplier, null, null, null,
-                                barcode, idItem, name, category, price,
+                                barcode, idItem, name, price,
                                 quantity, minQuantity, maxQuantity, minPrice, maxPrice, nameManufacturer, weight, split, color,
                                 headField1, headField2, headField3, posField1, posField2, posField3, minDeviationDate, maxDeviationDate, vop,
                                 extraBarcodeList, flags, GTIN, trustAcceptPercent, unitLoad, background_color, lotType, null, null, fileNameImage));
@@ -2045,7 +2039,7 @@ public class DefaultTerminalHandler {
         QueryBuilder<Object, Object> query = new QueryBuilder<>(skuGroupKeys);
         
         String[] names = new String[] {"idGroup", "nameGroup", "idParentGroup"};
-        LP[] properties = terminalHandlerLM.findProperties("idSkuGroup[SkuGroup]", "name[SkuGroup]", "idParentSkuGroup[SkuGroup]");
+        LP[] properties = terminalHandlerLM.findProperties("idSkuGroup[SkuGroup]", "nameSkuGroup[SkuGroup]", "idParentSkuGroup[SkuGroup]");
         for (int i = 0; i < properties.length; i++) {
             query.addProperty(names[i], properties[i].getExpr(skuGroupExpr));
         }
@@ -2086,7 +2080,7 @@ public class DefaultTerminalHandler {
                             null, null, null, null, null, null, null,
                             null, null, null, null, null,
                             null, extraField, null, null,  null, null,
-                            null, null, null, vop, null, null, null,
+                            null, null, vop, null, null, null,
                             null, null, null, null, null, null, null));
                 }
             } catch (Exception e) {
@@ -2206,7 +2200,6 @@ public class DefaultTerminalHandler {
         String nameCountry;
         BigDecimal amount;
         BigDecimal capacity;
-        String category;
         String idCategory;
         String GTIN;
         String fileNameImage;
@@ -2222,7 +2215,7 @@ public class DefaultTerminalHandler {
                                String idSkuBarcode, String nameManufacturer, String isWeight, String mainBarcode,
                                String color, String extInfo, String fld3, String fld4, String fld5, String unit,
                                Long flags, RawFileData image, String nameCountry, BigDecimal amount,
-                               BigDecimal capacity, String category, String GTIN, String fileNameImage,
+                               BigDecimal capacity, String GTIN, String fileNameImage,
                                BigDecimal trustAcceptPercent, boolean hasImage, String background_color, String idCategory,
                                Integer isSplit, BigDecimal quantityBarcodeDefect, String lotType, boolean ukz, String nameUkzType) {
             this.idBarcode = idBarcode;
@@ -2245,7 +2238,6 @@ public class DefaultTerminalHandler {
             this.nameCountry = nameCountry;
             this.amount = amount;
             this.capacity = capacity;
-            this.category = category;
             this.idCategory = idCategory;
             this.GTIN = GTIN;
             this.fileNameImage = fileNameImage;
@@ -2361,7 +2353,6 @@ public class DefaultTerminalHandler {
         public String barcode;
         public String idItem;
         public String name;
-        public String category;
         public BigDecimal price;
         public BigDecimal quantity;
         public BigDecimal minQuantity;
@@ -2398,7 +2389,7 @@ public class DefaultTerminalHandler {
         
         public TerminalOrder(LocalDate date, LocalDate dateShipment, String number, String supplier,
                              Integer labelCount, String categories, Boolean promo,
-                             String barcode, String idItem, String name, String category,
+                             String barcode, String idItem, String name,
                              BigDecimal price, BigDecimal quantity, BigDecimal minQuantity, BigDecimal maxQuantity,
                              BigDecimal minPrice, BigDecimal maxPrice, String manufacturer, String weight, Integer split, String color,
                              String headField1, String headField2, String headField3, String posField1, String posField2, String posField3,
@@ -2414,7 +2405,6 @@ public class DefaultTerminalHandler {
             this.barcode = barcode;
             this.idItem = idItem;
             this.name = name;
-            this.category = category;
             this.price = price;
             this.quantity = quantity;
             this.minQuantity = minQuantity;

@@ -116,15 +116,12 @@ fileNameImage(Barcode b) = IF NOT hasImage(b) THEN NULL ELSE OVERRIDE overFileNa
 
 amountPack (Barcode b) = amountPack(sku(b));
 
-overNameSkuGroup 'Наименование товарной группы' = ABSTRACT ISTRING[255](Sku);
-nameSkuGroup (Barcode b) = OVERRIDE overNameSkuGroup(sku(b)), nameSkuGroup(sku(b));
-
-overSkuGroup 'Товарная гуппа' = ABSTRACT SkuGroup (Barcode);
-skuGroup (Barcode b) = OVERRIDE overSkuGroup(b), skuGroup(sku(b));
+overNameSkuGroup 'Наименование товарной группы' = ABSTRACT ISTRING[255](SkuGroup);
+nameSkuGroup (SkuGroup g) = OVERRIDE overNameSkuGroup(g), name(g);
 
 overIdSkuGroup = ABSTRACT STRING[100] (SkuGroup);
-idSkuGroup (SkuGroup g) = overId(g);
-idSkuGroup (Barcode b) = OVERRIDE overIdSkuGroup(skuGroup(b)), overId(skuGroup(b));
+idSkuGroup (SkuGroup g) = OVERRIDE overIdSkuGroup(g), overId(g);
+idSkuGroup (Barcode b) = idSkuGroup(skuGroup(b));
 
 skipIdParent = ABSTRACT BOOLEAN (SkuGroup);
 idParentSkuGroup (SkuGroup g) = IF skipIdParent(g) THEN NULL ELSE idParent(g);
@@ -162,6 +159,7 @@ currentBalanceDefect (Barcode barcode, Stock st, CustomUser user) = overCurrentB
 skipGoodsInReadBase 'Не выгружать товары при выгрузке базы целиком' = DATA BOOLEAN () PREREAD;
 imagesInReadBase 'Выгружать изображения товаров при выгрузке базы целиком' = DATA BOOLEAN ();
 baseZipDirectory 'Папка для файлов base.zip' = DATA STRING ();
+skipGtinAsBarcode 'Не выгружать GTIN как штрихкод' = DATA BOOLEAN ();
 
 skipGoods = ABSTRACT BOOLEAN (Barcode, Stock, User);
 overGoods = ABSTRACT BOOLEAN (Barcode, Stock, User);
@@ -235,7 +233,7 @@ checkUnitLoadResult = DATA LOCAL NESTED STRING ();
 EXTEND FORM options
     PROPERTIES() hostTerminalServer, portTerminalServer, restrictLockedUsers,
     sendAllItems, sendOnlyActiveItems, useCurrentQuantityInTerminal, filterCurrentQuantityInTerminal, 
-    namePriceListTypeTerminal, skipGoodsInReadBase, imagesInReadBase, baseZipDirectory, countDaysFilterBatches//, sendImagesName
+    namePriceListTypeTerminal, skipGoodsInReadBase, imagesInReadBase, baseZipDirectory, countDaysFilterBatches, skipGtinAsBarcode//, sendImagesName
 ;
 DESIGN options {
     machinery {
@@ -254,6 +252,7 @@ DESIGN options {
             MOVE PROPERTY(namePriceListTypeTerminal());
             MOVE PROPERTY(skipGoodsInReadBase());
             MOVE PROPERTY(imagesInReadBase());
+            MOVE PROPERTY(skipGtinAsBarcode());
             //MOVE PROPERTY(sendImagesName());
             MOVE PROPERTY(baseZipDirectory());
             MOVE PROPERTY(countDaysFilterBatches());
