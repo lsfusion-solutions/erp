@@ -2,7 +2,7 @@ MODULE SaleReportsRu;
 
 REQUIRE SaleReports, SaleInvoice, SaleReturnInvoice, SaleOperation, PricingSum, SaleFullPrice, 
         SaleShipment, TaxItem, ZReport, Warehouse, PurchaseOrder, WriteOff, SaleLedgerWeek,
-        Inventory, LegalEntityList, SkuList, StockList;
+        Inventory, LegalEntityList, SkuList, StockList, AccountDocument;
 
 NAMESPACE SaleReports;
 
@@ -439,29 +439,33 @@ filterSaleLeger = DATA LOCAL BOOLEAN (ReceiptDetail);
 namePrint = DATA LOCAL STRING ();
 
 quantity(Sku s, Stock st, DATE df, DATE dt) =
-    GROUP SUM quantity(SaleLedger l) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = stock(l) AND filterSaleLeger(l) AND inSessionSku(sku(l));
+    GROUP SUM quantity(SaleLedger l) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = stock(l) AND filterSaleLeger(l) AND inSessionSku(sku(l)) AND inSaleReportDialog(st);
 sum(Sku s, Stock st, DATE df, DATE dt) =
-    GROUP SUM sum(SaleLedger l) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = stock(l) AND filterSaleLeger(l) AND inSessionSku(sku(l));
+    GROUP SUM sum(SaleLedger l) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = stock(l) AND filterSaleLeger(l) AND inSessionSku(sku(l)) AND inSaleReportDialog(st);
 fullSum(Sku s, Stock st, DATE df, DATE dt) =
-    GROUP SUM (sum(SaleLedger l) (+) discountSum(l)) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = stock(l) AND filterSaleLeger(l) AND inSessionSku(sku(l));
+    GROUP SUM (sum(SaleLedger l) (+) discountSum(l)) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = stock(l) AND filterSaleLeger(l) AND inSessionSku(sku(l)) AND inSaleReportDialog(st);
 netWeight(Sku s, Stock st, DATE df, DATE dt) = quantity(s,st,df,dt) * netWeight(s);
 volume(Sku s, Stock st, DATE df, DATE dt) = quantity(s,st,df,dt) * volume(s);
-balanceBDepartmentStore(Sku s, DATE dt) = GROUP SUM balanceA(s,Stock st,dt) IF st IS DepartmentStore;
-balanceBStock(Sku s, DATE dt) = GROUP SUM balanceA(s, Stock st, dt) IF st IS Warehouse;
+balanceBDepartmentStore(Sku s, DATE dt) = GROUP SUM balanceA(s,Stock st,dt) IF st IS DepartmentStore AND inSaleReportDialog(st);
+balanceBStock(Sku s, DATE dt) = GROUP SUM balanceA(s, Stock st, dt) IF st IS Warehouse AND inSaleReportDialog(st);
 
-balanceSumDepartmentStore(Sku s, DATE dt) = GROUP SUM sumA(s,Stock st,dt) IF st IS DepartmentStore;
-balanceSumStock(Sku s, DATE dt) = GROUP SUM sumA(s, Stock st, dt) IF st IS Warehouse;
-sumVAT(Sku s, Stock st, DATE df, DATE dt) =
-    GROUP SUM sumVAT(SaleLedger l) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = stock(l) AND filterSaleLeger(l) AND inSessionSku(sku(l));
-buxCost(Sku s, Stock st, DATE df, DATE dt) =
-    GROUP MAX price(SaleLedger l) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = stock(l) AND filterSaleLeger(l) AND inSessionSku(sku(l));
+balanceSumDepartmentStore(Sku s, DATE dt) = GROUP SUM sumA(s,Stock st,dt) IF st IS DepartmentStore AND inSaleReportDialog(st);
+balanceSumStock(Sku s, DATE dt) = GROUP SUM sumA(s, Stock st, dt) IF st IS Warehouse AND inSaleReportDialog(st);
+sumNoVAT(Sku s, Stock st, DATE df, DATE dt) =
+    GROUP SUM (sum(SaleLedger l) (-) sumVAT(l)) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = stock(l) AND filterSaleLeger(l) AND inSessionSku(sku(l)) AND inSaleReportDialog(st);
+buxCost(Sku s, Stock st, DATE dt) =
+    costPriceSku(s,st,dt) ;
 buxCostSum(Sku s, Stock st, DATE df, DATE dt) =
-    GROUP MAX (price(SaleLedger l)*quantity(l)) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = stock(l) AND filterSaleLeger(l) AND inSessionSku(sku(l));
+    GROUP SUM (buxCost(s,st,date(SaleLedger l))*quantity(l)) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = stock(l) AND filterSaleLeger(l) AND inSessionSku(sku(l)) AND inSaleReportDialog(st);
 sumSku 'Учетная сумма ' (Sku s, Stock st, DATE df, DATE dt) =
-    GROUP SUM (priceSku(sku(SaleLedger l),stock(l), date(l))*quantity(l)) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = stock(l) AND filterSaleLeger(l) AND inSessionSku(sku(l));
-profit(Sku s, Stock st, DATE df, DATE dt) = sum(s,st,df,dt) (-) buxCostSum(s,st,df,dt);
+    GROUP SUM (priceSku(sku(SaleLedger l),stock(l), date(l))*quantity(l)) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = stock(l) AND filterSaleLeger(l) AND inSessionSku(sku(l)) AND inSaleReportDialog(st);
+sumVAT 'Учетная сумма НДС ' (Sku s, Stock st, DATE df, DATE dt) =
+    GROUP SUM (((priceSku(sku(SaleLedger l),stock(l), date(l))*quantity(l))*valueVAT(l))/(valueVAT(l)+100)) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = stock(l) AND filterSaleLeger(l) AND inSessionSku(sku(l)) AND inSaleReportDialog(st);
+profit(Sku s, Stock st, DATE df, DATE dt) = (sumNoVAT(s,st,df,dt)) - (sumSku(s,st,df,dt) (-) sumVAT(s,st,df,dt));
 valProfit(Sku s, Stock st, DATE df, DATE dt) = sum(s,st,df,dt) (-) sumSku(s,st,df,dt);
 marga(Sku s, Stock st, DATE df, DATE dt) = valProfit(s,st,df,dt)*100/sum(s,st,df,dt);
+sumCostPrice(Sku s, Stock st, DATE df, DATE dt) =
+    GROUP SUM (quantity(SaleLedger l)*(buxCost(s,st,date(l))+(buxCost(s,st,date(l))*valueVAT(l)/100))) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = stock(l) AND inSessionSku(sku(l)) AND inSaleReportDialog(st);
 
 FORM groupSaleLedgerReport 'Отчет по классификатору'
     OBJECTS dates = (df = DATE, dt = DATE) PANEL
@@ -478,7 +482,8 @@ FORM groupSaleLedgerReport 'Отчет по классификатору'
     FILTERS inSessionSku(s)
 
     PROPERTIES(s,st,df,dt) quantity, fullSum, sum, valProfit, marga, netWeight,
-        volume, sumVAT, buxCost, buxCostSum, profit, sumSku
+        volume, sumVAT, buxCostSum, profit, sumSku, sumCostPrice
+    PROPERTIES(s,st,dt) buxCost 
     PROPERTIES(s,dt) balanceBDepartmentStore, balanceBStock,
         balanceSumDepartmentStore, balanceSumStock
     ORDERS idBarcode(s), name(s)
@@ -488,24 +493,28 @@ FORM groupSaleLedgerReport 'Отчет по классификатору'
 ;
 
 quantity(Sku s, DepartmentStore st, DATE df, DATE dt) =
-    GROUP SUM quantity(ReceiptDetail l) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = departmentStore(l) AND inSessionSku(sku(l));
+    GROUP SUM quantity(ReceiptDetail l) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = departmentStore(l) AND inSessionSku(sku(l)) AND inSaleReportDialog(st);
 sum(Sku s, DepartmentStore st, DATE df, DATE dt) =
-    GROUP SUM sum(ReceiptDetail l) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = departmentStore(l) AND inSessionSku(sku(l));
+    GROUP SUM sum(ReceiptDetail l) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = departmentStore(l) AND inSessionSku(sku(l)) AND inSaleReportDialog(st);
+sumNoVAT(Sku s, DepartmentStore st, DATE df, DATE dt) =
+    GROUP SUM (sum(ReceiptDetail l) (-) sumVAT(l)) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = departmentStore(l) AND inSessionSku(sku(l)) AND inSaleReportDialog(st);
 fullSum(Sku s, DepartmentStore st, DATE df, DATE dt) =
-    GROUP SUM fullSum(ReceiptDetail l) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = departmentStore(l) AND inSessionSku(sku(l));
+    GROUP SUM fullSum(ReceiptDetail l) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = departmentStore(l) AND inSessionSku(sku(l)) AND inSaleReportDialog(st);
 netWeight(Sku s, DepartmentStore st, DATE df, DATE dt) = quantity(s,st,df,dt) * netWeight(s);
 volume(Sku s, DepartmentStore st, DATE df, DATE dt) = quantity(s,st,df,dt) * volume(s);
 sumVAT(Sku s, DepartmentStore st, DATE df, DATE dt) =
-    GROUP SUM sumVAT(ReceiptDetail l) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = departmentStore(l) AND inSessionSku(sku(l));
-buxCost(Sku s, DepartmentStore st, DATE df, DATE dt) =
-    GROUP MAX price(ReceiptDetail l) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = departmentStore(l) AND inSessionSku(sku(l));
+    GROUP SUM (((priceSku(sku(ReceiptDetail l),departmentStore(l), date(l))*quantity(l))*valueVAT(l))/(valueVAT(l)+100)) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = departmentStore(l) AND inSessionSku(sku(l)) AND inSaleReportDialog(st);
+buxCost(Sku s, DepartmentStore st, DATE d) =
+     costPriceSku(s,st,d);
 buxCostSum(Sku s, DepartmentStore st, DATE df, DATE dt) =
-    GROUP MAX (price(ReceiptDetail l)*quantity(l)) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = departmentStore(l) AND inSessionSku(sku(l));
+    GROUP MAX (buxCost(s,st,date(ReceiptDetail l))*quantity(l)) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = departmentStore(l) AND inSessionSku(sku(l)) AND inSaleReportDialog(st);
 sumSku 'Учетная сумма ' (Sku s, DepartmentStore st, DATE df, DATE dt) =
-    GROUP SUM (priceSku(sku(ReceiptDetail l),departmentStore(l), date(l))*quantity(l)) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = departmentStore(l) AND inSessionSku(sku(l));
-profit(Sku s, DepartmentStore st, DATE df, DATE dt) = sum(s,st,df,dt) (-) sumSku(s,st,df,dt);
+    GROUP SUM (priceSku(sku(ReceiptDetail l),departmentStore(l), date(l))*quantity(l)) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = departmentStore(l) AND inSessionSku(sku(l)) AND inSaleReportDialog(st);
+profit(Sku s, DepartmentStore st, DATE df, DATE dt) = sumNoVAT(s,st,df,dt) (-) buxCostSum(s,st,df,dt);
 valProfit(Sku s, DepartmentStore st, DATE df, DATE dt) = sum(s,st,df,dt) (-) sumSku(s,st,df,dt);
 marga(Sku s, DepartmentStore st, DATE df, DATE dt) = valProfit(s,st,df,dt)*100/sum(s,st,df,dt);
+sumCostPrice(Sku s, DepartmentStore st, DATE df, DATE dt) = 
+    GROUP SUM (quantity(ReceiptDetail l)*(buxCost(s,st,date(l))+(buxCost(s,st,date(l))*valueVAT(l)/100))) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = departmentStore(l) AND inSessionSku(sku(l)) AND inSaleReportDialog(st);
 
 FORM groupReceiptDetailReport 'Отчет по классификатору(розница)'
     OBJECTS dates = (df = DATE, dt = DATE) PANEL
@@ -522,7 +531,8 @@ FORM groupReceiptDetailReport 'Отчет по классификатору(ро
     FILTERS inSessionSku(s)
 
     PROPERTIES(s,st,df,dt) quantity, fullSum, sum, valProfit, marga, netWeight,
-        volume, sumVAT, buxCost, buxCostSum, profit, sumSku
+        volume, sumVAT, buxCostSum, profit, sumSku, sumCostPrice
+    PROPERTIES(s,st,dt) buxCost
     PROPERTIES(s,dt) balanceBDepartmentStore, balanceBStock,
         balanceSumDepartmentStore, balanceSumStock
     ORDERS idBarcode(s), name(s)
