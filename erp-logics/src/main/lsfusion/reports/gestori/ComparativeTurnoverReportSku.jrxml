@@ -12,6 +12,7 @@
 	<property name="net.sf.jasperreports.export.xls.collapse.row.span" value="true"/>
 	<property name="net.sf.jasperreports.export.xls.ignore.graphics" value="true"/>
 	<property name="net.sf.jasperreports.export.xls.ignore.page.margins" value="true"/>
+	<property name="net.sf.jasperreports.export.xls.row.outline.level.prefix" value="Detail"/>
 	<style name="DefaultStyle" isDefault="true" vAlign="Middle" fontName="lsf.TimesNewRoman" fontSize="10">
 		<box>
 			<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
@@ -29,6 +30,18 @@
 			<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
 		</box>
 		<paragraph leftIndent="2" rightIndent="2"/>
+	</style>
+	<style name="GroupHeaderStockStyle" mode="Opaque" backcolor="#1B2631" vAlign="Middle" fontName="lsf.TimesNewRoman" fontSize="10" isBold="true">
+		<box>
+			<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+		</box>
+		<paragraph leftIndent="3" rightIndent="2"/>
+	</style>
+	<style name="FooterStockStyle" mode="Opaque" backcolor="#2E4057" vAlign="Middle" fontName="lsf.TimesNewRoman" fontSize="8" isBold="true">
+		<box>
+			<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+		</box>
+		<paragraph leftIndent="3" rightIndent="2"/>
 	</style>
 	<field name="cmpDateFrom()" class="java.time.LocalDate"/>
 	<field name="cmpDateTo()" class="java.time.LocalDate"/>
@@ -122,6 +135,186 @@
 	<variable name="pMarginTotal" class="java.math.BigDecimal" calculation="Sum">
 		<variableExpression><![CDATA[$F{pMargin(s,st)}]]></variableExpression>
 	</variable>
+	<variable name="cSalesSumStockTotal" class="java.math.BigDecimal" resetType="Group" resetGroup="StockGroup" calculation="Sum">
+		<variableExpression><![CDATA[$F{cSalesSum(s,st)}]]></variableExpression>
+	</variable>
+	<variable name="cSalesCostStockTotal" class="java.math.BigDecimal" resetType="Group" resetGroup="StockGroup" calculation="Sum">
+		<variableExpression><![CDATA[$F{cSalesCost(s,st)}]]></variableExpression>
+	</variable>
+	<variable name="cAvgStockSumStockTotal" class="java.math.BigDecimal" resetType="Group" resetGroup="StockGroup" calculation="Sum">
+		<variableExpression><![CDATA[$F{cAvgStockSum(s,st)}]]></variableExpression>
+	</variable>
+	<variable name="cMarginStockTotal" class="java.math.BigDecimal" resetType="Group" resetGroup="StockGroup" calculation="Sum">
+		<variableExpression><![CDATA[$F{cMargin(s,st)}]]></variableExpression>
+	</variable>
+	<variable name="pSalesSumStockTotal" class="java.math.BigDecimal" resetType="Group" resetGroup="StockGroup" calculation="Sum">
+		<variableExpression><![CDATA[$F{pSalesSum(s,st)}]]></variableExpression>
+	</variable>
+	<variable name="pSalesCostStockTotal" class="java.math.BigDecimal" resetType="Group" resetGroup="StockGroup" calculation="Sum">
+		<variableExpression><![CDATA[$F{pSalesCost(s,st)}]]></variableExpression>
+	</variable>
+	<variable name="pAvgStockSumStockTotal" class="java.math.BigDecimal" resetType="Group" resetGroup="StockGroup" calculation="Sum">
+		<variableExpression><![CDATA[$F{pAvgStockSum(s,st)}]]></variableExpression>
+	</variable>
+	<variable name="pMarginStockTotal" class="java.math.BigDecimal" resetType="Group" resetGroup="StockGroup" calculation="Sum">
+		<variableExpression><![CDATA[$F{pMargin(s,st)}]]></variableExpression>
+	</variable>
+	<group name="StockGroup">
+		<groupExpression><![CDATA[$F{st.object}]]></groupExpression>
+		<groupHeader>
+			<band height="14">
+				<property name="net.sf.jasperreports.export.xls.row.outline.level.prefix" value="StockGroup"/>
+				<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+					<reportElement style="GroupHeaderStockStyle" positionType="Float" stretchType="RelativeToBandHeight" mode="Opaque" x="0" y="0" width="3580" height="14" forecolor="#FFFFFF" backcolor="#1B2631" uuid="aa000001-0001-0001-0001-000000000001">
+						<property name="net.sf.jasperreports.export.xls.row.outline.level" value="1"/>
+					</reportElement>
+					<textElement textAlignment="Center">
+						<font size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA["Объект учёта: " + ($F{id(st)} != null ? $F{id(st)} : "") + " — " + ($F{name(st)} != null ? $F{name(st)} : "")]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupHeader>
+		<groupFooter>
+			<band height="14">
+				<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+					<reportElement style="FooterStockStyle" positionType="Float" stretchType="RelativeToBandHeight" mode="Opaque" x="0" y="0" width="1600" height="14" forecolor="#FFFFFF" backcolor="#2E4057" uuid="ab000001-0001-0001-0001-000000000001">
+						<property name="net.sf.jasperreports.export.xls.row.outline.level" value="1"/>
+					</reportElement>
+					<textElement textAlignment="Left">
+						<font size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA["Итого по объекту учёта: " + ($F{id(st)} != null ? $F{id(st)} : "") + " — " + ($F{name(st)} != null ? $F{name(st)} : "")]]></textFieldExpression>
+				</textField>
+				<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+					<reportElement style="FooterStockStyle" positionType="Float" stretchType="RelativeToBandHeight" mode="Opaque" x="1600" y="0" width="110" height="14" forecolor="#FFFFFF" backcolor="#2E4057" uuid="ab000002-0001-0001-0001-000000000001"/>
+					<textElement textAlignment="Right">
+						<font size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[""]]></textFieldExpression>
+				</textField>
+				<textField isStretchWithOverflow="true" pattern="0.00" isBlankWhenNull="true">
+					<reportElement style="FooterStockStyle" positionType="Float" stretchType="RelativeToBandHeight" mode="Opaque" x="1710" y="0" width="110" height="14" forecolor="#FFFFFF" backcolor="#2E4057" uuid="ab000003-0001-0001-0001-000000000001"/>
+					<textElement textAlignment="Right">
+						<font size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{cSalesSumStockTotal}]]></textFieldExpression>
+				</textField>
+				<textField isStretchWithOverflow="true" pattern="0.00" isBlankWhenNull="true">
+					<reportElement style="FooterStockStyle" positionType="Float" stretchType="RelativeToBandHeight" mode="Opaque" x="1820" y="0" width="110" height="14" forecolor="#FFFFFF" backcolor="#2E4057" uuid="ab000004-0001-0001-0001-000000000001"/>
+					<textElement textAlignment="Right">
+						<font size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{cSalesCostStockTotal}]]></textFieldExpression>
+				</textField>
+				<textField isStretchWithOverflow="true" pattern="0.00" isBlankWhenNull="true">
+					<reportElement style="FooterStockStyle" positionType="Float" stretchType="RelativeToBandHeight" mode="Opaque" x="1930" y="0" width="110" height="14" forecolor="#FFFFFF" backcolor="#2E4057" uuid="ab000005-0001-0001-0001-000000000001"/>
+					<textElement textAlignment="Right">
+						<font size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{cAvgStockSumStockTotal}]]></textFieldExpression>
+				</textField>
+				<textField isStretchWithOverflow="true" pattern="0.00" isBlankWhenNull="true">
+					<reportElement style="FooterStockStyle" positionType="Float" stretchType="RelativeToBandHeight" mode="Opaque" x="2040" y="0" width="110" height="14" forecolor="#FFFFFF" backcolor="#2E4057" uuid="ab000006-0001-0001-0001-000000000001"/>
+					<textElement textAlignment="Right">
+						<font size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{cMarginStockTotal}]]></textFieldExpression>
+				</textField>
+				<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+					<reportElement style="FooterStockStyle" positionType="Float" stretchType="RelativeToBandHeight" mode="Opaque" x="2150" y="0" width="110" height="14" forecolor="#FFFFFF" backcolor="#2E4057" uuid="ab000007-0001-0001-0001-000000000001"/>
+					<textElement textAlignment="Right">
+						<font size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[""]]></textFieldExpression>
+				</textField>
+				<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+					<reportElement style="FooterStockStyle" positionType="Float" stretchType="RelativeToBandHeight" mode="Opaque" x="2260" y="0" width="110" height="14" forecolor="#FFFFFF" backcolor="#2E4057" uuid="ab000008-0001-0001-0001-000000000001"/>
+					<textElement textAlignment="Right">
+						<font size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[""]]></textFieldExpression>
+				</textField>
+				<textField isStretchWithOverflow="true" pattern="0.00" isBlankWhenNull="true">
+					<reportElement style="FooterStockStyle" positionType="Float" stretchType="RelativeToBandHeight" mode="Opaque" x="2370" y="0" width="110" height="14" forecolor="#FFFFFF" backcolor="#2E4057" uuid="ab000009-0001-0001-0001-000000000001"/>
+					<textElement textAlignment="Right">
+						<font size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{pSalesSumStockTotal}]]></textFieldExpression>
+				</textField>
+				<textField isStretchWithOverflow="true" pattern="0.00" isBlankWhenNull="true">
+					<reportElement style="FooterStockStyle" positionType="Float" stretchType="RelativeToBandHeight" mode="Opaque" x="2480" y="0" width="110" height="14" forecolor="#FFFFFF" backcolor="#2E4057" uuid="ab00000a-0001-0001-0001-000000000001"/>
+					<textElement textAlignment="Right">
+						<font size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{pSalesCostStockTotal}]]></textFieldExpression>
+				</textField>
+				<textField isStretchWithOverflow="true" pattern="0.00" isBlankWhenNull="true">
+					<reportElement style="FooterStockStyle" positionType="Float" stretchType="RelativeToBandHeight" mode="Opaque" x="2590" y="0" width="110" height="14" forecolor="#FFFFFF" backcolor="#2E4057" uuid="ab00000b-0001-0001-0001-000000000001"/>
+					<textElement textAlignment="Right">
+						<font size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{pAvgStockSumStockTotal}]]></textFieldExpression>
+				</textField>
+				<textField isStretchWithOverflow="true" pattern="0.00" isBlankWhenNull="true">
+					<reportElement style="FooterStockStyle" positionType="Float" stretchType="RelativeToBandHeight" mode="Opaque" x="2700" y="0" width="110" height="14" forecolor="#FFFFFF" backcolor="#2E4057" uuid="ab00000c-0001-0001-0001-000000000001"/>
+					<textElement textAlignment="Right">
+						<font size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{pMarginStockTotal}]]></textFieldExpression>
+				</textField>
+				<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+					<reportElement style="FooterStockStyle" positionType="Float" stretchType="RelativeToBandHeight" mode="Opaque" x="2810" y="0" width="110" height="14" forecolor="#FFFFFF" backcolor="#2E4057" uuid="ab00000d-0001-0001-0001-000000000001"/>
+					<textElement textAlignment="Right">
+						<font size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[""]]></textFieldExpression>
+				</textField>
+				<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+					<reportElement style="FooterStockStyle" positionType="Float" stretchType="RelativeToBandHeight" mode="Opaque" x="2920" y="0" width="110" height="14" forecolor="#FFFFFF" backcolor="#2E4057" uuid="ab00000e-0001-0001-0001-000000000001"/>
+					<textElement textAlignment="Right">
+						<font size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[""]]></textFieldExpression>
+				</textField>
+				<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+					<reportElement style="FooterStockStyle" positionType="Float" stretchType="RelativeToBandHeight" mode="Opaque" x="3030" y="0" width="110" height="14" forecolor="#FFFFFF" backcolor="#2E4057" uuid="ab00000f-0001-0001-0001-000000000001"/>
+					<textElement textAlignment="Right">
+						<font size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[""]]></textFieldExpression>
+				</textField>
+				<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+					<reportElement style="FooterStockStyle" positionType="Float" stretchType="RelativeToBandHeight" mode="Opaque" x="3140" y="0" width="110" height="14" forecolor="#FFFFFF" backcolor="#2E4057" uuid="ab000010-0001-0001-0001-000000000001"/>
+					<textElement textAlignment="Right">
+						<font size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[""]]></textFieldExpression>
+				</textField>
+				<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+					<reportElement style="FooterStockStyle" positionType="Float" stretchType="RelativeToBandHeight" mode="Opaque" x="3250" y="0" width="110" height="14" forecolor="#FFFFFF" backcolor="#2E4057" uuid="ab000011-0001-0001-0001-000000000001"/>
+					<textElement textAlignment="Right">
+						<font size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[""]]></textFieldExpression>
+				</textField>
+				<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+					<reportElement style="FooterStockStyle" positionType="Float" stretchType="RelativeToBandHeight" mode="Opaque" x="3360" y="0" width="110" height="14" forecolor="#FFFFFF" backcolor="#2E4057" uuid="ab000012-0001-0001-0001-000000000001"/>
+					<textElement textAlignment="Right">
+						<font size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[""]]></textFieldExpression>
+				</textField>
+				<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+					<reportElement style="FooterStockStyle" positionType="Float" stretchType="RelativeToBandHeight" mode="Opaque" x="3470" y="0" width="110" height="14" forecolor="#FFFFFF" backcolor="#2E4057" uuid="ab000013-0001-0001-0001-000000000001"/>
+					<textElement textAlignment="Right">
+						<font size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[""]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupFooter>
+	</group>
 	<title>
 		<band height="24" splitType="Prevent">
 			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
@@ -582,8 +775,11 @@
 	</pageHeader>
 	<detail>
 		<band height="14">
+			<property name="net.sf.jasperreports.export.xls.row.outline.level.prefix" value="Detail"/>
 			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="0" y="0" width="100" height="14" uuid="e1000001-0001-0001-0001-000000000001"/>
+				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="0" y="0" width="100" height="14" uuid="e1000001-0001-0001-0001-000000000001">
+					<property name="net.sf.jasperreports.export.xls.row.outline.level" value="2"/>
+				</reportElement>
 				<textElement textAlignment="Center">
 					<font size="8"/>
 				</textElement>

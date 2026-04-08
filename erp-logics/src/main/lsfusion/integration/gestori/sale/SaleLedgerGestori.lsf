@@ -1412,6 +1412,8 @@ changeStocksCmp() { DIALOG dialogStocksSaleReportRu; }
 
 cmpSupplierName 'Наименование поставщика' (Sku s, Stock st) = name(cmpSupplier(s, st));
 
+cmpReportJasper = DATA LOCAL STRING();
+
 runCmpReport 'Сформировать отчет' () {
     cmpDateFromRun() <- cmpDateFrom();
     cmpDateToRun() <- cmpDateTo();
@@ -1460,16 +1462,27 @@ FORM comparativeTurnoverReport 'Сравнительный анализ обор
     diffTurnover, diffSalesSum, diffSalesCost, diffAvgStock, diffMargin, diffProfitability
 
     FILTERS cmpHasData(s, st)
-    ORDERS name(st), nameSkuGroup2(s), nameSkuGroup3(s), nameSkuGroup4(s), name(s)
+    ORDERS name(st), idSkuGroup2(s), idSkuGroup3(s), idSkuGroup4(s), name(s)
+
+    REPORT cmpReportJasper()
 
     EVENTS ON INIT initCmpDates()
 ;
 
-printCmpTurnoverReport 'Печать' () { PRINT comparativeTurnoverReport XLSX; } IMAGE 'print.png';
+printCmpTurnoverReportSku 'Отчет по товарам' () {
+    cmpReportJasper() <- 'ComparativeTurnoverReportSku.jrxml';
+    PRINT comparativeTurnoverReport XLSX;
+} IMAGE 'print.png';
+
+printCmpTurnoverReportGroup 'Отчет по товарным группам' () {
+    cmpReportJasper() <- 'ComparativeTurnoverReportGroup.jrxml';
+    PRINT comparativeTurnoverReport XLSX;
+} IMAGE 'print.png';
 
 EXTEND FORM comparativeTurnoverReport
     PROPERTIES() runCmpReport
-    PROPERTIES() DISABLEIF NOT cmpDateFromRun() OR NOT cmpDateToRun() OR NOT prevDateFromRun() OR NOT prevDateToRun() printCmpTurnoverReport
+    PROPERTIES() DISABLEIF NOT cmpDateFromRun() OR NOT cmpDateToRun() OR NOT prevDateFromRun() OR NOT prevDateToRun()
+    printCmpTurnoverReportSku, printCmpTurnoverReportGroup
 ;
 
 DESIGN comparativeTurnoverReport {
@@ -1501,7 +1514,8 @@ DESIGN comparativeTurnoverReport {
             horizontal = TRUE;
             alignment = STRETCH;
             MOVE PROPERTY(runCmpReport()) { valueClass = 'btn-primary'; fontSize = 16; }
-            MOVE PROPERTY(printCmpTurnoverReport()) { valueClass = 'btn-primary'; }
+            MOVE PROPERTY(printCmpTurnoverReportSku()) { valueClass = 'btn-primary'; }
+            MOVE PROPERTY(printCmpTurnoverReportGroup()) { valueClass = 'btn-primary'; }
         }
     }
     BOX(report) {
