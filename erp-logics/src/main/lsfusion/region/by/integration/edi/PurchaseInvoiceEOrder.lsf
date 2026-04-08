@@ -19,6 +19,9 @@ orderDetail (EOrderDespatchAdviceDetail ed) = GROUP
 prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND EOrderDespatchAdviceDetail(d)
     THEN MIN lineItemPrice(EOrderDespatchAdviceDetail(d)), priceOrder(d);
 
+overCreateUserInvoice ABSTRACT LIST (UserInvoice, EOrderDespatchAdvice);
+overCreateUserInvoice ABSTRACT LIST (UserInvoiceDetail, EOrderDespatchAdviceDetail);
+
 createUserInvoice 'Создать накладную' (EOrderDespatchAdvice a)  { 
     
     NEWSESSION NESTED LOCAL {
@@ -28,6 +31,7 @@ createUserInvoice 'Создать накладную' (EOrderDespatchAdvice a)  
             fillHeader(i, eOrder(a));
             number(i) <- STRING[48](digits(deliveryNoteNumber(a)));
             series(i) <- STRING[2](left(replace(deliveryNoteNumber(a), digits(deliveryNoteNumber(a)), ''), 2));
+            overCreateUserInvoice(i, a);
             
             fillIndexSku(eOrder(a));
             
@@ -47,6 +51,7 @@ createUserInvoice 'Создать накладную' (EOrderDespatchAdvice a)  
                     priceListType(d) <- priceListType(orderDetail(ad));
                     price(d) <- MIN lineItemPrice(ad), price(orderDetail(ad));
                     overFill(d, orderDetail(ad));
+                    overCreateUserInvoice(d, ad);
             }
             
             executeLocalEvents('Purchase.userInvoice');
