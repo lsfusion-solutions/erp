@@ -379,7 +379,7 @@ getWbStatuses 'Получить статусы заказов' () {
             messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
             IF statusHttp() == 200 THEN {
                 IMPORT statusInfoResponse JSON FROM response();
-                FOR orderId(INTEGER i) DO{
+                FOR orderId(INTEGER i) DO {
                     wbStatus(orderByNumber(orderId(i))) <- GROUP MAX WbStatus ws IF getWord(name(ws), '.', 2) = supplierStatus(i);
                 }
                 APPLY NESTED LOCAL ;
@@ -403,6 +403,77 @@ getWbStatus 'Получить статус заказа' (InternetOrder order) {
         isSelected(order) <- TRUE ;
     }
     getWbStatuses();
+}
+
+//----Stickers-----//
+
+sticker = DATA RAWFILE(InternetOrder); 
+
+file = DATA LOCAL STRING(INTEGER);
+partA = DATA LOCAL STRING(INTEGER);
+partB = DATA LOCAL STRING(INTEGER);
+barcode = DATA LOCAL STRING(INTEGER);
+
+FORM stickersResponse
+
+    OBJECTS stickers = INTEGER
+    PROPERTIES(stickers) file, orderId, partA, partB, barcode
+    FILTERS imported(stickers);
+
+// https://marketplace-api.wildberries.ru/api/marketplace/v3/dbs/orders/stickers
+getStickers 'Получить стикеры' () {
+    NEWSESSION NESTED LOCAL {
+        IF NOT (GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrderDBS(order) AND carrier(order) == carrier('Own')) THEN {
+            MESSAGE 'Заказ DBS не выбран.';
+            RETURN ;
+        }
+
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING ();
+        LOCAL response = FILE();
+        LOCAL error = STRING ();
+        LOCAL statusText = STRING ();
+        LOCAL status = STRING ();
+
+        logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/marketplace/v3/dbs/orders/stickers');
+
+        EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrderDBS(order) AND carrier(order) == carrier('Own');
+        fileToString(exportFile(), 'UTF-8');
+        stringToFile('\{"orders":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
+        fileToString(resultFile(), 'UTF-8');
+        logToFile('WB', 'orders: ' + resultString());
+
+        TRY {
+            EXTERNAL HTTP POST url(CategoryRequest.marketplace) + '/api/marketplace/v3/dbs/orders/stickers' HEADERS httpHeaders PARAMS resultFile() TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+            IF statusHttp() == 200 THEN {
+                IMPORT statusInfoResponse JSON FROM response();
+                FOR orderId(INTEGER i) DO {
+                    sticker(orderByNumber(orderId(i))) <- RAWFILE(file(decode(file(i), 'base64'), 'pdf'));; 
+                }
+                APPLY NESTED LOCAL ;
+            }
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                IMPORT importError JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Статус сборочного задания не получен: ' + message();
+            }
+            messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE messageOrder() NOWAIT;
+        }
+    }
+}
+
+getSticker 'Получить стикер' (InternetOrder order) {
+    IF NOT GROUP SUM 1 IF isSelected(InternetOrder order1) THEN {
+        isSelected(order) <- TRUE ;
+    }
+    getStickers();
 }
 
 EXTEND FORM internetOrders
