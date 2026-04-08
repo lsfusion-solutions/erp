@@ -256,6 +256,22 @@ valueVAT 'Ставка НДС, %' = DATA NUMERIC[10,2] (EInvoiceDetail); // nds_
 VATSum 'Сумма НДС' = DATA NUMERIC[18,2] (EInvoiceDetail); // nds_value
 invoiceSum 'Сумма с НДС' = DATA NUMERIC[18,2] (EInvoiceDetail); // total_with_nds
 
+CLASS EInvoicePositionOriginType 'Происхождение товара' {
+    individualManufacture 'Собственное производство (1)',
+    resale 'Купля-продажа (2)',
+    service 'Услуга (3)',
+    notIncluded 'Не указано (4)'
+}
+originType 'Происхождение товара' = DATA EInvoicePositionOriginType (EInvoiceDetail);
+nameOriginType 'Происхождение товара' (EInvoiceDetail d) = staticCaption(originType(d));
+index 'Происхождение товара (индекс)' (EInvoicePositionOriginType t) = CASE
+    WHEN t == EInvoicePositionOriginType.individualManufacture THEN 1
+    WHEN t == EInvoicePositionOriginType.resale THEN 2
+    WHEN t == EInvoicePositionOriginType.service THEN 3
+    WHEN t == EInvoicePositionOriginType.notIncluded THEN 4
+;
+originTypeIndex (EInvoiceDetail d) = index(originType(d));
+
 CLASS EInvoiceLotDetail 'Марки электронного документа EDI';
 TABLE eInvoiceLotDetail (EInvoiceLotDetail);
 
@@ -311,7 +327,7 @@ FORM eInvoices 'Электронные документы'
         nameCommittent, innCommittent,
         productName, barcode, catalogCode, catalogName, packageCode, packageName,
         grossWeightValue, netWeightValue, quantityDespatched, price, sum,
-        valueVAT, VATSum, invoiceSum
+        valueVAT, VATSum, invoiceSum, nameOriginType
                                
     FILTERS eInvoice(ed) == e, eInvoiceDetailGroup(ed) == eg
 
@@ -417,7 +433,7 @@ FORM eInvoice 'Электронный документ'
         nameCommittent, innCommittent,
         productName, barcode, catalogCode, catalogName, packageCode, packageName,
         grossWeightValue, netWeightValue, quantityDespatched, price, sum,
-        valueVAT, VATSum, invoiceSum
+        valueVAT, VATSum, invoiceSum, nameOriginType
     FILTERS eInvoice(ed) == e,  eInvoiceDetailGroup(ed) == g
 
     OBJECTS dl = EInvoiceDetail
