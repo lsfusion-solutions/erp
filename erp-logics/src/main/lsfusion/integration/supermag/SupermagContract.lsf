@@ -41,6 +41,9 @@ skipCreateContract 'Не создавать договоры для каждог
 
 customContractFilter 'Фильтр для контрактов' = DATA STRING () TABLE settings;
 
+overIdSupermag = DATA STRING[100](Stock) INDEXED;
+stockSupermag (STRING[100] st) = OVERRIDE (GROUP MAX Stock sk IF overIdSupermag(sk) == st), stock(st);
+
 //надо грузить все одним действием в договоры и псц потому, что если делать разными действиями срабатывают CONSTRAINTы на соответствие
 importContract 'Импорт из контрактов с поставщиками (в договоры и ПСЦ)' () { 
     LOCAL idCompany = INTEGER (INTEGER);
@@ -115,9 +118,11 @@ importContract 'Импорт из контрактов с поставщикам
         isPosted(doc) <- docState(i) = 3; //OR docState(i) = 0;
         fromTime(doc) <- 00:00;
         toDate(doc) <- DATE(dateTo(i));
-        companyStock(doc) <- stock(idLE(i)) WHERE lpadId() AND isCompany(stock(idLE(i)));
-        company(doc) <- IF lpadId() AND isCompany(stock(idLE(i))) THEN legalEntity(stock(idLE(i))) ELSE legalEntity(idLE(i));
-        contractSku(doc) <- OVERRIDE userContractSku(TEXT (idDoc(i))), (GROUP MIN ContractSku s IF supplier(s) == legalEntity(idLE(i)) AND paymentCondition(paymentPeriod(paymentDelay(i), isBankDays(i))));
+        companyStock(doc) <- stock(idLE(i));
+        company(doc) <- legalEntity(stock(idLE(i)));
+        contractSku(doc) <- OVERRIDE userContractSku(TEXT (idDoc(i))), 
+                (GROUP MIN ContractSku s IF supplier(s) == legalEntity(idLE(i)) AND paymentCondition(paymentPeriod(paymentDelay(i), isBankDays(i)))),
+                defaultContractSkuSupplierCustomer(legalEntity(stock(idLE(i))), defaultCompany(), currentDate()) IF NOT isCompany(stock(idLE(i)));
         note(doc) <- title(i);
         fromDate(doc) <- DATE(dateFrom(i));//, dateFrom(contractSku(doc)) ;
         delayPaymentInSuperMag(doc) <- paymentDelay(i);
@@ -136,7 +141,7 @@ importContract 'Импорт из контрактов с поставщикам
     idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));  
 
     FOR [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i))](UserPriceList doc) DO {
-        dataIn(doc, Stock s) <- TRUE IF [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i)), stock(TEXT (location(i)))](doc, s);
+        dataIn(doc, Stock s) <- TRUE IF [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i)), stockSupermag(STRING[100](location(i)))](doc, s);
     }
 
     overImportSupplierPrice2();
