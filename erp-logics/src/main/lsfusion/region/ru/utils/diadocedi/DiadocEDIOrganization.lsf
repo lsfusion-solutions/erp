@@ -61,9 +61,30 @@ TABLE box (Box);
 boxId 'Идентификатор' = DATA STRING (Box) IN id INDEXED CHARWIDTH 10 NONULL;
 box (boxId) = GROUP AGGR Box box BY boxId(box);
 title 'Наименование' = DATA ISTRING (Box) CHARWIDTH 30 IN id;
-organization = DATA Organization (Box) NONULL DELETE;
+organization 'Организация (EDI)' = DATA Organization (Box) NONULL DELETE;
 isTest 'Тестовый' = DATA BOOLEAN (Box);
 lastEventId 'Идентификатор последнего события' = DATA STRING (Box);
+
+legalEntityOrganization 'Организация' (Box b) = legalEntity(organization(b));
+
+defaultBox 'Ящик по умолчанию' = DATA Box (LegalEntity);
+isDefault 'По умолчанию' (Box b) = TRUE IF defaultBox(legalEntityOrganization(b)) == b;
+diadocEDIBox 'Ящик организации (EDI)' (LegalEntity l) = OVERRIDE defaultBox(l), [GROUP LAST Box b ORDER b BY legalEntityOrganization(b)](l);
+
+changeLegalEntityDefaultBox 'Выбрать ящик по умолчанию' (Box b) {
+    IF defaultBox(legalEntityOrganization(b)) == b THEN {
+        defaultBox(legalEntityOrganization(b)) <- NULL;
+    } ELSE {
+        defaultBox(legalEntityOrganization(b)) <- b;
+    }
+}
+
+FORM box 'Ящик'
+    OBJECTS b = Box PANEL
+    PROPERTIES(b) title, isDefault ON CHANGE changeLegalEntityDefaultBox(b)
+    
+    EDIT Box OBJECT b
+;
 
 CLASS Department 'Подразделение организации';
 TABLE department (Department);
@@ -97,7 +118,7 @@ FORM organization 'Организация EDI'
     OBJECTS b = Box
     PROPERTIES(b) READONLY boxId
     PROPERTIES(b) title
-    PROPERTIES(b) READONLY lastEventId, isTest
+    PROPERTIES(b) READONLY lastEventId, isTest, isDefault
     PROPERTIES(b) EDIT 
     FILTERS organization(b) == o
 

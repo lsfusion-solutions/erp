@@ -252,7 +252,7 @@ sendPurchaseOrderDiadocEDI 'Отправить заказ EDI (Диадок)' (E
         IF NOT GLNCustomerStock(o) THEN error() <- error() + 'EOrder ' + number(o) + ': Не задан GLN склада покупателя\n';
 
         IF error() == '' THEN {
-            fromBox() <- GROUP LAST Box b IF legalEntity(organization(b)) == customer(o) ORDER b;
+            fromBox() <- diadocEDIBox(customer(o));
             getTokenUser(r);
             exportOrderDocument() <- o;
             generatedUUID() <- NULL;
@@ -277,7 +277,7 @@ sendPurchaseOrderDiadocEDI 'Отправить заказ EDI (Диадок)' (E
             MESSAGE ' Заказ не выгружен: Не все поля заполнены ' + error() NOWAIT;
         }
     }
-    APPLY;
+    APPLY NESTED LOCAL;
 }
 
 sendPurchaseOrderDiadoc 'Отправить заказ EDI (Диадок)' (EOrder o) {
@@ -706,7 +706,7 @@ sendRecadvDiadoc 'Отправить RECADV' (EOrder o) {
             IF NOT GLNCustomer(o) THEN error() <- error() + 'RECADV ' + number(o) + ': Не задан GLN покупателя\n';
 
             IF error() == '' THEN {
-                fromBox() <- GROUP LAST Box b IF legalEntity(organization(b)) == customer(o) ORDER b;
+                fromBox() <- diadocEDIBox(customer(o));
                 getTokenUser(u);
                 exportDocument() <- o;
                 generatedUUID() <- NULL;
@@ -875,7 +875,7 @@ sendRetann 'Отправить RETANN' (PurchaseReturn.Invoice o) {
             IF NOT GLN(customer(o)) THEN error() <- error() + 'RETANN ' + number(o) + ': Не задан GLN покупателя\n';
 
             IF error() == '' THEN {
-                fromBox() <- GROUP LAST Box b IF legalEntity(organization(b)) == customer(o) ORDER b;
+                fromBox() <- diadocEDIBox(customer(o));
                 getTokenUser(u);
                 exportDocumentReturn() <- o;
                 generatedUUID() <- NULL;
