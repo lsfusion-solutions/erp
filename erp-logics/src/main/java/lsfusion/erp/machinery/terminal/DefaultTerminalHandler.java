@@ -149,6 +149,8 @@ public class DefaultTerminalHandler {
                 String unit = (String) terminalHandlerLM.findProperty("shortNameUOM[Barcode]").read(session, barcodeObject);
     
                 BigDecimal trustAcceptPercent = (BigDecimal) terminalHandlerLM.findProperty("trustAcceptPercent[Barcode]").read(session, barcodeObject);
+                
+                String idSkuGroup = (String) terminalHandlerLM.findProperty("idSkuGroup[Barcode]").read(session, barcodeObject);
     
                 String lotType = terminalHandlerLotLM == null ? null : (String) terminalHandlerLotLM.findProperty("lotType[Barcode]").read(session, barcodeObject);
                 boolean ukz = terminalHandlerLotByLM != null && terminalHandlerLotByLM.findProperty("ukz[Barcode]").read(session, barcodeObject) != null;
@@ -156,7 +158,7 @@ public class DefaultTerminalHandler {
                 
                 return Arrays.asList(barcode, BaseUtils.isEmpty(overNameSku) ? "" : overNameSku.toUpperCase(), priceValue == null ? "0" : priceValue,
                         quantityValue == null ? "0" : quantityValue, idSkuBarcode, nameManufacturer, fld3, fld4, fld5, isWeight,
-                        mainBarcode, color, ticket_data, flags == null ? "0" : flags.toString(), null, unit, trustAcceptPercent, backgrounColor, lotType, ukz ? "1" : "0", nameUkzType);
+                        mainBarcode, color, ticket_data, flags == null ? "0" : flags.toString(), idSkuGroup, unit, trustAcceptPercent, backgrounColor, lotType, ukz ? "1" : "0", nameUkzType);
             } else return null;
 
         } catch (Exception e) {
