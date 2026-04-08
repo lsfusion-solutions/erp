@@ -29,6 +29,8 @@ dataMaxQuantityOrderDays 'Максимальный заказ (дн.)' = DATA NU
 dataMaxQuantityOrderDays 'Максимальный заказ (дн.)' = DATA NUMERIC[14,3] (Stock, Sku) TABLE extraSkuStock;
 extraMaxQuantityOrderDays 'Максимальный заказ (дн.)' = ABSTRACT NUMERIC[14,3] (Stock, Sku);
 
+banAverageSold 'Не выполнять расчет однодневных продаж' = DATA BOOLEAN (Stock);
+
 levelParent (Stock stock, SkuGroup skuGroup) = GROUP
     MIN level(skuGroup, SkuGroup parent) IF dataMaxQuantityOrderDays(stock, parent) MATERIALIZED;
 
@@ -182,11 +184,12 @@ daysOnStockGestory(Sku sku, Stock stock, DATE dateFrom, DATE dateTo) = (daysOnSt
 averageSoldOnStock 'Продаж в день с учетом остатка' (Sku sku, Stock stock, DATE dateFrom, DATE dateTo) =
     NUMERIC[14,3](quantitySold(sku, stock, dateFrom, dateTo) / (OVERRIDE daysOnStockGestory(sku, stock, dateFrom, dateTo), daysOnStock(sku, stock, dateFrom, dateTo)));
 
+
 calcQuantitySoldIntervalGestori 'Рассчитать однодневные продажи Gestori'()  {
     IF useDaysChange() THEN
-        averageSold(Sku sku, Stock stock) <- averageSoldOnStock(sku, stock, fromSoldDate(sku), toSoldDate(sku));
+        averageSold(Sku sku, Stock stock) <- averageSoldOnStock(sku, stock, fromSoldDate(sku), toSoldDate(sku)) WHERE NOT banAverageSold(stock);
     ELSE
-        averageSold(Sku sku, Stock stock) <- NUMERIC[14,3](quantitySold (sku, stock, fromSoldDate(sku), toSoldDate(sku)) / countSoldDays(skuGroup(sku)));
+        averageSold(Sku sku, Stock stock) <- NUMERIC[14,3](quantitySold (sku, stock, fromSoldDate(sku), toSoldDate(sku)) / countSoldDays(skuGroup(sku))) WHERE NOT banAverageSold(stock);
     APPLY;
 
     fromSold() <- GROUP MIN subtract(lastYearCurrent(), countSeason(SkuGroup s));
@@ -202,11 +205,17 @@ calcQuantitySoldIntervalGestori 'Рассчитать однодневные п�
     APPLY;
 }
 
+
 EXTEND FORM options
     PROPERTIES() calcQuantitySoldIntervalGestori
+    PROPERTIES (s) banAverageSold 
 ;
 DESIGN options {
     calcQiantitySold {
         MOVE PROPERTY(calcQuantitySoldIntervalGestori());
     }
+}
+
+WHEN SET(banAverageSold(Stock stock))  DO {
+    averageSold(Sku sku, stock) <- NULL WHERE averageSold(sku, stock);
 }
