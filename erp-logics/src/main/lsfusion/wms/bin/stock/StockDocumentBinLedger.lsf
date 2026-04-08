@@ -456,18 +456,18 @@ META defineStockDocumentBinLedgerOperationProperty (namespace, caption)
     }
 END
 
-META defineStockDocumentBinLedgerOperationAggregation (prefix, concrete, caption, departmentProp, binProp)
+META defineStockDocumentBinLedgerOperationAggregation (prefix, concrete, caption, departmentProp)
     //SD - StockDocument SDBLBL - StockDocumentBinLedger
     CLASS ###prefix##SD###concrete##BinLedger ###caption : ###prefix##StockDocumentBinLedger;
     needToCreate###prefix##SD###concrete##BinLedger (###concrete t, Department department) = createStockDocumentBinLedger(operation(t)) AND
-        (GROUP SUM quantity(###concrete##Detail d) IF concrete(d) == t AND departmentProp(binProp(d)) == department);
+        (GROUP SUM quantity(###concrete##Detail d) IF concrete(d) == t AND departmentProp(d) == department);
     ##prefix##SD###concrete##BinLedger = AGGR ###prefix##SD###concrete##BinLedger WHERE needToCreate###prefix##SD###concrete##BinLedger(###concrete ##concrete, Department department) MATERIALIZED INDEXED;
 END
 
-META defineStockDocumentBinLedgerAggregation (prefix, concrete, caption, departmentProp, binProp)
+META defineStockDocumentBinLedgerAggregation (prefix, concrete, caption, departmentProp)
     //SD - StockDocument SDBLBL - StockDocumentBinLedger
     CLASS ###prefix##SD###concrete##BinLedger ###caption : ###prefix##StockDocumentBinLedger;
-    needToCreate###prefix##SD###concrete##BinLedger (###concrete t, Department department) = (GROUP SUM quantity(###concrete##Detail d) IF concrete(d) == t AND departmentProp(binProp(d)) == department);
+    needToCreate###prefix##SD###concrete##BinLedger (###concrete t, Department department) = (GROUP SUM quantity(###concrete##Detail d) IF concrete(d) == t AND departmentProp(d) == department);
     ##prefix##SD###concrete##BinLedger = AGGR ###prefix##SD###concrete##BinLedger WHERE needToCreate###prefix##SD###concrete##BinLedger(###concrete ##concrete, Department department) MATERIALIZED INDEXED;
 END
 
@@ -485,21 +485,21 @@ META implementStockDocumentBinLedger(prefix, concrete, stockProp)
 END 
 
 
-META implementStockDocumentBinLedgerSum (prefix, concrete, departmentProp, binProp)
+META implementStockDocumentBinLedgerSum (prefix, concrete, departmentProp)
     sumItem[###prefix##StockDocumentBinLedger] (###prefix##SD###concrete##BinLedger ledger) +=
-        NUMERIC[18,4](GROUP SUM sum(###concrete##Detail d) IF isItem(sku(d)) AND ##concrete(d) == ##concrete(ledger) AND departmentProp(binProp(d)) == department(ledger));
+        NUMERIC[18,4](GROUP SUM sum(###concrete##Detail d) IF isItem(sku(d)) AND ##concrete(d) == ##concrete(ledger) AND departmentProp(d) == department(ledger));
     sumContainer[###prefix##StockDocumentBinLedger] (###prefix##SD###concrete##BinLedger ledger) +=
-        NUMERIC[18,4](GROUP SUM sum(###concrete##Detail d) IF isContainer(sku(d)) AND ##concrete(d) == ##concrete(ledger) AND departmentProp(binProp(d)) == department(ledger));
+        NUMERIC[18,4](GROUP SUM sum(###concrete##Detail d) IF isContainer(sku(d)) AND ##concrete(d) == ##concrete(ledger) AND departmentProp(d) == department(ledger));
 
 END
 
-META defineStockDocumentBinLedgerOp (prefix, concrete, caption, stockProp, departmentProp, binProp)
-    @defineStockDocumentBinLedgerOperationAggregation (prefix, concrete, caption, departmentProp, binProp);
+META defineStockDocumentBinLedgerOp (prefix, concrete, caption, stockProp, departmentProp)
+    @defineStockDocumentBinLedgerOperationAggregation (prefix, concrete, caption, departmentProp);
     @implementStockDocumentBinLedger(prefix, concrete, stockProp);
-    @implementStockDocumentBinLedgerSum (prefix, concrete, departmentProp, binProp);
+    @implementStockDocumentBinLedgerSum (prefix, concrete, departmentProp);
 END
-META defineStockDocumentBinLedger (prefix, concrete, caption, stockProp, departmentProp, binProp)
-    @defineStockDocumentBinLedgerAggregation (prefix, concrete, caption, departmentProp, binProp);
+META defineStockDocumentBinLedger (prefix, concrete, caption, stockProp, departmentProp)
+    @defineStockDocumentBinLedgerAggregation (prefix, concrete, caption, departmentProp);
     @implementStockDocumentBinLedger(prefix, concrete, stockProp);
-    @implementStockDocumentBinLedgerSum (prefix, concrete, departmentProp, binProp);
+    @implementStockDocumentBinLedgerSum (prefix, concrete, departmentProp);
 END

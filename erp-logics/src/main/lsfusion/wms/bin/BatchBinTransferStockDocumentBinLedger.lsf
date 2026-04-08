@@ -1,6 +1,6 @@
 MODULE BatchBinTransferStockDocumentBinLedger;
 
-REQUIRE BatchBinTransferBinLedger, StockDocumentBinLedger;
+REQUIRE BatchBinTransferBinLedger, StockDocumentBinLedger, DepartmentBinTransferBinLedger;
 
 NAMESPACE Bin;
 
@@ -51,23 +51,23 @@ recalculateShipmentSum() + {
     }
 }
 
-@defineStockDocumentBinLedgerOperationAggregation (inc, binTransfer, 'Перемещение по ячейкам (приход)', department, inBin);
+@defineStockDocumentBinLedgerOperationAggregation (inc, binTransfer, 'Перемещение по ячейкам (приход)', inDepartment);
     @implementStockDocumentBinLedger(inc, binTransfer, stock);
 
 
 shipmentSum(IncSDBinTransferBinLedger ledger) =
-    NUMERIC[18,4](GROUP SUM shipmentSum(BinTransferDetail d) IF binTransfer(d) == binTransfer(ledger) AND department(inBin(d)) == department(ledger));
+    NUMERIC[18,4](GROUP SUM shipmentSum(BinTransferDetail d) IF binTransfer(d) == binTransfer(ledger) AND inDepartment(d) == department(ledger));
 sumItem[IncStockDocumentBinLedger] (IncSDBinTransferBinLedger ledger) +=
-    NUMERIC[18,4](GROUP SUM shipmentSum(BinTransferDetail d) IF isItem(sku(d)) AND binTransfer(d) == binTransfer(ledger) AND department(inBin(d)) == department(ledger));
+    NUMERIC[18,4](GROUP SUM shipmentSum(BinTransferDetail d) IF isItem(sku(d)) AND binTransfer(d) == binTransfer(ledger) AND inDepartment(d) == department(ledger));
 sumContainer[IncStockDocumentBinLedger] (IncSDBinTransferBinLedger ledger) +=
-    NUMERIC[18,4](GROUP SUM shipmentSum(BinTransferDetail d) IF isContainer(sku(d)) AND binTransfer(d) == binTransfer(ledger) AND department(inBin(d)) == department(ledger));
+    NUMERIC[18,4](GROUP SUM shipmentSum(BinTransferDetail d) IF isContainer(sku(d)) AND binTransfer(d) == binTransfer(ledger) AND inDepartment(d) == department(ledger));
 
-@defineStockDocumentBinLedgerOperationAggregation (out, binTransfer, 'Перемещение по ячейкам (расход)', department, outBin);
+@defineStockDocumentBinLedgerOperationAggregation (out, binTransfer, 'Перемещение по ячейкам (расход)', outDepartment);
     @implementStockDocumentBinLedger(out, binTransfer, stock);
 
 shipmentSum(OutSDBinTransferBinLedger ledger) =
-    NUMERIC[18,4](GROUP SUM shipmentSum(BinTransferDetail d) IF binTransfer(d) == binTransfer(ledger) AND department(outBin(d)) == department(ledger));
+    NUMERIC[18,4](GROUP SUM shipmentSum(BinTransferDetail d) IF binTransfer(d) == binTransfer(ledger) AND outDepartment(d) == department(ledger));
 sumItem[OutStockDocumentBinLedger] (OutSDBinTransferBinLedger ledger) +=
-    NUMERIC[18,4](GROUP SUM shipmentSum(BinTransferDetail d) IF isItem(sku(d)) AND binTransfer(d) == binTransfer(ledger) AND department(outBin(d)) == department(ledger));
+    NUMERIC[18,4](GROUP SUM shipmentSum(BinTransferDetail d) IF isItem(sku(d)) AND binTransfer(d) == binTransfer(ledger) AND outDepartment(d) == department(ledger));
 sumContainer[OutStockDocumentBinLedger] (OutSDBinTransferBinLedger ledger) +=
-    NUMERIC[18,4](GROUP SUM shipmentSum(BinTransferDetail d) IF isContainer(sku(d)) AND binTransfer(d) == binTransfer(ledger) AND department(outBin(d)) == department(ledger));
+    NUMERIC[18,4](GROUP SUM shipmentSum(BinTransferDetail d) IF isContainer(sku(d)) AND binTransfer(d) == binTransfer(ledger) AND outDepartment(d) == department(ledger));

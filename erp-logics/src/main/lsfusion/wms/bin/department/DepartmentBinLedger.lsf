@@ -41,12 +41,12 @@ prevBalanceA 'Остаток в отделе (после)' (Batch batch, Departm
     PREV(balanceA(batch, department, dateTime));
 
 countInLedgerA 'Кол-во приходов до' (Batch bt, Department department, DATE d) =
-    [GROUP SUM 1 IF active(BinLedger ledger) AND date(ledger) < DATE d1 BY batch(ledger), department(inBin(ledger)), d1](bt, department, sum(d,1));
+    [GROUP SUM 1 IF active(BinLedger ledger) AND date(ledger) < DATE d1 BY batch(ledger), inDepartment(ledger), d1](bt, department, sum(d,1));
 
 dateTimeLastMoved 'Время последнего движения' (Sku sku, Department department) =
     GROUP LAST dateTime(BinLedger ledger)
     ORDER dateTime(ledger), ledger
-    WHERE active(ledger) AND (department(inBin(ledger))==department OR department(outBin(ledger))==department)
+    WHERE active(ledger) AND (inDepartment(ledger)==department OR outDepartment(ledger)==department)
     BY sku(ledger);
 
 moved (Sku item, Department department, DATE date, LONG period) =
@@ -63,12 +63,12 @@ dateTimeLastMoved 'Время последнего прихода' (Batch b, Dep
     GROUP LAST dateTime(BinLedger ledger)
     ORDER dateTime(ledger), ledger
     WHERE active(ledger)
-    BY batch(ledger), department(inBin(ledger));
+    BY batch(ledger), inDepartment(ledger);
 
 dateTimeLastMovedInOut 'Время последнего движения' (Batch b, Department department) =
     GROUP LAST dateTime(BinLedger ledger)
     ORDER dateTime(ledger), ledger
-    WHERE active(ledger) AND (department(inBin(ledger))==department OR department(outBin(ledger))==department)
+    WHERE active(ledger) AND (inDepartment(ledger)==department OR outDepartment(ledger)==department)
     BY batch(ledger);
 
 moved (Batch b, Department department, DATE date, LONG period) =
@@ -103,7 +103,7 @@ EXTEND FORM currentBalanceSkuStock
     PROPERTIES(bl) EDIT SHOWIF allowedEdit(bl) NEWSESSION, show SHOWIF allowedShow(bl)
     ORDERS dateTime(bl) DESC
     FILTERS isPosted(bl), sku(bl)==s,
-        stock(bl) = st, department(inBin(bl))==filterDepartment() OR department(outBin(bl))==filterDepartment()
+        stock(bl) = st, inDepartment(bl)==filterDepartment() OR outDepartment(bl)==filterDepartment()
     OR NOT filterDepartment() OR NOT countAccessCompanyDepartments(currentUser(), ss) OR multipleStores()
     
     EVENTS ON CHANGE ss {
@@ -152,7 +152,7 @@ EXTEND FORM balanceSkuStock
     PROPERTIES(bl) EDIT SHOWIF allowedEdit(bl) NEWSESSION, show SHOWIF allowedShow(bl)
     ORDERS dateTime(bl) DESC
     FILTERS isPosted(bl), sku(bl)==s,
-        stock(bl) = st, department(inBin(bl))==filterDepartment() OR department(outBin(bl))==filterDepartment()
+        stock(bl) = st, inDepartment(bl)==filterDepartment() OR outDepartment(bl)==filterDepartment()
         OR NOT filterDepartment() OR NOT countAccessCompanyDepartments(currentUser(), ss) OR multipleStores()
 
 
@@ -197,7 +197,7 @@ EXTEND FORM currentBalanceBatchStock
     PROPERTIES(bl) EDIT SHOWIF allowedEdit(bl) NEWSESSION, show SHOWIF allowedShow(bl)
     ORDERS dateTime(bl) DESC
     FILTERS isPosted(bl), batch(bl)==bt,
-        stock(bl) = st, department(inBin(bl))==filterDepartment() OR department(outBin(bl))==filterDepartment()
+        stock(bl) = st, inDepartment(bl)==filterDepartment() OR outDepartment(bl)==filterDepartment()
         OR NOT filterDepartment() OR NOT countAccessCompanyDepartments(currentUser(), ss) OR multipleStores()
 
     EVENTS ON CHANGE ss {
@@ -246,7 +246,7 @@ EXTEND FORM balanceBatchStock
     PROPERTIES(bl) EDIT SHOWIF allowedEdit(bl) NEWSESSION, show SHOWIF allowedShow(bl)
     ORDERS dateTime(bl) DESC
     FILTERS isPosted(bl), batch(bl)==bt,
-        stock(bl) = st, department(inBin(bl))==filterDepartment() OR department(outBin(bl))==filterDepartment()
+        stock(bl) = st, inDepartment(bl)==filterDepartment() OR outDepartment(bl)==filterDepartment()
         OR NOT filterDepartment() OR NOT countAccessCompanyDepartments(currentUser(), ss) OR multipleStores()
 
     EVENTS ON CHANGE ss {
@@ -288,9 +288,10 @@ META defineDetailDepartment (object, prefix, caption)
 END
 
 META defineConstraintDetailDepartment(object, departmentProp, prefix, caption)
-    CONSTRAINT SET(prefix###bin(###object###detail object###Detail) AND departmentProp(object###Detail) AND
-        NOT departmentProp(object###Detail)==department(prefix###bin(object###Detail)))
-        MESSAGE 'Отдел ячейки'##caption + ' строки документа должен соотвествовать отделу'##caption+ 'шапки документа';
+    //проверяем только в момент изменения в документе
+    CONSTRAINT (CHANGED(prefix###bin(###object###detail object###Detail)) OR CHANGED(departmentProp(object###Detail))) AND
+        departmentProp(object###Detail) AND prefix###bin(object###Detail) AND NOT departmentProp(object###Detail)==department(prefix###bin(object###Detail))
+        MESSAGE 'Отдел ячейки'##caption + ' строки документа должен соотвествовать отделу'##caption+ ' шапки документа';
 
 END    
 
@@ -328,7 +329,7 @@ META setDepartmentDetail (object, prefix, caption)
        prefix###department(user###object###Detail) <- department(prefix###bin(user###object###Detail));   
    }
 
-   CONSTRAINT SET(prefix###bin(###object###detail object###Detail) AND prefix###department(object###Detail) AND
-       NOT prefix###department(object###Detail)==department(prefix###bin(object###Detail)))
+   CONSTRAINT (CHANGED(prefix###bin(###object###detail object###Detail)) OR CHANGED(prefix###department(object###Detail))) AND
+       prefix###department(object###Detail) AND prefix###bin(object###Detail) AND NOT prefix###department(object###Detail)==department(prefix###bin(object###Detail))
        MESSAGE 'Отдел ячейки'##caption + ' строки документа должен соотвествовать отделу'##caption;
 END    

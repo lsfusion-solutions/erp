@@ -1,6 +1,6 @@
 MODULE BatchReceivingStockDocumentBinLedger;
 
-REQUIRE BatchReceivingBinLedger, StockDocumentBinLedger,
+REQUIRE BatchReceivingBinLedger, StockDocumentBinLedger, DepartmentReceivingBinLedger,
         BatchReceivingInvoiceBinLedger //подключил для простоты вынесения на форму и как единственную реализацию назначения партий для строки приёмки
     ;
 
@@ -69,7 +69,7 @@ recalculateShipmentSum() + {
 CLASS IncSDReceivingBinLedger 'Приемка (приход)' : IncStockDocumentBinLedger;
 
 needToCreateIncSDReceivingBinLedger (Receiving t, Department department) = 
-    GROUP SUM quantity(ReceivingDetail d) IF receiving(d) == t AND department(inBin(d)) == department;
+    GROUP SUM quantity(ReceivingDetail d) IF receiving(d) == t AND inDepartment(d) == department;
 incSDReceivingBinLedger = AGGR IncSDReceivingBinLedger WHERE needToCreateIncSDReceivingBinLedger(Receiving receiving, Department department) AND GRDateTime(receiving) MATERIALIZED INDEXED;
 
 dateTime[StockDocumentBinLedger] (IncSDReceivingBinLedger ledger) += GRDateTime(receiving(ledger));
@@ -85,11 +85,11 @@ description[StockDocumentBinLedger] (IncSDReceivingBinLedger ledger) += descript
 edit(IncSDReceivingBinLedger ledger) + {edit[UserReceiving](receiving(ledger));}
 
 shipmentSum(IncSDReceivingBinLedger ledger) =
-    NUMERIC[18,4](GROUP SUM shipmentSum(ReceivingDetail d) IF receiving(d) == receiving(ledger) AND department(inBin(d)) == department(ledger));
+    NUMERIC[18,4](GROUP SUM shipmentSum(ReceivingDetail d) IF receiving(d) == receiving(ledger) AND inDepartment(d) == department(ledger));
 sumItem[IncStockDocumentBinLedger] (IncSDReceivingBinLedger ledger) +=
-    NUMERIC[18,4](GROUP SUM shipmentSum(ReceivingDetail d) IF isItem(sku(d)) AND receiving(d) == receiving(ledger) AND department(inBin(d)) == department(ledger));
+    NUMERIC[18,4](GROUP SUM shipmentSum(ReceivingDetail d) IF isItem(sku(d)) AND receiving(d) == receiving(ledger) AND inDepartment(d) == department(ledger));
 sumContainer[IncStockDocumentBinLedger] (IncSDReceivingBinLedger ledger) +=
-    NUMERIC[18,4](GROUP SUM shipmentSum(ReceivingDetail d) IF isContainer(sku(d)) AND receiving(d) == receiving(ledger) AND department(inBin(d)) == department(ledger));
+    NUMERIC[18,4](GROUP SUM shipmentSum(ReceivingDetail d) IF isContainer(sku(d)) AND receiving(d) == receiving(ledger) AND inDepartment(d) == department(ledger));
 
 legalEntity[StockDocumentBinLedger] (IncSDReceivingBinLedger ledger) += supplier(receiving(ledger));
 legalEntityStock[StockDocumentBinLedger] (IncSDReceivingBinLedger ledger) += supplierStock(receiving(ledger));
