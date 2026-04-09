@@ -174,11 +174,18 @@ supplierEmail 'E-mail для заказов (итог.)' (LegalEntity le, Stock 
 
 EXTEND FORM legalEntity
     PROPERTIES SHOWIF isSupplier(l) dataSupplierEmail(l)
+    
+    TREE sgeTree ae=BPSTRING[3], sge = StockGroup PARENT parent(sge)
+    PROPERTIES READONLY VALUE(ae), sgeTreeName = name(sge)
+    ORDERS sgeTreeName
+    FILTERS stringEqualsAll(ae)
+    FILTERS [GROUP SUM 1 IF isCompany(Stock ste) AND isParent(sge, ste) BY legalEntity(ste)](c)
+
     OBJECTS dse = Stock GRID
     PROPERTIES SHOWIF isSupplier(l) READONLY name(dse), id(dse), nameRegion(dse), nameStockGroup(dse)
     PROPERTIES SHOWIF isSupplier(l) supplierEmail(l, dse)
-
-    FILTERS active(dse), legalEntity(dse) == c, isCompany(dse)
+    FILTERS active(dse), legalEntity(dse) == c, isCompany(dse),
+            isParent(sge, dse) OR (dse IS Stock AND NOT sge)
 ;
 
 DESIGN legalEntity{
@@ -186,7 +193,16 @@ DESIGN legalEntity{
         NEW email {
             caption = 'E-mail для заказов';
             NEW supplE {horizontal = TRUE; alignment = STRETCH; MOVE PROPERTY (dataSupplierEmail(l));}
-            MOVE BOX(dse);
+            NEW stocksContainer {
+                fill = 1;
+                horizontal = TRUE;
+                MOVE BOX(TREE sgeTree) {
+                    caption = 'Группы складов';
+                }
+                MOVE BOX(dse) {
+                    fill = 3;
+                }
+            }
         }
     }
 }
