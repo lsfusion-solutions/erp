@@ -2,7 +2,7 @@ MODULE SaleReportsRu;
 
 REQUIRE SaleReports, SaleInvoice, SaleReturnInvoice, SaleOperation, PricingSum, SaleFullPrice, 
         SaleShipment, TaxItem, ZReport, Warehouse, PurchaseOrder, WriteOff, SaleLedgerWeek,
-        Inventory, LegalEntityList, SkuList, StockList, AccountDocument;
+        Inventory, LegalEntityList, SkuList, StockList, AccountDocument, DateSkuLedger;
 
 NAMESPACE SaleReports;
 
@@ -547,7 +547,7 @@ printGroupReceiptSaleLedgerReport 'Отчет по классификатору(
 }   IMAGE 'print.png' IN print;
 
 printGroupSaleLedgerReport 'Отчет по классификатору(опт)' (DATE dateFrom, DATE dateTo) {
-    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS Sale.InvoiceDetail;
+    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS Sale.InvoiceDetail AND date(l) >= dateFrom AND date(l) <= dateTo;
     namePrint() <- '(опт)';
     PRINT groupSaleLedgerReport OBJECTS df = dateFrom, dt= dateTo XLS;
     filterSaleLeger(SaleLedger l) <- NULL;
@@ -555,7 +555,7 @@ printGroupSaleLedgerReport 'Отчет по классификатору(опт)
 
 printGroupSaleLedgerAllReport 'Отчет по классификатору(опт+розница)' (DATE dateFrom, DATE dateTo) {
     namePrint() <- '(розничные продажи + опт)';
-    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS SaleLedger;
+    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS SaleLedger AND date(l) >= dateFrom AND date(l) <= dateTo;
     PRINT groupSaleLedgerReport OBJECTS df = dateFrom, dt= dateTo XLS;
     filterSaleLeger(SaleLedger l) <- NULL;
 }   IMAGE 'print.png' IN print;
@@ -623,9 +623,9 @@ FORM groupItogReceiptDetailReport 'Итоговый отчет по продаж
 
 printItogGroupReceiptSaleLedgerReport 'Итоговый отчет по продажам(розница)' (DATE dateFrom, DATE dateTo) {
     IF inReturn() THEN {
-        filterSaleLeger(ReceiptDetail l) <- TRUE WHERE l IS ReceiptDetail;
+        filterSaleLeger(ReceiptDetail l) <- TRUE WHERE l IS ReceiptDetail AND date(l) >= dateFrom AND date(l) <= dateTo;
     }ELSE {
-        filterSaleLeger(ReceiptDetail l) <- TRUE WHERE l IS ReceiptSaleDetail;
+        filterSaleLeger(ReceiptDetail l) <- TRUE WHERE l IS ReceiptSaleDetail AND date(l) >= dateFrom AND date(l) <= dateTo;
     }    
     namePrint() <- '(розничные продажи)';
     PRINT groupItogReceiptDetailReport OBJECTS df = dateFrom, dt= dateTo XLSX;
@@ -634,9 +634,9 @@ printItogGroupReceiptSaleLedgerReport 'Итоговый отчет по прод
 
 printItogGroupSaleLedgerReport 'Итоговый отчет по продажам(опт)' (DATE dateFrom, DATE dateTo) {
     IF inReturn() THEN {
-        filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS Sale.InvoiceDetail OR l IS SaleReturn.InvoiceDetail;
+        filterSaleLeger(SaleLedger l) <- TRUE WHERE (l IS Sale.InvoiceDetail OR l IS SaleReturn.InvoiceDetail) AND date(l) >= dateFrom AND date(l) <= dateTo;
     }ELSE {
-        filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS Sale.InvoiceDetail;
+        filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS Sale.InvoiceDetail AND date(l) >= dateFrom AND date(l) <= dateTo;
     }
     namePrint() <- '(опт)';
     PRINT groupItogSaleLedgerReport OBJECTS df = dateFrom, dt= dateTo XLS;
@@ -644,7 +644,11 @@ printItogGroupSaleLedgerReport 'Итоговый отчет по продажа�
 }   IMAGE 'print.png' IN print;
 
 printItogGroupSaleLedgerAllReport 'Итоговый отчет по продажам(опт+розница)' (DATE dateFrom, DATE dateTo) {
-    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS SaleLedger;
+    IF inReturn() THEN {
+        filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS SaleLedger AND date(l) >= dateFrom AND date(l) <= dateTo;
+    }ELSE {
+        filterSaleLeger(SaleLedger l) <- TRUE WHERE (l IS Sale.InvoiceDetail OR l IS DateSaleSkuLedger) AND date(l) >= dateFrom AND date(l) <= dateTo;
+    }
     namePrint() <- '(розничные продажи + опт)';
     PRINT groupItogSaleLedgerReport OBJECTS df = dateFrom, dt= dateTo XLS;
     filterSaleLeger(SaleLedger l) <- NULL;
@@ -792,7 +796,7 @@ printSkuGroupSaleLedgerSupplier 'Розничные продажи и остат
 }   IMAGE 'print.png' IN print;
 
 printSkuGroupSaleLedgerAllSupplier 'Розничные продажи и остатки(опт+розница)' (DATE dateFrom, DATE dateTo) {
-    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS SaleLedger;
+    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS SaleLedger AND date(l) >= dateFrom AND date(l) <= dateTo;
     namePrint() <- '(розничные продажи + опт)';
     PRINT saleLedgerReportSupplier OBJECTS df = dateFrom, dt= dateTo XLSX;
     filterSaleLeger(SaleLedger l) <- NULL;
@@ -841,7 +845,7 @@ FORM saleLedgerReportSupplierSku 'Продажи и остатки по пост
 ;
 
 printSkuGroupSaleLedgerSupplierSku 'Розничные продажи и остатки по пост.' (DATE dateFrom, DATE dateTo) {
-    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS SaleLedger;
+    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS SaleLedger AND date(l) >= dateFrom AND date(l) <= dateTo;
     PRINT saleLedgerReportSupplierSku OBJECTS df = dateFrom, dt= dateTo XLSX;
     filterSaleLeger(SaleLedger l) <- NULL;
 }   IMAGE 'print.png' IN print;
@@ -879,7 +883,7 @@ FORM saleLedgerReportTurnover 'Продажи и остатки(оборачив
 ;
 
 printSkuGroupSaleLedgerTurnover 'Розничные продажи и остатки(оборач.)' (DATE dateFrom, DATE dateTo) {
-    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS SaleLedger;
+    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS SaleLedger AND date(l) >= dateFrom AND date(l) <= dateTo;
     PRINT saleLedgerReportTurnover OBJECTS df = dateFrom, dt= dateTo XLSX;
     filterSaleLeger(SaleLedger l) <- NULL;
 }   IMAGE 'print.png' IN print;
@@ -1051,7 +1055,7 @@ printSaleReportReceiptWeek 'Динамика продаж по неделям(р
 }   IMAGE 'print.png' IN print;
 
 printSaleReportInvoiceWeek 'Динамика продаж по неделям(опт)' (DATE dateFrom, DATE dateTo) {
-    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS Sale.InvoiceDetail;
+    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS Sale.InvoiceDetail AND date(l) >= dateFrom AND date(l) <= dateTo;
     namePrint() <- '(опт)';
     year() <- extractYear(dateFrom);
     PRINT saleReportWeek OBJECTS df = dateFrom, dt= dateTo XLS;
@@ -1059,11 +1063,11 @@ printSaleReportInvoiceWeek 'Динамика продаж по неделям(о
 }   IMAGE 'print.png' IN print;
 
 printSaleReportWeek 'Динамика продаж по неделям(опт+розница)' (DATE dateFrom, DATE dateTo) {
-    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS SaleLedger;
+    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS SaleLedger AND date(l) >= dateFrom AND date(l) <= dateTo;
     namePrint() <- '(розничные продажи + опт)';
     year() <- extractYear(dateFrom);
     PRINT saleReportWeek OBJECTS df = dateFrom, dt= dateTo XLS;
-    filterSaleLeger(SaleLedger l) <- NULL;
+    cgfcb,j(SaleLedger l) <- NULL;
 }   IMAGE 'print.png' IN print;
 
 
