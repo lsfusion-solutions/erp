@@ -471,6 +471,13 @@ META defineStockDocumentBinLedgerAggregation (prefix, concrete, caption, departm
     ##prefix##SD###concrete##BinLedger = AGGR ###prefix##SD###concrete##BinLedger WHERE needToCreate###prefix##SD###concrete##BinLedger(###concrete ##concrete, Department department) MATERIALIZED INDEXED;
 END
 
+META defineStockDocumentBinLedgerAggregationGoafter (prefix, concrete, caption, departmentProp, goAfterProp, goAfterClass)
+    //SD - StockDocument SDBLBL - StockDocumentBinLedger
+    CLASS ###prefix##SD###concrete##BinLedger ###caption : ###prefix##StockDocumentBinLedger;
+    needToCreate###prefix##SD###concrete##BinLedger (###concrete t, Department department) = (GROUP SUM quantity(###concrete##Detail d) IF concrete(d) == t AND departmentProp(d) == department);
+    ##prefix##SD###concrete##BinLedger = AGGR GOAFTER goAfterProp[goAfterClass] ###prefix##SD###concrete##BinLedger WHERE needToCreate###prefix##SD###concrete##BinLedger(###concrete ##concrete, Department department) MATERIALIZED INDEXED;
+END
+
 META implementStockDocumentBinLedger(prefix, concrete, stockProp)
     dateTime[StockDocumentBinLedger] (###prefix##SD###concrete##BinLedger ledger) += dateTime(##concrete(ledger));
     isPosted[StockDocumentBinLedger] (###prefix##SD###concrete##BinLedger ledger) += isPosted(##concrete(ledger));
@@ -500,6 +507,12 @@ META defineStockDocumentBinLedgerOp (prefix, concrete, caption, stockProp, depar
 END
 META defineStockDocumentBinLedger (prefix, concrete, caption, stockProp, departmentProp)
     @defineStockDocumentBinLedgerAggregation (prefix, concrete, caption, departmentProp);
+    @implementStockDocumentBinLedger(prefix, concrete, stockProp);
+    @implementStockDocumentBinLedgerSum (prefix, concrete, departmentProp);
+END
+
+META defineStockDocumentBinLedgerGoafter (prefix, concrete, caption, stockProp, departmentProp, goAfterProp, goAfterClass)
+    @defineStockDocumentBinLedgerAggregationGoafter (prefix, concrete, caption, departmentProp, goAfterProp, goAfterClass);
     @implementStockDocumentBinLedger(prefix, concrete, stockProp);
     @implementStockDocumentBinLedgerSum (prefix, concrete, departmentProp);
 END

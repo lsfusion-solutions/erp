@@ -1,0 +1,159 @@
+MODULE WriteOffBatchBinTransfer;
+
+REQUIRE WriteOffBatchBinLedger, BatchBinTransferBinLedger;
+
+NAMESPACE WriteOff;
+
+createWriteOff 'Списание' = DATA BOOLEAN (Bin.Operation) PREREAD;
+
+writeOffOperation = DATA WriteOff.Operation (Bin.Operation);
+nameWriteOffOperation 'Операция (списания)' (Bin.Operation operation)= name(writeOffOperation(operation));
+
+EXTEND FORM Bin.operation
+    PROPERTIES(o) createWriteOff, nameWriteOffOperation
+;
+DESIGN Bin.operation {
+    tabContainer {
+        createContainer {
+            MOVE PROPERTY(createWriteOff(o));
+            MOVE PROPERTY(nameWriteOffOperation(o));
+        }
+    }
+}
+
+createWriteOff 'Создавать списание' = ABSTRACT BOOLEAN (BinTransfer) IN documentPrm;
+createWriteOff 'Создавать списание' = DATA BOOLEAN (UserBinTransfer) IN documentPrm;
+createWriteOff(UserBinTransfer r) += createWriteOff(r);
+
+createWriteOff 'Создавать списание' (BinTransferDetail binTransferDetail) = createWriteOff(binTransfer(binTransferDetail));
+createWriteOff 'Создавать списание' (UserBinTransferDetail userBinTransferDetail) = createWriteOff(userBinTransfer(userBinTransferDetail));
+
+writeOffOperation = ABSTRACT WriteOff.Operation (BinTransfer) MATERIALIZED;
+writeOffOperation = DATA WriteOff.Operation (UserBinTransfer);
+writeOffOperation(UserBinTransfer binTransfer) += writeOffOperation(binTransfer);
+
+nameWriteOffOperation 'Операция (списания)' (BinTransfer binTransfer) = name(writeOffOperation(binTransfer)) IN documentPrm;
+nameWriteOffOperation 'Операция (списания)' (UserBinTransfer binTransfer) = name(writeOffOperation(binTransfer)) IN documentPrm;
+
+reason = ABSTRACT Reason (BinTransfer);
+reason = DATA Reason (UserBinTransfer);
+reason(UserBinTransfer binTransfer) += reason(binTransfer);
+nameReason 'Причина списания' (BinTransfer binTransfer) = name(reason(binTransfer)) IN documentPrm;
+nameReason 'Причина списания' (UserBinTransfer userBinTransfer) = name(reason(userBinTransfer)) IN documentPrm;
+
+reason (BinTransferDetail d)= reason(binTransfer(d));
+reason (UserBinTransferDetail d)= reason(userBinTransfer(d));
+nameReason 'Причина списания' (BinTransferDetail d) = name(reason(d));
+nameReason 'Причина списания' (UserBinTransferDetail d) = name(reason(d));
+
+@defineDocumentInterfaceHeaderWriteOffCommittee(binTransfer, stock);
+
+@defineDocumentInterfaceLegalEntity (binTransfer, contact, 'Лаборатория');
+
+CONSTRAINT operation(UserBinTransfer binTransfer) AND contact(binTransfer)
+    AND NOT inContact(contact(binTransfer), writeOffOperation(binTransfer))
+    CHECKED BY contact[UserBinTransfer]
+    MESSAGE 'Лаборатория должна совпадать с отмеченными в операции';
+
+writeOffPrice 'Цена в списании' = ABSTRACT NUMERIC[16,4] (BinTransferDetail);
+writeOffPrice 'Цена в списании' = DATA NUMERIC[16,4] (UserBinTransferDetail);
+writeOffPrice(UserBinTransferDetail userBinTransferDetail) += writeOffPrice(userBinTransferDetail);
+
+WHEN LOCAL (CHANGED(stock(UserBinTransferDetail detail)) OR CHANGED(dateTime(detail)) OR SET(createWriteOff(detail)) OR
+    SETCHANGED(batch(detail))) AND batch(detail) AND NOT CHANGED(writeOffPrice(detail)) AND NOT skipUpdatePriceAccount() DO {
+        writeOffPrice (detail) <- prevAccountPriceB(batch(detail), stock(detail), dateTime(detail));
+} 
+
+EXTEND FORM binTransfers
+    PROPERTIES(o) READONLY createWriteOff, nameWriteOffOperation, nameReason, nameWriteOffCommittee, nameContact
+;
+
+EXTEND FORM userBinTransfer
+    PROPERTIES(o) createWriteOff
+    PROPERTIES(o) SHOWIF createWriteOff(o) nameWriteOffOperation, nameReason, nameWriteOffCommittee, nameContact
+    PROPERTIES(d) SHOWIF createWriteOff(o) writeOffPrice
+;
+
+DESIGN userBinTransfer {
+    headerCreateDocuments {
+        NEW writeOff {
+            caption = 'Списание';
+            horizontal = TRUE;
+            MOVE PROPERTY(createWriteOff(o));
+            MOVE PROPERTY(nameWriteOffOperation(o));
+            MOVE PROPERTY(nameReason(o));
+            MOVE PROPERTY(nameWriteOffCommittee(o));
+            MOVE PROPERTY(nameContact(o));
+        }
+    }    
+}
+
+@deriveDocumentOperationProperty(userBinTransfer, createWriteOff);
+
+@deriveDocumentOperationProperty(userBinTransfer, writeOffOperation);
+
+writeOffOperation(UserBinTransferDetail b) = writeOffOperation(userBinTransfer(b));
+writeOffOperation(BinTransferDetail b) = writeOffOperation(binTransfer(b));
+
+CLASS BinTransferWriteOff 'Списание на основании перемещения по ячейкам' : WriteOff;
+CLASS BinTransferWriteOffDetail 'Строка списания на основании перемещения по ячейкам' : WriteOffDetail;
+
+@defineDocumentTables(binTransferWriteOff);
+
+@defineDocumentAggregation(binTransfer, binTransferWriteOff, createWriteOff);
+
+writeOff(BinTransferWriteOffDetail detail) += binTransferWriteOff(detail);
+
+operation(BinTransferWriteOff writeOff) += writeOffOperation(binTransfer(writeOff));
+
+date(BinTransferWriteOff writeOff) += date(writeOff);
+time(BinTransferWriteOff writeOff) += time(writeOff);
+
+index(BinTransferWriteOffDetail detail) += index(detail);
+
+@defineDocumentAggregationStockPrefix(binTransfer, binTransferWriteOff, , 'Склад', , );
+stock(BinTransferWriteOff writeOff) += stock(writeOff);
+
+reason(BinTransferWriteOff writeOff) += reason(binTransfer(writeOff));
+writeOffCommittee(BinTransferWriteOff writeOff) += writeOffCommittee(binTransfer(writeOff));
+contact(BinTransferWriteOff writeOff) += contact(binTransfer(writeOff));
+
+@defineDocumentAggregationPosted(binTransfer, binTransferWriteOff);
+isPosted(BinTransferWriteOff writeOff) += isPosted(writeOff);
+
+@defineDocumentAggregationClosed(binTransfer, binTransferWriteOff);
+isClosed(BinTransferWriteOff writeOff) += isClosed(writeOff);
+
+number 'Номер документа' (BinTransferWriteOff binTransferWriteOff) = number(binTransfer(binTransferWriteOff));
+number(BinTransferWriteOff writeOff) += number(writeOff);
+
+series 'Серия документа' (BinTransferWriteOff binTransferWriteOff) = series(binTransfer(binTransferWriteOff));
+series(BinTransferWriteOff writeOff) += series(writeOff);
+
+seriesNumber 'Серия/номер документа' (BinTransferWriteOff binTransferWriteOff) = seriesNumber(binTransfer(binTransferWriteOff));
+
+noteWriteOff 'Примечание' (BinTransferWriteOff binTransferWriteOff) = note(binTransfer(binTransferWriteOff));
+note(BinTransferWriteOff writeOff) += noteWriteOff(writeOff);
+
+description 'Название документа' (BinTransferWriteOff o) =
+    STRING[200](CONCAT '', 'Списание на основании перемещения по ячейкам', ' № ' + seriesNumber(o), ' от ' + date(o)) CHARWIDTH 30;
+descriptionSale 'Название документа' (BinTransferWriteOffDetail d) = description(binTransferWriteOff(d)) CHARWIDTH 30;
+descriptionIndex 'Название документа' (BinTransferWriteOffDetail d) = descriptionSale(d) + ', позиция ' + index(d) CHARWIDTH 30 IN base;
+description (BinTransferWriteOff writeOff) += description(writeOff);
+
+@defineDocumentAggregationDetailSku(binTransfer, binTransferWriteOff, sku);
+sku(BinTransferWriteOffDetail writeOffDetail) += sku(writeOffDetail);
+
+@defineDocumentAggregationDetailBatch(binTransfer, binTransferWriteOff);
+batch (BinTransferWriteOffDetail writeOffDetail) += batch(writeOffDetail);
+
+@defineDocumentAggregationDetailQuantity(binTransfer, binTransferWriteOff);
+quantity(BinTransferWriteOffDetail writeOffDetail) += quantity(writeOffDetail);
+
+@defineDocumentAggregationDetailProperty (binTransfer, BinTransferWriteOff, writeOffPrice, 'Цена в списании');
+price(BinTransferWriteOffDetail writeOffDetail) += writeOffPrice(writeOffDetail);
+
+sum(BinTransferWriteOffDetail writeOffDetail) += NUMERIC[18,4](round2(quantity(writeOffDetail) * writeOffPrice(writeOffDetail)));
+
+edit(BinTransferWriteOff bt) + { edit(binTransfer(bt)); }
+edit(BinTransferWriteOffDetail btd) + { edit(binTransfer(binTransferDetail(btd))); }
