@@ -1523,6 +1523,269 @@ DESIGN comparativeTurnoverReport {
     }
 }
 
+opDateFrom 'Отчетный период (с)' = DATA LOCAL DATE ();
+opDateTo 'Отчетный период (по)' = DATA LOCAL DATE ();
+cmpOpDateFrom 'Сравнительный период (с)' = DATA LOCAL DATE ();
+cmpOpDateTo 'Сравнительный период (по)' = DATA LOCAL DATE ();
+opReportDate 'Отчетная дата' = DATA LOCAL DATE ();
+cmpOpReportDate 'Сравнительная дата' = DATA LOCAL DATE ();
+
+inOpStock 'Отм.' = DATA LOCAL BOOLEAN (Stock);
+opStockCount() = GROUP SUM 1 IF inOpStock(Stock s);
+opStockNames 'Подразделения' () = GROUP CONCAT (CONCAT ' ', id(Stock s), name(s)) IF inOpStock(s), ', ' ORDER id(s), s CHARWIDTH 40;
+
+inOpStockDialog 'Отм.' = DATA LOCAL BOOLEAN (Stock);
+
+opStockList = DATA LOCAL StockList();
+nameOpStockList 'Список подразделений' () = name(opStockList());
+
+changeOpStockList 'Список подразделений'() {
+    DIALOG stockLists OBJECTS o INPUT DO {
+        opStockList() <- o;
+        inOpStockDialog(Stock s) <- in(o, s);
+    }
+}
+
+deleteIncludeOpStockList 'Сбросить список'() {
+    opStockList() <- NULL;
+    inOpStockDialog(Stock s) <- NULL;
+} ASON CONTEXTMENU nameOpStockList;
+
+FORM dialogOpStocks 'Выбор подразделений'
+    TREE stockTree a = BPSTRING[3], sg = StockGroup PARENT parent(sg)
+    PROPERTIES READONLY VALUE(a), name(sg)
+    ORDERS name(sg)
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS s = Stock
+    PROPERTIES(s) READONLY id, name, address, nameRegion
+    PROPERTIES(s) inOpStockDialog READONLYIF opStockList()
+    PROPERTIES changeOpStockList() TOOLBAR
+    ORDERS name(s)
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
+        isCompany(s),
+        countCompanyStock(sg)
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT
+    FILTERGROUP select FILTER 'Отм.' inOpStockDialog(s) 'F9'
+
+    EVENTS
+        ON INIT {
+            inOpStockDialog(Stock st) <- inOpStock(st);
+        },
+        ON OK {
+            inOpStock(Stock st) <- inOpStockDialog(st);
+        }
+;
+
+DESIGN dialogOpStocks {
+    BOX {
+        size = (1024, 768);
+        NEW topContainer {
+            horizontal = TRUE;
+            fill = 1;
+            MOVE BOX(TREE stockTree) { caption = 'Подразделения'; }
+            MOVE BOX(s) {
+                fill = 3;
+                GRID(s) { defaultComponent = TRUE; }
+                PROPERTY(name(s)) { charWidth = 35; }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+changeOpStocks() {
+    DIALOG dialogOpStocks;
+}
+
+opRetailSalesSum (DepartmentStore ds, DATE d1, DATE d2) =
+    GROUP SUM sum(SaleLedger sl)
+        IF isPosted(sl)
+            AND stock(sl) = ds
+            AND sl IS DateSaleSkuLedger
+            AND date(sl) >= d1
+            AND date(sl) <= d2;
+
+opRetailCostSum (DepartmentStore ds, DATE d1, DATE d2) =
+    GROUP SUM costSum(SaleLedger sl)
+        IF isPosted(sl)
+            AND stock(sl) = ds
+            AND sl IS DateSaleSkuLedger
+            AND date(sl) >= d1
+            AND date(sl) <= d2;
+
+opRetailChecks (DepartmentStore ds, DATE d) =
+    GROUP SUM 1
+        IF isPosted(Receipt r)
+            AND departmentStore(r) = ds
+            AND date(r) = d
+            AND NOT skip(r);
+
+opPeriodChecks (DepartmentStore ds, DATE d1, DATE d2) =
+    GROUP SUM 1
+        IF isPosted(Receipt r)
+            AND departmentStore(r) = ds
+            AND date(r) >= d1
+            AND date(r) <= d2
+            AND NOT skip(r);
+
+opPeriodSalesSum 'Сумма продаж (отчетный период)' (DepartmentStore ds) =
+    opRetailSalesSum(ds, opDateFrom(), opDateTo());
+
+cmpOpPeriodSalesSum 'Сумма продаж (сравнительный период)' (DepartmentStore ds) =
+    opRetailSalesSum(ds, cmpOpDateFrom(), cmpOpDateTo());
+
+opDaySalesSum 'Сумма продаж (отчетная дата)' (DepartmentStore ds) =
+    opRetailSalesSum(ds, opReportDate(), opReportDate());
+
+cmpOpDaySalesSum 'Сумма продаж (сравнительная дата)' (DepartmentStore ds) =
+    opRetailSalesSum(ds, cmpOpReportDate(), cmpOpReportDate());
+
+opDaySalesCostSum 'Сумма в учетных ценах (отчетная дата)' (DepartmentStore ds) =
+    opRetailCostSum(ds, opReportDate(), opReportDate());
+
+cmpOpDaySalesCostSum 'Сумма в учетных ценах (сравнительная дата)' (DepartmentStore ds) =
+    opRetailCostSum(ds, cmpOpReportDate(), cmpOpReportDate());
+
+opDaySalesDiff 'Разница (сумма продаж)' (DepartmentStore ds) =
+    opDaySalesSum(ds) (-) cmpOpDaySalesSum(ds);
+
+opDaySalesDiffPct 'Процент расхождения (сумма продаж)' (DepartmentStore ds) =
+    NUMERIC[18,2](round2(opDaySalesDiff(ds) * 100.0 / cmpOpDaySalesSum(ds)))
+        IF cmpOpDaySalesSum(ds) != 0 AND cmpOpDaySalesSum(ds);
+
+opDayChecks 'Число чеков (отчетная дата)' (DepartmentStore ds) =
+    opRetailChecks(ds, opReportDate());
+
+cmpOpDayChecks 'Число чеков (сравнительная дата)' (DepartmentStore ds) =
+    opRetailChecks(ds, cmpOpReportDate());
+
+opPeriodChecksCount 'Число чеков (отчетный период)' (DepartmentStore ds) =
+    opPeriodChecks(ds, opDateFrom(), opDateTo());
+
+cmpOpPeriodChecksCount 'Число чеков (сравнительный период)' (DepartmentStore ds) =
+    opPeriodChecks(ds, cmpOpDateFrom(), cmpOpDateTo());
+
+opDayChecksDiffPct 'Процент расхождения (число чеков)' (DepartmentStore ds) =
+    NUMERIC[18,2](round2(
+            (NUMERIC[18,2](opDayChecks(ds)) - NUMERIC[18,2](cmpOpDayChecks(ds))) * 100.0
+                / NUMERIC[18,2](cmpOpDayChecks(ds))))
+        IF cmpOpDayChecks(ds) != 0 AND cmpOpDayChecks(ds);
+
+opDayAvgCheck 'Средний чек (отчетная дата)' (DepartmentStore ds) =
+    NUMERIC[18,2](round2(opDaySalesSum(ds) / NUMERIC[18,2](opDayChecks(ds))))
+        IF opDayChecks(ds) != 0 AND opDayChecks(ds);
+
+cmpOpDayAvgCheck 'Средний чек (сравнительная дата)' (DepartmentStore ds) =
+    NUMERIC[18,2](round2(cmpOpDaySalesSum(ds) / NUMERIC[18,2](cmpOpDayChecks(ds))))
+        IF cmpOpDayChecks(ds) != 0 AND cmpOpDayChecks(ds);
+
+opPeriodAvgCheck 'Средний чек (отчетный период)' (DepartmentStore ds) =
+    NUMERIC[18,2](round2(opPeriodSalesSum(ds) / NUMERIC[18,2](opPeriodChecksCount(ds))))
+        IF opPeriodChecksCount(ds) != 0 AND opPeriodChecksCount(ds);
+
+cmpOpPeriodAvgCheck 'Средний чек (сравнительный период)' (DepartmentStore ds) =
+    NUMERIC[18,2](round2(cmpOpPeriodSalesSum(ds) / NUMERIC[18,2](cmpOpPeriodChecksCount(ds))))
+        IF cmpOpPeriodChecksCount(ds) != 0 AND cmpOpPeriodChecksCount(ds);
+
+opDayMarkup 'Наценка (отчетная дата), %' (DepartmentStore ds) =
+    NUMERIC[18,2](round2(
+            (opDaySalesSum(ds) (-) opDaySalesCostSum(ds)) * 100.0 / opDaySalesCostSum(ds)))
+        IF opDaySalesCostSum(ds) != 0 AND opDaySalesCostSum(ds);
+
+cmpOpDayMarkup 'Наценка (сравнительная дата), %' (DepartmentStore ds) =
+    NUMERIC[18,2](round2(
+            (cmpOpDaySalesSum(ds) (-) cmpOpDaySalesCostSum(ds)) * 100.0 / cmpOpDaySalesCostSum(ds)))
+        IF cmpOpDaySalesCostSum(ds) != 0 AND cmpOpDaySalesCostSum(ds);
+
+opHasData(DepartmentStore ds) = inOpStock(ds) AND (
+    opPeriodSalesSum(ds) OR cmpOpPeriodSalesSum(ds) OR
+        opDaySalesSum(ds) OR cmpOpDaySalesSum(ds));
+
+initOpDates() {
+    opDateTo() <- currentDate();
+    opDateFrom() <- firstDayOfMonth(currentDate());
+    opReportDate() <- currentDate();
+    cmpOpDateTo() <- sumYear(currentDate(), -1);
+    cmpOpDateFrom() <- firstDayOfMonth(sumYear(currentDate(), -1));
+    cmpOpReportDate() <- sumYear(currentDate(), -1);
+}
+
+FORM operativeReport 'Оперативный отчет'
+    PROPERTIES() opDateFrom, opDateTo, opReportDate
+    PROPERTIES() cmpOpDateFrom, cmpOpDateTo, cmpOpReportDate
+    PROPERTIES() nameOpStockList READONLY SHOWIF opStockList()
+    PROPERTIES() opStockNames ON CHANGE changeOpStocks() READONLYIF opStockList()
+
+    OBJECTS ds = DepartmentStore
+    PROPERTIES(ds) READONLY
+    'Код подразделения' = id,
+        'Наименование подразделения' = name
+    PROPERTIES(ds) READONLY
+    opPeriodSalesSum,
+        cmpOpPeriodSalesSum,
+        opPeriodChecksCount,
+        cmpOpPeriodChecksCount,
+        opPeriodAvgCheck,
+        cmpOpPeriodAvgCheck,
+        opDaySalesSum,
+        cmpOpDaySalesSum,
+        opDaySalesDiff,
+        opDaySalesDiffPct,
+        opDayAvgCheck,
+        cmpOpDayAvgCheck,
+        opDayChecks,
+        cmpOpDayChecks,
+        opDayChecksDiffPct,
+        opDayMarkup,
+        cmpOpDayMarkup
+    FILTERS opHasData(ds)
+    ORDERS id(ds)
+
+    EVENTS ON INIT initOpDates()
+;
+
+printOperativeReport 'Отчет' () { PRINT operativeReport XLSX; } IMAGE 'print.png';
+
+EXTEND FORM operativeReport
+    PROPERTIES() DISABLEIF NOT opDateFrom() OR NOT opDateTo() OR NOT opReportDate()
+        OR NOT cmpOpDateFrom() OR NOT cmpOpDateTo() OR NOT cmpOpReportDate()
+    printOperativeReport
+;
+
+DESIGN operativeReport {
+    NEW filters FIRST {
+        alignment = STRETCH;
+        NEW topRow {
+            horizontal = TRUE;
+            alignment = STRETCH;
+            MOVE PROPERTY(printOperativeReport()) { valueClass = 'btn-primary'; }
+        }
+        MOVE PROPERTY(nameOpStockList()) { alignment = STRETCH; }
+        MOVE PROPERTY(opStockNames()) { alignment = STRETCH; }
+        NEW periodsBlock {
+            alignment = STRETCH;
+            NEW reportPeriod {
+                horizontal = TRUE;
+                alignment = STRETCH;
+                MOVE PROPERTY(opDateFrom());
+                MOVE PROPERTY(opDateTo());
+                MOVE PROPERTY(opReportDate());
+            }
+            NEW cmpPeriod {
+                horizontal = TRUE;
+                alignment = STRETCH;
+                MOVE PROPERTY(cmpOpDateFrom());
+                MOVE PROPERTY(cmpOpDateTo());
+                MOVE PROPERTY(cmpOpReportDate());
+            }
+        }
+    }
+    BOX(ds) {
+        caption = 'Данные по подразделениям';
+    }
+}
+
 NAVIGATOR {
     salesReports {
         NEW bestWorstProducts;
@@ -1530,5 +1793,6 @@ NAVIGATOR {
         NEW assortmentMatrixReport;
         NEW assortmentHistoryReport;
         NEW comparativeTurnoverReport;
+        NEW operativeReport;
     }
 }
