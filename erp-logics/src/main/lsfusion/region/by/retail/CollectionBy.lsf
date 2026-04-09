@@ -1,6 +1,6 @@
 MODULE CollectionBy;
 
-REQUIRE Collection, CashOperationBy;
+REQUIRE Collection, CashOperationBy, CurrencyDenomination;
 
 NAMESPACE CashOperation;
 
@@ -10,3 +10,253 @@ EXTEND FORM centralCashRegister
     PROPERTIES(o) printBy GRID, isComplete 
     PROPERTIES printAllOutcomeCashOrderBy(dFrom, dTo) DRAW o
 ;
+
+banknotesCollection 'Инкассация по купюрам' = DATA BOOLEAN (Operation) PREREAD;
+banknotesCollection 'Инкассация по купюрам' (Collection c) = banknotesCollection(operation(c));
+
+EXTEND FORM operation
+    PROPERTIES(o) banknotesCollection
+;
+
+DESIGN operation {
+    constraintContainer {
+        NEW collection AFTER PROPERTY(allowOutcomeCashOperation(o)) {
+            horizontal = TRUE;
+            MOVE PROPERTY(allowCollection(o));
+            MOVE PROPERTY(banknotesCollection(o));
+        }
+    }
+}
+
+banknotes 'По купюрам' = DATA BOOLEAN (Collection);
+
+dataQuantity 'Количество' = DATA INTEGER (Collection, Denomination);
+quantity 'Количество' (Collection c, Denomination d) = dataQuantity(c, d) IF banknotes(c);
+sum 'Сумма' (Collection c, Denomination d) = NUMERIC[18,4](value(d) * quantity(c, d));
+sumDenomination 'Сумма номинала' (Collection c) = GROUP SUM sum(c, Denomination d);
+
+EXTEND FORM collection
+    PROPERTIES(c) banknotes
+
+    OBJECTS d = Denomination
+    PROPERTIES(d) READONLY name, value
+    PROPERTIES(c, d) quantity, sum READONLY
+    ORDERS value(d)
+    FILTERS currency(d) = defaultCurrency()
+;
+
+DESIGN collection {
+    topContainer {
+        thirdCase {
+            horizontal = TRUE;
+            MOVE PROPERTY(banknotes(c));
+        }
+        MOVE BOX(d) AFTER thirdCase { fill = 1; showIf = banknotes(c); }
+    }
+}
+
+WHEN (SETCHANGED(sumDenomination(Collection c)) OR DROPPED(sumDenomination(c))
+    OR SETCHANGED(sumCash(c)) OR DROPPED(sumCash(c)) OR SET(banknotes(c)) OR DROPPED(banknotes(c)))
+    AND banknotes(c) DO {
+    sumCash(c) <- sumDenomination(c);
+}
+
+WHEN SETCHANGED(operation(Collection c)) AND banknotesCollection(c) DO {
+    banknotes(c) <- banknotesCollection(c);
+}
+
+WHEN LOCAL FORMS collection (SETCHANGED(sumDenomination(Collection c)) OR DROPPED(sumDenomination(c))
+    OR SETCHANGED(sumCash(c)) OR DROPPED(sumCash(c)) OR SET(banknotes(c)) OR DROPPED(banknotes(c)))
+    AND banknotes(c) DO {
+    sumCash(c) <- sumDenomination(c);
+}
+
+WHEN LOCAL FORMS collection SETCHANGED(operation(Collection c)) AND banknotesCollection(c) DO {
+    banknotes(c) <- banknotesCollection(c);
+}
+
+numberCashBag 'Номер сумки' = DATA STRING[50] (Collection);
+exchangeBank 'Банк размена' = DATA Bank (Collection);
+nameExchangeBank 'Банк размена' (Collection c) = name(exchangeBank(c));
+exhangeTarget 'Цель размена' = DATA STRING[100] (Collection);
+dateTimeExhangeRequest 'Дата заявки' = DATA DATETIME (Collection);
+dateTimeExhangeRecieved 'Дата доставки ценностей' = DATA DATETIME (Collection);
+
+FORM collectionAttributes 'Атрибуты инкассации'
+    OBJECTS c = Collection PANEL
+    PROPERTIES(c) numberCashBag, nameExchangeBank, exhangeTarget, dateTimeExhangeRequest, dateTimeExhangeRecieved
+;
+
+DESIGN collectionAttributes {
+    BOX {
+        NEW mainParams {
+            caption = 'Общие атрибуты';
+            alignment = STRETCH;
+            MOVE PROPERTY(numberCashBag(c));
+        }
+        NEW exchangeParams {
+            caption = 'Атрибуты размена';
+            alignment = STRETCH;
+            MOVE PROPERTY(nameExchangeBank(c));
+            MOVE PROPERTY(exhangeTarget(c));
+        }
+        NEW requestParams {
+            caption = 'Атрибуты иcполнения';
+            alignment = STRETCH;
+            MOVE PROPERTY(dateTimeExhangeRequest(c));
+            MOVE PROPERTY(dateTimeExhangeRecieved(c));
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+fillCollectionAttributes 'Заполнить атрибуты инкассации' (Collection c) {
+    DIALOG collectionAttributes OBJECTS c = c FLOAT NEWSESSION;
+} IMAGE 'edit.png';
+
+overReciever = ABSTRACT LegalEntity(Collection);
+reciever 'Получатель' (Collection c) = OVERRIDE overReciever(c), legalEntity(departmentStore(c));
+nameReciever 'Получатель' (Collection c) = name(reciever(c));
+accountReciever 'Расчетный счет получателя' (Collection c) = account(reciever(c));
+numberAccountReciever 'Расчетный счет получателя' (Collection c) = number(accountReciever(c));
+bankReciever 'Банк получателя' (Collection c) = bank(accountReciever(c));
+nameBankReciever 'Банк получателя' (Collection c) = name(bankReciever(c));
+addressBankReciever 'Адрес банка получателя' (Collection c) = address(bankReciever(c));
+MFOBankReciever 'BIC банка получателя' (Collection c) = MFO(bankReciever(c));
+CBUBankReciever 'ЦБУ банка получателя' (Collection c) = CBU(bankReciever(c));
+addressDepartmentStore 'Адрес подразделения' (Collection c) = address(departmentStore(c));
+
+FORM printCollectionCoverNote 'Препроводительная ведомость'
+    OBJECTS c = Collection PANEL
+    PROPERTIES(c) READONLY number, series, numberCashBag, date, time, nameLegalEntity, nameDepartmentStore,
+        nameOperation, nameReciever, numberAccountReciever, nameBankReciever, addressBankReciever,
+        MFOBankReciever, CBUBankReciever, banknotes, sumCash, nameEmployee, issuedTo
+
+    OBJECTS fd = Denomination SUBREPORT
+    PROPERTIES(fd) READONLY name, value
+    PROPERTIES(c, fd) READONLY quantity, sum
+    ORDERS value(fd)
+    FILTERS currency(fd) = defaultCurrency()
+
+    OBJECTS sd = Denomination SUBREPORT
+    PROPERTIES(sd) READONLY name, value
+    PROPERTIES(c, sd) READONLY quantity, sum
+    ORDERS value(sd)
+    FILTERS currency(sd) = defaultCurrency()
+;
+
+printCollectionCoverNote 'Препроводительная ведомость' (Collection c) {
+    NEWSESSION {
+        PRINT printCollectionCoverNote OBJECTS c = c;
+        isPrinted(c) <- TRUE;
+        APPLY;
+    }
+} IMAGE 'print.png';
+
+FORM printCollectionCoverNoteExchange 'Препроводительная ведомость (размен)'
+    OBJECTS c = Collection PANEL
+    PROPERTIES(c) READONLY number, series, numberCashBag, date, time, nameLegalEntity, nameDepartmentStore,
+        nameOperation, nameReciever, numberAccountReciever, nameBankReciever, addressBankReciever,
+        MFOBankReciever, CBUBankReciever, banknotes, sumCash, nameEmployee, issuedTo, nameExchangeBank
+
+    OBJECTS d = Denomination SUBREPORT
+    PROPERTIES(d) READONLY name, value, nameCurrency, sidCurrency
+    PROPERTIES(c, d) READONLY quantity, sum
+    ORDERS value(d)
+    FILTERS currency(d) = defaultCurrency(), quantity(c, d)
+;
+
+printCollectionCoverNoteExchange 'Препроводительная ведомость (размен)' (Collection c) {
+    PRINT printCollectionCoverNoteExchange OBJECTS c = c;
+} IMAGE 'print.png';
+
+FORM printCollectionExchangeRequest 'Заявка на размен'
+    OBJECTS c = Collection PANEL
+    PROPERTIES(c) READONLY number, series, numberCashBag, date, time, nameLegalEntity, nameDepartmentStore,
+        nameOperation, nameReciever, numberAccountReciever, nameBankReciever, addressBankReciever,
+        MFOBankReciever, CBUBankReciever, banknotes, sumCash, nameEmployee, issuedTo,
+        nameExchangeBank, exhangeTarget, dateTimeExhangeRequest, dateTimeExhangeRecieved,
+        addressDepartmentStore
+
+    OBJECTS d = Denomination SUBREPORT
+    PROPERTIES(d) READONLY name, value, nameCurrency, sidCurrency
+    PROPERTIES(c, d) READONLY quantity, sum
+    ORDERS value(d)
+    FILTERS currency(d) = defaultCurrency(), quantity(c, d)
+;
+
+printCollectionExchangeRequest 'Заявка на размен' (Collection c) {
+    PRINT printCollectionExchangeRequest OBJECTS c = c;
+} IMAGE 'print.png';
+
+filterCollectionDateFrom 'Дата с' = DATA LOCAL DATE ();
+filterDateFromCollection (Collection c) = date(c) >= filterCollectionDateFrom()
+    OR (c IS Collection AND NOT filterCollectionDateFrom());
+
+filterCollectionDateTo 'Дата по' = DATA LOCAL DATE ();
+filterDateToCollection (Collection c) = date(c) <= filterCollectionDateTo()
+    OR (c IS Collection AND NOT filterCollectionDateTo());
+
+filterCollectionDepartmentStore  = DATA LOCAL DepartmentStore ();
+nameFilterCollectionDepartmentStore 'Отдел магазина' = name(filterCollectionDepartmentStore()) CHARWIDTH 15;
+filterCollection (Collection c) = departmentStore(c) == filterCollectionDepartmentStore()
+    OR (c IS Collection AND NOT filterCollectionDepartmentStore());
+
+FORM cashCollections 'Инкассация наличных'
+    PROPERTIES() filterCollectionDateFrom, filterCollectionDateTo, nameFilterCollectionDepartmentStore
+
+    OBJECTS c = Collection
+    PROPERTIES(c) READONLY number, series, numberCashBag, date, time, nameLegalEntity, nameDepartmentStore,
+        nameOperation, nameReciever, nameBankReciever, banknotes, sumCash, nameEmployee, issuedTo
+    PROPERTIES(c) NEWSESSION NEW, EDIT, DELETE
+    PROPERTIES(c) printBy, printCollectionCoverNote,
+        fillCollectionAttributes, printCollectionCoverNoteExchange, printCollectionExchangeRequest
+
+    OBJECTS d = Denomination
+    PROPERTIES(d) READONLY name, value
+    PROPERTIES(c, d) READONLY quantity, sum
+    ORDERS value(d)
+    FILTERS currency(d) = defaultCurrency(), quantity(c, d)
+;
+
+DESIGN cashCollections {
+    NEW filters FIRST {
+        alignment = STRETCH;
+        caption = 'Фильтры';
+        horizontal = TRUE;
+        MOVE PROPERTY(filterCollectionDateFrom());
+        MOVE PROPERTY(filterCollectionDateTo());
+        MOVE PROPERTY(nameFilterCollectionDepartmentStore());
+    }
+    MOVE BOX(c) { fill = 2; }
+    NEW tabbed {
+        tabbed = TRUE;
+        fill = 1;
+        MOVE BOX(d) {
+            caption = 'Номиналы';
+            fill = 1;
+            showIf = banknotes(c);
+        }
+        NEW printTab {
+            caption = 'Печатные формы';
+            MOVE PROPERTY(fillCollectionAttributes(c));
+            NEW mainPrint {
+                caption = 'Инкассация';
+                MOVE PROPERTY(printBy(c)) { caption = 'Расходный кассовый ордер'; }
+                MOVE PROPERTY(printCollectionCoverNote(c));
+            }
+            NEW exchangePrint {
+                caption = 'Размен';
+                MOVE PROPERTY(printCollectionCoverNoteExchange(c));
+                MOVE PROPERTY(printCollectionExchangeRequest(c));
+            }
+        }
+    }
+    MOVE TOOLBARBOX;
+}
+
+NAVIGATOR {
+    retailDashboardNavigator {
+        NEW cashCollections;
+    }
+}
