@@ -1,0 +1,48 @@
+MODULE CurrencyDenomination;
+
+REQUIRE Currency;
+
+NAMESPACE Currency;
+
+CLASS Denomination 'Номинал';
+TABLE denomination (Denomination);
+
+currency 'Валюта' = DATA Currency (Denomination) NONULL DELETE;
+value 'Значение номинала' = DATA NUMERIC[16,2] (Denomination);
+name 'Наименование номинала' = DATA ISTRING[100] (Denomination);
+
+denomination = GROUP AGGR Denomination d BY currency(d), value(d);
+
+nameCurrency 'Валюта' (Denomination d) = name(currency(d));
+sidCurrency 'Код валюты' (Denomination d) = sid(currency(d));
+shortNameCurrency 'Валюта (сокр.)' (Denomination d) = shortName(currency(d));
+
+inactive 'Неактивный' = DATA BOOLEAN (Denomination);
+active 'Активный' (Denomination d) = d IS Denomination AND NOT inactive(d);
+
+FORM denominations 'Номиналы'
+    OBJECTS d = Denomination
+    PROPERTIES(d) READONLY name, value, nameCurrency
+    PROPERTIES(d) NEWSESSION NEW, EDIT, DELETE
+    ORDERS nameCurrency(d), value(d)
+    FILTERGROUP active FILTER 'Активные' active(d) 'F6' DEFAULT
+    
+    LIST Denomination OBJECT d
+;
+
+FORM denomination 'Номинал'
+    OBJECTS d = Denomination PANEL
+    PROPERTIES(d) nameCurrency, name, value
+
+    EDIT Denomination OBJECT d
+;
+
+EXTEND FORM currency
+    OBJECTS d = Denomination
+    PROPERTIES(d) inactive, name, value
+    PROPERTIES(d) NEW, DELETE
+    ORDERS value(d)
+    FILTERS currency(d) == c
+    
+    FILTERGROUP active FILTER 'Активные' active(d) 'F6' DEFAULT
+;
