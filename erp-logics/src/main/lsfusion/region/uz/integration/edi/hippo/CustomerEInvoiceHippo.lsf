@@ -302,9 +302,7 @@ accept(EInvoice ei) + {
         }
 
         NEWSESSION {
-            LOCAL hashcodeAccept = STRING ();
-            LOCAL signatureAccept = STRING ();
-            LOCAL pkcs7Accept = STRING ();
+            LOCAL pkcs7 = STRING();
 
             TRY {
                 // 1. Получение хеш-кода
@@ -326,46 +324,41 @@ accept(EInvoice ei) + {
 
                 // 2. Подписание (attach = TRUE)
                 signClientAction(RAWFILE(sendRequestEDIResponse()), customer(ei), TRUE);
-                signatureAccept() <- encodedSignature();
 
-                IF NOT signatureAccept() THEN {
+                IF NOT encodedSignature() THEN {
                     logToFile('edi', externalId(ei) + ' ' + 'Не удалось получить подпись EImzo для подтверждения');
                     MESSAGE 'Не удалось получить подпись EImzo для подтверждения' NOWAIT;
                     RETURN;
                 }
 
                 // 3. Attach timestamp
-                LOCAL timestampRequestFile = FILE();
-                EXPORT JSON FROM signature = signatureAccept() TO timestampRequestFile;
+                EXPORT JSON FROM signature = encodedSignature();
                 sendPostRequestEDI(clientIDHippo(), clientSecretHippo(),
                     apiUrlHippo() + '/eimzo-client-api/pkcs7/attach-timestamp',
-                    timestampRequestFile(), TRUE, NULL);
+                    exportFile(), TRUE, NULL);
 
                 IF sendRequestEDIStatus() != 200 THEN {
                     logToFile('edi', externalId(ei) + ' ' + 'Ошибка при получении метки времени для подтверждения: ' + sendRequestEDIStatus());
-                    logToFile('edi', sendRequestEDIResponse());
+                    logToFile('edi', STRING(sendRequestEDIResponse()));
                     MESSAGE 'Ошибка при получении метки времени для подтверждения: ' + sendRequestEDIStatus() NOWAIT;
                     RETURN;
                 }
 
-                IMPORT JSON FROM sendRequestEDIResponse() TO() pkcs7Accept = pkcs7b64;
+                IMPORT JSON FROM sendRequestEDIResponse() TO() pkcs7 = pkcs7b64;
 
-                IF NOT pkcs7Accept() THEN {
+                IF NOT pkcs7() THEN {
                     logToFile('edi', externalId(ei) + ' ' + 'Не удалось получить метку времени для подтверждения (attach-timestamp)');
-                    logToFile('edi', sendRequestEDIResponse());
+                    logToFile('edi', STRING(sendRequestEDIResponse()));
                     MESSAGE 'Не удалось получить метку времени для подтверждения (attach-timestamp)' NOWAIT;
                     RETURN;
                 }
 
                 // 4. Финальное подтверждение
-                signatureAccept() <- pkcs7Accept();
-
-                LOCAL requestFile = FILE();
-                EXPORT JSON FROM signature = signatureAccept() TO requestFile;
+                EXPORT JSON FROM signature = pkcs7();
 
                 sendPostRequestEDI(clientIDHippo(), clientSecretHippo(),
                     apiUrlHippo() + '/roaming-client-api/invoice/customer/accept/' + externalId(ei),
-                    requestFile(), TRUE, NULL);
+                    exportFile(), TRUE, NULL);
 
                 IF sendRequestEDIStatus() != 200 THEN {
                     logToFile('edi', externalId(ei) + ' ' + 'Ошибка при подтверждении счета-фактуры: ' + sendRequestEDIStatus());
@@ -376,20 +369,14 @@ accept(EInvoice ei) + {
                 isAccepted(ei) <- TRUE;
                 APPLY;
 
-                IF NOT canceled() THEN {
-                    logToFile('edi', externalId(ei) + ' ' + 'Счет-фактура успешно подтвержден (Hippo)');
-                    MESSAGE 'Счет-фактура успешно подтвержден (Hippo)' NOWAIT;
-                } ELSE {
-                    logToFile('edi', externalId(ei) + ' ' + 'Ошибка при применении изменений подтверждения');
-                    MESSAGE 'Ошибка при применении изменений подтверждения' NOWAIT;
-                }
-
+                logToFile('edi', externalId(ei) + ' ' + 'Счет-фактура успешно подтвержден');
+                MESSAGE 'Счет-фактура успешно подтвержден' NOWAIT;
             } CATCH {
-                logToFile('edi', externalId(ei) + ' ' + 'Критическая ошибка при подтверждении Hippo: ' + messageCaughtException());
-                logToFile('edi', externalId(ei) + ' ' + javaStackTraceCaughtException());
-                logToFile('edi', CONCAT ' ', externalId(ei), 'Request:', STRING(sendRequestEDIRequest()));
-                logToFile('edi', CONCAT ' ', externalId(ei), 'Response:', STRING(sendRequestEDIResponse()));
-                MESSAGE 'Критическая ошибка при подтверждении Hippo. Подробности в логе.' NOWAIT;
+                logToFile('edi', externalId(ei) + ' ' + 'Критическая ошибка при подтверждении: ' + messageCaughtException());
+                logToFile('edi', externalId(ei) + ' ' + lsfStackTraceCaughtException());
+                logToFile('edi', CONCAT ' ', externalId(ei) + ' Request:', STRING(sendRequestEDIRequest()));
+                logToFile('edi', CONCAT ' ', externalId(ei) + ' Response:', STRING(sendRequestEDIResponse()));
+                MESSAGE 'Критическая ошибка при подтверждении: ' + messageCaughtException() NOWAIT;
             }
         }
     }
@@ -418,10 +405,8 @@ reject(EInvoice ei) + {
                 MESSAGE 'Причина отклонения обязательна' NOWAIT;
                 RETURN;
             }
-
-            LOCAL hashcodeReject = STRING ();
-            LOCAL signatureReject = STRING ();
-            LOCAL pkcs7Reject = STRING ();
+            
+            LOCAL pkcs7 = STRING();
 
             TRY {
                 // 1. Получение хеш-кода
@@ -443,46 +428,41 @@ reject(EInvoice ei) + {
 
                 // 2. Подписание
                 signClientAction(RAWFILE(sendRequestEDIResponse()), customer(ei), NULL);
-                signatureReject() <- encodedSignature();
 
-                IF NOT signatureReject() THEN {
+                IF NOT encodedSignature() THEN {
                     logToFile('edi', externalId(ei) + ' ' + 'Не удалось получить подпись EImzo');
                     MESSAGE 'Не удалось получить подпись EImzo' NOWAIT;
                     RETURN;
                 }
 
                 // 3. Attach timestamp
-                LOCAL timestampRequestFile = FILE();
-                EXPORT JSON FROM signature = signatureReject() TO timestampRequestFile;
+                EXPORT JSON FROM signature = encodedSignature();
                 sendPostRequestEDI(clientIDHippo(), clientSecretHippo(),
                     apiUrlHippo() + '/eimzo-client-api/pkcs7/attach-timestamp',
-                    timestampRequestFile(), TRUE, NULL); 
+                    exportFile(), TRUE, NULL); 
 
                 IF sendRequestEDIStatus() != 200 THEN {
                     logToFile('edi', externalId(ei) + ' ' + 'Ошибка при получении метки времени: ' + sendRequestEDIStatus());
-                    logToFile('edi', sendRequestEDIResponse());
+                    logToFile('edi', STRING(sendRequestEDIResponse()));
                     MESSAGE 'Ошибка при получении метки времени: ' + sendRequestEDIStatus() NOWAIT;
                     RETURN;
                 }
 
-                IMPORT JSON FROM sendRequestEDIResponse() TO() pkcs7Reject = pkcs7b64;
+                IMPORT JSON FROM sendRequestEDIResponse() TO() pkcs7 = pkcs7b64;
 
-                IF NOT pkcs7Reject() THEN {
+                IF NOT pkcs7() THEN {
                     logToFile('edi', externalId(ei) + ' ' + 'Не удалось получить метку времени (attach-timestamp)');
-                    logToFile('edi', sendRequestEDIResponse());
+                    logToFile('edi', STRING(sendRequestEDIResponse()));
                     MESSAGE 'Не удалось получить метку времени (attach-timestamp)' NOWAIT;
                     RETURN;
                 }
 
                 // 4. Финальное отклонение
-                signatureReject() <- pkcs7Reject();
-
-                LOCAL requestFile = FILE();
-                EXPORT JSON FROM signature = signatureReject(), comment = rejectReasonHippo(ei) TO requestFile;
+                EXPORT JSON FROM signature = pkcs7(), comment = rejectReasonHippo(ei);
 
                 sendPostRequestEDI(clientIDHippo(), clientSecretHippo(),
                     apiUrlHippo() + '/roaming-client-api/invoice/customer/decline/' + externalId(ei),
-                    requestFile(), TRUE, NULL);
+                    exportFile(), TRUE, NULL);
 
                 IF sendRequestEDIStatus() != 200 THEN {
                     logToFile('edi', externalId(ei) + ' ' + 'Ошибка при финальном отклонении: ' + sendRequestEDIStatus());
@@ -494,14 +474,14 @@ reject(EInvoice ei) + {
                 APPLY;
 
                 logToFile('edi', externalId(ei) + ' ' + 'Счет-фактура успешно отклонен в Hippo');
-                MESSAGE 'Счет-фактура успешно отклонен в Hippo' NOWAIT;
+                MESSAGE 'Счет-фактура успешно отклонен' NOWAIT;
 
             } CATCH {
-                logToFile('edi', externalId(ei) + ' ' + 'Ошибка при отклонении счета-фактуры: ' + (OVERRIDE messageCaughtException(), 'Unknown error'));
-                logToFile('edi', CONCAT '\n', 'Hippo Decline error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
-                logToFile('edi', CONCAT ' ', externalId(ei), 'Request:', STRING(sendRequestEDIRequest()));
-                logToFile('edi', CONCAT ' ', externalId(ei), 'Response:', STRING(sendRequestEDIResponse()));
-                MESSAGE 'Ошибка при отклонении счета-фактуры: ' + (OVERRIDE messageCaughtException(), 'Unknown error') NOWAIT;
+                logToFile('edi', externalId(ei) + ' ' + 'Критическая ошибка при отклонении: ' + messageCaughtException());
+                logToFile('edi', externalId(ei) + ' ' + lsfStackTraceCaughtException());
+                logToFile('edi', CONCAT ' ', externalId(ei) + ' Request:', STRING(sendRequestEDIRequest()));
+                logToFile('edi', CONCAT ' ', externalId(ei) + ' Response:', STRING(sendRequestEDIResponse()));
+                MESSAGE 'Критическая ошибка при отклонении: ' + messageCaughtException() NOWAIT;
             }
         }
     }

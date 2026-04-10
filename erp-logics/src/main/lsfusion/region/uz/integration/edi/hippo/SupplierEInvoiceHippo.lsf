@@ -46,91 +46,90 @@ FORM sendHashCode
 send(EInvoice ei) + {
     IF EDIProvider(supplier(ei)) == EDIProvider.hippo THEN {
         IF NOT apiUrlHippo() OR NOT clientIDHippo() OR NOT clientSecretHippo() THEN {
-            MESSAGE 'Не заполнены настройки API Hippo' NOWAIT;
-            logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Не заполнены настройки API Hippo');
+            logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Не настроены параметры API Hippo');
+            MESSAGE 'Не настроены параметры API Hippo' NOWAIT;
             RETURN;
         }
 
         NEWSESSION {
             LOCAL hashcode = STRING();
-            LOCAL signature = STRING();
             LOCAL pkcs7 = STRING();
             LOCAL extId = STRING();
-            LOCAL resultFile = FILE();
-            LOCAL timestampRequestFile = FILE();
-            LOCAL finalRequestFile = FILE();
 
-            EXPORT sendHashCode OBJECTS value = ei JSON;
-            resultFile() <- exportFile();
+            TRY {
+                EXPORT sendHashCode OBJECTS value = ei JSON;
 
-            // 1. Получение хеш-кода для отправки
-            sendPostRequestEDI(clientIDHippo(), clientSecretHippo(), apiUrlHippo() + '/document-generator-client-api/roaming/invoice/generate/send-hash-code', resultFile(), TRUE, NULL);
-            
-            IF sendRequestEDIStatus() == 200 THEN {
+                // 1. Получение хеш-кода для отправки
+                sendPostRequestEDI(clientIDHippo(), clientSecretHippo(), apiUrlHippo() + '/document-generator-client-api/roaming/invoice/generate/send-hash-code',  exportFile(), TRUE, NULL);
+                
+                IF sendRequestEDIStatus() != 200 THEN {
+                    logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Ошибка при получении хеш-кода для отправки: ' + sendRequestEDIStatus());
+                    MESSAGE 'Ошибка при получении хеш-кода для отправки: ' + sendRequestEDIStatus() NOWAIT;
+                    RETURN;
+                }
+
                 IMPORT JSON FROM sendRequestEDIResponse() TO() hashcode;
                 
-                IF hashcode() THEN {
-                    logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Получен хеш-код для отправки: ' + hashcode());
-                    
-                    EXPORT JSON FROM hashcode();
-                    resultFile() <- exportFile();
-                    
-                    // 2. Подписание хеш-кода (без attach для отправки)
-                    signClientAction(RAWFILE(resultFile()), supplier(ei), NULL);
-                    signature() <- encodedSignature();
-                    
-                    IF signature() THEN {
-                        logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Хеш-код успешно подписан');
-                        
-                        EXPORT JSON FROM signature = signature();
-                        timestampRequestFile() <- exportFile();
-                        
-                        // 3. Получение метки времени
-                        sendPostRequestEDI(clientIDHippo(), clientSecretHippo(), apiUrlHippo() + '/eimzo-client-api/pkcs7/attach-timestamp', timestampRequestFile(), TRUE, NULL);
-                        
-                        IF sendRequestEDIStatus() == 200 THEN {
-                            IMPORT JSON FROM sendRequestEDIResponse() TO() pkcs7 = pkcs7b64;
-                            
-                            IF pkcs7() THEN {
-                                logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Получена метка времени (pkcs7)');
-                                
-                                EXPORT JSON FROM signature = pkcs7(), lan = 'ru';
-                                finalRequestFile() <- exportFile();
-                                
-                                // 4. Финальная отправка документа
-                                sendPostRequestEDI(clientIDHippo(), clientSecretHippo(), apiUrlHippo() + '/roaming-client-api/invoice/send', finalRequestFile(), TRUE, NULL);
-                                
-                                IF sendRequestEDIStatus() == 200 THEN {
-                                    IMPORT JSON FROM sendRequestEDIResponse() TO() extId;
-                                    externalId(ei) <- extId();
-                                    exportedSupplier(ei) <- TRUE;
-                                    logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Документ успешно отправлен в Hippo. Внешний ID: ' + extId());
-                                    APPLY;
-                                } ELSE {
-                                    logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Ошибка при финальной отправке (Hippo): ' + sendRequestEDIStatus());
-                                    MESSAGE 'Ошибка при финальной отправке (Hippo): ' + sendRequestEDIStatus() NOWAIT;
-                                }
-                            } ELSE {
-                                logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Не получен pkcs7 в ответе attach-timestamp (Hippo)');
-                                MESSAGE 'Не получен pkcs7 (Hippo)' NOWAIT;
-                            }
-                        } ELSE {
-                            logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Ошибка при получении метки времени (Hippo): ' + sendRequestEDIStatus());
-                            MESSAGE 'Ошибка при получении метки времени (Hippo): ' + sendRequestEDIStatus() NOWAIT;
-                        }
-                    } ELSE {
-                        logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Отмена: подпись не сформирована');
-                        MESSAGE 'Подпись не сформирована' NOWAIT;
-                    }
-                } ELSE {
-                    logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Не получен хеш-код в ответе (Hippo)');
-                    MESSAGE 'Не получен хеш-код (Hippo)' NOWAIT;
+                IF NOT hashcode() THEN {
+                    logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Не получен хеш-код в ответе');
+                    MESSAGE 'Не получен хеш-код' NOWAIT;
+                    RETURN;
                 }
-            } ELSE {
-                logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Ошибка при получении хеш-кода для отправки (Hippo): ' + sendRequestEDIStatus());
-                MESSAGE 'Ошибка при получении хеш-кода для отправки (Hippo): ' + sendRequestEDIStatus() NOWAIT;
+
+                EXPORT JSON FROM hashcode();
+                
+                // 2. Подписание хеш-кода (без attach для отправки)
+                signClientAction(RAWFILE(exportFile()), supplier(ei), NULL);
+            
+                IF NOT encodedSignature() THEN {
+                    logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Подпись не сформирована');
+                    MESSAGE 'Подпись не сформирована' NOWAIT;
+                    RETURN;
+                }
+                
+                EXPORT JSON FROM signature = encodedSignature();
+                
+                // 3. Получение метки времени
+                sendPostRequestEDI(clientIDHippo(), clientSecretHippo(), apiUrlHippo() + '/eimzo-client-api/pkcs7/attach-timestamp', exportFile(), TRUE, NULL);
+                
+                IF sendRequestEDIStatus() != 200 THEN {
+                    logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Ошибка при получении метки времени: ' + sendRequestEDIStatus());
+                    MESSAGE 'Ошибка при получении метки времени: ' + sendRequestEDIStatus() NOWAIT;
+                    RETURN;
+                }
+
+                IMPORT JSON FROM sendRequestEDIResponse() TO() pkcs7 = pkcs7b64;
+                
+                IF NOT pkcs7() THEN {
+                    logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Не получен pkcs7 в ответе attach-timestamp');
+                    MESSAGE 'Не получен pkcs7' NOWAIT;
+                    RETURN;
+                }
+
+                EXPORT JSON FROM signature = pkcs7(), lang = 'ru';
+                
+                // 4. Финальная отправка документа
+                sendPostRequestEDI(clientIDHippo(), clientSecretHippo(), apiUrlHippo() + '/roaming-client-api/invoice/send', exportFile(), TRUE, NULL);
+                
+                IF sendRequestEDIStatus() != 200 THEN {
+                    logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Ошибка при финальной отправке: ' + sendRequestEDIStatus());
+                    MESSAGE 'Ошибка при финальной отправке: ' + sendRequestEDIStatus() NOWAIT;
+                    RETURN;
+                }
+
+                IMPORT JSON FROM sendRequestEDIResponse() TO() extId;
+                externalId(ei) <- extId();
+                exportedSupplier(ei) <- TRUE;
+                APPLY;
+                logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Документ успешно отправлен. Внешний ID: ' + extId());
+                MESSAGE 'Документ успешно отправлен' NOWAIT;
+            } CATCH {
+                logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Критическая ошибка при отправке Hippo: ' + messageCaughtException());
+                logToFile('edi', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' ' + lsfStackTraceCaughtException());
+                logToFile('edi', CONCAT ' ', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Request:', STRING(sendRequestEDIRequest()));
+                logToFile('edi', CONCAT ' ', deliveryNoteNumber(ei) + ' ' + deliveryNoteDate(ei) + ' Response:', STRING(sendRequestEDIResponse()));
+                MESSAGE 'Критическая ошибка при отправке Hippo: ' + messageCaughtException() NOWAIT;
             }
         }
     }
 }
-    ;
