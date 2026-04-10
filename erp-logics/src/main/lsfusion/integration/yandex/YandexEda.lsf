@@ -124,6 +124,8 @@ initcap (TEXT p1) = FORMULA 'initcap($1)';
 nameCat (STRING name) = replace(lower(name), getWord(lower(name), ' ', 1), initcap(getWord(lower(name), ' ', 1)));
 
 limitPerOrder = ABSTRACT INTEGER (Item);
+netWeightYandex = ABSTRACT CASE NUMERIC[12,6](Item);
+netWeightYandex(Item i) += WHEN i IS Item THEN netWeight(i);
 
 FORM nomenclature 'Номенклатура ЯндексЕда'
     OBJECTS s = DepartmentStore PANEL
@@ -136,7 +138,7 @@ FORM nomenclature 'Номенклатура ЯндексЕда'
     PROPERTIES id(i), oldPrice(i,s), yandexName(i) EXTID 'name', categoryId(i), limitPerOrder(i),
          = INTEGER(valueVAT(i)) EXTID 'vat', = OVERRIDE id(i), '' EXTID 'vendorCode',
          isCatchWeight(i), currentPrice(i,s) EXTID 'price'
-    PROPERTIES IN measure = INTEGER(netWeight(i) * 1000) EXTID 'value', = IF netWeight(i) THEN 'GRM' EXTID 'unit', quantum(i)
+    PROPERTIES IN measure = INTEGER(netWeightYandex(i) * 1000) EXTID 'value', = IF netWeightYandex(i) THEN 'GRM' EXTID 'unit', quantum(i)
     PROPERTIES IN volume = round0(volume(i)) EXTID 'value', = IF volume(i) THEN 'DMQ' EXTID 'unit'
     PROPERTIES IN barcode idBarcode(i) EXTID 'value', = IF idBarcode(i) THEN 'ean13' EXTID 'type', 
         = IF isCatchWeight(i) == TTRUE THEN 'ean13-tail-gram-5' ELSE 'none' EXTID 'weightEncoding'
