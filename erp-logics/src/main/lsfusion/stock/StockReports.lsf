@@ -17,10 +17,10 @@ backgroundInclude 'Цвет' (GroupType groupType, Sku sku) = IF include(sku)
 countIncludeSku 'Кол-во непосредственных товаров в группе' (Group group, GroupType groupType) =
     GROUP
     SUM 1 IF group(groupType, Sku sku) == group AND include(groupType,sku);
-    
-sessionConcatGroups 'Группы' (GroupType groupType) =
-    GROUP
-    CONCAT name(Group group) IF countIncludeSku(group, groupType),',' ORDER group;
+
+sessionConcatGroups 'Группы' (groupType) =
+    GROUP CONCAT name(Group group) IF inSession(group) AND NOT inSession(parent(group)),'; ' ORDER group
+    BY groupType(group);
 
 // --------------------------------- Оптимизация с хранимыми свойствами ------------------------------------- //
  
