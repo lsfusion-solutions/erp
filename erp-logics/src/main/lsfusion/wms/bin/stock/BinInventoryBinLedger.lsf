@@ -90,6 +90,9 @@ idOperation 'ID операции' = id(operation(BinInventory i));
 
 @defineDocumentHeaderPosted(BinInventory);
 
+CONSTRAINT DROPPED(BinInventory o IS BinInventory) AND PREV(isPosted(o))
+    MESSAGE 'Перед удалением необходимо распровести инвентаризацию';
+
 @defineDocumentHeaderTime(BinInventory);
 
 @defineDocumentHeaderTimePrefix(BinInventory, from, ' c');
@@ -106,6 +109,9 @@ skipShowDelete = ABSTRACT VALUE BOOLEAN (BinInventory);
 skipOpen = ABSTRACT CASE BOOLEAN (BinInventory);
 showClose (BinInventory o) = isOpened(o) AND NOT skipClose(o);
 showOpen (BinInventory o) = isClosed(o) AND NOT skipOpen(o);
+
+showPost (BinInventory o) = isDraft(o) AND isOpened(o);
+showUnpost (BinInventory o) = isPosted(o) AND isOpened(o);
 
 @deriveDocumentHeaderTimePrefix(BinInventory, );
 
@@ -311,6 +317,7 @@ FORM binInventories 'Инвентаризации по ячейкам'
     OBJECTS i = BinInventory
     PROPERTIES(i) READONLY isClosed, isPosted, nameOperation, nameStock, number, seriesNumber, note, date, time, fromDate, fromTime, toDate, toTime
     PROPERTIES(i) NEWSESSION addBinInventory = NEW[BinInventory], editBinInventory = EDIT[BinInventory] SHOWIF overShowEdit(i)
+    PROPERTIES(i) post SHOWIF showPost(i), unpost SHOWIF showUnpost(i)
     PROPERTIES(i) close[BinInventory] SHOWIF showClose[BinInventory](i), open SHOWIF showOpen[BinInventory](i)
     PROPERTIES NEWSESSION deleteo=DELETE(i) SHOWIF overShowDelete(i)
     
@@ -358,7 +365,7 @@ DESIGN addInListBinInventoryDetail {
 
 FORM binInventory 'Инвентаризация по ячейкам'
     OBJECTS i = BinInventory PANEL 
-    PROPERTIES(i) date, nameNumerator, number, series, time, isPosted, nameOperation, fromDate, fromTime, toDate, toTime,
+    PROPERTIES(i) date, nameNumerator, number, series, time, isPosted READONLY, nameOperation, fromDate, fromTime, toDate, toTime,
         nameStock ON CHANGE changeStockCompany(i), note
     
     OBJECTS li = ListBinInventory
