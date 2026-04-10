@@ -194,13 +194,15 @@ DESIGN options {
     }
 }
 
+skipFillCertificate 'Не заполнять сертификат' = ABSTRACT BOOLEAN () PREREAD;
+
 META deriveDocumentPurchaseCertificate(prop, document, stockProp, prefix)
     prefix###prop(User###document##Detail detail)  <- IF batch(detail) 
                                                             THEN prev###prop(batch(detail))
                                                             ELSE prev###prop(prevLastOrderBatch(sku(detail), stockProp(detail)))
         WHEN (CHANGED (batch(detail)) OR
               CHANGED (sku(detail)) OR
-              CHANGED (stockProp(detail))) AND NOT autoDeriveLastCertificate();
+              CHANGED (stockProp(detail))) AND NOT autoDeriveLastCertificate() AND NOT skipFillCertificate();
 END
 
 META deriveDocumentSaleCertificate(prop, document, stockProp, prefix)
