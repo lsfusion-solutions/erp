@@ -8,6 +8,8 @@ isWBOrder 'WB' = DATA BOOLEAN (InternetOrder);
 orderUID 'Группировочный номер товара по заказам (в корзине)' = DATA STRING (InternetOrder);
 orderRidID 'ID сборочного задания WB' = DATA STRING (InternetOrder);
 
+isSelected 'Отм.' = DATA LOCAL NESTED BOOLEAN (InternetOrder);
+
 //CLASS SupplierStatusOrder 'Статус сборочного задания продавца' {
 //    new 'Новое сборочное задание',
 //    confirm 'На сборке',
@@ -242,9 +244,93 @@ getOrdersFBS 'Получить информацию о сборочных зад
     }
 }
 
+CLASS WbStatus{
+    new 'Новое сборочное задание',
+    confirm 'На сборке',
+    deliver 'В доставке',
+    receive 'Получено покупателем',
+    reject 'Отказ покупателя при получении',
+    cancel 'Отменено продавцом'
+}
+
+orderByNumber(STRING number) = GROUP MAX InternetOrder o IF number(o) = number;
+
+wbStatus = DATA WbStatus(InternetOrder);
+
+orderId = DATA LOCAL STRING (INTEGER);
+supplierStatus = DATA LOCAL STRING(INTEGER);
+wbStatus = DATA LOCAL STRING(INTEGER);
+ordersErrors = DATA LOCAL INTEGER(INTEGER);
+
+FORM statusInfoResponse
+
+    OBJECTS orders = INTEGER
+    PROPERTIES(orders) id, supplierStatus, wbStatus
+
+    OBJECTS errors = INTEGER
+    PROPERTIES(errors) errors EXTID 'value'
+    FILTERS ordersErrors(errors) == orders;
+
+//https://marketplace-api-sandbox.wildberries.ru/api/v3/orders/status
+getWbFbsStatuses 'Получить статусы заказов FBS' () {
+    NEWSESSION NESTED LOCAL {
+        IF NOT (GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrder(order) AND carrier(order) == carrier('WB')) THEN {
+            MESSAGE 'Заказ FBS не выбран.';
+            RETURN ;
+        }
+
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING ();
+        LOCAL response = FILE();
+        LOCAL error = STRING ();
+        LOCAL statusText = STRING ();
+        LOCAL status = STRING ();
+
+        logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/v3/orders/status');
+
+        EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrder(order) AND carrier(order) == carrier('WB');
+        fileToString(exportFile(), 'UTF-8');
+        stringToFile('\{"orders":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
+        fileToString(resultFile(), 'UTF-8');
+        logToFile('WB', 'orders: ' + resultString());
+
+        TRY {
+            EXTERNAL HTTP POST url(CategoryRequest.marketplace) + '/api/v3/orders/status' HEADERS httpHeaders PARAMS resultFile() TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+            IF statusHttp() == 200 THEN {
+                IMPORT statusInfoResponse JSON FROM response();
+                FOR id(INTEGER i) DO {
+                    wbStatus(orderByNumber(id(i))) <- GROUP MAX WbStatus ws IF getWord(name(ws), '.', 2) = supplierStatus(i);
+                }
+                APPLY NESTED LOCAL ;
+            }
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                IMPORT importError JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Статус сборочного задания не получен: ' + message();
+            }
+            messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE messageOrder() NOWAIT;
+        }
+    }
+}
+
+getWbFbsStatus 'Получить статус заказа FBS' (InternetOrder order) {
+    IF NOT GROUP SUM 1 IF isSelected(InternetOrder order1) THEN {
+        isSelected(order) <- TRUE ;
+    }
+    getWbFbsStatuses();
+}
+
 EXTEND FORM internetOrders
     PROPERTIES(o) READONLY isWBOrder AFTER isClosed(o)
     PROPERTIES(o) READONLY SHOWIF isWBOrder(o) orderRidID, orderUID
+    PROPERTIES (o) getWbFbsStatus
     PROPERTIES() getOrdersFBSNew, getOrdersFBS
 ;
 
@@ -256,6 +342,10 @@ DESIGN internetOrders {
                 caption = 'Сборочные задания FBS';
                 MOVE PROPERTY (getOrdersFBSNew());
                 MOVE PROPERTY (getOrdersFBS());
+            }
+            NEW ordersFBSActions {
+                caption = 'Действия по заданиям FBS';
+                MOVE PROPERTY (getWbFbsStatus(o));
             }
         }
     }
