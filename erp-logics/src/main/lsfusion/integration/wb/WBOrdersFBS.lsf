@@ -41,7 +41,7 @@ GROUP address;
 ordersSkus = DATA LOCAL INTEGER(INTEGER);
 offices = DATA LOCAL STRING(INTEGER);
 ordersOffices = DATA LOCAL INTEGER(INTEGER);
-nmId = DATA LOCAL NUMERIC(INTEGER);
+nmId = DATA LOCAL INTEGER (INTEGER);
 rid = DATA LOCAL STRING(INTEGER); // ID сборочного задания в системе Wildberries
 isZeroOrder = DATA LOCAL STRING(INTEGER);
 isB2b = DATA LOCAL STRING(INTEGER);
@@ -65,8 +65,8 @@ FORM importNewOrdersFBS
 
     OBJECTS orders = INTEGER
 
-    PROPERTIES(orders) cargoType, nmId, rid, createdAt, isZeroOrder, officeId, price, convertedCurrencyCode, id, ddate, 
-        salePrice, deliveryType, scanPrice, article, convertedPrice, orderUid, warehouseId, comment, colorCode, chrtId, 
+    PROPERTIES(orders) cargoType, nmId, rid, createdAt, isZeroOrder, officeId, price, convertedCurrencyCode, id, ddate,
+        salePrice, scanPrice, article, convertedPrice, orderUid, warehouseId, comment, colorCode, chrtId,
         currencyCode
 
     OBJECTS skus = INTEGER
@@ -104,7 +104,7 @@ getOrdersFBSNew 'Получить список новых сборочных з�
 
         LOCAL limit = INTEGER ();
         limit() <- getOrdersLimit();
-        
+
         TRY {
             EXTERNAL HTTP GET url(CategoryRequest.marketplace) + '/api/v3/orders/new' HEADERS httpHeaders TO response;
             fileToString(response());
@@ -120,19 +120,18 @@ getOrdersFBSNew 'Получить список новых сборочных з�
                 isWBOrder(order) <- TRUE;
                 carrier(order) <- carrier('WB');
                 status(order) <- StatusInternetOrder.new;
-//                supplierStock(order) <- stock(w); отключил, т.к. теперь связь к множеству собственных складов
+                //                supplierStock(order) <- stock(w); отключил, т.к. теперь связь к множеству собственных складов
                 addressInternetCustomer(order) <- fullAddress(i);
                 deliveryDate(order) <- ddate(i);
                 note(order) <- comment(i);
                 //currency(order) <- GROUP MAX Currency c IF sid(c) == currencyCode(i);
 
                 FOR INTEGER ii = [GROUP MAX INTEGER j BY chrtId(j)](INTEGER chrtID) AND Size size == size(chrtID)
-                    AND Item item == itemNM(INTEGER (nmId(ii))) AND itemWB(size) == item INLINE DO NEW detail = InternetOrderDetail {
+                    AND Item item == itemNM(nmId(ii)) AND itemWB(size) == item INLINE DO NEW detail = InternetOrderDetail {
                     internetOrder(detail) <- order;
                     sku(detail) <- item(size);
-                    price(detail) <- salePrice(ii)/100.0;
+                    price(detail) <- salePrice(ii) / 100.0;
                 }
-
             }
             messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
         } CATCH {
@@ -151,17 +150,17 @@ getOrdersFBSNew 'Получить список новых сборочных з�
     }
 }
 
-
 //next = DATA LOCAL INTEGER ();
 supplyId = DATA LOCAL STRING(INTEGER); // id поставки, возвращается, если заказ закреплен за поставкой
 
+nextIndex = DATA LOCAL INTEGER ();
 
 FORM importOrdersFBS
-    PROPERTIES() next
+    PROPERTIES() nextIndex EXTID 'next'
 
     OBJECTS orders = INTEGER
 
-    PROPERTIES(orders) cargoType, deliveryType, nmId, scanPrice, rid, article, createdAt, convertedPrice, orderUid, isZeroOrder, 
+    PROPERTIES(orders) cargoType, nmId, scanPrice, rid, article, createdAt, convertedPrice, orderUid, isZeroOrder,
         warehouseId, officeId, supplyId, price, colorCode, convertedCurrencyCode, comment, id, chrtId, currencyCode
     PROPERTIES(orders) IN address latitude, fullAddress, longitude
 
@@ -187,22 +186,22 @@ getOrdersFBS 'Получить информацию о сборочных зад
 
         LOCAL limit = INTEGER ();
         limit() <- getOrdersLimit();
-        
+
         LOCAL NESTED nextWB = INTEGER ();
         nextWB() <- 0;
 
         LOCAL stop = BOOLEAN ();
 
         logToFile('WB', 'GET: ' + url(CategoryRequest.marketplace) + '/api/v3/orders');
-        
-        WHILE NOT stop() AND NOT nextWB()<0  DO {
+
+        WHILE NOT stop() AND NOT nextWB() < 0 DO {
             TRY {
                 EXTERNAL HTTP GET url(CategoryRequest.marketplace) + '/api/v3/orders' HEADERS httpHeaders PARAMS 'limit=' + limit() + '&next=' + nextWB() TO response;
                 fileToString(response());
                 logToFile('WB', resultString());
                 IMPORT importOrdersFBS JSON FROM response();
 
-                FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING number) 
+                FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING number)
                     AND InternetOrder order == (GROUP MAX InternetOrder o IF number(o) == number AND carrier(o) == carrier('WB'))
                     AND Warehouse w == warehouse(warehouseId(i)) AND id(distributionCenter(w)) == officeId(i) INLINE DO {
                     //status(order) <- StatusInternetOrder.new;
@@ -211,12 +210,12 @@ getOrdersFBS 'Получить информацию о сборочных зад
                     //currency(order) <- GROUP MAX Currency c IF sid(c) == currencyCode(i);
 
                     FOR INTEGER ii = [GROUP MAX INTEGER j BY chrtId(j)](INTEGER chrtID) AND Size size == size(chrtID)
-                        AND Item item == itemNM(INTEGER (nmId(ii))) AND itemWB(size) == item INLINE DO NEW detail = InternetOrderDetail {
+                        AND Item item == itemNM(nmId(ii)) AND itemWB(size) == item INLINE DO NEW detail = InternetOrderDetail {
                         internetOrder(detail) <- order;
                         sku(detail) <- item(size);
                         price(detail) <- salePrice(ii) / 100.0;
                     }
-                    nextWB() <- nextWB() +  next();
+                    nextWB() <- nextIndex();
                 }
                 messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
             } CATCH {
@@ -238,13 +237,14 @@ getOrdersFBS 'Получить информацию о сборочных зад
                 }
                 APPLY NESTED LOCAL;
             }
-        }     
+        }
+        sleep(100);
     }
 }
 
 EXTEND FORM internetOrders
     PROPERTIES(o) READONLY isWBOrder AFTER isClosed(o)
-    PROPERTIES(o) READONLY SHOWIF isWBOrder(o) orderRidID, orderUID  
+    PROPERTIES(o) READONLY SHOWIF isWBOrder(o) orderRidID, orderUID
     PROPERTIES() getOrdersFBSNew, getOrdersFBS
 ;
 
