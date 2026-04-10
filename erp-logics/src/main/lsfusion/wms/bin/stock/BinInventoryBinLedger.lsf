@@ -92,15 +92,9 @@ idOperation 'ID операции' = id(operation(BinInventory i));
 
 @defineDocumentHeaderTime(BinInventory);
 
-@defineDocumentAbstractHeaderTimePrefix(BinInventory, from, ' c');
+@defineDocumentHeaderTimePrefix(BinInventory, from, ' c');
 
-@deriveDocumentHeaderTimePrefix(BinInventory, from);
-
-@defineDocumentAbstractHeaderTimePrefix(BinInventory, to, ' по');
-
-WHEN LOCAL CHANGED(toDate(BinInventory o)) AND NOT CHANGED(toTime(o)) DO {
-    toTime(o) <- IF toDate(o) > currentDate() THEN 00:00 ELSE currentTime();
-} 
+@defineDocumentHeaderTimePrefix(BinInventory, to,' по');
 
 @defineDocumentHeaderClosed(BinInventory);
 
@@ -114,6 +108,13 @@ showClose (BinInventory o) = isOpened(o) AND NOT skipClose(o);
 showOpen (BinInventory o) = isClosed(o) AND NOT skipOpen(o);
 
 @deriveDocumentHeaderTimePrefix(BinInventory, );
+
+@deriveDocumentHeaderTimePrefix(BinInventory, from);
+
+WHEN LOCAL CHANGED(fromDateTime(BinInventory o)) AND (secondsBetweenDates(toDateTime(o), fromDateTime(o)) > 86400 OR NOT toDateTime(o) >= fromDateTime(o)) INLINE DO {
+    toDate(o) <- toDate(sumMinutes(fromDateTime(o), 240));
+    toTime(o) <- toTime(sumMinutes(fromDateTime(o), 240));
+};
 
 @defineDocumentHeaderNumber(BinInventory, BPSTRING[2]);
 
@@ -295,10 +296,12 @@ in 'Вкл.' = GROUP MIN in(Sku sku, ListBinInventory li) BY sku, binInventory(l
 
 @defineAddDocumentDetail(listBinInventory, inListBinInventoryDetail, 'Добавление строк описи');
 
+overChangeQuantity ABSTRACT LIST (InListBinInventoryDetail);
 changeQuantity(InListBinInventoryDetail detail) {
     NEWSESSION {
         INPUT n = NUMERIC[16,5] DO {
             quantity(detail) <- abs(n);
+            overChangeQuantity(detail);
             APPLY;
         }
     }
@@ -633,6 +636,8 @@ in = DATA LOCAL BOOLEAN (Sku, Bin);
 dataIdPartition = ABSTRACT INTEGER (Sku);
 idPartition (Sku sku) = OVERRIDE dataIdPartition(sku), 0;
 
+overFillOutListBinInventoryDetail ABSTRACT LIST (OutListBinInventoryDetail, Sku, Bin);
+
 fillOutListBinInventoryDetail(ListBinInventory li, INTEGER idPartition) {
     IF useCustomFillListBinInventory() THEN {
         customFillListBinInventory(li, idPartition);
@@ -643,6 +648,7 @@ fillOutListBinInventoryDetail(ListBinInventory li, INTEGER idPartition) {
             sku(olid) <- sku;
             bin(olid) <- bin;
             quantity(olid) <- currentBalance(sku, bin);
+            overFillOutListBinInventoryDetail(olid, sku, bin);
         }
     }    
 }

@@ -274,3 +274,37 @@ namePositionResponsiblies 'Материально-ответственные л�
 shortNamePositionResponsiblies 'Материально-ответственные лица' (ListBinInventory li) = shortNamePositionResponsiblies(binInventory(li)) IN inventoryCommittee CHARWIDTH 30;
 nameResponsiblies 'Материально-ответственные лица' (ListBinInventory li) = nameResponsiblies(binInventory(li)) IN inventoryCommittee CHARWIDTH 30;
 shortNameResponsiblies 'Материально-ответственные лица' (ListBinInventory li) = shortNameResponsiblies(binInventory(li)) IN inventoryCommittee CHARWIDTH 30;
+
+price 'Цена' = DATA NUMERIC[18,4] (InListBinInventoryDetail) CHARWIDTH 7;
+price 'Цена' = DATA NUMERIC[18,4] (OutListBinInventoryDetail) CHARWIDTH 7;
+
+sum '{document.sum.of}' = DATA NUMERIC[18,4] (InListBinInventoryDetail) CHARWIDTH 7;
+sum '{document.sum.of}' = DATA NUMERIC[18,4] (OutListBinInventoryDetail) CHARWIDTH 7;
+
+diffRoundSum 'Разница округления' (InListBinInventoryDetail ilid) = price(ilid)*quantity(ilid) (-) sum(ilid);
+diffRoundSum 'Разница округления' (OutListBinInventoryDetail ilid) = price(ilid)*quantity(ilid) (-) sum(ilid);
+
+overCreateInListBinInventoryDetail (InListBinInventoryDetail ilid, OutListBinInventoryDetail olid) + {
+    price(ilid) <- price(olid);
+    sum(ilid) <- sum(olid);
+}
+
+overFillOutListBinInventoryDetail(OutListBinInventoryDetail olid, Batch batch, Bin bin) + {
+    price(olid) <- prevAccountPriceA(batch, stock(bin), dateTime(olid));
+    sum(olid) <- NUMERIC[18,4](Utils.round(quantity(olid) * price(olid), priceRound(binInventory(olid))));
+}
+
+overChangeQuantity(InListBinInventoryDetail l) + {
+    sum(l) <- NUMERIC[18,4](Utils.round(quantity(l) * price(l), priceRound(binInventory(l))));
+}
+
+inDepartment[BinLedger] (InListBinInventoryDetail ledger) += department(ledger);
+outDepartment[BinLedger] (OutListBinInventoryDetail ledger) += department(ledger);
+
+sum[BinLedger] (InListBinInventoryDetail ledger) += sum(ledger);
+sum[BinLedger] (OutListBinInventoryDetail ledger) += sum(ledger);
+
+EXTEND FORM binInventory
+    PROPERTIES(ilid) READONLY price, sum, diffRoundSum
+    PROPERTIES(olid) READONLY price, sum, diffRoundSum
+;

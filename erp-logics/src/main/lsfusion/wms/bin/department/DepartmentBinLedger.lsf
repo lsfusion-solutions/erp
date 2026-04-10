@@ -14,34 +14,195 @@ EXTEND FORM binLedger
     PROPERTIES(b) READONLY nameInDepartment AFTER canonicalIdInBin(b), nameOutDepartment AFTER canonicalIdOutBin(b)
 ;
 
+sum 'Сумма' (ledger) = ABSTRACT NUMERIC[18,4] (BinLedger) MATERIALIZED;
+
+quantityIn(Department d, BinLedger ledger) = quantity(ledger) IF inDepartment(ledger)==d;
+quantityOut(Department d, BinLedger ledger) = quantity(ledger) IF outDepartment(ledger)==d;
+balanceQuantity 'Кол-во' (Department d, BinLedger ledger) = quantityIn(d, ledger) (-) quantityOut(d, ledger);
+
+////товары
+countInLedger 'Кол-во приходов' =
+    GROUP SUM 1 IF active(BinLedger ledger) AND NOT outDepartment(ledger) = inDepartment(ledger) BY sku(ledger), inDepartment(ledger) MATERIALIZED;
+
+countOutLedger 'Кол-во расходов' =
+    GROUP SUM 1 IF active(BinLedger ledger) AND NOT outDepartment(ledger) = inDepartment(ledger) BY sku(ledger), outDepartment(ledger) MATERIALIZED;
+
+countLedger 'Кол-во движений' (Sku sku, Department bin) =
+    countInLedger(sku, bin) (+) countOutLedger(sku, bin) MATERIALIZED;
+
+countLedger 'Кол-во движений' = GROUP SUM countLedger(Sku sku, Department bin) BY bin;
+
+inTotal 'Приход в отдел' =
+    GROUP SUM quantity(BinLedger ledger) IF active(ledger) AND NOT outDepartment(ledger) = inDepartment(ledger) BY sku(ledger), inDepartment(ledger) MATERIALIZED;
+outTotal 'Расход из отдела' =
+    GROUP SUM quantity(BinLedger ledger) IF active(ledger) AND NOT outDepartment(ledger) = inDepartment(ledger) BY sku(ledger), outDepartment(ledger) MATERIALIZED;
+
+inTotalA 'Приход в отдел' =
+    GROUP SUM quantity(BinLedger ledger) IF date(ledger) > DATE date AND active(ledger) AND NOT outDepartment(ledger) = inDepartment(ledger)  BY sku(ledger), inDepartment(ledger), date;
+
+outTotalA 'Расход из отдела' =
+    GROUP SUM quantity(BinLedger ledger) IF date(ledger) > DATE date AND active(ledger) AND NOT outDepartment(ledger) = inDepartment(ledger)  BY sku(ledger), outDepartment(ledger), date;
+
+inTotalB 'Приход в отдел' =
+    GROUP SUM quantity(BinLedger ledger) IF date(ledger) >= DATE date AND active(ledger) AND NOT outDepartment(ledger) = inDepartment(ledger)  BY sku(ledger), inDepartment(ledger), date;
+
+outTotalB 'Расход из отдела' =
+    GROUP SUM quantity(BinLedger ledger) IF date(ledger) >= DATE date AND active(ledger) AND NOT outDepartment(ledger) = inDepartment(ledger)  BY sku(ledger), outDepartment(ledger), date;
+
+inTotalA 'Приход в отдел' =
+    GROUP SUM quantity(BinLedger ledger) IF dateTime(ledger) > DATETIME dateTime AND active(ledger) AND NOT outDepartment(ledger) = inDepartment(ledger)  BY sku(ledger), inDepartment(ledger), dateTime;
+
+outTotalA 'Расход из отдела' =
+    GROUP SUM quantity(BinLedger ledger) IF dateTime(ledger) > DATETIME dateTime AND active(ledger) AND NOT outDepartment(ledger) = inDepartment(ledger)  BY sku(ledger), outDepartment(ledger), dateTime;
+
+inTotalB 'Приход в отдел' =
+    GROUP SUM quantity(BinLedger ledger) IF dateTime(ledger) >= DATETIME dateTime AND active(ledger) AND NOT outDepartment(ledger) = inDepartment(ledger)  BY sku(ledger), inDepartment(ledger), dateTime;
+
+outTotalB 'Расход из отдела' =
+    GROUP SUM quantity(BinLedger ledger) IF dateTime(ledger) >= DATETIME dateTime AND active(ledger) AND NOT outDepartment(ledger) = inDepartment(ledger)  BY sku(ledger), outDepartment(ledger), dateTime;
+
 currentBalance 'Текущий остаток в отделе'=
     GROUP SUM currentBalance(Sku sku, Bin b) BY sku, department(b);
 prevCurrentBalance 'Текущий остаток в отделе' (Sku sku, Department department)=
     PREV(currentBalance(sku, department));
-balanceB 'Остаток в отделе (до)' =
-    GROUP SUM balanceB(Sku sku, Bin b, DATETIME dateTime) BY sku, department(b), dateTime;
-prevBalanceB 'Остаток в отделе (до)' (Sku sku, Department department, DATETIME dateTime)=
-    PREV(balanceB(sku, department, dateTime));
-balanceA 'Остаток в отделе (после)' =
-    GROUP SUM balanceA(Sku sku, Bin b, DATETIME dateTime) BY sku, department(b), dateTime;
-prevBalanceA 'Остаток в отделе (после)' (Sku sku, Department department, DATETIME dateTime)=
-    PREV(balanceA(sku, department, dateTime));
+prevCurrentBalance 'Текущий остаток в отделе' = GROUP SUM prevCurrentBalance(Sku sku, Department department) BY department;
+
+balanceB 'Остаток в отделе (до)' (Sku sku, Department department, DATETIME dateTime) = currentBalance(sku, department) (-)
+    inTotalB(sku, department, dateTime) (+) outTotalB(sku, department, dateTime);
+prevBalanceB 'Остаток (до)' (Sku sku, Department department, DATETIME dateTime) = PREV(balanceB(sku, department, dateTime) IF dateTime IS DATETIME);
+
+balanceA 'Остаток в отделе (после)' (Sku sku, Department department, DATETIME dateTime) = currentBalance(sku, department) (-)
+    inTotalA(sku, department, dateTime) (+) outTotalA(sku, department, dateTime);
+prevBalanceA 'Остаток в отделе (после)'(Sku sku, Department department, DATETIME dateTime) = PREV(balanceA(sku, department, dateTime) IF dateTime IS DATETIME);
+balanceA 'Остаток в отделе на конец дня' (Sku sku, Department bin, DATE date) = currentBalance(sku, bin) (-)
+    inTotalA(sku, bin, date) (+) outTotalA(sku, bin, date);
+
+////партии
+quantityIn 'Приход в отдел' =
+    GROUP SUM quantity(BinLedger ledger) IF active(ledger) AND NOT outDepartment(ledger) = inDepartment(ledger) BY batch(ledger), inDepartment(ledger), date(ledger);
+quantityOut 'Расход из отдел' =
+    GROUP SUM quantity(BinLedger ledger) IF active(ledger) AND NOT outDepartment(ledger) = inDepartment(ledger) BY batch(ledger), outDepartment(ledger), date(ledger);
+
+quantityIn 'Кол-во товара пришедшего за период'(Batch batch, Department department, DATE date1, DATE date2)  =
+    GROUP SUM quantityIn(batch, department, DATE dateIn) IF dateIn>=date1 AND dateIn<=date2;
+quantityOut 'Кол-во товара ушедшего за период'(Batch batch, Department department, DATE date1, DATE date2)  =
+    GROUP SUM quantityOut(batch, department, DATE dateIn) IF dateIn>=date1 AND dateIn<=date2;
+
+countInLedger 'Кол-во приходов' =
+    GROUP SUM 1 IF active(BinLedger ledger) AND NOT outDepartment(ledger) = inDepartment(ledger) BY batch(ledger), inDepartment(ledger) MATERIALIZED;
+
+countInLedger 'Кол-во приходов' =
+    GROUP SUM 1 IF active(BinLedger ledger) AND NOT outDepartment(ledger) = inDepartment(ledger) BY batch(ledger), inDepartment(ledger), date(ledger);
+
+countInLedgerA 'Кол-во приходов до' (Batch bt, Department b, DATE d) =
+    [GROUP SUM 1 IF active(BinLedger ledger) AND date(ledger) < DATE d1 AND NOT outDepartment(ledger) = inDepartment(ledger) BY batch(ledger), inDepartment(ledger), d1](bt, b, sum(d,1));
+
+countOutLedger 'Кол-во расходов' =
+    GROUP SUM 1 IF active(BinLedger ledger) AND NOT outDepartment(ledger) = inDepartment(ledger) BY batch(ledger), outDepartment(ledger) MATERIALIZED;
+
+countLedger 'Кол-во движений' (Batch batch, Department bin) =
+    countInLedger(batch, bin) (+) countOutLedger(batch, bin) MATERIALIZED;
+
+countBatchLedger 'Кол-во движений' = GROUP SUM countLedger(Batch batch, Department dep) BY dep;
+
+inTotal 'Приход в отдел' =
+    GROUP SUM quantity(BinLedger ledger) IF active(ledger) AND NOT outDepartment(ledger) = inDepartment(ledger) BY batch(ledger), inDepartment(ledger) MATERIALIZED;
+
+outTotal 'Расход из отдел' =
+    GROUP SUM quantity(BinLedger ledger) IF active(ledger) AND NOT outDepartment(ledger) = inDepartment(ledger) BY batch(ledger), outDepartment(ledger) MATERIALIZED;
+
+inTotalA 'Приход в отдел' =
+    GROUP SUM quantity(BinLedger ledger) IF date(ledger) > DATE date AND active(ledger) AND NOT outDepartment(ledger) = inDepartment(ledger) BY batch(ledger), inDepartment(ledger), date;
+
+outTotalA 'Расход из отдел' =
+    GROUP SUM quantity(BinLedger ledger) IF date(ledger) > DATE date AND active(ledger) AND NOT outDepartment(ledger) = inDepartment(ledger) BY batch(ledger), outDepartment(ledger), date;
+
+inTotalB 'Приход в отдел' =
+    GROUP SUM quantity(BinLedger ledger) IF date(ledger) >= DATE date AND active(ledger) AND NOT outDepartment(ledger) = inDepartment(ledger) BY batch(ledger), inDepartment(ledger), date;
+
+outTotalB 'Расход из отдел' =
+    GROUP SUM quantity(BinLedger ledger) IF date(ledger) >= DATE date AND active(ledger) AND NOT outDepartment(ledger) = inDepartment(ledger) BY batch(ledger), outDepartment(ledger), date;
+
+inTotalA 'Приход в отдел' =
+    GROUP SUM quantity(BinLedger ledger) IF dateTime(ledger) > DATETIME dateTime AND active(ledger) AND NOT outDepartment(ledger) = inDepartment(ledger) BY batch(ledger), inDepartment(ledger), dateTime;
+
+outTotalA 'Расход из отдел' =
+    GROUP SUM quantity(BinLedger ledger) IF dateTime(ledger) > DATETIME dateTime AND active(ledger) AND NOT outDepartment(ledger) = inDepartment(ledger) BY batch(ledger), outDepartment(ledger), dateTime;
+
+inTotalB 'Приход в отдел' =
+    GROUP SUM quantity(BinLedger ledger) IF dateTime(ledger) >= DATETIME dateTime AND active(ledger) AND NOT outDepartment(ledger) = inDepartment(ledger) BY batch(ledger), inDepartment(ledger), dateTime;
+
+outTotalB 'Расход из отдел' =
+    GROUP SUM quantity(BinLedger ledger) IF dateTime(ledger) >= DATETIME dateTime AND active(ledger) AND NOT outDepartment(ledger) = inDepartment(ledger) BY batch(ledger), outDepartment(ledger), dateTime;
 
 currentBalance 'Текущий остаток в отделе'= 
     GROUP SUM currentBalance(Batch batch, Bin b) BY batch, department(b);
 prevCurrentBalance 'Текущий остаток в отделе' (Batch batch, Department department)= 
     PREV(currentBalance(batch, department));
-balanceB 'Остаток в отделе (до)' =
-    GROUP SUM balanceB(Batch batch, Bin b, DATETIME dateTime) BY batch, department(b), dateTime;
-prevBalanceB 'Остаток в отделе (до)' (Batch batch, Department department, DATETIME dateTime)=
-    PREV(balanceB(batch, department, dateTime));
-balanceA 'Остаток в отделе (после)' =
-    GROUP SUM balanceA(Batch batch, Bin b, DATETIME dateTime) BY batch, department(b), dateTime;
-prevBalanceA 'Остаток в отделе (после)' (Batch batch, Department department, DATETIME dateTime)=
-    PREV(balanceA(batch, department, dateTime));
+balanceB 'Остаток в отделе (до)' (Batch batch, Department dep, DATETIME dateTime) = currentBalance(batch, dep) (-)
+    inTotalB(batch, dep, dateTime) (+) outTotalB(batch, dep, dateTime);
+prevBalanceB 'Остаток (до)' (Batch batch, Department dep, DATETIME dateTime) = PREV(balanceB(batch, dep, dateTime) IF dateTime IS DATETIME);
 
-countInLedgerA 'Кол-во приходов до' (Batch bt, Department department, DATE d) =
-    [GROUP SUM 1 IF active(BinLedger ledger) AND date(ledger) < DATE d1 BY batch(ledger), inDepartment(ledger), d1](bt, department, sum(d,1));
+balanceA 'Остаток в отделе (после)' (Batch batch, Department dep, DATETIME dateTime) = currentBalance(batch, dep) (-)
+    inTotalA(batch, dep, dateTime) (+) outTotalA(batch, dep, dateTime);
+prevBalanceA 'Остаток в отделе (после)'(Batch batch, Department dep, DATETIME dateTime) = PREV(balanceA(batch, dep, dateTime) IF dateTime IS DATETIME);
+balanceA 'Остаток в отделе на конец дня' (Batch batch, Department dep, DATE date) = currentBalance(batch, dep) (-)
+    inTotalA(batch, dep, date) (+) outTotalA(batch, dep, date);
+
+//сумма
+sumIn 'Приход в отдел' =
+    GROUP SUM sum(BinLedger ledger) IF active(ledger) AND NOT outDepartment(ledger) = inDepartment(ledger) BY batch(ledger), inDepartment(ledger), date(ledger);
+sumOut 'Расход из отдел' =
+    GROUP SUM sum(BinLedger ledger) IF active(ledger) AND NOT outDepartment(ledger) = inDepartment(ledger) BY batch(ledger), outDepartment(ledger), date(ledger);
+
+sumIn 'Кол-во товара пришедшего за период'(Batch batch, Department department, DATE date1, DATE date2)  =
+    GROUP SUM sumIn(batch, department, DATE dateIn) IF dateIn>=date1 AND dateIn<=date2;
+sumOut 'Кол-во товара ушедшего за период'(Batch batch, Department department, DATE date1, DATE date2)  =
+    GROUP SUM sumOut(batch, department, DATE dateIn) IF dateIn>=date1 AND dateIn<=date2;
+
+inSumTotal 'Приход в отдел' =
+    GROUP SUM quantity(BinLedger ledger) IF active(ledger) BY batch(ledger), inDepartment(ledger) MATERIALIZED;
+
+outSumTotal 'Расход из отдела' =
+    GROUP SUM quantity(BinLedger ledger) IF active(ledger) BY batch(ledger), outDepartment(ledger) MATERIALIZED;
+
+inSumTotalA 'Приход в отдел' =
+    GROUP SUM quantity(BinLedger ledger) IF date(ledger) > DATE date AND active(ledger) BY batch(ledger), inDepartment(ledger), date;
+
+outSumTotalA 'Расход из отдела' =
+    GROUP SUM quantity(BinLedger ledger) IF date(ledger) > DATE date AND active(ledger) BY batch(ledger), outDepartment(ledger), date;
+
+inSumTotalB 'Приход в отдел' =
+    GROUP SUM quantity(BinLedger ledger) IF date(ledger) >= DATE date AND active(ledger) BY batch(ledger), inDepartment(ledger), date;
+
+outSumTotalB 'Расход из отдела' =
+    GROUP SUM quantity(BinLedger ledger) IF date(ledger) >= DATE date AND active(ledger) BY batch(ledger), outDepartment(ledger), date;
+
+inSumTotalA 'Приход в отдел' =
+    GROUP SUM quantity(BinLedger ledger) IF dateTime(ledger) > DATETIME dateTime AND active(ledger) BY batch(ledger), inDepartment(ledger), dateTime;
+
+outSumTotalA 'Расход из отдела' =
+    GROUP SUM quantity(BinLedger ledger) IF dateTime(ledger) > DATETIME dateTime AND active(ledger) BY batch(ledger), outDepartment(ledger), dateTime;
+
+inSumTotalB 'Приход в отдел' =
+    GROUP SUM quantity(BinLedger ledger) IF dateTime(ledger) >= DATETIME dateTime AND active(ledger) BY batch(ledger), inDepartment(ledger), dateTime;
+
+outSumTotalB 'Расход из отдел' =
+    GROUP SUM quantity(BinLedger ledger) IF dateTime(ledger) >= DATETIME dateTime AND active(ledger) BY batch(ledger), outDepartment(ledger), dateTime;
+
+currentSum 'Сумма текущего остатка в отделе' (Batch batch, Department bin)=
+    inSumTotal(batch, bin) (-) outSumTotal(batch, bin) MATERIALIZED;
+prevCurrentSum 'Сумма текущего остатка в отделе' (Batch batch, Department bin) = PREV(currentSum(batch, bin));
+
+sumB 'Остаток в отделе (до)' (Batch batch, Department dep, DATETIME dateTime) = currentSum(batch, dep) (-)
+    inSumTotalB(batch, dep, dateTime) (+) outSumTotalB(batch, dep, dateTime);
+prevSumB 'Остаток (до)' (Batch batch, Department dep, DATETIME dateTime) = PREV(sumB(batch, dep, dateTime) IF dateTime IS DATETIME);
+
+sumA 'Остаток в отделе (после)' (Batch batch, Department dep, DATETIME dateTime) = currentSum(batch, dep) (-)
+    inSumTotalA(batch, dep, dateTime) (+) outSumTotalA(batch, dep, dateTime);
+prevSumA 'Остаток в отделе (после)'(Batch batch, Department dep, DATETIME dateTime) = PREV(sumA(batch, dep, dateTime) IF dateTime IS DATETIME);
+sumA 'Остаток в отделе на конец дня' (Batch batch, Department dep, DATE date) = currentSum(batch, dep) (-)
+    inSumTotalA(batch, dep, date) (+) outSumTotalA(batch, dep, date);
 
 dateTimeLastMoved 'Время последнего движения' (Sku sku, Department department) =
     GROUP LAST dateTime(BinLedger ledger)
