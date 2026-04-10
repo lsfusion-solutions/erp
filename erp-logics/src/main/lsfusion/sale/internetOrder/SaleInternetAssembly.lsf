@@ -417,6 +417,7 @@ checkToPrint(Assembly td, InternetOrderDetail d){
             pickingQuantity(InternetOrderDetail g)<-assemblyQuantity(g) 
                                                         WHERE internetOrder(g)==o AND assembly(g)==td;        
             status(td)<- StatusAssembly.processed;
+            
             FOR relation(td, o, Picking p) DO {
                 status(picking(d))<- StatusPicking.picked;
             }                                                                          
@@ -461,53 +462,61 @@ DESIGN scanAssembly{
 }
 
 overScanBarcodeGiftCard ABSTRACT LIST (STRING[15] , Assembly );
-changeBarcodeInputMothercare(Assembly td) { 
+overInputProcessedBarcode ABSTRACT LIST (STRING[200] , Assembly );
+prevProcessedBarcode ABSTRACT LIST (STRING[15] , Assembly );
+
+changeBarcodeInputMothercare(Assembly td) {
     IF NOT toPrint() AND maxInternetOrderDetail() THEN {
-        checkToPrint(td,maxInternetOrderDetail());
+        checkToPrint(td, maxInternetOrderDetail());
         IF NOT toPrint() THEN {
-            APPLY; 
-            resetLocAssembly(); 
-            formRefresh();          
-        } 
+            APPLY;
+            resetLocAssembly();
+            formRefresh();
+        }
     } ELSE {
-        APPLY;    
-        resetLocAssembly();   
-        INPUT s = STRING[15] DO {
+        APPLY;
+        resetLocAssembly();
+        INPUT s = STRING[200] DO {
             barcodeInputMothercareAssembly() <- processedBarcode(s);
-            overScanBarcodeGiftCard(s,td);            
-                    
-            IF NOT stopScan() THEN { 
-                sku()<- skuBarcode(barcodeInputMothercareAssembly());                         
-                IF  NOT [GROUP SUM 1 IF  quantity(InternetOrderDetail d) AND statusDetail(d)==StatusDetail.expected BY assembly(d)](td) THEN {
-                    message()<- 'В сборке все позиции уже были распределены!!!';
-                    RETURN;        
-                }         
-                IF NOT sku() THEN {            
-                    message()<- 'Товар не найден!!!';
-                    RETURN;
-                }             
-                maxInternetOrderDetail()<- maxInternetOrderDetailCalc(td,sku());
-                IF NOT maxInternetOrderDetail() THEN {
-                    message()<- 'В сборке не осталось подходящих позиций по данному товару!!!';
-                    RETURN;         
+            overInputProcessedBarcode(s, td);
+            IF length(s) <= 15 THEN {
+                prevProcessedBarcode(s, td);
+                overScanBarcodeGiftCard(s, td);
+
+                IF NOT stopScan() THEN {
+                    sku() <- skuBarcode(barcodeInputMothercareAssembly());
+                    IF NOT [GROUP SUM 1 IF quantity(InternetOrderDetail d) AND statusDetail(d) == StatusDetail.expected BY assembly(d)](td) THEN {
+                        message() <- 'В сборке все позиции уже были распределены!!!';
+                        RETURN;
+                    }
+                    IF NOT sku() THEN {
+                        message() <- 'Товар не найден!!!';
+                        RETURN;
+                    }
+                    maxInternetOrderDetail() <- maxInternetOrderDetailCalc(td, sku());
+                    IF NOT maxInternetOrderDetail() THEN {
+                        message() <- 'В сборке не осталось подходящих позиций по данному товару!!!';
+                        RETURN;
+                    }
+                    FOR InternetOrderDetail dd == maxInternetOrderDetail() AND InternetOrder o == internetOrder(maxInternetOrderDetail()) DO {
+                        IF NOT bin(internetOrder(dd)) THEN NEWSESSION NESTED LOCAL {
+                            bin(internetOrder(dd)) <- minBin(td);
+                            APPLY NESTED LOCAL;
+                        }
+                        IF NOT bin(internetOrder(dd)) THEN {
+                            message() <- 'Нет свободной ячейки, попробуйте позже!!!';
+                            RETURN;
+                        }
+                        statusDetail(dd) <- StatusDetail.available;
+                        checkToPrint(td, maxInternetOrderDetail());
+                    }
                 }
-                FOR InternetOrderDetail dd == maxInternetOrderDetail() AND InternetOrder o == internetOrder(maxInternetOrderDetail()) DO {            
-                    IF NOT bin(internetOrder(dd)) THEN NEWSESSION NESTED LOCAL {
-                        bin(internetOrder(dd))<-  minBin(td);
-                        APPLY NESTED LOCAL;   
-                    }
-                    IF NOT bin(internetOrder(dd)) THEN {
-                        message()<- 'Нет свободной ячейки, попробуйте позже!!!';                
-                        RETURN;                        
-                    }
-                    statusDetail(dd)<-StatusDetail.available;
-                    checkToPrint(td,maxInternetOrderDetail());
-                } 
-            }               
-            formRefresh();    
+                formRefresh();
+            }
         }
     }
 }
+
 EXTEND FORM scanAssembly
     PROPERTIES() barcodeInputMothercareAssembly ON CHANGE changeBarcodeInputMothercare(a)
 ; 
