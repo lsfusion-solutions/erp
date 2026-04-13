@@ -694,12 +694,30 @@ META defineUserReceiving(primObject, captionObject, captionObjects, formObject, 
         MESSAGE 'Несовпадение склада поставщика в '##captionObject + ' и документе приемки';
         
     @defineOperationProperty(use###primObject##Receiving, 'Использовать механизм "Приемка"', paramsContainer);
+
+
+    @defineDocumentInterfaceProperty (primObject, useReceiving, 'Использовать механизм "Приемка"');
+    useReceiving (User###primObject o) <- use###primObject##Receiving(operation(o)) WHEN CHANGED(operation(o));
+
+    EXTEND FORM user###primObject
+        PROPERTIES(formObject) useReceiving
+    ;
+
+    DESIGN user###primObject {
+        headerCreateDocuments {
+            NEW headerCreateReceiving {
+                caption = 'Приемка';
+                MOVE PROPERTY(useReceiving(formObject));
+            }
+        }
+    }
+        
     //исключаем двойное проведение по регистру BinLedger: через строку приёмки и через строку документа
-    skipSetUseBins(User###primObject primObject) += use###primObject##Receiving(operation(primObject));
+    skipSetUseBins(User###primObject primObject) += useReceiving(primObject);
     @defineConstraintDuplicateInBinLedger(primObject);
     
     filterReceiving(###primObject primObject) += primObject IS ###primObject AND isPosted(primObject) AND
-        useBins(stockProp(primObject)) AND use###primObject##Receiving(operation(primObject));
+        useBins(stockProp(primObject)) AND useReceiving(primObject);
     filterReceiving(###primObject primObject, CustomUser u) += stock(receivingBin(u)) == stockProp(primObject);
     
     use###primObject##Receiving[Operation.Operation](Operation operation) += use###primObject##Receiving(operation);
@@ -748,21 +766,14 @@ META defineReceivingAggregation(primObject, captionObject, captionObjects, formO
     customerStock(###primObject##Receiving receiving) += customerStock(primObject(receiving));
 
     createReceiving 'Создать приемку' (user###primObject) = DATA BOOLEAN (User###primObject) IN documentPrm;
-    
-    useReceiving 'Использовать механизм "Приемка"' (user###primObject) = DATA BOOLEAN (User###primObject) IN documentPrm;
-    useReceiving (User###primObject o) <- use###primObject##Receiving(operation(o)) WHEN CHANGED(operation(o));
 
     EXTEND FORM user###primObject
-        PROPERTIES(formObject) useReceiving, createReceiving
+        PROPERTIES(formObject) createReceiving
     ;
 
     DESIGN user###primObject {
-        headerCreateDocuments {
-            NEW headerCreateReceiving {
-                caption = 'Приемка';
-                MOVE PROPERTY(useReceiving(formObject));
-                MOVE PROPERTY(createReceiving(formObject));
-            }
+        headerCreateReceiving {
+            MOVE PROPERTY(createReceiving(formObject));
         }
     }
 
@@ -1147,7 +1158,7 @@ DESIGN receiving {
 @defineDocumentLogForm(receiving, r);
 
 META defineConstraintDuplicateBinLedger (primObject, useProp, binType)
-    CONSTRAINT SET(binType(User###primObject###Detail primObjectDetail)) AND use###useProp##Receiving(operation(primObjectDetail))
+    CONSTRAINT SET(binType(User###primObject###Detail primObjectDetail)) AND useReceiving(primObjectDetail)
         MESSAGE 'Нельзя задавать ячейки в строках документа, если для него используется мехнизм "Приёмка"';
 END
 
