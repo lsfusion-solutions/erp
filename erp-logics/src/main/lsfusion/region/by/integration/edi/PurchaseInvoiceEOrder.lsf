@@ -21,6 +21,7 @@ prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AN
 
 overCreateUserInvoice ABSTRACT LIST (UserInvoice, EOrderDespatchAdvice);
 overCreateUserInvoice ABSTRACT LIST (UserInvoiceDetail, EOrderDespatchAdviceDetail);
+autoCreateUserInvoice 'Создание накладной без просмотра' = ABSTRACT BOOLEAN (EOrderDespatchAdvice);
 
 createUserInvoice 'Создать накладную' (EOrderDespatchAdvice a)  { 
     
@@ -56,7 +57,11 @@ createUserInvoice 'Создать накладную' (EOrderDespatchAdvice a)  
             
             executeLocalEvents('Purchase.userInvoice');
             
-            SHOW userInvoice OBJECTS i = i DOCKED NOCANCEL;
+            IF NOT autoCreateUserInvoice(a) THEN {
+                SHOW userInvoice OBJECTS i = i DOCKED NOCANCEL;
+            } ELSE {
+                APPLY NESTED LOCAL;
+            }
         }
     }
 }
