@@ -388,21 +388,8 @@ getWbStatus 'Получить статус заказа' (InternetOrder order) {
 
 //----Stickers-----//
 
-sticker = DATA RAWFILE(InternetOrder); 
-
-file = DATA LOCAL STRING(INTEGER);
-partA = DATA LOCAL STRING(INTEGER);
-partB = DATA LOCAL STRING(INTEGER);
-barcode = DATA LOCAL STRING(INTEGER);
-
-FORM stickersResponse
-
-    OBJECTS stickers = INTEGER
-    PROPERTIES(stickers) file, orderId, partA, partB, barcode
-    FILTERS imported(stickers);
-
 // https://marketplace-api.wildberries.ru/api/marketplace/v3/dbs/orders/stickers
-getStickers 'Получить стикеры' () {
+getStickersDBS 'Получить стикеры' () {
     NEWSESSION NESTED LOCAL {
         IF NOT (GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrderDBS(order) AND carrier(order) == carrier('Own')) THEN {
             MESSAGE 'Заказ DBS не выбран.';
@@ -430,7 +417,7 @@ getStickers 'Получить стикеры' () {
             logToFile('WB', resultString());
             messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
             IF statusHttp() == 200 THEN {
-                IMPORT statusInfoResponse JSON FROM response();
+                IMPORT stickersResponse JSON FROM response();
                 FOR orderId(INTEGER i) DO {
                     sticker(orderByNumber(orderId(i))) <- RAWFILE(file(decode(file(i), 'base64'), 'pdf'));; 
                 }
@@ -450,11 +437,11 @@ getStickers 'Получить стикеры' () {
     }
 }
 
-getSticker 'Получить стикер' (InternetOrder order) {
+getStickerDBS 'Получить стикер' (InternetOrder order) {
     IF NOT GROUP SUM 1 IF isSelected(InternetOrder order1) THEN {
         isSelected(order) <- TRUE ;
     }
-    getStickers();
+    getStickersDBS();
 }
 
 EXTEND FORM internetOrders

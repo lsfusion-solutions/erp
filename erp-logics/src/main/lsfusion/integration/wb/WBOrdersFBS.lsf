@@ -327,11 +327,204 @@ getWbFbsStatus 'Получить статус заказа FBS' (InternetOrder o
     getWbFbsStatuses();
 }
 
+//----Stickers-----//
+
+sticker = DATA RAWFILE(InternetOrder);
+
+file = DATA LOCAL STRING(INTEGER);
+partA = DATA LOCAL STRING(INTEGER);
+partB = DATA LOCAL STRING(INTEGER);
+barcode = DATA LOCAL STRING(INTEGER);
+
+FORM stickersResponse
+
+    OBJECTS stickers = INTEGER
+    PROPERTIES(stickers) file, orderId, partA, partB, barcode
+    FILTERS imported(stickers);
+
+// https://marketplace-api.wildberries.ru/api/marketplace/v3/dbs/orders/stickers
+getStickers 'Получить стикеры' () {
+    NEWSESSION NESTED LOCAL {
+        IF NOT (GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrder(order) AND carrier(order) == carrier('WB')) THEN {
+            MESSAGE 'Заказ FBS не выбран.';
+            RETURN ;
+        }
+
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING ();
+        LOCAL response = FILE();
+        LOCAL error = STRING ();
+        LOCAL statusText = STRING ();
+        LOCAL status = STRING ();
+
+        logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/v3/orders/stickers');
+
+        EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrder(order) AND carrier(order) == carrier('WB');
+        fileToString(exportFile(), 'UTF-8');
+        stringToFile('\{"orders":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
+        fileToString(resultFile(), 'UTF-8');
+        logToFile('WB', 'orders: ' + resultString());
+
+        TRY {
+            EXTERNAL HTTP POST url(CategoryRequest.marketplace) + '/api/v3/orders/stickers' HEADERS httpHeaders PARAMS resultFile() TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+            IF statusHttp() == 200 THEN {
+                IMPORT stickersResponse JSON FROM response();
+                FOR orderId(INTEGER i) DO {
+                    sticker(orderByNumber(orderId(i))) <- RAWFILE(file(decode(file(i), 'base64'), 'pdf'));;
+                }
+                APPLY NESTED LOCAL ;
+            }
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                IMPORT importError JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Статус сборочного задания не получен: ' + message();
+            }
+            messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE messageOrder() NOWAIT;
+        }
+    }
+}
+
+getSticker 'Получить стикер' (InternetOrder order) {
+    IF NOT GROUP SUM 1 IF isSelected(InternetOrder order1) THEN {
+        isSelected(order) <- TRUE ;
+    }
+    getStickers();
+}
+
+CLASS Supply;
+
+name = DATA STRING[100](Supply);
+id = DATA STRING[100](Supply);
+supply = DATA Supply(InternetOrder);
+supply (id) = GROUP AGGR Supply s BY id(s);
+
+createSupply(STRING[100] name){
+    NEWSESSION NESTED LOCAL {
+
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING ();
+        LOCAL response = FILE();
+        LOCAL error = STRING ();
+        LOCAL statusText = STRING ();
+        LOCAL status = STRING ();
+        LOCAL supplyId = STRING[100] ();
+
+        logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/v3/supplies');
+        
+        stringToFile('\{"name": "' + name + '" \}', 'UTF-8', 'json');
+        fileToString(resultFile(), 'UTF-8');
+        logToFile('WB', 'orders: ' + resultString());
+
+        TRY {
+            EXTERNAL HTTP POST url(CategoryRequest.marketplace) + '/api/v3/supplies' HEADERS httpHeaders PARAMS resultFile() TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+            IF statusHttp() == 201 THEN {
+                IMPORT JSON FROM response() TO() supplyId = id;
+                NEW s = Supply{
+                    name(s) <- name;
+                    id(s) <- supplyId();
+                }
+                APPLY NESTED LOCAL ;
+            }
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                IMPORT importError JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Поставка не создана: ' + message();
+            }
+            messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE messageOrder() NOWAIT;
+        }
+    }
+}
+
+FORM inputSupplyName 'Введите название сборки'
+    OBJECTS n = STRING[50] PANEL
+    PROPERTIES 'Название' = VALUE(n)
+;
+
+addOrdersToSupply 'Добавить сборочные задания к поставке' () {
+    NEWSESSION NESTED LOCAL {
+        IF NOT (GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrder(order) AND carrier(order) == carrier('WB')) THEN {
+            MESSAGE 'Заказ FBS не выбран.';
+            RETURN ;
+        }
+
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING ();
+        LOCAL response = FILE();
+        LOCAL error = STRING ();
+        LOCAL statusText = STRING ();
+        LOCAL status = STRING ();
+
+        LOCAL supplyId = STRING ();
+        LOCAL supplyName = STRING ();
+        
+        DIALOG inputSupplyName OBJECTS n INPUT DO {
+            createSupply(n);
+            supplyName() <- n;
+        }
+        
+        supplyId() <- GROUP MAX id(Supply s) IF name(s) = supplyName();
+        
+        IF NOT supplyId() THEN {
+            MESSAGE 'Не найдена поставка с именем ' + supplyName();
+            RETURN ;
+        }
+        
+        LOCAL patchUrl = STRING ();
+        
+        patchUrl() <- '/api/marketplace/v3/supplies/'+supplyId()+'/orders';
+        
+        logToFile('WB', 'PATCH: ' + url(CategoryRequest.marketplace) + patchUrl());
+
+        EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrder(order) AND carrier(order) == carrier('WB');
+        fileToString(exportFile(), 'UTF-8');
+        stringToFile('\{"orders":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
+        fileToString(resultFile(), 'UTF-8');
+        logToFile('WB', 'orders: ' + resultString());
+
+        TRY {
+            EXTERNAL HTTP PATCH url(CategoryRequest.marketplace) + patchUrl() HEADERS httpHeaders PARAMS resultFile() TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+            IF statusHttp() == 204 THEN {
+                FOR isSelected(InternetOrder order) AND isWBOrder(order) AND carrier(order) == carrier('WB') DO {
+                    supply(order) <- supply(supplyId());
+                }
+                APPLY NESTED LOCAL ;
+            }
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                IMPORT importError JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Статус сборочного задания не получен: ' + message();
+            }
+            messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE messageOrder() NOWAIT;
+        }
+    }
+}
+
 EXTEND FORM internetOrders
     PROPERTIES(o) READONLY isWBOrder AFTER isClosed(o)
     PROPERTIES(o) READONLY SHOWIF isWBOrder(o) orderRidID, orderUID
     PROPERTIES (o) getWbFbsStatus
-    PROPERTIES() getOrdersFBSNew, getOrdersFBS
+    PROPERTIES() getOrdersFBSNew, getOrdersFBS, addOrdersToSupply
 ;
 
 DESIGN internetOrders {
@@ -342,6 +535,7 @@ DESIGN internetOrders {
                 caption = 'Сборочные задания FBS';
                 MOVE PROPERTY (getOrdersFBSNew());
                 MOVE PROPERTY (getOrdersFBS());
+                MOVE PROPERTY (addOrdersToSupply());
             }
             NEW ordersFBSActions {
                 caption = 'Действия по заданиям FBS';
