@@ -181,3 +181,22 @@ copy 'Копировать' (LotOrder o)  {
     }
 }
 EXTEND FORM lotOrders PROPERTIES(o) TOOLBAR copy;
+
+// export to txt
+exportToTxt 'Экспорт в txt' (LotOrder o) {
+    NEWSESSION {
+        IF quantityLot(o) > 0 THEN {
+            LOCAL exportString = TEXT();
+            exportString() <- '';
+
+            FOR lotOrder(Lot l) = o DO {
+                exportString() <- exportString() + (CONCAT '', (OVERRIDE id(l), ''), (OVERRIDE tail(l), '')) + '\r\n';
+            }
+            stringToFile(exportString(), 'UTF-8', 'txt');
+            WRITE CLIENT DIALOG resultFile() TO 'lots_' + (OVERRIDE number(o), '') + '_' + Utils.toChar((dateTime(o)), 'yyyy-MM-ddThh24-mi-ss');
+        }    
+        ELSE MESSAGE 'Для заказа нет марок';
+    }
+}
+
+EXTEND FORM lotOrders PROPERTIES(o) TOOLBAR exportToTxt;
