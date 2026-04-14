@@ -246,6 +246,8 @@ catalogName 'Наименование товара (каталог)' = DATA STRI
 packageCode 'Код товара (упаковка)'= DATA STRING[100] (EInvoiceDetail) CHARWIDTH 15; // PackageCode
 packageName 'Наименование товара (упаковка)' = DATA STRING[500] (EInvoiceDetail) CHARWIDTH 30 IN id; // PackageName
 
+codeGroupLot 'Код типа маркировки'= DATA INTEGER (EInvoiceDetail);
+
 grossWeightValue 'Масса груза брутто' = DATA NUMERIC[12,6] (EInvoiceDetail); // WeightBrutto
 netWeightValue 'Масса груза нетто' = DATA NUMERIC[12,6] (EInvoiceDetail); // WeightNetto
 quantityDespatched 'Кол-во отгружаемого товара' = DATA NUMERIC[16,5] (EInvoiceDetail);// Amount
@@ -282,7 +284,7 @@ id 'Код маркировки единицы товара' = DATA STRING[200] 
 type 'Тип' = DATA STRING[100] (EInvoiceLotDetail);
 eInvoiceLotDetail = GROUP AGGR EInvoiceLotDetail d BY id(d), eInvoiceDetail(d);
 quantity 'Кол-во' = DATA NUMERIC[14,3] (EInvoiceLotDetail);
-codeGroupLot 'Код типа маркировки'= DATA INTEGER (EInvoiceLotDetail);
+
 
 parent = DATA EInvoiceLotDetail(EInvoiceLotDetail) INDEXED;
 idParent 'Родитель' (EInvoiceLotDetail d) = id(parent(d));
@@ -326,7 +328,7 @@ FORM eInvoices 'Электронные документы'
     OBJECTS ed = EInvoiceDetail
     PROPERTIES(ed) READONLY index, 
         nameCommittent, innCommittent,
-        productName, barcode, catalogCode, catalogName, packageCode, packageName,
+        productName, barcode, catalogCode, catalogName, packageCode, packageName, codeGroupLot,
         grossWeightValue, netWeightValue, quantityDespatched, price, sum,
         valueVAT, VATSum, invoiceSum, nameOriginType
                                
@@ -432,7 +434,7 @@ FORM eInvoice 'Электронный документ'
     OBJECTS ed = EInvoiceDetail
     PROPERTIES (ed) index,
         nameCommittent, innCommittent,
-        productName, barcode, catalogCode, catalogName, packageCode, packageName,
+        productName, barcode, catalogCode, catalogName, packageCode, packageName, codeGroupLot,
         grossWeightValue, netWeightValue, quantityDespatched, price, sum,
         valueVAT, VATSum, invoiceSum, nameOriginType
     FILTERS eInvoice(ed) == e,  eInvoiceDetailGroup(ed) == g
