@@ -1,4 +1,4 @@
-MODULE EGAISActWriteOff;
+﻿MODULE EGAISActWriteOff;
 
 REQUIRE EGAISClient, EGAISFReg, EGAISMarkCode, EGAISActWriteOffType;
 
@@ -7,7 +7,8 @@ NAMESPACE EGAIS;
 CLASS ActWriteOff 'Акт о списании с баланса ЕГАИС';
 
 posted 'Проведен' = DATA BOOLEAN (ActWriteOff);
-canceled 'Ошибка при проведении' = DATA BOOLEAN (ActWriteOff);
+canceled 'Отменен' = DATA BOOLEAN (ActWriteOff);
+errorPost 'Ошибка при проведении' = DATA BOOLEAN (ActWriteOff);
 hasRequestPosted 'Запрос на проведение' = DATA BOOLEAN (ActWriteOff);
 
 number 'Номер' = DATA STRING (ActWriteOff) IN id;
@@ -90,7 +91,7 @@ readonlyDescriptionClient = ABSTRACT BOOLEAN ();
 
 FORM actWriteOff 'Акт о списании с баланса ЕГАИС'
     OBJECTS w = ActWriteOff PANEL
-    PROPERTIES(w) posted, canceled, number, dateTime, regId,
+    PROPERTIES(w) posted, canceled, errorPost, number, dateTime, regId,
                   shortNameClient, descriptionClient READONLYIF readonlyDescriptionClient(), 
                   idType, note
 
@@ -127,7 +128,7 @@ showToShow = ABSTRACT BOOLEAN (ActWriteOff);
 
 FORM actWriteOffs 'Списания с баланса'
     OBJECTS d = ActWriteOff
-    PROPERTIES(d) READONLY posted, canceled, number, dateTime, regId,
+    PROPERTIES(d) READONLY posted, canceled, errorPost, number, dateTime, regId,
                            shortNameClient, descriptionClient, 
                            idType, note
     PROPERTIES show(d) SHOWIF showToShow(d)
@@ -179,3 +180,10 @@ DESIGN markCodes {
         MOVE BOX(awo) { caption = 'Списание штрихкодов'; }
     }
 }
+
+canceledToErrorActWriteOffMigrate () {
+    errorPost(ActWriteOff w) <- canceled(w) WHERE canceled(w);
+    canceled(ActWriteOff w) <- NULL;    
+}
+
+@defOnStartMigrate(canceledToErrorActWriteOffMigrate, '');
