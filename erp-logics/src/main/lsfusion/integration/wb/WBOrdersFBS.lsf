@@ -1,6 +1,6 @@
 MODULE WBOrdersFBS;
 
-REQUIRE WBStockMapping, WBItemMapping, SaleInternetOrder, WBPriceTransaction;
+REQUIRE WBStockMapping, WBItemMapping, SaleInternetOrder, WBPriceTransaction, SaleInternetPicking;
 
 NAMESPACE WB;
 
@@ -398,14 +398,9 @@ getSticker 'Получить стикер' (InternetOrder order) {
     getStickers();
 }
 
-CLASS Supply;
+wbSupplyId = DATA STRING[100](Picking);
 
-name = DATA STRING[100](Supply);
-id = DATA STRING[100](Supply);
-supply = DATA Supply(InternetOrder);
-supply (id) = GROUP AGGR Supply s BY id(s);
-
-createSupply(STRING[100] name){
+createSupply(Picking picking){
     NEWSESSION NESTED LOCAL {
 
         setHttpHeadersIS();
@@ -417,8 +412,8 @@ createSupply(STRING[100] name){
         LOCAL supplyId = STRING[100] ();
 
         logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/v3/supplies');
-        
-        stringToFile('\{"name": "' + name + '" \}', 'UTF-8', 'json');
+
+        stringToFile('\{"name": "' + number(picking) + '" \}', 'UTF-8', 'json');
         fileToString(resultFile(), 'UTF-8');
         logToFile('WB', 'orders: ' + resultString());
 
@@ -429,10 +424,7 @@ createSupply(STRING[100] name){
             messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
             IF statusHttp() == 201 THEN {
                 IMPORT JSON FROM response() TO() supplyId = id;
-                NEW s = Supply{
-                    name(s) <- name;
-                    id(s) <- supplyId();
-                }
+                wbSupplyId(picking) <- supplyId();
                 APPLY NESTED LOCAL ;
             }
         } CATCH {
@@ -454,12 +446,8 @@ FORM inputSupplyName 'Введите название сборки'
     PROPERTIES 'Название' = VALUE(n)
 ;
 
-addOrdersToSupply 'Добавить сборочные задания к поставке' () {
+addOrdersToSupply 'Добавить сборочные задания к поставке' (Picking p) {
     NEWSESSION NESTED LOCAL {
-        IF NOT (GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrder(order) AND carrier(order) == carrier('WB')) THEN {
-            MESSAGE 'Заказ FBS не выбран.';
-            RETURN ;
-        }
 
         setHttpHeadersIS();
         LOCAL messageOrder = STRING ();
@@ -468,28 +456,16 @@ addOrdersToSupply 'Добавить сборочные задания к пос�
         LOCAL statusText = STRING ();
         LOCAL status = STRING ();
 
-        LOCAL supplyId = STRING ();
-        LOCAL supplyName = STRING ();
-        
-        DIALOG inputSupplyName OBJECTS n INPUT DO {
-            createSupply(n);
-            supplyName() <- n;
-        }
-        
-        supplyId() <- GROUP MAX id(Supply s) IF name(s) = supplyName();
-        
-        IF NOT supplyId() THEN {
-            MESSAGE 'Не найдена поставка с именем ' + supplyName();
-            RETURN ;
-        }
+        createSupply(p);
         
         LOCAL patchUrl = STRING ();
-        
-        patchUrl() <- '/api/marketplace/v3/supplies/'+supplyId()+'/orders';
-        
+
+        patchUrl() <- '/api/marketplace/v3/supplies/' + wbSupplyId(p) + '/orders';
+
         logToFile('WB', 'PATCH: ' + url(CategoryRequest.marketplace) + patchUrl());
 
-        EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrder(order) AND carrier(order) == carrier('WB');
+        //EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrder(order) AND carrier(order) == carrier('WB');
+        EXPORT JSON FROM 'value' = INTEGER(number(internetOrder(InternetOrderDetail detail))) WHERE picking(detail) = p;
         fileToString(exportFile(), 'UTF-8');
         stringToFile('\{"orders":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
         fileToString(resultFile(), 'UTF-8');
@@ -501,10 +477,10 @@ addOrdersToSupply 'Добавить сборочные задания к пос�
             logToFile('WB', resultString());
             messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
             IF statusHttp() == 204 THEN {
-                FOR isSelected(InternetOrder order) AND isWBOrder(order) AND carrier(order) == carrier('WB') DO {
-                    supply(order) <- supply(supplyId());
-                }
-                APPLY NESTED LOCAL ;
+                //FOR isSelected(InternetOrder order) AND isWBOrder(order) AND carrier(order) == carrier('WB') DO {
+                    //supply(order) <- supply(supplyId());
+                //}
+                //APPLY NESTED LOCAL ;
             }
         } CATCH {
             logToFile('WB', messageCaughtException());
@@ -520,12 +496,34 @@ addOrdersToSupply 'Добавить сборочные задания к пос�
     }
 }
 
+addToPicking 'Отм.' = DATA LOCAL BOOLEAN (InternetOrderDetail);
+
+orderNumber(InternetOrderDetail d) = number(internetOrder(d));
+
+FORM wbInternetDetailsDialog 'WB заказы'
+    OBJECTS d = InternetOrderDetail
+    PROPERTIES (d) addToPicking, orderNumber, nameSku
+    FILTERS isWBOrder(internetOrder(d));
+
+addDetailsFromWbOrder 'Добавить заказы WB' (Picking p){
+    DIALOG wbInternetDetailsDialog OBJECTS d INPUT DO {
+        FOR addToPicking(InternetOrderDetail dd) DO {
+            picking(dd) <- p;
+        }
+    }
+    APPLY ;
+    addOrdersToSupply(p);
+}
+
 EXTEND FORM internetOrders
     PROPERTIES(o) READONLY isWBOrder AFTER isClosed(o)
     PROPERTIES(o) READONLY SHOWIF isWBOrder(o) orderRidID, orderUID
     PROPERTIES (o) getWbFbsStatus
-    PROPERTIES() getOrdersFBSNew, getOrdersFBS, addOrdersToSupply
+    PROPERTIES() getOrdersFBSNew, getOrdersFBS
 ;
+
+EXTEND FORM picking
+    PROPERTIES (p) addDetailsFromWbOrder DRAW d TOOLBAR ;
 
 DESIGN internetOrders {
     documentDetail {
@@ -535,7 +533,7 @@ DESIGN internetOrders {
                 caption = 'Сборочные задания FBS';
                 MOVE PROPERTY (getOrdersFBSNew());
                 MOVE PROPERTY (getOrdersFBS());
-                MOVE PROPERTY (addOrdersToSupply());
+                //MOVE PROPERTY (addOrdersToSupply());
             }
             NEW ordersFBSActions {
                 caption = 'Действия по заданиям FBS';
