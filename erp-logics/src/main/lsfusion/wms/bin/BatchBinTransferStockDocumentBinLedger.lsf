@@ -1,6 +1,6 @@
 MODULE BatchBinTransferStockDocumentBinLedger;
 
-REQUIRE BatchBinTransferBinLedger, StockDocumentBinLedger, DepartmentBinTransferBinLedger;
+REQUIRE BatchBinTransferBinLedger, StockDocumentBinLedger, DepartmentBinTransferBinLedger, BatchReceivingBinLedger;
 
 NAMESPACE Bin;
 
@@ -8,8 +8,8 @@ shipmentPrice '{document.price} (учетная)' = ABSTRACT NUMERIC[16,4] (BinT
 shipmentPrice '{document.price} (учетная)' = DATA NUMERIC[16,4] (UserBinTransferDetail);
 shipmentPrice(UserBinTransferDetail userBinTransferDetail) += shipmentPrice(userBinTransferDetail);
 
-shipmentSum '{document.sum.of} (учетная)'  = ABSTRACT NUMERIC[16,4] (BinTransferDetail) MATERIALIZED PATTERN '#,##0.00##';
-shipmentSum '{document.sum.of} (учетная)'  = DATA NUMERIC[16,4] (UserBinTransferDetail);
+shipmentSum '{document.sum.of} (учетная)' = ABSTRACT NUMERIC[16,4] (BinTransferDetail) MATERIALIZED PATTERN '#,##0.00##';
+shipmentSum '{document.sum.of} (учетная)' = DATA NUMERIC[16,4] (UserBinTransferDetail);
 shipmentSum(UserBinTransferDetail userBinTransferDetail) += shipmentSum(userBinTransferDetail);
 
 sum(BinTransferDetail ledger) += shipmentSum(ledger);
@@ -42,6 +42,31 @@ EXTEND FORM binTransfers
     PROPERTIES(d) READONLY BACKGROUND RGB(255, 224, 255) AFTER quantity(d) SHOWIF createStockDocumentBinLedger(operation(d))
         shipmentPrice, shipmentSum
 ;
+
+recalculateShipmentSum() + {
+    NEWSESSION {
+        //удаляем учётные суммы, что не соответствуют настройкам операции
+        shipmentSum (UserBinTransferDetail detail) <- NULL WHERE detail IS UserBinTransferDetail AND
+            date(detail) >= (MAX documentsClosedDate(stock(detail)), sum(currentDate(), -countDaysToRecalculate())) AND
+            NOT createStockDocumentBinLedger(operation(detail));
+        APPLY;
+    }
+}
+
+recalculateShipmentSum() + {
+    NEWSESSION {
+        //восстанавливаем хронологию, что перемещение в отдел не может быть раньше завершения первой приёмки по партии
+        LOCAL maxGRDateTime = DATETIME (UserBinTransfer);
+        maxGRDateTime(UserBinTransfer o) <- [GROUP MAX GRDateTime(batch(UserBinTransferDetail d)) BY userBinTransfer(d)](o)
+            WHERE date(o) >= (MAX documentsClosedDate(stock(o)), sum(currentDate(), -countDaysToRecalculate())) AND 
+                createStockDocumentBinLedger(operation(o));
+        FOR  maxGRDateTime(UserBinTransfer o) > dateTime(o) INLINE DO {
+            date(o) <- toDate(maxGRDateTime(o));
+            time(o) <- toTime(maxGRDateTime(o));
+        }
+        APPLY;
+    }
+}
 
 needToRecalculateShipmentSum = ABSTRACT BOOLEAN (UserBinTransferDetail);
 recalculateShipmentSum() + {
