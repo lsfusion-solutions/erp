@@ -15,7 +15,7 @@ CLASS AlcoholLimitDetail 'Строка минимальных цен на алк
 fromDate 'Дата с'= DATA DATE (AlcoholLimit) NONULL; 
 toDate 'Дата по'= DATA DATE (AlcoholLimit) NONULL;
 volume 'Объем, л' = DATA NUMERIC[10,4] (AlcoholLimitDetail) NONULL;
-in = DATA BOOLEAN (AlcoholLimit, ProductType);
+in 'Отм.' = DATA BOOLEAN (AlcoholLimit, ProductType);
 
 idProductTypes 'Виды продукции' (AlcoholLimit a)= GROUP CONCAT id(ProductType p) IF in(a, p) ,', ' ORDER id(p) CHARWIDTH 150;
 
@@ -179,7 +179,7 @@ minAlcoholLimitPriceCalc (Item s, DATETIME dt) = GROUP
     LAST NUMERIC[16,4](ceil(minPrice(AlcoholLimitDetail ad)*volume(s)*100/volume(ad))/100)
     ORDER dateTime(ad), ad
     WHERE isPosted(ad) AND dateTime(ad) <= dt AND productType(s) == productType(ad) AND toDate(dt) >= fromDate(alcoholLimit(ad)) AND
-        toDate(dt) <= toDate(alcoholLimit(ad)) AND value(alcohol(s)) >= fromValueAlcohol(ad) AND value(alcohol(s)) <= toValueAlcohol(ad);
+        toDate(dt) <= toDate(alcoholLimit(ad)) AND value(alcohol(s)) >= fromValueAlcohol(ad) AND value(alcohol(s)) < toValueAlcohol(ad);
 
 //minAlcoholLimitPriceRBCalc (Item s, DATETIME dt) = GROUP
 //    LAST minPrice(AlcoholLimitDetail ad, Alcohol a)
@@ -197,7 +197,7 @@ EXTEND FORM alcoholLimits
     PROPERTIES 'Минимальная цена' = minAlcoholLimitPrice(i,currentDateTime())
     FILTERS dateTime(d) <= currentDateTime() AND currentDate() >= fromDate(alcoholLimit(d)) AND
     currentDate() <= toDate(alcoholLimit(d)) AND
-        productType(i) == productType(d) AND value(alcohol(i)) >= fromValueAlcohol(d) AND value(alcohol(i)) <= toValueAlcohol(d)
+        productType(i) == productType(d) AND value(alcohol(i)) >= fromValueAlcohol(d) AND value(alcohol(i)) < toValueAlcohol(d)
     ;
 
 DESIGN alcoholLimits {
@@ -208,15 +208,15 @@ DESIGN alcoholLimits {
 
 CONSTRAINT (SET(isPosted(AlcoholLimitDetail d)) OR CHANGED(productType(d)) OR CHANGED(fromValueAlcohol(d)) OR CHANGED(toValueAlcohol(d))) AND isPosted(d) AND
     (GROUP SUM 1 IF productType(AlcoholLimitDetail d1) = productType(d) AND alcoholLimit(d) = alcoholLimit(d1) AND d != d1 AND
-    toValueAlcohol(d) >= fromValueAlcohol(d1) AND fromValueAlcohol(d) <= toValueAlcohol(d1)) 
-    MESSAGE ' Содержание алкоголя в рамках одного вида продукции не должны пересекаться';
+    toValueAlcohol(d) > fromValueAlcohol(d1) AND fromValueAlcohol(d) < toValueAlcohol(d1)) 
+    MESSAGE ' Диапазоны содержания % алкоголя в рамках одного вида продукции не должны пересекаться';
 
 inAllProductType (AlcoholLimit a) = TRUE IF NOT (GROUP SUM 1 IF  in(a, ProductType p));
 
-CONSTRAINT (SET(isPosted(AlcoholLimit a)) OR CHANGED(fromDate(a)) OR CHANGED(toDate(a))) AND isPosted(a) AND
-    (GROUP SUM 1 IF a != AlcoholLimit a1 AND toDate(a) >= fromDate(a1) AND fromDate(a) <= toDate(a1) AND 
-        ProductType p IS ProductType AND (in(a, p) OR inAllProductType(a)) AND (in(a1, p) OR inAllProductType(a1))) 
-    MESSAGE ' Запрещено проводить 2 документа МРЦ с пересекающимися датами';
+CONSTRAINT (SET(isPosted(AlcoholLimitDetail a)) OR CHANGED(fromDate(alcoholLimit(a))) OR CHANGED(toDate(alcoholLimit(a)))) AND isPosted(alcoholLimit(a)) AND
+    (GROUP SUM 1 IF a != AlcoholLimitDetail a1 AND toDate(alcoholLimit(a)) >= fromDate(alcoholLimit(a1)) AND fromDate(alcoholLimit(a)) <= toDate(alcoholLimit(a1)) AND 
+    productType(a) = productType(a1) AND alcoholLimit(a)!=alcoholLimit(a1)) 
+    MESSAGE 'Периоды действия документов МРЦ в рамках указанных видов продукции не должны пересекаться';
 
 //CONSTRAINT (SET(isPosted(AlcoholLimit a)) OR CHANGED(fromDate(a)) OR CHANGED(toDate(a))) AND isPosted(a) AND
 //    (GROUP SUM 1 IF a != AlcoholLimit a1 AND toDate(a) >= fromDate(a1) AND fromDate(a) <= toDate(a1) AND in(a, ProductType p) AND in(a1, p))
