@@ -124,7 +124,14 @@ submit (OutDoc r) {
     LOCAL response = FILE();
     TRY {
         logToFile('egais', 'Submit document ' + (OVERRIDE urlUtm(r) + '/opt/in/' + idDocType(r), ''));
-        EXTERNAL HTTP POST urlUtm(r) + '/opt/in/' + idDocType(r) BODYPARAMNAMES 'xml_file' PARAMS exportFile() TO response;
+        
+        IF EGAISTestMode() THEN {
+            fileToString(exportFile());
+            showTextDialog(resultString(), 'Введите XML ответа');
+            response() <- resultFile();
+        } ELSE {
+            EXTERNAL HTTP POST urlUtm(r) + '/opt/in/' + idDocType(r) BODYPARAMNAMES 'xml_file' PARAMS exportFile() TO response;
+        }
     } CATCH {
         fileToString(response());
         error(r) <- CONCAT '\n', (CONCAT '','Ошибка при формировании запроса к ЕГАИС (', name(utm(r)),':', url(utm(r)), '):'), messageCaughtException(), resultString();
@@ -160,6 +167,8 @@ META defineDocumentOutDoc(doc, type, caption)
 END
 
 META defineDocumentOutProcess(doc, container)
+    overProcess ABSTRACT (###doc);
+    
     process 'Отправить в ЕГАИС' (###doc t) {
         NEW r = ###doc##OutDoc {
             client(r) <- client(t);
@@ -167,6 +176,7 @@ META defineDocumentOutProcess(doc, container)
 
             EXPORT doc##OutDoc OBJECTS r = r XML;
             submit(r, exportFile());
+            overProcess(t);
             APPLY;
         }
     }
@@ -203,7 +213,14 @@ submit (OutDoc r, BOOLEAN skiptTrowException) {
     LOCAL response = FILE();
     TRY {
         logToFile('egais', 'Submit document ' + (OVERRIDE urlUtm(r) + '/opt/in/' + idDocType(r), ''));
-        EXTERNAL HTTP POST urlUtm(r) + '/opt/in/' + idDocType(r) BODYPARAMNAMES 'xml_file' PARAMS exportFile() TO response;
+
+        IF EGAISTestMode() THEN {
+            fileToString(exportFile());
+            showTextDialog(resultString(), 'Введите XML ответа');
+            response() <- resultFile();
+        } ELSE {
+            EXTERNAL HTTP POST urlUtm(r) + '/opt/in/' + idDocType(r) BODYPARAMNAMES 'xml_file' PARAMS exportFile() TO response;
+        }
     } CATCH {
         fileToString(response());
         error(r) <- CONCAT '\n', 'Ошибка при формировании запроса к ЕГАИС :', messageCaughtException(), resultString();

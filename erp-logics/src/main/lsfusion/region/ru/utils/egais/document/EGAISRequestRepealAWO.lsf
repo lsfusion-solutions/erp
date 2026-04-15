@@ -1,0 +1,147 @@
+MODULE EGAISRequestRepealAWO;
+
+REQUIRE EGAISActWriteOffExchange, EGAISActWriteOffStatus;
+
+NAMESPACE EGAIS;
+
+hasRRAWO 'Запрос на отмену' = DATA BOOLEAN (ActWriteOff);
+numberRRAWO 'Номер запроса на отмену' = DATA STRING (ActWriteOff);
+dateRRAWO 'Дата запроса на отмену' = DATA DATETIME (ActWriteOff);
+
+acceptedRRAWO 'Отменено проведение' = DATA BOOLEAN (ActWriteOff);
+errorRRAWO 'Ошибка отменены проведения' = DATA BOOLEAN (ActWriteOff);
+
+EXTEND FORM actWriteOffs
+    PROPERTIES(d) READONLY hasRRAWO, numberRRAWO, dateRRAWO
+;
+
+CLASS RequestRepealAWOOutDoc 'Запрос на отмену проведения акта постановки на баланс' : OutDoc;
+
+EXTEND CLASS DocType { RequestRepealAWO 'Запрос на отмену проведения акта постановки на баланс' }
+docType (RequestRepealAWOOutDoc r) += DocType.RequestRepealAWO IF r IS RequestRepealAWOOutDoc;
+
+actWriteOff = DATA ActWriteOff (RequestRepealAWOOutDoc) INDEXED;
+requestRepealAWOOutDoc = GROUP LAST RequestRepealAWOOutDoc d ORDER d BY actWriteOff(d);
+commentsRequestRepealAWOOutDoc 'Комментарий запроса на отмену' (ActWriteOff a) = comments(requestRepealAWOOutDoc(a));
+
+GROUP ownerRepealAWO EXTID 'ns:Owner';
+GROUP documentRepealAWO EXTID 'ns:Document';
+GROUP requestRepealAWO EXTID 'ns:RequestRepealAWO' : documentRepealAWO;
+
+FORM requestRepealAWO FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:Documents'
+    PROPERTIES ATTR
+//        = '1.0' EXTID ':Version',
+        ='http://fsrar.ru/WEGAIS/RequestRepealAWO' EXTID 'xmlns:qp', 
+        ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+        
+    OBJECTS r = RequestRepealAWOOutDoc PANEL
+
+    PROPERTIES IN owner 
+        = id(client(r)) EXTID 'ns:FSRAR_ID'
+    
+    PROPERTIES IN requestRepealAWO 
+        = id(client(r)) EXTID 'qp:ClientId',
+        = numberRRAWO(actWriteOff(r)) EXTID 'qp:RequestNumber',
+        = formatT(dateRRAWO(actWriteOff(r))) EXTID 'qp:RequestDate',
+        = regId(actWriteOff(r)) EXTID 'qp:AWORegId'
+;
+
+
+request (RequestRepealAWOOutDoc r) {
+    EXPORT requestRepealAWO OBJECTS r = r XML;
+    submit(r, exportFile());
+}
+
+wrangQuantityMarkCode (ActWriteOff w) = GROUP MIN TRUE IF NOT overQuantity(ActWriteOffPosition p) == quantity(p) AND quantity(p) BY actWriteOff(p);
+
+cancel 'Запросить отмену проведения ЕГАИС' (ActWriteOff w) {
+    IF dateTime(w) > currentDateTime() THEN {
+        MESSAGE 'Дата/время акта должна быть не больше текущей даты/времени' WAIT;
+        RETURN;
+    }
+
+    IF secondsBetweenDates(dateTime(w), currentDateTime()) > 3*86400 THEN {
+        MESSAGE 'Дата/время акта должна быть не старше трех дней от текущей даты/времени' WAIT;
+        RETURN;
+    }
+
+    IF NOT minActWriteOffPosition(w) THEN {
+        MESSAGE 'Отсутствуют строки в акте списания с баланса ЕГАИС' WAIT;
+        RETURN;
+    }
+
+    IF wrangQuantityMarkCode(w) THEN {
+        MESSAGE 'Количество кодов маркировки не соответствует количеству строки акта' WAIT;
+        RETURN;
+    }
+    
+    NEWSESSION {
+        NEW r = RequestRepealAWOOutDoc {
+            client(r) <- client(w);
+
+            hasRRAWO(w) <- TRUE;
+            numberRRAWO(w) <- STRING(r);
+            dateRRAWO(w) <- currentDateTime();
+
+            actWriteOff(r) <- w;
+
+            request(r);
+            APPLY;
+        }
+    }
+}
+
+EXTEND FORM actWriteOffs
+    PROPERTIES(d) READONLY commentsRequestRepealAWOOutDoc PANEL
+    PROPERTIES(d) cancel SHOWIF posted(d) AND NOT acceptedRRAWO(d) AND own(client(d)) TOOLBAR
+;
+
+DESIGN actWriteOffs {
+    specification {
+        MOVE PROPERTY(commentsRequestRepealAWOOutDoc(d)) { fill = 1; panelCaptionVertical = TRUE; }
+    }
+}
+
+process (Ticket t) + {
+    IF docType(t) = 'RequestRepealAWO' THEN {   
+        IF operationName(t) = 'Confirm' AND operationResult(t) = 'Accepted' THEN {
+            posted(actWriteOff[RequestRepealAWOOutDoc](outDoc(t))) <- NULL;
+            hasRRAWO(actWriteOff[RequestRepealAWOOutDoc](outDoc(t))) <- NULL;
+            acceptedRRAWO(actWriteOff[RequestRepealAWOOutDoc](outDoc(t))) <- TRUE;
+            errorRRAWO(actWriteOff[RequestRepealAWOOutDoc](outDoc(t))) <- NULL;
+        }
+        
+        IF ((operationName(t) = 'Confirm' AND operationResult(t) = 'Rejected') OR conclusion(t)=='Rejected') THEN {
+            hasRRAWO(actWriteOff[RequestRepealAWOOutDoc](outDoc(t))) <- NULL;
+            dateRRAWO(actWriteOff[RequestRepealAWOOutDoc](outDoc(t))) <- NULL;
+            numberRRAWO(actWriteOff[RequestRepealAWOOutDoc](outDoc(t))) <- NULL;
+            errorRRAWO(actWriteOff[RequestRepealAWOOutDoc](outDoc(t))) <- TRUE;
+        }
+        
+        IF (conclusion(t)=='Accepted') THEN {
+            errorRRAWO(actWriteOff[RequestRepealAWOOutDoc](outDoc(t))) <- NULL;
+            hasRRAWO(actWriteOff[RequestRepealAWOOutDoc](outDoc(t))) <- TRUE;
+        }
+        
+        processed() <- TRUE;
+    }
+}
+
+// status
+
+EXTEND CLASS ActWriteOffStatus {
+    requestRepeal 'Запрос на отмену проведения',
+    errorRequestRepeal 'Ошибка запроса на отмену проведения',
+    acceptedRequestRepeal 'Проведение отменено'
+}
+
+EXTEND FORM actWriteOffs   
+    EXTEND FILTERGROUP status
+        FILTER 'Запрос на отмену проведения' status(d) = ActWriteOffStatus.acceptedRequestRepeal
+;
+
+status (ActWriteOff w) += WHEN posted(w) AND hasRRAWO(w) THEN ActWriteOffStatus.requestRepeal;
+status (ActWriteOff w) += WHEN posted(w) AND errorRRAWO(w) THEN ActWriteOffStatus.errorRequestRepeal;
+status (ActWriteOff w) += WHEN acceptedRRAWO(w) THEN ActWriteOffStatus.acceptedRequestRepeal;
+
+showToShow (ActWriteOff w) += posted(w) OR acceptedRRAWO(w);

@@ -23,6 +23,9 @@ dateTime 'Время' = DATA DATETIME (InDoc);
 dateTime(InDoc d) <- currentDateTime() WHEN SET(d IS InDoc);
 
 url 'Url' = DATA STRING (InDoc) INDEXED;
+//url 'Url' = DATA STRING (InDoc, DATE) INDEXED;
+//newestUrlDate (InDoc d) = ;
+//currentUrl 'Url' (InDoc d) = OVERRIDE url(d) INDEXED;
 
 document 'Документ' = DATA TEXT (InDoc); 
 
@@ -144,7 +147,13 @@ getInDocs 'Получить входящие документы' (UTM u) {
     LOCAL response = FILE();
     TRY {
         timeoutHttp() <- 60000;
-        EXTERNAL HTTP GET url(u) + '/opt/out' PARAMS exportFile() TO response;
+
+        IF EGAISTestMode() THEN {
+            showTextDialog('Get запрос на получение списка документов для УТМ ' + name(u), 'Введите XML ответа для входящих документов');
+            response() <- resultFile();
+        } ELSE {
+            EXTERNAL HTTP GET url(u) + '/opt/out' PARAMS exportFile() TO response;
+        }
     } CATCH {
         fileToString(response());
         LOCAL error = TEXT();
@@ -160,7 +169,13 @@ getInDocs 'Получить входящие документы' (UTM u) {
         NEWSESSION NESTED LOCAL {
             TRY {
                 logToFile('egais', 'Получение документа : ' + url(i));
-                EXTERNAL HTTP GET url(i) TO response;
+
+                IF EGAISTestMode() THEN {
+                        showTextDialog('Получение документа по ' + url(i), 'Введите XML ответа для документа со ссылкой ' + url(i));
+                        response() <- resultFile();
+                } ELSE {
+                    EXTERNAL HTTP GET url(i) TO response;
+                }
                 fileToString(response());
                 NEW d = InDoc {
                     utm(d) <- u;

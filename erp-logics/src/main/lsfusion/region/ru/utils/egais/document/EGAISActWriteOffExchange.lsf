@@ -41,6 +41,8 @@ FORM actWriteOffOutDoc FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:Act
     FILTERS actWriteOffPosition(m) = p
 ;
 
+
+
 @defineDocumentOutProcess(actWriteOff, tabbedPane);
 
 // ticket
@@ -52,12 +54,16 @@ process (Ticket t) + {
         IF operationName(t) = 'Confirm' AND operationResult(t) = 'Accepted' THEN {
             posted(actWriteOff(outDoc(t))) <- TRUE;
             canceled(actWriteOff(outDoc(t))) <- NULL;
+            regId(actWriteOff(outDoc(t))) <- regId(t);
+            hasRequestPosted(actWriteOff(outDoc(t))) <- NULL;
         }
         IF ((operationName(t) = 'Confirm' AND operationResult(t) = 'Rejected') OR conclusion(t)=='Rejected') THEN {
             canceled(actWriteOff(outDoc(t))) <- TRUE;
+            hasRequestPosted(actWriteOff(outDoc(t))) <- NULL;
         }
         IF (conclusion(t)=='Accepted') THEN {
             canceled(actWriteOff(outDoc(t))) <- NULL;
+            hasRequestPosted(actWriteOff(outDoc(t))) <- TRUE;
         }
         processed() <- TRUE;
     }
@@ -67,9 +73,20 @@ process 'Отправить в ЕГАИС' (ActWriteOff t, BOOLEAN skiptTrowExce
     NEW r = ActWriteOffOutDoc {
         client(r) <- client(t);
         actWriteOff(r) <- t;
-
+        canceled() <- NULL;
+        hasRequestPosted(t) <- TRUE;
+        
         EXPORT actWriteOffOutDoc OBJECTS r = r XML;
         submit(r, exportFile(), skiptTrowException);
         APPLY;
     }
 }
+
+overProcess (ActWriteOff t) + {
+    canceled() <- NULL;
+    hasRequestPosted(t) <- TRUE;
+}
+
+EXTEND FORM actWriteOffs
+    PROPERTIES(odd) DELETE
+;

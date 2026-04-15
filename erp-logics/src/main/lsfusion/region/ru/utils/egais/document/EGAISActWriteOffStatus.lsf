@@ -1,0 +1,36 @@
+MODULE EGAISActWriteOffStatus;
+
+REQUIRE EGAISActWriteOff;
+
+NAMESPACE EGAIS;
+
+// status
+CLASS ActWriteOffStatus 'Статус акта о списании с баланса ЕГАИС' {
+    posted 'Проведен',
+    canceled 'Ошибка проведения',
+    requestPosted 'Запрос на проведения'
+}
+
+name 'Наименование' (ActWriteOffStatus o) = staticCaption(o) IF o IS ActWriteOffStatus CHARWIDTH 15;
+
+FORM dialogActWriteOffStatus 'Статус акта о списании с баланса ЕГАИС'
+    OBJECTS o = ActWriteOffStatus
+    PROPERTIES(o) READONLY name
+
+    LIST ActWriteOffStatus OBJECT o
+;
+
+status = ABSTRACT CASE ActWriteOffStatus (ActWriteOff) MATERIALIZED INDEXED;
+nameStatus 'Статус' (ActWriteOff w) = name(status(w));
+
+EXTEND FORM actWriteOffs
+    PROPERTIES(d) READONLY nameStatus FIRST
+
+    FILTERGROUP status
+        FILTER 'Принята' status(d) = ActWriteOffStatus.posted
+        FILTER 'Отменена' status(d) = ActWriteOffStatus.canceled
+;
+
+status (ActWriteOff w) += WHEN posted(w) THEN ActWriteOffStatus.posted;
+status (ActWriteOff w) += WHEN canceled(w) THEN ActWriteOffStatus.canceled;
+status (ActWriteOff w) += WHEN hasRequestPosted(w) THEN ActWriteOffStatus.requestPosted;
