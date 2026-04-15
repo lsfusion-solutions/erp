@@ -14,17 +14,21 @@ CLASS AlcoholLimitDetail 'Строка минимальных цен на алк
 
 fromDate 'Дата с'= DATA DATE (AlcoholLimit) NONULL; 
 toDate 'Дата по'= DATA DATE (AlcoholLimit) NONULL;
+fromDate 'Дата с' (AlcoholLimitDetail d) = fromDate(alcoholLimit(d));
+toDate 'Дата по' (AlcoholLimitDetail d) = toDate(alcoholLimit(d));
+
 volume 'Объем, л' = DATA NUMERIC[10,4] (AlcoholLimitDetail) NONULL;
-in 'Отм.' = DATA BOOLEAN (AlcoholLimit, ProductType);
+in 'Вкл.' = DATA BOOLEAN (AlcoholLimit, ProductType);
 
 idProductTypes 'Виды продукции' (AlcoholLimit a)= GROUP CONCAT id(ProductType p) IF in(a, p) ,', ' ORDER id(p) CHARWIDTH 150;
+idProductTypes 'Виды продукции' (AlcoholLimitDetail d) = idProductTypes(alcoholLimit(d));
 
-FORM changeProductTypes
+FORM changeProductTypes 'Выбор видов продукции'
     OBJECTS r = AlcoholLimit TOOLBAR
     OBJECTS p = ProductType
     PROPERTIES in(r, p)
     PROPERTIES(p) READONLY id, name
-    FILTERGROUP in FILTER 'Отм' in(r, p)
+    FILTERGROUP in FILTER 'Отмеченные' in(r, p)
 ;
 
 changeProductTypes(AlcoholLimit r) {
@@ -43,12 +47,13 @@ minPrice 'Цена за заданый объем' = DATA NUMERIC[16,5](AlcoholL
 FORM alcoholLimit 'Минимальные цены на алкоголь'
 
     OBJECTS r = AlcoholLimit PANEL
+    PROPERTIES READONLY r 'Код' = STRING(r)
     PROPERTIES (r) isPosted, date, time, fromDate, toDate, note, idProductTypes ON CHANGE changeProductTypes(r)
 
     PROPERTIES (r) READONLY countAlcoholLimitDetail
 
     OBJECTS d = AlcoholLimitDetail
-    PROPERTIES (d) idProductType, nameProductType, fromValueAlcohol, toValueAlcohol, volume, minPrice
+    PROPERTIES (d) index, idProductType, nameProductType, fromValueAlcohol, toValueAlcohol, volume, minPrice
 
     PROPERTIES (d) NEW, deleteid=DELETE GRID
 
@@ -75,6 +80,7 @@ DESIGN alcoholLimit {
                     NEW first {
                         horizontal = TRUE;
                         MOVE PROPERTY (isPosted(r));
+                        MOVE PROPERTY (r);
                         MOVE PROPERTY(date(r));
                         MOVE PROPERTY(time(r));
                         MOVE PROPERTY(fromDate(r));
@@ -111,6 +117,7 @@ CONSTRAINT productType(AlcoholLimitDetail d) AND NOT in(alcoholLimit(d), product
 FORM alcoholLimits 'Минимальные цены на алкоголь'
 
     OBJECTS r = AlcoholLimit
+    PROPERTIES READONLY r 'Код' = STRING(r)
     PROPERTIES (r) READONLY isPosted, date, time, fromDate, toDate, note, idProductTypes
     PROPERTIES (r) READONLY countAlcoholLimitDetail
 
@@ -120,7 +127,7 @@ FORM alcoholLimits 'Минимальные цены на алкоголь'
         postedNameUser, postedTime, postedHostnameComputer
 
     OBJECTS d = AlcoholLimitDetail
-    PROPERTIES (d) READONLY idProductType, nameProductType, fromValueAlcohol, toValueAlcohol, volume, minPrice
+    PROPERTIES (d) READONLY index, idProductType, nameProductType, fromValueAlcohol, toValueAlcohol, volume, minPrice
 
     FILTERS alcoholLimit(d) == r
 
@@ -189,15 +196,19 @@ minAlcoholLimitPriceCalc (Item s, DATETIME dt) = GROUP
 minAlcoholLimitPrice (Item s, DATETIME dt) += WHEN s IS Item AND dt IS DATETIME AND NOT useCustomAlcoholLimitPrice() THEN minAlcoholLimitPriceCalc(s,dt);
 //minAlcoholLimitPriceRB (Item s, DATETIME dt) += WHEN s IS Item AND dt IS DATETIME AND NOT useCustomAlcoholLimitPrice() THEN minAlcoholLimitPriceRBCalc(s,dt);
 
+minAlcoholLimitPrice 'МРЦ' (UserPriceListDetail d) = minAlcoholLimitPrice(sku(d), fromDateTime(d));
+
+EXTEND FORM userPriceList
+    PROPERTIES (d) READONLY minAlcoholLimitPrice SHOWIF show(p, priceListType('retail'))
+;
+
 CONSTRAINT CHANGED(isPosted(UserPriceListDetail d)) AND isPosted(d) AND price(d, dataPriceListType('retail')) < minAlcoholLimitPrice(sku(d), fromDateTime(d)) MESSAGE 'Цена меньше МРЦ';
 
 EXTEND FORM alcoholLimits
     OBJECTS i = Item
     PROPERTIES (i) READONLY idBarcode, id, name, volume, nameProductType
-    PROPERTIES 'Минимальная цена' = minAlcoholLimitPrice(i,currentDateTime())
-    FILTERS dateTime(d) <= currentDateTime() AND currentDate() >= fromDate(alcoholLimit(d)) AND
-    currentDate() <= toDate(alcoholLimit(d)) AND
-        productType(i) == productType(d) AND value(alcohol(i)) >= fromValueAlcohol(d) AND value(alcohol(i)) < toValueAlcohol(d)
+    PROPERTIES 'Минимальная цена (дата начала)' = minAlcoholLimitPrice(i, toDateTime(fromDate(r))), 'Минимальная цена (текущая дата)' = minAlcoholLimitPrice(i, currentDateTime())
+    FILTERS productType(i) == productType(d) AND value(alcohol(i)) >= fromValueAlcohol(d) AND value(alcohol(i)) < toValueAlcohol(d)
     ;
 
 DESIGN alcoholLimits {
@@ -209,14 +220,19 @@ DESIGN alcoholLimits {
 CONSTRAINT (SET(isPosted(AlcoholLimitDetail d)) OR CHANGED(productType(d)) OR CHANGED(fromValueAlcohol(d)) OR CHANGED(toValueAlcohol(d))) AND isPosted(d) AND
     (GROUP SUM 1 IF productType(AlcoholLimitDetail d1) = productType(d) AND alcoholLimit(d) = alcoholLimit(d1) AND d != d1 AND
     toValueAlcohol(d) > fromValueAlcohol(d1) AND fromValueAlcohol(d) < toValueAlcohol(d1)) 
-    MESSAGE ' Диапазоны содержания % алкоголя в рамках одного вида продукции не должны пересекаться';
+    MESSAGE ' Диапазоны содержания % алкоголя в рамках одного вида продукции не должны пересекаться' 
+    PROPERTIES index(d), idProductType(d), fromValueAlcohol(d), toValueAlcohol(d);
 
 inAllProductType (AlcoholLimit a) = TRUE IF NOT (GROUP SUM 1 IF  in(a, ProductType p));
 
+idAlcoholLimits 'Код МРЦ' (AlcoholLimitDetail a) = GROUP CONCAT STRING (alcoholLimit(AlcoholLimitDetail a1)) IF a != a1 AND toDate(alcoholLimit(a)) >= fromDate(alcoholLimit(a1)) AND fromDate(alcoholLimit(a)) <= toDate(alcoholLimit(a1)) AND
+    productType(a) = productType(a1) AND alcoholLimit(a)!=alcoholLimit(a1), ', ' ORDER a1;
+
 CONSTRAINT (SET(isPosted(AlcoholLimitDetail a)) OR CHANGED(fromDate(alcoholLimit(a))) OR CHANGED(toDate(alcoholLimit(a)))) AND isPosted(alcoholLimit(a)) AND
-    (GROUP SUM 1 IF a != AlcoholLimitDetail a1 AND toDate(alcoholLimit(a)) >= fromDate(alcoholLimit(a1)) AND fromDate(alcoholLimit(a)) <= toDate(alcoholLimit(a1)) AND 
+    (GROUP SUM 1 IF a != AlcoholLimitDetail a1 AND isPosted(a1) AND toDate(alcoholLimit(a)) >= fromDate(alcoholLimit(a1)) AND fromDate(alcoholLimit(a)) <= toDate(alcoholLimit(a1)) AND 
     productType(a) = productType(a1) AND alcoholLimit(a)!=alcoholLimit(a1)) 
-    MESSAGE 'Периоды действия документов МРЦ в рамках указанных видов продукции не должны пересекаться';
+    MESSAGE 'Периоды действия документов МРЦ в рамках указанных видов продукции не должны пересекаться' 
+    PROPERTIES dateTime(a), fromDate(a), toDate(a), idProductTypes(a), index(a), idProductType(a), fromValueAlcohol(a), toValueAlcohol(a), idAlcoholLimits(a);
 
 //CONSTRAINT (SET(isPosted(AlcoholLimit a)) OR CHANGED(fromDate(a)) OR CHANGED(toDate(a))) AND isPosted(a) AND
 //    (GROUP SUM 1 IF a != AlcoholLimit a1 AND toDate(a) >= fromDate(a1) AND fromDate(a) <= toDate(a1) AND in(a, ProductType p) AND in(a1, p))
