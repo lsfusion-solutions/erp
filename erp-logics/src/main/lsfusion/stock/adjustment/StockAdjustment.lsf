@@ -292,14 +292,21 @@ EXTEND FORM userAdjustment
     PROPERTIES READONLY prevCurrentBalance(b, i, sto) BEFORE prevCurrentBalance(b,sto)
 ;
 
-filterAdjustmentDateFrom 'Дата с' = DATA LOCAL DATE ();
+filterAdjustmentDateFrom 'Дата с' = DATA LOCAL NESTED DATE ();
 filterDateFrom (Adjustment i) = date(i) >= filterAdjustmentDateFrom() OR NOT filterAdjustmentDateFrom();      
 
-filterAdjustmentDateTo 'Дата по' = DATA LOCAL DATE ();
-filterDateTo (Adjustment i) = date(i) <= filterAdjustmentDateTo() OR NOT filterAdjustmentDateTo();   
+filterAdjustmentDateTo 'Дата по' = DATA LOCAL NESTED DATE ();
+filterDateTo (Adjustment i) = date(i) <= filterAdjustmentDateTo() OR NOT filterAdjustmentDateTo();
+
+filterAdjustmentStock = DATA LOCAL NESTED Stock();
+nameFilterAdjustmentStock 'Склад' = name(filterAdjustmentStock());
+filterStock (Adjustment i) = stock(i) == filterAdjustmentStock() OR NOT filterAdjustmentStock();
+
+CONSTRAINT filterAdjustmentStock() AND NOT isCompany(filterAdjustmentStock())
+    CHECKED BY filterAdjustmentStock[] MESSAGE 'Для фильтра в изменениях остатков выбран склад, который не принадлежит компании';
 
 FORM adjustments 'Изменения остатков'
-    PROPERTIES () filterAdjustmentDateFrom, filterAdjustmentDateTo   
+    PROPERTIES () filterAdjustmentDateFrom, filterAdjustmentDateTo, nameFilterAdjustmentStock   
     
     OBJECTS i = Adjustment
     PROPERTIES (i) READONLYIF isReadonly() isClosed, isPosted, number, series, date, time,
@@ -314,8 +321,7 @@ FORM adjustments 'Изменения остатков'
     PROPERTIES (i) NEWSESSION NEW[UserAdjustment], editI = EDIT SHOWIF showEdit(i), deletei = DELETE SHOWIF showDelete[UserAdjustment](i)
     PROPERTIES(i)  close[UserAdjustment] SHOWIF isOpened[UserAdjustment](i), open SHOWIF isClosed[UserAdjustment](i)     
 
-    FILTERS filterDateFrom(i),
-            filterDateTo(i)
+    FILTERS filterDateFrom(i), filterDateTo(i), filterStock(i)            
     
     OBJECTS d = AdjustmentDetail
     PROPERTIES (d) READONLY index, idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku,
@@ -337,6 +343,7 @@ DESIGN adjustments {
             horizontal = TRUE;
             MOVE PROPERTY (filterAdjustmentDateFrom());
             MOVE PROPERTY (filterAdjustmentDateTo());
+            MOVE PROPERTY (nameFilterAdjustmentStock());
         }
 
         NEW documentContainer {

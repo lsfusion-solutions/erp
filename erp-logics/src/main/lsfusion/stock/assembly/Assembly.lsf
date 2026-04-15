@@ -249,21 +249,34 @@ show 'Просмотреть' (AssemblyDetail d)  {
 skipShowEdit= ABSTRACT VALUE BOOLEAN (Assembly);
 showEdit (Assembly a) = isOpened(a) AND NOT skipShowEdit(a);
 
-FORM assemblies 'Сборки товаров'
+filterAssemblyDateFrom 'Дата с' = DATA LOCAL NESTED DATE ();
+filterDateFrom (Assembly a) = date(a) >= filterAssemblyDateFrom() OR NOT filterAssemblyDateFrom();
 
+filterAssemblyDateTo 'Дата по' = DATA LOCAL NESTED DATE ();
+filterDateTo (Assembly a) = date(a) <= filterAssemblyDateTo() OR NOT filterAssemblyDateTo();
+
+filterAssemblyStock = DATA LOCAL NESTED Stock();
+nameFilterAssemblyStock 'Склад' = name(filterAssemblyStock());
+filterStock (Assembly w) = stock(w) == filterAssemblyStock() OR NOT filterAssemblyStock();
+
+CONSTRAINT filterAssemblyStock() AND NOT isCompany(filterAssemblyStock())
+    CHECKED BY filterAssemblyStock[] MESSAGE 'Для фильтра в сборках выбран склад, который не принадлежит компании';
+
+FORM assemblies 'Сборки товаров'
+    PROPERTIES () filterAssemblyDateFrom, filterAssemblyDateTo, nameFilterAssemblyStock
+    
     OBJECTS a = Assembly LAST
     PROPERTIES(a) READONLY isClosed, isPosted, nameOperation, number, series, date, time, nameStock,
                            idBarcodeSku, idSku, nameSku, quantity, sum,
-                           countAssemblyDetail, quantityAssemblyDetail
-                             
-    PROPERTIES(a) READONLY note
+                           countAssemblyDetail, quantityAssemblyDetail, note
 
     PROPERTIES(a) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                  postedNameUser, postedTime, postedHostnameComputer
 
     PROPERTIES(a) NEWSESSION NEW, EDIT SHOWIF showEdit(a), DELETE SHOWIF isOpened(a) 
-    PROPERTIES(a) close SHOWIF isOpened(a), open SHOWIF isClosed(a)     
-    
+    PROPERTIES(a) close SHOWIF isOpened(a), open SHOWIF isClosed(a)
+    FILTERS filterDateFrom(a), filterDateTo(a), filterStock(a)
+
     OBJECTS d = AssemblyDetail
     PROPERTIES(d) READONLY index,
                            idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku,
@@ -273,6 +286,15 @@ FORM assemblies 'Сборки товаров'
 @extendFormFilterAccessStock(Assembly, a, assemblies, stock, company);
 
 DESIGN assemblies {
+    BOX {
+        NEW filter FIRST {
+            caption = 'Фильтры';
+            horizontal = TRUE;
+            MOVE PROPERTY (filterAssemblyDateFrom());
+            MOVE PROPERTY (filterAssemblyDateTo());
+            MOVE PROPERTY (nameFilterAssemblyStock());
+        }
+    }
     OBJECTS {
         NEW tabbedPane {
             fill = 0.5;

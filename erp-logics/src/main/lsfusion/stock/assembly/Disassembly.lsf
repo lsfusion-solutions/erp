@@ -241,12 +241,21 @@ show 'Просмотреть' (DisassemblyDetail d)  {
 
 @extendFormDocumentSkuStock(disassembly, disassembly, a, stock, );
 
+filterDisassemblyDateFrom 'Дата с' = DATA LOCAL NESTED DATE ();
+filterDateFrom (Disassembly a) = date(a) >= filterDisassemblyDateFrom() OR NOT filterDisassemblyDateFrom();
+
+filterDisassemblyDateTo 'Дата по' = DATA LOCAL NESTED DATE ();
+filterDateTo (Disassembly a) = date(a) <= filterDisassemblyDateTo() OR NOT filterDisassemblyDateTo();
+
 filterDisassemblyStock = DATA LOCAL NESTED Stock();
 nameFilterDisassemblyStock 'Склад' = name(filterDisassemblyStock());
-filterDisassemblyStock (Disassembly w) = stock(w) == filterDisassemblyStock() OR NOT filterDisassemblyStock();      
+filterStock (Disassembly w) = stock(w) == filterDisassemblyStock() OR NOT filterDisassemblyStock();
+
+CONSTRAINT filterDisassemblyStock() AND NOT isCompany(filterDisassemblyStock())
+    CHECKED BY filterDisassemblyStock[] MESSAGE 'Для фильтра в разборках выбран склад, который не принадлежит компании';
 
 FORM disassemblies 'Разборки товаров'
-    PROPERTIES () nameFilterDisassemblyStock
+    PROPERTIES () filterDisassemblyDateFrom, filterDisassemblyDateTo, nameFilterDisassemblyStock
 
     OBJECTS a = Disassembly LAST
     PROPERTIES(a) READONLYIF isReadonly() isClosed 
@@ -261,7 +270,7 @@ FORM disassemblies 'Разборки товаров'
 
     PROPERTIES(a) NEWSESSION NEW, EDIT SHOWIF isOpened(a), DELETE SHOWIF isOpened(a) 
     PROPERTIES(a) close SHOWIF isOpened(a), open SHOWIF isClosed(a)     
-    FILTERS filterDisassemblyStock(a)
+    FILTERS filterDateFrom(a), filterDateTo(a), filterStock(a)
     
     OBJECTS d = DisassemblyDetail
     PROPERTIES(d) READONLY index,
@@ -274,10 +283,14 @@ FORM disassemblies 'Разборки товаров'
 @extendFormEditable(disassemblies);
 
 DESIGN disassemblies {
-    NEW filters BEFORE OBJECTS {
-        horizontal = TRUE;
-        caption = 'Фильтры';
-        MOVE PROPERTY(nameFilterDisassemblyStock()); 
+    BOX {
+        NEW filters FIRST {
+            horizontal = TRUE;
+            caption = 'Фильтры';
+            MOVE PROPERTY (filterDisassemblyDateFrom());
+            MOVE PROPERTY (filterDisassemblyDateTo());
+            MOVE PROPERTY (nameFilterDisassemblyStock());
+        }
     }
     OBJECTS {
         NEW tabbedPane {
