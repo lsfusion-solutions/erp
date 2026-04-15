@@ -42,3 +42,41 @@ DESIGN userRevaluation {
 EXTEND FORM revaluations
     PROPERTIES READONLY nameDepartment(p) AFTER nameStock(p)
 ;
+
+//---------------------------- Проведение результатов по BinLedger----------------------------//
+
+CLASS OutRevaluationBinLedger 'Уценка' : BinLedger; 
+
+needToOutBinLedger(RevaluationDetail detail) = diffSum(detail)<0 AND isPosted(detail) AND department(detail);
+
+outRevaluationBinLedger = AGGR OutRevaluationBinLedger WHERE needToOutBinLedger(RevaluationDetail revaluationDetail) MATERIALIZED INDEXED;
+
+dateTime[BinLedger] (OutRevaluationBinLedger ledger) += dateTime(revaluationDetail(ledger));
+isPosted[BinLedger] (OutRevaluationBinLedger ledger) += isPosted(revaluationDetail(ledger));
+isClosed[BinLedger] (OutRevaluationBinLedger ledger) += isClosed(revaluationDetail(ledger));
+stock[BinLedger] (OutRevaluationBinLedger ledger) += stock(revaluationDetail(ledger));
+outDepartment[BinLedger] (OutRevaluationBinLedger ledger) += department(revaluationDetail(ledger));
+description[BinLedger] (OutRevaluationBinLedger ledger) += description(revaluationDetail(ledger));
+sku[BinLedger] (OutRevaluationBinLedger ledger) += sku(revaluationDetail(ledger));
+batch[BinLedger] (OutRevaluationBinLedger ledger) += batch(revaluationDetail(ledger));
+sum[BinLedger] (OutRevaluationBinLedger ledger) += abs(diffSum(revaluationDetail(ledger)));
+edit[BinLedger](OutRevaluationBinLedger ledger) + {edit(revaluationDetail(ledger));}
+show[BinLedger](OutRevaluationBinLedger ledger) + {show(revaluationDetail(ledger));}
+
+CLASS InRevaluationBinLedger 'Дооценка' : BinLedger;
+
+needToInBinLedger(RevaluationDetail detail) = diffSum(detail)>0 AND isPosted(detail) AND department(detail);
+
+inRevaluationBinLedger = AGGR InRevaluationBinLedger WHERE needToInBinLedger(RevaluationDetail revaluationDetail) MATERIALIZED INDEXED;
+
+dateTime[BinLedger] (InRevaluationBinLedger ledger) += dateTime(revaluationDetail(ledger));
+isPosted[BinLedger] (InRevaluationBinLedger ledger) += isPosted(revaluationDetail(ledger));
+isClosed[BinLedger] (InRevaluationBinLedger ledger) += isClosed(revaluationDetail(ledger));
+stock[BinLedger] (InRevaluationBinLedger ledger) += stock(revaluationDetail(ledger));
+outDepartment[BinLedger] (InRevaluationBinLedger ledger) += department(revaluationDetail(ledger));
+description[BinLedger] (InRevaluationBinLedger ledger) += description(revaluationDetail(ledger));
+sku[BinLedger] (InRevaluationBinLedger ledger) += sku(revaluationDetail(ledger));
+batch[BinLedger] (InRevaluationBinLedger ledger) += batch(revaluationDetail(ledger));
+sum[BinLedger] (InRevaluationBinLedger ledger) += abs(diffSum(revaluationDetail(ledger)));
+edit[BinLedger](InRevaluationBinLedger ledger) + {edit(revaluationDetail(ledger));}
+show[BinLedger](InRevaluationBinLedger ledger) + {show(revaluationDetail(ledger));}
