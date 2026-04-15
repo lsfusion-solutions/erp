@@ -1,0 +1,375 @@
+MODULE VetisRegisterProductionOperation;
+
+REQUIRE VetisAMSReceiveResponse, VetisIncomingConsignment, VetisStockEntryImport, VetisDocumentImport, VetisProductionOrder;
+
+NAMESPACE Vetis;
+
+CLASS RegisterProductionOperationRequest 'Производство' : ApplicationRequest;
+
+productionOrder = DATA Order (RegisterProductionOperationRequest) INDEXED NONULL;
+
+localTransactionId (RegisterProductionOperationRequest r) = LONG(r AS RegisterProductionOperationRequest);
+
+GROUP data EXTID 'apl:data';
+GROUP enterprise EXTID 'merc:enterprise';
+GROUP productionOperation EXTID 'merc:productionOperation';
+
+GROUP sourceStockEntry EXTID 'vd:sourceStockEntry';
+GROUP unit EXTID 'vd:unit';
+GROUP productiveBatch EXTID 'vd:productiveBatch' : productionOperation;
+GROUP productP EXTID 'vd:product' ;
+GROUP subProductP EXTID 'vd:subProduct' ;
+GROUP productItemP EXTID 'vd:productItem' ;
+GROUP unitP EXTID 'vd:unit';
+GROUP guidP EXTID 'vd:guid' ;
+GROUP dateOfProductionP EXTID 'vd:dateOfProduction' ;
+GROUP firstDate EXTID 'vd:firstDate' : dateOfProductionP;
+GROUP expiryDateP EXTID 'vd:expiryDate' ;
+GROUP firstDate1 EXTID 'vd:firstDate' : expiryDateP;
+GROUP packageList EXTID 'vd:packageList' ;
+GROUP packingType EXTID 'dt:packingType';
+GROUP vetDocument EXTID 'merc:vetDocument';
+GROUP authenticationP EXTID 'vd:authentication' : vetDocument;
+
+packageProductMarks = DATA LOCAL INTEGER(INTEGER);
+class = DATA LOCAL STRING(INTEGER);
+cargoExpertized = DATA LOCAL STRING(RegisterProductionOperationRequest );
+
+unit (ProductItem pi) = IF (GROUP SUM 1 IF in(Sku s, pi) AND split(s)) THEN (GROUP LAST Unit u IF name(u) = 'кг' ORDER u) ELSE (GROUP LAST Unit u IF name(u) = 'шт.' ORDER u);
+FORM registerProductionOperationRequest FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:registerProductionOperationRequest'
+    PROPERTIES ATTR
+    ='http://api.vetrf.ru/schema/cdm/dictionary/v2' EXTID 'xmlns:dt',
+        ='http://api.vetrf.ru/schema/cdm/base' EXTID 'xmlns:bs',
+        ='http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2' EXTID 'xmlns:merc',
+        ='http://api.vetrf.ru/schema/cdm/application/ws-definitions' EXTID 'xmlns:apldef',
+        ='http://api.vetrf.ru/schema/cdm/application' EXTID 'xmlns:apl',
+        ='http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2' EXTID 'xmlns:vd'
+    OBJECTS r = RegisterProductionOperationRequest PANEL
+    PROPERTIES(r) localTransactionId EXTID 'merc:localTransactionId'
+    PROPERTIES(r) IN initiator loginMercury EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:login'
+    PROPERTIES IN enterprise =guidEnterprise(productsStock(productionOrder(r))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
+
+    OBJECTS rawBatch = (d = ComponentDetail, se = StockEntry) EXTID 'vd:rawBatch' IN productionOperation
+
+        PROPERTIES(se) IN sourceStockEntry guid EXTID 'bs:guid'
+        PROPERTIES(d, se) volume EXTID 'vd:volume'
+        PROPERTIES IN unit =guid(unit(se)) EXTID 'bs:guid'
+    FILTERS order(d) = productionOrder(r) AND matches(d, se)
+    
+    OBJECTS productiveBatch= (pd = ProductDetail, pi = ProductItem) EXTID 'vd:productiveBatch' IN productionOperation
+//
+        PROPERTIES =STRING(id(productType(product(subProduct(pi))))) EXTID 'vd:productType'
+        PROPERTIES IN productP =guid(product(subProduct(pi))) EXTID 'bs:guid'
+        PROPERTIES IN subProductP =guid(subProduct(pi)) EXTID 'bs:guid'
+        PROPERTIES IN productItemP =guid(pi) EXTID 'bs:guid'
+        PROPERTIES =NUMERIC[14,6](quantity(pd)*netWeight(sku(pd))) EXTID 'vd:volume'
+        PROPERTIES IN unitP =guid(unit(pi)) EXTID 'bs:guid'
+        PROPERTIES IN firstDate = extractYear(date(pd)) EXTID 'dt:year', =extractMonthNumber(date(pd)) EXTID 'dt:month', =extractDay(date(pd)) EXTID 'dt:day', =extractHour(time(pd)) EXTID 'dt:hour'
+        PROPERTIES IN firstDate1 =  extractYear(sum(date(pd), 1)) EXTID 'dt:year', =extractMonthNumber(sum(date(pd), 1)) EXTID 'dt:month', =extractDay(sum(date(pd), 1)) EXTID 'dt:day', =extractHour(time(pd)) EXTID 'dt:hour'
+        PROPERTIES = batch(pd) EXTID 'vd:batchID', ='false' DRAW productiveBatch EXTID 'vd:perishable',  ='false' DRAW productiveBatch EXTID 'vd:lowGradeCargo'
+    FILTERS in(sku(pd), pi) AND order(pd) = productionOrder(r)
+
+//    OBJECTS package = INTEGER EXTID 'dt:package' IN packageList
+//        PROPERTIES(package) level EXTID 'dt:level', quantity EXTID 'dt:quantity'
+//        PROPERTIES(package) IN packingType guid6 EXTID 'bs:guid'
+//    FILTERS imported(package)
+
+//    OBJECTS productMarks = INTEGER EXTID 'dt:productMarks'
+//    FILTERS packageProductMarks(productMarks) == package
+//        PROPERTIES(productMarks) class ATTR
+//    FILTERS imported(productMarks)
+    PROPERTIES(r) IN authenticationP cargoExpertized EXTID 'vd:cargoExpertized'
+;
+
+
+registerProductionOperationRequest 'Заказ производство' (Order o) {
+    NEWSESSION {
+        NEW r = RegisterProductionOperationRequest {
+            productionOrder(r) <- o;
+            cargoExpertized(r) <- 'VSEFULL';
+            businessEntity(r) <- businessEntity(legalEntity(productsStock(o)));
+
+            EXPORT registerProductionOperationRequest OBJECTS r=r XML;
+            submit(r, exportFile());
+        }
+        APPLY;
+    }
+}
+
+EXTEND FORM orders
+    PROPERTIES(o) TOOLBAR registerProductionOperationRequest 
+;
+
+DESIGN orders{
+    actionContainer{
+        MOVE PROPERTY (registerProductionOperationRequest(o));
+    }
+}
+
+
+GROUP stockEntryListR EXTID 'merc:stockEntryList';
+
+GROUP vetDocumentR EXTID 'vd:vetDocument';
+GROUP stockEntryR EXTID 'vd:stockEntry';
+GROUP batchR EXTID 'vd:batch';
+GROUP productR EXTID 'vd:product' : batchR;
+GROUP subProductR EXTID 'vd:subProduct' : batchR;
+GROUP productItemR EXTID 'vd:productItem' : batchR;
+GROUP unitR EXTID 'vd:unit' : batchR;
+GROUP dateOfProductionR EXTID 'vd:dateOfProduction' : batchR;
+GROUP firstDateR EXTID 'vd:firstDate' : dateOfProductionR;
+GROUP expiryDateR EXTID 'vd:expiryDate' : batchR;
+GROUP firstDate1R EXTID 'vd:firstDate' : expiryDateR;
+GROUP originR EXTID 'vd:origin' : batchR;
+GROUP productItem1R EXTID 'vd:productItem' : originR;
+GROUP countryR EXTID 'vd:country' : originR;
+GROUP producerR EXTID 'vd:producer' : originR;
+GROUP enterpriseR EXTID 'dt:enterprise' : producerR;
+GROUP packageListR EXTID 'vd:packageList' : batchR;
+GROUP packageR EXTID 'dt:package' : packageListR;
+GROUP packingTypeR EXTID 'dt:packingType' : packageR;
+GROUP productMarks1R EXTID 'dt:productMarks' : packageR;
+GROUP ownerR EXTID 'vd:owner' : batchR;
+GROUP vetDocument1R EXTID 'merc:vetDocument';
+GROUP certifiedBatchR EXTID 'vd:certifiedBatch' : vetDocument1R;
+GROUP batch1R EXTID 'vd:batch' : certifiedBatchR;
+GROUP product1R EXTID 'vd:product' : batch1R;
+GROUP subProduct1R EXTID 'vd:subProduct' : batch1R;
+GROUP productItem2R EXTID 'vd:productItem' : batch1R;
+GROUP unit1R EXTID 'vd:unit' : batch1R;
+GROUP dateOfProduction1R EXTID 'vd:dateOfProduction' : batch1R;
+GROUP firstDate2R EXTID 'vd:firstDate' : dateOfProduction1R;
+GROUP expiryDate1R EXTID 'vd:expiryDate' : batch1R;
+GROUP firstDate3R EXTID 'vd:firstDate' : expiryDate1R;
+GROUP origin1R EXTID 'vd:origin' : batch1R;
+GROUP country1R EXTID 'vd:country' : origin1R;
+GROUP producer1R EXTID 'vd:producer' : origin1R;
+GROUP enterprise1R EXTID 'dt:enterprise' : producer1R;
+GROUP owner1R EXTID 'vd:owner' : batch1R;
+GROUP authenticationR EXTID 'vd:authentication' : vetDocument1R;
+GROUP statusChangeR EXTID 'vd:statusChange' : vetDocument1R;
+GROUP specifiedPersonR EXTID 'vd:specifiedPerson' : statusChangeR;
+GROUP organizationR EXTID 'vd:organization' : specifiedPersonR;
+GROUP addressR EXTID 'dt:address' : organizationR;
+GROUP regionR EXTID 'dt:region' : addressR;
+
+uuidR = DATA LOCAL STRING(INTEGER);
+uuid1R = DATA LOCAL STRING(INTEGER);
+guidR = DATA LOCAL STRING(INTEGER);
+activeR = DATA LOCAL BOOLEAN (INTEGER);
+lastR = DATA LOCAL STRING(INTEGER);
+statusR = DATA LOCAL STRING(INTEGER);
+createDateR = DATA LOCAL ZDATETIME(INTEGER);
+updateDateR = DATA LOCAL ZDATETIME(INTEGER);
+previousR = DATA LOCAL STRING(INTEGER);
+entryNumberR = DATA LOCAL STRING(INTEGER);
+productTypeR = DATA LOCAL STRING(INTEGER);
+uuid2R = DATA LOCAL STRING(INTEGER);
+guid1R = DATA LOCAL STRING(INTEGER);
+nameR = DATA LOCAL STRING(INTEGER);
+uuid3R = DATA LOCAL STRING(INTEGER);
+guid2R = DATA LOCAL STRING(INTEGER);
+name1R = DATA LOCAL STRING(INTEGER);
+uuid4R = DATA LOCAL STRING(INTEGER);
+guid3R = DATA LOCAL STRING(INTEGER);
+globalIDR = DATA LOCAL STRING(INTEGER);
+name2R = DATA LOCAL STRING(INTEGER);
+codeR = DATA LOCAL STRING(INTEGER);
+volumeR = DATA LOCAL STRING(INTEGER);
+uuid5R = DATA LOCAL STRING(INTEGER);
+guid4R = DATA LOCAL STRING(INTEGER);
+name3R = DATA LOCAL STRING(INTEGER);
+yearR = DATA LOCAL INTEGER(INTEGER);
+monthR = DATA LOCAL INTEGER(INTEGER);
+dayR = DATA LOCAL INTEGER(INTEGER);
+year1R = DATA LOCAL INTEGER(INTEGER);
+month1R = DATA LOCAL INTEGER(INTEGER);
+day1R = DATA LOCAL INTEGER(INTEGER);
+batchIDR = DATA LOCAL STRING(INTEGER);
+perishableR = DATA LOCAL STRING(INTEGER);
+uuid6R = DATA LOCAL STRING(INTEGER);
+guid5R = DATA LOCAL STRING(INTEGER);
+globalID1R = DATA LOCAL STRING(INTEGER);
+name4R = DATA LOCAL STRING(INTEGER);
+code1R = DATA LOCAL STRING(INTEGER);
+uuid7R = DATA LOCAL STRING(INTEGER);
+guid6R = DATA LOCAL STRING(INTEGER);
+name5R = DATA LOCAL STRING(INTEGER);
+uuid8R = DATA LOCAL STRING(INTEGER);
+guid7R = DATA LOCAL STRING(INTEGER);
+name6R = DATA LOCAL STRING(INTEGER);
+roleR = DATA LOCAL STRING(INTEGER);
+lowGradeCargoR = DATA LOCAL STRING(INTEGER);
+levelR = DATA LOCAL STRING(INTEGER);
+uuid9R = DATA LOCAL STRING(INTEGER);
+guid8R = DATA LOCAL STRING(INTEGER);
+globalID2R = DATA LOCAL STRING(INTEGER);
+name7R = DATA LOCAL STRING(INTEGER);
+quantityR = DATA LOCAL STRING(INTEGER);
+productMarksR = DATA LOCAL STRING(INTEGER);
+classR = DATA LOCAL STRING(INTEGER);
+uuid10R = DATA LOCAL STRING(INTEGER);
+guid9R = DATA LOCAL STRING(INTEGER);
+//countR = DATA LOCAL STRING();
+//totalR = DATA LOCAL STRING();
+//offsetR = DATA LOCAL STRING();
+vetDocumentUuidR = DATA LOCAL STRING();
+issueDateR = DATA LOCAL STRING();
+vetDFormR = DATA LOCAL STRING();
+vetDTypeR = DATA LOCAL STRING();
+vetDStatusR = DATA LOCAL STRING();
+finalizedR = DATA LOCAL STRING();
+lastUpdateDateR = DATA LOCAL ZDATETIME();
+productType1R = DATA LOCAL INTEGER();
+uuid12R = DATA LOCAL STRING();
+guid10R = DATA LOCAL STRING();
+name8R = DATA LOCAL STRING();
+uuid13R = DATA LOCAL STRING();
+guid11R = DATA LOCAL STRING();
+name9R = DATA LOCAL STRING();
+uuid14R = DATA LOCAL STRING();
+guid12R = DATA LOCAL STRING();
+name10R = DATA LOCAL STRING();
+code2R = DATA LOCAL STRING();
+volume1R = DATA LOCAL STRING();
+uuid15R = DATA LOCAL STRING();
+guid13R = DATA LOCAL STRING();
+name11R = DATA LOCAL STRING();
+year2R = DATA LOCAL STRING();
+month2R = DATA LOCAL STRING();
+day2R = DATA LOCAL STRING();
+year3R = DATA LOCAL STRING();
+month3R = DATA LOCAL STRING();
+day3R = DATA LOCAL STRING();
+batchID1R = DATA LOCAL STRING();
+perishable1R = DATA LOCAL BOOLEAN ();
+uuid16R = DATA LOCAL STRING();
+guid14R = DATA LOCAL STRING();
+name12R = DATA LOCAL STRING();
+uuid17R = DATA LOCAL STRING();
+guid15R = DATA LOCAL STRING();
+name13R = DATA LOCAL STRING();
+role1R = DATA LOCAL STRING();
+lowGradeCargo1R = DATA LOCAL BOOLEAN ();
+uuid18R = DATA LOCAL STRING();
+guid16R = DATA LOCAL STRING();
+cargoExpertizedR = DATA LOCAL STRING();
+status1R = DATA LOCAL STRING();
+fioR = DATA LOCAL STRING();
+workEmailR = DATA LOCAL STRING();
+name14R = DATA LOCAL STRING();
+uuid19R = DATA LOCAL STRING();
+guid17R = DATA LOCAL STRING();
+name15R = DATA LOCAL STRING();
+actualDateTimeR = DATA LOCAL ZDATETIME();
+
+FORM registerProductionOperationResponse FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:registerProductionOperationResponse'
+//    PROPERTIES() IN stockEntryListR countR ATTR, totalR ATTR, offsetR ATTR
+
+    OBJECTS stockEntry = INTEGER EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:stockEntry' IN stockEntryListR
+
+    PROPERTIES(stockEntry) guidR EXTID 'bs:guid', activeR EXTID 'bs:active', lastR EXTID 'bs:last', statusR EXTID 'bs:status', createDateR EXTID 'bs:createDate', updateDateR EXTID 'bs:updateDate', previousR EXTID 'bs:previous', entryNumberR EXTID 'vd:entryNumber'
+    PROPERTIES(stockEntry) IN vetDocumentR uuidR EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid'
+    FILTERS imported(stockEntry)
+    PROPERTIES(stockEntry) IN batchR productTypeR EXTID 'vd:productType', volumeR EXTID 'vd:volume', batchIDR EXTID 'vd:batchID', perishableR EXTID 'vd:perishable', lowGradeCargoR EXTID 'vd:lowGradeCargo'
+    PROPERTIES(stockEntry) IN product uuid2R EXTID 'bs:uuid', guid1R EXTID 'bs:guid', nameR EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:name'
+    PROPERTIES(stockEntry) IN subProductR uuid3R EXTID 'bs:uuid', guid2R EXTID 'bs:guid', name1R EXTID 'dt:name'
+    PROPERTIES(stockEntry) IN productItemR uuid4R EXTID 'bs:uuid', guid3R EXTID 'bs:guid', globalIDR EXTID 'dt:globalID', name2R EXTID 'dt:name', codeR EXTID 'dt:code'
+    PROPERTIES(stockEntry) IN unitR uuid5R EXTID 'bs:uuid', guid4R EXTID 'bs:guid', name3R EXTID 'dt:name'
+    PROPERTIES(stockEntry) IN firstDateR yearR EXTID 'dt:year', monthR EXTID 'dt:month', dayR EXTID 'dt:day'
+    PROPERTIES(stockEntry) IN firstDate1R year1R EXTID 'dt:year', month1R EXTID 'dt:month', day1R EXTID 'dt:day'
+    PROPERTIES(stockEntry) IN productItem1R uuid6R EXTID 'bs:uuid', guid5R EXTID 'bs:guid', globalID1R EXTID 'dt:globalID', name4R EXTID 'dt:name', code1R EXTID 'dt:code'
+    PROPERTIES(stockEntry) IN countryR uuid7R EXTID 'bs:uuid', guid6R EXTID 'bs:guid', name5R EXTID 'dt:name'
+    PROPERTIES(stockEntry) IN producerR roleR EXTID 'dt:role'
+    PROPERTIES(stockEntry) IN enterpriseR uuid8R EXTID 'bs:uuid', guid7R EXTID 'bs:guid', name6R EXTID 'dt:name'
+    PROPERTIES(stockEntry) IN packageR levelR EXTID 'dt:level', quantityR EXTID 'dt:quantity', productMarksR EXTID 'dt:productMarks'
+    PROPERTIES(stockEntry) IN packingTypeR uuid9R EXTID 'bs:uuid', guid8R EXTID 'bs:guid', globalID2R EXTID 'dt:globalID', name7R EXTID 'dt:name'
+    PROPERTIES(stockEntry) IN productMarks1R classR ATTR
+    PROPERTIES(stockEntry) IN ownerR uuid10R EXTID 'bs:uuid', guid9R EXTID 'bs:guid'
+    PROPERTIES() IN vetDocument1R vetDocumentUuidR EXTID 'bs:uuid', issueDateR EXTID 'vd:issueDate', vetDFormR EXTID 'vd:vetDForm', vetDTypeR EXTID 'vd:vetDType', vetDStatusR EXTID 'vd:vetDStatus', finalizedR EXTID 'vd:finalized', lastUpdateDateR EXTID 'vd:lastUpdateDate'
+    PROPERTIES() IN batch1R productType1R EXTID 'vd:productType', volume1R EXTID 'vd:volume', batchID1R EXTID 'vd:batchID', perishable1R EXTID 'vd:perishable', lowGradeCargo1R EXTID 'vd:lowGradeCargo'
+    PROPERTIES() IN product1R uuid12R EXTID 'bs:uuid', guid10R EXTID 'bs:guid', name8R EXTID 'dt:name'
+    PROPERTIES() IN subProduct1R uuid13R EXTID 'bs:uuid', guid11R EXTID 'bs:guid', name9R EXTID 'dt:name'
+    PROPERTIES() IN productItem2R uuid14R EXTID 'bs:uuid', guid12R EXTID 'bs:guid', name10R EXTID 'dt:name', code2R EXTID 'dt:code'
+    PROPERTIES() IN unit1R uuid15R EXTID 'bs:uuid', guid13R EXTID 'bs:guid', name11R EXTID 'dt:name'
+    PROPERTIES() IN firstDate2R year2R EXTID 'dt:year', month2R EXTID 'dt:month', day2R EXTID 'dt:day'
+    PROPERTIES() IN firstDate3R year3R EXTID 'dt:year', month3R EXTID 'dt:month', day3R EXTID 'dt:day'
+    PROPERTIES() IN country1R uuid16R EXTID 'bs:uuid', guid14R EXTID 'bs:guid', name12R EXTID 'dt:name'
+    PROPERTIES() IN producer1R role1R EXTID 'dt:role'
+    PROPERTIES() IN enterprise1R uuid17R EXTID 'bs:uuid', guid15R EXTID 'bs:guid', name13R EXTID 'dt:name'
+    PROPERTIES() IN owner1R uuid18R EXTID 'bs:uuid', guid16R EXTID 'bs:guid'
+    PROPERTIES() IN authenticationR cargoExpertizedR EXTID 'vd:cargoExpertized'
+    PROPERTIES() IN statusChangeR status1R EXTID 'vd:status', actualDateTimeR EXTID 'vd:actualDateTime'
+    PROPERTIES() IN specifiedPersonR fioR EXTID 'vd:fio', workEmailR EXTID 'vd:workEmail'
+    PROPERTIES() IN organizationR name14R EXTID 'dt:name'
+    PROPERTIES() IN regionR uuid19R EXTID 'bs:uuid', guid17R EXTID 'bs:guid', name15R EXTID 'dt:name';
+
+process (RegisterProductionOperationRequest r) + {
+    NEWSESSION {
+        stringToFile(response(r));
+        IMPORT registerProductionOperationResponse XML FROM resultFile();
+
+        IF vetDocumentUuidR() AND NOT vetDocument(vetDocumentUuidR()) THEN NEW d = VetDocument {
+            uuid(d) <- vetDocumentUuidR();
+        }
+
+        FOR uuid(VetDocument d) = vetDocumentUuidR() DO {
+            issueDate(d) <- toDateFormat(issueDateR(), 'YYYY-MM-DD');
+
+            type(d) <- vetDocumentType(vetDTypeR());
+            status(d) <- vetDocumentStatus(vetDStatusR());
+
+            productType(d) <- productType(productType1R());
+            product(d) <- product(guid10R());
+            subProduct(d) <- subProduct(guid11R());
+
+            productItem(d) <- productItem(guid12R());
+            productItemXml(d) <- name10R();
+
+            volume(d) <- NUMERIC[16,5](volume1R());
+            unit(d) <- unit(guid13R());
+
+            dateOfProduction(d) <- toDateFormat(year2R() + '-' + month2R() + '-' + day2R(), 'YYYY-MM-DD');
+//            dateOfProductionHour(d) <- dateOfProductionHour();
+//            dateOfProductionXml(d) <- dateOfProductionXml();
+
+            expiryDate(d) <- toDateFormat(year3R() + '-' + month3R() + '-' + day3R(), 'YYYY-MM-DD');
+//            expiryDateHour(d) <- expiryDateHour();
+//            expiryDateXml(d) <- expiryDateXml();
+
+            batchID(d) <- batchID1R();
+            perishable(d) <- perishable1R();
+//            origin(d) <- origin();
+            lowGradeCargo(d) <- lowGradeCargo1R();
+//            packageList(d) <- packageList();
+
+//            authentication(d) <- authentication();
+//            purpose(d) <- purpose(purposeGuid());
+
+        }
+
+        FOR  guidR(INTEGER i) AND NOT stockEntry(guidR(i)) DO NEW d = StockEntry {
+            guid(d) <- guidR(i);
+            enterprise(d) <- enterprise(guid7R(i));
+        }
+
+        FOR guid(StockEntry d) = guidR(INTEGER i) DO {
+            active(d) <- activeR(i);
+            number(d) <- entryNumberR(i);
+            volume(d) <- NUMERIC[16,5](volumeR(i));
+            unit(d) <- unit(uuid5R(i));
+            dateOfProduction(d) <- toDateFormat(yearR(i) + '-' + monthR(i) + '-' + dayR(i), 'YYYY-MM-DD');
+//            dateOfProductionHour(d) <- hourR(i);
+            expiryDate(d) <- toDateFormat(year1R(i) + '-' + month1R(i)+ '-' + day1R(i), 'YYYY-MM-DD');
+//            expiryDateHour(d) <- hour1R(i);
+//
+            in(d, VetDocument vd) <- TRUE IF GROUP SUM 1 IF uuid(vd) = uuidR(i);
+//
+            in(d, ProductItem pi) <- TRUE IF pi = productItem(guid3R(i));
+        }
+//
+        APPLY;
+//        processed(r) <- TRUE;
+        APPLY;
+    }
+}
