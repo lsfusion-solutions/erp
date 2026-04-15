@@ -195,6 +195,18 @@ EXTEND FORM employee
     PROPERTIES isResponsiblePerson(department, e)
 ;
 
+inspector = DATA Employee (BinInventory);
+namePositionInspector 'Провизор-инспектор  ОФО' (BinInventory i) = namePosition(inspector(i))  CHARWIDTH 50;
+shortNamePositionInspector 'Провизор-инспектор  ОФО' (BinInventory i) = positionShortName(inspector(i))  CHARWIDTH 50;
+nameInspector 'Провизор-инспектор  ОФО' (BinInventory i) = name(inspector(i))  CHARWIDTH 50;
+shortNameInspector 'Провизор-инспектор  ОФО' (BinInventory i) = shortName(inspector(i))  CHARWIDTH 50;
+
+accounter = DATA Employee (BinInventory);
+namePositionAccounter 'Проверяющий бухгалтер' (BinInventory i) = namePosition(accounter(i))  CHARWIDTH 50;
+shortNamePositionAccounter 'Проверяющий бухгалтер' (BinInventory i) = positionShortName(accounter(i))  CHARWIDTH 50;
+nameAccounter 'Проверяющий бухгалтер' (BinInventory i) = name(accounter(i))  CHARWIDTH 50;
+shortNameAccounter 'Проверяющий бухгалтер' (BinInventory i) = shortName(accounter(i))  CHARWIDTH 50;
+
 isResponsiblePerson 'Материально ответственное лицо' = DATA BOOLEAN (BinInventory, Employee);
 orderResponsiblePerson 'Порядок отображения в печатной форме' = DATA INTEGER (BinInventory, Employee);
 
@@ -251,6 +263,7 @@ changeResponsiblePerson 'Изменить материально-ответст�
 } TOOLBAR;
 
 EXTEND FORM binInventory
+    PROPERTIES nameAccounter(i), nameInspector(i)
     OBJECTS eResponsible = Employee
     PROPERTIES(eResponsible) READONLY name, namePosition
     PROPERTIES READONLY orderResponsiblePerson(i, eResponsible)
@@ -262,7 +275,12 @@ EXTEND FORM binInventory
 DESIGN binInventory {
     tabbedContainer {
         NEW responsibliesContainer LAST {
-            caption = 'Материально-ответственные лица';
+            caption = 'Материально-ответственные лица и проверяющие';
+            NEW responsibliesContainerHead {
+                horizontal = TRUE;
+                MOVE PROPERTY(nameAccounter(i));
+                MOVE PROPERTY(nameInspector(i));
+            }
             MOVE BOX (eResponsible);
         }
     }

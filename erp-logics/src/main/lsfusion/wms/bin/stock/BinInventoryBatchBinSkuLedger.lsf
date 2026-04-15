@@ -30,7 +30,10 @@ fillBatchSum 'Заполнить суммы описи' (ListBinInventory li) {
         inSum(Batch batch, li) <- calcInSum(batch, li) WHERE in(batch, li);
     }
     overFillBatchSum(li);
-}    
+}
+
+countBatch 'Кол-во строк' (BinInventory i) =
+    GROUP SUM 1 IF in(Batch cbt, i) MATERIALIZED IN documentSum;
 
 TABLE batchBinInventory (Batch, BinInventory);
 
@@ -49,6 +52,10 @@ quantityShortage 'Кол-во недостачи / излишка' (Batch batch,
     quantityBalance(batch, binInventory) (-) inQuantity(batch, binInventory) MATERIALIZED;
 sumShortage 'Сумма недостачи / излишка' (Batch batch, BinInventory binInventory) =
     sumBalance(batch, binInventory) (-) sum(batch, binInventory) MATERIALIZED PATTERN '#,##0.00##';
+
+quantityBatch 'Кол-во по описям' = GROUP SUM inQuantity(Batch batch, BinInventory i) BY i CHARWIDTH 12 PATTERN '#,##0.00##';
+quantityBatchBalance 'Кол-во по остаткам'  = GROUP SUM quantityBalance(Batch batch, BinInventory i) BY i CHARWIDTH 12 PATTERN '#,##0.00##';
+quantityBatchShortage 'Кол-во недостачи / излишка' = GROUP SUM quantityShortage(Batch batch, BinInventory i) BY i CHARWIDTH 12 PATTERN '#,##0.00##';
 
 sumBatch 'Сумма по описям' = GROUP SUM sum(Batch batch, BinInventory i) BY i CHARWIDTH 12 PATTERN '#,##0.00##';
 sumBatchBalance 'Сумма по остаткам'  = GROUP SUM sumBalance(Batch batch, BinInventory i) BY i CHARWIDTH 12 PATTERN '#,##0.00##';
@@ -82,7 +89,7 @@ EXTEND FORM binInventory
     PROPERTIES(lbt, li) SHOWIF typeSkuLedger(i)==TypeSkuLedger.byBatches READONLY price, outSum, inSum, sumShortage
     PROPERTIES(li) fillBatchSum DRAW lbt PANEL TOOLBAR SHOWIF typeSkuLedger(i)==TypeSkuLedger.byBatches
 
-    PROPERTIES(i) READONLY sumBatch, sumBatchBalance, sumBatchShortage
+    PROPERTIES(i) READONLY countBatch, quantityBatch, quantityBatchBalance, quantityBatchShortage, sumBatch, sumBatchBalance, sumBatchShortage
 
     OBJECTS cbt = Batch
     PROPERTIES(cbt) READONLY nameSku, nameSkuType, idBarcodeSku, name
@@ -102,6 +109,10 @@ DESIGN binInventory {
             horizontal = TRUE;
             showIf = typeSkuLedger(i)==TypeSkuLedger.byBatches;
             caption = 'Итоговые суммы';
+            MOVE PROPERTY(countBatch(i));
+            MOVE PROPERTY(quantityBatch(i));
+            MOVE PROPERTY(quantityBatchBalance(i));
+            MOVE PROPERTY(quantityBatchShortage(i));
             MOVE PROPERTY(sumBatch(i));
             MOVE PROPERTY(sumBatchBalance(i));
             MOVE PROPERTY(sumBatchShortage(i));
