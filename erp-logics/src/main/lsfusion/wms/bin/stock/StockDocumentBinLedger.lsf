@@ -516,3 +516,29 @@ META defineStockDocumentBinLedgerGoafter (prefix, concrete, caption, stockProp, 
     @implementStockDocumentBinLedger(prefix, concrete, stockProp);
     @implementStockDocumentBinLedgerSum (prefix, concrete, departmentProp);
 END
+
+documentsClosedDate 'Дата закрытия документов' = DATA DATE (Department);
+
+EXTEND FORM department
+    PROPERTIES documentsClosedDate(d)
+;
+
+DESIGN department {
+    mainContainer {
+        MOVE PROPERTY(documentsClosedDate(d));
+    }
+}
+
+EXTEND FORM departments
+    PROPERTIES READONLY documentsClosedDate(d)
+;
+
+CONSTRAINT (((CHANGED(date(StockDocumentBinLedger d)) OR CHANGED(sum(d))) AND active(d)) OR CHANGED(active(d)))
+    AND documentsClosedDate(department(d)) AND NOT date(d) >= documentsClosedDate(department(d))
+    AND NOT allowChangeStockDocumentClosed(currentUser())
+    MESSAGE 'Запрещено редактировать документы для отдела до даты закрытия';
+
+CONSTRAINT (DROPPED(StockDocumentBinLedger d IS StockDocumentBinLedger))
+    AND documentsClosedDate(PREV(department(d))) AND NOT PREV(date(d)) >= documentsClosedDate(PREV(department(d))) AND PREV(active(d))
+    AND NOT allowChangeStockDocumentClosed(currentUser())
+    MESSAGE 'Запрещено удалять документы для отдела до даты закрытия';
