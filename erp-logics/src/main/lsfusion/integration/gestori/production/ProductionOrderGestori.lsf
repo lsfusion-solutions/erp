@@ -411,3 +411,26 @@ EXTEND FORM orders
 DESIGN orders{
     REMOVE PROPERTY (copy(o));
 }
+
+banRepeat 'Запрет повтора' = DATA BOOLEAN (BOM);
+
+EXTEND FORM BOMs
+    PROPERTIES (b) READONLY banRepeat SHOWIF isElaboration(operation(b))
+;
+
+EXTEND FORM BOM 
+    PROPERTIES (b) banRepeat SHOWIF isElaboration(operation(b))
+;
+
+DESIGN BOM {
+    row11 {
+    MOVE PROPERTY (banRepeat(b));
+    }
+}
+
+CONSTRAINT SET(BOM o IS BOM) AND isElaboration(operation(o)) AND banRepeat(BOM o1) AND o != o1 AND
+    (GROUP SUM 1 IF BOM(Product pd) = o) = (GROUP SUM 1 IF BOM(Product pd) = o1) AND 
+    (GROUP SUM 1 IF sku(Component cd) = sku(Component cd1) AND BOM(cd) = o AND BOM(cd1) = o1) AND
+    (GROUP SUM 1 IF sku(Product pd) = sku(Product pd1) AND BOM(pd) = o AND BOM(pd1) = o1) = (GROUP SUM 1 IF BOM(Product pd) = o) AND
+    (GROUP SUM 1 IF sku(Product pd) = sku(Product pd1) AND BOM(pd) = o AND BOM(pd1) = o1) = (GROUP SUM 1 IF BOM(Product pd) = o1) MESSAGE 'Запрещено повторять спецификацию ' 
+    PROPERTIES '' = number(o), number(o1);
