@@ -1,12 +1,15 @@
 package equ.clt.handler.mettlerToledo;
 
+import equ.api.ItemInfo;
+import equ.api.MachineryInfo;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
+import equ.api.stoplist.StopListInfo;
+import equ.api.stoplist.StopListItem;
 import equ.clt.handler.MultithreadScalesHandler;
 import equ.clt.handler.TCPPort;
 import lsfusion.base.ExceptionUtils;
-import lsfusion.base.Pair;
 
 import javax.naming.CommunicationException;
 import java.io.IOException;
@@ -17,6 +20,7 @@ import java.nio.charset.Charset;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import static equ.clt.ProcessMonitorEquipmentServer.notInterruptedTransaction;
 import static equ.clt.handler.HandlerUtils.safeMultiply;
@@ -29,6 +33,66 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
     private static short pluID = 207;
     private static short extraTextID = 209;
     private static short timeID = 238;
+
+    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoList) throws IOException {
+        if (stopListInfo != null && !stopListInfo.exclude) {
+            processStopListLogger.info(getLogPrefix() + "Send StopList # " + stopListInfo.number);
+            for (MachineryInfo scales : machineryInfoList) {
+                List<String> localErrors = new ArrayList<>();
+                TCPPort port = getTCPPort(scales);
+                try {
+                    port.open();
+
+                    synchronizeTime(port);
+
+                    int globalError = 0;
+                    try {
+                        int count = 0;
+                        for (StopListItem item : stopListInfo.stopListItemMap.values()) {
+                            count++;
+                            if (globalError < 5) {
+                                if (item.idBarcode != null && item.idBarcode.length() <= 5) {
+                                    processStopListLogger.info(String.format(getLogPrefix() + "IP %s, StopList #%s, deleting item #%s (barcode %s)", scales.port, stopListInfo.number, count, item.idBarcode));
+                                    int attempts = 0;
+                                    Boolean result = null;
+                                    while ((result == null || !result) && attempts < 3) {
+                                        result = deletePLU(port, item);
+                                        attempts++;
+                                    }
+                                    if (!result) {
+                                        logError(localErrors, String.format(getLogPrefix() + "IP %s, Result %s, item %s", scales.port, false, item.idItem));
+                                        globalError++;
+                                    }
+                                } else {
+                                    processStopListLogger.info(String.format(getLogPrefix() + "IP %s, StopList #%s, item #%s: incorrect barcode %s", scales.port, stopListInfo.number, count, item.idBarcode));
+                                }
+                            } else break;
+                        }
+                    } catch (Exception e) {
+                        logError(localErrors, String.format(getLogPrefix() + "IP %s error, StopList %s;", scales.port, stopListInfo.number), e);
+                    }
+                } catch (Exception e) {
+                    logError(localErrors, String.format(getLogPrefix() + "IP %s error, transaction %s;", scales.port, stopListInfo.number), e);
+                } finally {
+                    try {
+                        port.close();
+                    } catch (CommunicationException ignored) {
+                    }
+                }
+                processStopListLogger.info(getLogPrefix() + "Completed ip: " + scales.port);
+            }
+        }
+    }
+
+    private boolean deletePLU(TCPPort port, StopListItem item) throws IOException {
+        sendCommand(port, getDeletePLUBytes(item), pluID, (short) 1, (short) 0, (byte) 1);
+        return receiveReply(port);
+    }
+
+    private TCPPort getTCPPort(MachineryInfo scales) {
+        String[] hostPort = scales.port.split(":");
+        return hostPort.length == 1 ? new TCPPort(scales.port, 3001) : new TCPPort(hostPort[0], Integer.parseInt(hostPort[1]));
+    }
 
     @Override
     protected String getLogPrefix() {
@@ -64,28 +128,28 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
     }
 
     private boolean clearPlu(TCPPort port) throws IOException {
-        sendCommand(port, getClearBytes(), pluID, (short) 1, (short) 8);
+        sendCommand(port, getClearBytes(), pluID, (short) 1, (short) 8, (byte) 0);
         return receiveReply(port);
     }
 
     private boolean clearExtraText(TCPPort port) throws IOException {
-        sendCommand(port, getClearBytes(), extraTextID, (short) 1, (short) 8);
+        sendCommand(port, getClearBytes(), extraTextID, (short) 1, (short) 8, (byte) 0);
         return receiveReply(port);
     }
 
     private boolean synchronizeTime(TCPPort port) throws IOException {
-        sendCommand(port, getSynchronizeTimeBytes(), timeID, (short) 0, (short) 0);
+        sendCommand(port, getSynchronizeTimeBytes(), timeID, (short) 0, (short) 0, (byte) 0);
         return receiveReply(port);
     }
 
     private boolean loadPLU(TCPPort port, ScalesItem item) throws IOException {
-        sendCommand(port, getLoadPLUBytes(item), pluID, (short) 1, (short) 0);
+        sendCommand(port, getLoadPLUBytes(item), pluID, (short) 1, (short) 0, (byte) 0);
         return receiveReply(port);
     }
 
     private boolean loadExtraText(TCPPort port, ScalesItem item) throws IOException {
         if (item.description != null && !item.description.isEmpty()) {
-            sendCommand(port, getLoadExtraTextBytes(item), extraTextID, (short) 1, (short) 0);
+            sendCommand(port, getLoadExtraTextBytes(item), extraTextID, (short) 1, (short) 0, (byte) 0);
             return receiveReply(port);
         } else return true;
     }
@@ -152,6 +216,19 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
         return bytes.array();
     }
 
+    private byte[] getDeletePLUBytes(StopListItem item) {
+        ByteBuffer bytes = ByteBuffer.allocate(45);
+        bytes.order(ByteOrder.LITTLE_ENDIAN);
+
+        //plu number, 4 bytes
+        bytes.putInt(getPluNumber(item));
+
+        //CMDBody, 41 bytes (not used)
+        bytes.put(new byte[41]);
+
+        return bytes.array();
+    }
+
     private byte[] getSynchronizeTimeBytes() {
         ByteBuffer bytes = ByteBuffer.allocate(6);
         bytes.order(ByteOrder.LITTLE_ENDIAN);
@@ -182,7 +259,7 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
         return bytes.array();
     }
 
-    private int getPluNumber(ScalesItem item) {
+    private int getPluNumber(ItemInfo item) {
         return item.pluNumber != null ? item.pluNumber : Integer.parseInt(item.idBarcode);
     }
 
@@ -199,14 +276,12 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
         processTransactionLogger.error(errorText, t);
     }
 
-    private void sendCommand(TCPPort port, byte[] commandBytes, short commandId, short dpt, short ctl) throws IOException {
+    private void sendCommand(TCPPort port, byte[] commandBytes, short commandId, short dpt, short ctl, byte access) throws IOException {
 
         short pageCount = 1;
         short pageLength = (short) commandBytes.length;
 
         short totalLength = (short) (pageLength * pageCount + 8);
-
-        byte cmd = 0;
 
         byte dev = 0;
 
@@ -217,7 +292,7 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
         bytes.putShort(totalLength);//2 bytes, Размер команды
         bytes.putShort(pageCount);//2 bytes, Количество страниц в команде
         bytes.putShort(pageLength);//2 bytes, Размер страницы
-        bytes.put(cmd);//1 byte, Команда / Ответ
+        bytes.put(access);//1 byte, Команда / Ответ
         bytes.putShort(commandId);//2 bytes, Код команды
         bytes.putShort(ctl);//2 bytes, Управляющее поле
         bytes.putShort(dpt);//2 bytes, Номер отдела
@@ -246,9 +321,7 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
         protected SendTransactionResult run() {
             List<String> localErrors = new ArrayList<>();
             boolean cleared = false;
-            String[] hostPort = scales.port.split(":");
-            TCPPort port = hostPort.length == 1 ? new TCPPort(scales.port, 3001) : new TCPPort(hostPort[0], Integer.parseInt(hostPort[1]));
-
+            TCPPort port = getTCPPort(scales);
             try {
                 port.open();
 
