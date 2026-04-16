@@ -89,6 +89,10 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
                 String fileExtension = priceListSettings.getFileExtension();
                 if (importColumns != null && fileExtension != null) {
 
+                    if (fileExtension.equals("XLSX")) {
+                        fileExtension = "XLSX XLSM";
+                    }
+
                     ObjectValue objectValue = requestUserData(context, fileExtension + " Files", fileExtension);
                     if (objectValue != null) {
                         importData(context, userPriceListObject, priceListSettings, priceColumns, importColumns.get(0), importColumns.get(1), (RawFileData) objectValue.getValue(), false);
