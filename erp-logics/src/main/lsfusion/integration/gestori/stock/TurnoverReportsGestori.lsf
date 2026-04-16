@@ -618,50 +618,44 @@ fillTurnoverDetailGestori 'Приходы-расходы подробно' () {
     PRINT printTurnoverDetailGestori XLSX;
 } IMAGE 'print.png';
 
-CLASS TurnoverOperationType 'Тип операции грузооборота' {
-    purchaseInvoice 'Приходные накладные',
-    purchaseReturn 'Возврат поставщику',
-    saleInvoice 'Накладные продажи',
-    saleReturn 'Возврат от покупателя',
-    internalMove 'Передачи внутри объединения',
-    purchaseOrder 'Заказы поставщику',
-    internalOrder 'Заказы от магазинов',
-    saleOrder 'Заказы от клиента'
+CLASS TrnDirection 'Направление операции' {
+    direct 'Прямое',
+    ret 'Возврат'
 }
 
-nameTrnOpType 'Наименование' (TurnoverOperationType t) =
-    staticCaption(t) IF t IS TurnoverOperationType;
-
-actionWord (TurnoverOperationType t) = CASE
-    WHEN t = TurnoverOperationType.purchaseInvoice THEN 'Принято'
-    WHEN t = TurnoverOperationType.purchaseReturn THEN 'Отгружено'
-    WHEN t = TurnoverOperationType.saleInvoice THEN 'Отгружено'
-    WHEN t = TurnoverOperationType.saleReturn THEN 'Принято'
-    WHEN t = TurnoverOperationType.internalMove THEN 'Отгружено'
-    WHEN t = TurnoverOperationType.purchaseOrder THEN 'Заказано'
-    WHEN t = TurnoverOperationType.internalOrder THEN 'Заказано'
-    WHEN t = TurnoverOperationType.saleOrder THEN 'Заказано'
+trnActionWordDefault (StockDocumentLedger l) = CASE
+    WHEN (l IS Sale.InvoiceShipment OR l IS SaleReturn.InvoiceShipment) AND NOT isReturn(l) THEN 'Отгружено'
+    WHEN (l IS Sale.InvoiceShipment OR l IS SaleReturn.InvoiceShipment) AND isReturn(l) THEN 'Принято'
+    WHEN (l IS Purchase.InvoiceShipment OR l IS PurchaseReturn.InvoiceShipment) AND NOT isReturn(l) THEN 'Принято'
+    WHEN (l IS Purchase.InvoiceShipment OR l IS PurchaseReturn.InvoiceShipment) AND isReturn(l) THEN 'Отгружено'
+    WHEN l IS Purchase.Order OR l IS Sale.Order THEN 'Заказано'
+    WHEN l IS IncStockDocumentLedger AND NOT isReturn(l) THEN 'Принято'
+    WHEN l IS IncStockDocumentLedger AND isReturn(l) THEN 'Отгружено'
+    WHEN l IS OutStockDocumentLedger AND NOT isReturn(l) THEN 'Отгружено'
+    WHEN l IS OutStockDocumentLedger AND isReturn(l) THEN 'Принято'
     ELSE 'Сумма';
 
-priceTypeName (TurnoverOperationType t) = CASE
-    WHEN t = TurnoverOperationType.purchaseInvoice THEN 'закупочных ценах'
-    WHEN t = TurnoverOperationType.purchaseReturn THEN 'закупочных ценах'
-    WHEN t = TurnoverOperationType.saleInvoice THEN 'отпускных ценах'
-    WHEN t = TurnoverOperationType.saleReturn THEN 'отпускных ценах'
-    WHEN t = TurnoverOperationType.internalMove THEN 'учетных ценах'
-    WHEN t = TurnoverOperationType.purchaseOrder THEN 'закупочных ценах'
-    WHEN t = TurnoverOperationType.internalOrder THEN 'учетных ценах'
-    WHEN t = TurnoverOperationType.saleOrder THEN 'отпускных ценах'
-    ELSE '';
+trnPriceTypeNameDefault (StockDocumentLedger l) = CASE
+    WHEN l IS Sale.InvoiceShipment AND NOT isReturn(l) THEN 'отпускных ценах'
+    WHEN l IS SaleReturn.InvoiceShipment OR (l IS Sale.InvoiceShipment AND isReturn(l)) THEN 'отпускных ценах'
+    WHEN l IS Purchase.InvoiceShipment AND NOT isReturn(l) THEN 'закупочных ценах'
+    WHEN l IS PurchaseReturn.InvoiceShipment OR (l IS Purchase.InvoiceShipment AND isReturn(l)) THEN 'закупочных ценах'
+    WHEN l IS Purchase.Order AND NOT isCompany(legalEntity(l)) THEN 'закупочных ценах'
+    WHEN l IS Purchase.Order AND isCompany(legalEntity(l)) THEN 'учетных ценах'
+    WHEN l IS Sale.Order THEN 'отпускных ценах'
+    ELSE 'учетных ценах';
 
-sumColumnTitle 'Вид суммы' (TurnoverOperationType t) =
-    actionWord(t) + ' в ' + priceTypeName(t);
+trnCounterparty (StockDocumentLedger l) = legalEntity(l);
 
-inFilterTrnOpType 'Отм.' = DATA LOCAL BOOLEAN (TurnoverOperationType);
-anyFilterTrnOpType() = GROUP MAX inFilterTrnOpType(TurnoverOperationType t);
-nameFilterTrnOpTypes 'Операции' () = OVERRIDE
-    (GROUP CONCAT nameTrnOpType(TurnoverOperationType t) IF inFilterTrnOpType(t), ', ' ORDER t),
-    'Все операции' CHARWIDTH 40;
+inTrnOperation 'Вкл.' = DATA LOCAL BOOLEAN (Operation.Operation);
+inTrnReturnOperation 'Вкл. (возврат)' = DATA LOCAL BOOLEAN (Operation.Operation);
+cntSelectedTrnOps() = GROUP SUM 1 IF inTrnOperation(Operation.Operation op);
+cntSelectedTrnReturnOps() = GROUP SUM 1 IF inTrnReturnOperation(Operation.Operation op);
+anyTrnOpSelected() = cntSelectedTrnOps() OR cntSelectedTrnReturnOps();
+
+trnOpFilterOk (Operation.Operation op, TrnDirection dir) = NOT anyTrnOpSelected()
+    OR (dir = TrnDirection.direct AND inTrnOperation(op))
+    OR (dir = TrnDirection.ret AND inTrnReturnOperation(op));
 
 inTrnStock 'Отм.' = DATA LOCAL BOOLEAN (Stock);
 trnStockCount() = GROUP SUM 1 IF inTrnStock(Stock s);
@@ -725,105 +719,111 @@ DESIGN dialogTrnStocks {
 
 changeTrnStocks() { DIALOG dialogTrnStocks; }
 
-turnoverOpTypeFull (StockDocumentLedger l) = CASE
-    WHEN l IS Purchase.InvoiceShipment AND isCompany(legalEntity(l))
-    THEN TurnoverOperationType.internalMove
-    WHEN l IS Purchase.InvoiceShipment AND NOT isCompany(legalEntity(l))
-    THEN TurnoverOperationType.purchaseInvoice
-    WHEN l IS PurchaseReturn.InvoiceShipment
-    THEN TurnoverOperationType.purchaseReturn
-    WHEN l IS Sale.InvoiceShipment AND NOT isReturn(l)
-    THEN TurnoverOperationType.saleInvoice
-    WHEN l IS Sale.InvoiceShipment AND isReturn(l)
-    THEN TurnoverOperationType.saleReturn
-    WHEN l IS Purchase.Order AND isCompany(legalEntity(l))
-    THEN TurnoverOperationType.internalOrder
-    WHEN l IS Purchase.Order AND NOT isCompany(legalEntity(l))
-    THEN TurnoverOperationType.purchaseOrder
-    WHEN l IS Sale.Order
-    THEN TurnoverOperationType.saleOrder
-    ELSE NULL;
+trnLedgerMatchesDir (StockDocumentLedger l, TrnDirection dir) =
+    (dir = TrnDirection.direct AND NOT isReturn(l)) OR
+        (dir = TrnDirection.ret AND isReturn(l));
 
-trnCounterparty (StockDocumentLedger l) = legalEntity(l);
-
-trnDocSum (StockDocumentLedger l) = CASE
-    WHEN turnoverOpTypeFull(l) = TurnoverOperationType.purchaseInvoice THEN StockDocument.sumBaseCost(l)
-    WHEN turnoverOpTypeFull(l) = TurnoverOperationType.purchaseReturn THEN StockDocument.sumBaseCost(l)
-    WHEN turnoverOpTypeFull(l) = TurnoverOperationType.saleInvoice THEN StockDocument.sumBaseRel(l)
-    WHEN turnoverOpTypeFull(l) = TurnoverOperationType.saleReturn THEN StockDocument.sumBaseRel(l)
-    WHEN turnoverOpTypeFull(l) = TurnoverOperationType.internalMove THEN StockDocument.sumBaseAcc(l)
-    WHEN turnoverOpTypeFull(l) = TurnoverOperationType.purchaseOrder THEN StockDocument.sumBaseCost(l)
-    WHEN turnoverOpTypeFull(l) = TurnoverOperationType.internalOrder THEN StockDocument.sumBaseAcc(l)
-    WHEN turnoverOpTypeFull(l) = TurnoverOperationType.saleOrder THEN StockDocument.sumBaseRel(l)
-    ELSE 0.0;
-
-trnActiveDoc (StockDocumentLedger l, Stock st, TurnoverOperationType op, LegalEntity cp) =
+trnActiveDoc (StockDocumentLedger l, Stock st, Operation.Operation op, TrnDirection dir, LegalEntity cp) =
     active(l)
         AND stock(l) = st
-        AND turnoverOpTypeFull(l) = op
+        AND operation(l) = op
+        AND trnLedgerMatchesDir(l, dir)
         AND trnCounterparty(l) = cp
         AND date(l) >= dateFrom()
         AND date(l) <= dateTo();
 
-trnActiveDocSku (SkuLedger sl, Stock st, TurnoverOperationType op, LegalEntity cp) =
+trnActiveDocSku (SkuLedger sl, Stock st, Operation.Operation op, TrnDirection dir, LegalEntity cp) =
     active(stockDocumentLedger(sl))
         AND stock(stockDocumentLedger(sl)) = st
-        AND turnoverOpTypeFull(stockDocumentLedger(sl)) = op
+        AND operation(stockDocumentLedger(sl)) = op
+        AND trnLedgerMatchesDir(stockDocumentLedger(sl), dir)
         AND trnCounterparty(stockDocumentLedger(sl)) = cp
         AND date(stockDocumentLedger(sl)) >= dateFrom()
         AND date(stockDocumentLedger(sl)) <= dateTo();
 
-trnSum 'Сумма' (Stock st, TurnoverOperationType op, LegalEntity cp) =
-    GROUP SUM trnDocSum(StockDocumentLedger l) IF trnActiveDoc(l, st, op, cp);
+trnSum 'Сумма' (Stock st, Operation.Operation op, TrnDirection dir, LegalEntity cp) =
+    GROUP SUM sumItem(StockDocumentLedger l) IF trnActiveDoc(l, st, op, dir, cp);
 
-trnSkuCount 'Кол-во позиций' (Stock st, TurnoverOperationType op, LegalEntity cp) =
-    GROUP SUM 1 IF trnActiveDoc(StockDocumentLedger l, st, op, cp);
+trnSkuCount 'Кол-во позиций' (Stock st, Operation.Operation op, TrnDirection dir, LegalEntity cp) =
+    GROUP SUM 1 IF trnActiveDoc(StockDocumentLedger l, st, op, dir, cp);
 
-trnWeight 'Вес' (Stock st, TurnoverOperationType op, LegalEntity cp) =
+trnWeight 'Вес' (Stock st, Operation.Operation op, TrnDirection dir, LegalEntity cp) =
     GROUP SUM NUMERIC[16,3](netWeight(sku(SkuLedger sl)) * abs(signedQuantity(sl)))
-        IF trnActiveDocSku(sl, st, op, cp);
+        IF trnActiveDocSku(sl, st, op, dir, cp);
 
-trnVolume 'Объём' (Stock st, TurnoverOperationType op, LegalEntity cp) =
+trnVolume 'Объём' (Stock st, Operation.Operation op, TrnDirection dir, LegalEntity cp) =
     GROUP SUM NUMERIC[16,3](volume(sku(SkuLedger sl)) * abs(signedQuantity(sl)))
-        IF trnActiveDocSku(sl, st, op, cp);
+        IF trnActiveDocSku(sl, st, op, dir, cp);
 
-trnGrossWeight 'Вес брутто' (Stock st, TurnoverOperationType op, LegalEntity cp) =
+trnGrossWeight 'Вес брутто' (Stock st, Operation.Operation op, TrnDirection dir, LegalEntity cp) =
     GROUP SUM NUMERIC[16,3](grossWeight(sku(SkuLedger sl)) * abs(signedQuantity(sl)))
-        IF trnActiveDocSku(sl, st, op, cp);
+        IF trnActiveDocSku(sl, st, op, dir, cp);
 
-hasTrnDataCp (Stock st, TurnoverOperationType op, LegalEntity cp) =
-    trnSkuCount(st, op, cp) > 0;
+hasTrnDataCp (Stock st, Operation.Operation op, TrnDirection dir, LegalEntity cp) =
+    trnSkuCount(st, op, dir, cp) > 0;
 
-FORM dialogTrnOpTypes 'Выбор типов операций'
-    OBJECTS t = TurnoverOperationType
-    PROPERTIES(t) inFilterTrnOpType
-    PROPERTIES(t) READONLY nameTrnOpType
-    ORDERS nameTrnOpType(t)
+hasTrnDataOpDir (Operation.Operation op) =
+    GROUP SUM 1 IF hasTrnDataCp(Stock st, op, TrnDirection dir, LegalEntity cp) AND inTrnStock(st);
+
+trnSumColActionWord (Stock st, Operation.Operation op, TrnDirection dir) =
+    GROUP MAX trnActionWordDefault(StockDocumentLedger l) IF active(l) AND stock(l) = st AND operation(l) = op
+        AND trnLedgerMatchesDir(l, dir)
+        AND date(l) >= dateFrom() AND date(l) <= dateTo();
+
+trnSumColPriceType (Stock st, Operation.Operation op, TrnDirection dir) =
+    GROUP MAX trnPriceTypeNameDefault(StockDocumentLedger l) IF active(l) AND stock(l) = st AND operation(l) = op
+        AND trnLedgerMatchesDir(l, dir)
+        AND date(l) >= dateFrom() AND date(l) <= dateTo();
+
+sumColumnTitle 'Вид суммы' (Stock st, Operation.Operation op, TrnDirection dir) =
+    trnSumColActionWord(st, op, dir) + ' в ' + trnSumColPriceType(st, op, dir);
+
+trnOpDisplayName 'Операция' (Operation.Operation op, TrnDirection dir) =
+    IF dir = TrnDirection.ret THEN (OVERRIDE nameReturn(op), name(op)) ELSE name(op);
+
+selectedTrnOpNames() = GROUP CONCAT name(Operation.Operation op) IF inTrnOperation(op), ', ' ORDER name(op);
+selectedTrnReturnOpNames() = GROUP CONCAT (OVERRIDE nameReturn(Operation.Operation op), name(op)) IF inTrnReturnOperation(op), ', ' ORDER name(op);
+
+nameFilterTrnOps 'Операции' () = IF NOT anyTrnOpSelected() THEN 'Все операции'
+    ELSE CONCAT ', ', selectedTrnOpNames(), selectedTrnReturnOpNames() CHARWIDTH 40;
+
+FORM dialogTrnOperations 'Выбор операций'
+    OBJECTS op = Operation.Operation
+    PROPERTIES(op) inTrnOperation
+    PROPERTIES(op) READONLY name
+    PROPERTIES(op) inTrnReturnOperation
+    PROPERTIES(op) READONLY nameReturn
+    FILTERS hasTrnDataOpDir(op)
+    ORDERS name(op)
 ;
+
+DESIGN dialogTrnOperations {
+    size = (700, 500);
+}
 
 FORM turnoverByCounterpartyGestori 'Грузооборот по контрагентам'
     PROPERTIES() dateFrom, dateTo
     PROPERTIES() nameTrnStockList READONLY SHOWIF trnStockList()
     PROPERTIES() trnStockNames ON CHANGE changeTrnStocks() READONLYIF trnStockList()
-    PROPERTIES() nameFilterTrnOpTypes ON CHANGE { DIALOG dialogTrnOpTypes; }
+    PROPERTIES() nameFilterTrnOps ON CHANGE { DIALOG dialogTrnOperations; }
 
-    OBJECTS r = (st = Stock, op = TurnoverOperationType, cp = LegalEntity)
+    OBJECTS r = (st = Stock, op = Operation.Operation, dir = TrnDirection, cp = LegalEntity)
     PROPERTIES READONLY
     stId = id(st),
         stName = name(st),
-        opName = nameTrnOpType(op),
+        opName = trnOpDisplayName(op, dir),
         cpId = id(cp),
         cpName = name(cp),
-        rSum = trnSum(st, op, cp),
-        opSumColTitle = sumColumnTitle(op),
-        rSkuCount = trnSkuCount(st, op, cp),
-        rWeight = trnWeight(st, op, cp),
-        rVolume = trnVolume(st, op, cp),
-        rGrossWeight = trnGrossWeight(st, op, cp)
-    ORDERS stId, opName, cpId
+        rSum = trnSum(st, op, dir, cp),
+        opSumColTitle = sumColumnTitle(st, op, dir),
+        rSkuCount = trnSkuCount(st, op, dir, cp),
+        rWeight = trnWeight(st, op, dir, cp),
+        rVolume = trnVolume(st, op, dir, cp),
+        rGrossWeight = trnGrossWeight(st, op, dir, cp)
+    ORDERS stId, opName, cpName
     FILTERS inTrnStock(st)
-        AND hasTrnDataCp(st, op, cp)
-        AND (NOT anyFilterTrnOpType() OR inFilterTrnOpType(op))
+        AND hasTrnDataCp(st, op, dir, cp)
+        AND trnOpFilterOk(op, dir)
 
     EVENTS ON INIT {
         initReportDates();
@@ -853,7 +853,7 @@ DESIGN turnoverByCounterpartyGestori {
             }
             MOVE PROPERTY(nameTrnStockList()) { alignment = STRETCH; }
             MOVE PROPERTY(trnStockNames()) { alignment = STRETCH; }
-            MOVE PROPERTY(nameFilterTrnOpTypes()) { alignment = STRETCH; }
+            MOVE PROPERTY(nameFilterTrnOps()) { alignment = STRETCH; }
         }
         NEW dataArea {
             fill = 1;
