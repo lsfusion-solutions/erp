@@ -457,7 +457,7 @@ addOrdersToSupply 'Добавить сборочные задания к пос�
         LOCAL status = STRING ();
 
         createSupply(p);
-        
+
         LOCAL patchUrl = STRING ();
 
         patchUrl() <- '/api/marketplace/v3/supplies/' + wbSupplyId(p) + '/orders';
@@ -478,7 +478,7 @@ addOrdersToSupply 'Добавить сборочные задания к пос�
             messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
             IF statusHttp() == 204 THEN {
                 //FOR isSelected(InternetOrder order) AND isWBOrder(order) AND carrier(order) == carrier('WB') DO {
-                    //supply(order) <- supply(supplyId());
+                //supply(order) <- supply(supplyId());
                 //}
                 //APPLY NESTED LOCAL ;
             }
@@ -496,9 +496,122 @@ addOrdersToSupply 'Добавить сборочные задания к пос�
     }
 }
 
+EXTEND CLASS StatusPicking {
+    deliver 'В доставке',
+    closed 'Закрыта'
+}
+
 addToPicking 'Отм.' = DATA LOCAL BOOLEAN (InternetOrderDetail);
 
 orderNumber(InternetOrderDetail d) = number(internetOrder(d));
+
+//https://marketplace-api.wildberries.ru/api/v3/supplies/{supplyId}/deliver
+sendSupplyToDeliver 'Передать поставку в доставку'(Picking p){
+    NEWSESSION NESTED LOCAL {
+
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING ();
+        LOCAL response = FILE();
+        LOCAL error = STRING ();
+        LOCAL statusText = STRING ();
+        LOCAL status = STRING ();
+
+        LOCAL patchUrl = STRING ();
+
+        patchUrl() <- '/api/v3/supplies/' + wbSupplyId(p) + '/deliver';
+
+        logToFile('WB', 'PATCH: ' + url(CategoryRequest.marketplace) + patchUrl());
+
+        TRY {
+            EXTERNAL HTTP PATCH url(CategoryRequest.marketplace) + patchUrl() HEADERS httpHeaders TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+            IF statusHttp() == 204 THEN {
+                status(p) <- StatusPicking.deliver;
+                APPLY NESTED LOCAL ;
+            }
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                IMPORT importError JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Статус поставки не изменен: ' + message();
+            }
+            messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE messageOrder() NOWAIT;
+        }
+    }
+}
+
+cargoType = DATA LOCAL NUMERIC();
+createdAt = DATA LOCAL DATETIME ();
+closedAt = DATA LOCAL DATETIME ();
+scanDt = DATA LOCAL DATETIME ();
+isB2b = DATA LOCAL STRING();
+
+destinationOfficeId = DATA LOCAL NUMERIC();
+crossBorderType = DATA LOCAL NUMERIC();
+supplyId = DATA LOCAL STRING();
+done = DATA LOCAL BOOLEAN ();
+
+FORM supplyInfoResponse
+    PROPERTIES() cargoType, createdAt, scanDt, isB2b, name, destinationOfficeId, crossBorderType, supplyId EXTID 'id', closedAt, done;
+
+wbCreatedAt = DATA DATETIME(Picking);
+wbClosedAt = DATA DATETIME(Picking);
+wbScanDt = DATA DATETIME(Picking);
+wbDestinationOfficeId = DATA INTEGER (Picking);
+
+//https://marketplace-api.wildberries.ru/api/v3/supplies/{supplyId}/deliver
+getSupplyInfo 'Получить информацию о поставке'(Picking p){
+    NEWSESSION NESTED LOCAL {
+
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING ();
+        LOCAL response = FILE();
+        LOCAL error = STRING ();
+        LOCAL statusText = STRING ();
+        LOCAL status = STRING ();
+
+        LOCAL patchUrl = STRING ();
+
+        patchUrl() <- '/api/v3/supplies/' + wbSupplyId(p);
+
+        logToFile('WB', 'GET: ' + url(CategoryRequest.marketplace) + patchUrl());
+
+        TRY {
+            EXTERNAL HTTP GET url(CategoryRequest.marketplace) + patchUrl() HEADERS httpHeaders TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+
+            IF statusHttp() == 200 THEN {
+                IMPORT supplyInfoResponse JSON FROM response();
+
+                wbCreatedAt(p) <- createdAt();
+                wbClosedAt(p) <- closedAt();
+                wbScanDt(p) <- scanDt();
+                wbDestinationOfficeId(p) <- destinationOfficeId();
+
+                IF done() THEN status(p) <- StatusPicking.closed;
+
+                APPLY NESTED LOCAL ;
+            }
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                IMPORT importError JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Статус поставки не изменен: ' + message();
+            }
+            messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE messageOrder() NOWAIT;
+        }
+    }
+}
 
 FORM wbInternetDetailsDialog 'WB заказы'
     OBJECTS d = InternetOrderDetail
@@ -524,6 +637,9 @@ EXTEND FORM internetOrders
 
 EXTEND FORM picking
     PROPERTIES (p) addDetailsFromWbOrder DRAW d TOOLBAR ;
+
+EXTEND FORM pickingDashboard
+    PROPERTIES (p) TOOLBAR sendSupplyToDeliver, getSupplyInfo;
 
 DESIGN internetOrders {
     documentDetail {
