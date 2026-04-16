@@ -1,6 +1,6 @@
 MODULE TurnoverReportsGestori;
 
-REQUIRE SaleLedgerGestori, ProductionConsumption, StockDocumentGestori;
+REQUIRE SaleLedgerGestori, AccountDocument, ProductionOutput, ProductionConsumption;
 
 NAMESPACE StockReports;
 
@@ -12,7 +12,7 @@ initReportDates() {
     dateTo() <- currentDate();
 }
 
-CLASS PriceReportType 'Вид цены' {
+CLASS PriceReportType 'Вид цены'{
     accountingCost 'Бухгалтерская себестоимость (цена поставщика без НДС)',
     purchase 'Цена закупочная (поставщика с НДС)',
     retail 'Цена отпускная (розничная)'
@@ -176,45 +176,46 @@ quantityPurchase 'Приход' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
 quantitySale 'Расход' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
 balanceA 'Остаток на конец' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
 
-filterOnlyQuantity(Sku s, Stock st) = balanceB(s, st) OR quantityPurchase(s, st) OR quantitySale(s, st) OR balanceA(s, st);
+filterOnlyQuantity(Sku s, Stock st) = balanceB(s,st) OR quantityPurchase(s,st) OR quantitySale(s,st) OR balanceA(s,st);
 inReport 'Вкл. в отчет' (Sku s) = GROUP SUM 1 IF filterOnlyQuantity(s, Stock st);
-index '№ п/п' (Sku s) = PARTITION SUM 1 IF inReport(s) ORDER nameSkuGroup2(s), nameSkuGroup3(s), nameSkuGroup4(s), id(s), name(s);
-index '№ п/п' (Sku s, Stock st) = PARTITION SUM 1 IF filterOnlyQuantity(s, st) ORDER id(st) BY s;
+index '№ п/п' (Sku s) = PARTITION SUM 1 IF inReport(s) ORDER nameSkuGroup2(s), nameSkuGroup3(s), nameSkuGroup4(s), id(s), name(s) ;
+index '№ п/п' (Sku s, Stock st) = PARTITION SUM 1 IF filterOnlyQuantity(s,st) ORDER id(st) BY s;
 
 FORM printTurnoverOnlyQuantityGestori
     OBJECTS s = (s = Sku, st = Stock)
     PROPERTIES(s) name, id, nameUOM, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, index
     PROPERTIES(st) id, name
     PROPERTIES() dateFrom, dateTo
-    PROPERTIES(s, st) balanceB, quantityPurchase, quantitySale, balanceA, index
+    PROPERTIES(s,st) balanceB, quantityPurchase, quantitySale, balanceA, index
     ORDERS nameSkuGroup2(s), nameSkuGroup3(s), nameSkuGroup4(s), id(s), name(s), id(st)
-    FILTERS filterOnlyQuantity(s, st)
+    FILTERS filterOnlyQuantity(s,st)
 ;
 
 fillTurnoverOnlyQuantityGestori 'Только количество' () {
-    balanceB(Sku s, Stock st) <- NULL;
-    quantityPurchase(Sku s, Stock st) <- NULL;
-    quantitySale(Sku s, Stock st) <- NULL;
-    balanceA(Sku s, Stock st) <- NULL;
+    balanceB(Sku s, Stock st) <- NULL ;
+    quantityPurchase(Sku s, Stock st) <- NULL ;
+    quantitySale(Sku s, Stock st) <- NULL ;
+    balanceA(Sku s, Stock st) <- NULL ;
 
-    balanceB(Sku sk, Stock st) <- GROUP SUM balanceB(Batch bt, st, dateFrom()) IF sku(bt) = sk AND
+    balanceB(Sku sk, Stock st) <- GROUP SUM balanceB(Batch bt, st, dateFrom()) IF sku(bt)=sk AND
         inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
-    balanceA(Sku sk, Stock st) <- GROUP SUM balanceA(Batch bt, st, dateTo()) IF sku(bt) = sk AND
+    balanceA(Sku sk, Stock st) <- GROUP SUM balanceA(Batch bt, st, dateTo()) IF sku(bt)=sk AND
         inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
-    quantityPurchase(Sku sk, Stock st) <- GROUP SUM quantityPurchase(Batch bt, st, dateFrom(), dateTo()) IF sku(bt) = sk AND
+    quantityPurchase(Sku sk, Stock st) <- GROUP SUM quantityPurchase(Batch bt, st, dateFrom(), dateTo()) IF sku(bt)=sk AND
         inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
-    quantitySale(Sku sk, Stock st) <- GROUP SUM quantitySold(Batch bt, st, dateFrom(), dateTo()) IF sku(bt) = sk AND
+    quantitySale(Sku sk, Stock st) <- GROUP SUM quantitySold(Batch bt, st, dateFrom(), dateTo()) IF sku(bt)=sk AND
         inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
-    PRINT printTurnoverOnlyQuantityGestori XLSX;
+    PRINT printTurnoverOnlyQuantityGestori XLSX ;
 } IMAGE 'print.png';
 
+/////
 priceSku 'Цена товара' (Sku sk, Stock st, DATE d) = CASE
-    WHEN priceReportType() = PriceReportType.accountingCost THEN costPrice(sk, st, d)
-    WHEN priceReportType() = PriceReportType.purchase THEN accountPrice(sk, st, d)
+    WHEN priceReportType()=PriceReportType.accountingCost THEN costPrice(sk, st, d)
+    WHEN priceReportType()=PriceReportType.purchase THEN accountPrice(sk, st, d)
     ELSE prevPriceA(dataPriceListType('retail'), sk, st, dateTimeToDateTime(d, 23:59));
 
 sumB 'Остаток на начало' = DATA LOCAL NUMERIC[16,4] (Sku, Stock);
@@ -222,59 +223,62 @@ sumPurchase 'Приход' = DATA LOCAL NUMERIC[16,4] (Sku, Stock);
 sumSale 'Расход' = DATA LOCAL NUMERIC[16,4] (Sku, Stock);
 sumA 'Остаток на конец' = DATA LOCAL NUMERIC[16,4] (Sku, Stock);
 
-filterStandart(Sku s, Stock st) = balanceB(s, st) OR quantityPurchase(s, st) OR quantitySale(s, st) OR balanceA(s, st) OR
-    sumB(s, st) OR sumPurchase(s, st) OR sumSale(s, st) OR sumA(s, st);
+filterStandart(Sku s, Stock st) = balanceB(s,st) OR quantityPurchase(s,st) OR quantitySale(s,st) OR balanceA(s,st) OR
+    sumB(s,st) OR sumPurchase(s,st) OR sumSale(s,st) OR sumA(s,st);
 inReportStandart 'Вкл. в отчет' (Sku s) = GROUP SUM 1 IF filterStandart(s, Stock st);
-indexStandart '№ п/п' (Sku s) = PARTITION SUM 1 IF inReportStandart(s) ORDER nameSkuGroup2(s), nameSkuGroup3(s), nameSkuGroup4(s), id(s), name(s);
-indexStandart '№ п/п' (Sku s, Stock st) = PARTITION SUM 1 IF filterStandart(s, st) ORDER id(st) BY s;
+// Для indexStandart(Sku s) - ORDER д.б. как ORDERS для FORM printTurnoverStandartGestori без id(st)
+indexStandart '№ п/п' (Sku s) = PARTITION SUM 1 IF inReportStandart(s) ORDER nameSkuGroup2(s), nameSkuGroup3(s), nameSkuGroup4(s), id(s), name(s) ;
+// indexStandart(Sku s, Stock st) - исп. для невыведения наименования товара во всех строках, кроме первой по складу 
+indexStandart '№ п/п' (Sku s, Stock st) = PARTITION SUM 1 IF filterStandart(s,st) ORDER id(st) BY s;
+
+//invoiceSum 'Сумма поставщика (без НДС)' (SaleLedger ledger,Batch batch) = GROUP SUM (cost(ledger,batch) * price(invoiceDetail(batch)));
 
 FORM printTurnoverStandartGestori
     OBJECTS s = (s = Sku, st = Stock)
     PROPERTIES(s) name, id, nameUOM, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, indexStandart
     PROPERTIES(st) id, name
     PROPERTIES() dateFrom, dateTo
-    PROPERTIES(s, st) balanceB, quantityPurchase, quantitySale, balanceA, indexStandart
-    PROPERTIES(s, st) sumB, sumPurchase, sumSale, sumA
+    PROPERTIES(s,st) balanceB, quantityPurchase, quantitySale, balanceA, indexStandart
+    PROPERTIES(s,st) sumB, sumPurchase, sumSale, sumA
     ORDERS nameSkuGroup2(s), nameSkuGroup3(s), nameSkuGroup4(s), id(s), name(s), id(st)
-    FILTERS filterStandart(s, st)
+    FILTERS filterStandart(s,st)
 ;
 
 fillTurnoverStandartGestori 'Стандартная' () {
-    balanceB(Sku s, Stock st) <- NULL;
-    quantityPurchase(Sku s, Stock st) <- NULL;
-    quantitySale(Sku s, Stock st) <- NULL;
-    balanceA(Sku s, Stock st) <- NULL;
-    sumB(Sku s, Stock st) <- NULL;
-    sumPurchase(Sku s, Stock st) <- NULL;
-    sumSale(Sku s, Stock st) <- NULL;
-    sumA(Sku s, Stock st) <- NULL;
+    balanceB(Sku s, Stock st) <- NULL ;
+    quantityPurchase(Sku s, Stock st) <- NULL ;
+    quantitySale(Sku s, Stock st) <- NULL ;
+    balanceA(Sku s, Stock st) <- NULL ;
+    sumB(Sku s, Stock st) <- NULL ;
+    sumPurchase(Sku s, Stock st) <- NULL ;
+    sumSale(Sku s, Stock st) <- NULL ;
+    sumA(Sku s, Stock st) <- NULL ;
 
-    balanceB(Sku sk, Stock st) <- GROUP SUM balanceB(Batch bt, st, dateFrom()) IF sku(bt) = sk AND
-        inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-
-    balanceA(Sku sk, Stock st) <- GROUP SUM balanceA(Batch bt, st, dateTo()) IF sku(bt) = sk AND
+    balanceB(Sku sk, Stock st) <- GROUP SUM balanceB(Batch bt, st, dateFrom()) IF sku(bt)=sk AND
         inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
-    quantityPurchase(Sku sk, Stock st) <- GROUP SUM quantityPurchase(Batch bt, st, dateFrom(), dateTo()) IF sku(bt) = sk AND
+    balanceA(Sku sk, Stock st) <- GROUP SUM balanceA(Batch bt, st, dateTo()) IF sku(bt)=sk AND
         inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
-    quantitySale(Sku sk, Stock st) <- GROUP SUM quantitySold(Batch bt, st, dateFrom(), dateTo()) IF sku(bt) = sk AND
+    quantityPurchase(Sku sk, Stock st) <- GROUP SUM quantityPurchase(Batch bt, st, dateFrom(), dateTo()) IF sku(bt)=sk AND
         inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
-    sumB(Sku sk, Stock st) <- GROUP SUM balanceB(Batch bt, st, dateFrom()) * priceSku(sk, st, dateFrom()) IF sku(bt) = sk AND
-        inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-    sumA(Sku sk, Stock st) <- GROUP SUM balanceA(Batch bt, st, dateTo()) * priceSku(sk, st, dateTo()) IF sku(bt) = sk AND
-        inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-    sumPurchase(Sku sk, Stock st) <- GROUP SUM quantityPurchase(Batch bt, st, DATE d) * priceSku(sk, st, d) IF sku(bt) = sk AND
-        d >= dateFrom() AND d <= dateTo() AND
-        inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-    sumSale(Sku sk, Stock st) <- GROUP SUM quantitySold(Batch bt, st, DATE d) * priceSku(sk, st, d) IF sku(bt) = sk AND
-        d >= dateFrom() AND d <= dateTo() AND
+    quantitySale(Sku sk, Stock st) <- GROUP SUM quantitySold(Batch bt, st, dateFrom(), dateTo()) IF sku(bt)=sk AND
         inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
-    PRINT printTurnoverStandartGestori XLSX;
+    sumB(Sku sk, Stock st) <- GROUP SUM balanceB(Batch bt, st, dateFrom()) * priceSku(sk,st,dateFrom()) IF sku(bt)=sk AND
+        inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+    sumA(Sku sk, Stock st) <- GROUP SUM balanceA(Batch bt, st, dateTo()) * priceSku(sk,st,dateTo()) IF sku(bt)=sk AND
+        inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+    sumPurchase(Sku sk, Stock st) <- GROUP SUM quantityPurchase(Batch bt, st, DATE d) * priceSku(sk,st,d) IF sku(bt)=sk AND d>=dateFrom() AND d<=dateTo() AND
+        inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+    sumSale(Sku sk, Stock st) <- GROUP SUM quantitySold(Batch bt, st, DATE d) * priceSku(sk,st,d) IF sku(bt)=sk AND d>=dateFrom() AND d<=dateTo() AND
+        inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+
+    PRINT printTurnoverStandartGestori XLSX ;
 } IMAGE 'print.png';
 
+/////
 quantityPurchaseOut 'Приход внешний' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
 sumPurchaseOut 'Приход внешний' = DATA LOCAL NUMERIC[16,4] (Sku, Stock);
 quantityPurchaseIn 'Приход внутренний' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
@@ -324,559 +328,253 @@ quantitySaleAll 'Итого, расход' = DATA LOCAL NUMERIC[16,5] (Sku, Stoc
 sumSaleAll 'Итого, расход' = DATA LOCAL NUMERIC[16,4] (Sku, Stock);
 quantityLosses 'Потери' = DATA LOCAL NUMERIC[7,2] (Sku, Stock);
 
-filterDetail(Sku s, Stock st) = balanceB(s, st) OR quantityPurchaseOut(s, st) OR quantityPurchaseIn(s, st) OR
-    quantitySaleOut(s, st) OR quantitySaleIn(s, st) OR balanceA(s, st) OR
-    quantityReturnPurchase(s, st) OR quantityReturnSale(s, st) OR quantityPurchaseInventory(s, st) OR
-    quantitySaleInventory(s, st) OR quantityPurchaseDisparity(s, st) OR quantitySaleDisparity(s, st) OR
-    quantityPurchaseAdjustment(s, st) OR quantitySaleAdjustment(s, st) OR quantitySaleNaturalLoss(s, st) OR
-    quantitySaleWriteOff(s, st) OR quantityOutput(s, st) OR quantityConsumption(s, st) OR quantityRetailSale(s, st) OR
-    sumB(s, st) OR sumPurchaseOut(s, st) OR sumPurchaseIn(s, st) OR sumSaleOut(s, st) OR sumSaleIn(s, st) OR
-    sumA(s, st) OR sumReturnPurchase(s, st) OR sumReturnSale(s, st) OR sumPurchaseInventory(s, st) OR
-    sumSaleInventory(s, st) OR sumPurchaseDisparity(s, st) OR sumSaleDisparity(s, st) OR
-    sumPurchaseAdjustment(s, st) OR sumSaleAdjustment(s, st) OR sumSaleNaturalLoss(s, st) OR
-    sumSaleWriteOff(s, st) OR sumOutput(s, st) OR sumConsumption(s, st) OR sumRetailSale(s, st);
+filterDetail(Sku s, Stock st) = balanceB(s,st) OR quantityPurchaseOut(s,st) OR quantityPurchaseIn(s,st) OR quantitySaleOut(s,st) OR quantitySaleIn(s,st) OR balanceA(s,st) OR
+    quantityReturnPurchase(s,st) OR quantityReturnSale(s,st) OR quantityPurchaseInventory(s,st) OR quantitySaleInventory(s,st) OR quantityPurchaseDisparity(s,st) OR
+    quantitySaleDisparity(s,st) OR quantityPurchaseAdjustment(s,st) OR quantitySaleAdjustment(s,st) OR quantitySaleNaturalLoss(s,st) OR quantitySaleWriteOff(s,st) OR
+    quantityOutput(s,st) OR quantityConsumption(s,st) OR quantityRetailSale(s,st) OR
+    sumB(s,st) OR sumPurchaseOut(s,st) OR sumPurchaseIn(s,st) OR sumSaleOut(s,st) OR sumSaleIn(s,st) OR sumA(s,st) OR
+    sumReturnPurchase(s,st) OR sumReturnSale(s,st) OR sumPurchaseInventory(s,st) OR sumSaleInventory(s,st) OR sumPurchaseDisparity(s,st) OR
+    sumSaleDisparity(s,st) OR sumPurchaseAdjustment(s,st) OR sumSaleAdjustment(s,st) OR sumSaleNaturalLoss(s,st) OR sumSaleWriteOff(s,st) OR sumOutput(s,st) OR
+    sumConsumption(s,st) OR sumRetailSale(s,st) ;
 
 FORM printTurnoverDetailGestori
     OBJECTS s = (s = Sku, st = Stock)
     PROPERTIES(s) name, id, nameUOM
     PROPERTIES(st) id, name, address
     PROPERTIES() dateFrom, dateTo, namePriceReportType
-    PROPERTIES(s, st) balanceB, quantityPurchaseOut, quantityPurchaseIn, quantitySaleOut, quantitySaleIn, balanceA
-    PROPERTIES(s, st) sumB, sumPurchaseOut, sumPurchaseIn, sumSaleOut, sumSaleIn, sumA
-    PROPERTIES(s, st) quantityReturnPurchase, quantityReturnSale, quantityPurchaseInventory, quantitySaleInventory,
-        quantityRetailSale, quantityPurchaseDisparity, quantitySaleDisparity
-    PROPERTIES(s, st) sumReturnPurchase, sumReturnSale, sumPurchaseInventory, sumSaleInventory,
-        sumRetailSale, sumPurchaseDisparity, sumSaleDisparity
-    PROPERTIES(s, st) quantityPurchaseAdjustment, quantitySaleAdjustment, quantitySaleNaturalLoss, quantitySaleWriteOff
-    PROPERTIES(s, st) sumPurchaseAdjustment, sumSaleAdjustment, sumSaleNaturalLoss, sumSaleWriteOff,
-        quantityOutput, sumOutput, quantityConsumption, sumConsumption
-    PROPERTIES(s, st) quantityPurchaseAll, sumPurchaseAll, quantitySaleAll, sumSaleAll, quantityLosses
+    PROPERTIES(s,st) balanceB, quantityPurchaseOut, quantityPurchaseIn, quantitySaleOut, quantitySaleIn, balanceA
+    PROPERTIES(s,st) sumB, sumPurchaseOut, sumPurchaseIn, sumSaleOut, sumSaleIn, sumA
+    PROPERTIES(s,st) quantityReturnPurchase, quantityReturnSale, quantityPurchaseInventory, quantitySaleInventory, quantityRetailSale, quantityPurchaseDisparity, quantitySaleDisparity
+    PROPERTIES(s,st) sumReturnPurchase, sumReturnSale, sumPurchaseInventory, sumSaleInventory, sumRetailSale, sumPurchaseDisparity, sumSaleDisparity
+    PROPERTIES(s,st) quantityPurchaseAdjustment, quantitySaleAdjustment, quantitySaleNaturalLoss, quantitySaleWriteOff
+    PROPERTIES(s,st) sumPurchaseAdjustment, sumSaleAdjustment, sumSaleNaturalLoss, sumSaleWriteOff, quantityOutput, sumOutput, quantityConsumption, sumConsumption
+    PROPERTIES(s,st) quantityPurchaseAll, sumPurchaseAll, quantitySaleAll, sumSaleAll, quantityLosses
     ORDERS id(st), id(s)
-    FILTERS filterDetail(s, st)
+    FILTERS filterDetail(s,st)
 ;
 
 fillTurnoverDetailGestori 'Приходы-расходы подробно' () {
-    balanceB(Sku s, Stock st) <- NULL;
-    sumB(Sku s, Stock st) <- NULL;
-    quantityPurchaseOut(Sku s, Stock st) <- NULL;
-    sumPurchaseOut(Sku s, Stock st) <- NULL;
-    quantityPurchaseIn(Sku s, Stock st) <- NULL;
-    sumPurchaseIn(Sku s, Stock st) <- NULL;
-    quantitySaleOut(Sku s, Stock st) <- NULL;
-    sumSaleOut(Sku s, Stock st) <- NULL;
-    quantitySaleIn(Sku s, Stock st) <- NULL;
-    sumSaleIn(Sku s, Stock st) <- NULL;
-    balanceA(Sku s, Stock st) <- NULL;
-    sumA(Sku s, Stock st) <- NULL;
-    quantityReturnPurchase(Sku s, Stock st) <- NULL;
-    sumReturnPurchase(Sku s, Stock st) <- NULL;
-    quantityReturnSale(Sku s, Stock st) <- NULL;
-    sumReturnSale(Sku s, Stock st) <- NULL;
-    quantityPurchaseInventory(Sku s, Stock st) <- NULL;
-    sumPurchaseInventory(Sku s, Stock st) <- NULL;
-    quantitySaleInventory(Sku s, Stock st) <- NULL;
-    sumSaleInventory(Sku s, Stock st) <- NULL;
-    quantityPurchaseDisparity(Sku s, Stock st) <- NULL;
-    sumPurchaseDisparity(Sku s, Stock st) <- NULL;
-    quantitySaleDisparity(Sku s, Stock st) <- NULL;
-    sumSaleDisparity(Sku s, Stock st) <- NULL;
-    quantityPurchaseAdjustment(Sku s, Stock st) <- NULL;
-    sumPurchaseAdjustment(Sku s, Stock st) <- NULL;
-    quantitySaleAdjustment(Sku s, Stock st) <- NULL;
-    sumSaleAdjustment(Sku s, Stock st) <- NULL;
-    quantitySaleNaturalLoss(Sku s, Stock st) <- NULL;
-    sumSaleNaturalLoss(Sku s, Stock st) <- NULL;
-    quantitySaleWriteOff(Sku s, Stock st) <- NULL;
-    sumSaleWriteOff(Sku s, Stock st) <- NULL;
-    quantityOutput(Sku s, Stock st) <- NULL;
-    sumOutput(Sku s, Stock st) <- NULL;
-    quantityConsumption(Sku s, Stock st) <- NULL;
-    sumConsumption(Sku s, Stock st) <- NULL;
-    quantityRetailSale(Sku s, Stock st) <- NULL;
-    sumRetailSale(Sku s, Stock st) <- NULL;
-    quantityPurchaseAll(Sku s, Stock st) <- NULL;
-    sumPurchaseAll(Sku s, Stock st) <- NULL;
-    quantitySaleAll(Sku s, Stock st) <- NULL;
-    sumSaleAll(Sku s, Stock st) <- NULL;
-    quantityLosses(Sku s, Stock st) <- NULL;
+    balanceB(Sku s, Stock st) <- NULL ;
+    sumB(Sku s, Stock st) <- NULL ;
+    quantityPurchaseOut(Sku s, Stock st) <- NULL ;
+    sumPurchaseOut(Sku s, Stock st) <- NULL ;
+    quantityPurchaseIn(Sku s, Stock st) <- NULL ;
+    sumPurchaseIn(Sku s, Stock st) <- NULL ;
+    quantitySaleOut(Sku s, Stock st) <- NULL ;
+    sumSaleOut(Sku s, Stock st) <- NULL ;
+    quantitySaleIn(Sku s, Stock st) <- NULL ;
+    sumSaleIn(Sku s, Stock st) <- NULL ;
+    balanceA(Sku s, Stock st) <- NULL ;
+    sumA(Sku s, Stock st) <- NULL ;
+    quantityReturnPurchase(Sku s, Stock st) <- NULL ;
+    sumReturnPurchase(Sku s, Stock st) <- NULL ;
+    quantityReturnSale(Sku s, Stock st) <- NULL ;
+    sumReturnSale(Sku s, Stock st) <- NULL ;
+    quantityPurchaseInventory(Sku s, Stock st) <- NULL ;
+    sumPurchaseInventory(Sku s, Stock st) <- NULL ;
+    quantitySaleInventory(Sku s, Stock st) <- NULL ;
+    sumSaleInventory(Sku s, Stock st) <- NULL ;
+    quantityPurchaseDisparity(Sku s, Stock st) <- NULL ;
+    sumPurchaseDisparity(Sku s, Stock st) <- NULL ;
+    quantitySaleDisparity(Sku s, Stock st) <- NULL ;
+    sumSaleDisparity(Sku s, Stock st) <- NULL ;
+    quantityPurchaseAdjustment(Sku s, Stock st) <- NULL ;
+    sumPurchaseAdjustment(Sku s, Stock st) <- NULL ;
+    quantitySaleAdjustment(Sku s, Stock st) <- NULL ;
+    sumSaleAdjustment(Sku s, Stock st) <- NULL ;
+    quantitySaleNaturalLoss(Sku s, Stock st) <- NULL ;
+    sumSaleNaturalLoss(Sku s, Stock st) <- NULL ;
+    quantitySaleWriteOff(Sku s, Stock st) <- NULL ;
+    sumSaleWriteOff(Sku s, Stock st) <- NULL ;
+    quantityOutput(Sku s, Stock st) <- NULL ;
+    sumOutput(Sku s, Stock st) <- NULL ;
+    quantityConsumption(Sku s, Stock st) <- NULL ;
+    sumConsumption(Sku s, Stock st) <- NULL ;
+    quantityRetailSale(Sku s, Stock st) <- NULL ;
+    sumRetailSale(Sku s, Stock st) <- NULL ;
+    quantityPurchaseAll(Sku s, Stock st) <- NULL ;
+    sumPurchaseAll(Sku s, Stock st) <- NULL ;
+    quantitySaleAll(Sku s, Stock st) <- NULL ;
+    sumSaleAll(Sku s, Stock st) <- NULL ;
+    quantityLosses(Sku s, Stock st) <- NULL ;
 
-    balanceB(Sku sk, Stock st) <- GROUP SUM balanceB(Batch bt, st, dateFrom()) IF sku(bt) = sk AND
+    balanceB(Sku sk, Stock st) <- GROUP SUM balanceB(Batch bt, st, dateFrom()) IF sku(bt)=sk AND
         inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
-    balanceA(Sku sk, Stock st) <- GROUP SUM balanceA(Batch bt, st, dateTo()) IF sku(bt) = sk AND
+    balanceA(Sku sk, Stock st) <- GROUP SUM balanceA(Batch bt, st, dateTo()) IF sku(bt)=sk AND
         inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
-    sumB(Sku sk, Stock st) <- GROUP SUM balanceB(Batch bt, st, dateFrom()) * priceSku(sk, st, dateFrom()) IF sku(bt) = sk AND
+    sumB(Sku sk, Stock st) <- GROUP SUM balanceB(Batch bt, st, dateFrom()) * priceSku(sk,st,dateFrom()) IF sku(bt)=sk AND
         inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
-    sumA(Sku sk, Stock st) <- GROUP SUM balanceA(Batch bt, st, dateTo()) * priceSku(sk, st, dateTo()) IF sku(bt) = sk AND
+    sumA(Sku sk, Stock st) <- GROUP SUM balanceA(Batch bt, st, dateTo()) * priceSku(sk,st,dateTo()) IF sku(bt)=sk AND
         inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
     quantityPurchaseOut(Sku sk, Stock st) <- GROUP SUM cost(PurchaseLedger ledger, Batch b) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            customerStock(invoiceDetail(b)) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND customerStock(invoiceDetail(b))=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
             (ledger IS Purchase.InvoiceDetail) AND NOT isCompany(supplier(invoiceDetail(b))) AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-    sumPurchaseOut(Sku sk, Stock st) <- GROUP SUM cost(PurchaseLedger ledger, Batch b) * priceSku(sk, st, date(ledger)) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            customerStock(invoiceDetail(b)) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
+    sumPurchaseOut(Sku sk, Stock st) <- GROUP SUM cost(PurchaseLedger ledger, Batch b) * priceSku(sk,st,date(ledger)) IF
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND customerStock(invoiceDetail(b))=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
             (ledger IS Purchase.InvoiceDetail) AND NOT isCompany(supplier(invoiceDetail(b))) AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
     quantityPurchaseIn(Sku sk, Stock st) <- GROUP SUM cost(PurchaseLedger ledger, Batch b) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            customerStock(invoiceDetail(b)) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND customerStock(invoiceDetail(b))=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
             (ledger IS Purchase.InvoiceDetail) AND isCompany(supplier(invoiceDetail(b))) AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-    sumPurchaseIn(Sku sk, Stock st) <- GROUP SUM cost(PurchaseLedger ledger, Batch b) * priceSku(sk, st, date(ledger)) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            customerStock(invoiceDetail(b)) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
+    sumPurchaseIn(Sku sk, Stock st) <- GROUP SUM cost(PurchaseLedger ledger, Batch b) * priceSku(sk,st,date(ledger)) IF
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND customerStock(invoiceDetail(b))=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
             (ledger IS Purchase.InvoiceDetail) AND isCompany(supplier(invoiceDetail(b))) AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
     quantitySaleOut(Sku sk, Stock st) <- GROUP SUM cost(SaleLedger ledger, Batch b) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            supplierStock(invoiceDetail(b)) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND supplierStock(invoiceDetail(b))=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
             (ledger IS Sale.InvoiceDetail) AND NOT isCompany(customer(invoiceDetail(b))) AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-    sumSaleOut(Sku sk, Stock st) <- GROUP SUM cost(SaleLedger ledger, Batch b) * priceSku(sk, st, date(ledger)) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            supplierStock(invoiceDetail(b)) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
+    sumSaleOut(Sku sk, Stock st) <- GROUP SUM cost(SaleLedger ledger, Batch b) * priceSku(sk,st,date(ledger)) IF
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND supplierStock(invoiceDetail(b))=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
             (ledger IS Sale.InvoiceDetail) AND NOT isCompany(customer(invoiceDetail(b))) AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
     quantitySaleIn(Sku sk, Stock st) <- GROUP SUM cost(SaleLedger ledger, Batch b) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            supplierStock(invoiceDetail(b)) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND supplierStock(invoiceDetail(b))=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
             (ledger IS Sale.InvoiceDetail) AND isCompany(customer(invoiceDetail(b))) AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-    sumSaleIn(Sku sk, Stock st) <- GROUP SUM cost(SaleLedger ledger, Batch b) * priceSku(sk, st, date(ledger)) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            supplierStock(invoiceDetail(b)) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
+    sumSaleIn(Sku sk, Stock st) <- GROUP SUM cost(SaleLedger ledger, Batch b) * priceSku(sk,st,date(ledger)) IF
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND supplierStock(invoiceDetail(b))=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
             (ledger IS Sale.InvoiceDetail) AND isCompany(customer(invoiceDetail(b))) AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
     quantityReturnPurchase(Sku sk, Stock st) <- GROUP SUM cost(PurchaseLedger ledger, Batch b) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            customerStock(invoiceDetail(b)) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
-            (ledger IS PurchaseReturn.InvoiceDetail) AND
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND customerStock(invoiceDetail(b))=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+            (ledger IS PurchaseReturn.InvoiceDetail) AND isCompany(supplier(invoiceDetail(b))) AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-    sumReturnPurchase(Sku sk, Stock st) <- GROUP SUM cost(PurchaseLedger ledger, Batch b) * priceSku(sk, st, date(ledger)) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            customerStock(invoiceDetail(b)) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
-            (ledger IS PurchaseReturn.InvoiceDetail) AND
+    sumReturnPurchase(Sku sk, Stock st) <- GROUP SUM cost(PurchaseLedger ledger, Batch b) * priceSku(sk,st,date(ledger)) IF
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND customerStock(invoiceDetail(b))=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+            (ledger IS PurchaseReturn.InvoiceDetail) AND isCompany(supplier(invoiceDetail(b))) AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
     quantityReturnSale(Sku sk, Stock st) <- GROUP SUM cost(SaleLedger ledger, Batch b) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            supplierStock(invoiceDetail(b)) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
-            (ledger IS SaleReturn.InvoiceDetail) AND
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND supplierStock(invoiceDetail(b))=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+            (ledger IS SaleReturn.InvoiceDetail) AND isCompany(customer(invoiceDetail(b))) AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-    sumReturnSale(Sku sk, Stock st) <- GROUP SUM cost(SaleLedger ledger, Batch b) * priceSku(sk, st, date(ledger)) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            supplierStock(invoiceDetail(b)) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
-            (ledger IS SaleReturn.InvoiceDetail) AND
+    sumReturnSale(Sku sk, Stock st) <- GROUP SUM cost(SaleLedger ledger, Batch b) * priceSku(sk,st,date(ledger)) IF
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND supplierStock(invoiceDetail(b))=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+            (ledger IS SaleReturn.InvoiceDetail) AND isCompany(customer(invoiceDetail(b))) AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
     quantityPurchaseInventory(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            stock(ledger) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
-            id(operationDocument(ledger)) = 'inventory' AND cost(ledger, b) > 0 AND
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger) = st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+            id(operationDocument(ledger)) == 'inventory' AND cost(ledger,b)>0 AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-    sumPurchaseInventory(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) * priceSku(sk, st, date(ledger)) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            stock(ledger) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
-            id(operationDocument(ledger)) = 'inventory' AND cost(ledger, b) > 0 AND
+    sumPurchaseInventory(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) * priceSku(sk,st,date(ledger)) IF
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger) = st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+            id(operationDocument(ledger)) == 'inventory' AND cost(ledger,b)>0 AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
     quantitySaleInventory(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            stock(ledger) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
-            id(operationDocument(ledger)) = 'inventory' AND cost(ledger, b) < 0 AND
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger) = st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+            id(operationDocument(ledger)) == 'inventory' AND cost(ledger,b)<0 AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-    sumSaleInventory(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) * priceSku(sk, st, date(ledger)) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            stock(ledger) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
-            id(operationDocument(ledger)) = 'inventory' AND cost(ledger, b) < 0 AND
+    sumSaleInventory(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) * priceSku(sk,st,date(ledger)) IF
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger) = st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+            id(operationDocument(ledger)) == 'inventory' AND cost(ledger,b)<0 AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
     quantityPurchaseDisparity(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            stock(ledger) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
-            id(operationDocument(ledger)) = 'Уценка' AND cost(ledger, b) > 0 AND
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger) = st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+            id(operationDocument(ledger)) == 'Уценка' AND cost(ledger,b)>0 AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-    sumPurchaseDisparity(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) * priceSku(sk, st, date(ledger)) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            stock(ledger) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
-            id(operationDocument(ledger)) = 'Уценка' AND cost(ledger, b) > 0 AND
+    sumPurchaseDisparity(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) * priceSku(sk,st,date(ledger)) IF
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger) = st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+            id(operationDocument(ledger)) == 'Уценка' AND cost(ledger,b)>0 AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
     quantitySaleDisparity(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            stock(ledger) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
-            id(operationDocument(ledger)) = 'Уценка' AND cost(ledger, b) < 0 AND
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger) = st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+            id(operationDocument(ledger)) == 'Уценка' AND cost(ledger,b)<0 AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-    sumSaleDisparity(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) * priceSku(sk, st, date(ledger)) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            stock(ledger) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
-            id(operationDocument(ledger)) = 'Уценка' AND cost(ledger, b) < 0 AND
+    sumSaleDisparity(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) * priceSku(sk,st,date(ledger)) IF
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger) = st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+            id(operationDocument(ledger)) == 'Уценка' AND cost(ledger,b)<0 AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
     quantityPurchaseAdjustment(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            stock(ledger) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
-            id(operationDocument(ledger)) = 'manual' AND cost(ledger, b) > 0 AND
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger) = st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+            id(operationDocument(ledger)) == 'manual' AND cost(ledger,b)>0 AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-    sumPurchaseAdjustment(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) * priceSku(sk, st, date(ledger)) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            stock(ledger) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
-            id(operationDocument(ledger)) = 'manual' AND cost(ledger, b) > 0 AND
+    sumPurchaseAdjustment(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) * priceSku(sk,st,date(ledger)) IF
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger) = st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+            id(operationDocument(ledger)) == 'manual' AND cost(ledger,b)>0 AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
     quantitySaleAdjustment(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            stock(ledger) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
-            id(operationDocument(ledger)) = 'manual' AND cost(ledger, b) < 0 AND
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger) = st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+            id(operationDocument(ledger)) == 'manual' AND cost(ledger,b)<0 AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-    sumSaleAdjustment(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) * priceSku(sk, st, date(ledger)) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            stock(ledger) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
-            id(operationDocument(ledger)) = 'manual' AND cost(ledger, b) < 0 AND
+    sumSaleAdjustment(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) * priceSku(sk,st,date(ledger)) IF
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger) = st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+            id(operationDocument(ledger)) == 'manual' AND cost(ledger,b)<0 AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
     quantitySaleNaturalLoss(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            stock(ledger) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
-            id(operationDocument(ledger)) = 'naturalLoss' AND
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger) = st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+            id(operationDocument(ledger)) == 'naturalLoss' AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-    sumSaleNaturalLoss(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) * priceSku(sk, st, date(ledger)) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            stock(ledger) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
-            id(operationDocument(ledger)) = 'naturalLoss' AND
+    sumSaleNaturalLoss(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) * priceSku(sk,st,date(ledger)) IF
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger) = st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+            id(operationDocument(ledger)) == 'naturalLoss' AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
     quantitySaleWriteOff(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            stock(ledger) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
-            id(operationDocument(ledger)) = 'writeoffAccount' AND
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger) = st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+            id(operationDocument(ledger)) == 'writeoffAccount' AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-    sumSaleWriteOff(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) * priceSku(sk, st, date(ledger)) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            stock(ledger) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
-            id(operationDocument(ledger)) = 'writeoffAccount' AND
+    sumSaleWriteOff(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) * priceSku(sk,st,date(ledger)) IF
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger) = st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+            id(operationDocument(ledger)) == 'writeoffAccount' AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
     quantityOutput(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            stock(ledger) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger)=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
             (ledger IS Production.OutputDetail) AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-    sumOutput(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) * priceSku(sk, st, date(ledger)) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            stock(ledger) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
+    sumOutput(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) * priceSku(sk,st,date(ledger)) IF
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger)=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
             (ledger IS Production.OutputDetail) AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
     quantityConsumption(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            stock(ledger) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger)=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
             (ledger IS Production.ConsumptionDetail) AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-    sumConsumption(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) * priceSku(sk, st, date(ledger)) IF
-        active(ledger) AND sku(ledger) = sk AND sku(b) = sk AND
-            stock(ledger) = st AND date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
+    sumConsumption(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) * priceSku(sk,st,date(ledger)) IF
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger)=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
             (ledger IS Production.ConsumptionDetail) AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
-    quantityRetailSale(Sku sk, Stock st) <- GROUP SUM quantity(SaleLedger ledger) IF
-        active(ledger) AND (ledger IS DateSaleSkuLedger) AND
-            sku(ledger) = sk AND stock(ledger) = st AND
-            date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
-            inReportStockFilter(st) AND inReportSkuFilter(sk);
-    sumRetailSale(Sku sk, Stock st) <- GROUP SUM quantity(SaleLedger ledger) * priceSku(sk, st, date(ledger)) IF
-        active(ledger) AND (ledger IS DateSaleSkuLedger) AND
-            sku(ledger) = sk AND stock(ledger) = st AND
-            date(ledger) >= dateFrom() AND date(ledger) <= dateTo() AND
-            inReportStockFilter(st) AND inReportSkuFilter(sk);
+    quantityRetailSale(Sku sk, Stock st) <- GROUP SUM cost(SaleLedger ledger, Batch b) IF active(ledger) AND id(operation(ledger)) == '51' AND
+        sku(ledger)=sk AND sku(b)=sk AND stock(ledger)=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+        inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
+    sumRetailSale(Sku sk, Stock st) <- GROUP SUM cost(SaleLedger ledger, Batch b) * priceSku(sk,st,date(ledger)) IF active(ledger) AND id(operation(ledger)) == '51' AND
+        sku(ledger)=sk AND sku(b)=sk AND stock(ledger)=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+        inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
-    quantityPurchaseAll(Sku s, Stock st) <- quantityPurchaseOut(s, st) (+) quantityPurchaseIn(s, st) (+)
-        quantityReturnSale(s, st) (+) quantityPurchaseInventory(s, st) (+)
-        quantityPurchaseDisparity(s, st) (+) quantityPurchaseAdjustment(s, st) (+) quantityOutput(s, st);
-    sumPurchaseAll(Sku s, Stock st) <- sumPurchaseOut(s, st) (+) sumPurchaseIn(s, st) (+)
-        sumReturnSale(s, st) (+) sumPurchaseInventory(s, st) (+)
-        sumPurchaseDisparity(s, st) (+) sumPurchaseAdjustment(s, st) (+) sumOutput(s, st);
-    quantitySaleAll(Sku s, Stock st) <- quantitySaleOut(s, st) (+) quantitySaleIn(s, st) (+)
-        quantityReturnPurchase(s, st) (+) quantitySaleInventory(s, st) (+)
-        quantitySaleDisparity(s, st) (+) quantitySaleAdjustment(s, st) (+)
-        quantitySaleNaturalLoss(s, st) (+) quantitySaleWriteOff(s, st) (+)
-        quantityConsumption(s, st) (+) quantityRetailSale(s, st);
-    sumSaleAll(Sku s, Stock st) <- sumSaleOut(s, st) (+) sumSaleIn(s, st) (+)
-        sumReturnPurchase(s, st) (+) sumSaleInventory(s, st) (+)
-        sumSaleDisparity(s, st) (+) sumSaleAdjustment(s, st) (+)
-        sumSaleNaturalLoss(s, st) (+) sumSaleWriteOff(s, st) (+)
-        sumConsumption(s, st) (+) sumRetailSale(s, st);
-    quantityLosses(Sku s, Stock st) <- IF quantityRetailSale(s, st) THEN
-        (quantitySaleWriteOff(s, st) (+) quantitySaleInventory(s, st) (-) quantityPurchaseInventory(s, st)) * 100
-            / quantityRetailSale(s, st);
+    // Итоговые колонки
+    quantityPurchaseAll(Sku s, Stock st) <- NULL ;
+    sumPurchaseAll(Sku s, Stock st) <- NULL ;
+    quantitySaleAll(Sku s, Stock st) <- NULL ;
+    sumSaleAll(Sku s, Stock st) <- NULL ;
+    quantityLosses(Sku s, Stock st) <- NULL ;
+    quantityPurchaseAll(Sku s, Stock st) <- quantityPurchaseOut(s,st) (+) quantityPurchaseIn(s,st) (+) quantityReturnSale(s,st) (+) quantityPurchaseInventory(s,st) (+)
+        quantityPurchaseDisparity(s,st) (+) quantityPurchaseAdjustment(s,st) (+) quantityOutput(s,st);
+    sumPurchaseAll(Sku s, Stock st) <- sumPurchaseOut(s,st) (+) sumPurchaseIn(s,st) (+) sumReturnSale(s,st) (+) sumPurchaseInventory(s,st) (+)
+        sumPurchaseDisparity(s,st) (+) sumPurchaseAdjustment(s,st) (+) sumOutput(s,st);
+    quantitySaleAll(Sku s, Stock st) <- quantitySaleOut(s,st) (+) quantitySaleIn(s,st) (+) quantityReturnPurchase(s,st) (+) quantitySaleInventory(s,st) (+)
+        quantitySaleDisparity(s,st) (+) quantitySaleAdjustment(s,st) (+) quantitySaleNaturalLoss(s,st) (+) quantitySaleWriteOff(s,st) (+) quantityConsumption(s,st) (+) quantityRetailSale(s,st);
+    sumSaleAll(Sku s, Stock st) <- sumSaleOut(s,st) (+) sumSaleIn(s,st) (+) sumReturnPurchase(s,st) (+) sumSaleInventory(s,st) (+)
+        sumSaleDisparity(s,st) (+) sumSaleAdjustment(s,st) (+) sumSaleNaturalLoss(s,st) (+) sumSaleWriteOff(s,st) (+) sumConsumption(s,st) (+) sumRetailSale(s,st);
+    quantityLosses(Sku s, Stock st) <- IF quantityRetailSale(s,st) THEN (quantitySaleWriteOff(s,st) (+) quantitySaleInventory(s,st) (-) quantityPurchaseInventory(s,st)) * 100 / quantityRetailSale(s,st);
 
-    PRINT printTurnoverDetailGestori XLSX;
+    PRINT printTurnoverDetailGestori XLSX ;
 } IMAGE 'print.png';
-
-CLASS TrnDirection 'Направление операции' {
-    direct 'Прямое',
-    ret 'Возврат'
-}
-
-trnActionWordDefault (StockDocumentLedger l) = CASE
-    WHEN (l IS Sale.InvoiceShipment OR l IS SaleReturn.InvoiceShipment) AND NOT isReturn(l) THEN 'Отгружено'
-    WHEN (l IS Sale.InvoiceShipment OR l IS SaleReturn.InvoiceShipment) AND isReturn(l) THEN 'Принято'
-    WHEN (l IS Purchase.InvoiceShipment OR l IS PurchaseReturn.InvoiceShipment) AND NOT isReturn(l) THEN 'Принято'
-    WHEN (l IS Purchase.InvoiceShipment OR l IS PurchaseReturn.InvoiceShipment) AND isReturn(l) THEN 'Отгружено'
-    WHEN l IS Purchase.Order OR l IS Sale.Order THEN 'Заказано'
-    WHEN l IS IncStockDocumentLedger AND NOT isReturn(l) THEN 'Принято'
-    WHEN l IS IncStockDocumentLedger AND isReturn(l) THEN 'Отгружено'
-    WHEN l IS OutStockDocumentLedger AND NOT isReturn(l) THEN 'Отгружено'
-    WHEN l IS OutStockDocumentLedger AND isReturn(l) THEN 'Принято'
-    ELSE 'Сумма';
-
-trnPriceTypeNameDefault (StockDocumentLedger l) = CASE
-    WHEN l IS Sale.InvoiceShipment AND NOT isReturn(l) THEN 'отпускных ценах'
-    WHEN l IS SaleReturn.InvoiceShipment OR (l IS Sale.InvoiceShipment AND isReturn(l)) THEN 'отпускных ценах'
-    WHEN l IS Purchase.InvoiceShipment AND NOT isReturn(l) THEN 'закупочных ценах'
-    WHEN l IS PurchaseReturn.InvoiceShipment OR (l IS Purchase.InvoiceShipment AND isReturn(l)) THEN 'закупочных ценах'
-    WHEN l IS Purchase.Order AND NOT isCompany(legalEntity(l)) THEN 'закупочных ценах'
-    WHEN l IS Purchase.Order AND isCompany(legalEntity(l)) THEN 'учетных ценах'
-    WHEN l IS Sale.Order THEN 'отпускных ценах'
-    ELSE 'учетных ценах';
-
-trnCounterparty (StockDocumentLedger l) = legalEntity(l);
-
-inTrnOperation 'Вкл.' = DATA LOCAL BOOLEAN (Operation.Operation);
-inTrnReturnOperation 'Вкл. (возврат)' = DATA LOCAL BOOLEAN (Operation.Operation);
-cntSelectedTrnOps() = GROUP SUM 1 IF inTrnOperation(Operation.Operation op);
-cntSelectedTrnReturnOps() = GROUP SUM 1 IF inTrnReturnOperation(Operation.Operation op);
-anyTrnOpSelected() = cntSelectedTrnOps() OR cntSelectedTrnReturnOps();
-
-trnOpFilterOk (Operation.Operation op, TrnDirection dir) = NOT anyTrnOpSelected()
-    OR (dir = TrnDirection.direct AND inTrnOperation(op))
-    OR (dir = TrnDirection.ret AND inTrnReturnOperation(op));
-
-inTrnStock 'Отм.' = DATA LOCAL BOOLEAN (Stock);
-trnStockCount() = GROUP SUM 1 IF inTrnStock(Stock s);
-trnStockNames 'Подразделения' () =
-    GROUP CONCAT (CONCAT ' ', id(Stock s), name(s)) IF inTrnStock(s), ', ' ORDER id(s), s CHARWIDTH 40;
-
-inTrnStockDialog 'Отм.' = DATA LOCAL BOOLEAN (Stock);
-
-trnStockList = DATA LOCAL StockList();
-nameTrnStockList 'Список подразделений' () = name(trnStockList());
-
-changeTrnStockList 'Список подразделений' () {
-    DIALOG stockLists OBJECTS o INPUT DO {
-        trnStockList() <- o;
-        inTrnStockDialog(Stock s) <- in(o, s);
-    }
-}
-
-deleteIncludeTrnStockList 'Сбросить список' () {
-    trnStockList() <- NULL;
-    inTrnStockDialog(Stock s) <- NULL;
-} ASON CONTEXTMENU nameTrnStockList;
-
-FORM dialogTrnStocks 'Выбор подразделений (грузооборот)'
-    TREE stockTree a = BPSTRING[3], sg = StockGroup PARENT parent(sg)
-    PROPERTIES READONLY VALUE(a), name(sg)
-    ORDERS name(sg)
-    FILTERS stringEqualsAll(a)
-
-    OBJECTS s = Stock
-    PROPERTIES(s) READONLY id, name, address, nameRegion
-    PROPERTIES(s) inTrnStockDialog READONLYIF trnStockList()
-    PROPERTIES changeTrnStockList() TOOLBAR
-    ORDERS name(s)
-    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
-        isCompany(s),
-        countCompanyStock(sg)
-    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT
-    FILTERGROUP select FILTER 'Отм.' inTrnStockDialog(s) 'F9'
-
-    EVENTS
-        ON INIT { inTrnStockDialog(Stock st) <- inTrnStock(st); },
-        ON OK { inTrnStock(Stock st) <- inTrnStockDialog(st); }
-;
-
-DESIGN dialogTrnStocks {
-    BOX {
-        size = (1024, 768);
-        NEW topContainer {
-            horizontal = TRUE;
-            fill = 1;
-            MOVE BOX(TREE stockTree) { caption = 'Подразделения'; }
-            MOVE BOX(s) {
-                fill = 3;
-                PROPERTY(name(s)) { charWidth = 35; }
-            }
-        }
-        MOVE TOOLBARBOX;
-    }
-}
-
-changeTrnStocks() { DIALOG dialogTrnStocks; }
-
-trnLedgerMatchesDir (StockDocumentLedger l, TrnDirection dir) =
-    (dir = TrnDirection.direct AND NOT isReturn(l)) OR
-        (dir = TrnDirection.ret AND isReturn(l));
-
-trnActiveDoc (StockDocumentLedger l, Stock st, Operation.Operation op, TrnDirection dir, LegalEntity cp) =
-    active(l)
-        AND stock(l) = st
-        AND operation(l) = op
-        AND trnLedgerMatchesDir(l, dir)
-        AND trnCounterparty(l) = cp
-        AND date(l) >= dateFrom()
-        AND date(l) <= dateTo();
-
-trnActiveDocSku (SkuLedger sl, Stock st, Operation.Operation op, TrnDirection dir, LegalEntity cp) =
-    active(stockDocumentLedger(sl))
-        AND stock(stockDocumentLedger(sl)) = st
-        AND operation(stockDocumentLedger(sl)) = op
-        AND trnLedgerMatchesDir(stockDocumentLedger(sl), dir)
-        AND trnCounterparty(stockDocumentLedger(sl)) = cp
-        AND date(stockDocumentLedger(sl)) >= dateFrom()
-        AND date(stockDocumentLedger(sl)) <= dateTo();
-
-trnSum 'Сумма' (Stock st, Operation.Operation op, TrnDirection dir, LegalEntity cp) =
-    GROUP SUM sumItem(StockDocumentLedger l) IF trnActiveDoc(l, st, op, dir, cp);
-
-trnSkuCount 'Кол-во позиций' (Stock st, Operation.Operation op, TrnDirection dir, LegalEntity cp) =
-    GROUP SUM 1 IF trnActiveDoc(StockDocumentLedger l, st, op, dir, cp);
-
-trnWeight 'Вес' (Stock st, Operation.Operation op, TrnDirection dir, LegalEntity cp) =
-    GROUP SUM NUMERIC[16,3](netWeight(sku(SkuLedger sl)) * abs(signedQuantity(sl)))
-        IF trnActiveDocSku(sl, st, op, dir, cp);
-
-trnVolume 'Объём' (Stock st, Operation.Operation op, TrnDirection dir, LegalEntity cp) =
-    GROUP SUM NUMERIC[16,3](volume(sku(SkuLedger sl)) * abs(signedQuantity(sl)))
-        IF trnActiveDocSku(sl, st, op, dir, cp);
-
-trnGrossWeight 'Вес брутто' (Stock st, Operation.Operation op, TrnDirection dir, LegalEntity cp) =
-    GROUP SUM NUMERIC[16,3](grossWeight(sku(SkuLedger sl)) * abs(signedQuantity(sl)))
-        IF trnActiveDocSku(sl, st, op, dir, cp);
-
-hasTrnDataCp (Stock st, Operation.Operation op, TrnDirection dir, LegalEntity cp) =
-    trnSkuCount(st, op, dir, cp) > 0;
-
-hasTrnDataOpDir (Operation.Operation op) =
-    GROUP SUM 1 IF hasTrnDataCp(Stock st, op, TrnDirection dir, LegalEntity cp) AND inTrnStock(st);
-
-trnSumColActionWord (Stock st, Operation.Operation op, TrnDirection dir) =
-    GROUP MAX trnActionWordDefault(StockDocumentLedger l) IF active(l) AND stock(l) = st AND operation(l) = op
-        AND trnLedgerMatchesDir(l, dir)
-        AND date(l) >= dateFrom() AND date(l) <= dateTo();
-
-trnSumColPriceType (Stock st, Operation.Operation op, TrnDirection dir) =
-    GROUP MAX trnPriceTypeNameDefault(StockDocumentLedger l) IF active(l) AND stock(l) = st AND operation(l) = op
-        AND trnLedgerMatchesDir(l, dir)
-        AND date(l) >= dateFrom() AND date(l) <= dateTo();
-
-sumColumnTitle 'Вид суммы' (Stock st, Operation.Operation op, TrnDirection dir) =
-    trnSumColActionWord(st, op, dir) + ' в ' + trnSumColPriceType(st, op, dir);
-
-trnOpDisplayName 'Операция' (Operation.Operation op, TrnDirection dir) =
-    IF dir = TrnDirection.ret THEN (OVERRIDE nameReturn(op), name(op)) ELSE name(op);
-
-selectedTrnOpNames() = GROUP CONCAT name(Operation.Operation op) IF inTrnOperation(op), ', ' ORDER name(op);
-selectedTrnReturnOpNames() = GROUP CONCAT (OVERRIDE nameReturn(Operation.Operation op), name(op)) IF inTrnReturnOperation(op), ', ' ORDER name(op);
-
-nameFilterTrnOps 'Операции' () = IF NOT anyTrnOpSelected() THEN 'Все операции'
-    ELSE CONCAT ', ', selectedTrnOpNames(), selectedTrnReturnOpNames() CHARWIDTH 40;
-
-FORM dialogTrnOperations 'Выбор операций'
-    OBJECTS op = Operation.Operation
-    PROPERTIES(op) inTrnOperation
-    PROPERTIES(op) READONLY name
-    PROPERTIES(op) inTrnReturnOperation
-    PROPERTIES(op) READONLY nameReturn
-    FILTERS hasTrnDataOpDir(op)
-    ORDERS name(op)
-;
-
-DESIGN dialogTrnOperations {
-    size = (700, 500);
-}
-
-FORM turnoverByCounterpartyGestori 'Грузооборот по контрагентам'
-    PROPERTIES() dateFrom, dateTo
-    PROPERTIES() nameTrnStockList READONLY SHOWIF trnStockList()
-    PROPERTIES() trnStockNames ON CHANGE changeTrnStocks() READONLYIF trnStockList()
-    PROPERTIES() nameFilterTrnOps ON CHANGE { DIALOG dialogTrnOperations; }
-
-    OBJECTS r = (st = Stock, op = Operation.Operation, dir = TrnDirection, cp = LegalEntity)
-    PROPERTIES READONLY
-    stId = id(st),
-        stName = name(st),
-        opName = trnOpDisplayName(op, dir),
-        cpId = id(cp),
-        cpName = name(cp),
-        rSum = trnSum(st, op, dir, cp),
-        opSumColTitle = sumColumnTitle(st, op, dir),
-        rSkuCount = trnSkuCount(st, op, dir, cp),
-        rWeight = trnWeight(st, op, dir, cp),
-        rVolume = trnVolume(st, op, dir, cp),
-        rGrossWeight = trnGrossWeight(st, op, dir, cp)
-    ORDERS stId, opName, cpName
-    FILTERS inTrnStock(st)
-        AND hasTrnDataCp(st, op, dir, cp)
-        AND trnOpFilterOk(op, dir)
-
-    EVENTS ON INIT {
-        initReportDates();
-    }
-;
-
-fillTurnoverGestoriReport 'Выгрузить в XLSX' () {
-    PRINT turnoverByCounterpartyGestori XLSX;
-} IMAGE 'print.png';
-
-EXTEND FORM turnoverByCounterpartyGestori
-    PROPERTIES() DISABLEIF NOT dateFrom() OR NOT dateTo() OR NOT trnStockCount()
-    fillTurnoverGestoriReport
-;
-
-DESIGN turnoverByCounterpartyGestori {
-    NEW cnt {
-        fill = 1;
-        NEW filters {
-            alignment = STRETCH;
-            caption = 'Параметры отчёта';
-            NEW topRow {
-                horizontal = TRUE;
-                MOVE PROPERTY(dateFrom()) { caption = 'с'; }
-                MOVE PROPERTY(dateTo()) { caption = 'по'; }
-                MOVE PROPERTY(fillTurnoverGestoriReport()) { valueClass = 'btn-success'; }
-            }
-            MOVE PROPERTY(nameTrnStockList()) { alignment = STRETCH; }
-            MOVE PROPERTY(trnStockNames()) { alignment = STRETCH; }
-            MOVE PROPERTY(nameFilterTrnOps()) { alignment = STRETCH; }
-        }
-        NEW dataArea {
-            fill = 1;
-            alignment = STRETCH;
-            MOVE BOX(r) {
-                caption = 'Данные грузооборота';
-                GRID(r) { defaultComponent = TRUE; }
-                PROPERTY(stId) { caption = 'Код подр.'; charWidth = 8; }
-                PROPERTY(stName) { caption = 'Подразделение'; charWidth = 25; }
-                PROPERTY(opName) { caption = 'Операция'; charWidth = 30; }
-                PROPERTY(cpId) { caption = 'Код КА'; charWidth = 10; }
-                PROPERTY(cpName) { caption = 'Наименование контрагента'; charWidth = 35; }
-                PROPERTY(rSum) { caption = 'Сумма'; charWidth = 18; background = #FFF9C4; }
-                PROPERTY(opSumColTitle) { caption = 'Вид суммы'; charWidth = 35; }
-                PROPERTY(rSkuCount) { caption = 'Кол-во поз.'; charWidth = 12; }
-                PROPERTY(rWeight) { caption = 'Вес'; charWidth = 12; }
-                PROPERTY(rVolume) { caption = 'Объём'; charWidth = 12; }
-                PROPERTY(rGrossWeight) { caption = 'Вес брутто'; charWidth = 14; }
-            }
-        }
-    }
-    MOVE TOOLBARBOX;
-}
 
 FORM turnoverReportsGestori 'Оборотные ведомости'
     PROPERTIES() dateFrom, dateTo
@@ -889,10 +587,7 @@ FORM turnoverReportsGestori 'Оборотные ведомости'
     PROPERTIES reportSkus 'Товары' = reportInSkus() ON CHANGE selectReportSkus() READONLYIF anyReportSkuList() OR anyReportSkuGroup()
     PROPERTIES namePriceReportType()
 
-    PROPERTIES() DISABLEIF NOT dateFrom() OR NOT dateTo()
-    fillTurnoverOnlyQuantityGestori,
-        fillTurnoverStandartGestori,
-        fillTurnoverDetailGestori
+    PROPERTIES() DISABLEIF NOT dateFrom() OR NOT dateTo() fillTurnoverOnlyQuantityGestori, fillTurnoverStandartGestori, fillTurnoverDetailGestori
 
     EVENTS ON INIT {
         initReportDates();
@@ -919,20 +614,16 @@ DESIGN turnoverReportsGestori {
             MOVE PROPERTY(reportSkus) { alignment = STRETCH; }
             MOVE PROPERTY(namePriceReportType()) { alignment = STRETCH; }
         }
-        NEW actions {
-            horizontal = TRUE;
-            alignment = STRETCH;
-            MOVE PROPERTY(fillTurnoverOnlyQuantityGestori()) { valueClass = 'btn-primary'; }
-            MOVE PROPERTY(fillTurnoverStandartGestori()) { valueClass = 'btn-primary'; }
-            MOVE PROPERTY(fillTurnoverDetailGestori()) { valueClass = 'btn-primary'; }
-        }
+
+        MOVE PROPERTY(fillTurnoverOnlyQuantityGestori()) { valueClass = 'btn-primary'; }
+        MOVE PROPERTY(fillTurnoverStandartGestori()) { valueClass = 'btn-primary'; }
+        MOVE PROPERTY(fillTurnoverDetailGestori()) { valueClass = 'btn-primary'; }
     }
     MOVE TOOLBARBOX;
 }
 
 NAVIGATOR {
-    stockReports {
+    stockReports{
         NEW turnoverReportsGestori;
-        NEW turnoverByCounterpartyGestori;
     }
 }
