@@ -19,6 +19,9 @@ public class DigiSettings implements Serializable{
     //удаление картинок при загрузке целиком. Только для SM5300. По умолчанию false
     private boolean clearImages;
 
+    //поддержка стоп-листов. По умолчанию false
+    private boolean enableStopList;
+
     public DigiSettings() {
     }
 
@@ -60,5 +63,13 @@ public class DigiSettings implements Serializable{
 
     public void setClearImages(boolean clearImages) {
         this.clearImages = clearImages;
+    }
+
+    public boolean isEnableStopList() {
+        return enableStopList;
+    }
+
+    public void setEnableStopList(boolean enableStopList) {
+        this.enableStopList = enableStopList;
     }
 }

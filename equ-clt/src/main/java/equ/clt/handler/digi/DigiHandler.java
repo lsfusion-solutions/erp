@@ -1,14 +1,17 @@
 package equ.clt.handler.digi;
 
+import equ.api.ItemInfo;
 import equ.api.MachineryInfo;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
+import equ.api.stoplist.StopListInfo;
+import equ.api.stoplist.StopListItem;
 import equ.clt.handler.MultithreadScalesHandler;
 import lsfusion.base.ExceptionUtils;
-import lsfusion.base.Pair;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.text.WordUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -19,10 +22,7 @@ import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 import static equ.clt.ProcessMonitorEquipmentServer.notInterruptedTransaction;
 import static lsfusion.base.BaseUtils.nvl;
@@ -31,6 +31,7 @@ public class DigiHandler extends MultithreadScalesHandler {
 
     protected static short cmdWrite = 0xF1;
     protected static short cmdCls = 0xF2;
+    protected static short cmdDeleteRecord = 0xF3;
     protected static short filePLU = 0x25;
     protected static short fileIngredient = 0x3A;
     protected static short fileKeyAssignment = 0x41;
@@ -43,6 +44,100 @@ public class DigiHandler extends MultithreadScalesHandler {
 
     public DigiHandler(FileSystemXmlApplicationContext springContext) {
         this.springContext = springContext;
+    }
+
+    private DigiSettings getSettings() {
+        return springContext.containsBean("digiSettings") ? (DigiSettings) springContext.getBean("digiSettings") : new DigiSettings();
+    }
+
+    @Override
+    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoList) throws IOException {
+        if (getSettings().isEnableStopList() && stopListInfo != null && !stopListInfo.exclude) {
+            processStopListLogger.info(getLogPrefix() + "Send StopList # " + stopListInfo.number);
+            if (!machineryInfoList.isEmpty()) {
+                for (MachineryInfo scales : machineryInfoList) {
+                    if (scales.port != null) {
+                        DataSocket socket = new DataSocket(scales.port);
+                        try {
+                            processStopListLogger.info(getLogPrefix() + "Sending StopList to scale " + scales.port);
+                            socket.open();
+                            String result = deletePlu(socket, scales.port, filePLU, stopListInfo.stopListItemMap.values());
+                            if (result != null)
+                                processStopListLogger.error(result);
+
+                        } catch (Exception e) {
+                            processStopListLogger.error(String.format(getLogPrefix() + "Send StopList %s to scales %s error", stopListInfo.number, scales.port), e);
+                        } finally {
+                            processStopListLogger.info(getLogPrefix() + "Finally disconnecting..." + scales.port);
+                            socket.close();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private String deletePlu(DataSocket socket, String port, short file, Collection<StopListItem> items) throws IOException {
+        List<String> pluNumbers = new ArrayList<>();
+        for(ItemInfo item : items) {
+            pluNumbers.add(fillLeadingZeroes(getPluNumberForPluRecord(item), 8));
+        }
+        processTransactionLogger.info(getLogPrefix() + String.format("Deleting %s plu at scales %s", items.size(), port));
+        processStopListLogger.info(getLogPrefix() + "tmp: " + StringUtils.join(pluNumbers, "")); //todo: remove temp log
+        byte[] deletePlu = getHexBytes(StringUtils.join(pluNumbers, ""));
+        int reply = sendRecord(socket, cmdDeleteRecord, file, deletePlu);
+        return reply == 0 ? null :  String.format("Deleting %s plu at scales %s failed. Error: %s\n", items.size(), port, reply);
+    }
+
+    protected byte[] getHexBytes(String value) {
+        int len = value.length();
+        byte[] data = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            data[i / 2] = (byte) ((Character.digit(value.charAt(i), 16) << 4)
+                    + Character.digit(value.charAt(i + 1), 16));
+        }
+        return data;
+    }
+
+    protected String getPluNumberForPluRecord(ItemInfo item) {
+        return item.pluNumber != null ? String.valueOf(item.pluNumber) : item.idBarcode;
+    }
+
+    protected int sendRecord(DataSocket socket, short cmd, short file, byte[] record) throws IOException {
+        ByteBuffer bytes = ByteBuffer.allocate(record.length + 2);
+        bytes.order(ByteOrder.LITTLE_ENDIAN);
+        bytes.put((byte) cmd);
+        bytes.put((byte) file);
+        bytes.put(record);
+        return sendCommand(socket, bytes.array());
+    }
+
+    private int sendCommand(DataSocket socket, byte[] bytes) throws IOException {
+        if(debugMode)
+            processTransactionLogger.info(Hex.encodeHexString(bytes));
+        socket.outputStream.write(bytes);
+        socket.outputStream.flush();
+        return receiveReply(socket);
+    }
+
+    private int receiveReply(DataSocket socket) {
+        try {
+            byte[] buffer = new byte[10];
+            socket.inputStream.read(buffer);
+            return buffer[0] == 6 ? 0 : buffer[0]; //это либо байт ошибки, либо первый байт хвоста (:)
+        } catch (Exception e) {
+            processTransactionLogger.error(getLogPrefix() + "ReceiveReply Error: ", e);
+            return -1;
+        }
+    }
+
+    protected void logError(List<String> errors, String errorText) {
+        logError(errors, errorText, null);
+    }
+
+    private void logError(List<String> errors, String errorText, Throwable t) {
+        errors.add(errorText + (t == null ? "" : ('\n' + ExceptionUtils.getStackTraceString(t))));
+        processTransactionLogger.error(errorText, t);
     }
 
     @Override
@@ -117,7 +212,7 @@ public class DigiHandler extends MultithreadScalesHandler {
         //------------------------------------ methods to override ------------------------------------//
 
         protected void initSettings() {
-            DigiSettings digiSettings = springContext.containsBean("digiSettings") ? (DigiSettings) springContext.getBean("digiSettings") : new DigiSettings();
+            DigiSettings digiSettings = getSettings();
             maxLineLength = nvl(digiSettings.getMaxLineLength(), 50);
             maxNameLength = digiSettings.getMaxNameLength();
             maxNameLinesCount = digiSettings.getMaxNameLinesCount();
@@ -173,10 +268,6 @@ public class DigiHandler extends MultithreadScalesHandler {
 
         protected Integer getMaxCompositionLinesCount() {
             return 9;
-        }
-
-        protected String getPluNumberForPluRecord(ScalesItem item) {
-            return item.pluNumber != null ? String.valueOf(item.pluNumber) : item.idBarcode;
         }
 
         protected BigDecimal getTareWeight(ScalesItem item) {
@@ -398,50 +489,12 @@ public class DigiHandler extends MultithreadScalesHandler {
             return scales instanceof ScalesInfo ? ((ScalesInfo) scales).pieceCodeGroupScales : null;
         }
 
-        protected byte[] getHexBytes(String value) {
-            int len = value.length();
-            byte[] data = new byte[len / 2];
-            for (int i = 0; i < len; i += 2) {
-                data[i / 2] = (byte) ((Character.digit(value.charAt(i), 16) << 4)
-                        + Character.digit(value.charAt(i + 1), 16));
-            }
-            return data;
-        }
-
         protected boolean clearFile(DataSocket socket, List<String> localErrors, String port, short file) throws IOException {
             processTransactionLogger.info(getLogPrefix() + String.format("Deleting file %s at scales %s", file, port));
             int reply = sendRecord(socket, cmdCls, file, new byte[0]);
             if (reply != 0)
                 logError(localErrors, String.format("Deleting file %s at scales %s failed. Error: %s\n", file, port, reply));
             return reply == 0;
-        }
-
-        protected int sendRecord(DataSocket socket, short cmd, short file, byte[] record) throws IOException {
-            ByteBuffer bytes = ByteBuffer.allocate(record.length + 2);
-            bytes.order(ByteOrder.LITTLE_ENDIAN);
-            bytes.put((byte) cmd);
-            bytes.put((byte) file);
-            bytes.put(record);
-            return sendCommand(socket, bytes.array());
-        }
-
-        private int sendCommand(DataSocket socket, byte[] bytes) throws IOException {
-            if(debugMode)
-                processTransactionLogger.info(Hex.encodeHexString(bytes));
-            socket.outputStream.write(bytes);
-            socket.outputStream.flush();
-            return receiveReply(socket);
-        }
-
-        private int receiveReply(DataSocket socket) {
-            try {
-                byte[] buffer = new byte[10];
-                socket.inputStream.read(buffer);
-                return buffer[0] == 6 ? 0 : buffer[0]; //это либо байт ошибки, либо первый байт хвоста (:)
-            } catch (Exception e) {
-                processTransactionLogger.error(getLogPrefix() + "ReceiveReply Error: ", e);
-                return -1;
-            }
         }
 
         protected Integer getPlu(ScalesItem item) {
@@ -456,15 +509,6 @@ public class DigiHandler extends MultithreadScalesHandler {
             ByteBuffer bytes = ByteBuffer.allocate(length);
             bytes.put(getBytes(value.substring(0, Math.min(value.length(), length))));
             return bytes.array();
-        }
-
-        protected void logError(List<String> errors, String errorText) {
-            logError(errors, errorText, null);
-        }
-
-        protected void logError(List<String> errors, String errorText, Throwable t) {
-            errors.add(errorText + (t == null ? "" : ('\n' + ExceptionUtils.getStackTraceString(t))));
-            processTransactionLogger.error(errorText, t);
         }
     }
 }
