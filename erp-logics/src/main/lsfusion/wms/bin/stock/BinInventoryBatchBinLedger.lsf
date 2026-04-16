@@ -195,6 +195,15 @@ diffQuantity 'Расхождение' (Batch batch, BinInventory i) = outQuantit
 in 'Вкл.' = inQuantity(Batch batch, ListBinInventory li) OR outQuantity(batch, li) MATERIALIZED INDEXED;
 in 'Вкл.' = GROUP MIN in(Batch batch, ListBinInventory li) BY batch, binInventory(li);
 
+outQuantity 'Кол-во (расход)' =
+    GROUP SUM quantity(OutListBinInventoryDetail detail) BY batch(detail), bin(detail), listBinInventory(detail) MATERIALIZED INDEXED;
+
+inQuantity 'Кол-во (приход)' =
+    GROUP SUM quantity(InListBinInventoryDetail detail) BY batch(detail), bin(detail), listBinInventory(detail) MATERIALIZED INDEXED;
+
+diffQuantity 'Расхождение' (Batch batch, Bin b, ListBinInventory li) = outQuantity(batch, b, li) (-) inQuantity(batch, b, li);
+in 'Вкл.' = inQuantity(Batch batch, Bin b, ListBinInventory li) OR outQuantity(batch, b, li) MATERIALIZED INDEXED;
+
 EXTEND FORM binInventory
     TREE lbskuTree lbsg = SkuGroup PARENT parent(lbsg)
     PROPERTIES READONLY order(lbsg), name(lbsg)
@@ -210,7 +219,7 @@ EXTEND FORM binInventory
     FILTERGROUP lbDiff
         FILTER 'С расхождением' diffQuantity(lbt, li) DEFAULT
         FILTER 'В описи' in(lbt, li)
-
+    
     TREE bskuTree bsg = SkuGroup PARENT parent(bsg)
     PROPERTIES READONLY order(bsg), name(bsg)
     ORDERS order(bsg), name(bsg)
@@ -224,7 +233,21 @@ EXTEND FORM binInventory
     FILTERS isParent(bsg, bt)
     FILTERGROUP bDiff
         FILTER 'С расхождением' diffQuantity(bt, i) DEFAULT
-        FILTER 'В инвентаризации' in(bt, i)    
+        FILTER 'В инвентаризации' in(bt, i)
+    
+    TREE lbskubinTree lbbinsg = SkuGroup PARENT parent(lbbinsg)
+    PROPERTIES READONLY order(lbbinsg), name(lbbinsg)
+    ORDERS order(lbbinsg), name(lbbinsg)
+    FILTERGROUP lbinactiveSkuGrou
+        FILTER 'Активные' active(lbbinsg) DEFAULT
+    OBJECTS lbtbin = (lbt1 = Batch, bin1 = Bin)
+    PROPERTIES(lbt1) READONLY nameSku, nameSkuType, idBarcodeSku, name
+    PROPERTIES(lbt1, bin1, li) READONLY outQuantity, inQuantity, diffQuantity
+    PROPERTIES(bin1) READONLY order, canonicalId, name, id SHOWIF showIDs(), status
+    ORDERS order(bin1), canonicalId(bin1), name(bin1), nameSku(lbt1)
+    FILTERS isParent(lbbinsg, lbt1), in(lbt1, bin1, li)
+    FILTERGROUP bin1Diff
+        FILTER 'С расхождением' diffQuantity(lbt1, bin1, li) DEFAULT
 ;
 
 DESIGN binInventory {
@@ -244,6 +267,15 @@ DESIGN binInventory {
             fill = 1;
             MOVE BOX(TREE bskuTree);
             MOVE BOX(bt) {fill = 2;}
+        }
+        listBinInventoryDetailContainer {
+            NEW listBinInventoryBatchesBins {
+                caption = 'Партии-ячейки "'+ name(li)+ '"';
+                horizontal = TRUE;
+                fill = 1;
+                MOVE BOX(TREE lbskubinTree);
+                MOVE BOX(lbtbin) {fill = 2;}
+            }
         }
     }
 }

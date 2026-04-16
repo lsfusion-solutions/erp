@@ -16,11 +16,20 @@ calcOutSum = ABSTRACT VALUE NUMERIC[18,4] (Batch, ListBinInventory);
 calcOutSum(Batch batch, ListBinInventory li) += NUMERIC[18,4](Utils.round(outQuantity(batch, li) * price(batch, li), priceRound(binInventory(li))));
 outSum 'Сумма по описям (расход)' = DATA NUMERIC[18,4] (Batch, ListBinInventory) CHARWIDTH 9 PATTERN '#,##0.00##';
 
+calcOutSum = ABSTRACT VALUE NUMERIC[18,4] (Batch, Bin, ListBinInventory);
+calcOutSum(Batch batch, Bin b, ListBinInventory li) += NUMERIC[18,4](Utils.round(outQuantity(batch, b, li) * price(batch, li), priceRound(binInventory(li))));
+outSum 'Сумма по описям (расход)' = DATA NUMERIC[18,4] (Batch, Bin, ListBinInventory) CHARWIDTH 9 PATTERN '#,##0.00##';
+
 calcInSum = ABSTRACT VALUE NUMERIC[18,4] (Batch, ListBinInventory);
 calcInSum(Batch batch, ListBinInventory li) += NUMERIC[18,4](Utils.round(inQuantity(batch, li) * price(batch, li), priceRound(binInventory(li))));
 inSum 'Сумма по описям (приход)' = DATA NUMERIC[18,4] (Batch, ListBinInventory) CHARWIDTH 9 PATTERN '#,##0.00##';
 
+calcInSum = ABSTRACT VALUE NUMERIC[18,4] (Batch, Bin, ListBinInventory);
+calcInSum(Batch batch, Bin b, ListBinInventory li) += NUMERIC[18,4](Utils.round(inQuantity(batch, b, li) * price(batch, li), priceRound(binInventory(li))));
+inSum 'Сумма по описям (приход)' = DATA NUMERIC[18,4] (Batch, Bin, ListBinInventory) CHARWIDTH 9 PATTERN '#,##0.00##';
+
 sumShortage 'Сумма недостачи / излишка' (Batch batch, ListBinInventory li)= outSum(batch, li) (-) inSum(batch, li) CHARWIDTH 9 PATTERN '#,##0.00##';
+sumShortage 'Сумма недостачи / излишка' (Batch batch, Bin b, ListBinInventory li)= outSum(batch, b, li) (-) inSum(batch, b, li) CHARWIDTH 9 PATTERN '#,##0.00##';
 
 overFillBatchSum ABSTRACT (ListBinInventory);
 fillBatchSum 'Заполнить суммы описи' (ListBinInventory li) {
@@ -69,6 +78,17 @@ sumContainerBatchShortage 'Сумма недостачи / излишка, та�
 sumItemShortage(BinInventory i) += WHEN typeSkuLedger(i)==TypeSkuLedger.byBatches THEN sumItemBatchShortage(i);
 sumContainerShortage(BinInventory i) += WHEN typeSkuLedger(i)==TypeSkuLedger.byBatches THEN sumContainerBatchShortage(i);
 
+overFillSum 'Заполнить сумму по описям для ячеек-партий' (BinInventory i) {
+    outSum(Batch batch, Bin b, ListBinInventory li) <- calcOutSum(batch, b, li) WHERE in(batch, b, li) AND binInventory(li)==i;
+    inSum(Batch batch, Bin b, ListBinInventory li) <- calcInSum(batch, b, li) WHERE in(batch, b, li) AND binInventory(li)==i;
+}
+overFillSumNewSession  'Заполнить сумму по описям для ячеек-партий' (BinInventory i) {
+    NEWSESSION {
+        overFillSum(i);
+        APPLY;
+    }
+}
+
 overFillCollationSheet (BinInventory i) + {
     IF typeSkuLedger(i)==TypeSkuLedger.byBatches THEN {
         price(Batch batch, i)  <- prevAccountPriceB(batch, stock(i), dateTime(i)) WHERE in(batch, i);
@@ -79,6 +99,8 @@ overFillCollationSheet (BinInventory i) + {
         price(Batch batch, ListBinInventory li)  <- prevAccountPriceB(batch, stock(li), dateTime(li)) WHERE in(batch, li) AND binInventory(li)==i;
         outSum(Batch batch, ListBinInventory li) <- calcOutSum(batch, li) WHERE in(batch, li) AND binInventory(li)==i;
         inSum(Batch batch, ListBinInventory li) <- calcInSum(batch, li) WHERE in(batch, li) AND binInventory(li)==i;
+
+        overFillSum(i);
     }
 }
 
@@ -87,6 +109,8 @@ diffBinInventoryBatch 'C расхождением' = DATA LOCAL NESTED BOOLEAN (
 EXTEND FORM binInventory
     PROPERTIES diffBinInventoryBatch()
     PROPERTIES(lbt, li) SHOWIF typeSkuLedger(i)==TypeSkuLedger.byBatches READONLY price, outSum, inSum, sumShortage
+    PROPERTIES(lbt1, li) SHOWIF typeSkuLedger(i)==TypeSkuLedger.byBatches READONLY price
+    PROPERTIES(lbt1, bin1, li)  SHOWIF typeSkuLedger(i)==TypeSkuLedger.byBatches READONLY outSum, inSum, sumShortage
     PROPERTIES(li) fillBatchSum DRAW lbt PANEL TOOLBAR SHOWIF typeSkuLedger(i)==TypeSkuLedger.byBatches
 
     PROPERTIES(i) READONLY countBatch, quantityBatch, quantityBatchBalance, quantityBatchShortage, sumBatch, sumBatchBalance, sumBatchShortage
