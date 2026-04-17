@@ -1,0 +1,67 @@
+MODULE UpdDocumentEDSCTT;
+
+REQUIRE UpdDocumentEDS, EDSTopBy, EDSCTT, UpdDocumentApi;
+
+NAMESPACE EDI;
+
+aliasEDSServiceReceiver (UpdDocument d) = OVERRIDE aliasEDSService(currentUser()), extraAliasEDSService(customer(d)) IF useExtraAlias(customer(d)), aliasEDSService(customer(d));
+passwordEDSServiceReceiver (UpdDocument d) = OVERRIDE passwordEDSService(currentUser()), extraPasswordEDSService(customer(d)) IF useExtraAlias(customer(d)), passwordEDSService(customer(d));
+
+aliasEDSServiceSender (UpdDocument d) = OVERRIDE aliasEDSService(currentUser()), aliasEDSService(supplier(d));
+passwordEDSServiceSender (UpdDocument d) = OVERRIDE passwordEDSService(currentUser()), passwordEDSService(supplier(d));
+
+EDSServiceReceiver(STRING[100] provider, UpdDocument d) += WHEN provider == 'CTT' AND d IS UpdDocument
+    THEN OVERRIDE EDSServiceTopBy(currentUser()), EDSServiceTopBy(customer(d));
+EDSServiceSender(STRING[100] provider, UpdDocument d) += WHEN provider == 'CTT' AND d IS UpdDocument
+    THEN OVERRIDE EDSServiceTopBy(currentUser()), EDSServiceTopBy(supplier(d));
+
+getSignedDocumentReceiver (STRING[100] provider, UpdDocument d, STRING s, BOOLEAN interactive) + {
+    LOCAL EDSService = EDSService ();
+    LOCAL isAutoApn = BOOLEAN ();
+    IF NOT disableAutoBlrapn() AND EDSServiceTopBy(customer(d)) AND NOT interactive THEN {
+        //если включено авто подтверждение то подписываем ключом организации
+        EDSService() <- EDSServiceTopBy(customer(d));
+        isAutoApn() <- TRUE;
+    } ELSE {
+        EDSService() <- EDSServiceReceiver(provider, d);
+    }
+    IF edsApplication(EDSService()) == EDSApplication.sccp THEN {
+        IF aliasEDSServiceReceiver(d) AND (OVERRIDE passwordEDSService(), passwordEDSServiceReceiver(d)) THEN {
+            keyID() <- IF isAutoApn() THEN aliasEDSService(customer(d)) ELSE aliasEDSServiceReceiver(d);
+            password() <- IF isAutoApn() THEN passwordEDSService(customer(d)) ELSE (OVERRIDE passwordEDSService(), passwordEDSServiceReceiver(d));
+            sign(s, EDSService());
+        } ELSE {
+            IF interactive THEN {
+                MESSAGE provider + ' Документ ' + numberInvoice(d) + ' не подписан: Alias или Пароль ключа не задан' NOWAIT;
+            }
+            logToFile('edi', provider + ' error: Alias or Password for key not found');
+        }
+        RETURN;
+    }
+}
+
+getSignedDocumentSender (STRING[100] provider, UpdDocument d, STRING s, BOOLEAN interactive) + {
+    LOCAL EDSService = EDSService ();
+    LOCAL isAutoApn = BOOLEAN ();
+    IF NOT disableAutoBlrapn() AND EDSServiceTopBy(supplier(d)) AND NOT interactive THEN {
+        //если включено авто подтверждение то подписываем ключом организации
+        EDSService() <- EDSServiceTopBy(supplier(d));
+        isAutoApn() <- TRUE;
+    } ELSE {
+        EDSService() <- EDSServiceSender(provider, d);
+    }
+    IF edsApplication(EDSService()) == EDSApplication.sccp THEN {
+        IF aliasEDSServiceSender(d) AND (OVERRIDE passwordEDSService(), passwordEDSServiceSender(d)) THEN {
+            keyID() <- IF isAutoApn() THEN aliasEDSService(supplier(d)) ELSE aliasEDSServiceSender(d);
+            password() <- IF isAutoApn() THEN passwordEDSService(supplier(d)) ELSE (OVERRIDE passwordEDSService(), passwordEDSServiceSender(d));
+            sign(s, EDSService());
+            open(sendRequestEDIResponse());
+        } ELSE {
+            IF interactive THEN {
+                MESSAGE provider + ' Документ ' + numberInvoice(d) + ' не подписан: Alias или Пароль ключа не задан' NOWAIT;
+            }
+            logToFile('edi', provider + ' error: Alias or Password for key not found');
+        }
+        RETURN;
+    }
+}

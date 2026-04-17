@@ -1,0 +1,140 @@
+MODULE UpdDocumentApi;
+
+REQUIRE CTT, UpdDocumentEDS, UpdDocumentObtainment;
+
+NAMESPACE EDI;
+
+read 'Прочитан' = DATA BOOLEAN (UpdDocument);
+onCancellation 'На аннулировании' = DATA BOOLEAN (UpdDocument);
+innerId 'Внутренний ID' = DATA STRING (UpdDocument);
+innerIdDoc 'Внутренний ID документа' = DATA STRING (UpdDocument);
+updDocument = GROUP AGGR UpdDocument u BY innerId(u);
+cancellationId 'Id аннулирования' = DATA STRING (UpdDocument);
+signedReceiver 'Подписан (получатель)' = DATA BOOLEAN (UpdDocument);
+signReceiverId 'Id подписания (получатель)' = DATA STRING (UpdDocument);
+clarificationIdReceiver 'Id уточнения (получатель)' = DATA STRING (UpdDocument);
+exportedClarificationReceiver 'Запрошено уточнение (получатель)' = DATA BOOLEAN (UpdDocument);
+exportedCancellationReceiver 'Аннулирован (получатель)' = DATA BOOLEAN (UpdDocument);
+receiptConfirmedReceiver 'Подтверждено получение (получатель)' = DATA BOOLEAN (UpdDocument);
+signatureDenied 'Отказано в подписании (получатель)' = DATA BOOLEAN (UpdDocument);
+cancellationConfirmed 'Подтверждено аннулирование' = DATA BOOLEAN (UpdDocument);
+cancellationDenied 'Отказано в аннулировании' = DATA BOOLEAN (UpdDocument);
+cancelledBySender = DATA BOOLEAN (UpdDocument);
+responseId = DATA STRING (UpdDocument);
+denySignId = DATA STRING (UpdDocument);
+
+CLASS ProcessingStatusUpd 'Статус обработки УПД';
+id = DATA STRING (ProcessingStatusUpd);
+name 'Наименование' = DATA STRING (ProcessingStatusUpd);
+processingStatusUpd = GROUP MAX ProcessingStatusUpd p BY id(p);
+processingStatusUpd = DATA ProcessingStatusUpd (UpdDocument);
+nameProcessingStatusUpd 'Статус обработки УПД' (UpdDocument d) = name(processingStatusUpd(d));
+
+CLASS ProcessingStatusBundleUpd 'Статус обработки пакета';
+id = DATA STRING (ProcessingStatusBundleUpd);
+name 'Наименование' = DATA STRING (ProcessingStatusBundleUpd);
+processingStatusBundleUpd = GROUP MAX ProcessingStatusBundleUpd p BY id(p);
+processingStatusBundleUpd = DATA ProcessingStatusBundleUpd (UpdDocument);
+nameProcessingStatusBundleUpd 'Статус обработки пакета' (UpdDocument d) = name(processingStatusBundleUpd(d));
+
+legalEntityCTT = DATA LegalEntity ();
+nameLegalEntityCTT 'Организация' = name(legalEntityCTT());
+getRoseuLegalEntity ABSTRACT LIST (LegalEntity);
+getRoseuDocs 'Импорт трансграничных документов' () {
+    IF askPasswordEDSService() THEN {
+        DIALOG passwordEDSService DO {} ELSE { BREAK; };
+    }
+    IF NOT documentDateStart() OR NOT documentDateEnd() THEN {
+        MESSAGE 'Не заполнен период для импорта';
+    } ELSE {
+        IF EDIProvider(legalEntityCTT()) THEN
+            getRoseuLegalEntity(legalEntityCTT());
+        ELSE
+            MESSAGE 'Не выбран EDI провайдер для организации';
+    }
+}
+
+signer = DATA CustomUser ();
+nameSigner 'Подписант' = name(signer());
+
+EXTEND FORM integrationData PROPERTIES () nameLegalEntityCTT, nameSigner;
+DESIGN integrationData {
+    col1TopBy {
+        NEW v2 {
+            caption = 'V2';
+            MOVE PROPERTY (nameLegalEntityCTT());
+            MOVE PROPERTY (nameSigner());
+        }
+    }
+}
+
+message = DATA LOCAL TEXT ();
+fillMessage ABSTRACT LIST (UpdDocument);
+
+FORM signAndSendReason 'Введите причину'
+    OBJECTS t = TEXT PANEL
+    PROPERTIES reason = VALUE(t)
+;
+DESIGN signAndSendReason {
+    OBJECTS {
+        MOVE PROPERTY(reason) {
+            caption = 'Причина';
+            valueSize = (400, 128);
+            captionVertical = TRUE;
+        }
+    }
+}
+
+importUpdDocumentV2 'Импорт УПД (xml) ' () {
+    INPUT f = FILE DO {
+        IMPORT importUPD XML FROM f;
+        createUpdDocument(f);
+        APPLY;
+    }
+}
+
+EXTEND FORM updDocuments
+    PROPERTIES (u) READONLY FIRST read, onCancellation, innerId, innerIdDoc
+    PROPERTIES (u) READONLY nameProcessingStatusBundleUpd
+    PROPERTIES () documentDateStart, documentDateEnd, getRoseuDocs
+    PROPERTIES () importUpdDocumentV2
+;
+
+DESIGN updDocuments {
+    import {
+        REMOVE PROPERTY (importUpdDocument());
+        MOVE PROPERTY (importUpdDocumentV2());
+    }
+    actionContainer {
+        horizontal = TRUE;
+        NEW leftContainer {
+            caption = '';
+            horizontal = FALSE;
+            MOVE export;
+            MOVE import;
+            NEW importRoseu {
+                caption = 'Импорт трансграничных документов';
+                horizontal = FALSE;
+                NEW dates {
+                    caption = '';
+                    horizontal = TRUE;
+                    MOVE PROPERTY(documentDateStart());
+                    MOVE PROPERTY(documentDateEnd());
+                }
+                MOVE PROPERTY(getRoseuDocs());
+            }
+        }
+        NEW receiver {
+            caption = 'Получатель';
+        }
+        NEW sender {
+            caption = 'Отправитель';
+        }
+    }
+}
+
+dataEDIProviderUpd 'EDI-провайдер для УПД' = DATA EDIProvider (LegalEntity, LegalEntity);
+EDIProviderUpd 'EDI-провайдер для УПД' (LegalEntity legalEntity, LegalEntity company) = OVERRIDE dataEDIProviderUpd(legalEntity, company), EDIProvider(legalEntity) IF isCompany(company);
+nameEDIProviderUpd 'EDI-провайдер для УПД' (LegalEntity legalEntity, LegalEntity company) = staticCaption(EDIProviderUpd(legalEntity, company));
+
+EXTEND FORM legalEntity PROPERTIES nameEDIProviderUpd(l, eCom);

@@ -1,0 +1,474 @@
+MODULE CustomerUpdDocumentCTT;
+
+REQUIRE UpdDocumentCTT, CustomerUpdDocument, UpdDocumentEDSCTT;
+
+NAMESPACE EDI;
+
+GROUP authorityConfirmMethod;
+GROUP fullName;
+GROUP resultCode;
+GROUP shipmentInfo;
+
+economicEntityName = DATA LOCAL STRING ();
+lastName = DATA LOCAL STRING (INTEGER);
+firstName = DATA LOCAL STRING (INTEGER);
+middleName = DATA LOCAL STRING (INTEGER);
+dateAccepted = DATA LOCAL DATE ();
+exported = DATA LOCAL BOOLEAN (INTEGER);
+
+FORM beforeSignForm
+    PROPERTIES() dateAccepted, economicEntityName
+    PROPERTIES IN resultCode = 1 EXTID 'id', = 'Принято без расхождений' EXTID 'name'
+
+    OBJECTS signerList = INTEGER
+    PROPERTIES(signerList) IN fullName lastName, firstName, middleName
+    PROPERTIES(signerList) signatureDate16
+    FILTERS exported(signerList)
+;
+
+//Обработать
+processCustomerUpdDocument (UpdDocument d, LegalEntity le, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) {
+    LOCAL result = FILE ();
+    TRY {
+        IF profile(le) THEN {
+            IF EDSServiceReceiver(provider, d) THEN {
+                authenticate(profile(le));
+
+                IF token() THEN {
+                    LOCAL headers = STRING(STRING);
+                    headers('Authorization') <- token();
+
+                    economicEntityName() <- nameCustomer(d);
+                    signatureDate16(0) <- STRING(currentDate());
+                    lastName(0) <- lastName(signer());
+                    firstName(0) <- firstName(signer());
+                    exported(0) <- TRUE;
+                    EXPORT beforeSignForm JSON;
+                    logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + 'ROSEU/UPD_PR/5.03/' + innerIdDoc(d) + '/response?base64=true');
+                    EXTERNAL HTTP POST url(profile(le)) + 'ROSEU/UPD_PR/5.03/' + innerIdDoc(d) + '/response?base64=true' HEADERS headers PARAMS exportFile() TO result;
+                    IMPORT importSignDoc JSON FROM result();
+                    IF errorDescription() != 'OK' THEN {
+                        MESSAGE errorDescription();
+                    } ELSE {
+                        getSignedDocumentReceiver(provider, d, xmlBase64(), TRUE);
+                        IF signError() THEN {
+                            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendUpdDocumentCustomer error: ROSEU ' + (OVERRIDE innerId(d), number(d), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError());
+                            MESSAGE provider + ' (' + loginProfile(le) + ') Документ не выгружен: ROSEU ' + (OVERRIDE innerId(d), number(d), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError() NOWAIT;
+                        } ELSE IF base64Signature() THEN {
+                            EXPORT JSON FROM id(), signatureBase64 = base64Signature(), xmlBody = xmlBase64();
+                            logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + 'ROSEU/document/saveSigned');
+                            EXTERNAL HTTP POST url(profile(le)) + 'ROSEU/document/saveSigned' HEADERS headers PARAMS exportFile() TO result;
+                            logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + result());
+
+                            IF statusHttp() = 200 THEN {
+                                signedReceiver(d) <- TRUE;
+                                signReceiverId(d) <- id();
+                                logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + 'activemq/send/REUMSG/' + signReceiverId(d));
+                                EXTERNAL HTTP GET url(profile(le)) + 'activemq/send/REUMSG/' + signReceiverId(d) HEADERS headers;
+                            }
+                        } ELSE {
+                            MESSAGE 'Документ не подписан';
+                        }
+                    }
+                    APPLY;
+                } ELSE {
+                    logToFile('edi', provider + ' (' + loginProfile(le) + ') SendUpdDocumentCustomer: ошибка при аутентификации');
+                    MESSAGE provider + ' (' + loginProfile(le) + ') Документ не выгружен: ошибка при аутентификации' NOWAIT;
+                }
+            } ELSE {
+                logToFile('edi', provider + ' (' + loginProfile(le) + ') SendUpdDocumentCustomer: не заданы параметры EDSService');
+                MESSAGE provider + ' (' + loginProfile(le) + ') Запрос на подписание не отправлен: не заданы параметры EDSService' NOWAIT;
+            }
+        } ELSE {
+            logToFile('edi', provider + ' SendUpdDocumentCustomer: не задан профиль организации отправителя');
+            MESSAGE provider + ' Документ не выгружен: не задан профиль организации отправителя' NOWAIT;
+        }
+    } CATCH {
+        logToFile('edi', CONCAT '\n', provider + ' (' + loginProfile(le) + ') error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
+        MESSAGE 'Запрос на подписание не отправлен. Обратитесь к администратору' NOWAIT;
+    }
+}
+
+processCustomerEDI(UpdDocument d) + {
+    IF EDIProviderUpd(supplier(d), customer(d)) = EDIProvider.topBy THEN {
+        IF signedReceiver(d) THEN
+            MESSAGE 'Документ уже подписан покупателем';
+        ELSE
+            processCustomerUpdDocument(d, customer(d), archiveDirTopBy(), disableConfirmationTopBy(), 'CTT');
+    }
+}
+
+//Подтвердить получение
+confirmReceiptCustomerUpd (UpdDocument d, LegalEntity le, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) {
+    LOCAL result = FILE ();
+    TRY {
+        IF profile(le) THEN {
+            IF EDSServiceReceiver(provider, d) THEN {
+                authenticate(profile(le));
+
+                IF token() THEN {
+                    LOCAL headers = STRING(STRING);
+                    headers('Authorization') <- token();
+                    //                    logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + 'ROSEU/US/5.01/confirmReceipt/' + innerIdDoc(d) + '?base64=true');
+                    //                    EXTERNAL HTTP POST url(profile(le)) + 'ROSEU/US/5.01/confirmReceipt/' + innerIdDoc(d) + '?base64=true' HEADERS headers PARAMS resultFile() TO result;
+                    logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + 'ROSEU/document/' + innerIdDoc(d) + '/iop?base64=true');
+                    EXTERNAL HTTP POST url(profile(le)) + 'ROSEU/document/' + innerIdDoc(d) + '/iop?base64=true' HEADERS headers PARAMS resultFile() TO result;
+                    IMPORT importSignDoc JSON FROM result();
+                    IF errorDescription() != 'OK' THEN {
+                        MESSAGE errorDescription();
+                    } ELSE {
+                        getSignedDocumentReceiver(provider, d, xmlBase64(), TRUE);
+                        IF signError() THEN {
+                            logToFile('edi', provider + ' (' + loginProfile(le) + ') ConfirmReceiptUpdDocument error: ROSEU ' + (OVERRIDE innerId(d), number(d), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError());
+                            MESSAGE provider + ' (' + loginProfile(le) + ') Документ не выгружен: ROSEU ' + (OVERRIDE innerId(d), number(d), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError() NOWAIT;
+                        } ELSE IF base64Signature() THEN {
+                            EXPORT JSON FROM id(), signatureBase64 = base64Signature(), xmlBody = xmlBase64();
+                            logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + 'ROSEU/document/saveSignedAndSend');
+                            EXTERNAL HTTP POST url(profile(le)) + 'ROSEU/document/saveSignedAndSend' HEADERS headers PARAMS exportFile() TO result;
+                            logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + result());
+
+                            IF statusHttp() = 200 THEN {
+                                signedReceiver(d) <- TRUE;
+                                signReceiverId(d) <- id();
+                                receiptConfirmedReceiver(d) <- TRUE;
+                            }
+                        } ELSE {
+                            MESSAGE 'Документ не подписан';
+                        }
+                    }
+
+                    APPLY;
+                } ELSE {
+                    logToFile('edi', provider + ' (' + loginProfile(le) + ') ConfirmReceiptUpdDocument: ошибка при аутентификации');
+                    MESSAGE provider + ' (' + loginProfile(le) + ') Документ не выгружен: ошибка при аутентификации' NOWAIT;
+                }
+            } ELSE {
+                logToFile('edi', provider + ' (' + loginProfile(le) + ') ConfirmReceiptUpdDocument: не заданы параметры EDSService');
+                MESSAGE provider + ' (' + loginProfile(le) + ') Запрос на подтверждение получения не отправлен: не заданы параметры EDSService' NOWAIT;
+            }
+        } ELSE {
+            logToFile('edi', provider + 'ConfirmReceiptUpdDocument: не задан профиль организации получателя');
+            MESSAGE provider + ' Документ не выгружен: не задан профиль организации получателя' NOWAIT;
+        }
+    } CATCH {
+        logToFile('edi', CONCAT '\n', provider + ' (' + loginProfile(le) + ') error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
+        MESSAGE 'Запрос на подтверждение получения не отправлен. Обратитесь к администратору' NOWAIT;
+    }
+}
+
+confirmReceiptCustomerEDI (UpdDocument d) + {
+    IF EDIProviderUpd(supplier(d), customer(d)) = EDIProvider.topBy THEN {
+        IF receiptConfirmedReceiver(d) THEN
+            MESSAGE 'Подтверждение было отправлено';
+        ELSE
+            confirmReceiptCustomerUpd(d, customer(d), archiveDirTopBy(), disableConfirmationTopBy(), 'CTT');
+    }
+}
+
+//Запросить уточнение
+signAndSendClarificationCustomerUpdDocument (UpdDocument d, LegalEntity le, STRING s, STRING[100] outputDir, STRING[100] provider) {
+    LOCAL result = FILE ();
+    TRY {
+        IF profile(le) THEN {
+            IF EDSServiceReceiver(provider, d) THEN {
+                authenticate(profile(le));
+
+                IF token() THEN {
+                    LOCAL headers = STRING(STRING);
+                    headers('Authorization') <- token();
+
+                    stringToFile(s);
+                    //                    logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + 'ROSEU/US/5.01/clarification/' + innerIdDoc(d) + '?base64=true');
+                    //                    EXTERNAL HTTP POST url(profile(le)) + 'ROSEU/US/5.01/clarification/' + innerIdDoc(d) + '?base64=true' HEADERS headers PARAMS resultFile() TO result;
+                    logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + 'ROSEU/UOU/1.03/' + innerIdDoc(d) + '?base64=true');
+                    EXTERNAL HTTP POST url(profile(le)) + 'ROSEU/UOU/1.03/' + innerIdDoc(d) + '?base64=true' HEADERS headers PARAMS resultFile() TO result;
+                    logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + result());
+                    IMPORT importSignDoc JSON FROM result();
+                    IF errorDescription() != 'OK' THEN {
+                        MESSAGE errorDescription();
+                    } ELSE {
+                        getSignedDocumentReceiver(provider, d, xmlBase64(), TRUE);
+                        IF signError() THEN {
+                            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendClarificationCustomer error: ROSEU ' + (OVERRIDE innerId(d), number(d), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError());
+                            MESSAGE provider + ' (' + loginProfile(le) + ') Документ не выгружен: ROSEU ' + (OVERRIDE innerId(d), number(d), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError() NOWAIT;
+                        } ELSE IF base64Signature() THEN {
+                            EXPORT JSON FROM id(), signatureBase64 = base64Signature(), xmlBody = xmlBase64();
+                            logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + 'ROSEU/document/saveSignedAndSend');
+                            EXTERNAL HTTP POST url(profile(le)) + 'ROSEU/document/saveSignedAndSend' HEADERS headers PARAMS exportFile() TO result;
+                            logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + result());
+
+                            IF statusHttp() = 200 THEN {
+                                clarificationIdReceiver(d) <- id();
+                                exportedClarificationReceiver(d) <- TRUE;
+                            }
+                        } ELSE {
+                            MESSAGE 'Документ не подписан';
+                        }
+                    }
+
+                    APPLY;
+                } ELSE {
+                    logToFile('edi', provider + ' (' + loginProfile(le) + ') SendClarificationCustomer: ошибка при аутентификации');
+                    MESSAGE provider + ' (' + loginProfile(le) + ') Документ не выгружен: ошибка при аутентификации' NOWAIT;
+                }
+            } ELSE {
+                logToFile('edi', provider + ' (' + loginProfile(le) + ') SendClarificationCustomer: не заданы параметры EDSService');
+                MESSAGE provider + ' (' + loginProfile(le) + ') Запрос на уточнение не отправлен: не заданы параметры EDSService' NOWAIT;
+            }
+        } ELSE {
+            logToFile('edi', provider + ' SendClarificationCustomer: не задан профиль организации отправителя');
+            MESSAGE provider + ' Документ не выгружен: не задан профиль организации отправителя' NOWAIT;
+        }
+    } CATCH {
+        logToFile('edi', CONCAT '\n', provider + ' (' + loginProfile(le) + ') error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
+        MESSAGE 'Запрос на уточнение не отправлен. Обратитесь к администратору' NOWAIT;
+    }
+}
+
+signAndSendClarificationCustomerEDI (UpdDocument d, STRING[1000] s) + {
+    IF EDIProviderUpd(supplier(d), customer(d)) == EDIProvider.topBy THEN {
+        IF (exportedClarificationReceiver(d)) THEN
+            MESSAGE 'Уточнение уже запрошено';
+        ELSE
+            signAndSendClarificationCustomerUpdDocument(d, customer(d), s, outputDirTopBy(), 'CTT');
+    }
+}
+
+//Отказать в подписании
+denySignatureCustomerUpdDocument (UpdDocument d, LegalEntity le, STRING s, STRING[100] outputDir, STRING[100] provider) {
+    LOCAL result = FILE ();
+    TRY {
+        IF profile(le) THEN {
+            IF EDSServiceReceiver(provider, d) THEN {
+                authenticate(profile(le));
+
+                IF token() THEN {
+                    LOCAL headers = STRING(STRING);
+                    headers('Authorization') <- token();
+
+                    stringToFile(s);
+                    logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + 'ROSEU/US/5.01/denySign/' + innerIdDoc(d) + '?base64=true');
+                    EXTERNAL HTTP POST url(profile(le)) + 'ROSEU/US/5.01/denySign/' + innerIdDoc(d) + '?base64=true' HEADERS headers PARAMS resultFile() TO result;
+                    logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + result());
+                    IF statusHttp() = 200 THEN {
+                        signatureDenied(d) <- TRUE;
+                    }
+                    APPLY;
+                } ELSE {
+                    logToFile('edi', provider + ' (' + loginProfile(le) + ') SendDenySignatureCustomer: ошибка при аутентификации');
+                    MESSAGE provider + ' (' + loginProfile(le) + ') Документ не выгружен: ошибка при аутентификации' NOWAIT;
+                }
+            } ELSE {
+                logToFile('edi', provider + ' (' + loginProfile(le) + ') SendDenySignatureCustomer: не заданы параметры EDSService');
+                MESSAGE provider + ' (' + loginProfile(le) + ') Запрос на отказ в подписании не отправлен: не заданы параметры EDSService' NOWAIT;
+            }
+        } ELSE {
+            logToFile('edi', provider + ' SendDenySignatureCustomer: не задан профиль организации отправителя');
+            MESSAGE provider + ' Документ не выгружен: не задан профиль организации отправителя' NOWAIT;
+        }
+    } CATCH {
+        logToFile('edi', CONCAT '\n', provider + ' (' + loginProfile(le) + ') error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
+        MESSAGE 'Запрос на отказ в подписании не отправлен. Обратитесь к администратору' NOWAIT;
+    }
+}
+
+denySignatureCustomerEDI (UpdDocument d, STRING[1000] s) + {
+    IF EDIProviderUpd(supplier(d), customer(d)) == EDIProvider.topBy THEN {
+        IF (signatureDenied(d)) THEN
+            MESSAGE 'Уже было отказано в подписании';
+        ELSE
+            denySignatureCustomerUpdDocument(d, customer(d), s, outputDirTopBy(), 'CTT');
+    }
+}
+
+//Аннулировать
+sendCancellationCustomerUpdDocument (UpdDocument d, LegalEntity le, STRING s, STRING[100] outputDir, STRING[100] provider) {
+    LOCAL result = FILE ();
+    TRY {
+        IF profile(le) THEN {
+            IF EDSServiceReceiver(provider, d) THEN {
+                authenticate(profile(le));
+
+                IF token() THEN {
+                    LOCAL headers = STRING(STRING);
+                    headers('Authorization') <- token();
+
+                    EXPORT JSON FROM description = s, firstName = firstName(signer()), lastName = lastName(signer()), jobPost = namePosition(signer());
+                    logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + 'ROSEU/POA/1.02/' + innerIdDoc(d) + '?base64=true' + '\n' + exportFile());
+                    EXTERNAL HTTP POST url(profile(le)) + 'ROSEU/POA/1.02/' + innerIdDoc(d) + '?base64=true' HEADERS headers PARAMS exportFile() TO result;
+                    IMPORT importSignDoc JSON FROM result();
+                    IF errorDescription() != 'OK' THEN {
+                        MESSAGE errorDescription();
+                    } ELSE {
+                        getSignedDocumentReceiver(provider, d, xmlBase64(), TRUE);
+                        IF signError() THEN {
+                            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendCancellationUpdCustomer error: ROSEU ' + (OVERRIDE innerId(d), number(d), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError());
+                            MESSAGE provider + ' (' + loginProfile(le) + ') Документ не выгружен: ROSEU ' + (OVERRIDE innerId(d), number(d), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError() NOWAIT;
+                        } ELSE IF base64Signature() THEN {
+                            EXPORT JSON FROM id(), signatureBase64 = base64Signature(), xmlBody = xmlBase64();
+                            logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + 'ROSEU/document/saveSignedAndSend');
+                            EXTERNAL HTTP POST url(profile(le)) + 'ROSEU/document/saveSignedAndSend' HEADERS headers PARAMS exportFile() TO result;
+                            logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + result());
+                            IF statusHttp() = 200 THEN {
+                                exportedCancellationReceiver(d) <- TRUE;
+                                cancellationId(d) <- id();
+                            }
+                        } ELSE {
+                            MESSAGE 'Документ не подписан';
+                        }
+                    }
+                    APPLY;
+                } ELSE {
+                    logToFile('edi', provider + ' (' + loginProfile(le) + ') SendCancellationCustomer: ошибка при аутентификации');
+                    MESSAGE provider + ' (' + loginProfile(le) + ') Документ не выгружен: ошибка при аутентификации' NOWAIT;
+                }
+            } ELSE {
+                logToFile('edi', provider + ' (' + loginProfile(le) + ') SendCancellationCustomer: не заданы параметры EDSService');
+                MESSAGE provider + ' (' + loginProfile(le) + ') Запрос на аннулирование не отправлен: не заданы параметры EDSService' NOWAIT;
+            }
+        } ELSE {
+            logToFile('edi', provider + ' SendCancellationCustomer: не задан профиль организации отправителя');
+            MESSAGE provider + ' Документ не выгружен: не задан профиль организации отправителя' NOWAIT;
+        }
+    } CATCH {
+        logToFile('edi', CONCAT '\n', provider + ' (' + loginProfile(le) + ') error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
+        MESSAGE 'Запрос на аннулирование не отправлен. Обратитесь к администратору' NOWAIT;
+    }
+}
+
+sendCancellationCustomerEDI (UpdDocument d, STRING[1000] s) + {
+    IF EDIProviderUpd(supplier(d), customer(d)) == EDIProvider.topBy THEN {
+        IF (exportedCancellationReceiver(d)) THEN
+            MESSAGE 'Документ уже был аннулирован';
+        ELSE
+            sendCancellationCustomerUpdDocument(d, customer(d), s, outputDirTopBy(), 'CTT');
+    }
+}
+
+//Подтвердить аннулирование
+confirmCancellationCustomerUpdDocument (UpdDocument d, LegalEntity le, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) {
+    LOCAL result = FILE ();
+    TRY {
+        IF profile(le) THEN {
+            IF EDSServiceReceiver(provider, d) THEN {
+                authenticate(profile(le));
+
+                IF token() THEN {
+                    LOCAL headers = STRING(STRING);
+                    headers('Authorization') <- token();
+
+                    logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + 'ROSEU/document/' + cancellationId(d) + '/signed?base64=true');
+                    EXTERNAL HTTP GET url(profile(le)) + 'ROSEU/document/' + cancellationId(d) + '/signed?base64=true' HEADERS headers TO result;
+                    IMPORT importSignDoc JSON FROM result();
+                    IF errorDescription() != 'OK' THEN {
+                        MESSAGE errorDescription();
+                    } ELSE {
+                        getSignedDocumentReceiver(provider, d, xmlBase64(), TRUE);
+                        IF signError() THEN {
+                            logToFile('edi', provider + ' (' + loginProfile(le) + ') ConfirmCancellationCustomer error: ROSEU ' + (OVERRIDE innerId(d), number(d), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError());
+                            MESSAGE provider + ' (' + loginProfile(le) + ') Документ не выгружен: ROSEU ' + (OVERRIDE innerId(d), number(d), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError() NOWAIT;
+                        } ELSE IF base64Signature() THEN {
+                            EXPORT JSON FROM id(), signatureBase64 = base64Signature(), xmlBody = xmlBase64();
+                            logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + 'ROSEU/document/sendSign');
+                            EXTERNAL HTTP POST url(profile(le)) + 'ROSEU/document/sendSign' HEADERS headers PARAMS exportFile() TO result;
+                            logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + result());
+                            IF statusHttp() = 200 THEN {
+                                cancellationConfirmed(d) <- TRUE;
+                            }
+                        } ELSE {
+                            MESSAGE 'Документ не подписан';
+                        }
+                    }
+                    APPLY;
+                } ELSE {
+                    logToFile('edi', provider + ' (' + loginProfile(le) + ') ConfirmCancellationCustomer: ошибка при аутентификации');
+                    MESSAGE provider + ' (' + loginProfile(le) + ') Документ не выгружен: ошибка при аутентификации' NOWAIT;
+                }
+            } ELSE {
+                logToFile('edi', provider + ' (' + loginProfile(le) + ') ConfirmCancellationCustomer: не заданы параметры EDSService');
+                MESSAGE provider + ' (' + loginProfile(le) + ') Запрос на подтверждение аннулирования не отправлен: не заданы параметры EDSService' NOWAIT;
+            }
+        } ELSE {
+            logToFile('edi', provider + ' ConfirmCancellationCustomer: не задан профиль организации отправителя');
+            MESSAGE provider + ' Документ не выгружен: не задан профиль организации отправителя' NOWAIT;
+        }
+    } CATCH {
+        logToFile('edi', CONCAT '\n', provider + ' (' + loginProfile(le) + ') error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
+        MESSAGE 'Запрос на подтверждение аннулирования не отправлен. Обратитесь к администратору' NOWAIT;
+    }
+}
+
+confirmCancellationCustomerEDI (UpdDocument d) + {
+    IF EDIProviderUpd(supplier(d), customer(d)) = EDIProvider.topBy THEN {
+        IF cancellationConfirmed(d) THEN
+            MESSAGE 'Документ уже подписан покупателем';
+        ELSE
+            confirmCancellationCustomerUpdDocument(d, customer(d), archiveDirTopBy(), disableConfirmationTopBy(), 'CTT');
+    }
+}
+
+//Отказ от аннулирования
+denyCancellationCustomerUpdDocument (UpdDocument d, LegalEntity le, STRING s, STRING[100] outputDir, STRING[100] provider) {
+    LOCAL result = FILE ();
+    TRY {
+        IF profile(le) THEN {
+            IF EDSServiceReceiver(provider, d) THEN {
+                authenticate(profile(le));
+
+                IF token() THEN {
+                    LOCAL headers = STRING(STRING);
+                    headers('Authorization') <- token();
+
+                    stringToFile(s);
+                    logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + 'ROSEU/UOU/1.03/' + cancellationId(d) + '?base64=true');
+                    EXTERNAL HTTP POST url(profile(le)) + 'ROSEU/UOU/1.03/' + cancellationId(d) + '?base64=true' HEADERS headers PARAMS resultFile() TO result;
+                    IMPORT importSignDoc JSON FROM result();
+                    IF errorDescription() != 'OK' THEN {
+                        MESSAGE errorDescription();
+                    } ELSE {
+                        getSignedDocumentReceiver(provider, d, xmlBase64(), TRUE);
+                        IF signError() THEN {
+                            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendDenyCancellationCustomer error: ROSEU ' + (OVERRIDE innerId(d), number(d), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError());
+                            MESSAGE provider + ' (' + loginProfile(le) + ') Документ не выгружен: ROSEU ' + (OVERRIDE innerId(d), number(d), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError() NOWAIT;
+                        } ELSE IF base64Signature() THEN {
+                            EXPORT JSON FROM id(), signatureBase64 = base64Signature(), xmlBody = xmlBase64();
+                            logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + 'ROSEU/document/saveSignedAndSend');
+                            EXTERNAL HTTP POST url(profile(le)) + 'ROSEU/document/saveSignedAndSend' HEADERS headers PARAMS exportFile() TO result;
+                            logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + result());
+                            IF statusHttp() = 200 THEN {
+                                cancellationConfirmed(d) <- TRUE;
+                            }
+                        } ELSE {
+                            MESSAGE 'Документ не подписан';
+                        }
+                    }
+                    IF statusHttp() = 200 THEN {
+                        cancellationDenied(d) <- TRUE;
+                    }
+                    APPLY;
+                } ELSE {
+                    logToFile('edi', provider + ' (' + loginProfile(le) + ') SendDenyCancellationCustomer: ошибка при аутентификации');
+                    MESSAGE provider + ' (' + loginProfile(le) + ') Документ не выгружен: ошибка при аутентификации' NOWAIT;
+                }
+            } ELSE {
+                logToFile('edi', provider + ' (' + loginProfile(le) + ') SendDenyCancellationCustomer: не заданы параметры EDSService');
+                MESSAGE provider + ' (' + loginProfile(le) + ') Запрос на аннулирование не отправлен: не заданы параметры EDSService' NOWAIT;
+            }
+        } ELSE {
+            logToFile('edi', provider + ' SendDenyCancellationCustomer: не задан профиль организации отправителя');
+            MESSAGE provider + ' Документ не выгружен: не задан профиль организации отправителя' NOWAIT;
+        }
+    } CATCH {
+        logToFile('edi', CONCAT '\n', provider + ' (' + loginProfile(le) + ') error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
+        MESSAGE 'Запрос на аннулирование не отправлен. Обратитесь к администратору' NOWAIT;
+    }
+}
+
+denyCancellationCustomerEDI (UpdDocument d, STRING[1000] s) + {
+    IF EDIProviderUpd(supplier(d), customer(d)) == EDIProvider.topBy THEN {
+        IF (cancellationDenied(d)) THEN
+            MESSAGE 'Уже было отказано в аннулировании';
+        ELSE
+            denyCancellationCustomerUpdDocument(d, customer(d), s, outputDirTopBy(), 'CTT');
+    }
+}

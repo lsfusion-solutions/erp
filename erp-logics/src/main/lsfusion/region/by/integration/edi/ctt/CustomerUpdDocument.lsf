@@ -1,0 +1,144 @@
+MODULE CustomerUpdDocument;
+
+REQUIRE UpdDocumentApi, EDS, XMLUtils;
+
+NAMESPACE EDI;
+
+processCustomerEDI ABSTRACT LIST (UpdDocument);
+processCustomer 'Обработать (покупатель)' (UpdDocument d) {
+    IF askPasswordEDSService() AND NOT passwordEDSService() THEN {
+        DIALOG passwordEDSService DO {} ELSE { BREAK; };
+    }
+
+    IF EDIProviderUpd(supplier(d), customer(d)) THEN
+        processCustomerEDI(d);
+    ELSE
+        MESSAGE 'Не выбран EDI провайдер для документа: ' + (OVERRIDE innerId(d), number(d), '');
+}
+
+confirmReceiptCustomerEDI ABSTRACT LIST (UpdDocument);
+confirmReceiptCustomer 'Подтвердить получение (покупатель)' (UpdDocument d) {
+    IF askPasswordEDSService() AND NOT passwordEDSService() THEN {
+        DIALOG passwordEDSService DO {} ELSE { BREAK; };
+    }
+    IF EDIProviderUpd(supplier(d), customer(d)) THEN
+        confirmReceiptCustomerEDI(d);
+    ELSE
+        MESSAGE 'Не выбран EDI провайдер для документа: ' + (OVERRIDE innerId(d), number(d), '');
+}
+
+signAndSendClarificationCustomerEDI ABSTRACT LIST (UpdDocument, STRING[1000]);
+signAndSendClarificationCustomer 'Запросить уточнение (покупатель)' (UpdDocument d) {
+    IF askPasswordEDSService() AND NOT passwordEDSService() THEN {
+        DIALOG passwordEDSService DO {} ELSE { BREAK; };
+    }
+    IF EDIProviderUpd(supplier(d), customer(d)) THEN {
+        message() <- NULL;
+        fillMessage(d);
+        DIALOG signAndSendReason OBJECTS t = message() INPUT DO {
+            IF t != '' THEN {
+                signAndSendClarificationCustomerEDI(d, STRING[1000](replace(replace(t, '\n', ' '), '\r', ' ')));
+            }
+            ELSE MESSAGE 'Не задана причина. Запрос на уточнение не отправлен!';
+        }
+    }
+    ELSE
+        MESSAGE 'Не выбран EDI провайдер для документа: ' + numberInvoice(d);
+}
+
+denySignatureCustomerEDI ABSTRACT LIST (UpdDocument, STRING[1000]);
+denySignatureCustomer 'Отказать в подписании (покупатель)' (UpdDocument d) {
+    IF askPasswordEDSService() AND NOT passwordEDSService() THEN {
+        DIALOG passwordEDSService DO {} ELSE { BREAK; };
+    }
+    IF EDIProviderUpd(supplier(d), customer(d)) THEN {
+        message() <- NULL;
+        fillMessage(d);
+        DIALOG signAndSendReason OBJECTS t = message() INPUT DO {
+            IF t != '' THEN {
+                denySignatureCustomerEDI(d, STRING[1000](replace(replace(t, '\n', ' '), '\r', ' ')));
+            }
+            ELSE MESSAGE 'Не задана причина. Отказ от подписания не отправлен!';
+        }
+    }
+    ELSE
+        MESSAGE 'Не выбран EDI провайдер для документа: ' + numberInvoice(d);
+}
+
+sendCancellationCustomerEDI ABSTRACT LIST (UpdDocument, STRING[1000]);
+sendCancellationCustomer 'Аннулировать (покупатель)' (UpdDocument d) {
+    IF askPasswordEDSService() AND NOT passwordEDSService() THEN {
+        DIALOG passwordEDSService DO {} ELSE { BREAK; };
+    }
+    IF EDIProviderUpd(supplier(d), customer(d)) THEN {
+        message() <- NULL;
+        fillMessage(d);
+        DIALOG signAndSendReason OBJECTS t = message() INPUT DO {
+            IF t != '' THEN {
+                sendCancellationCustomerEDI(d, STRING[1000](replace(replace(t, '\n', ' '), '\r', ' ')));
+            }
+            ELSE MESSAGE 'Не задана причина. Запрос на аннулирование не отправлен!';
+        }
+    }
+    ELSE
+        MESSAGE 'Не выбран EDI провайдер для документа: ' + numberInvoice(d);
+}
+
+confirmCancellationCustomerEDI ABSTRACT LIST (UpdDocument);
+confirmCancellationCustomer 'Подтвердить аннулирование (покупатель)' (UpdDocument d) {
+    IF askPasswordEDSService() AND NOT passwordEDSService() THEN {
+        DIALOG passwordEDSService DO {} ELSE { BREAK; };
+    }
+    IF EDIProviderUpd(supplier(d), customer(d)) THEN {
+        confirmCancellationCustomerEDI(d);
+    }
+    ELSE
+        MESSAGE 'Не выбран EDI провайдер для документа: ' + numberInvoice(d);
+}
+
+denyCancellationCustomerEDI ABSTRACT LIST (UpdDocument, STRING[1000]);
+denyCancellationCustomer 'Отказать в аннулировании (покупатель)' (UpdDocument d) {
+    IF askPasswordEDSService() AND NOT passwordEDSService() THEN {
+        DIALOG passwordEDSService DO {} ELSE { BREAK; };
+    }
+    IF EDIProviderUpd(supplier(d), customer(d)) THEN {
+        message() <- NULL;
+        fillMessage(d);
+        DIALOG signAndSendReason OBJECTS t = message() INPUT DO {
+            IF t != '' THEN {
+                denyCancellationCustomerEDI(d, STRING[1000](replace(replace(t, '\n', ' '), '\r', ' ')));
+            }
+            ELSE MESSAGE 'Не задана причина. Отказ от аннулирования не отправлен!';
+        }
+    }
+    ELSE
+        MESSAGE 'Не выбран EDI провайдер для документа: ' + numberInvoice(d);
+}
+
+showConfirmDenyCancellation (UpdDocument d) = nameProcessingStatusBundleUpd(d) = 'На аннулировании' AND cancellationId(d) AND cancelledBySender(d);
+showProcess (UpdDocument d) = NOT nameProcessingStatusBundleUpd(d) = 'Откорректирован' AND NOT nameProcessingStatusBundleUpd(d) = 'Аннулирован'
+    AND NOT responseId(d) AND NOT onCancellation(d) AND NOT nameProcessingStatusBundleUpd(d) = 'Отказано в подписи';
+showConfirmReceipt (UpdDocument d) = nameProcessingStatusBundleUpd(d) = 'Передан';
+showClarification (UpdDocument d) = nameProcessingStatusBundleUpd(d) = 'Передан' OR nameProcessingStatusBundleUpd(d) = 'Получен'
+    OR nameProcessingStatusBundleUpd(d) = 'Создан и подтвержден';
+showSignAndDeny (UpdDocument d) = nameProcessingStatusBundleUpd(d) = 'Передан' OR nameProcessingStatusBundleUpd(d) = 'Требуется уточнение';
+showCancellation (UpdDocument d) = nameProcessingStatusBundleUpd(d) = 'Создан и подтвержден' AND NOT onCancellation(d);
+
+EXTEND FORM updDocuments
+    PROPERTIES (u) processCustomer SHOWIF showProcess(u), confirmReceiptCustomer SHOWIF showConfirmReceipt(u)
+    PROPERTIES (u) denySignatureCustomer SHOWIF showSignAndDeny(u) AND supplier(u) = legalEntityCTT()
+    PROPERTIES (u) sendCancellationCustomer SHOWIF showCancellation(u), signAndSendClarificationCustomer SHOWIF showClarification(u)
+    PROPERTIES (u) SHOWIF showConfirmDenyCancellation(u) confirmCancellationCustomer, denyCancellationCustomer
+;
+
+DESIGN updDocuments {
+    receiver {
+        MOVE PROPERTY (processCustomer(u));
+        MOVE PROPERTY (confirmReceiptCustomer(u));
+        MOVE PROPERTY (signAndSendClarificationCustomer(u));
+        MOVE PROPERTY (denySignatureCustomer(u));
+        MOVE PROPERTY (sendCancellationCustomer(u));
+        MOVE PROPERTY (confirmCancellationCustomer(u));
+        MOVE PROPERTY (denyCancellationCustomer(u));
+    }
+}
