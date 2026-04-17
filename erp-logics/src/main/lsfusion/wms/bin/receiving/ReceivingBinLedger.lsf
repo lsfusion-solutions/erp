@@ -786,6 +786,9 @@ META defineReceivingAggregation(primObject, captionObject, captionObjects, formO
     GRDate 'Дата завершения приёмки' (###primObject primObject) = GRDate(receiving(primObject));
     GRTime 'Время завершения приёмки' (###primObject primObject) = GRTime(receiving(primObject));
     GRDateTime 'Дата/время завершения приёмки' (###primObject primObject) = GRDateTime(receiving(primObject));
+        
+    CONSTRAINT SET(GRDateTime(###primObject primObject) < dateTime(primObject)) 
+        MESSAGE 'Дата/время завершения приёмки не может быть меньше даты/времени документа основания';
 
     EXTEND FORM user###primObject
         PROPERTIES(formObject) READONLY BACKGROUND RGB(255, 224, 255) GRDateTime
@@ -868,6 +871,10 @@ META defineUserReceiving (primObject, captionObjects)
     createUserReceivingFor###primObject 'Создать документ приемки' () {
         IF countParamsToUserReceiving###primObject() > 1 THEN {
             MESSAGE 'Нельзя создать один документ приёмки по отмеченным документам' NOWAIT;
+            RETURN;
+        }
+        IF (GROUP SUM 1 IF dateTime(###primObject primObject) > currentDateTime() AND selectedUserReceiving(primObject)) THEN {
+            MESSAGE 'Нельзя создать приёмку по документам с датой/временем больше текущей' NOWAIT;
             RETURN;
         }
         LOCAL newReceiving = UserReceiving();
