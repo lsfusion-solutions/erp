@@ -1,6 +1,6 @@
 MODULE PriceLimitAlcoholGestori;
 
-REQUIRE PriceList, EGAISProductType, EGAISItemGestori, ItemSize;
+REQUIRE PriceList, EGAISProductType, EGAISItemGestori, ItemSize, MachineryPriceTransaction;
 
 NAMESPACE PriceLimitAlcohol;
 
@@ -196,13 +196,63 @@ minAlcoholLimitPriceCalc (Item s, DATETIME dt) = GROUP
 minAlcoholLimitPrice (Item s, DATETIME dt) += WHEN s IS Item AND dt IS DATETIME AND NOT useCustomAlcoholLimitPrice() THEN minAlcoholLimitPriceCalc(s,dt);
 //minAlcoholLimitPriceRB (Item s, DATETIME dt) += WHEN s IS Item AND dt IS DATETIME AND NOT useCustomAlcoholLimitPrice() THEN minAlcoholLimitPriceRBCalc(s,dt);
 
-minAlcoholLimitPrice 'МРЦ' (UserPriceListDetail d) = minAlcoholLimitPrice(sku(d), fromDateTime(d));
+
+CLASS SingleMinPrice 'ЕМЦ';
+
+itemGroup '' = DATA ItemGroup(SingleMinPrice) AUTOSET;
+date 'Дата начала' = DATA DATE (SingleMinPrice);
+price 'ЕМЦ' = DATA NUMERIC[16,4](SingleMinPrice);
+
+FORM singleMinPrice
+    OBJECTS s = SingleMinPrice PANEL
+    PROPERTIES(s) date, price
+    EDIT SingleMinPrice OBJECT s
+;
+
+isSingleMinPrice 'ЕМЦ' = DATA BOOLEAN (ItemGroup) IN paramsItemGroup;
+singleMinPrice 'ЕМЦ' (ItemGroup g, DATE dt) = GROUP LAST price(SingleMinPrice s) IF itemGroup(s) = g AND date(s) <= dt ORDER date(s);
+singleMinPrice 'ЕМЦ' (ItemGroup g) = GROUP LAST price(SingleMinPrice s) IF itemGroup(s) = g AND date(s) <= currentDate() ORDER date(s);
+
+singleMinPrice 'ЕМЦ' (Item i, DATE dt) = GROUP LAST singleMinPrice(ItemGroup g, dt) IF isParent(g, i) ORDER g;
+singleMinPrice 'ЕМЦ' (Item i) = GROUP LAST singleMinPrice(ItemGroup g) IF isParent(g, i) ORDER g;
+
+EXTEND FORM itemGroup
+    PROPERTIES (g) isSingleMinPrice
+;
+
+EXTEND FORM itemGroups
+    PROPERTIES (g) isSingleMinPrice
+;
+
+FORM singleMinPrices 'ЕМЦ'
+    OBJECTS g = ItemGroup
+    PROPERTIES(g) READONLY id, name, singleMinPrice
+    FILTERS isSingleMinPrice(g)
+
+    OBJECTS s = SingleMinPrice
+    PROPERTIES(s)  READONLY date, price
+    PROPERTIES(s) NEWSESSION NEW, EDIT, DELETE
+    FILTERS itemGroup(s) = g
+    OBJECTS i = Item
+    PROPERTIES (i) READONLY idBarcode, id, name
+    PROPERTIES singleMinPrice(i)
+    FILTERS isParent(g, i)
+
+;
+
+NAVIGATOR {
+    priceListDocuments{
+        NEW singleMinPrices;
+    }
+}
+
+minAlcoholLimitPrice 'МРЦ/EMЦ' (UserPriceListDetail d) = OVERRIDE minAlcoholLimitPrice(sku(d), fromDateTime(d)), singleMinPrice(sku(d), fromDate(d));
 
 EXTEND FORM userPriceList
     PROPERTIES (d) READONLY minAlcoholLimitPrice SHOWIF show(p, priceListType('retail'))
 ;
 
-CONSTRAINT CHANGED(isPosted(UserPriceListDetail d)) AND isPosted(d) AND price(d, dataPriceListType('retail')) < minAlcoholLimitPrice(sku(d), fromDateTime(d)) MESSAGE 'Цена меньше МРЦ';
+CONSTRAINT CHANGED(isPosted(UserPriceListDetail d)) AND isPosted(d) AND price(d, dataPriceListType('retail')) < minAlcoholLimitPrice(d) MESSAGE 'Цена меньше МРЦ/ЕМЦ';
 
 EXTEND FORM alcoholLimits
     OBJECTS i = Item
@@ -237,3 +287,6 @@ CONSTRAINT (SET(isPosted(AlcoholLimitDetail a)) OR CHANGED(fromDate(alcoholLimit
 //CONSTRAINT (SET(isPosted(AlcoholLimit a)) OR CHANGED(fromDate(a)) OR CHANGED(toDate(a))) AND isPosted(a) AND
 //    (GROUP SUM 1 IF a != AlcoholLimit a1 AND toDate(a) >= fromDate(a1) AND fromDate(a) <= toDate(a1) AND in(a, ProductType p) AND in(a1, p))
 //    MESSAGE ' Запрещено проводить 2 документа МРЦ с пересекающимися датами';
+
+defaultMinPrice = ABSTRACT NUMERIC[16,4] (Barcode, Stock);
+dataMinPrice(Barcode b, Stock st) += OVERRIDE minAlcoholLimitPrice(sku(b), currentDateTime()), singleMinPrice(sku(b), currentDate()), defaultMinPrice(b, st);
