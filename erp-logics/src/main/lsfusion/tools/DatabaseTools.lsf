@@ -621,6 +621,23 @@ recalculateStats 'Пересчет статистики' (TableKey k) {
     }
 
 }
+recalculateClassesStat(Table t) {
+    FOR sid(TableColumn c) LIKE 'System__CLASS%' AND table(c) == t DO {
+        logToFile('database-tools', 'recalculate classes start - ' + sid(c));
+        
+        LOCAL c, q = LONG (INTEGER);
+        
+        INTERNAL DB 'SELECT '+sid(c)+', count(*) FROM '+sid(t)+' GROUP BY 1' TO file;
+        
+        IMPORT TABLE FROM file() TO c, q;
+        
+        FOR c(INTEGER r) == LONG(CustomObjectClass cl AS CustomObjectClass) DO {
+            stat(cl) <- max(safeInt(q(r)), 1); //до 7 версии INTEGER
+        } 
+
+        logToFile('database-tools', 'recalculate classes end - ' + sid(c));
+    }
+}
 
 recalculateStats 'Пересчет статистики' (Table t, BOOLEAN skipTime) {
     NEWSESSION {
@@ -631,6 +648,7 @@ recalculateStats 'Пересчет статистики' (Table t, BOOLEAN skipT
 
         importQuantityAndLog(replace(replace(notNullQuery(), '$1', 'key0'), '$2', sid(t)));
         rows(t) <- safeInt(qty());
+        recalculateClassesStat(t);
         lastRecalculateStats(t) <- currentDateTime();
 
         IF singleKey(t) THEN {
