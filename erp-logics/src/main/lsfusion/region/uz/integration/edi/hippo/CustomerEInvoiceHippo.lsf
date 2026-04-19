@@ -142,130 +142,184 @@ FORM invoiceInfo
 
 afterImportEInvoice ABSTRACT LIST(EInvoice);
 
+importInvoiceInfo(FILE f) {
+    IMPORT invoiceInfo JSON FROM f;
+    FOR id(INTEGER value) DO {
+        IF NOT eInvoiceByExternalId(id(value)) THEN NEW ei = EInvoice {
+            externalId(ei) <- id(value);
+            docType(ei) <- EInvoiceDocType.esf;
+            deliveryNoteNumber(ei) <- number(value);
+            deliveryNoteDate(ei) <- date(value);
+            dataInnSupplier(ei) <- innSupplier(value);
+            dataNameSupplier(ei) <- nameSupplier(value);
+            dataAddressSupplier(ei) <- addressSupplier(value);
+            dataInnCustomer(ei) <- innCustomer(value);
+            dataNameCustomer(ei) <- nameCustomer(value);
+            dataAddressCustomer(ei) <- addressCustomer(value);
+
+            supplier(ei) <- legalEntityTaxpayerId(innSupplier(value));
+            supplierStock(ei) <- defaultStock(supplier(ei));
+            customer(ei) <- legalEntityTaxpayerId(innCustomer(value));
+
+            contractNumber(ei) <- contractNumber(value);
+            contractDate(ei) <- contractDate(value);
+            notes(ei) <- notes(value);
+
+            waybillJSON(ei) <- JSONFILE(f);
+
+            LOCAL parent, type = STRING (STRING);
+            LOCAL index = INTEGER (STRING);
+
+            // Заполняем связи родитель/тип/индекс для id1..id5 в дереве марок
+            FOR valueItems(INTEGER items) == value DO {
+                FOR itemsCises(INTEGER cises) == items DO {
+                    type(id1(cises)) <- package_type1(cises);
+                    index(id1(cises)) <- ordering_number(items);
+                    FOR cisesChildren2(INTEGER children2) == cises DO {
+                        parent(id2(children2)) <- id1(cises);
+                        type(id2(children2)) <- package_type2(children2);
+                        index(id2(children2)) <- ordering_number(items);
+                        FOR children2Children3(INTEGER children3) == children2 DO {
+                            parent(id3(children3)) <- id2(children2);
+                            type(id3(children3)) <- package_type3(children3);
+                            index(id3(children3)) <- ordering_number(items);
+                            FOR children3Children4(INTEGER children4) == children3 DO {
+                                parent(id4(children4)) <- id3(children3);
+                                type(id4(children4)) <- package_type4(children4);
+                                index(id4(children4)) <- ordering_number(items);
+                                FOR children4Children5(INTEGER children5) == children4 DO {
+                                    parent(id5(children5)) <- id4(children4);
+                                    type(id5(children5)) <- package_type5(children5);
+                                    index(id5(children5)) <- ordering_number(items);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Создаем строки и марки EInvoiceLotDetail, связывая их с конкретной строкой ed
+            NEW eig = EInvoiceDetailGroup {
+                eInvoice(eig) <- ei;
+                FOR valueItems1(INTEGER items1) = value ORDER itemOrderingNumber(items1) DO NEW ed = EInvoiceDetail {
+                    eInvoice(ed) <- ei;
+                    eInvoiceDetailGroup(ed) <- eig;
+                    dataIndex(ed) <- INTEGER(itemOrderingNumber(items1));
+                    productName(ed) <- itemName(items1);
+                    barcode(ed) <- itemBarcode(items1);
+                    quantityDespatched(ed) <- itemQuantity(items1);
+                    price(ed) <- price(items1);
+                    sum(ed) <- total(items1);
+                    valueVAT(ed) <- nds_rate(items1);
+                    VATSum(ed) <- nds_value(items1);
+                    invoiceSum(ed) <- total_with_nds(items1);
+
+                    catalogCode(ed) <- codeCatalog(items1);
+                    catalogName(ed) <- nameCatalog(items1);
+                    packageCode(ed) <- codePackage(items1);
+                    packageName(ed) <- namePackage(items1);
+
+                    // Режим с транспортной упаковкой: создаем только переданные идентификаторы для этой строки
+                    FOR markingIdent_trans_upak(INTEGER it) == items1 AND importAggregateLots() AND NOT eInvoiceLotDetail(ident_trans_upak(it), ed) INLINE NEW ld = EInvoiceLotDetail DO {
+                        eInvoiceDetail(ld) <- ed;
+                        id(ld) <- ident_trans_upak(it);
+                        type(ld) <- type(ident_trans_upak(it));
+                        quantity(ld) <- 1;
+                    }
+
+                    // Режим без агрегатов: создаем все коды, относящиеся к данной строке по индексу
+                    FOR index(STRING idLot) == itemOrderingNumber(items1) AND NOT importAggregateLots() AND NOT eInvoiceLotDetail(idLot, ed) INLINE NEW ld2 = EInvoiceLotDetail DO {
+                        eInvoiceDetail(ld2) <- ed;
+                        id(ld2) <- idLot;
+                        type(ld2) <- type(idLot);
+                        quantity(ld2) <- 1;
+                    }
+
+                    // Устанавливаем иерархию родительских кодов в рамках текущей строки
+                    FOR parent(STRING idLot) AND EInvoiceLotDetail ld == eInvoiceLotDetail(idLot, ed) DO {
+                        parent(ld) <- eInvoiceLotDetail(parent(idLot), ed);
+                    }
+                }
+            }
+
+            //afterImportEInvoice(ei);
+
+        }
+
+        APPLY NESTED LOCAL;
+
+    }
+}
+
+daysBeforeInvoiceHippo 'Число дней за которые проверять документы' = DATA INTEGER ();
+
+importCustomerEInvoicesHippo 'Получить входящие счета-фактуры (Hippo API)' () {
+    NEWSESSION{
+        IF NOT apiUrlHippo() OR NOT clientIDHippo() OR NOT clientSecretHippo() THEN {
+            logToFile('edi', 'Hippo Import: Не настроены параметры API Hippo');
+            MESSAGE 'Не настроены параметры API Hippo' NOWAIT;
+            RETURN;
+        }
+
+        TRY {
+            logToFile('edi', 'Hippo Import: Получение входящих счетов-фактур за ' + (OVERRIDE daysBeforeInvoiceHippo(), 0) + ' дн.');
+            sendGetRequestEDI(clientIDHippo(), clientSecretHippo(),
+                apiUrlHippo() + '/roaming-client-api/invoice/customer?updated_at_start=' + subtract(currentDate(), (OVERRIDE daysBeforeInvoiceHippo(), 0)) +
+                    '&updated_at_end=' + currentDate() + '&status=15',
+                TRUE, NULL);
+
+            IF sendRequestEDIStatus() != 200 THEN {
+                logToFile('edi', 'Hippo Import Error: ' + sendRequestEDIStatus());
+                logToFile('edi', STRING(sendRequestEDIResponse()));
+                MESSAGE 'Ошибка при получении счетов-фактур: ' + sendRequestEDIStatus() NOWAIT;
+                RETURN;
+            }
+
+            IF sendRequestEDIResponse() THEN {
+                importInvoiceInfo(sendRequestEDIResponse());
+                logToFile('edi', 'Hippo Import: Успешно завершено');
+            } ELSE {
+                logToFile('edi', 'Hippo Import: Получен пустой ответ');
+            }
+
+        } CATCH {
+            logToFile('edi', 'Hippo Import Critical Error: ' + messageCaughtException());
+            logToFile('edi', lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT ' ', 'Hippo Import Response:', STRING(sendRequestEDIResponse()));
+            MESSAGE 'Критическая ошибка при получении счетов-фактур: ' + messageCaughtException() NOWAIT;
+        }
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES () daysBeforeInvoiceHippo, importCustomerEInvoicesHippo
+;
+
+DESIGN integrationData {
+    ivsC {
+        MOVE PROPERTY (daysBeforeInvoiceHippo());
+        MOVE PROPERTY (importCustomerEInvoicesHippo());
+    }
+}
+
 overReceiveMessagesHippo(INTEGER i, STRING url, STRING[100] archiveDir, BOOLEAN deleteFile, STRING[100] provider) + {
     IF isSubstring(lower(id(i)), '.json') THEN {
         TRY {
-            IMPORT invoiceInfo JSON FROM data(i);
             NEWSESSION NESTED LOCAL {
-                FOR id(INTEGER value) DO {
-                    IF NOT eInvoiceByExternalId(id(value)) THEN NEW ei = EInvoice {
-                        externalId(ei) <- id(value);
-                        docType(ei) <- EInvoiceDocType.esf;
-                        deliveryNoteNumber(ei) <- number(value);
-                        deliveryNoteDate(ei) <- date(value);
-                        dataInnSupplier(ei) <- innSupplier(value);
-                        dataNameSupplier(ei) <- nameSupplier(value);
-                        dataAddressSupplier(ei) <- addressSupplier(value);
-                        dataInnCustomer(ei) <- innCustomer(value);
-                        dataNameCustomer(ei) <- nameCustomer(value);
-                        dataAddressCustomer(ei) <- addressCustomer(value);
-
-                        supplier(ei) <- legalEntityTaxpayerId(innSupplier(value));
-                        supplierStock(ei) <- defaultStock(supplier(ei));
-                        customer(ei) <- legalEntityTaxpayerId(innCustomer(value));
-
-                        contractNumber(ei) <- contractNumber(value);
-                        contractDate(ei) <- contractDate(value);
-                        notes(ei) <- notes(value);
-
-                        waybillJSON(ei) <- JSONFILE(data(i));
-
-                        LOCAL parent, type = STRING (STRING);
-                        LOCAL index = INTEGER (STRING);
-
-                        // Заполняем связи родитель/тип/индекс для id1..id5 в дереве марок
-                        FOR valueItems(INTEGER items) == value DO {
-                            FOR itemsCises(INTEGER cises) == items DO {
-                                type(id1(cises)) <- package_type1(cises);
-                                index(id1(cises)) <- ordering_number(items);
-                                FOR cisesChildren2(INTEGER children2) == cises DO {
-                                    parent(id2(children2)) <- id1(cises);
-                                    type(id2(children2)) <- package_type2(children2);
-                                    index(id2(children2)) <- ordering_number(items);
-                                    FOR children2Children3(INTEGER children3) == children2 DO {
-                                        parent(id3(children3)) <- id2(children2);
-                                        type(id3(children3)) <- package_type3(children3);
-                                        index(id3(children3)) <- ordering_number(items);
-                                        FOR children3Children4(INTEGER children4) == children3 DO {
-                                            parent(id4(children4)) <- id3(children3);
-                                            type(id4(children4)) <- package_type4(children4);
-                                            index(id4(children4)) <- ordering_number(items);
-                                            FOR children4Children5(INTEGER children5) == children4 DO {
-                                                parent(id5(children5)) <- id4(children4);
-                                                type(id5(children5)) <- package_type5(children5);
-                                                index(id5(children5)) <- ordering_number(items);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // Создаем строки и марки EInvoiceLotDetail, связывая их с конкретной строкой ed
-                        NEW eig = EInvoiceDetailGroup {
-                            eInvoice(eig) <- ei;
-                            FOR valueItems1(INTEGER items1) = value ORDER itemOrderingNumber(items1) DO NEW ed = EInvoiceDetail {
-                                eInvoice(ed) <- ei;
-                                eInvoiceDetailGroup(ed) <- eig;
-                                dataIndex(ed) <- INTEGER(itemOrderingNumber(items1));
-                                productName(ed) <- itemName(items1);
-                                barcode(ed) <- itemBarcode(items1);
-                                quantityDespatched(ed) <- itemQuantity(items1);
-                                price(ed) <- price(items1);
-                                sum(ed) <- total(items1);
-                                valueVAT(ed) <- nds_rate(items1);
-                                VATSum(ed) <- nds_value(items1);
-                                invoiceSum(ed) <- total_with_nds(items1);
-
-                                catalogCode(ed) <- codeCatalog(items1);
-                                catalogName(ed) <- nameCatalog(items1);
-                                packageCode(ed) <- codePackage(items1);
-                                packageName(ed) <- namePackage(items1);
-
-                                // Режим с транспортной упаковкой: создаем только переданные идентификаторы для этой строки
-                                FOR markingIdent_trans_upak(INTEGER it) == items1 AND importAggregateLots() AND NOT eInvoiceLotDetail(ident_trans_upak(it), ed) INLINE NEW ld = EInvoiceLotDetail DO {
-                                    eInvoiceDetail(ld) <- ed;
-                                    id(ld) <- ident_trans_upak(it);
-                                    type(ld) <- type(ident_trans_upak(it));
-                                    quantity(ld) <- 1;
-                                }
-
-                                // Режим без агрегатов: создаем все коды, относящиеся к данной строке по индексу
-                                FOR index(STRING idLot) == itemOrderingNumber(items1) AND NOT importAggregateLots() AND NOT eInvoiceLotDetail(idLot, ed) INLINE NEW ld2 = EInvoiceLotDetail DO {
-                                    eInvoiceDetail(ld2) <- ed;
-                                    id(ld2) <- idLot;
-                                    type(ld2) <- type(idLot);
-                                    quantity(ld2) <- 1;
-                                }
-
-                                // Устанавливаем иерархию родительских кодов в рамках текущей строки
-                                FOR parent(STRING idLot) AND EInvoiceLotDetail ld == eInvoiceLotDetail(idLot, ed) DO {
-                                    parent(ld) <- eInvoiceLotDetail(parent(idLot), ed);
-                                }
-                            }
-                        }
-
-                        //afterImportEInvoice(ei);
-
+                importInvoiceInfo(data(i));
+                IF canceled() THEN {
+                    logToFile('edi', provider + ' Import EOrderDespatchAdvice ' + id(i) + ' failed: ' + applyMessage());
+                    despatchAdvicesFailed() <- despatchAdvicesFailed() + 1;
+                } ELSE {
+                    IF deleteFile THEN {
+                        TRY {delete(url + id(i));}
                     }
-
-                    APPLY NESTED LOCAL;
-
-                    IF canceled() THEN {
-                        logToFile('edi', provider + ' Import EOrderDespatchAdvice ' + id(i) + ' failed: ' + applyMessage());
-                        despatchAdvicesFailed() <- despatchAdvicesFailed() + 1;
-                    } ELSE {
-                        IF deleteFile THEN {
-                            TRY {delete(url + id(i));}
-                        }
-                        logToFile('edi', provider + ' Import EOrderDespatchAdvice ' + id(i) + ' succeeded');
-                        despatchAdvicesSucceeded() <- despatchAdvicesSucceeded() + 1;
-                    }
-
+                    logToFile('edi', provider + ' Import EOrderDespatchAdvice ' + id(i) + ' succeeded');
+                    despatchAdvicesSucceeded() <- despatchAdvicesSucceeded() + 1;
                 }
             }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' Parse EOrderDespatchAdvice ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' Parse EOrderDespatchAdvice ' + id(i) + ' error:', messageCaughtException(), lsfStackTraceCaughtException());
             MESSAGE 'Ошибка при импорте уведомления об отгрузке ' + id(i) + '. Обратитесь к администратору' NOWAIT;
             despatchAdvicesFailed() <- despatchAdvicesFailed() + 1;
         }
@@ -405,7 +459,7 @@ reject(EInvoice ei) + {
                 MESSAGE 'Причина отклонения обязательна' NOWAIT;
                 RETURN;
             }
-            
+
             LOCAL pkcs7 = STRING();
 
             TRY {
@@ -419,7 +473,7 @@ reject(EInvoice ei) + {
                     MESSAGE 'Ошибка при получении хеш-кода: ' + sendRequestEDIStatus() NOWAIT;
                     RETURN;
                 }
-                
+
                 IF NOT sendRequestEDIResponse() THEN {
                     logToFile('edi', externalId(ei) + ' ' + 'Не удалось получить хеш-код для отклонения');
                     MESSAGE 'Не удалось получить хеш-код для отклонения' NOWAIT;
@@ -439,7 +493,7 @@ reject(EInvoice ei) + {
                 EXPORT JSON FROM signature = encodedSignature();
                 sendPostRequestEDI(clientIDHippo(), clientSecretHippo(),
                     apiUrlHippo() + '/eimzo-client-api/pkcs7/attach-timestamp',
-                    exportFile(), TRUE, NULL); 
+                    exportFile(), TRUE, NULL);
 
                 IF sendRequestEDIStatus() != 200 THEN {
                     logToFile('edi', externalId(ei) + ' ' + 'Ошибка при получении метки времени: ' + sendRequestEDIStatus());
