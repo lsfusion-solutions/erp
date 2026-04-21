@@ -1,12 +1,16 @@
 MODULE EGAISActChargeOn;
 
-REQUIRE EGAISClient, EGAISFReg;
+REQUIRE EGAISClient, EGAISFReg, EGAISMarkCode, EGAISActChargeOnType;
 
 NAMESPACE EGAIS;
 
 CLASS ActChargeOn 'Постановка на баланс ЕГАИС';
 
 posted 'Проведен' = DATA BOOLEAN (ActChargeOn);
+canceled 'Отменен' = DATA BOOLEAN (ActChargeOn);
+errorPost 'Ошибка при проведении' = DATA BOOLEAN (ActChargeOn);
+hasRequestPosted 'Запрос на проведение' = DATA BOOLEAN (ActChargeOn);
+waitActInventoryInform 'Ожидание уведомления о постановке на баланс' = DATA BOOLEAN (ActChargeOn);
 
 number 'Номер' = DATA STRING (ActChargeOn) IN id;
 number(ActChargeOn a) <- STRING(a) WHEN SET(a IS ActChargeOn);
@@ -24,7 +28,14 @@ client = DATA Client (ActChargeOn) INDEXED;
 shortNameClient 'Организация' (ActChargeOn w) = shortName(client(w)) IN id;
 descriptionClient 'Описание организации' (ActChargeOn w) = description(client(w)) IN id;
 
+dataType 'Тип' = DATA ActChargeOnType (ActChargeOn);
+type 'Тип' (ActChargeOn a) = OVERRIDE dataType(a), actChargeOnType('Выравнивание остатков') IF a IS ActChargeOn;
+idType 'Тип' (ActChargeOn w) = id(type(w));
+
 note 'Примечание' = DATA STRING (ActChargeOn);
+
+regId 'Рег. номер' = DATA STRING (ActChargeOn);
+actChargeOn = GROUP MAX ActChargeOn a BY regId(a);
 
 // position
 
@@ -32,50 +43,130 @@ CLASS ActChargeOnPosition 'Строка постановки на баланс �
 
 actChargeOn 'Постановка на баланс ЕГАИС' = DATA ActChargeOn (ActChargeOnPosition) INDEXED NONULL DELETE;
 
+posted (ActChargeOnPosition p) = posted(actChargeOn(p));
+canceled 'Ошибка при проведении' (ActChargeOnPosition p) = canceled(actChargeOn(p));
+
+number 'Номер' (ActChargeOnPosition p) = number(actChargeOn(p));
+dateTime 'Время' (ActChargeOnPosition p) = dateTime(actChargeOn(p));
+date 'Дата' (ActChargeOnPosition p) = date(actChargeOn(p));
+
+client (ActChargeOnPosition p) = client(actChargeOn(p));
+shortNameClient 'Организация' (ActChargeOnPosition p) = shortNameClient(actChargeOn(p));
+descriptionClient 'Описание организации' (ActChargeOnPosition p) = descriptionClient(actChargeOn(p));
+
 product 'Продукция' = DATA Product (ActChargeOnPosition) NONULL INDEXED;
 idProduct 'Код продукции' (ActChargeOnPosition p) = id(product(p));
 fullNameProduct 'Продукция' (ActChargeOnPosition p) = fullName(product(p));
 
 quantity 'Кол-во' = DATA NUMERIC[16,5] (ActChargeOnPosition);
+sumSale 'Сумма продажи' = DATA NUMERIC[18,4](ActChargeOnPosition);
 
-f2Reg 'Справка Б' = DATA F2Reg (ActChargeOnPosition) NONULL;
+f2Reg 'Справка Б' = DATA F2Reg (ActChargeOnPosition);// TODO NONULL;
 idF2Reg 'Справка Б' (ActChargeOnPosition p) = id(f2Reg(p));
 
-// header properties
+quantityBatch 'Количество единиц в партии' = DATA NUMERIC[16,5] (ActChargeOnPosition);
+bottlingDate 'Дата розлива/производства продукции' = DATA DATE (ActChargeOnPosition);
+ttnNumber 'Номер ТТН' = DATA STRING (ActChargeOnPosition);
+ttnDate 'Дата ТТН' = DATA DATE (ActChargeOnPosition);
+egaisFixNumber 'Номер фиксации ЕГАИС' = DATA STRING (ActChargeOnPosition);
+egaisFixDate 'Дата фиксации ЕГАИС' = DATA DATE (ActChargeOnPosition);
 
-posted (ActChargeOnPosition p) = posted(actChargeOn(p));
 
-client (ActChargeOnPosition p) = client(actChargeOn(p));
+idType 'Тип' (ActChargeOnPosition p) = idType(actChargeOn(p));
 
-number 'Номер' (ActChargeOnPosition p) = number(actChargeOn(p));
+// mark
+CLASS ActChargeOnMark 'Строка маркировки постановки на баланс ЕГАИС';
 
-dateTime 'Время' (ActChargeOnPosition p) = dateTime(actChargeOn(p));
-date 'Дата' (ActChargeOnPosition p) = date(actChargeOn(p));
+actChargeOnPosition 'Строка постановки на баланс' = DATA ActChargeOnPosition (ActChargeOnMark) NONULL DELETE INDEXED;
+
+posted 'Проведен' (ActChargeOnMark p) = posted(actChargeOnPosition(p));
+canceled 'Ошибка при проведении' (ActChargeOnMark p) = canceled(actChargeOnPosition(p));
+
+number 'Номер' (ActChargeOnMark p) = number(actChargeOnPosition(p));
+date 'Дата' (ActChargeOnMark p) = date(actChargeOnPosition(p));
+
+client (ActChargeOnMark p) = client(actChargeOnPosition(p));
+shortNameClient 'Организация' (ActChargeOnMark p) = shortNameClient(actChargeOnPosition(p));
+descriptionClient 'Описание организации' (ActChargeOnMark p) = descriptionClient(actChargeOnPosition(p));
+
+idF2Reg 'Справка Б' (ActChargeOnMark p) = idF2Reg(actChargeOnPosition(p));
+
+markCode 'Код маркировки' = DATA MarkCode (ActChargeOnMark) NONULL INDEXED;
+idMarkCode 'Код маркировки' (ActChargeOnMark m) = id(markCode(m));
+
+minActChargeOnPosition (ActChargeOn a) = GROUP MIN ActChargeOnPosition p BY actChargeOn(p);
+
+readonlyDescriptionClientActChargeOn = ABSTRACT BOOLEAN ();
+
+markQuantity 'Кол-во' (ActChargeOnPosition p) = GROUP SUM 1 IF actChargeOnPosition(ActChargeOnMark m) = p MATERIALIZED;
+overQuantity 'Кол-во' (ActChargeOnPosition p) = OVERRIDE quantity(p), markQuantity(p);
 
 FORM actChargeOn 'Постановка на баланс ЕГАИС'
-    OBJECTS w = ActChargeOn PANEL
-    PROPERTIES(w) posted, number, dateTime,
-                  shortNameClient, descriptionClient, note
+    OBJECTS a = ActChargeOn PANEL
+    PROPERTIES(a) posted, errorPost, waitActInventoryInform, number, dateTime,
+                  shortNameClient, descriptionClient READONLYIF readonlyDescriptionClientActChargeOn(), idType, note
     
     OBJECTS p = ActChargeOnPosition
-    PROPERTIES(p) idProduct, fullNameProduct, idF2Reg, quantity, 
-                  NEW, DELETE
-    FILTERS actChargeOn(p) = w
     
-    EDIT ActChargeOn OBJECT w
+    PROPERTIES(p) idProduct, fullNameProduct, idF2Reg, overQuantity,        
+        NEW, DELETE
+    
+    //Продукция, полученная
+    PROPERTIES(p) //SHOWIF 'Продукция, полученная до 01.01.2016' == idType(p)
+        quantityBatch, bottlingDate,
+        ttnNumber, ttnDate,
+        egaisFixNumber, egaisFixDate
+    
+    FILTERS actChargeOn(p) = a
+
+    OBJECTS m = ActChargeOnMark
+    PROPERTIES(m) READONLY idMarkCode
+    FILTERS actChargeOnPosition(m) = p
+    
+    EDIT ActChargeOn OBJECT a
 ;
 
+DESIGN actChargeOn {
+    OBJECTS {
+        NEW pane {
+            fill = 1;
+            horizontal = TRUE;
+            MOVE BOX(p) { caption = 'Позиции'; }
+            MOVE BOX(m) { caption = 'Марки'; }
+        }
+    }
+}
+
+show 'Просмотреть' (ActChargeOn a) {
+    NEWSESSION{
+        SHOW actChargeOn OBJECTS a = a DOCKED READONLY;
+    }
+}
+
+showToShow = ABSTRACT BOOLEAN (ActChargeOn);
+
 FORM actChargeOns 'Постановка на баланс'
-    OBJECTS w = ActChargeOn
-    PROPERTIES(w) READONLY posted, number, dateTime,
-                           shortNameClient, descriptionClient, note
-    PROPERTIES(w) NEWSESSION NEW, EDIT, DELETE
+    OBJECTS d = ActChargeOn
+    PROPERTIES(d) READONLY posted, errorPost, waitActInventoryInform, number, dateTime,
+                           shortNameClient, descriptionClient, idType, note
+    PROPERTIES show(d) SHOWIF showToShow(d)
+    PROPERTIES(d) NEWSESSION NEW, EDIT SHOWIF NOT showToShow(d), DELETE SHOWIF NOT showToShow(d)
 
     OBJECTS p = ActChargeOnPosition
-    PROPERTIES(p) READONLY idProduct, fullNameProduct, idF2Reg, quantity 
-    FILTERS actChargeOn(p) = w
+    PROPERTIES(p) READONLY idProduct, fullNameProduct, idF2Reg, overQuantity
+
+    //Продукция, полученная до 2016
+    PROPERTIES(p) READONLY //SHOWIF 'Продукция, полученная до 01.01.2016' == idType(p)
+        quantityBatch, bottlingDate,
+        ttnNumber, ttnDate,
+        egaisFixNumber, egaisFixDate    
+    FILTERS actChargeOn(p) = d
+
+    OBJECTS m = ActChargeOnMark
+    PROPERTIES(m) READONLY idMarkCode
+    FILTERS actChargeOnPosition(m) = p
     
-    LIST ActChargeOn OBJECT w
+    LIST ActChargeOn OBJECT d
 ;
 
 DESIGN actChargeOns {
@@ -83,7 +174,12 @@ DESIGN actChargeOns {
         NEW tabbedPane {
             tabbed = TRUE;
             fill = 1;
-            MOVE BOX(p) { caption = 'Позиции'; }
+            NEW specification {
+                caption = 'Спецификация';
+                horizontal = TRUE;
+                MOVE BOX(p) { caption = 'Позиции'; }
+                MOVE BOX(m) { caption = 'Марки'; }
+            }
         }
     }
 }
@@ -93,3 +189,35 @@ NAVIGATOR {
         NEW actChargeOns;
     }
 }
+
+EXTEND FORM markCodes
+    OBJECTS aco = ActChargeOnMark
+    PROPERTIES(aco) READONLY posted, canceled, number, date,
+        shortNameClient, descriptionClient,
+        idF2Reg
+    PROPERTIES(aco) EDIT
+    FILTERS markCode(aco) = m
+;
+
+DESIGN markCodes {
+    pane {
+        MOVE BOX(aco) { caption = 'Постановка на баланс'; }
+    }
+}
+
+//CONSTRAINT SETCHANGED(dataType(actChargeOn(ActChargeOnPosition p))) AND idType(p) == 'Продукция, полученная до 01.01.2016' AND 
+//    (NOT quantityBatch(p) OR NOT bottlingDate(p) OR  NOT ttnNumber(p) OR NOT ttnDate(p) OR
+//    NOT egaisFixNumber(p) OR NOT egaisFixDate(p))
+//    MESSAGE 'Не заданы данные для продукции, полученной до 01.01.2016';
+//
+//CONSTRAINT (DROPPED(quantityBatch(ActChargeOnPosition p)) OR DROPPED(bottlingDate(p)) OR 
+//    DROPPED(ttnNumber(p)) OR DROPPED(ttnDate(p)) OR 
+//    DROPPED(egaisFixNumber(p)) OR DROPPED(egaisFixDate(p))) AND
+//    idType(p) == 'Продукция, полученная до 01.01.2016'
+//    MESSAGE 'Не заданы данные для продукции, полученной до 01.01.2016';
+
+CONSTRAINT DROPPED(f2Reg(ActChargeOnPosition p)) AND idType(p) == 'Выравнивание остатков'
+    MESSAGE 'Для строки поставки на баланс ЕГАИС не указана справка Б';
+
+CONSTRAINT CHANGED(type(actChargeOn(ActChargeOnPosition p))) AND idType(p) == 'Выравнивание остатков' AND NOT f2Reg(p)
+    MESSAGE 'Для строки поставки на баланс ЕГАИС не указана справка Б';

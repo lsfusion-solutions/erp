@@ -14,31 +14,23 @@ EXTEND FORM actWriteOffs
     PROPERTIES(d) READONLY hasRRAWO, numberRRAWO, dateRRAWO
 ;
 
-CLASS RequestRepealAWOOutDoc 'Запрос на отмену проведения акта постановки на баланс' : OutDoc;
+CLASS RequestRepealAWOOutDoc 'Запрос на отмену проведения акта списания с баланса' : OutDoc;
 
-EXTEND CLASS DocType { RequestRepealAWO 'Запрос на отмену проведения акта постановки на баланс' }
+EXTEND CLASS DocType { RequestRepealAWO 'Запрос на отмену проведения акта списания с баланса' }
 docType (RequestRepealAWOOutDoc r) += DocType.RequestRepealAWO IF r IS RequestRepealAWOOutDoc;
 
 actWriteOff = DATA ActWriteOff (RequestRepealAWOOutDoc) INDEXED;
 requestRepealAWOOutDoc = GROUP LAST RequestRepealAWOOutDoc d ORDER d BY actWriteOff(d);
 commentsRequestRepealAWOOutDoc 'Комментарий запроса на отмену' (ActWriteOff a) = comments(requestRepealAWOOutDoc(a));
 
-GROUP ownerRepealAWO EXTID 'ns:Owner';
-GROUP documentRepealAWO EXTID 'ns:Document';
-GROUP requestRepealAWO EXTID 'ns:RequestRepealAWO' : documentRepealAWO;
-
-FORM requestRepealAWO FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:Documents'
+FORM requestRepealAWO FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:RequestRepealAWO'
     PROPERTIES ATTR
-//        = '1.0' EXTID ':Version',
         ='http://fsrar.ru/WEGAIS/RequestRepealAWO' EXTID 'xmlns:qp', 
         ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
         
     OBJECTS r = RequestRepealAWOOutDoc PANEL
-
-    PROPERTIES IN owner 
-        = id(client(r)) EXTID 'ns:FSRAR_ID'
     
-    PROPERTIES IN requestRepealAWO 
+    PROPERTIES
         = id(client(r)) EXTID 'qp:ClientId',
         = numberRRAWO(actWriteOff(r)) EXTID 'qp:RequestNumber',
         = formatT(dateRRAWO(actWriteOff(r))) EXTID 'qp:RequestDate',
@@ -92,11 +84,11 @@ cancel 'Запросить отмену проведения ЕГАИС' (ActWri
 
 EXTEND FORM actWriteOffs
     PROPERTIES(d) READONLY commentsRequestRepealAWOOutDoc PANEL
-    PROPERTIES(d) cancel SHOWIF posted(d) AND NOT canceled(d) AND own(client(d)) TOOLBAR
+    PROPERTIES(d) cancel SHOWIF posted(d) AND NOT hasRRAWO(d) AND NOT canceled(d) AND own(client(d)) TOOLBAR
 ;
 
 DESIGN actWriteOffs {
-    specification {
+    comments {
         MOVE PROPERTY(commentsRequestRepealAWOOutDoc(d)) { fill = 1; panelCaptionVertical = TRUE; }
     }
 }
@@ -143,4 +135,5 @@ status (ActWriteOff w) += WHEN posted(w) AND hasRRAWO(w) THEN ActWriteOffStatus.
 status (ActWriteOff w) += WHEN posted(w) AND errorRRAWO(w) THEN ActWriteOffStatus.errorRequestRepeal;
 status (ActWriteOff w) += WHEN canceled(w) THEN ActWriteOffStatus.acceptedRequestRepeal;
 
-showToShow (ActWriteOff w) += posted(w) OR canceled(w);
+showToShow(ActWriteOff w) += posted(w);
+overShowProcess(ActWriteOff w) += canceled(w);

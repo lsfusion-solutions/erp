@@ -1,0 +1,123 @@
+MODULE EGAISActChargeOnGestori;
+
+REQUIRE EGAISActChargeOn, EGAISStock, EGAISItem, LotType;
+
+NAMESPACE EGAIS;
+
+post 'Провести' (ActChargeOn o)  {
+    NEWSESSION { posted(o) <- TRUE; apply(); }
+} TOOLBAR CONFIRM;
+
+unpost 'Распровести' (ActChargeOn o)  {
+    NEWSESSION { posted(o) <- NULL; apply(); }
+} TOOLBAR CONFIRM;
+
+edit 'Редактировать' (ActChargeOn o)  {
+    NEWSESSION {
+        SHOW actChargeOn OBJECTS a = o DOCKED;
+    }
+} TOOLBAR CONFIRM IMAGE 'edit.png';
+
+readonlyDescriptionClientActChargeOn() += TRUE;
+
+in (ActChargeOn w, MarkCode c) = GROUP MIN TRUE BY actChargeOn(actChargeOnPosition(ActChargeOnMark m)), markCode(m);
+
+processInputIdMarkCode(ActChargeOn w, ActChargeOnPosition p, STRING[200] s) {
+    LOCAL markCode = MarkCode ();
+    LOCAL position = ActChargeOnPosition ();
+
+    markCode() <- markCode(s);
+    position() <- p;
+
+    IF NOT markCode() THEN {
+        MESSAGE 'Код маркировки ЕГАИС "' + s + '" не найден' NOWAIT;
+        RETURN;
+    }
+
+    IF in(w, markCode()) THEN {
+        MESSAGE 'Код маркировки ЕГАИС "' + s + '" уже присутствует в этом документе' NOWAIT;
+        RETURN;
+    }
+
+    IF NOT f2Reg(position()) == f2Reg(markCode()) THEN {
+        position() <- GROUP MIN ActChargeOnPosition ap IF f2Reg(ap) == f2Reg(markCode()) AND actChargeOn(ap) == w;
+    }
+
+    IF NOT position() IS ActChargeOnPosition THEN {
+        NEW pos = ActChargeOnPosition {
+            actChargeOn(pos) <- w;
+            f2Reg(pos) <- f2Reg(markCode());
+            product(pos) <- product(markCode());
+
+            position() <- pos;
+        }
+    }
+
+    NEW m = ActChargeOnMark {
+        actChargeOnPosition(m) <- position();
+        markCode(m) <- markCode();
+    }
+
+    seek(position());
+}
+
+changeAddMarkCodeInputIdMarkCode(ActChargeOnPosition p)  {
+    INPUT s = STRING[200] DO {
+        processInputIdMarkCode(actChargeOn(p), p, s);
+    }
+};
+
+changeAddMarkCodeInputIdMarkCode(ActChargeOn w)  {
+    INPUT s = STRING[200] DO {
+        processInputIdMarkCode(w, NULL, s);
+    }
+};
+
+addMarkCodeInputIdMarkCode 'Ввод кода маркировки :' (ActChargeOnPosition position) = DATA LOCAL STRING[200] (ActChargeOnPosition) TOOLBAR CHARWIDTH 50 CHANGEKEY 'F4;editing=all' EVENTID 'SCANNER'
+    ON CHANGE { changeAddMarkCodeInputIdMarkCode(position); }
+
+addMarkCodeInputIdMarkCode 'Ввод кода маркировки :' (ActChargeOn w) = DATA LOCAL STRING[200] (ActChargeOn) TOOLBAR CHARWIDTH 50 CHANGEKEY 'F4;editing=all' EVENTID 'SCANNER'
+    ON CHANGE { changeAddMarkCodeInputIdMarkCode(w); }
+
+DESIGN actChargeOns {
+    OBJECTS {
+        PROPERTY (descriptionClient(d)) {caption = 'Адрес'; alignment = STRETCH;};
+    }
+}
+
+CONSTRAINT client(ActChargeOn a) AND NOT stock(client(a))
+    CHECKED BY client[ActChargeOn]
+    MESSAGE 'Доступны только организации, связанные со складами/отделами магазинов системы';
+
+CONSTRAINT product(ActChargeOnPosition d) AND NOT product(f2Reg(d)) == product(d) AND f2Reg(d)
+    CHECKED BY f2Reg[ActChargeOnPosition]
+    MESSAGE 'Для строики акта постановки на баланс ЕГАИС справка Б должна соответствовать продукции';
+
+WHEN LOCAL FORMS actChargeOn CHANGED ( idF2Reg(ActChargeOnPosition d)) AND NOT (product(d)) DO {
+    product(d) <- product(f2Reg(d));
+}
+
+EXTEND FORM actChargeOn
+    PROPERTIES (a) DRAW m  addMarkCodeInputIdMarkCode SHOWIF NOT minActChargeOnPosition(a)
+    PROPERTIES (p) DRAW m  addMarkCodeInputIdMarkCode SHOWIF minActChargeOnPosition(a)
+    PROPERTIES (m) DELETE GRID
+;
+
+DESIGN actChargeOn {
+    OBJECTS {
+        NEW address BEFORE pane{
+            align= STRETCH;
+            MOVE PROPERTY (shortNameClient(a));
+            MOVE PROPERTY (descriptionClient(a)) {caption = 'Адрес'; charWidth = 100;};
+        }
+    }
+}
+
+lotType (ActChargeOn w) = GROUP MIN TRUE IF lotType(minItem(product(ActChargeOnPosition p))) AND product(p) BY actChargeOn(p);
+notLotType (ActChargeOn w) = GROUP MIN TRUE IF NOT lotType(minItem(product(ActChargeOnPosition p))) AND product(p) BY actChargeOn(p);
+
+CONSTRAINT SETCHANGED(lotType(minItem(product(ActChargeOnPosition p)))) AND lotType(actChargeOn(p)) AND notLotType(actChargeOn(p))
+    MESSAGE 'Запрещено добавлять в спецификацию документа маркированную и немаркированную продукцию';
+
+CONSTRAINT (SETCHANGED(overQuantity(ActChargeOnPosition d)) OR SETCHANGED(f2Reg(d))) AND overQuantity(d) AND currentBalance(f2Reg(d)) < overQuantity(d)
+    MESSAGE 'Количество не должно превышать остаток по справке Б';

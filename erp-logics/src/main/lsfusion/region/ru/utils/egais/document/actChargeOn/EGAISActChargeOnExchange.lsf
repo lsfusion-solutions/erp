@@ -1,0 +1,203 @@
+MODULE EGAISActChargeOnExchange;
+
+REQUIRE EGAISActChargeOn, EGAISTicket, EGAISProductImport;
+
+NAMESPACE EGAIS;
+
+@defineDocumentOutDoc(actChargeOn, ActChargeOn_v2, 'Акт постановки на баланс');
+
+activeActChargeOnOutDoc (ActChargeOn a) = notRejected(actChargeOnOutDoc(a)) AND NOT errorPost(a);
+
+GROUP header EXTID 'ns:Header';
+GROUP content EXTID 'ns:Content';
+GROUP position EXTID 'ns:Position' : content;
+GROUP alcPercent1 EXTID 'ns:alcPercent' : position;
+GROUP informF1F2 EXTID 'ns:InformF1F2';// position;
+GROUP informF1F2Reg EXTID 'ns:InformF1F2Reg' : informF1F2;
+GROUP informF1 EXTID 'ns:InformF1' : informF1F2Reg;
+GROUP markCodeInfo EXTID 'ns:MarkCodeInfo';
+
+FORM actChargeOnOutDoc FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:ActChargeOn_v2'
+    PROPERTIES ATTR 
+        ='http://www.w3.org/2001/XMLSchema' EXTID 'xmlns:xs',
+        ='http://fsrar.ru/WEGAIS/ActChargeOn_v2' EXTID 'targetNamespace',
+        ='qualified' EXTID 'elementFormDefault',
+        ='unqualified' EXTID 'attributeFormDefault',            
+        ='http://fsrar.ru/WEGAIS/Common' EXTID 'xmlns:c',
+        ='http://fsrar.ru/WEGAIS/CommonEnum' EXTID 'xmlns:ce',
+        ='http://fsrar.ru/WEGAIS/ClientRef_v2' EXTID 'xmlns:oref',
+        ='http://fsrar.ru/WEGAIS/ProductRef_v2' EXTID 'xmlns:pref',
+        ='http://fsrar.ru/WEGAIS/ActInventoryF1F2Info' EXTID 'xmlns:iab'
+
+    OBJECTS r = ActChargeOnOutDoc PANEL
+    PROPERTIES IN header
+        =number(actChargeOn(r)) EXTID 'ns:Number',
+        =toDateISO(date(actChargeOn(r))) EXTID 'ns:ActDate',
+        =note(actChargeOn(r)) EXTID 'ns:Note',
+        =id(type(actChargeOn(r))) EXTID 'ns:TypeChargeOn'
+
+    OBJECTS p = ActChargeOnPosition IN content EXTID 'ns:Position'
+
+    PROPERTIES 
+        =LONG(p) EXTID 'ns:Identity',            
+        =xml(product(p)) EXTID 'ns:Product',
+        =overQuantity(p) EXTID 'ns:Quantity',
+        =alcVolume(product(p)) EXTID 'ns:alcPercent'
+
+//    PROPERTIES IN alcPercent1
+//        ='nillable' EXTID 'false' ATTR
+
+    PROPERTIES IN informF1 
+        =quantityBatch(p) EXTID 'iab:Quantity', 
+        =bottlingDate(p) EXTID 'iab:BottlingDate', 
+        =ttnNumber(p) EXTID 'iab:TTNNumber',
+        =ttnDate(p) EXTID 'iab:TTNDate',
+        =egaisFixNumber(p) EXTID 'iab:EGAISFixNumber',
+        =egaisFixDate(p) EXTID 'iab:EGAISFixDate'
+    FILTERS actChargeOn(p) = actChargeOn(r)
+
+    OBJECTS m = ActChargeOnMark IN markCodeInfo EXTID 'ce:MarkCode'
+    PROPERTIES(m) idMarkCode EXTID 'value'
+    FILTERS actChargeOnPosition(m) = p
+;
+
+@defineDocumentOutProcess(actChargeOn, tabbedPane);
+
+// ticket
+
+@defineOutDocTicket(actChargeOn, d, tabbedPane);
+
+process (Ticket t) + {
+    IF docType(t) = 'ActChargeOn' OR docType(t) = 'ActChargeOn_v2' THEN {
+        IF operationName(t) = 'Confirm' AND operationResult(t) = 'Accepted' THEN {
+            waitActInventoryInform(actChargeOn(outDoc(t))) <- TRUE;
+            canceled(actChargeOn(outDoc(t))) <- NULL;
+            regId(actChargeOn(outDoc(t))) <- regId(t);
+            hasRequestPosted(actChargeOn(outDoc(t))) <- NULL;
+        }
+        IF ((operationName(t) = 'Confirm' AND operationResult(t) = 'Rejected') OR conclusion(t)=='Rejected') THEN {
+            canceled(actChargeOn(outDoc(t))) <- TRUE;
+            hasRequestPosted(actChargeOn(outDoc(t))) <- NULL;
+        }
+        IF (conclusion(t)=='Accepted') THEN {
+            canceled(actChargeOn(outDoc(t))) <- NULL;
+            hasRequestPosted(actChargeOn(outDoc(t))) <- TRUE;
+        }
+        processed() <- TRUE;
+    }
+}
+
+process 'Отправить в ЕГАИС' (ActChargeOn t, BOOLEAN skiptTrowException) {
+    NEW r = ActChargeOnOutDoc {
+        client(r) <- client(t);
+        actChargeOn(r) <- t;
+        canceled() <- NULL;
+        hasRequestPosted(t) <- TRUE;
+
+        EXPORT actChargeOnOutDoc OBJECTS r = r XML;
+        submit(r, exportFile(), skiptTrowException);
+        APPLY;
+    }
+}
+
+overProcess (ActChargeOn t) + {
+    canceled() <- NULL;
+    hasRequestPosted(t) <- TRUE;
+}
+
+EXTEND FORM actChargeOns
+    PROPERTIES(odd) DELETE
+;
+
+//Уведомление о постановке на баланс
+CLASS ActInventoryInform 'Уведомление о постановке на баланс';
+
+inDoc = DATA InDoc (ActInventoryInform) INDEXED;
+
+outDoc = DATA OutDoc (ActInventoryInform) INDEXED;
+
+regId 'Регистрационный номер' = DATA STRING (ActInventoryInform);
+regNumber 'Порядковый регистрационный номер'  = DATA STRING (ActInventoryInform);
+docType 'Тип документа' = DATA STRING (ActInventoryInform);
+
+EXTEND CLASS DocType { ActInventoryInformF2Reg 'Уведомление о постановке на баланс' }
+
+
+GROUP actInventoryInformF2Reg EXTID 'ns:ActInventoryInformF2Reg';
+GROUP headerInform EXTID 'aint:Header' : actInventoryInformF2Reg;
+GROUP contentInform EXTID 'aint:Content' : actInventoryInformF2Reg;
+
+GROUP informF2 EXTID 'aint:InformF2';
+
+FSRARIDInform = DATA LOCAL STRING();
+actRegId = DATA LOCAL STRING();
+number = DATA LOCAL STRING();
+identityF1Inform = DATA LOCAL STRING(INTEGER);
+informF1RegIdInform = DATA LOCAL STRING(INTEGER);
+positionInformF2Item = DATA LOCAL INTEGER(INTEGER);
+identityF2Inform = DATA LOCAL STRING(INTEGER);
+f2RegId = DATA LOCAL STRING(INTEGER);
+informF2Item = DATA LOCAL STRING(INTEGER);
+
+FORM actInventoryInform FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01'
+    PROPERTIES ATTR    
+    ='http://fsrar.ru/WEGAIS/ActInventoryInformF2Reg' EXTID 'xmlns:aint',
+    ='http://fsrar.ru/WEGAIS/ProductRef_v2' EXTID 'xmlns:pref',
+    ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    
+    PROPERTIES() IN headerInform 
+        actRegId EXTID 'aint:ActRegId', 
+        number EXTID 'aint:Number'
+
+    OBJECTS position = INTEGER EXTID 'aint:Position' IN contentInform
+    PROPERTIES (position)
+        identityF1Inform EXTID 'aint:Identity', 
+        informF1RegIdInform EXTID 'aint:InformF1RegId'
+
+    OBJECTS informF2Item = INTEGER EXTID 'aint:InformF2Item' IN informF2
+    PROPERTIES(informF2Item)   
+        identityF2Inform EXTID 'aint:Identity',
+        f2RegId EXTID 'aint:F2RegId'
+    FILTERS positionInformF2Item(informF2Item) == position
+;
+
+processActInventoryInform ABSTRACT LIST(InDoc);
+
+actChargeOnPosition(LONG id) = GROUP MIN ActChargeOnPosition p IF p IS ActChargeOnPosition AND LONG(p) == id;
+
+process (InDoc d) + {
+    IF docType(d) = DocType.ActInventoryInformF2Reg THEN {
+        NEWSESSION {
+            stringToFile(document(d));
+            IMPORT actInventoryInform XML FROM resultFile();
+
+            NEW a = ActInventoryInform {
+                inDoc(a) <- d;
+                outDoc(a) <- outDoc(d);
+                regId(a) <- actRegId();
+                regNumber(a) <- number();
+
+                FOR INTEGER j = [GROUP MIN INTEGER i BY informF1RegIdInform(i)](STRING idF1) AND NOT f1Reg(idF1) DO NEW r = F1Reg {
+                    id(r) <- idF1;
+                    product(r) <- product(actChargeOnPosition(LONG(identityF1Inform(j))));
+                }
+
+                FOR INTEGER j = [GROUP MIN INTEGER i BY f2RegId(i)](STRING idF2) AND NOT f2Reg(idF2) DO NEW r = F2Reg {
+                    id(r) <- idF2;
+                    f1Reg(r) <- f1Reg(informF1RegIdInform(positionInformF2Item(j)));
+                    client(r) <- OVERRIDE client(FSRARIDInform()), (GROUP MAX Client c IF utm(c) == utm(d) AND own(c));
+                }
+
+                FOR INTEGER j = [GROUP MIN INTEGER i BY identityF2Inform(i)](STRING id) DO {
+                    f2Reg(actChargeOnPosition(LONG(id))) <- f2Reg(f2RegId(positionInformF2Item(j)));
+                }
+                
+                waitActInventoryInform(actChargeOn[ActChargeOnOutDoc](outDoc(a))) <- NULL;
+                posted(actChargeOn[ActChargeOnOutDoc](outDoc(a))) <- TRUE;
+            }
+            
+            processed(d) <- TRUE;
+            APPLY;
+        }
+    }
+}

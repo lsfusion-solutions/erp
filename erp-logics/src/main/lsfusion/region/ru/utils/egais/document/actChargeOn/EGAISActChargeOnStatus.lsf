@@ -1,0 +1,38 @@
+MODULE EGAISActChargeOnStatus;
+
+REQUIRE EGAISActChargeOn;
+
+NAMESPACE EGAIS;
+
+// status
+CLASS ActChargeOnStatus 'Статус акта постановки на баланс ЕГАИС' {
+    posted 'Проведен',
+    canceled 'Отменен',
+    requestPosted 'Запрос на проведение',
+    waitActInventoryInform 'Ожидание уведомления о постановке на баланс'
+}
+
+name 'Наименование' (ActChargeOnStatus o) = staticCaption(o) IF o IS ActChargeOnStatus CHARWIDTH 15;
+
+FORM dialogActChargeOnStatus 'Статус акта постановки на баланс ЕГАИС'
+    OBJECTS o = ActChargeOnStatus
+    PROPERTIES(o) READONLY name
+
+    LIST ActChargeOnStatus OBJECT o
+;
+
+status = ABSTRACT CASE ActChargeOnStatus (ActChargeOn) MATERIALIZED INDEXED;
+nameStatus 'Статус' (ActChargeOn w) = name(status(w));
+
+EXTEND FORM actChargeOns
+    PROPERTIES(d) READONLY nameStatus FIRST
+
+    FILTERGROUP status
+        FILTER 'Принята' status(d) = ActChargeOnStatus.posted
+        FILTER 'Отменена' status(d) = ActChargeOnStatus.canceled
+;
+
+status (ActChargeOn w) += WHEN posted(w) THEN ActChargeOnStatus.posted;
+status (ActChargeOn w) += WHEN canceled(w) THEN ActChargeOnStatus.canceled;
+status (ActChargeOn w) += WHEN hasRequestPosted(w) THEN ActChargeOnStatus.requestPosted;
+status (ActChargeOn w) += WHEN waitActInventoryInform(w) THEN ActChargeOnStatus.waitActInventoryInform;

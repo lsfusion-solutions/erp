@@ -1,0 +1,47 @@
+MODULE EGAISActChargeOnType;
+
+REQUIRE EGAIS;
+
+NAMESPACE EGAIS;
+
+CLASS ActChargeOnType 'Тип постановки на баланс ЕГАИС';
+
+id 'Наименование' = DATA STRING[40] (ActChargeOnType) CHARWIDTH 15;
+actChargeOnType = GROUP AGGR ActChargeOnType t BY id(t);
+
+name 'Наименование' = DATA ISTRING (ActChargeOnType) CHARWIDTH 30;
+
+FORM actChargeOnType 'Тип постановки на баланс ЕГАИС'
+    OBJECTS o = ActChargeOnType PANEL
+    PROPERTIES(o) id, name
+
+    EDIT ActChargeOnType OBJECT o
+;
+
+FORM actChargeOnTypes 'Типы постановки на баланс ЕГАИС'
+    OBJECTS o = ActChargeOnType
+    PROPERTIES(o) READONLY id, name
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+;
+
+FORM dialogActChargeOnTypes 'Тип постановки на баланс ЕГАИС'
+    OBJECTS o = ActChargeOnType
+    PROPERTIES(o) READONLY id, name
+
+    LIST ActChargeOnType OBJECT o
+;
+
+NAVIGATOR {
+    EGAISMasterData {
+        NEW actChargeOnTypes;
+    }
+}
+
+onStarted() + {
+    IF NOT GROUP SUM 1 IF t IS ActChargeOnType THEN {
+        NEW t = ActChargeOnType { id(t) <- 'Пересортица'; name(t) <- 'Излишки пересортица'; }
+        NEW t = ActChargeOnType { id(t) <- 'Излишки'; name(t) <- 'Излишки продукции. В случае обнаружения излишков продукции организация предоставляет в ЕГАИС акт постановки на баланс с указанием основания «Излишки»'; }
+        NEW t = ActChargeOnType { id(t) <- 'Продукция, полученная до 01.01.2016'; name(t) <- 'Продукция, полученная до 01.01.2016'; }
+        NEW t = ActChargeOnType { id(t) <- 'Выравнивание остатков'; name(t) <- 'Выравнивание остатков'; }
+    }
+}

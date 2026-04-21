@@ -1,0 +1,136 @@
+MODULE EGAISRequestRepealACO;
+
+REQUIRE EGAISActChargeOnExchange, EGAISActChargeOnStatus;
+
+NAMESPACE EGAIS;
+
+hasRRACO 'Запрос на отмену' = DATA BOOLEAN (ActChargeOn);
+numberRRACO 'Номер запроса на отмену' = DATA STRING (ActChargeOn);
+dateRRACO 'Дата запроса на отмену' = DATA DATETIME (ActChargeOn);
+
+errorRRACO 'Ошибка отменены постановки' = DATA BOOLEAN (ActChargeOn);
+
+EXTEND FORM actChargeOns
+    PROPERTIES(d) READONLY hasRRACO, numberRRACO, dateRRACO
+;
+
+CLASS RequestRepealACOOutDoc 'Запрос на отмену проведения акта постановки на баланс' : OutDoc;
+
+EXTEND CLASS DocType { RequestRepealACO 'Запрос на отмену проведения акта постановки на баланс' }
+docType (RequestRepealACOOutDoc r) += DocType.RequestRepealACO IF r IS RequestRepealACOOutDoc;
+
+actChargeOn = DATA ActChargeOn (RequestRepealACOOutDoc) INDEXED;
+requestRepealACOOutDoc = GROUP LAST RequestRepealACOOutDoc d ORDER d BY actChargeOn(d);
+commentsRequestRepealACOOutDoc 'Комментарий запроса на отмену' (ActChargeOn a) = comments(requestRepealACOOutDoc(a));
+
+FORM requestRepealACO FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:RequestRepealACO'
+    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/RequestRepealACO' EXTID 'xmlns:qp'
+
+    OBJECTS r = RequestRepealACOOutDoc PANEL
+
+    PROPERTIES
+        = id(client(r)) EXTID 'qp:ClientId',
+        = numberRRACO(actChargeOn(r)) EXTID 'qp:RequestNumber',
+        = formatT(dateRRACO(actChargeOn(r))) EXTID 'qp:RequestDate',
+        = regId(actChargeOn(r)) EXTID 'qp:ACORegId'
+;
+
+request (RequestRepealACOOutDoc r) {
+    EXPORT requestRepealACO OBJECTS r = r XML;
+    submit(r, exportFile());
+}
+
+wrangQuantityMarkCode (ActChargeOn w) = GROUP MIN TRUE IF NOT overQuantity(ActChargeOnPosition p) == quantity(p) AND quantity(p) BY actChargeOn(p);
+
+cancel 'Запросить отмену проведения ЕГАИС' (ActChargeOn c) {
+    IF dateTime(c) > currentDateTime() THEN {
+        MESSAGE 'Дата/время акта должна быть не больше текущей даты/времени' WAIT;
+        RETURN;
+    }
+
+//    IF secondsBetweenDates(dateTime(c), currentDateTime()) > 3*86400 THEN {
+//        MESSAGE 'Дата/время акта должна быть не старше трех дней от текущей даты/времени' WAIT;
+//        RETURN;
+//    }
+
+    IF NOT minActChargeOnPosition(c) THEN {
+        MESSAGE 'Отсутствуют строки в акте списания с баланса ЕГАИС' WAIT;
+        RETURN;
+    }
+
+    IF wrangQuantityMarkCode(c) THEN {
+        MESSAGE 'Количество кодов маркировки не соответствует количеству строки акта' WAIT;
+        RETURN;
+    }
+
+    NEWSESSION {
+        NEW r = RequestRepealACOOutDoc {
+            client(r) <- client(c);
+
+            hasRRACO(c) <- TRUE;
+            numberRRACO(c) <- STRING(r);
+            dateRRACO(c) <- currentDateTime();
+
+            actChargeOn(r) <- c;
+
+            request(r);
+            APPLY;
+        }
+    }
+}
+
+EXTEND FORM actChargeOns
+    PROPERTIES(d) READONLY commentsRequestRepealACOOutDoc PANEL
+    PROPERTIES(d) cancel SHOWIF posted(d) AND NOT hasRRACO(d) AND NOT canceled(d) AND own(client(d)) TOOLBAR
+;
+
+DESIGN actChargeOns {
+    comments {
+        MOVE PROPERTY(commentsRequestRepealACOOutDoc(d)) { fill = 1; panelCaptionVertical = TRUE; }
+    }
+}
+
+process (Ticket t) + {
+    IF docType(t) = 'RequestRepealACO' THEN {
+        IF operationName(t) = 'Confirm' AND operationResult(t) = 'Accepted' THEN {
+            posted(actChargeOn[RequestRepealACOOutDoc](outDoc(t))) <- NULL;
+            hasRRACO(actChargeOn[RequestRepealACOOutDoc](outDoc(t))) <- NULL;
+            canceled(actChargeOn[RequestRepealACOOutDoc](outDoc(t))) <- TRUE;
+            errorRRACO(actChargeOn[RequestRepealACOOutDoc](outDoc(t))) <- NULL;
+        }
+
+        IF ((operationName(t) = 'Confirm' AND operationResult(t) = 'Rejected') OR conclusion(t)=='Rejected') THEN {
+            hasRRACO(actChargeOn[RequestRepealACOOutDoc](outDoc(t))) <- NULL;
+            dateRRACO(actChargeOn[RequestRepealACOOutDoc](outDoc(t))) <- NULL;
+            numberRRACO(actChargeOn[RequestRepealACOOutDoc](outDoc(t))) <- NULL;
+            errorRRACO(actChargeOn[RequestRepealACOOutDoc](outDoc(t))) <- TRUE;
+        }
+
+        IF (conclusion(t)=='Accepted') THEN {
+            errorRRACO(actChargeOn[RequestRepealACOOutDoc](outDoc(t))) <- NULL;
+            hasRRACO(actChargeOn[RequestRepealACOOutDoc](outDoc(t))) <- TRUE;
+        }
+
+        processed() <- TRUE;
+    }
+}
+
+// status
+
+EXTEND CLASS ActChargeOnStatus {
+    requestRepeal 'Запрос на отмену проведения',
+    errorRequestRepeal 'Ошибка запроса на отмену проведения',
+    acceptedRequestRepeal 'Проведение отменено'
+}
+
+EXTEND FORM actChargeOns
+    EXTEND FILTERGROUP status
+        FILTER 'Запрос на отмену проведения' status(d) = ActChargeOnStatus.requestRepeal
+;
+
+status (ActChargeOn c) += WHEN posted(c) AND hasRRACO(c) THEN ActChargeOnStatus.requestRepeal;
+status (ActChargeOn c) += WHEN posted(c) AND errorRRACO(c) THEN ActChargeOnStatus.errorRequestRepeal;
+status (ActChargeOn c) += WHEN canceled(c) THEN ActChargeOnStatus.acceptedRequestRepeal;
+
+showToShow(ActChargeOn c) += posted(c);
+overShowProcess(ActChargeOn w) += canceled(w);
