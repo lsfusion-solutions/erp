@@ -35,6 +35,10 @@ FORM queryAPv2Params 'Параметры запроса'
     PROPERTIES(r) idProducer, shortNameProducer, nameUtm
 ;
 
+DESIGN queryAPv2Params {
+    size = (600, 120);
+}
+
 queryAPv2 (QueryAPv2 r) {
     EXPORT queryAPv2 OBJECTS r = r XML;
     client(r) <- firstClient(utm(r));
@@ -45,6 +49,11 @@ queryAPv2 'Запросить справочник алкогольной про
     NEWSESSION {
         NEW r = QueryAPv2 {
             DIALOG queryAPv2Params OBJECTS r = r NOMANAGESESSION DO {
+                IF r IS QueryAPv2 AND (NOT producer(r) OR NOT utm(r)) THEN {
+                    MESSAGE 'Не все параметры заданы';
+                    RETURN; 
+                }
+                
                 queryAPv2(r);
                 APPLY;
             }
@@ -108,8 +117,12 @@ idProduct 'Код продукции' = DATA STRING (QueryAPv2);
 
 FORM queryAPv2CodeParams 'Параметры запроса'
     OBJECTS r = QueryAPv2 PANEL
-    PROPERTIES(r) idProducer, shortNameProducer, nameUtm, idProduct
+    PROPERTIES(r) idProduct, nameUtm
 ;
+
+DESIGN queryAPv2CodeParams {
+    size = (500, 120);
+}
 
 GROUP queryAP_v2 EXTID 'ns:QueryAP_v2' : document;
 GROUP parameters2 EXTID 'qp=http://fsrar.ru/WEGAIS/QueryParameters:Parameters' : queryAP_v2;
@@ -136,6 +149,11 @@ queryAPv2Code 'Запрос алкогольной продукции по ал�
     NEWSESSION {
         NEW r = QueryAPv2 {
             DIALOG queryAPv2CodeParams OBJECTS r = r NOMANAGESESSION DO {
+                IF r IS QueryAPv2 AND (NOT idProduct(r) OR NOT utm(r)) THEN {
+                    MESSAGE 'Не все параметры заданы';
+                    RETURN;
+                }
+                
                 queryAPv2Code(r);
                 APPLY;
             }

@@ -1,0 +1,116 @@
+MODULE EGAISItemGestori;
+
+REQUIRE EGAISItem, ItemFood, EGAISFReg;
+
+NAMESPACE EGAIS;
+
+productTypeName = GROUP NAGGR ProductType productType BY name(productType);
+
+@defineObjectItemAttribute(productType, ProductType, name, 'Вид продукции', itemFood);
+@defineObjectItemAttributeBatch (productType, nameProductType, 'Вид продукции');
+EXTEND CLASS StringItemAttribute { ProductType 'Вид продукции' }
+value[Item,StringItemAttribute](Item i, StringItemAttribute a) += WHEN a == StringItemAttribute.ProductType AND i IS Item THEN ISTRING[500](nameProductType(i));
+
+@defineItemFilterValue(productType, 'Вид продукции', o);
+@defineItemExtractObjectAttribute(productType, nameProductType, productTypeName);
+
+@defineUniteFilterAttributeItem(productType, name, 'Вид продукции', 'Виды продукции', item);
+
+valueAlcohol 'Содержание алкоголя %' (Item item) = value(alcohol(item)) IN itemFood;
+idProductType 'Код вида продукции' (Item item) = id(productType(item)) IN itemFood;
+
+EXTEND FORM item
+    PROPERTIES (i) valueAlcohol AFTER nameAlcohol(i), idProductType AFTER nameProductType(i)
+;
+
+existItem 'Связан с товарами' (Product p) = GROUP MIN in(Item i, p);
+
+maxF1Reg (Item i) = GROUP MAX F1Reg r IF in(i, product(r));
+importer (Item i) = producer(product(maxF1Reg(i)));
+shortNameImporter 'Импортер' (Item i) = shortName(importer(i));
+
+DESIGN product {
+    BOX(i) { caption = 'Связь с товарами'; }
+    REMOVE PROPERTY(add(o));
+}
+
+EXTEND FORM products
+    PROPERTIES(o) READONLY existItem
+;
+
+
+existProduct 'Связан с продуктами' (Item i) = GROUP MIN in(i, Product p);
+
+seekSkuBarcode()  {
+    INPUT s = STRING[15] DO {
+        seek(skuBarcode(s, currentDate()));
+        IF NOT skuBarcode(s, currentDate()) THEN
+            MESSAGE 'Штрихкод не найден';
+    }
+}
+
+FORM alcoholtem 'Товары'
+    OBJECTS gt=GroupType PANEL
+    PROPERTIES(gt) SELECTOR name
+
+    TREE groupTree g=Group PARENT parent(g)
+    PROPERTIES READONLY order(g), id(g) SHOWIF showIDs(), name(g)
+    FILTERS groupType(g) == gt, g IS Group AND NOT (g IS SkuGroup AND NOT g IS ItemGroup)
+    ORDERS order(g), name(g)
+    FILTERGROUP inactive1 FILTER 'Активные' active(g) 'F6' DEFAULT
+
+    OBJECTS i=Item
+    PROPERTIES(i) READONLY name, volume, valueAlcohol, nameManufacturer, idProductType, nameProductType, existProduct
+    
+    FILTERGROUP groupFilters
+    FILTER 'С группами' isParent(g, i) 'F9' DEFAULT
+    FILTER 'Без групп' gt IS GroupType AND NOT group(gt,i) 'F8'
+;
+
+DESIGN alcoholtem {
+    NEW root {
+        horizontal = TRUE;
+        fill = 1;
+        NEW leftPane {
+            fill = 1;
+            width = 0;
+            NEW itemGroups {
+                fill = 2;
+                width = 0;
+                MOVE BOX(gt);
+                MOVE BOX(TREE groupTree) { fill = 1; width = 0; caption = 'Группы'; }
+            }            
+        }
+        NEW pane {
+            fill = 5;
+            width = 400;
+            MOVE BOX(i) {
+                fill = 5;
+                GRID(i) {
+                    defaultComponent = TRUE;
+                }
+            }
+        }
+    }
+    MOVE TOOLBARBOX;
+}
+
+addItem 'Добавить' (Product p){
+    DIALOG alcoholtem OBJECTS i INPUT FILTERS productType(i) == type(p) DO {
+        in(i, p) <- TRUE;
+    }
+} IMAGE 'add.png' CHANGEKEY 'INSERT';
+
+EXTEND FORM product
+    PROPERTIES addItem(o) DRAW i TOOLBAR
+;
+
+EXTEND FORM item
+    PROPERTIES (i) READONLY shortNameImporter
+;
+
+DESIGN item {
+    itemHeader {
+        MOVE PROPERTY(shortNameImporter(i));
+    }
+}
