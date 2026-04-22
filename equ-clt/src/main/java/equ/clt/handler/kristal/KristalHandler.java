@@ -389,13 +389,13 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
     }
 
     @Override
-    public Map<String, LocalDateTime> requestSucceededSoftCheckInfo() throws ClassNotFoundException, SQLException {
+    public Map<String, SoftCheckInterface.SucceededSoftCheckInfo> requestSucceededSoftCheckInfo() throws ClassNotFoundException, SQLException {
 
         softCheckLogger.info("Kristal: requesting succeeded SoftCheckInfo");
 
         KristalSettings kristalSettings = springContext.containsBean("kristalSettings") ? (KristalSettings) springContext.getBean("kristalSettings") : null;
 
-        Map<String, LocalDateTime> result = new HashMap<>();
+        Map<String, SoftCheckInterface.SucceededSoftCheckInfo> result = new HashMap<>();
         //result.put("888888", new Timestamp(Calendar.getInstance().getTime().getTime()));
         //return result;
 
@@ -417,7 +417,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                     ResultSet rs = statement.executeQuery(queryString);
                     int count = 0;
                     while (rs.next()) {
-                        result.put(fillLeadingZeroes(rs.getString(1)), sqlTimestampToLocalDateTime(rs.getTimestamp(2)));
+                        result.put(fillLeadingZeroes(rs.getString(1)), new SoftCheckInterface.SucceededSoftCheckInfo(sqlTimestampToLocalDateTime(rs.getTimestamp(2)), null));
                         count++;
                     }
 

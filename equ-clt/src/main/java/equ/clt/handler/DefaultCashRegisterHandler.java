@@ -245,7 +245,7 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch, C extends
     }
 
     @Override
-    public Map<String, LocalDateTime> requestSucceededSoftCheckInfo() throws ClassNotFoundException, SQLException {
+    public Map<String, SoftCheckInterface.SucceededSoftCheckInfo> requestSucceededSoftCheckInfo() throws ClassNotFoundException, SQLException {
         return null;
     }
 

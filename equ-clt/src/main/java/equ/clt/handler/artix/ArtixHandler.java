@@ -1203,11 +1203,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
     }
 
     @Override
-    public Map<String, LocalDateTime> requestSucceededSoftCheckInfo() {
+    public Map<String, SoftCheckInterface.SucceededSoftCheckInfo> requestSucceededSoftCheckInfo() {
         ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : new ArtixSettings();
         boolean disableSoftCheck = artixSettings.isDisableSoftCheck();
 
-        Map<String, LocalDateTime> result = new HashMap<>();
+        Map<String, SoftCheckInterface.SucceededSoftCheckInfo> result = new HashMap<>();
         if(!disableSoftCheck) {
             softCheckLogger.info(logPrefix + "reading SoftCheckInfo");
             if (readFiles.isEmpty()) softCheckLogger.info(logPrefix + "No sale files found");
@@ -1220,6 +1220,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
                             String fileName = file.getAbsolutePath();
                             softCheckLogger.info(logPrefix + "reading " + fileName);
+
+                            Integer nppGroupMachinery = getNppGroupMachineryFromFilePath(file);
+                            softCheckLogger.info(String.format(logPrefix + "nppGroupMachinery %s", readFiles.size()));
 
                             String fileContent = readFile(file.getAbsolutePath(), encoding);
 
@@ -1241,7 +1244,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                                 String invoiceNumber = inventPosition.getString("additionalbarcode");
                                                 invoiceNumber = invoiceNumber.length() >= 7 ? invoiceNumber.substring(invoiceNumber.length() - 7) : invoiceNumber;
                                                 softCheckLogger.info(logPrefix + "found softCheck " + invoiceNumber);
-                                                result.put(invoiceNumber, sqlTimestampToLocalDateTime(dateTimeReceipt));
+                                                result.put(invoiceNumber, new SoftCheckInterface.SucceededSoftCheckInfo(sqlTimestampToLocalDateTime(dateTimeReceipt), nppGroupMachinery));
                                             }
                                         }
                                     }
@@ -1263,6 +1266,25 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
     private int compareNames(File f1, File f2) {
         return f1.getName().compareTo(f2.getName());
+    }
+
+    private Integer getNppGroupMachineryFromFilePath(File file) {
+        File saleDirectory = file.getParentFile();
+        if (saleDirectory != null && "online".equals(saleDirectory.getName()))
+            saleDirectory = saleDirectory.getParentFile();
+
+        if (saleDirectory == null || !saleDirectory.getName().matches("sale\\d+"))
+            return null;
+
+        File groupDirectory = saleDirectory.getParentFile();
+        if (groupDirectory == null || !groupDirectory.getName().matches("\\d+"))
+            return null;
+
+        try {
+            return Integer.valueOf(groupDirectory.getName());
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     private List<Pair<File, Integer>> getDirectories(List<CashRegisterInfo> cashRegisterList) {

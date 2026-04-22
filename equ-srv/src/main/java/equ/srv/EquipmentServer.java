@@ -2065,7 +2065,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public String sendSucceededSoftCheckInfo(String sidEquipmentServer, Map<String, LocalDateTime> invoiceSet) throws RemoteException {
+    public String sendSucceededSoftCheckInfo(String sidEquipmentServer, Map<String, SoftCheckInterface.SucceededSoftCheckInfo> invoiceSet) throws RemoteException {
         return softCheck == null ? null : softCheck.sendSucceededSoftCheckInfo(sidEquipmentServer, invoiceSet);
     }
 
