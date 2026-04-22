@@ -1,0 +1,266 @@
+MODULE TerminalPurchaseOrder;  // Модуль ERP "Мобильный заказ" 
+
+REQUIRE PurchaseOrderTerminalOrder, Store, PurchaseOrderStatus;
+
+NAMESPACE Terminal;
+
+useAutoOrderInvoiceTerminal 'Создавать заказы при импорте документов ТСД' = DATA BOOLEAN (DepartmentStore);
+useCalcAutoOrderInvoiceTerminal 'Обновлять заказы при импорте документов ТСД' = DATA BOOLEAN (DepartmentStore);
+
+EXTEND FORM departmentStore
+    PROPERTIES useAutoOrderInvoiceTerminal(d) SHOWIF isCompany(d) AFTER autoCloseOrders(d)
+    PROPERTIES useCalcAutoOrderInvoiceTerminal(d) SHOWIF isCompany(d) AFTER autoCloseOrders(d)
+;
+
+DESIGN departmentStore {
+    headerExtraParams{
+        MOVE PROPERTY (useAutoOrderInvoiceTerminal(d));
+        MOVE PROPERTY (useCalcAutoOrderInvoiceTerminal(d));
+    }
+}
+
+EXTEND FORM options PROPERTIES(s) READONLYIF NOT isCompany[DepartmentStore](s) useAutoOrderInvoiceTerminal, useCalcAutoOrderInvoiceTerminal;
+
+orderInvoiceTerminalDocumentType =  DATA TerminalDocumentType();
+nameOrderInvoiceTerminalDocumentType 'Тип документа ТСД для создания заказов (закупка) из ТСД'() =  name(orderInvoiceTerminalDocumentType());
+calcOrderInvoiceTerminalDocumentType =  DATA TerminalDocumentType();
+nameCalcOrderInvoiceTerminalDocumentType 'Тип документа ТСД для обновления заказов (закупка) из ТСД' () =  name(calcOrderInvoiceTerminalDocumentType());
+
+EXTEND FORM options
+    PROPERTIES nameOrderInvoiceTerminalDocumentType()
+    PROPERTIES nameCalcOrderInvoiceTerminalDocumentType();
+
+DESIGN options {
+    terminalServer{
+        MOVE PROPERTY (nameOrderInvoiceTerminalDocumentType());
+        MOVE PROPERTY (nameCalcOrderInvoiceTerminalDocumentType());
+    }
+}
+
+operationPurchaseTSDSupplier = DATA Purchase.Operation();
+nameOperationPurchaseTSDSupplier 'Операция прихода от поставщика для создания заказа (закупка) из ТСД'() = name(operationPurchaseTSDSupplier());
+operationPurchaseTSDWarehouse = DATA Purchase.Operation();
+nameOperationPurchaseTSDWarehouse 'Операция прихода со склада для создания заказа (закупка) из ТСД' () = name(operationPurchaseTSDWarehouse());
+
+EXTEND FORM options
+    PROPERTIES nameOperationPurchaseTSDSupplier()
+    PROPERTIES nameOperationPurchaseTSDWarehouse()
+;
+
+DESIGN options {
+    terminalServer {
+        MOVE PROPERTY (nameOperationPurchaseTSDSupplier());
+        MOVE PROPERTY (nameOperationPurchaseTSDWarehouse());
+    }
+}
+
+EXTEND CLASS StatusOrder {
+    upTSD 'Получен из ТСД'
+}
+
+statusTSD 'Статус обработки в ТСД' = DATA STRING[2] (UserOrder);
+
+calcStatusTSD 'Статус заказа в ТСД' (Purchase.Order o)= IF statusTSD[UserOrder](o) == '2' THEN StatusOrder.upTSD;
+
+status(Purchase.Order o) += WHEN o IS Purchase.Order AND calcStatusTSD(o) THEN calcStatusTSD(o);
+status(Purchase.Order o) += WHEN invoices(o) AND statusTSD[UserOrder](o) == '2' THEN StatusOrder.accepted; //'Принят'
+
+tsd 'Документ ТСД' (Purchase.Order o) = TRUE IF calcStatusTSD[UserOrder](o) == StatusOrder.upTSD;
+
+extraFilterOrders = ABSTRACT BOOLEAN (TerminalOrder, Stock);
+useExtraFilterOrders = ABSTRACT BOOLEAN (TerminalOrder, Stock);
+
+filter(TerminalOrder o, Stock ds) += (useAutoOrderInvoiceTerminal(ds) OR useCalcAutoOrderInvoiceTerminal(ds)) AND
+    isOpened[Purchase.Order](o) AND (NOT isSent[Purchase.Order](o)) AND (extraFilterOrders(o, ds) OR NOT useExtraFilterOrders(o, ds)) AND (NOT tsd(o)) AND
+    o IS Purchase.Order AND customerStock[Purchase.Order](o) == ds;
+
+recommendedQuantityTerminal 'Рекомендация из ТСД' = DATA NUMERIC[14,4] (Purchase.UserOrderDetail) CHARWIDTH 7;
+commentTerminal 'Комментарий из ТСД' = DATA STRING[100](Purchase.UserOrderDetail) CHARWIDTH 15;
+
+EXTEND FORM userOrder
+    PROPERTIES READONLY recommendedQuantityTerminal(d) AFTER quantity(d) SHOWIF tsd(o) BACKGROUND RGB(255,250,205)
+    PROPERTIES commentTerminal(d) AFTER nameSku(d)
+;
+
+EXTEND FORM orders
+    PROPERTIES READONLY recommendedQuantityTerminal(d) AFTER quantity(d) SHOWIF tsd(o) BACKGROUND RGB(255,250,205)
+    PROPERTIES READONLYIF isReadonly() commentTerminal(d) AFTER nameSku(d)
+;
+
+overFillUserOrderTerminal ABSTRACT (Purchase.UserOrder); 
+
+processAutoOrderInvoiceTerminal 'Импорт одного заказа из ТСД по одному складу' (DepartmentStore ds) {
+    NEWSESSION {
+        FOR terminalDocumentType(TerminalDocument td) == orderInvoiceTerminalDocumentType() AND NOT used(td) AND stock(td) == ds DO {
+            // заказ одному поставщику
+            IF trim(idTerminalHandbookType1(td)) != '' THEN {
+                FOR NOT userOrder(id(td)) NEW o = UserOrder DO {
+                    id(o) <- STRING[100](id(td));
+                    customer(o) <- legalEntity(stock(td));
+                    customerStock(o) <- stock(td);
+                    IF stock(idTerminalHandbookType1(td)) THEN {
+                        supplierStock(o) <- stock(idTerminalHandbookType1(td));
+                        supplier(o) <- legalEntity(stock(idTerminalHandbookType1(td)));
+                    } ELSE {
+                        supplier(o) <- legalEntity(idTerminalHandbookType1(td));
+                        supplierStock(o) <- [GROUP MAX Stock st IF active(st) BY legalEntity(st)](legalEntity(idTerminalHandbookType1(td)));
+                    }
+
+                    operation(o) <- IF supplier(o) == customer(o) THEN operationPurchaseTSDWarehouse()
+                                    ELSE operationPurchaseTSDSupplier();
+                    generateNumber(o);
+                    date(o) <- currentDate();
+                    time(o) <- currentTime();
+                    createdUser(o) <- createdUser(td);
+                    note(o) <- STRING[48](title(td)) + ', ' + comment(td);
+
+                    priceListType(o) <- defaultPriceListType(operation(o));
+                    overFillUserOrderTerminal(o);
+                    
+                    FOR terminalDocument(TerminalDocumentDetail tdd) == td ORDER number(tdd) NEW od = UserOrderDetail DO {
+                        id(od) <- STRING[100](id(tdd));
+                        userOrder(od) <- o;
+                        sku(od) <- sku(tdd);
+                        quantity(od) <- quantity(tdd);
+                        price(od) <- OVERRIDE prevList(priceListType[UserOrder](customerStock(od)), od), price(tdd);
+                        commentTerminal(od) <- comment(tdd);
+                    }
+                    statusTSD(o) <- '2';
+                }
+            }
+            // заказ без поставщика
+            LOCAL idSupplierSku = STRING[100] (TerminalDocumentDetail);
+
+            IF trim(idTerminalHandbookType1(td)) == '' OR NOT idTerminalHandbookType1(td) THEN {
+                idSupplierSku(TerminalDocumentDetail tdd) <- OVERRIDE id(supplierLastOrderBatch(sku(tdd), stock(td))),
+                        id(GROUP LAST supplier(lastOrderBatch(sku(tdd), Stock st)) IF st IS Stock ORDER dateTimeLastMoved(sku(tdd), st)) WHERE terminalDocument(tdd) == td;
+
+                FOR [GROUP MIN TerminalDocumentDetail td2 IF terminalDocument(td2) == td BY idSupplierSku(td2)](STRING[100] idSupplier) NEW o = UserOrder DO {
+                    id(o) <- STRING[100](id(td));
+                    customer(o) <- legalEntity(stock(td));
+                    customerStock(o) <- stock(td);
+                    supplier(o) <- legalEntity(idSupplier);
+                    supplierStock(o) <- OVERRIDE stock(idSupplier), [GROUP MAX Stock st IF active(st) BY legalEntity(st)](legalEntity(idSupplier));
+
+                    operation(o) <- IF supplier(o) == customer(o) THEN operationPurchaseTSDWarehouse()
+                                    ELSE operationPurchaseTSDSupplier();
+                    generateNumber(o);
+                    date(o) <- currentDate();
+                    time(o) <- currentTime();
+                    createdUser(o) <- createdUser(td);
+                    note(o) <- STRING[48](title(td)) + ', ' + comment(td);
+
+                    priceListType(o) <- defaultPriceListType(operation(o));
+                    overFillUserOrderTerminal(o);
+
+                    FOR terminalDocument(TerminalDocumentDetail tdd) == td AND idSupplier == idSupplierSku(tdd) NEW od = UserOrderDetail DO {
+                        id(od) <- STRING[100](id(tdd));
+                        userOrder(od) <- o;
+                        sku(od) <- sku(tdd);
+                        quantity(od) <- quantity(tdd);
+                        price(od) <- OVERRIDE prevList(priceListType[UserOrder](customerStock(od)), od), price(tdd);
+                        commentTerminal(od) <- comment(tdd);
+                    }
+                    statusTSD(o) <- '2';
+                }
+            }
+
+            used(td) <- TRUE IF td IS TerminalDocument;
+            executeLocalEvents('Purchase.userOrder');
+        }
+        APPLY;
+    }
+}
+
+extraCheckOrders = ABSTRACT BOOLEAN (Purchase.Order);
+extraCheckOrdersMessage = ABSTRACT STRING (Purchase.Order);
+
+processAutoOrderInvoiceTerminalStock 'Импорт заказов из ТСД по складу' (Purchase.Order o)  {
+    IF useAutoOrderInvoiceTerminal(customerStock(o)) THEN {
+        IF extraCheckOrders(o) OR NOT extraCheckOrdersMessage(o) THEN
+            processAutoOrderInvoiceTerminal(customerStock(o));
+        ELSE
+            MESSAGE extraCheckOrdersMessage(o);  
+    }
+    ELSE MESSAGE 'Для склада покупателя выбранного заказа не установлен признак Создавать заказы при импорте документов ТСД';
+}
+
+processAutoOrderInvoiceTerminalAll 'Импорт заказов из ТСД по всем складам'()  {
+    FOR DepartmentStore ds IS DepartmentStore AND useAutoOrderInvoiceTerminal(ds) DO
+        processAutoOrderInvoiceTerminal(ds);
+}
+
+processCalcAutoOrderInvoiceTerminal 'Обновление одного заказа из ТСД по одному складу' (DepartmentStore ds) {
+    NEWSESSION {
+        LOCAL incl = BOOLEAN (TerminalDocumentDetail);
+
+        FOR terminalDocumentType(TerminalDocument td) == calcOrderInvoiceTerminalDocumentType() AND idTerminalHandbookType1(td) AND
+            (NOT used(td)) AND ds == stock(td) DO {
+
+            FOR number(Purchase.UserOrder o) == parentDocument(td) DO {
+                FOR barcode(TerminalDocumentDetail tdd) == idBarcode(sku[UserOrderDetail](UserOrderDetail od2) IF userOrder[Purchase.UserOrderDetail](od2) == o) AND terminalDocument(tdd) == td DO {
+                    incl(tdd) <- TRUE;
+                }
+
+                FOR terminalDocument(TerminalDocumentDetail tdd) == td AND NOT incl(tdd) NEW od = UserOrderDetail DO {
+                    sku(od) <- sku(tdd);
+                    commentTerminal(od) <- comment(tdd);
+                    userOrder[Purchase.UserOrderDetail](od) <- o;
+                }
+
+                FOR terminalDocument(TerminalDocumentDetail tdd) == td AND number(o) == parentDocument(td) AND
+                    number(UserOrderDetail od) == parentDocument(td) AND sku(od) == sku(tdd) AND od IS UserOrderDetail DO {
+                    recommendedQuantityTerminal(od) <- quantity(tdd);
+                }
+                note(o) <- STRING[48](title(td)) + ', ' + comment(td);
+                used(td) <- TRUE IF td IS TerminalDocument;
+
+                DELETE UserOrderDetail od WHERE od IS UserOrderDetail IF userOrder(od) == o AND quantity(od) == 0;
+
+                executeLocalEvents('Purchase.userOrder');
+                statusTSD(o) <- '2';
+            }
+        }
+        APPLY;
+    }
+}
+
+processCalcAutoOrderInvoiceTerminalStock 'Обновление заказов из ТСД' (Purchase.Order o) {
+    IF useCalcAutoOrderInvoiceTerminal(customerStock(o)) THEN {
+        IF extraCheckOrders(o) OR NOT extraCheckOrdersMessage(o) THEN
+            processCalcAutoOrderInvoiceTerminal(customerStock(o));
+        ELSE
+            MESSAGE extraCheckOrdersMessage(o);
+    }
+    ELSE MESSAGE 'Для склада покупателя выбранного заказа не установлен признак Обновлять заказы при импорте документов ТСД';
+}
+
+processCalcAutoOrderInvoiceTerminalAll 'Обновление заявок с ТСД по всем складам'() {
+    FOR DepartmentStore ds IS DepartmentStore AND useCalcAutoOrderInvoiceTerminal(ds) DO
+        processCalcAutoOrderInvoiceTerminal(ds);
+}
+
+EXTEND FORM orders 
+    PROPERTIES (o) SHOWIF customerStock(o) IS DepartmentStore processAutoOrderInvoiceTerminalStock, processCalcAutoOrderInvoiceTerminalStock
+;
+
+DESIGN orders {
+    actionContainer {
+        NEW importTSD {
+            caption = 'Импорт заказов из ТСД';
+            MOVE PROPERTY (processAutoOrderInvoiceTerminalStock(o)) { caption = 'Импорт заказов'; alignment = STRETCH; }
+            MOVE PROPERTY (processCalcAutoOrderInvoiceTerminalStock(o)) { caption = 'Обновление заказов'; alignment = STRETCH; }
+        }
+    }
+}
+
+fillRecommendedQuantityTerminalOrderDetail 'Заполнить позицию рекомендованным' (Purchase.UserOrderDetail od) {
+    quantity(od) <- recommendedQuantityTerminal(od);
+} ASON CONTEXTMENU recommendedQuantityTerminal[Purchase.UserOrderDetail];
+
+fillRecommendedQuantityTerminalAll 'Заполнить все позиции рекомендованным' (Purchase.UserOrderDetail od) {
+    FOR UserOrderDetail od2 IS UserOrderDetail AND order(od) == order(od2) DO {
+        quantity(od2) <- recommendedQuantityTerminal(od2);
+    }
+} ASON CONTEXTMENU recommendedQuantityTerminal[Purchase.UserOrderDetail];
+
