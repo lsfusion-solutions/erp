@@ -179,10 +179,13 @@ volumeIncomeInvoice 'Объем, тыс дал.' = GROUP SUM volume(InvoiceDetai
         
 volumeIncomeOther 'Объем, тыс дал.' (Group group, LegalEntity supplier, AlcoholSupplierType type, DATE df, DATE dt) = 
     (GROUP SUM signetVolume(InventorySkuDetail d) IF isParent(group, sku(d)) AND isPosted(d) AND isCompany(stock(d)) AND active(stock(d)) AND isWholesale(stock(d)) 
-    AND date(d) >= df AND date(d) <= dt AND isAlcoholGroup(sku(d)) AND quantity(d) > 0
+    AND date(d) >= df AND date(d) <= dt AND isAlcoholGroup(sku(d)) AND quantity(d) < 0
     AND isAlcoholOther(operation(inventory(d)))  AND supplier == legalEntity(stock(d))) IF type == AlcoholSupplierType.other;
+
+volumeIncomeOtherExtra = DATA LOCAL NUMERIC[18,6](Group, LegalEntity, AlcoholSupplierType, DATE, DATE);
+
 volumeIncome'Объем, тыс дал.'(Group group, LegalEntity supplier, AlcoholSupplierType type1, DATE df, DATE dt)= 
-    NUMERIC[18,6]((volumeIncomeInvoice(group,supplier,type1,df,dt) (+) volumeIncomeOther(group,supplier,type1,df,dt))/
+    NUMERIC[18,6]((volumeIncomeInvoice(group,supplier,type1,df,dt) (+) volumeIncomeOther(group,supplier,type1,df,dt) (+) volumeIncomeOtherExtra(group,supplier,type1,df,dt))/
     (OVERRIDE conversionFactor(group), 1.0 IF group IS StatisticGroup));            
             
 volumeIncomeNone 'Объем, тыс дал.' = NUMERIC[18,6]([GROUP SUM volume(InvoiceDetail d) IF 
@@ -212,7 +215,7 @@ volumeOutcomeInvoice 'Объем, тыс дал.' = [GROUP SUM volume(InvoiceDet
 
 volumeOutcomeOther 'Объем, тыс дал.' (Group group, LegalEntity supplier, AlcoholSupplierTypeOutcome type, DATE df, DATE dt) = 
     (GROUP SUM signetVolume(InventorySkuDetail d) IF isParent(group, sku(d)) AND isPosted(d) AND isCompany(stock(d)) AND active(stock(d)) 
-    AND date(d) >= df AND date(d) <= dt AND isAlcoholGroup(sku(d)) AND quantity(d) < 0 AND isWholesale(stock(d)) 
+    AND date(d) >= df AND date(d) <= dt AND isAlcoholGroup(sku(d)) AND quantity(d) > 0 AND isWholesale(stock(d)) 
     AND isAlcoholOther(operation(inventory(d))) AND supplier == legalEntity(stock(d))) IF type == AlcoholSupplierTypeOutcome.other;
 
 volumeOutcomeOtherEx 'Объем, тыс дал.' (Group group, LegalEntity supplier, AlcoholSupplierTypeOutcome type, DATE df, DATE dt) = 
@@ -220,8 +223,11 @@ volumeOutcomeOtherEx 'Объем, тыс дал.' (Group group, LegalEntity supp
     AND date(d) >= df AND date(d) <= dt AND isAlcoholGroup(sku(d)) AND isWholesale(stock(d))
     AND isAlcoholOther(operation(d)) AND supplier == legalEntity(stock(d))) IF type == AlcoholSupplierTypeOutcome.other;
 
+volumeOutcomeOtherExtra = DATA LOCAL NUMERIC[18,6](Group, LegalEntity, AlcoholSupplierTypeOutcome, DATE, DATE);
+
 volumeOutcome 'Объем, тыс дал.' (Group group, LegalEntity supplier, AlcoholSupplierTypeOutcome type, DATE df, DATE dt) =
-    NUMERIC[18,6]((volumeOutcomeInvoice(group,supplier,type,df,dt) (+) volumeOutcomeOther(group,supplier,type,df,dt) (+) volumeOutcomeOtherEx(group,supplier,type,df,dt))/
+    NUMERIC[18,6]((volumeOutcomeInvoice(group,supplier,type,df,dt) (+) volumeOutcomeOther(group,supplier,type,df,dt) (+)
+                volumeOutcomeOtherEx(group,supplier,type,df,dt) (+) volumeOutcomeOtherExtra(group,supplier,type,df,dt))/
     (OVERRIDE conversionFactor(group), 1.0 IF group IS StatisticGroup)); 
             
 volumeOutcome 'Объем, тыс дал.' = [GROUP SUM quantity(AlcoholReportDetail d) IF alcoholDirectionType(d) == AlcoholDirectionType.outcome
@@ -423,10 +429,11 @@ fillDetailing 'Показать детализацию' (AlcoholReportDetail a){
         NEWSESSION SHOW alcoholReportDetailing DOCKED NOWAIT;
     }  
 }
+fillQuantitySupplierOver ABSTRACT LIST(AlcoholReport);
 fillQuantitySupplier 'Заполнить по поставщикам' (AlcoholReport r)  { 
     //recalculateAlcoholSupplierTypes(r);
-    DELETE AlcoholReportDetail detail WHERE alcoholReport(detail) == r;   
-    
+    DELETE AlcoholReportDetail detail WHERE alcoholReport(detail) == r;
+    fillQuantitySupplierOver(r);
     FOR DATE fromDate = fromDate(r) AND DATE toDate = toDate(r) NOINLINE DO {
         FOR volumeIncome(Group sk, LegalEntity c, AlcoholSupplierType st, fromDate, toDate) ==  NUMERIC[18,6] q AND groupType(sk) == groupType(r) 
             AND NOT defaultAlcoholReportDetailIncome(r,sk,c,st) AND NOT skipAlcohol(sk) AND (st == AlcoholSupplierType.wholesale OR 
@@ -478,6 +485,8 @@ calcPrevAlcoholReport (AlcoholReport r) = PARTITION PREV r ORDER toDate(r), r
 dataPrevAlcoholReport = DATA AlcoholReport(AlcoholReport);
 prevAlcoholReport (AlcoholReport r) = OVERRIDE dataPrevAlcoholReport(r), calcPrevAlcoholReport(r);
 seriesNumberPrevReport 'Предыдущая декларация' (AlcoholReport r) = seriesNumber(prevAlcoholReport(r)) IN documentPrm CHARWIDTH 20;
+
+fillQuantityTotalOver ABSTRACT LIST (AlcoholReport);
 
 fillQuantityTotal 'Заполнить сводную' (AlcoholReport r)  {
     //recalculateAlcoholSupplierTypes(r); 
@@ -538,6 +547,8 @@ fillQuantityTotal 'Заполнить сводную' (AlcoholReport r)  {
                                                   
         // остаток после
         quantity(AlcoholParameter d, Group sk, r) <- NUMERIC[18,6](balanceA(sk,toDate(r))) WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param5 AND NOT skipAlcohol(sk);
+
+        fillQuantityTotalOver(r);
 //--        
         FOR AlcoholParameter d IS AlcoholParameter AND alcoholType(r)== type(d) DO {
             quantity(d, Group sk, r) <- (GROUP SUM quantity(d, Group g, r) IF NOT skipAlcohol(g))
