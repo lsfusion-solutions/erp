@@ -791,10 +791,480 @@ DESIGN warehouseReport {
     }
 }
 
+CLASS TrnDirection 'Направление операции' {
+    direct 'Прямое',
+    ret 'Возврат'
+}
+
+CLASS TrnDocKind 'Вид документа' {
+    invoice 'Накладная',
+    order 'Заказ',
+    other 'Прочее'
+}
+
+CLASS TrnSection 'Раздел' {
+    incoming 'Приход',
+    outgoing 'Расход'
+}
+
+trnDocKindLedger (StockDocumentLedger l) = CASE
+    WHEN l IS Sale.InvoiceShipment OR l IS SaleReturn.InvoiceShipment
+        OR l IS Purchase.InvoiceShipment OR l IS PurchaseReturn.InvoiceShipment THEN TrnDocKind.invoice
+    ELSE TrnDocKind.other;
+
+trnActionWordDefault (StockDocumentLedger l) = CASE
+    WHEN (l IS Sale.InvoiceShipment OR l IS SaleReturn.InvoiceShipment) AND NOT isReturn(l) THEN 'Отгружено'
+    WHEN (l IS Purchase.InvoiceShipment OR l IS PurchaseReturn.InvoiceShipment) AND NOT isReturn(l) THEN 'Принято'
+    WHEN l IS IncStockDocumentLedger AND NOT isReturn(l) THEN 'Принято'
+    WHEN l IS OutStockDocumentLedger AND NOT isReturn(l) THEN 'Отгружено'
+    WHEN (l IS Sale.InvoiceShipment OR l IS SaleReturn.InvoiceShipment) AND isReturn(l) THEN 'Принято'
+    WHEN (l IS Purchase.InvoiceShipment OR l IS PurchaseReturn.InvoiceShipment) AND isReturn(l) THEN 'Отгружено'
+    WHEN l IS IncStockDocumentLedger AND isReturn(l) THEN 'Отгружено'
+    WHEN l IS OutStockDocumentLedger AND isReturn(l) THEN 'Принято'
+    ELSE 'Сумма';
+
+trnSectionLedger (StockDocumentLedger l) = CASE
+    WHEN (l IS Sale.InvoiceShipment OR l IS SaleReturn.InvoiceShipment) AND NOT isReturn(l) THEN TrnSection.outgoing
+    WHEN (l IS Sale.InvoiceShipment OR l IS SaleReturn.InvoiceShipment) AND isReturn(l) THEN TrnSection.incoming
+    WHEN (l IS Purchase.InvoiceShipment OR l IS PurchaseReturn.InvoiceShipment) AND NOT isReturn(l) THEN TrnSection.incoming
+    WHEN (l IS Purchase.InvoiceShipment OR l IS PurchaseReturn.InvoiceShipment) AND isReturn(l) THEN TrnSection.outgoing
+    WHEN l IS IncStockDocumentLedger AND NOT isReturn(l) THEN TrnSection.incoming
+    WHEN l IS IncStockDocumentLedger AND isReturn(l) THEN TrnSection.outgoing
+    WHEN l IS OutStockDocumentLedger AND NOT isReturn(l) THEN TrnSection.outgoing
+    WHEN l IS OutStockDocumentLedger AND isReturn(l) THEN TrnSection.incoming
+    ELSE TrnSection.outgoing;
+
+trnPriceTypeNameDefault (StockDocumentLedger l) = CASE
+    WHEN l IS Sale.InvoiceShipment OR l IS SaleReturn.InvoiceShipment THEN 'отпускных ценах'
+    WHEN l IS Purchase.InvoiceShipment OR l IS PurchaseReturn.InvoiceShipment THEN 'закупочных ценах'
+    ELSE 'учетных ценах';
+
+trnCounterparty (StockDocumentLedger l) = legalEntity(l);
+
+inTrnOperation 'Вкл.' = DATA LOCAL BOOLEAN (Operation.Operation);
+inTrnReturnOperation 'Вкл. (возврат)' = DATA LOCAL BOOLEAN (Operation.Operation);
+cntSelectedTrnOps() = GROUP SUM 1 IF inTrnOperation(Operation.Operation op);
+cntSelectedTrnReturnOps() = GROUP SUM 1 IF inTrnReturnOperation(Operation.Operation op);
+anyTrnOpSelected() = cntSelectedTrnOps() OR cntSelectedTrnReturnOps();
+
+trnOpFilterOk (Operation.Operation op, TrnDirection dir) = NOT anyTrnOpSelected()
+    OR (dir = TrnDirection.direct AND inTrnOperation(op))
+    OR (dir = TrnDirection.ret AND inTrnReturnOperation(op));
+
+inTrnDocKind 'Вкл.' = DATA LOCAL BOOLEAN (TrnDocKind);
+anyTrnDocKindSelected() = GROUP SUM 1 IF inTrnDocKind(TrnDocKind dk);
+
+trnDocKindFilterOk (TrnDocKind dk) = NOT anyTrnDocKindSelected() OR inTrnDocKind(dk);
+
+inTrnStock 'Отм.' = DATA LOCAL BOOLEAN (Stock);
+trnStockCount() = GROUP SUM 1 IF inTrnStock(Stock s);
+trnStockNames 'Подразделения' () =
+    GROUP CONCAT (CONCAT ' ', id(Stock s), name(s)) IF inTrnStock(s), ', ' ORDER id(s), s CHARWIDTH 40;
+
+inTrnStockDialog 'Отм.' = DATA LOCAL BOOLEAN (Stock);
+
+trnStockList = DATA LOCAL StockList();
+nameTrnStockList 'Список подразделений' () = name(trnStockList());
+
+changeTrnStockList 'Список подразделений' () {
+    DIALOG stockLists OBJECTS o INPUT DO {
+        trnStockList() <- o;
+        inTrnStockDialog(Stock s) <- in(o, s);
+    }
+}
+
+deleteIncludeTrnStockList 'Сбросить список' () {
+    trnStockList() <- NULL;
+    inTrnStockDialog(Stock s) <- NULL;
+} ASON CONTEXTMENU nameTrnStockList;
+
+FORM dialogTrnStocks 'Выбор подразделений (грузооборот)'
+    TREE stockTree a = BPSTRING[3], sg = StockGroup PARENT parent(sg)
+    PROPERTIES READONLY VALUE(a), name(sg)
+    ORDERS name(sg)
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS s = Stock
+    PROPERTIES(s) READONLY id, name, address, nameRegion
+    PROPERTIES(s) inTrnStockDialog READONLYIF trnStockList()
+    PROPERTIES changeTrnStockList() TOOLBAR
+    ORDERS name(s)
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
+        isCompany(s),
+        countCompanyStock(sg)
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT
+    FILTERGROUP select FILTER 'Отм.' inTrnStockDialog(s) 'F9'
+
+    EVENTS
+        ON INIT { inTrnStockDialog(Stock st) <- inTrnStock(st); },
+        ON OK { inTrnStock(Stock st) <- inTrnStockDialog(st); }
+;
+
+DESIGN dialogTrnStocks {
+    BOX {
+        size = (1024, 768);
+        NEW topContainer {
+            horizontal = TRUE;
+            fill = 1;
+            MOVE BOX(TREE stockTree) { caption = 'Подразделения'; }
+            MOVE BOX(s) {
+                fill = 3;
+                PROPERTY(name(s)) { charWidth = 35; }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+changeTrnStocks() { DIALOG dialogTrnStocks; }
+
+trnLedgerMatchesDir (StockDocumentLedger l, TrnDirection dir) =
+    (dir = TrnDirection.direct AND NOT isReturn(l)) OR
+        (dir = TrnDirection.ret AND isReturn(l));
+
+trnActiveDoc (StockDocumentLedger l, Stock st, Operation.Operation op, TrnDirection dir, LegalEntity cp, TrnDocKind dk) =
+    active(l)
+        AND stock(l) = st
+        AND operation(l) = op
+        AND trnLedgerMatchesDir(l, dir)
+        AND trnCounterparty(l) = cp
+        AND trnDocKindLedger(l) = dk
+        AND date(l) >= dateFrom()
+        AND date(l) <= dateTo();
+
+trnActiveDocSku (SkuLedger sl, Stock st, Operation.Operation op, TrnDirection dir, LegalEntity cp, TrnDocKind dk) =
+    active(stockDocumentLedger(sl))
+        AND stock(stockDocumentLedger(sl)) = st
+        AND operation(stockDocumentLedger(sl)) = op
+        AND trnLedgerMatchesDir(stockDocumentLedger(sl), dir)
+        AND trnCounterparty(stockDocumentLedger(sl)) = cp
+        AND trnDocKindLedger(stockDocumentLedger(sl)) = dk
+        AND date(stockDocumentLedger(sl)) >= dateFrom()
+        AND date(stockDocumentLedger(sl)) <= dateTo();
+
+trnSumLedger 'Сумма (накл.)' (Stock st, Operation.Operation op, TrnDirection dir, LegalEntity cp, TrnDocKind dk) =
+    GROUP SUM sumItem(StockDocumentLedger l) IF trnActiveDoc(l, st, op, dir, cp, dk);
+
+trnSkuCountLedger 'Кол-во позиций (накл.)' (Stock st, Operation.Operation op, TrnDirection dir, LegalEntity cp, TrnDocKind dk) =
+    GROUP SUM 1 IF trnActiveDoc(StockDocumentLedger l, st, op, dir, cp, dk);
+
+trnWeightLedger 'Вес (накл.)' (Stock st, Operation.Operation op, TrnDirection dir, LegalEntity cp, TrnDocKind dk) =
+    GROUP SUM NUMERIC[16,3](netWeight(sku(SkuLedger sl)) * abs(signedQuantity(sl)))
+        IF trnActiveDocSku(sl, st, op, dir, cp, dk);
+
+trnVolumeLedger 'Объём (накл.)' (Stock st, Operation.Operation op, TrnDirection dir, LegalEntity cp, TrnDocKind dk) =
+    GROUP SUM NUMERIC[16,3](volume(sku(SkuLedger sl)) * abs(signedQuantity(sl)))
+        IF trnActiveDocSku(sl, st, op, dir, cp, dk);
+
+trnGrossWeightLedger 'Вес брутто (накл.)' (Stock st, Operation.Operation op, TrnDirection dir, LegalEntity cp, TrnDocKind dk) =
+    GROUP SUM NUMERIC[16,3](grossWeight(sku(SkuLedger sl)) * abs(signedQuantity(sl)))
+        IF trnActiveDocSku(sl, st, op, dir, cp, dk);
+
+trnSectionByKey (Stock st, Operation.Operation op, TrnDirection dir, TrnDocKind dk) =
+    GROUP MAX trnSectionLedger(StockDocumentLedger l) IF active(l) AND stock(l) = st AND operation(l) = op
+        AND trnLedgerMatchesDir(l, dir)
+        AND trnDocKindLedger(l) = dk
+        AND date(l) >= dateFrom() AND date(l) <= dateTo();
+
+trnActionWordByKey (Stock st, Operation.Operation op, TrnDirection dir, TrnDocKind dk) =
+    GROUP MAX trnActionWordDefault(StockDocumentLedger l) IF active(l) AND stock(l) = st AND operation(l) = op
+        AND trnLedgerMatchesDir(l, dir)
+        AND trnDocKindLedger(l) = dk
+        AND date(l) >= dateFrom() AND date(l) <= dateTo();
+
+trnPriceTypeByKey (Stock st, Operation.Operation op, TrnDirection dir, TrnDocKind dk) =
+    GROUP MAX trnPriceTypeNameDefault(StockDocumentLedger l) IF active(l) AND stock(l) = st AND operation(l) = op
+        AND trnLedgerMatchesDir(l, dir)
+        AND trnDocKindLedger(l) = dk
+        AND date(l) >= dateFrom() AND date(l) <= dateTo();
+
+trnActivePurchaseOrder (Purchase.OrderDetail d, Stock st, Operation.Operation op, LegalEntity cp) =
+    isPosted(d)
+        AND customerStock(d) = st
+        AND operation(d) = op
+        AND supplier(d) = cp
+        AND date(d) >= dateFrom()
+        AND date(d) <= dateTo();
+
+trnSumPurchaseOrder 'Сумма (зак. закуп.)' (Stock st, Operation.Operation op, LegalEntity cp) =
+    GROUP SUM invoiceSum(Purchase.OrderDetail d) IF trnActivePurchaseOrder(d, st, op, cp);
+
+trnSkuCountPurchaseOrder 'Кол-во поз. (зак. закуп.)' (Stock st, Operation.Operation op, LegalEntity cp) =
+    GROUP SUM 1 IF trnActivePurchaseOrder(Purchase.OrderDetail d, st, op, cp);
+
+trnWeightPurchaseOrder 'Вес (зак. закуп.)' (Stock st, Operation.Operation op, LegalEntity cp) =
+    GROUP SUM NUMERIC[16,3](netWeight(sku(Purchase.OrderDetail d)) * quantity(d))
+        IF trnActivePurchaseOrder(d, st, op, cp);
+
+trnVolumePurchaseOrder 'Объём (зак. закуп.)' (Stock st, Operation.Operation op, LegalEntity cp) =
+    GROUP SUM NUMERIC[16,3](volume(sku(Purchase.OrderDetail d)) * quantity(d))
+        IF trnActivePurchaseOrder(d, st, op, cp);
+
+trnGrossWeightPurchaseOrder 'Вес брутто (зак. закуп.)' (Stock st, Operation.Operation op, LegalEntity cp) =
+    GROUP SUM NUMERIC[16,3](grossWeight(sku(Purchase.OrderDetail d)) * quantity(d))
+        IF trnActivePurchaseOrder(d, st, op, cp);
+
+hasTrnPurchaseOrder (Stock st, Operation.Operation op, LegalEntity cp) =
+    trnSkuCountPurchaseOrder(st, op, cp) > 0;
+
+trnActiveSaleOrder (Sale.OrderDetail d, Stock st, Operation.Operation op, LegalEntity cp) =
+    isPosted(d)
+        AND supplierStock(d) = st
+        AND operation(d) = op
+        AND customer(d) = cp
+        AND date(d) >= dateFrom()
+        AND date(d) <= dateTo();
+
+trnSumSaleOrder 'Сумма (зак. прод.)' (Stock st, Operation.Operation op, LegalEntity cp) =
+    GROUP SUM invoiceSum(Sale.OrderDetail d) IF trnActiveSaleOrder(d, st, op, cp);
+
+trnSkuCountSaleOrder 'Кол-во поз. (зак. прод.)' (Stock st, Operation.Operation op, LegalEntity cp) =
+    GROUP SUM 1 IF trnActiveSaleOrder(Sale.OrderDetail d, st, op, cp);
+
+trnWeightSaleOrder 'Вес (зак. прод.)' (Stock st, Operation.Operation op, LegalEntity cp) =
+    GROUP SUM NUMERIC[16,3](netWeight(sku(Sale.OrderDetail d)) * quantity(d))
+        IF trnActiveSaleOrder(d, st, op, cp);
+
+trnVolumeSaleOrder 'Объём (зак. прод.)' (Stock st, Operation.Operation op, LegalEntity cp) =
+    GROUP SUM NUMERIC[16,3](volume(sku(Sale.OrderDetail d)) * quantity(d))
+        IF trnActiveSaleOrder(d, st, op, cp);
+
+trnGrossWeightSaleOrder 'Вес брутто (зак. прод.)' (Stock st, Operation.Operation op, LegalEntity cp) =
+    GROUP SUM NUMERIC[16,3](grossWeight(sku(Sale.OrderDetail d)) * quantity(d))
+        IF trnActiveSaleOrder(d, st, op, cp);
+
+hasTrnSaleOrder (Stock st, Operation.Operation op, LegalEntity cp) =
+    trnSkuCountSaleOrder(st, op, cp) > 0;
+
+trnRowMax = DATA LOCAL INTEGER ();
+
+trnRowStock = DATA LOCAL Stock (INTEGER);
+trnRowOp = DATA LOCAL Operation.Operation (INTEGER);
+trnRowDir = DATA LOCAL TrnDirection (INTEGER);
+trnRowCp = DATA LOCAL LegalEntity (INTEGER);
+trnRowDocKind = DATA LOCAL TrnDocKind (INTEGER);
+trnRowSum = DATA LOCAL NUMERIC[18,4] (INTEGER);
+trnRowSkuCount = DATA LOCAL INTEGER (INTEGER);
+trnRowWeight = DATA LOCAL NUMERIC[16,3] (INTEGER);
+trnRowVolume = DATA LOCAL NUMERIC[16,3] (INTEGER);
+trnRowGrossWeight = DATA LOCAL NUMERIC[16,3] (INTEGER);
+trnRowSumTitle = DATA LOCAL STRING[100] (INTEGER);
+trnRowSection = DATA LOCAL TrnSection (INTEGER);
+
+trnRowActive (INTEGER i) = i >= 1 AND i <= trnRowMax() AND trnRowStock(i);
+
+trnRowSectionName 'Раздел' (INTEGER i) = staticCaption(trnRowSection(i));
+trnRowStId 'Код подр.' (INTEGER i) = id(trnRowStock(i));
+trnRowStName 'Подразделение' (INTEGER i) = name(trnRowStock(i));
+trnRowOpName 'Операция' (INTEGER i) =
+    IF trnRowDir(i) = TrnDirection.ret THEN (OVERRIDE nameReturn(trnRowOp(i)), name(trnRowOp(i))) ELSE name(trnRowOp(i));
+trnRowDkName 'Вид документа' (INTEGER i) = staticCaption(trnRowDocKind(i));
+trnRowCpId 'Код КА' (INTEGER i) = id(trnRowCp(i));
+trnRowCpName 'Наименование контрагента' (INTEGER i) = name(trnRowCp(i));
+
+hasTrnDataCpLedger (Stock st, Operation.Operation op, TrnDirection dir, LegalEntity cp, TrnDocKind dk) =
+    trnSkuCountLedger(st, op, dir, cp, dk) > 0;
+
+clearTrnRows () {
+    trnRowMax() <- NULL;
+    trnRowStock(INTEGER i) <- NULL;
+    trnRowOp(INTEGER i) <- NULL;
+    trnRowDir(INTEGER i) <- NULL;
+    trnRowCp(INTEGER i) <- NULL;
+    trnRowDocKind(INTEGER i) <- NULL;
+    trnRowSum(INTEGER i) <- NULL;
+    trnRowSkuCount(INTEGER i) <- NULL;
+    trnRowWeight(INTEGER i) <- NULL;
+    trnRowVolume(INTEGER i) <- NULL;
+    trnRowGrossWeight(INTEGER i) <- NULL;
+    trnRowSumTitle(INTEGER i) <- NULL;
+    trnRowSection(INTEGER i) <- NULL;
+}
+
+fillTrnRows 'Заполнить данные' () {
+    clearTrnRows();
+
+    LOCAL idx = INTEGER ();
+    idx() <- 0;
+
+    FOR inTrnStock(Stock st) AND hasTrnDataCpLedger(st, Operation.Operation op, TrnDirection dir, LegalEntity cp, TrnDocKind dk)
+        AND trnOpFilterOk(op, dir) AND trnDocKindFilterOk(dk) DO {
+        idx() <- idx() + 1;
+        trnRowStock(idx()) <- st;
+        trnRowOp(idx()) <- op;
+        trnRowDir(idx()) <- dir;
+        trnRowCp(idx()) <- cp;
+        trnRowDocKind(idx()) <- dk;
+        trnRowSum(idx()) <- trnSumLedger(st, op, dir, cp, dk);
+        trnRowSkuCount(idx()) <- trnSkuCountLedger(st, op, dir, cp, dk);
+        trnRowWeight(idx()) <- trnWeightLedger(st, op, dir, cp, dk);
+        trnRowVolume(idx()) <- trnVolumeLedger(st, op, dir, cp, dk);
+        trnRowGrossWeight(idx()) <- trnGrossWeightLedger(st, op, dir, cp, dk);
+        trnRowSumTitle(idx()) <- (OVERRIDE trnActionWordByKey(st, op, dir, dk), 'Сумма') + ' в ' + (OVERRIDE trnPriceTypeByKey(st, op, dir, dk), 'ценах');
+        trnRowSection(idx()) <- OVERRIDE trnSectionByKey(st, op, dir, dk), TrnSection.outgoing;
+    }
+
+    FOR inTrnStock(Stock st) AND hasTrnPurchaseOrder(st, Operation.Operation op, LegalEntity cp)
+        AND trnOpFilterOk(op, TrnDirection.direct) AND trnDocKindFilterOk(TrnDocKind.order) DO {
+        idx() <- idx() + 1;
+        trnRowStock(idx()) <- st;
+        trnRowOp(idx()) <- op;
+        trnRowDir(idx()) <- TrnDirection.direct;
+        trnRowCp(idx()) <- cp;
+        trnRowDocKind(idx()) <- TrnDocKind.order;
+        trnRowSum(idx()) <- trnSumPurchaseOrder(st, op, cp);
+        trnRowSkuCount(idx()) <- trnSkuCountPurchaseOrder(st, op, cp);
+        trnRowWeight(idx()) <- trnWeightPurchaseOrder(st, op, cp);
+        trnRowVolume(idx()) <- trnVolumePurchaseOrder(st, op, cp);
+        trnRowGrossWeight(idx()) <- trnGrossWeightPurchaseOrder(st, op, cp);
+        trnRowSumTitle(idx()) <- 'Заказано в закупочных ценах';
+        trnRowSection(idx()) <- TrnSection.incoming;
+    }
+
+    FOR inTrnStock(Stock st) AND hasTrnSaleOrder(st, Operation.Operation op, LegalEntity cp)
+        AND trnOpFilterOk(op, TrnDirection.direct) AND trnDocKindFilterOk(TrnDocKind.order) DO {
+        idx() <- idx() + 1;
+        trnRowStock(idx()) <- st;
+        trnRowOp(idx()) <- op;
+        trnRowDir(idx()) <- TrnDirection.direct;
+        trnRowCp(idx()) <- cp;
+        trnRowDocKind(idx()) <- TrnDocKind.order;
+        trnRowSum(idx()) <- trnSumSaleOrder(st, op, cp);
+        trnRowSkuCount(idx()) <- trnSkuCountSaleOrder(st, op, cp);
+        trnRowWeight(idx()) <- trnWeightSaleOrder(st, op, cp);
+        trnRowVolume(idx()) <- trnVolumeSaleOrder(st, op, cp);
+        trnRowGrossWeight(idx()) <- trnGrossWeightSaleOrder(st, op, cp);
+        trnRowSumTitle(idx()) <- 'Заказано в отпускных ценах';
+        trnRowSection(idx()) <- TrnSection.outgoing;
+    }
+
+    trnRowMax() <- idx();
+}
+
+hasTrnDataOpDirAny (Operation.Operation op) =
+    (GROUP SUM 1 IF hasTrnDataCpLedger(Stock st, op, TrnDirection dir, LegalEntity cp, TrnDocKind dk) AND inTrnStock(st))
+        OR (GROUP SUM 1 IF hasTrnPurchaseOrder(Stock st2, op, LegalEntity cp2) AND inTrnStock(st2))
+        OR (GROUP SUM 1 IF hasTrnSaleOrder(Stock st3, op, LegalEntity cp3) AND inTrnStock(st3));
+
+selectedTrnOpNames() = GROUP CONCAT name(Operation.Operation op) IF inTrnOperation(op), ', ' ORDER name(op);
+selectedTrnReturnOpNames() = GROUP CONCAT (OVERRIDE nameReturn(Operation.Operation op), name(op)) IF inTrnReturnOperation(op), ', ' ORDER name(op);
+
+nameFilterTrnOps 'Операции' () = IF NOT anyTrnOpSelected() THEN 'Все операции'
+    ELSE CONCAT ', ', selectedTrnOpNames(), selectedTrnReturnOpNames() CHARWIDTH 40;
+
+nameFilterTrnDocKinds 'Виды документов' () = IF NOT anyTrnDocKindSelected() THEN 'Все виды документов'
+    ELSE (GROUP CONCAT staticCaption(TrnDocKind dk) IF inTrnDocKind(dk), ', ' ORDER dk) CHARWIDTH 40;
+
+FORM dialogTrnOperations 'Выбор операций'
+    OBJECTS op = Operation.Operation
+    PROPERTIES(op) inTrnOperation
+    PROPERTIES(op) READONLY name
+    PROPERTIES(op) inTrnReturnOperation
+    PROPERTIES(op) READONLY nameReturn
+    FILTERS hasTrnDataOpDirAny(op)
+    ORDERS name(op)
+;
+
+DESIGN dialogTrnOperations {
+    size = (700, 500);
+}
+
+FORM dialogTrnDocKinds 'Выбор видов документов'
+    OBJECTS dk = TrnDocKind
+    PROPERTIES(dk) inTrnDocKind
+    PROPERTIES(dk) READONLY staticCaption
+;
+
+DESIGN dialogTrnDocKinds {
+    size = (400, 300);
+}
+
+FORM turnoverByCounterpartyGestori 'Грузооборот по контрагентам'
+    PROPERTIES() dateFrom, dateTo
+    PROPERTIES() nameTrnStockList READONLY SHOWIF trnStockList()
+    PROPERTIES() trnStockNames ON CHANGE changeTrnStocks() READONLYIF trnStockList()
+    PROPERTIES() nameFilterTrnOps ON CHANGE { DIALOG dialogTrnOperations; }
+    PROPERTIES() nameFilterTrnDocKinds ON CHANGE { DIALOG dialogTrnDocKinds; }
+    PROPERTIES() fillTrnRows TOOLBAR
+
+    OBJECTS r = INTEGER
+    PROPERTIES(r) READONLY
+    trnRowSectionName,
+        trnRowStId,
+        trnRowStName,
+        trnRowOpName,
+        trnRowDkName,
+        trnRowCpId,
+        trnRowCpName,
+        trnRowSum,
+        trnRowSumTitle,
+        trnRowSkuCount,
+        trnRowWeight,
+        trnRowVolume,
+        trnRowGrossWeight
+    ORDERS trnRowSectionName(r), trnRowStId(r), trnRowOpName(r), trnRowDkName(r), trnRowCpName(r)
+    FILTERS trnRowActive(r)
+
+    EVENTS ON INIT {
+        initDates();
+    }
+;
+
+fillTurnoverGestoriReport 'Выгрузить в XLSX' () {
+    PRINT turnoverByCounterpartyGestori XLSX;
+} IMAGE 'print.png';
+
+EXTEND FORM turnoverByCounterpartyGestori
+    PROPERTIES() DISABLEIF NOT dateFrom() OR NOT dateTo() OR NOT trnStockCount()
+    fillTurnoverGestoriReport
+;
+
+DESIGN turnoverByCounterpartyGestori {
+    NEW cnt {
+        fill = 1;
+        NEW filters {
+            alignment = STRETCH;
+            NEW topRow {
+                horizontal = TRUE;
+                MOVE PROPERTY(dateFrom());
+                MOVE PROPERTY(dateTo());
+                MOVE PROPERTY(fillTrnRows());
+                MOVE PROPERTY(fillTurnoverGestoriReport()) { valueClass = 'btn-success'; }
+            }
+            MOVE PROPERTY(nameTrnStockList()) { alignment = STRETCH; }
+            MOVE PROPERTY(trnStockNames()) { alignment = STRETCH; }
+            MOVE PROPERTY(nameFilterTrnOps()) { alignment = STRETCH; }
+            MOVE PROPERTY(nameFilterTrnDocKinds()) { alignment = STRETCH; }
+        }
+        NEW dataArea {
+            fill = 1;
+            alignment = STRETCH;
+            MOVE BOX(r) {
+                caption = 'Данные грузооборота';
+                PROPERTY(trnRowSectionName(r)) { caption = 'Раздел'; charWidth = 10; background = #E3F2FD; }
+                PROPERTY(trnRowStId(r)) { caption = 'Код подр.'; charWidth = 8; }
+                PROPERTY(trnRowStName(r)) { caption = 'Подразделение'; charWidth = 25; }
+                PROPERTY(trnRowOpName(r)) { caption = 'Операция'; charWidth = 30; }
+                PROPERTY(trnRowDkName(r)) { caption = 'Вид документа'; charWidth = 15; }
+                PROPERTY(trnRowCpId(r)) { caption = 'Код КА'; charWidth = 10; }
+                PROPERTY(trnRowCpName(r)) { caption = 'Наименование контрагента'; charWidth = 35; }
+                PROPERTY(trnRowSum(r)) { caption = 'Сумма'; charWidth = 18; background = #FFF9C4; }
+                PROPERTY(trnRowSumTitle(r)) { caption = 'Вид суммы'; charWidth = 35; }
+                PROPERTY(trnRowSkuCount(r)) { caption = 'Кол-во поз.'; charWidth = 12; }
+                PROPERTY(trnRowWeight(r)) { caption = 'Вес'; charWidth = 12; }
+                PROPERTY(trnRowVolume(r)) { caption = 'Объём'; charWidth = 12; }
+                PROPERTY(trnRowGrossWeight(r)) { caption = 'Вес брутто'; charWidth = 14; }
+            }
+        }
+    }
+    MOVE TOOLBARBOX;
+}
+
 NAVIGATOR {
     stockReports {
         NEW inventoryRegister;
         NEW operationReport;
         NEW warehouseReport;
+        NEW turnoverByCounterpartyGestori;
     }
 }
