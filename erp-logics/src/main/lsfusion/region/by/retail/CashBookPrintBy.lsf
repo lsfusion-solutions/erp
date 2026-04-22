@@ -1,0 +1,234 @@
+MODULE CashBookPrintBy;
+
+REQUIRE CashBookPrint;
+
+NAMESPACE CashOperation;
+
+accountantDepartmentStore 'Бухгалтер объекта' (CashBookList l) = booker(departmentStore(l), date(l));
+dataAccountant 'Бухгалтер' = DATA Employee (CashBookList);
+accountant 'Бхгулатер' (CashBookList l) = OVERRIDE dataAccountant(l), accountantDepartmentStore(l);
+shortNameAccountant 'Бухгалтер' (CashBookList l) = shortName(accountant(l));
+
+EXTEND FORM cashBookList PROPERTIES(c) shortNameAccountant;
+DESIGN cashBookList { params { MOVE PROPERTY(shortNameAccountant(c)); } }
+
+EXTEND FORM printCashBookList
+    PROPERTIES(l) shortNameAccountant
+    REPORT 'CashOperation_printCashBookListBy.jrxml'
+;
+
+month 'Месяц' (CashBookList l) = extractMonth(date(l));
+numberMonth 'Месяц' (CashBookList l) = number(month(l));
+nameMonth 'Месяц' (CashBookList l) = name(month(l));
+
+cashierBookDepartmentStore 'Отдел магазина' =  DATA LOCAL DepartmentStore ();
+nameCashierBookDepartmentStore 'Отдел магазина' = name(cashierBookDepartmentStore());
+
+CLASS CashierBookSheet 'Последний лист' {
+    simple 'Обычный',
+    month 'Последний в месяце',
+    year 'Последний в году'
+}
+
+name 'Последний лист' (CashierBookSheet s) = staticCaption(s);
+
+cashierBookCashBookSheet 'Последний лист' = DATA LOCAL CashierBookSheet ();
+nameCashierBookCashBookSheet 'Последний лист' = name(cashierBookCashBookSheet());
+
+printCoverSheet 'Печать вкладного листа' = DATA LOCAL BOOLEAN ();
+printCashierSheet 'Печать отчета кассира' = DATA LOCAL BOOLEAN ();
+
+dataPrintCashierBookDate 'Дата' = DATA LOCAL DATE ();
+monthPrintCashierBookDate 'Месяц' = DATA LOCAL Month ();
+nameMonthPrintCashierBookDate 'Месяц' = name(monthPrintCashierBookDate());
+numberMonthPrintCashierBookDate 'Месяц' = number(monthPrintCashierBookDate());
+yearPrintCashierBookDate 'Год' = DATA LOCAL YEAR ();
+
+changeMonthPrintCashierBookDate 'Выбор месяца отчета кассира' () {
+    DIALOG months OBJECTS m = monthPrintCashierBookDate() CHANGE LIST name(m);
+}
+
+cashierBookDate 'Лист кассовой книги за' = CASE
+    WHEN cashierBookCashBookSheet() == CashierBookSheet.month
+    THEN lastDayOfMonth(toDateFormat('01.' + numberMonthPrintCashierBookDate() + '.' + yearPrintCashierBookDate(),'DD.MM.YYYY'))
+    WHEN cashierBookCashBookSheet() == CashierBookSheet.year THEN toDateFormat('31.12.' + yearPrintCashierBookDate(),'DD.MM.YYYY')
+    ELSE dataPrintCashierBookDate();
+
+countCashBookList 'Кол-во листов кассовой книги за месяц' (Month m, YEAR y) = GROUP SUM 1 BY month(CashBookList l), year(l);
+countCashBookList 'Кол-во листов кассовой книги за год' (YEAR y) = GROUP SUM 1 BY year(CashBookList l);
+
+countCashBookListByMonth 'Кол-во листов кассовой книги за месяц' (CashBookList l) = countCashBookList(month(l), year(l));
+countCashBookListByYear 'Кол-во листов кассовой книги за год' (CashBookList l) = countCashBookList(year(l));
+
+cashierBookDescription 'Лист кассовой книги' (CashBookList l) = CONCAT ' ', listNumber(l), 'от ' + toDateDDMMYY(date(l));
+cashierBookCashBookList 'Лист кассовой книги' () = DATA LOCAL CashBookList ();
+descriptionCashierBookCashBookList 'Лист кассовой книги №' () = cashierBookDescription(cashierBookCashBookList());
+noteCashierBookCashBookList 'Примечание' () = note(cashierBookCashBookList());
+
+dataCashierBookAccountant 'Бухгалтер' =  DATA LOCAL Employee ();
+cashierBookAccountant 'Бухгалтер' = OVERRIDE dataCashierBookAccountant(), accountant(cashierBookCashBookList());
+shortNameCashierBookAccountant 'Бухгалтер' = shortName(cashierBookAccountant());
+
+dataCashierBookEmployee 'Кассир' = DATA LOCAL Employee ();
+cashierBookEmployee 'Кассир' = OVERRIDE dataCashierBookEmployee(), employee(cashierBookCashBookList());
+shortNameCashierBookEmployee 'Кассир' = shortName(cashierBookEmployee());
+
+FORM selectCashierBookList 'Лист кассовой книги'
+    OBJECTS l = CashBookList
+    PROPERTIES(l) READONLY listNumber, date, time, nameEmployee
+    FILTERS date(l) == cashierBookDate(), departmentStore(l) == cashierBookDepartmentStore()
+;
+
+changeCashierBookList 'Заменить лист кассовой книги' () {
+    DIALOG selectCashierBookList OBJECTS l = cashierBookCashBookList() CHANGE LIST cashierBookDescription(l);
+}
+
+checkPrintCashierBook 'Проверка печати отчета кассира' () {
+    IF NOT cashierBookCashBookList() THEN {
+        MESSAGE 'Не найден лист кассовой книги с соответсвующими параметрами' NOWAIT;
+        beforeCanceled() <- TRUE;
+    }
+    IF NOT printCoverSheet() AND NOT printCashierSheet() THEN {
+        MESSAGE 'Не заданы режимы печати отчета';
+        beforeCanceled() <- TRUE;
+    }
+}
+
+FORM printCashierBookDialog 'Печать отчета кассира'
+PROPERTIES() cashierBookDate SHOWIF cashierBookCashBookSheet() == CashierBookSheet.simple,
+        nameMonthPrintCashierBookDate SHOWIF cashierBookCashBookSheet() == CashierBookSheet.month ON CHANGE changeMonthPrintCashierBookDate(),
+        yearPrintCashierBookDate SHOWIF cashierBookCashBookSheet() == CashierBookSheet.month OR cashierBookCashBookSheet() == CashierBookSheet.year,
+        nameCashierBookDepartmentStore, shortNameCashierBookAccountant,
+        shortNameCashierBookEmployee, nameCashierBookCashBookSheet, printCoverSheet, printCashierSheet
+    PROPERTIES() descriptionCashierBookCashBookList ON CHANGE changeCashierBookList(), noteCashierBookCashBookList READONLY
+
+    EVENTS ON INIT {
+        cashierBookDate() <- currentDate() WHERE NOT cashierBookDate();
+        monthPrintCashierBookDate() <- month(currentMonth()) WHERE NOT monthPrintCashierBookDate();
+        yearPrintCashierBookDate() <- currentYear() WHERE NOT yearPrintCashierBookDate();
+        cashierBookCashBookSheet() <- CashierBookSheet.simple WHERE NOT cashierBookCashBookSheet();
+        printCoverSheet() <- TRUE;
+        printCashierSheet() <- TRUE;
+    }
+    EVENTS ON OK BEFORE { checkPrintCashierBook(); }
+;
+
+DESIGN printCashierBookDialog {
+    BOX {
+        NEW dpartmentStore {
+            caption = 'Отдел магазина';
+            alignment = STRETCH;
+            MOVE PROPERTY(nameCashierBookDepartmentStore()) { caption = ''; }
+        }
+        NEW sheetParams {
+            horizontal = TRUE;
+            alignment = STRETCH;
+            NEW cashBookParams {
+                caption = 'Параметры отбора';
+                MOVE PROPERTY(nameCashierBookCashBookSheet());
+                NEW dateParams {
+                    caption = 'Лист кассовой книги за';
+                    alignment = STRETCH;
+                    horizontal = TRUE;
+                    MOVE PROPERTY(cashierBookDate()) { caption = 'День'; }
+                    MOVE PROPERTY(nameMonthPrintCashierBookDate());
+                    MOVE PROPERTY(yearPrintCashierBookDate());
+                }
+            }
+            NEW cashBookSheet {
+                caption = 'Лист кассовой книги';
+                alignment = STRETCH;
+                MOVE PROPERTY(descriptionCashierBookCashBookList());
+                MOVE PROPERTY(noteCashierBookCashBookList());
+            }
+        }
+        NEW cashierBookParams {
+            caption = 'Параметры отчета';
+            horizontal = TRUE;
+            alignment = STRETCH;
+            MOVE PROPERTY(printCoverSheet());
+            MOVE PROPERTY(printCashierSheet());
+        }
+        NEW attributes {
+            caption = 'Атрибуты';
+            alignment = STRETCH;
+            MOVE PROPERTY(shortNameCashierBookAccountant());
+            MOVE PROPERTY(shortNameCashierBookEmployee());
+        }
+        MOVE TOOLBARBOX ;
+    }
+    PROPERTY (formOk()) { caption = 'Распечатать'; image = 'print.png'; }
+}
+
+WHEN LOCAL FORMS printCashierBookDialog DROPPED(cashierBookCashBookSheet()) DO {
+    cashierBookCashBookSheet() <- CashierBookSheet.simple;
+}
+
+WHEN LOCAL FORMS printCashierBookDialog (SETCHANGED(nameCashierBookDepartmentStore()) OR SETCHANGED(cashierBookDate())
+    OR DROPPED(nameCashierBookDepartmentStore()) OR DROPPED(cashierBookDate()))
+    AND NOT departmentStore(cashierBookCashBookList()) == cashierBookDepartmentStore()
+    OR date(cashierBookCashBookList()) == cashierBookDate() DO {
+    cashierBookCashBookList() <- [GROUP MIN CashBookList l BY date(l), departmentStore(l)](cashierBookDate(), cashierBookDepartmentStore());
+}
+
+FORM printCashierBook 'Отчет кассира'
+    PROPERTIES shortNameCashierBookAccountant(), shortNameCashierBookEmployee(),
+        isSipmle = cashierBookCashBookSheet() == CashierBookSheet.simple,
+        isMonth = cashierBookCashBookSheet() == CashierBookSheet.month,
+        isYear = cashierBookCashBookSheet() == CashierBookSheet.year,
+        printCoverSheet(), printCashierSheet()
+
+    OBJECTS l = CashBookList PANEL
+    PROPERTIES(l) listNumber, date, time, nameDepartmentStore,
+        startBalance, endBalance,
+        sumIncome, sumOutcome,
+        countIncome, countOutcome, countDocument,
+        nameEmployee, nameMonth, year,
+        countCashBookListByMonth, countCashBookListByYear
+    FILTERS l == cashierBookCashBookList()
+
+    OBJECTS cover = CashDocument SUBREPORT
+    PROPERTIES(cover) dateTime, seriesNumber, subject, corrAccount
+    PROPERTIES sumIncomeCover 'Приход' = sumCash[IncomeCashOrder](cover),
+        sumOutcomeCocer 'Расход' = sumCash[OutcomeCashOrder](cover)
+    ORDERS dateTime(cover)
+    FILTERS cashBookList(cover) = l
+
+    OBJECTS cashier = CashDocument SUBREPORT
+    PROPERTIES(cashier) dateTime, seriesNumber, subject, corrAccount
+    PROPERTIES sumIncomeCashier 'Приход' = sumCash[IncomeCashOrder](cashier),
+        sumOutcomeCashier 'Расход' = sumCash[OutcomeCashOrder](cashier)
+    ORDERS dateTime(cashier)
+    FILTERS cashBookList(cashier) = l
+;
+
+printCashierBook 'Печать отчета кассира' (CashBookList l) {
+    cashierBookDepartmentStore() <- departmentStore(l);
+    cashierBookCashBookSheet() <- CashierBookSheet.simple;
+    dataPrintCashierBookDate() <- date(l);
+    cashierBookCashBookList() <- l;
+    
+    DIALOG printCashierBookDialog DO {
+        IF cashierBookCashBookList() THEN {
+            PRINT printCashierBook;
+        } ELSE {
+            MESSAGE 'Некорректно заданы параметры отчета';
+        }
+    }
+}
+
+EXTEND FORM cashBooks
+    PROPERTIES(l) printCashierBook
+;
+
+DESIGN cashBooks {
+    NEW firstLine FIRST {
+        horizontal = TRUE;
+        MOVE filters;
+        NEW actions {
+            caption = 'Действия';
+            horizontal = TRUE;
+            MOVE PROPERTY(printCashierBook(l));
+        }
+    }
+}
