@@ -22,7 +22,7 @@ public interface EquipmentServerInterface extends RmiServerInterface {
     int getEquApiVersion() throws RemoteException, SQLException;
 
     //softCheck
-    String sendSucceededSoftCheckInfo(String sidEquipmentServer, Map<String, LocalDateTime> invoiceSet) throws RemoteException, SQLException;
+    String sendSucceededSoftCheckInfo(String sidEquipmentServer, Map<String, SoftCheckInterface.SucceededSoftCheckInfo> invoiceSet) throws RemoteException, SQLException;
 
     //processStopList consumer
     boolean enabledStopListInfo() throws RemoteException, SQLException;

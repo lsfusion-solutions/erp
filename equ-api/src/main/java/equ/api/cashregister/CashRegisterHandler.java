@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.text.ParseException;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -40,7 +39,7 @@ public abstract class CashRegisterHandler<S extends SalesBatch, C extends CashDo
 
     public abstract void prereadFiles(List<CashRegisterInfo> cashRegisterList);
 
-    public abstract Map<String, LocalDateTime> requestSucceededSoftCheckInfo() throws ClassNotFoundException, SQLException;
+    public abstract Map<String, SoftCheckInterface.SucceededSoftCheckInfo> requestSucceededSoftCheckInfo() throws ClassNotFoundException, SQLException;
     
     public abstract List<List<Object>> checkZReportSum(Map<String, List<Object>> zReportSumMap, List<List<Object>> cashRegisterList) throws ClassNotFoundException, SQLException;
 
