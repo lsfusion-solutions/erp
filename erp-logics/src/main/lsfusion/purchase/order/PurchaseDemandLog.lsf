@@ -17,7 +17,9 @@ customerStock 'Склад покупателя' = DATA Stock (PurchaseDemandLog)
 nameCustomerStock 'Склад покупателя' (PurchaseDemandLog l) = name(customerStock(l));
 sku 'Товар' = DATA Sku (PurchaseDemandLog);
 idBarcodeSku 'Штрихкод' (PurchaseDemandLog l) = idBarcode(sku(l));
+idSku 'Код товара' (PurchaseDemandLog l) = id(sku(l));
 nameSku 'Товар' (PurchaseDemandLog l) = name(sku(l));
+averageSold 'Продаж в день' = DATA NUMERIC[14,3] (PurchaseDemandLog) CHARWIDTH 7;
 quantitySold 'Продано за последний период' = DATA NUMERIC[16,5] (PurchaseDemandLog) CHARWIDTH 7;
 purchaseReserve 'Страховой запас (ручн)' = DATA NUMERIC[16,5] (PurchaseDemandLog) CHARWIDTH 7;
 insuranceReserve 'Страховой запас (авто)' = DATA NUMERIC[16,5] (PurchaseDemandLog) CHARWIDTH 7;
@@ -54,8 +56,8 @@ FORM purchaseDemandLog 'Лог автозаказа'
     PROPERTIES() filterDemandLogDateFrom, filterDemandLogDateTo, nameFilterDemandLogSupplier ON CHANGE changeFilterSupplier(), nameFilterDemandLogCustomerStock ON CHANGE changeFilterCustomerStock()
 
     OBJECTS l = PurchaseDemandLog
-    PROPERTIES(l) READONLY dateTime, seriesNumberUserOrder, nameSupplier, nameCustomerStock, idBarcodeSku, nameSku,
-                           quantitySold, purchaseReserve, insuranceReserve, currentBalance,
+    PROPERTIES(l) READONLY dateTime, seriesNumberUserOrder, nameSupplier, nameCustomerStock, idBarcodeSku, idSku, nameSku,
+                           quantitySold, averageSold, purchaseReserve, insuranceReserve, currentBalance,
                            currentReservePurchase, currentReserveSale, recommendedQuantity
     FILTERS filterDateFrom(l), 
             filterDateTo(l),
@@ -86,8 +88,8 @@ NAVIGATOR {
 
 EXTEND FORM orders
     OBJECTS l = PurchaseDemandLog
-    PROPERTIES(l) READONLY dateTime, seriesNumberUserOrder, nameSupplier, nameCustomerStock, idBarcodeSku, nameSku,
-                           quantitySold, purchaseReserve, insuranceReserve, currentBalance,
+    PROPERTIES(l) READONLY dateTime, seriesNumberUserOrder, nameSupplier, nameCustomerStock, idBarcodeSku, idSku, nameSku,
+                           quantitySold, averageSold, purchaseReserve, insuranceReserve, currentBalance,
                            currentReservePurchase, currentReserveSale, recommendedQuantity
     FILTERGROUP demandLog
         FILTER 'По заказу' userOrder(l) == o DEFAULT
@@ -121,13 +123,15 @@ overFill(PurchaseDemandLog l, Sku sku, UserOrder userOrder) + {
     customerStock(l) <- customerStock(userOrder);
     sku(l) <- sku;
     quantitySold(l) <- quantitySold(sku,userOrder);
+    averageSold(l) <- averageSold(sku(l), customerStock(userOrder));
     purchaseReserve(l) <- purchaseReserve(sku,customerStock(userOrder),userOrder);
     insuranceReserve(l) <- insuranceReserve(sku,userOrder);
     recommendedQuantity(l) <- recommendedQuantity(sku,userOrder);
     currentBalance(l) <- prevCurrentBalance(sku,customerStock(userOrder));
     currentReservePurchase(l) <- prevCurrentReservePurchase(sku,customerStock(userOrder));
     currentReserveSale(l) <- prevCurrentReserveSale(sku,customerStock(userOrder));    
-};
+}
+
 overFillRecommended (UserOrder userOrder) + {
     IF enablePurchaseDemandLog() AND (GROUP SUM 1 IF in(Sku sku)) <= limitPurchaseDemandLog() THEN {
         FOR in(Sku sku) INLINE NEW l = PurchaseDemandLog DO {
