@@ -106,7 +106,7 @@ importContract 'Импорт из контрактов с поставщикам
     }
 
     // создаем новые ПСЦ
-    FOR idDoc(INTEGER i) AND NOT userPriceList(idDoc(i)) DO NEW doc = UserPriceList {  id[UserPriceList](doc) <- idDoc(i);  }
+    FOR idDoc(INTEGER i) AND stock(idLE(i)) AND NOT userPriceList(idDoc(i)) DO NEW doc = UserPriceList {  id[UserPriceList](doc) <- idDoc(i);  }
     // обновляем ПСЦ
     dateFromConstraintContractUserPriceList() <- currentDate();
     FOR UserPriceList doc == userPriceList(idDoc(INTEGER i))  DO {
@@ -129,6 +129,10 @@ importContract 'Импорт из контрактов с поставщикам
         isBankDaysInSuperMag(doc) <- isBankDays(i);
         allStocks(doc) <- NULL;
     }   
+    
+    FOR idDoc(INTEGER i) AND NOT stock(idLE(i)) DO {
+        MESSAGE 'Контракт ' + docNumber(i) + ': не найден поставщик' + idLE(i);
+    } 
 
     overImportSupplierPrice();
      
