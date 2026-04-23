@@ -824,6 +824,10 @@ idSupplierLastOrderBatch 'Поставщик' (Sku sk, Stock st) = id(supplierLa
 dateSupplierLastOrderBatch 'Дата последнего прихода' (Sku sk, Stock st) = DATE(dateTime(lastOrderBatch(sk, st)));
 pricePurchase 'Цена поставщика' (Sku sku, Stock st) =
     NUMERIC[15,2](priceA(SystemLedgerPriceListType.supplierPricingPriceListType, sku, st, currentDateTime()));
+sumBalanceB 'Сумма остатка в отпускныз ценах' (Sku s, Stock st, DATE dt) =
+    GROUP SUM balanceB(s,st,dt)*(prevPriceA(dataPriceListType('retail'), s, st, DATETIME(dt)));
+sumBalanceSkuB 'Сумма остатка в учетных ценах' (Sku s, Stock st, DATE dt) =
+    GROUP SUM balanceB(s,st,dt)*(priceSku(s,st,dt));
 
 quantitySupplier(Sku s, Stock st, DATE df, DATE dt) =
     GROUP SUM quantity(SaleLedger l) IF date(l) >= df AND date(l) <= dt AND s = sku(l) AND st = stock(l) 
@@ -838,6 +842,9 @@ valProfitSupplier(Sku s, Stock st, DATE df, DATE dt) =
     sumSupplier(s,st,df,dt) (-) fullSumSupplier(s,st,df,dt);
 margaSupplier(Sku s, Stock st, DATE df, DATE dt) = 
     valProfitSupplier(s,st,df,dt)*100/sumSupplier(s,st,df,dt);
+margaBalanceB(Sku s, Stock st, DATE dt) =
+    (sumBalanceB(s,st,dt) (-) sumBalanceSkuB(s,st,dt))*100/sumBalanceB(s,st,dt);
+
 
 quantitySupplier(Sku s, DATE df, DATE dt) =
     GROUP SUM quantity(SaleLedger l) IF date(l) >= df AND date(l) <= dt AND s = sku(l)
@@ -859,9 +866,11 @@ lastInvoice 'Дата последней продажи' = GROUP LAST SaleLedger
     BY sku(ledger), stock(ledger), date;
 
 lastPurchase 'Дата последнего прихода' = GROUP LAST PurchaseLedger ledger
-ORDER date(ledger), ledger
-WHERE date(ledger) <= DATE date 
-BY sku(ledger), stock(ledger), date;
+    ORDER date(ledger), ledger
+    WHERE date(ledger) <= DATE date 
+    BY sku(ledger), stock(ledger), date;
+
+lastPriceSupplierSku 'Цена поставщика (последняя)' (Sku sku, Stock st, DATE dt) = prevPriceB(dataPriceListType('supplier'), sku, st, DATETIME(dt)) CHARWIDTH 8;
 
 FORM saleLedgerReportSupplier 'Продажи и остатки'
     OBJECTS dates = (df = DATE, dt = DATE) PANEL
@@ -880,6 +889,7 @@ FORM saleLedgerReportSupplier 'Продажи и остатки'
     PROPERTIES lastDateInvoice = date(lastInvoice(s,st,dt))
     PROPERTIES balanceB = balanceB(s,st,datePriceSupplier()) 
     PROPERTIES(s,st,df,dt) quantitySupplier, fullSumSupplier, sumSupplier, valProfitSupplier, margaSupplier
+    PROPERTIES(s,st,dt) lastPriceSupplierSku, margaBalanceB
     ORDERS idBarcode(s), name(s)
 
     FILTERS inSessionSku(s), quantitySupplier(s,st,df,dt)
@@ -916,6 +926,7 @@ FORM receiptDetailReportSupplier 'Продажи и остатки'
     PROPERTIES lastDateInvoice = date(lastInvoice(s,st,dt))
     PROPERTIES balanceB = balanceB(s,st,datePriceSupplier())
     PROPERTIES(s,st,df,dt) quantitySupplier, fullSumSupplier, sumSupplier, valProfitSupplier, margaSupplier
+    PROPERTIES(s,st,dt) lastPriceSupplierSku, margaBalanceB
     ORDERS idBarcode(s), name(s)
 
     FILTERS inSessionSku(s), quantitySupplier(s,st,df,dt)
