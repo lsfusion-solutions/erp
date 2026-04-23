@@ -797,8 +797,12 @@ CLASS TrnDirection 'Направление операции' {
 }
 
 CLASS TrnDocKind 'Вид документа' {
-    invoice 'Накладная',
-    order 'Заказ',
+    purchaseInvoice 'Накладная (закупка)',
+    purchaseReturnInvoice 'Накладная (закупка-возврат)',
+    saleInvoice 'Накладная (продажа)',
+    saleReturnInvoice 'Накладная (продажа-возврат)',
+    purchaseOrder 'Заказ (закупка)',
+    saleOrder 'Заказ (продажа)',
     other 'Прочее'
 }
 
@@ -808,8 +812,14 @@ CLASS TrnSection 'Раздел' {
 }
 
 trnDocKindLedger (StockDocumentLedger l) = CASE
-    WHEN l IS Sale.InvoiceShipment OR l IS SaleReturn.InvoiceShipment
-        OR l IS Purchase.InvoiceShipment OR l IS PurchaseReturn.InvoiceShipment THEN TrnDocKind.invoice
+    WHEN (l IS Purchase.InvoiceShipment) AND NOT isReturn(l) THEN TrnDocKind.purchaseInvoice
+    WHEN (l IS PurchaseReturn.InvoiceShipment) AND NOT isReturn(l) THEN TrnDocKind.purchaseInvoice
+    WHEN (l IS Purchase.InvoiceShipment) AND isReturn(l) THEN TrnDocKind.purchaseReturnInvoice
+    WHEN (l IS PurchaseReturn.InvoiceShipment) AND isReturn(l) THEN TrnDocKind.purchaseReturnInvoice
+    WHEN (l IS Sale.InvoiceShipment) AND NOT isReturn(l) THEN TrnDocKind.saleInvoice
+    WHEN (l IS SaleReturn.InvoiceShipment) AND NOT isReturn(l) THEN TrnDocKind.saleInvoice
+    WHEN (l IS Sale.InvoiceShipment) AND isReturn(l) THEN TrnDocKind.saleReturnInvoice
+    WHEN (l IS SaleReturn.InvoiceShipment) AND isReturn(l) THEN TrnDocKind.saleReturnInvoice
     ELSE TrnDocKind.other;
 
 trnActionWordDefault (StockDocumentLedger l) = CASE
@@ -1105,13 +1115,13 @@ fillTrnRows 'Заполнить данные' () {
     }
 
     FOR inTrnStock(Stock st) AND hasTrnPurchaseOrder(st, Operation.Operation op, LegalEntity cp)
-        AND trnOpFilterOk(op, TrnDirection.direct) AND trnDocKindFilterOk(TrnDocKind.order) DO {
+        AND trnOpFilterOk(op, TrnDirection.direct) AND trnDocKindFilterOk(TrnDocKind.purchaseOrder) DO {
         idx() <- idx() + 1;
         trnRowStock(idx()) <- st;
         trnRowOp(idx()) <- op;
         trnRowDir(idx()) <- TrnDirection.direct;
         trnRowCp(idx()) <- cp;
-        trnRowDocKind(idx()) <- TrnDocKind.order;
+        trnRowDocKind(idx()) <- TrnDocKind.purchaseOrder;
         trnRowSum(idx()) <- trnSumPurchaseOrder(st, op, cp);
         trnRowSkuCount(idx()) <- trnSkuCountPurchaseOrder(st, op, cp);
         trnRowWeight(idx()) <- trnWeightPurchaseOrder(st, op, cp);
@@ -1122,13 +1132,13 @@ fillTrnRows 'Заполнить данные' () {
     }
 
     FOR inTrnStock(Stock st) AND hasTrnSaleOrder(st, Operation.Operation op, LegalEntity cp)
-        AND trnOpFilterOk(op, TrnDirection.direct) AND trnDocKindFilterOk(TrnDocKind.order) DO {
+        AND trnOpFilterOk(op, TrnDirection.direct) AND trnDocKindFilterOk(TrnDocKind.saleOrder) DO {
         idx() <- idx() + 1;
         trnRowStock(idx()) <- st;
         trnRowOp(idx()) <- op;
         trnRowDir(idx()) <- TrnDirection.direct;
         trnRowCp(idx()) <- cp;
-        trnRowDocKind(idx()) <- TrnDocKind.order;
+        trnRowDocKind(idx()) <- TrnDocKind.saleOrder;
         trnRowSum(idx()) <- trnSumSaleOrder(st, op, cp);
         trnRowSkuCount(idx()) <- trnSkuCountSaleOrder(st, op, cp);
         trnRowWeight(idx()) <- trnWeightSaleOrder(st, op, cp);
@@ -1202,7 +1212,7 @@ FORM turnoverByCounterpartyGestori 'Грузооборот по контраге
         trnRowWeight,
         trnRowVolume,
         trnRowGrossWeight
-    ORDERS trnRowSectionName(r), trnRowStId(r), trnRowOpName(r), trnRowDkName(r), trnRowCpName(r)
+    ORDERS trnRowSectionName(r), trnRowStId(r), trnRowCpId(r), trnRowDkName(r), trnRowOpName(r)
     FILTERS trnRowActive(r)
 
     EVENTS ON INIT {
@@ -1244,8 +1254,8 @@ DESIGN turnoverByCounterpartyGestori {
                 PROPERTY(trnRowSectionName(r)) { caption = 'Раздел'; charWidth = 10; background = #E3F2FD; }
                 PROPERTY(trnRowStId(r)) { caption = 'Код подр.'; charWidth = 8; }
                 PROPERTY(trnRowStName(r)) { caption = 'Подразделение'; charWidth = 25; }
-                PROPERTY(trnRowOpName(r)) { caption = 'Операция'; charWidth = 30; }
-                PROPERTY(trnRowDkName(r)) { caption = 'Вид документа'; charWidth = 15; }
+                PROPERTY(trnRowOpName(r)) { caption = 'Операция'; charWidth = 35; }
+                PROPERTY(trnRowDkName(r)) { caption = 'Вид документа'; charWidth = 25; }
                 PROPERTY(trnRowCpId(r)) { caption = 'Код КА'; charWidth = 10; }
                 PROPERTY(trnRowCpName(r)) { caption = 'Наименование контрагента'; charWidth = 35; }
                 PROPERTY(trnRowSum(r)) { caption = 'Сумма'; charWidth = 18; background = #FFF9C4; }
