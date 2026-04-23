@@ -8,27 +8,32 @@ NAMESPACE SalePurchaseLabel;
 
 // ------------------------------------- Печать ценников ------------------------------ //
 
-createSaleWarehouseLabelTransaction 'Распечатать ценники (склад)' (Invoice invoice)  {
+createSaleWarehouseLabelTransaction 'Распечатать ценники (склад)' (Invoice invoice) {
     createWarehouseLabelTransaction(purchaseInvoice(invoice));
 } TOOLBAR;
-createSnapshotSaleWarehouseLabelTransaction 'Перепечатать ценники (склад)' (Invoice invoice)  {
+
+createSnapshotSaleWarehouseLabelTransaction 'Перепечатать ценники (склад)' (Invoice invoice) {
     createSnapshotWarehouseLabelTransaction(purchaseInvoice(invoice));
 } TOOLBAR;
 
+createSaleLabelWarehouseTransactionChoice 'Распечатать ценники (частично) (склад)' (Invoice invoice) {
+    createWarehouseLabelTransactionChoice(purchaseInvoice(invoice));
+} TOOLBAR;
 
 showToPrintWarehouseLabelTransactionSale 'Показывать' (Invoice invoice) = showToPrintWarehouseLabelTransaction(purchaseInvoice(invoice))
     AND isCompany(customerStock(invoice)) AND customerStock(invoice) IS Warehouse;
 
 EXTEND FORM invoices
-    PROPERTIES(i) createSaleWarehouseLabelTransaction SHOWIF showToPrintWarehouseLabelTransactionSale(i),
-        createSnapshotSaleWarehouseLabelTransaction SHOWIF isPosted(i) AND customerStock(i) IS Warehouse
+    PROPERTIES(i) SHOWIF showToPrintWarehouseLabelTransactionSale(i) createSaleWarehouseLabelTransaction,
+        createSnapshotSaleWarehouseLabelTransaction, createSaleLabelWarehouseTransactionChoice
 ;
 
 DESIGN invoices {
-    PROPERTY(createSnapshotSaleLabelTransaction(i)) { showIf = isPosted(i) AND customerStock(i) IS DepartmentStore; }
+    PROPERTY(createSnapshotSaleLabelTransaction(i)) { showIf = showToPrintLabelTransactionSale(i) AND customerStock(i) IS DepartmentStore; }
     PROPERTY(createSaleLabelTransaction(i)) { showIf = showToPrintLabelTransactionSale(i) AND customerStock(i) IS DepartmentStore; }
     label {
         MOVE PROPERTY (createSaleWarehouseLabelTransaction(i)) { alignment = STRETCH; }
         MOVE PROPERTY (createSnapshotSaleWarehouseLabelTransaction(i)) { alignment = STRETCH; }
+        MOVE PROPERTY (createSaleLabelWarehouseTransactionChoice(i)) { alignment = STRETCH; }
     }
 }

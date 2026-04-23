@@ -441,6 +441,32 @@ META defineDocumentWarehouseLabelTransaction (document, cls, detailProp, skuProp
         }
     } TOOLBAR CONFIRM;
 
+    createWarehouseLabelTransactionChoice 'Распечатать ценники (частично) (склад)'(cls document)  {
+        NEWSESSION {
+            ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) DO {
+                Label.ok() <- NULL;
+                inLabel(###skuProp sku) <- NULL;
+                filterLabel(###skuProp sku) <- NULL;
+                filterLabel(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);
+
+                overCreateLabelTransactionChoice(document);
+                departmentChoise() <- stockProp(document);
+
+                DIALOG selectLabelSkus OBJECTS s INPUT NOMANAGESESSION DO {
+                    IF NOT (GROUP SUM 1 IF inLabel(###skuProp skuProp)) THEN {
+                        inLabel(s) <- TRUE;
+                    }
+                    createWarehouseLabelTransactionParam(document);
+                    printed(document) <- TRUE WHERE isPosted(document);
+                    APPLY;
+                    IF NOT Label.ok() THEN {
+                        MESSAGE 'В данном документе нет подходящих товаров для печати ценников.';
+                    }
+                }
+            }
+        }
+    } TOOLBAR CONFIRM;
+
     createSnapshotWarehouseLabelTransactionParam (cls document)  {
         DIALOG selectWarehouseLabelTypes OBJECTS w = stockProp(document), l INPUT NOMANAGESESSION DO {
             IF NOT countSelectType() THEN {

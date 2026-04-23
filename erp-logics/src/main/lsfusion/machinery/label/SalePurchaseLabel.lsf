@@ -10,7 +10,7 @@ statusLabelPriceSale 'Статус печати ценника' (Invoice invoice
 backgroundPrintLabelTransactionSale 'Цвет' (Invoice invoice) = backgroundPrintLabelTransaction(purchaseInvoice(invoice));
 createSaleLabelTransaction 'Распечатать ценники' (Invoice invoice)  { createLabelTransaction(purchaseInvoice(invoice)); } TOOLBAR;
 createSnapshotSaleLabelTransaction 'Перепечатать ценники' (Invoice invoice)  { createSnapshotLabelTransaction(purchaseInvoice(invoice)); } TOOLBAR;
-
+createSaleLabelTransactionChoice 'Распечатать ценники (частично)' (Invoice invoice)  { createLabelTransactionChoice(purchaseInvoice(invoice)); } TOOLBAR;
 
 showToPrintLabelTransactionSale 'Показывать' (Invoice invoice) = showToPrintLabelTransaction(purchaseInvoice(invoice))
                                                                                       AND isCompany(customerStock(invoice));
@@ -18,11 +18,12 @@ showToPrintLabelTransactionSale 'Показывать' (Invoice invoice) = showT
 EXTEND FORM invoices
 PROPERTIES(i) statusLabelPriceSale  BACKGROUND backgroundPrintLabelTransactionSale(i) READONLY AFTER isCommission(i),
               createSaleLabelTransaction SHOWIF showToPrintLabelTransactionSale(i), 
-              createSnapshotSaleLabelTransaction 
+              createSnapshotSaleLabelTransaction, createSaleLabelTransactionChoice SHOWIF showToPrintLabelTransactionSale(i)
 ;
 DESIGN invoices {
     label {
         MOVE PROPERTY (createSaleLabelTransaction(i)) { alignment = STRETCH; }
         MOVE PROPERTY (createSnapshotSaleLabelTransaction(i)) { alignment = STRETCH; }
+        MOVE PROPERTY (createSaleLabelTransactionChoice(i)) { alignment = STRETCH; }
     }
 }
