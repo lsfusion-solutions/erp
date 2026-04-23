@@ -1,0 +1,23 @@
+MODULE MachineryPriceTransactionUKM;
+
+REQUIRE MachineryPriceTransactionLot, CashRegister;
+
+NAMESPACE Machinery;
+
+
+optionalLot 'Частичная выгрузка СИ' = DATA BOOLEAN (GroupCashRegister);
+
+EXTEND FORM groupCashRegister
+    PROPERTIES (grc) optionalLot
+;
+DESIGN groupCashRegister {
+    topContainer {
+        MOVE PROPERTY(optionalLot(grc));
+    }
+}
+
+EXTEND FORM groupsCashRegister
+    PROPERTIES (grc) READONLYIF isReadonly() optionalLot
+;
+
+info (MachineryPriceTransaction t, Barcode b, STRING key) += idLotType(sku(b)) IF in(t, b) AND key = 'optionalLot' AND NOT skipInfoLottype(t,b) AND optionalLot(groupMachinery(t));
