@@ -273,6 +273,10 @@ CONSTRAINT (SET(isPosted(AlcoholLimitDetail d)) OR CHANGED(productType(d)) OR CH
     MESSAGE ' Диапазоны содержания % алкоголя в рамках одного вида продукции не должны пересекаться' 
     PROPERTIES index(d), idProductType(d), fromValueAlcohol(d), toValueAlcohol(d);
 
+CONSTRAINT (SET(isPosted(AlcoholLimitDetail d)) OR CHANGED(fromValueAlcohol(d)) OR CHANGED(toValueAlcohol(d))) AND isPosted(d) AND fromValueAlcohol(d) >= toValueAlcohol(d)
+    MESSAGE ' Диапазон содержания % алкоголя задан некорректно.\n Начало диапазона должно быть меньше окончания диапазона.'
+    PROPERTIES index(d), idProductType(d), fromValueAlcohol(d), toValueAlcohol(d);
+
 inAllProductType (AlcoholLimit a) = TRUE IF NOT (GROUP SUM 1 IF  in(a, ProductType p));
 
 idAlcoholLimits 'Код МРЦ' (AlcoholLimitDetail a) = GROUP CONCAT STRING (alcoholLimit(AlcoholLimitDetail a1)) IF a != a1 AND toDate(alcoholLimit(a)) >= fromDate(alcoholLimit(a1)) AND fromDate(alcoholLimit(a)) <= toDate(alcoholLimit(a1)) AND
