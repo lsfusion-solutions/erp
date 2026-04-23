@@ -11,6 +11,7 @@ priceSku 'Учетная цена' = ABSTRACT NUMERIC[17,5](Sku, Stock, DATE);
 costPriceSku 'Себестоимость' = ABSTRACT NUMERIC[17,5](Sku, Stock, DATE);
 
 supplierSku 'Поставщик товара' = ABSTRACT LegalEntity (Sku);
+supplierSku(Sku s) += supplierLastOrderBatch(s);
 nameSupplierSku 'Наименование поставщика' (Sku s) = name(supplierSku(s));
 idSupplierSku 'Код поставщика' (Sku s) = id(supplierSku(s));
 
@@ -1058,26 +1059,26 @@ sumReturn 'Возвраты поставщику по учетной цене' (
 quantitySale 'Количество' (Sku s, DepartmentStore st, DATE df, DATE dt) =
     GROUP SUM quantity(ReceiptDetail l) IF date(l) >= df AND date(l) <= dt AND departmentStore(l) = st
         AND sku(l) = s AND inSessionSku(sku(l));
-sumSale 'Выручка' (Sku s, DepartmentStore st, DATE df, DATE dt) =
+sumSale 'Выручка по учетной цене' (Sku s, DepartmentStore st, DATE df, DATE dt) =
     GROUP SUM (quantity(ReceiptDetail d)*priceSku(sku(d),departmentStore(d), date(d))) IF date(d) >= df AND date(d) <= dt
         AND inSessionSku(s) AND sku(d) = s AND departmentStore(d) = st;
 sumOptSale 'Выручка' (Sku s, DepartmentStore st, DATE df, DATE dt) =
-    GROUP SUM (quantity(ReceiptDetail d)*price(d)) IF date(d) >= df AND date(d) <= dt
+    GROUP SUM (sum(ReceiptDetail d)) IF date(d) >= df AND date(d) <= dt
         AND inSessionSku(s) AND sku(d) = s AND departmentStore(d) = st;
 marginProfit 'Маржинальная прибыль' (Sku s, DepartmentStore st, DATE df, DATE dt) = 
-    OVERRIDE sumOptSale(s,st,df,dt) - sumSale(s,st,df,dt), 0;
+    OVERRIDE sumOptSale(s,st,df,dt) (-) sumSale(s,st,df,dt), 0;
 marginProfitWriteOff 'Маржинальная прибыль за минусом списаний и возвратов' (Sku s, DepartmentStore st, DATE df, DATE dt) =
-    OVERRIDE marginProfit(s,st,df,dt) - sumWriteOff(s,st,df,dt) - sumReturn(s,st,df,dt), 0;
+    OVERRIDE marginProfit(s,st,df,dt) (-) sumWriteOff(s,st,df,dt) (-) sumReturn(s,st,df,dt), 0;
 valueWriteOff '% списаний/возвратов от поставки' (Sku s, DepartmentStore st, DATE df, DATE dt) =
-    OVERRIDE (quantityWriteOff(s,st,df,dt) + quantityReturn(s,st,df,dt))
-        /(quantityWriteOff(s,st,df,dt) + quantityReturn(s,st,df,dt) + quantitySale(s,st,df,dt))*100, 0;
+    OVERRIDE (quantityWriteOff(s,st,df,dt) (+) quantityReturn(s,st,df,dt))
+        /(quantityWriteOff(s,st,df,dt) (+) quantityReturn(s,st,df,dt) (+) quantitySale(s,st,df,dt))*100, 0;
 
 FORM saleReportSkuStockWriteOff 'Продажи и списания-возвраты '
     OBJECTS dates = (df = DATE, dt = DATE) PANEL
     PROPERTIES df 'Дата с' = VALUE(df), dt 'Дата по' = VALUE(dt), inSaleReportStocks(), 
         nameSkuList(), nameStockList(), nameLegalEntityList()
 
-    OBJECTS st = DepartmentStore
+    OBJECTS st = Stock
     PROPERTIES(st) id, name
     FILTERS inSaleReportDialog(st)
 
