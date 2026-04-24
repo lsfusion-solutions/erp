@@ -19,7 +19,7 @@ urlUkm5ServerExport 'Url сервера(экспорт)' = DATA STRING ();
 uploadedUkm5 'Загружен в УКМ5' = DATA BOOLEAN (Sku);
 uploadedUkm5 'Загружен в УКМ5' = DATA BOOLEAN (Group);
 uploadedUkm5Properties 'Загружен в УКМ5' = DATA BOOLEAN (Sku);
-uploadedUkm5Scale 'Загружен в УКМ5' = DATA BOOLEAN (Sku);
+uploadedUkm5Scale 'Загружен в УКМ5' = DATA BOOLEAN (Barcode);
 pickListGroupType() = DATA CustomGroupType ();
 
 EXTEND FORM groupCashRegister
@@ -267,42 +267,42 @@ WHEN ([GROUP SUM 1 IF DROPPED(lowWeight(Sku s)) OR DROPPED(weightControlBypass(s
 
 needUpdateScale(Item i) = isCatchWeight(i) OR weightSize(i) = 3 OR minDelta(i) OR maxDelta(i) OR droppedScale(i) == TTRUE;
 
-FORM importSecurityScale 'Импорт эталонных весов КВП и работа с типами товаров'
-    OBJECTS t = MachineryPriceTransaction
-
-    OBJECTS elements = Item
-    PROPERTIES = OVERRIDE idBarcode(elements), '' EXTID 'item_id',
-        = OVERRIDE idBarcode(elements), '' EXTID 'barcode_id',
-        = IF active(elements) THEN TFALSE ELSE TTRUE EXTID 'delete',
-        = IF isCatchWeight(elements) THEN 3 ELSE 0 EXTID 'measprec'
-    
-    PROPERTIES(elements) IN attributes weightSize EXTID 'weight_size_item_type'
-    
-    PROPERTIES(elements) IN weight
-        overMinDelta EXTID 'min_delta' EXTNULL,
-        overReferenceWeight EXTID 'reference_weight' EXTNULL, 
-        overmaxDelta EXTID 'max_delta' EXTNULL
-
-    FILTERS skuTransaction(elements, t) AND NOT uploadedUkm5Scale(elements) AND needUpdateScale(elements)   
-;
+//FORM importSecurityScale 'Импорт эталонных весов КВП и работа с типами товаров'
+//    OBJECTS t = MachineryPriceTransaction
+//
+//    OBJECTS elements = Item
+//    PROPERTIES = OVERRIDE idBarcode(elements), '' EXTID 'item_id',
+//        = OVERRIDE idBarcode(elements), '' EXTID 'barcode_id',
+//        = IF active(elements) THEN TFALSE ELSE TTRUE EXTID 'delete',
+//        = IF isCatchWeight(elements) THEN 3 ELSE 0 EXTID 'measprec'
+//    
+//    PROPERTIES(elements) IN attributes weightSize EXTID 'weight_size_item_type'
+//    
+//    PROPERTIES(elements) IN weight
+//        overMinDelta EXTID 'min_delta' EXTNULL,
+//        overReferenceWeight EXTID 'reference_weight' EXTNULL, 
+//        overmaxDelta EXTID 'max_delta' EXTNULL
+//
+//    FILTERS skuTransaction(elements, t) AND NOT uploadedUkm5Scale(elements) AND needUpdateScale(elements)   
+//;
 
 FORM importSecurityScaleBarcode 'Импорт эталонных весов КВП и работа с типами товаров(штрихкоды)'
     OBJECTS t = MachineryPriceTransaction
 
-    OBJECTS elements = Barcode
-    PROPERTIES = OVERRIDE idBarcode(sku(elements)), '' EXTID 'item_id',
-        = OVERRIDE id(elements), '' EXTID 'barcode_id',
-        = IF active(sku(elements)) THEN TFALSE ELSE TTRUE EXTID 'delete',
-        = IF isCatchWeight(sku(elements)) THEN 3 ELSE 0 EXTID 'measprec'
+    OBJECTS bi = (b = Barcode, i = INTEGER) EXTID 'elements'
+    PROPERTIES = OVERRIDE idBarcode(sku(b)), '' EXTID 'item_id',
+        = IF i = 1 THEN OVERRIDE id(b), '' ELSE '' EXTID 'barcode_id',
+        = IF active(sku(b)) THEN TFALSE ELSE TTRUE EXTID 'delete',
+        = IF isCatchWeight(sku(b)) THEN 3 ELSE 0 EXTID 'measprec'
 
-    PROPERTIES IN attributes = weightSize(sku(elements)) EXTID 'weight_size_item_type'
+    PROPERTIES IN attributes = weightSize(sku(b)) EXTID 'weight_size_item_type'
 
     PROPERTIES IN weight
-        = overMinDelta(sku(elements)) EXTID 'min_delta' EXTNULL,
-        = overReferenceWeight(sku(elements)) EXTID 'reference_weight' EXTNULL,
-        = overmaxDelta(sku(elements)) EXTID 'max_delta' EXTNULL
+    = overMinDelta(sku(b)) EXTID 'min_delta' EXTNULL,
+        = overReferenceWeight(sku(b)) EXTID 'reference_weight' EXTNULL,
+        = overmaxDelta(sku(b)) EXTID 'max_delta' EXTNULL
 
-    FILTERS in(t,elements) AND skuTransaction(sku(elements), t) AND NOT uploadedUkm5Scale(sku(elements)) AND needUpdateScale(sku(elements))
+    FILTERS in(t,b), i == 1 OR i == 2 AND NOT uploadedUkm5Scale(b) AND needUpdateScale(sku(b)), i == 1 OR i == 2
 ;
 
 sendPriceTransactionAPI(CashRegisterPriceTransaction t){
@@ -366,19 +366,19 @@ sendPriceTransactionAPI(CashRegisterPriceTransaction t){
             RETURN;
         }
     }
-    IF (GROUP SUM 1 IF NOT uploadedUkm5Scale(Item i) AND skuTransaction(i, t) AND needUpdateScale(i)) THEN {
+    IF (GROUP SUM 1 IF NOT uploadedUkm5Scale(Barcode b) AND in(t, b) AND needUpdateScale(sku(b))) THEN {
         EXPORT importSecurityScaleBarcode OBJECTS t = t JSON;
         EXTERNAL HTTP POST CONCAT '', urlUkm5ServerImport() + '/api/v1/import/store/',
             idStore(groupCashRegister(t)), '/securityScale' PARAMS exportFile() TO answer;
         fileToString(answer());
         IF statusHttp() = 200 THEN {
-            uploadedUkm5Scale(Item i) <- TRUE IF skuTransaction(i, t) AND NOT uploadedUkm5Scale(i);
-            droppedScale(Item i) <- TFALSE IF skuTransaction(i, t);
+            uploadedUkm5Scale(Barcode b) <- TRUE WHERE in(t, b) AND NOT uploadedUkm5Scale(b);
+            droppedScale(Item i) <- TFALSE WHERE skuTransaction(i, t);
         } ELSE {
             addMachineryError(t, (CONCAT ' : ', nameGroupMachinery(t),
                 'Ошибка при импорте эталонных весов КВП', resultString()));
             logToFile('ukm5PriceTransaction', CONCAT ': ', 'Ошибка при импорте эталонных весов КВП', resultString());
-            APPLY ;
+            APPLY;
             RETURN;
         }
     }
