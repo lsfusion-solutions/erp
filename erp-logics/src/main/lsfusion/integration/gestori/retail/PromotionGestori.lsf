@@ -1,0 +1,133 @@
+MODULE PromotionGestori;
+
+REQUIRE Promotion, PriceListContract, LegalEntityRu;
+
+NAMESPACE Promotion;
+
+defaultVATPriceListType = DATA DataPriceListType() PREREAD;
+nameDefaultVATPriceListType 'Вид цены для управления ценами по умолчанию (C НДС)' = name[PriceListType](defaultVATPriceListType());
+
+defaultVATSupplierOperation = DATA PriceList.Operation();
+nameDefaultVATSupplierOperation 'Операция для протокола согласования цен по акции (C НДС)' = name(defaultVATSupplierOperation());
+EXTEND FORM options
+    PROPERTIES() nameDefaultVATPriceListType
+    PROPERTIES() nameDefaultVATSupplierOperation
+;
+DESIGN options {
+    price {
+        MOVE PROPERTY(nameDefaultVATPriceListType());
+    }
+    promotionPrice {
+        MOVE PROPERTY(nameDefaultVATSupplierOperation());
+    }
+}
+
+supplier = DATA LegalEntity (Promotion);
+nameSupplier 'Поставщик' (Promotion p) = name(supplier(p));
+contractSku = DATA ContractSku(Promotion);
+seriesNumberContractSku 'Договор' (Promotion p) = seriesNumber(contractSku(p));
+
+priceList = DATA PriceList(Promotion);
+numberPriceList 'Прайс' (Promotion p) = number(priceList(p));
+
+VATprice 'Стандартная цена c НДС' = DATA NUMERIC[16,4] (PromotionDetail);
+
+WHEN LOCAL (CHANGED(sku(PromotionDetail detail)) OR CHANGED(fromDate(detail)))   DO {
+
+    IF LegalEntity.isNotVATPayer(supplier(promotion(detail))) THEN{
+        valueVAT(detail) <- 0.0;
+        price(detail) <- OVERRIDE GROUP MAX prevPriceA(defaultPriceListType(), sku(detail), Stock stock, toDateTime(fromDate(detail)));
+        VATprice(detail) <- NUMERIC[16,4](round2(price(detail)*(1.0+valueVAT(detail)/100.0)));
+    } ELSE {
+        VATprice(detail) <- OVERRIDE overPrice(detail), (GROUP MAX prevPriceA(defaultVATPriceListType(), sku(detail), Stock stock, toDateTime(fromDate(detail))));
+        price(detail) <- NUMERIC[16,4](round2(VATprice(detail) * 100 / (100.0 + valueVAT(detail))));
+    }
+
+    countStocks(detail, LegalEntity company) <- 1 IF company = supplier(promotion(detail));
+    retailPrice(detail) <- (GROUP MAX prevPriceA(retailPriceListType(), sku(detail), Stock stock, toDateTime(fromDate(detail))) IF in(promotion(detail), stock)) WHERE NOT CHANGED(retailPrice(detail));
+}
+
+WHEN LOCAL (CHANGED(promotionVATPrice(PromotionDetail detail)) OR CHANGED(valueVAT(detail))) DO {
+    promotionPrice(detail) <- NUMERIC[16,4](round2(promotionVATPrice(detail)*100/(100.0+valueVAT(detail))));
+}
+
+createPromotionDetail 'Добавить строки из прайса'(Promotion p) {
+    FOR priceList(p) = priceList(PriceListDetail d) NEW pd = PromotionDetail DO {
+        promotion(pd) <- p;
+        sku(pd) <- sku(d);
+    }
+}
+
+EXTEND FORM promotion
+    PROPERTIES (p) nameSupplier, seriesNumberContractSku, numberPriceList, createPromotionDetail
+    PROPERTIES(d) READONLYIF isReadOnly(d) BACKGROUND backgroundCur(d) VATprice AFTER price(d)
+;
+
+DESIGN promotion {
+    second {
+        MOVE PROPERTY(nameSupplier(p));
+        MOVE PROPERTY(seriesNumberContractSku(p));
+    }
+    third {
+        MOVE PROPERTY(numberPriceList(p));
+        MOVE PROPERTY(createPromotionDetail(p));
+    }
+}
+
+EXTEND FORM promotions
+    PROPERTIES(d) READONLY BACKGROUND backgroundCur(d) VATprice AFTER price(d)
+;
+
+EXTEND FORM itemInfo
+    PROPERTIES(pd) READONLY BACKGROUND backgroundCur(pd) VATprice AFTER price(pd)
+;
+
+CONSTRAINT priceList(Promotion o) AND NOT contractSku(o) == contractSku(priceList(o))
+    CHECKED BY priceList[Promotion] MESSAGE 'Договора прайса не соответствует договору акции';
+
+CONSTRAINT contractSku(Promotion o) AND NOT supplier(o) == partyA(contractSku(o))
+    CHECKED BY contractSku[Promotion] MESSAGE 'Организация (поставщик) договора прайса не соответствует компании прайса';
+
+CONSTRAINT contractSku(Promotion o) AND NOT isSeller(partyA(contractSku(o)))
+    CHECKED BY contractSku[Promotion] MESSAGE 'Организация (поставщик) договора прайса не является поставщиком или компанией';
+
+overCreatePriceListDetail(PromotionDetail pd, UserPriceListDetail detail) + {
+    IF operation(detail) == defaultSupplierOperation() THEN {
+        price(detail, DataPriceListType type) <- promotionPrice(pd) WHERE in(userPriceList(detail), type) AND NOT includeVAT(type);
+        price(detail, DataPriceListType type) <- promotionVATPrice(pd) WHERE in(userPriceList(detail), type) AND includeVAT(type);
+    }
+}
+
+overCreatePriceList(Promotion p, UserPriceList priceList) + {
+    IF operation(priceList) == defaultSupplierOperation() AND NOT LegalEntity.isNotVATPayer(supplier(p)) THEN {
+        operation(priceList) <- defaultVATSupplierOperation();
+    }
+    skipSetStocks(priceList) <- TRUE;
+    dataIn(priceList, StockGroup stockGroup) <- dataIn(p, stockGroup);
+    dataIn(priceList, Stock stock) <- dataIn(p, stock);
+}
+
+@defineAddSkuLists(promotion, promotion, p);
+
+importXLS 'Импорт (xlsx)' (Promotion p)  {
+
+    LOCAL barcode = STRING[100] (INTEGER);
+    LOCAL price = NUMERIC[16,4] (INTEGER);
+    LOCAL retailPrice = NUMERIC[16,4] (INTEGER);
+
+    INPUT f = EXCELFILE DO {
+        IMPORT XLS NOHEADER FROM f AS EXCELFILE TO barcode=A, price=B, retailPrice=C;
+
+        FOR imported(INTEGER r) NEW d = PromotionDetail DO {
+            promotion(d) <- p;
+            sku(d)<-skuBarcode(barcode(r));
+            promotionVATPrice(d) <- price(r);
+            proposedPromotionPrice(d) <- retailPrice(r);
+        }
+        MESSAGE 'Импортированы ' + (OVERRIDE (GROUP SUM 1 IF skuBarcode(barcode(INTEGER r))), 0) + ' записей';
+    }
+}
+
+EXTEND FORM promotion
+    PROPERTIES(p) importXLS DRAW d TOOLBAR
+;
