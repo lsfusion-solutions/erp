@@ -1,6 +1,6 @@
 MODULE SaleReportsRu;
 
-REQUIRE SaleReports, SaleInvoice, SaleReturnInvoice, SaleOperation, PricingSum, SaleFullPrice, 
+REQUIRE SaleReports, SaleInvoice, SaleReturnInvoice, PurchaseReturnInvoice, SaleOperation, PricingSum, SaleFullPrice, 
         SaleShipment, TaxItem, ZReport, Warehouse, PurchaseOrder, WriteOff, SaleLedgerWeek,
         Inventory, LegalEntityList, SkuList, StockList, AccountDocument, DateSkuLedger;
 
@@ -463,8 +463,8 @@ sumSku 'Учетная сумма ' (Sku s, Stock st, DATE df, DATE dt) =
 sumVAT 'Учетная сумма НДС ' (Sku s, Stock st, DATE df, DATE dt) =
     GROUP SUM (((priceSku(sku(SaleLedger l),stock(l), date(l))*quantity(l))*valueVAT(l))/(valueVAT(l)+100)) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = stock(l) AND filterSaleLeger(l) AND inSessionSku(sku(l)) AND inSaleReportDialog(st);
 profit(Sku s, Stock st, DATE df, DATE dt) = (sumNoVAT(s,st,df,dt)) - (sumSku(s,st,df,dt) (-) sumVAT(s,st,df,dt));
-valProfit(Sku s, Stock st, DATE df, DATE dt) = sum(s,st,df,dt) (-) sumSku(s,st,df,dt);
-marga(Sku s, Stock st, DATE df, DATE dt) = valProfit(s,st,df,dt)*100/sum(s,st,df,dt);
+grossProfit(Sku s, Stock st, DATE df, DATE dt) = sum(s,st,df,dt) (-) sumSku(s,st,df,dt);
+markup(Sku s, Stock st, DATE df, DATE dt) = grossProfit(s,st,df,dt)*100/sum(s,st,df,dt);
 sumCostPrice(Sku s, Stock st, DATE df, DATE dt) =
     GROUP SUM (quantity(SaleLedger l)*(buxCost(s,st,date(l))+(buxCost(s,st,date(l))*valueVAT(l)/100))) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = stock(l) AND inSessionSku(sku(l)) AND inSaleReportDialog(st);
 
@@ -492,8 +492,8 @@ sumSku 'Учетная сумма ' (Group g, Stock st, DATE df, DATE dt) =
 sumVAT 'Учетная сумма НДС ' (Group g, Stock st, DATE df, DATE dt) =
     GROUP SUM sumVAT(Sku s,st,df,dt) IF  skuGroup4(s) = g;
 profit(Group g, Stock st, DATE df, DATE dt) = (sumNoVAT(g,st,df,dt)) - (sumSku(g,st,df,dt) (-) sumVAT(g,st,df,dt));
-valProfit(Group g, Stock st, DATE df, DATE dt) = sum(g,st,df,dt) (-) sumSku(g,st,df,dt);
-marga(Group g, Stock st, DATE df, DATE dt) = valProfit(g,st,df,dt)*100/sum(g,st,df,dt);
+grossProfit(Group g, Stock st, DATE df, DATE dt) = sum(g,st,df,dt) (-) sumSku(g,st,df,dt);
+markup(Group g, Stock st, DATE df, DATE dt) = grossProfit(g,st,df,dt)*100/sum(g,st,df,dt);
 sumCostPrice(Group g, Stock st, DATE df, DATE dt) =
     GROUP SUM sumCostPrice(Sku s,st,df,dt) IF  skuGroup4(s) = g;
 
@@ -515,9 +515,9 @@ FORM groupSaleLedgerReport 'Отчет по классификатору'
         name, articleRu, shortNameUOM, netWeight, volume, valueVAT
     FILTERS inSessionSku(s), isParent(sg,s), skuGroup4(s) = sg
 
-    PROPERTIES(s,st,df,dt) quantity, fullSum, sum, valProfit, marga, netWeight,
+    PROPERTIES(s,st,df,dt) quantity, fullSum, sum, grossProfit, markup, netWeight,
         volume, sumVAT, buxCostSum, profit, sumSku, sumCostPrice
-    PROPERTIES(sg,st,df,dt) quantity, fullSum, sum, valProfit, marga, netWeight,
+    PROPERTIES(sg,st,df,dt) quantity, fullSum, sum, grossProfit, markup, netWeight,
         volume, sumVAT, buxCostSum, profit, sumSku, sumCostPrice
     PROPERTIES(s,st,dt) buxCost 
     PROPERTIES(s,dt) balanceBDepartmentStore, balanceBStock,
@@ -549,8 +549,8 @@ buxCostSum(Sku s, DepartmentStore st, DATE df, DATE dt) =
 sumSku 'Учетная сумма ' (Sku s, DepartmentStore st, DATE df, DATE dt) =
     GROUP SUM (priceSku(sku(ReceiptDetail l),departmentStore(l), date(l))*quantity(l)) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = departmentStore(l) AND inSessionSku(sku(l)) AND inSaleReportDialog(st);
 profit(Sku s, DepartmentStore st, DATE df, DATE dt) = sumNoVAT(s,st,df,dt) (-) buxCostSum(s,st,df,dt);
-valProfit(Sku s, DepartmentStore st, DATE df, DATE dt) = sum(s,st,df,dt) (-) sumSku(s,st,df,dt);
-marga(Sku s, DepartmentStore st, DATE df, DATE dt) = valProfit(s,st,df,dt)*100/sum(s,st,df,dt);
+grossProfit(Sku s, DepartmentStore st, DATE df, DATE dt) = sum(s,st,df,dt) (-) sumSku(s,st,df,dt);
+markup(Sku s, DepartmentStore st, DATE df, DATE dt) = grossProfit(s,st,df,dt)*100/sum(s,st,df,dt);
 sumCostPrice(Sku s, DepartmentStore st, DATE df, DATE dt) = 
     GROUP SUM (quantity(ReceiptDetail l)*(buxCost(s,st,date(l))+(buxCost(s,st,date(l))*valueVAT(l)/100))) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = departmentStore(l) AND inSessionSku(sku(l)) AND inSaleReportDialog(st);
 
@@ -573,8 +573,8 @@ sumSku 'Учетная сумма ' (Group g, DepartmentStore st, DATE df, DATE 
 sumVAT 'Учетная сумма НДС ' (Group g, DepartmentStore st, DATE df, DATE dt) =
     GROUP SUM sumVAT(Sku s,st,df,dt) IF  skuGroup4(s) = g;
 profit(Group g, DepartmentStore st, DATE df, DATE dt) = (sumNoVAT(g,st,df,dt)) - (sumSku(g,st,df,dt) (-) sumVAT(g,st,df,dt));
-valProfit(Group g, DepartmentStore st, DATE df, DATE dt) = sum(g,st,df,dt) (-) sumSku(g,st,df,dt);
-marga(Group g, DepartmentStore st, DATE df, DATE dt) = valProfit(g,st,df,dt)*100/sum(g,st,df,dt);
+grossProfit(Group g, DepartmentStore st, DATE df, DATE dt) = sum(g,st,df,dt) (-) sumSku(g,st,df,dt);
+markup(Group g, DepartmentStore st, DATE df, DATE dt) = grossProfit(g,st,df,dt)*100/sum(g,st,df,dt);
 sumCostPrice(Group g, DepartmentStore st, DATE df, DATE dt) =
     GROUP SUM sumCostPrice(Sku s,st,df,dt) IF  skuGroup4(s) = g;
 
@@ -597,9 +597,9 @@ FORM groupReceiptDetailReport 'Отчет по классификатору(ро
         name, articleRu, shortNameUOM, netWeight, volume, valueVAT
     FILTERS inSessionSku(s), isParent(sg,s), skuGroup4(s) = sg
 
-    PROPERTIES(s,st,df,dt) quantity, fullSum, sum, valProfit, marga, netWeight,
+    PROPERTIES(s,st,df,dt) quantity, fullSum, sum, grossProfit, markup, netWeight,
         volume, sumVAT, buxCostSum, profit, sumSku, sumCostPrice
-    PROPERTIES(sg,st,df,dt) quantity, fullSum, sum, valProfit, marga, netWeight,
+    PROPERTIES(sg,st,df,dt) quantity, fullSum, sum, grossProfit, markup, netWeight,
         volume, sumVAT, buxCostSum, profit, sumSku, sumCostPrice
     PROPERTIES(s,st,dt) buxCost
     PROPERTIES(s,dt) balanceBDepartmentStore, balanceBStock,
@@ -625,7 +625,7 @@ FORM groupSaleLedgerReportItog 'Отчет по классификатору(т�
     PROPERTIES READONLY order(sg), skuTreeName = name(sg), id(sg), nameGroup3(sg), nameGroup4(sg)
     ORDERS order(sg), skuTreeName
     
-    PROPERTIES(sg,st,df,dt) quantity, fullSum, sum, valProfit, marga, netWeight,
+    PROPERTIES(sg,st,df,dt) quantity, fullSum, sum, grossProfit, markup, netWeight,
         volume, sumVAT, buxCostSum, profit, sumSku, sumCostPrice
     PROPERTIES(sg,dt) balanceBDepartmentStore, balanceBStock,
         balanceSumDepartmentStore, balanceSumStock
@@ -647,7 +647,7 @@ FORM groupReceiptDetailReportItog 'Отчет по классификатору(
     PROPERTIES READONLY order(sg), skuTreeName = name(sg), id(sg), nameGroup3(sg), nameGroup4(sg)
     ORDERS order(sg), skuTreeName
 
-    PROPERTIES(sg,st,df,dt) quantity, fullSum, sum, valProfit, marga, netWeight,
+    PROPERTIES(sg,st,df,dt) quantity, fullSum, sum, grossProfit, markup, netWeight,
         volume, sumVAT, buxCostSum, profit, sumSku, sumCostPrice
 
     PROPERTIES(sg,dt) balanceBDepartmentStore, balanceBStock,
@@ -838,11 +838,11 @@ fullSumSupplier(Sku s, Stock st, DATE df, DATE dt) =
 sumSupplier 'Учетная сумма ' (Sku s, Stock st, DATE df, DATE dt) =
     GROUP SUM (priceSku(sku(SaleLedger l),stock(l), date(l))*quantity(l)) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = stock(l)
         AND filterSaleLeger(l) AND inSessionSku(sku(l)) AND (inSupplier(supplierSku(sku(l))) OR NOT inSaleReportSupplier());
-valProfitSupplier(Sku s, Stock st, DATE df, DATE dt) = 
+grossProfitSupplier(Sku s, Stock st, DATE df, DATE dt) = 
     sumSupplier(s,st,df,dt) (-) fullSumSupplier(s,st,df,dt);
-margaSupplier(Sku s, Stock st, DATE df, DATE dt) = 
-    valProfitSupplier(s,st,df,dt)*100/sumSupplier(s,st,df,dt);
-margaBalanceB(Sku s, Stock st, DATE dt) =
+markupSupplier(Sku s, Stock st, DATE df, DATE dt) =
+    grossProfitSupplier(s,st,df,dt)*100/sumSupplier(s,st,df,dt);
+markupBalanceB(Sku s, Stock st, DATE dt) =
     (sumBalanceB(s,st,dt) (-) sumBalanceSkuB(s,st,dt))*100/sumBalanceB(s,st,dt);
 
 
@@ -855,10 +855,10 @@ fullSumSupplier(Sku s, DATE df, DATE dt) =
 sumSupplier 'Учетная сумма ' (Sku s, DATE df, DATE dt) =
     GROUP SUM (priceSku(sku(SaleLedger l),stock(l), date(l))*quantity(l)) IF date(l) >= df AND date(l) <= dt AND sku(l) = s
         AND filterSaleLeger(l) AND inSessionSku(sku(l)) AND (inSupplier(supplierSku(sku(l))) OR NOT inSaleReportSupplier());
-valProfitSupplier(Sku s, DATE df, DATE dt) =
+grossProfitSupplier(Sku s, DATE df, DATE dt) =
     sumSupplier(s,df,dt) (-) fullSumSupplier(s,df,dt);
-margaSupplier(Sku s,DATE df, DATE dt) =
-    valProfitSupplier(s,df,dt)*100/sumSupplier(s,df,dt);
+markupSupplier(Sku s,DATE df, DATE dt) =
+    grossProfitSupplier(s,df,dt)*100/sumSupplier(s,df,dt);
 
 lastInvoice 'Дата последней продажи' = GROUP LAST SaleLedger ledger
     ORDER date(ledger), ledger
@@ -888,8 +888,8 @@ FORM saleLedgerReportSupplier 'Продажи и остатки'
     PROPERTIES(s,st) idSupplierLastOrderBatch, nameSupplierLastOrderBatch, pricePurchase, dateSupplierLastOrderBatch
     PROPERTIES lastDateInvoice = date(lastInvoice(s,st,dt))
     PROPERTIES balanceB = balanceB(s,st,datePriceSupplier()) 
-    PROPERTIES(s,st,df,dt) quantitySupplier, fullSumSupplier, sumSupplier, valProfitSupplier, margaSupplier
-    PROPERTIES(s,st,dt) lastPriceSupplierSku, margaBalanceB
+    PROPERTIES(s,st,df,dt) quantitySupplier, fullSumSupplier, sumSupplier, grossProfitSupplier, markupSupplier
+    PROPERTIES(s,st,dt) lastPriceSupplierSku, markupBalanceB
     ORDERS idBarcode(s), name(s)
 
     FILTERS inSessionSku(s), quantitySupplier(s,st,df,dt)
@@ -904,10 +904,10 @@ fullSumSupplier(Sku s, DepartmentStore st, DATE df, DATE dt) =
 sumSupplier 'Учетная сумма ' (Sku s, DepartmentStore st, DATE df, DATE dt) =
     GROUP SUM (priceSku(sku(ReceiptDetail l),departmentStore(l), date(l))*quantity(l)) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = departmentStore(l)
         AND inSessionSku(sku(l)) AND (inSupplier(supplierSku(sku(l))) OR NOT inSaleReportSupplier());
-valProfitSupplier(Sku s, DepartmentStore st, DATE df, DATE dt) =
+grossProfitSupplier(Sku s, DepartmentStore st, DATE df, DATE dt) =
     sumSupplier(s,st,df,dt) (-) fullSumSupplier(s,st,df,dt);
-margaSupplier(Sku s, DepartmentStore st, DATE df, DATE dt) =
-    valProfitSupplier(s,st,df,dt)*100/sumSupplier(s,st,df,dt);
+markupSupplier(Sku s, DepartmentStore st, DATE df, DATE dt) =
+    grossProfitSupplier(s,st,df,dt)*100/sumSupplier(s,st,df,dt);
 
 FORM receiptDetailReportSupplier 'Продажи и остатки'
     OBJECTS dates = (df = DATE, dt = DATE) PANEL
@@ -925,8 +925,8 @@ FORM receiptDetailReportSupplier 'Продажи и остатки'
     PROPERTIES(s,st) idSupplierLastOrderBatch, nameSupplierLastOrderBatch, pricePurchase, dateSupplierLastOrderBatch
     PROPERTIES lastDateInvoice = date(lastInvoice(s,st,dt))
     PROPERTIES balanceB = balanceB(s,st,datePriceSupplier())
-    PROPERTIES(s,st,df,dt) quantitySupplier, fullSumSupplier, sumSupplier, valProfitSupplier, margaSupplier
-    PROPERTIES(s,st,dt) lastPriceSupplierSku, margaBalanceB
+    PROPERTIES(s,st,df,dt) quantitySupplier, fullSumSupplier, sumSupplier, grossProfitSupplier, markupSupplier
+    PROPERTIES(s,st,dt) lastPriceSupplierSku, markupBalanceB
     ORDERS idBarcode(s), name(s)
 
     FILTERS inSessionSku(s), quantitySupplier(s,st,df,dt)
@@ -955,14 +955,14 @@ fullSumSupplierSku(Stock st, LegalEntity le, DATE df, DATE dt) =
 sumSupplierSku 'Учетная сумма ' (Stock st, LegalEntity le, DATE df, DATE dt) =
     GROUP SUM (priceSku(sku(SaleLedger l),stock(l), date(l))*quantity(l)) IF date(l) >= df AND date(l) <= dt AND supplierSku(sku(l)) = le AND st = stock(l)
         AND filterSaleLeger(l) AND inSessionSku(sku(l));
-valProfitSupplier(Stock st, LegalEntity le, DATE df, DATE dt) =
+grossProfitSupplier(Stock st, LegalEntity le, DATE df, DATE dt) =
     sumSupplierSku(st,le,df,dt) (-) fullSumSupplierSku(st,le,df,dt);
-margaSupplier(Stock st, LegalEntity le, DATE df, DATE dt) =
-    valProfitSupplier(st,le,df,dt)*100/sumSupplierSku(st,le,df,dt);
+markupSupplier(Stock st, LegalEntity le, DATE df, DATE dt) =
+    grossProfitSupplier(st,le,df,dt)*100/sumSupplierSku(st,le,df,dt);
 sumBalanceB(Stock st, LegalEntity le) = 
     GROUP SUM (balanceB(Sku s, st, datePriceSupplier())*priceSku(s,st, datePriceSupplier())) IF inSessionSku(s) AND supplierSku(s) = le;
-margaBalanceB(Stock st, LegalEntity le, DATE df, DATE dt) =
-    valProfitSupplier(st,le,df,dt)*100/sumBalanceB(st,le);
+markupBalanceB(Stock st, LegalEntity le, DATE df, DATE dt) =
+    grossProfitSupplier(st,le,df,dt)*100/sumBalanceB(st,le);
 turnoverDays 'Количество дней запаса' (Stock st, LegalEntity le, DATE df, DATE dt) =
     GROUP SUM NUMERIC[30,2](balanceB(Sku s, st, datePriceSupplier())*quantitySupplierSku(st,le,df,dt)/(daysBetweenDates(df,dt) + 1));
 
@@ -979,11 +979,11 @@ FORM saleLedgerReportSupplierSku 'Продажи и остатки по пост
     
     PROPERTIES sumSupplierSku(st,l,df,dt) COLUMNS 'st' (st) HEADER 'Сумма продаж по учетной цене',
                fullSumSupplierSku(st,l,df,dt) COLUMNS 'st' (st) HEADER 'Сумма продаж по отпускной цене',
-               valProfitSupplier(st,l,df,dt) COLUMNS 'st' (st) HEADER 'Валовый доход',
-               margaSupplier(st,l,df,dt) COLUMNS 'st' (st) HEADER 'Маржа,%',
+               grossProfitSupplier(st,l,df,dt) COLUMNS 'st' (st) HEADER 'Валовый доход',
+               markupSupplier(st,l,df,dt) COLUMNS 'st' (st) HEADER 'Маржа,%',
                sumBalanceB(st,l) COLUMNS 'st' (st) HEADER 'Сумма остатка в учетных ценах',
                turnoverDays(st,l,df,dt) COLUMNS 'st' (st) HEADER 'Количество дней запаса',
-               margaBalanceB(st,l,df,dt) COLUMNS 'st' (st) HEADER 'Маржа,% остатка'
+               markupBalanceB(st,l,df,dt) COLUMNS 'st' (st) HEADER 'Маржа,% остатка'
     PROPERTIES sk = sumSupplierSku(st,l,df,dt) COLUMNS 'st' (st) HEADER (name(st))
     FILTERS inSaleReportDialog(st)
 ;
@@ -996,7 +996,7 @@ printSkuGroupSaleLedgerSupplierSku 'Розничные продажи и ост�
 
 turnoverDays 'Оборачиваемость' (Sku s, Stock st, DATE df, DATE dt) =
     GROUP SUM NUMERIC[30,2](balanceB(s, st, datePriceSupplier())*quantity(s,st,df,dt)/(daysBetweenDates(df,dt) + 1));
-quantityPurchse 'Кол-во заказа' (Sku s, Stock st, DATE df, DATE dt) =
+quantityPurchase 'Кол-во заказа' (Sku s, Stock st, DATE df, DATE dt) =
     GROUP SUM quantity(Purchase.OrderDetail d) IF date(d) >= df AND date(d) <= dt AND sku(d) = s AND customerStock(d) = st;
 
 FORM saleLedgerReportTurnover 'Продажи и остатки(оборачиваемость)'
@@ -1016,9 +1016,9 @@ FORM saleLedgerReportTurnover 'Продажи и остатки(оборачив
                priceSku= priceSku(s,st,datePriceSupplier()) COLUMNS 'st' (st) HEADER 'Учетная цена',
                price = priceSku(s,st,datePriceSupplier()) COLUMNS 'st' (st) HEADER 'Отп.цена на дату расчета остатков',
                turnoverDays(s,st,df,dt) COLUMNS 'st' (st) HEADER 'Оборачиваемость(дни)',
-               quantityPurchse(s,st,df,dt) COLUMNS 'st' (st) HEADER 'Количество заказа',
-               number = number(lastPurchase(s,st,dt)) COLUMNS 'st' (st) HEADER 'Номер заказа',
-               lastDatePurchse = date(lastPurchase(s,st,dt)) COLUMNS 'st' (st) HEADER 'Дата последнего прихода',
+               quantityPurchase(s,st,df,dt) COLUMNS 'st' (st) HEADER 'Количество заказа',
+               number = number[Purchase.UserInvoice](lastPurchase(s,st,dt)) COLUMNS 'st' (st) HEADER 'Номер заказа',
+               lastDatePurchase = date(lastPurchase(s,st,dt)) COLUMNS 'st' (st) HEADER 'Дата последнего прихода',
                lastDateInvoice = date(lastInvoice(s,st,dt)) COLUMNS 'st' (st) HEADER 'Дата последней продажи'
     PROPERTIES sk = priceSku(s,st,datePriceSupplier()) COLUMNS 'st' (st) HEADER (name(st))
     ORDERS idBarcode(s), name(s)
@@ -1062,10 +1062,10 @@ sumWriteOff 'Списания сумма по учетной цене' (Sku s, S
     GROUP SUM (quantity(WriteOffDetail d)*priceSku(sku(d),stock(d), date(d))) IF date(d) >= df AND date(d) <= dt
         AND sku(d) = s AND stock(d) = st AND inSessionSku(s);
 quantityReturn 'Возвраты поставщику кол-во' (Sku s, Stock st, DATE df, DATE dt) =
-    GROUP SUM quantity(SaleReturn.InvoiceDetail d) IF date(d) >= df AND date(d) <= dt AND inSessionSku(s)
+    GROUP SUM quantity(PurchaseReturn.InvoiceDetail d) IF date(d) >= df AND date(d) <= dt AND inSessionSku(s)
         AND sku(d) = s AND customerStock(d) = st;
 sumReturn 'Возвраты поставщику по учетной цене' (Sku s, Stock st, DATE df, DATE dt) =
-    GROUP SUM (quantity(SaleReturn.InvoiceDetail d)*priceSku(sku(d),customerStock(d), date(d))) IF date(d) >= df AND date(d) <= dt
+    GROUP SUM (quantity(PurchaseReturn.InvoiceDetail d)*priceSku(sku(d),customerStock(d), date(d))) IF date(d) >= df AND date(d) <= dt
         AND sku(d) = s AND customerStock(d) = st AND inSessionSku(s);
 quantitySale 'Количество' (Sku s, DepartmentStore st, DATE df, DATE dt) =
     GROUP SUM quantity(ReceiptDetail l) IF date(l) >= df AND date(l) <= dt AND departmentStore(l) = st
@@ -1129,10 +1129,10 @@ sumSold 'Продано за неделю (сумма)' (Stock st, INTEGER week,
 sumSoldPrice 'Продано за неделю (сумма)' (Stock st, INTEGER week, DATE dateFrom, DATE dateTo) = GROUP SUM
     round2(quantity(SaleLedger l)*priceSku(sku(l),st,date(l))) IF date(l) >= dateFrom AND date(l) <= dateTo AND stock(l) = st AND filterSaleLeger(l)
         BY extractWeek(date(l));
-valProfit 'Валовый доход' (Stock st, INTEGER w, DATE df, DATE dt) =
+grossProfit 'Валовый доход' (Stock st, INTEGER w, DATE df, DATE dt) =
     sumSoldPrice(st,w,df,dt) (-) sumSold(st,w,df,dt);
-marga 'Маржа,%' (Stock st, INTEGER w, DATE df, DATE dt) =
-    valProfit(st,w,df,dt)*100/sumSoldPrice(st,w,df,dt);
+markup 'Маржа,%' (Stock st, INTEGER w, DATE df, DATE dt) =
+    grossProfit(st,w,df,dt)*100/sumSoldPrice(st,w,df,dt);
 countWeek 'Кол-во недель' (DATE df, DATE dt) = INTEGER(daysInclBetweenDates(df,dt) / 7);
 
 year = DATA LOCAL INTEGER();
@@ -1155,7 +1155,7 @@ FORM saleReportWeek 'Продажи по неделям'
     PROPERTIES getWeekStart = dateFromYearWeekDay(year(), w, 1)
     PROPERTIES getWeekEnd = dateFromYearWeekDay(year(), w, 7)
     FILTERS quantitySkuSold(st,w,df,dt)
-    PROPERTIES(st,w,df,dt) quantitySkuSold, sumSold, sumSoldPrice, valProfit, marga
+    PROPERTIES(st,w,df,dt) quantitySkuSold, sumSold, sumSoldPrice, grossProfit, markup
 ;
 
 quantitySkuSold 'Продано за неделю (кол-во)' (DepartmentStore st, INTEGER week, DATE dateFrom, DATE dateTo) = GROUP SUM
@@ -1167,10 +1167,10 @@ sumSold 'Продано за неделю (сумма)' (DepartmentStore st, INT
 sumSoldPrice 'Продано за неделю (сумма)' (DepartmentStore st, INTEGER week, DATE dateFrom, DATE dateTo) = GROUP SUM
     round2(quantity(ReceiptDetail l)*priceSku(sku(l),st, date(l))) IF date(l) >= dateFrom AND date(l) <= dateTo AND departmentStore(l) = st
         BY extractWeek(date(l));
-valProfit 'Валовый доход' (DepartmentStore st, INTEGER w, DATE df, DATE dt) =
+grossProfit 'Валовый доход' (DepartmentStore st, INTEGER w, DATE df, DATE dt) =
     sumSoldPrice(st,w,df,dt) (-) sumSold(st,w,df,dt);
-marga 'Маржа,%' (DepartmentStore st, INTEGER w, DATE df, DATE dt) =
-    valProfit(st,w,df,dt)*100/sumSoldPrice(st,w,df,dt);
+markup 'Маржа,%' (DepartmentStore st, INTEGER w, DATE df, DATE dt) =
+    grossProfit(st,w,df,dt)*100/sumSoldPrice(st,w,df,dt);
 
 FORM saleReceipeWeek 'Продажи по неделям'
     OBJECTS dates = (df = DATE, dt = DATE) PANEL
@@ -1187,7 +1187,7 @@ FORM saleReceipeWeek 'Продажи по неделям'
     PROPERTIES getWeekStart = dateFromYearWeekDay(year(), w, 1)
     PROPERTIES getWeekEnd = dateFromYearWeekDay(year(), w, 7)
     FILTERS quantitySkuSold(st,w,df,dt)
-    PROPERTIES(st,w,df,dt) quantitySkuSold, sumSold, sumSoldPrice, valProfit, marga
+    PROPERTIES(st,w,df,dt) quantitySkuSold, sumSold, sumSoldPrice, grossProfit, markup
 
     REPORT 'SaleReports_saleReportWeek.jrxml'
 ;
