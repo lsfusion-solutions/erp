@@ -15,6 +15,11 @@ skipCreateLot(STRING s) += regexPatternMatch(s, ukzPattern());
 
 overProcessMarking(TerminalDocumentDetail d, TerminalLotDetail l, INTEGER i) + {
     status(l) <- statusLot(INTEGER(jsonArrayElement(marking(d), i, 'status')));
+    LOCAL lot = Lot();
+    lot() <- lot(extractGS1(id(l)));
+    IF lot() THEN {
+        status(lot()) <- status(l); 
+    }
 }
 
 in(Sku s, Stock st, TerminalBarcodeFlags f) += WHEN UKZ(s)==TTRUE AND st IS Stock AND f == TerminalBarcodeFlags.goodMarking THEN TRUE;
