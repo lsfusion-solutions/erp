@@ -6,7 +6,9 @@ NAMESPACE WB;
 
 isWBOrder 'WB' = DATA BOOLEAN (InternetOrder);
 orderUID 'Группировочный номер товара по заказам (в корзине)' = DATA STRING (InternetOrder);
+groupId 'ID транзакции заказа' = DATA STRING (InternetOrder);
 orderRidID 'ID сборочного задания WB' = DATA STRING (InternetOrder);
+supplierStockWB 'Склад поставщика' = ABSTRACT CASE Stock.Stock (InternetOrder);
 
 isSelected 'Отм.' = DATA LOCAL NESTED BOOLEAN (InternetOrder);
 
@@ -250,8 +252,27 @@ CLASS WbStatus{
     deliver 'В доставке',
     receive 'Получено покупателем',
     reject 'Отказ покупателя при получении',
-    cancel 'Отменено продавцом'
+    cancel 'Отменено продавцом',
+    cancel_missed_call 'Отмена по причине недозвона'
 }
+
+CLASS WbSystemStatus {
+    waiting 'В работе',
+    sold 'Получен покупателем',
+    canceled 'Отменено',
+    canceled_by_client 'Отменен покупателем при получении',
+    declined_by_client 'Отменен покупателем в первый час',
+    defect 'Брак',
+    ready_for_pickup 'Прибыл на ПВЗ',
+    canceled_by_missed_call 'Отмена (недозвон)'
+}
+
+wbSystemStatus = DATA WbSystemStatus (InternetOrder);
+nameWbSystemStatus 'Системный статус WB' (InternetOrder o) = caption(wbSystemStatus(o));
+
+customCancelOrder = ABSTRACT BOOLEAN ();
+overCancelOrder ABSTRACT LIST (InternetOrder);
+customCancelOrderStatus = ABSTRACT CASE StatusInternetOrder();
 
 orderByNumber(STRING number) = GROUP MAX InternetOrder o IF number(o) = number;
 

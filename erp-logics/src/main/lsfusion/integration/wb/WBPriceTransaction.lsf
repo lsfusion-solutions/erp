@@ -4,7 +4,10 @@ REQUIRE WBItemArticleMapping, WBBalance;
 
 NAMESPACE WB;
 
-price 'Цена в ERP' = DATA INTEGER (Item);
+price = ABSTRACT CASE INTEGER(Item);
+priceERP 'Цена в ERP' = DATA INTEGER (Item);
+useCustomPrice = ABSTRACT BOOLEAN ();
+price (Item i) += WHEN i IS Item AND NOT useCustomPrice() THEN priceERP(i);
 discount 'Размер скидки в ERP, %' = DATA INTEGER (Item);
 clubDiscount 'Скидка WB Клуба в ERP, %' = DATA INTEGER (Item);
 priceWB 'Цена, загружена на WB' = DATA INTEGER (Item);
@@ -13,9 +16,9 @@ clubDiscountWB 'Скидка WB Клуба, загружена на WB, %' = DAT
 editableSizePrice 'Задавать цены для размеров' = DATA BOOLEAN (Item);
 quarantine 'В карантине' = DATA BOOLEAN (Item);
 
-WHEN LOCAL CHANGED(price(Item i)) AND price(i) <= 0.0 DO {
+WHEN LOCAL CHANGED(priceERP(Item i)) AND priceERP(i) <= 0.0 DO {
     MESSAGE 'Цена должна быть положительной' NOWAIT;
-    price(i) <- PREV(price(i));
+    priceERP(i) <- PREV(priceERP(i));
 }
 
 WHEN LOCAL CHANGED(discount(Item i)) AND discount(i) < 0.0 DO {
@@ -28,17 +31,20 @@ WHEN LOCAL CHANGED(clubDiscount(Item i)) AND clubDiscount(i) < 0.0 DO {
     clubDiscount(i) <- PREV(clubDiscount(i));
 }
 
-price 'Цена в ERP' = DATA INTEGER (Size);
+price = ABSTRACT CASE INTEGER (Size);
+priceERP 'Цена в ERP' = DATA INTEGER (Size);
+useCustomPriceSize = ABSTRACT BOOLEAN ();
+price (Size s) += WHEN s IS Size AND NOT useCustomPriceSize() THEN priceERP(s);
 priceWB 'Цена, загружена на WB' = DATA INTEGER (Size);
 
 EXTEND FORM item 
-    PROPERTIES(i) price, discount, clubDiscount
-    PROPERTIES(size) price
+    PROPERTIES(i) priceERP, discount, clubDiscount
+    PROPERTIES(size) priceERP
 ;
 
 DESIGN item {
     itemHeader {
-        MOVE PROPERTY(price(i));
+        MOVE PROPERTY(priceERP(i));
         MOVE PROPERTY(discount(i));
         MOVE PROPERTY(clubDiscount(i));
     }

@@ -60,6 +60,7 @@ getOrdersDBSNew 'Получить список новых сборочных з�
                 number(order) <- number;
                 orderRidID(order) <- rid(i);
                 orderUID(order) <- orderUid(i);
+                groupId(order) <- groupId(i);
                 date(order) <- currentDate();
                 isWBOrderDBS(order) <- TRUE;
                 carrier(order) <- carrier('Own');
@@ -67,12 +68,12 @@ getOrdersDBSNew 'Получить список новых сборочных з�
 
                 IF NOT warehouse(warehouseId(i)) THEN messageOrder() <- 'В справочнике системы не найден warehouseId: ' + warehouseId(i);
 
-                //                supplierStock(order) <- stock(w); отключил, т.к. теперь связь к множеству собственных складов
+                supplierStock(order) <- supplierStockWB(order);
                 addressInternetCustomer(order) <- fullAddress(i);
                 currency(order) <- GROUP MAX Currency c IF sid(c) == currencyCode(i);
 
-                FOR INTEGER ii = [GROUP MAX INTEGER j BY chrtId(j)](INTEGER chrtID) AND Size size == size(chrtID)
-                    AND Item item == itemNM(nmId(ii)) AND itemWB(size) == item INLINE DO NEW detail = InternetOrderDetail {
+                FOR INTEGER ii = [GROUP MAX INTEGER j BY rid(j)](STRING rid) AND Size size == size(chrtId(ii))
+                    AND Item item == itemNM(nmId(ii)) AND itemWB(size) == item AND orderRidID(order) == rid INLINE DO NEW detail = InternetOrderDetail {
                     internetOrder(detail) <- order;
                     sku(detail) <- item(size);
                     price(detail) <- finalPrice(ii) / 100.0;
@@ -117,6 +118,10 @@ FORM importInfCustomer
 // https://marketplace-api.wildberries.ru/api/v3/dbs/orders/client
 postInfCustomer 'Получить информацию о клиенте сборочных заданий' () {
     NEWSESSION {
+        IF NOT (GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrderDBS(order) AND carrier(order) == carrier('Own')) THEN {
+            MESSAGE 'Заказ DBS не выбран.';
+            RETURN ;
+        }
         IF (GROUP SUM 1 IF isWBOrderDBS(InternetOrder order) AND order IS InternetOrder AND carrier(order) == carrier('Own')) THEN {
             setHttpHeadersIS();
             LOCAL messageOrder = STRING ();
@@ -127,7 +132,7 @@ postInfCustomer 'Получить информацию о клиенте сбо�
 
             logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/v3/dbs/orders/client');
 
-            EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isWBOrderDBS(order) AND carrier(order) == carrier('Own');
+            EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrderDBS(order) AND carrier(order) == carrier('Own');
             fileToString(exportFile(), 'UTF-8');
             stringToFile('\{"orders":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
             TRY {
@@ -360,8 +365,17 @@ getWbStatuses 'Получить статусы заказов' () {
             messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
             IF statusHttp() == 200 THEN {
                 IMPORT statusInfoResponseDBS JSON FROM response();
-                FOR orderId(INTEGER i) DO {
-                    wbStatus(orderByNumber(orderId(i))) <- GROUP MAX WbStatus ws IF getWord(name(ws), '.', 2) = supplierStatus(i);
+                FOR orderId(INTEGER i) AND InternetOrder o == orderByNumber(orderId(i)) 
+                    AND WbStatus ws = staticObject('WB_WbStatus.' + supplierStatus(i)) AND WbSystemStatus wss = staticObject('WB_WbSystemStatus.' + wbStatus(i)) DO {
+                    IF wss = WbSystemStatus.declined_by_client AND status(o) = StatusInternetOrder.new AND subtractSeconds(dateTime(o), currentDateTime()) <= 3600 THEN {
+                        IF customCancelOrder() THEN {
+                            overCancelOrder(o);
+                        } ELSE {
+                            status(o) <- OVERRIDE customCancelOrderStatus(), StatusInternetOrder.closed; 
+                        }
+                    }
+                    wbStatus(o) <- ws;
+                    wbSystemStatus(o) <- wss;
                 }
                 APPLY NESTED LOCAL ;
             }
