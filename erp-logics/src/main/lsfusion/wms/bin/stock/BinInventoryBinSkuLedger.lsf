@@ -340,3 +340,37 @@ show 'Просмотреть' (OutInventorySkuDetail d)  {
     }
 }
 show(OutInventorySkuDetail d) + { show(d); }
+
+WHEN CHANGED(committee(BinInventory o)) AND o IS BinInventory AND NOT SET(o IS BinInventory) AND NOT disableDocumentLog()  DO {
+    NEW d = BinInventoryLog {
+        documentId(d) <- LONG(o);
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);
+        seriesDocument(d) <- series(o);
+        dateDocument(d) <- date(o);
+        typeChange(d) <- TypeChange.committeeChange;
+        note(d) <- STRING[255](CONCAT '','Предыдущее значение : ', name(PREV(committee(o))));
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser());
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();
+        stock(d) <- stock(o);
+    }
+}
+
+WHEN CHANGED(isClosed(BinInventory o)) AND o IS BinInventory AND NOT disableDocumentLog()  DO {
+    NEW d = BinInventoryLog {
+        documentId(d) <- LONG(o);
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);
+        seriesDocument(d) <- series(o);
+        dateDocument(d) <- date(o);
+        typeChange(d) <- TypeChange.changeClosed;
+        note(d) <- STRING[255](IF isClosed(o) THEN 'Закрыт' ELSE 'Открыт');
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser());
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();
+        stock(d) <- stock(o);
+    }
+}

@@ -334,3 +334,96 @@ WHEN SET(isPosted(BinInventory i)) DO {
         documentsClosedDate(department(i)) <- date(i);
     } 
 }
+
+WHEN CHANGED(department(BinInventory o)) AND o IS BinInventory AND NOT SET(o IS BinInventory) AND NOT disableDocumentLog()  DO {
+    NEW d = BinInventoryLog {
+        documentId(d) <- LONG(o);
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);
+        seriesDocument(d) <- series(o);
+        dateDocument(d) <- date(o);
+        typeChange(d) <- TypeChange.departmentChange;
+        note(d) <- STRING[255](CONCAT '','Предыдущее значение : ', name(PREV(department(o))));
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser());
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();
+        stock(d) <- stock(o);
+    }
+}
+
+WHEN SET(InListBinInventoryDetail d IS InListBinInventoryDetail) AND NOT disableDocumentLog() DO
+    NEW l = InListBinInventoryDetailLog {
+        documentId(l) <- LONG (binInventory(d));
+        index(l) <- index(d);
+        numberDocument(l) <- number(binInventory(d));
+        seriesDocument(l) <- series(binInventory(d));
+        dateDocument(l) <- date(binInventory(d));
+        typeDocument(l) <- objectClassName(binInventory(d));
+        listBinInventory(l) <- listBinInventory(d);
+        sku(l) <- sku(d);
+        batch(l) <- CONCAT ', ', 'Код: ' + id(batch(d)), ' Наименование: ' + name(batch(d));
+        prevQuantity(l) <- quantity(d);
+        quantity(l) <- quantity(d);
+        price(l) <- price(d);
+        nameUser(l) <- ISTRING[100](name(currentUser()));
+        dateTime(l) <- currentDateTime();
+        noteL(l) <- 'Добавление';
+    }
+
+WHEN DROPPED(InListBinInventoryDetail d IS InListBinInventoryDetail) AND NOT disableDocumentLog() DO
+    NEW l = InListBinInventoryDetailLog{
+        documentId(l) <- LONG(PREV(binInventory(d)));
+        index(l) <- PREV(index(d));
+        numberDocument(l) <- number(PREV(binInventory(d)));
+        seriesDocument(l) <- series(PREV(binInventory(d)));
+        dateDocument(l) <- date(PREV(binInventory(d)));
+        typeDocument(l) <- objectClassName(PREV(binInventory(d)));
+        listBinInventory(l) <- PREV(listBinInventory(d));
+        sku(l) <- PREV(sku(d));
+        batch(l) <- CONCAT ', ', 'Код: ' + id(PREV(batch(d))), ' Наименование: ' + name(PREV(batch(d)));
+        prevQuantity(l) <- PREV(quantity(d));
+        quantity(l) <- PREV(quantity(d));
+        price(l) <- PREV(price(d));
+        nameUser(l) <- ISTRING[100](name(currentUser()));
+        dateTime(l) <- currentDateTime();
+        noteL(l) <- 'Удаление';
+    }
+
+WHEN (CHANGED(quantity(InListBinInventoryDetail d))) AND NOT DROPPED(d IS InListBinInventoryDetail) AND NOT SET(d IS InListBinInventoryDetail) AND NOT disableDocumentLog() DO
+    NEW l = InListBinInventoryDetailLog{
+        documentId(l) <- LONG (binInventory(d));
+        index(l) <- index(d);
+        numberDocument(l) <- number(binInventory(d));
+        seriesDocument(l) <- series(binInventory(d));
+        dateDocument(l) <- date(binInventory(d));
+        typeDocument(l) <- objectClassName(binInventory(d));
+        listBinInventory(l) <- listBinInventory(d);
+        sku(l) <- sku(d);
+        batch(l) <- CONCAT ', ', 'Код: ' + id(batch(d)), ' Наименование: ' + name(batch(d));
+        prevQuantity(l) <- PREV(quantity(d));
+        quantity(l) <- quantity(d);
+        price(l) <- price(d);
+        nameUser(l) <- ISTRING[100](name(currentUser()));
+        dateTime(l) <- currentDateTime();
+        noteL(l) <- 'Изменение кол-ва. ' + (CONCAT '','Предыдущее значение : ', PREV(quantity(d)));
+    }
+
+WHEN (CHANGED(batch(InListBinInventoryDetail d))) AND NOT DROPPED(d IS InListBinInventoryDetail) AND NOT SET(d IS InListBinInventoryDetail) AND NOT disableDocumentLog() DO
+    NEW l = InListBinInventoryDetailLog{
+        documentId(l) <- LONG (binInventory(d));
+        index(l) <- index(d);
+        numberDocument(l) <- number(binInventory(d));
+        seriesDocument(l) <- series(binInventory(d));
+        dateDocument(l) <- date(binInventory(d));
+        typeDocument(l) <- objectClassName(binInventory(d));
+        listBinInventory(l) <- listBinInventory(d);
+        sku(l) <- sku(d);
+        batch(l) <- CONCAT ', ', 'Код: ' + id(batch(d)), ' Наименование: ' + name(batch(d));
+        prevQuantity(l) <- PREV(quantity(d));
+        quantity(l) <- quantity(d);
+        price(l) <- price(d);
+        nameUser(l) <- ISTRING[100](name(currentUser()));
+        dateTime(l) <- currentDateTime();
+        noteL(l) <- 'Изменение партии. ' + (CONCAT '','Предыдущее значение : ', name(PREV(batch(d))));
+    }

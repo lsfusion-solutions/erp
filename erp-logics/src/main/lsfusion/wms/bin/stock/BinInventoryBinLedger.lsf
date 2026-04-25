@@ -1,6 +1,6 @@
 MODULE BinInventoryBinLedger;
 
-REQUIRE BinLedger, Operation, EmployeeBin;
+REQUIRE BinLedger, Operation, EmployeeBin, StockSkuDocument;
 
 NAMESPACE BinInventory;
 
@@ -902,6 +902,389 @@ NAVIGATOR {
             NEW binInventories;
             NEW operations;
             NEW inventoryScopes;
+        }
+    }
+}
+
+//history
+
+CLASS BinInventoryLog 'Запись лога инвентаризации по ячейкам' : DocumentLog;
+TABLE binInventoryLog(BinInventoryLog);
+
+stock = DATA Stock(BinInventoryLog);
+nameStock 'Склад'(BinInventoryLog d) = name(stock(d));
+
+EXTEND CLASS TypeChange {
+    stockChange 'Изменение склада',
+    departmentChange 'Изменение отдела',
+    fromToChange 'Изменение периода',
+    committeeChange 'Изменение комиссии',
+    noteChange 'Изменение примечания'
+}
+
+WHEN SET(BinInventory o IS BinInventory) IF NOT disableDocumentLog() DO {
+    NEW d = BinInventoryLog {
+        documentId(d) <- LONG(o);
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);
+        seriesDocument(d) <- series(o);
+        dateDocument(d) <- date(o);
+        typeChange(d) <- TypeChange.add;
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser());
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();
+        note(d) <- STRING[255]('Добавлен документ');
+        stock(d) <- stock(o);
+    }
+}
+WHEN DROPPED(BinInventory o IS BinInventory) IF NOT disableDocumentLog() DO {
+    NEW d = BinInventoryLog {
+        documentId(d) <- LONG(PREV(o AS Document));
+        typeDocument(d) <- prevObjectClassName(o);
+        numberDocument(d) <- PREV(number(o));
+        seriesDocument(d) <- PREV(series(o));
+        dateDocument(d) <- PREV(date(o));
+        typeChange(d) <- TypeChange.delete;
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser());
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();
+        note(d) <- STRING[255]('Удален документ');
+        stock(d) <- PREV(stock(o));
+    }
+}
+
+WHEN (CHANGED(number(BinInventory o)) OR CHANGED(series(o))) AND o IS BinInventory AND NOT SET(o IS BinInventory) AND NOT disableDocumentLog()  DO {
+    NEW d = BinInventoryLog {
+        documentId(d) <- LONG(o);
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);
+        seriesDocument(d) <- series(o);
+        dateDocument(d) <- date(o);
+        typeChange(d) <- TypeChange.changeSeriesNumber;
+        note(d) <- STRING[255]('Предыдущее значение серия/номер: '+(CONCAT '', PREV(series(o)), PREV(number(o))));
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser());
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();
+        stock(d) <- stock(o);
+    }
+}
+
+WHEN CHANGED(date(BinInventory o)) AND o IS BinInventory AND NOT SET(o IS BinInventory) AND NOT disableDocumentLog()  DO {
+    NEW d = BinInventoryLog {
+        documentId(d) <- LONG(o);
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);
+        seriesDocument(d) <- series(o);
+        dateDocument(d) <- date(o);
+        typeChange(d) <- TypeChange.changeDate;
+        note(d) <- STRING[255]('Предыдущее значение Даты: '+toDateDDMMYYYY(PREV(date(o))));
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser());
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();
+        stock(d) <- stock(o);
+    }
+}
+
+WHEN CHANGED(stock(BinInventory o)) AND o IS BinInventory AND NOT SET(o IS BinInventory) AND NOT disableDocumentLog()  DO {
+    NEW d = BinInventoryLog {
+        documentId(d) <- LONG(o);
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);
+        seriesDocument(d) <- series(o);
+        dateDocument(d) <- date(o);
+        typeChange(d) <- TypeChange.stockChange;
+        note(d) <- STRING[255](CONCAT '','Предыдущее значение : ', name(PREV(stock(o))));
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser());
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();
+        stock(d) <- stock(o);
+    }
+}
+
+WHEN (CHANGED(fromDateTime(BinInventory o)) OR CHANGED(toDateTime(o))) AND o IS BinInventory AND NOT SET(o IS BinInventory) AND NOT disableDocumentLog()  DO {
+    NEW d = BinInventoryLog {
+        documentId(d) <- LONG(o);
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);
+        seriesDocument(d) <- series(o);
+        dateDocument(d) <- date(o);
+        typeChange(d) <- TypeChange.fromToChange;
+        note(d) <- STRING[255]('Предыдущее значение периода: '+(CONCAT ' - ', PREV(fromDateTime(o)), PREV(toDateTime(o))));
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser());
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();
+        stock(d) <- stock(o);
+    }
+}
+
+WHEN CHANGED(note(BinInventory o)) AND o IS BinInventory AND NOT SET(o IS BinInventory) AND NOT disableDocumentLog()  DO {
+    NEW d = BinInventoryLog {
+        documentId(d) <- LONG(o);
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);
+        seriesDocument(d) <- series(o);
+        dateDocument(d) <- date(o);
+        typeChange(d) <- TypeChange.noteChange;
+        note(d) <- STRING[255](CONCAT '','Предыдущее значение : ', PREV(note(o)));
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser());
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();
+        stock(d) <- stock(o);
+    }
+}
+
+WHEN (CHANGED(isPosted(BinInventory o))) AND o IS BinInventory AND NOT disableDocumentLog()  DO {
+    NEW d = BinInventoryLog {
+        documentId(d) <- LONG(o);
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);
+        seriesDocument(d) <- series(o);
+        dateDocument(d) <- date(o);
+        typeChange(d) <- TypeChange.changePosted;
+        note(d) <- STRING[255](IF isPosted(o) THEN 'Проведен' ELSE 'Распроведен');
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser());
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();
+        stock(d) <- stock(o);
+    }
+}
+
+WHEN (INTEGER x== [GROUP SUM 1 IF SET(ListBinInventory d IS ListBinInventory) BY binInventory(d)](BinInventory o)) IF NOT disableDocumentLog() DO {
+    NEW d = BinInventoryLog {
+        documentId(d) <- LONG(o);
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);
+        seriesDocument(d) <- series(o);
+        dateDocument(d) <- date(o);
+        typeChange(d) <- TypeChange.addRow;
+        note(d) <- STRING[255]('Количество добавленных описей: '+x);
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser());
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();
+        stock(d) <- stock(o);
+    }
+}
+
+WHEN INTEGER x==[ GROUP SUM 1 IF DROPPED(ListBinInventory d IS ListBinInventory) BY PREV(binInventory(d))](BinInventory o) AND o IS BinInventory AND NOT disableDocumentLog() NOINLINE DO {
+    NEW d = BinInventoryLog {
+        documentId(d) <- LONG(o);
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);
+        seriesDocument(d) <- series(o);
+        dateDocument(d) <- date(o);
+        typeChange(d) <- TypeChange.deleteRow;
+        note(d) <- STRING[255]('Количество удаленных строк: '+x);
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser());
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();
+        stock(d) <- stock(o);
+    }
+}
+
+CLASS ListBinInventoryLog 'Запись лога описи' : DocumentDetailLog;
+TABLE listBinInventoryLog(ListBinInventoryLog);
+
+listBinInventory = DATA ListBinInventory(ListBinInventoryLog);
+nameListBinInventory 'Опись' (ListBinInventoryLog l) = name(listBinInventory(l));
+
+noteL 'Примечание' = DATA STRING[100] (ListBinInventoryLog);
+
+WHEN  SET(ListBinInventory d IS ListBinInventory) AND NOT disableDocumentLog() DO
+    NEW l = ListBinInventoryLog {
+        documentId(l) <- LONG (binInventory(d));
+        index(l) <- index(d);
+        numberDocument(l) <- number(binInventory(d));
+        seriesDocument(l) <- series(binInventory(d));
+        dateDocument(l) <- date(binInventory(d));
+        typeDocument(l) <- objectClassName(binInventory(d));
+        listBinInventory(l) <- d;
+        nameUser(l) <- ISTRING[100](name(currentUser()));
+        dateTime(l) <- currentDateTime();
+        noteL(l) <- 'Добавление';
+    }
+
+WHEN DROPPED(ListBinInventory d IS ListBinInventory) AND NOT disableDocumentLog() DO
+    NEW l = ListBinInventoryLog{
+        documentId(l) <- LONG(PREV(binInventory(d)));
+        index(l) <- PREV(index(d));
+        numberDocument(l) <- (number(PREV(binInventory(d))));
+        seriesDocument(l) <- (series(PREV(binInventory(d))));
+        dateDocument(l) <- (date(PREV(binInventory(d))));
+        typeDocument(l) <- prevObjectClassName(PREV(binInventory(d)));
+        
+        nameUser(l) <- ISTRING[100](name(currentUser()));
+        dateTime(l) <- currentDateTime();
+        noteL(l) <- 'Удаление';
+    }
+
+WHEN (CHANGED(status(ListBinInventory d))) AND NOT DROPPED(d IS ListBinInventory) AND NOT SET(d IS ListBinInventory) AND NOT disableDocumentLog() DO
+    NEW l = ListBinInventoryLog{
+        documentId(l) <- LONG (binInventory(d));
+        index(l) <- index(d);
+        numberDocument(l) <- number(binInventory(d));
+        seriesDocument(l) <- series(binInventory(d));
+        dateDocument(l) <- date(binInventory(d));
+        typeDocument(l) <- objectClassName(binInventory(d));
+        listBinInventory(l) <- d;
+        nameUser(l) <- ISTRING[100](name(currentUser()));
+        dateTime(l) <- currentDateTime();
+        noteL(l) <- 'Изменение статуса';
+    }
+
+WHEN (INTEGER x== [GROUP SUM 1 IF SET(InListBinInventoryDetail d IS InListBinInventoryDetail) BY listBinInventory(d)](ListBinInventory d)) IF NOT disableDocumentLog() DO {
+    NEW l = ListBinInventoryLog {
+        documentId(l) <- LONG (binInventory(d));
+        index(l) <- index(d);
+        numberDocument(l) <- number(binInventory(d));
+        seriesDocument(l) <- series(binInventory(d));
+        dateDocument(l) <- date(binInventory(d));
+        typeDocument(l) <- objectClassName(binInventory(d));
+        listBinInventory(l) <- d;
+        nameUser(l) <- ISTRING[100](name(currentUser()));
+        dateTime(l) <- currentDateTime();
+        noteL(l) <- 'Количество добавленных строк описи(приход): ' + x;
+    }
+}
+
+WHEN INTEGER x==[ GROUP SUM 1 IF DROPPED(InListBinInventoryDetail d IS InListBinInventoryDetail) BY PREV(listBinInventory(d))](ListBinInventory d) AND d IS ListBinInventory AND NOT disableDocumentLog() NOINLINE DO {
+    NEW l = ListBinInventoryLog {
+        documentId(l) <- LONG (binInventory(d));
+        index(l) <- index(d);
+        numberDocument(l) <- number(binInventory(d));
+        seriesDocument(l) <- series(binInventory(d));
+        dateDocument(l) <- date(binInventory(d));
+        typeDocument(l) <- objectClassName(binInventory(d));
+        listBinInventory(l) <- d;
+        nameUser(l) <- ISTRING[100](name(currentUser()));
+        dateTime(l) <- currentDateTime();
+        noteL(l) <- 'Количество удаленных строк описи(приход): ' + x;
+    }
+}
+
+WHEN (INTEGER x== [GROUP SUM 1 IF SET(OutListBinInventoryDetail d IS OutListBinInventoryDetail) BY listBinInventory(d)](ListBinInventory d)) IF NOT disableDocumentLog() DO {
+    NEW l = ListBinInventoryLog {
+        documentId(l) <- LONG (binInventory(d));
+        index(l) <- index(d);
+        numberDocument(l) <- number(binInventory(d));
+        seriesDocument(l) <- series(binInventory(d));
+        dateDocument(l) <- date(binInventory(d));
+        typeDocument(l) <- objectClassName(binInventory(d));
+        listBinInventory(l) <- d;
+        nameUser(l) <- ISTRING[100](name(currentUser()));
+        dateTime(l) <- currentDateTime();
+        noteL(l) <- 'Количество добавленных строк описи(расход): ' + x;
+    }
+}
+
+WHEN INTEGER x==[ GROUP SUM 1 IF DROPPED(OutListBinInventoryDetail d IS OutListBinInventoryDetail) BY PREV(listBinInventory(d))](ListBinInventory d) AND d IS ListBinInventory AND NOT disableDocumentLog() NOINLINE DO {
+    NEW l = ListBinInventoryLog {
+        documentId(l) <- LONG (binInventory(d));
+        index(l) <- index(d);
+        numberDocument(l) <- number(binInventory(d));
+        seriesDocument(l) <- series(binInventory(d));
+        dateDocument(l) <- date(binInventory(d));
+        typeDocument(l) <- objectClassName(binInventory(d));
+        listBinInventory(l) <- d;
+        nameUser(l) <- ISTRING[100](name(currentUser()));
+        dateTime(l) <- currentDateTime();
+        noteL(l) <- 'Количество удаленных строк описи(расход): ' + x;
+    }
+}
+
+WHEN (INTEGER x== [GROUP SUM 1 IF SET(include(Bin b, ListBinInventory l)) BY l](ListBinInventory d)) IF NOT disableDocumentLog() DO {
+    NEW l = ListBinInventoryLog {
+        documentId(l) <- LONG (binInventory(d));
+        index(l) <- index(d);
+        numberDocument(l) <- number(binInventory(d));
+        seriesDocument(l) <- series(binInventory(d));
+        dateDocument(l) <- date(binInventory(d));
+        typeDocument(l) <- objectClassName(binInventory(d));
+        listBinInventory(l) <- d;
+        nameUser(l) <- ISTRING[100](name(currentUser()));
+        dateTime(l) <- currentDateTime();
+        noteL(l) <- 'Количество добавленных ячеек: ' + x;
+    }
+}
+
+WHEN INTEGER x==[ GROUP SUM 1 IF DROPPED(include(Bin b, ListBinInventory l)) BY l](ListBinInventory d) AND d IS ListBinInventory AND NOT disableDocumentLog() NOINLINE DO {
+    NEW l = ListBinInventoryLog {
+        documentId(l) <- LONG (binInventory(d));
+        index(l) <- index(d);
+        numberDocument(l) <- number(binInventory(d));
+        seriesDocument(l) <- series(binInventory(d));
+        dateDocument(l) <- date(binInventory(d));
+        typeDocument(l) <- objectClassName(binInventory(d));
+        listBinInventory(l) <- d;
+        nameUser(l) <- ISTRING[100](name(currentUser()));
+        dateTime(l) <- currentDateTime();
+        noteL(l) <- 'Количество удаленных ячеек: ' + x;
+    }
+}
+
+CLASS InListBinInventoryDetailLog 'Запись лога строки описи(приход)' : DocumentDetailLog;
+TABLE inListBinInventoryDetailLog(InListBinInventoryDetailLog);
+
+listBinInventory = DATA ListBinInventory(InListBinInventoryDetailLog);
+nameListBinInventory 'Опись' (InListBinInventoryDetailLog l) = name(listBinInventory(l));
+
+noteL 'Примечание' = DATA STRING[100] (InListBinInventoryDetailLog);
+
+EXTEND FORM binInventories
+    OBJECTS d=BinInventoryLog
+    PROPERTIES(d) READONLY BACKGROUND background(d)  numberDocument, seriesDocument, dateDocument, nameStock, typeDocument,
+        hostnameComputer, userLogin, nameContact, dateSession, timeSession, nameTypeChange, note
+    FILTERS documentId(d) == LONG(i)
+
+    OBJECTS l = ListBinInventoryLog
+    PROPERTIES (l) READONLY seriesDocument, numberDocument, dateDocument, typeDocument,
+        index, nameListBinInventory, nameUser, date, time, noteL
+    FILTERS documentId(d) == documentId(l) AND NOT sku(l)
+
+
+    OBJECTS l2 = InListBinInventoryDetailLog
+    PROPERTIES (l2) READONLY seriesDocument, numberDocument, dateDocument, typeDocument,
+        index, nameListBinInventory, idSku, nameSku, quantity, price, batch, nameUser, date, time, noteL
+    FILTERS documentId(d) == documentId(l2) AND sku(l2)
+;
+
+DESIGN binInventories {
+    OBJECTS {
+        MOVE BOX(i) { fill = 2;}
+        NEW tabbed {
+            fill = 1;
+            tabbed = TRUE;
+            NEW history {
+                fill = 1;
+                tabbed = TRUE;
+                showIf = enableDocumentLog();
+                caption = 'История';
+                NEW historyLog{
+                    caption = 'По документу';
+                    MOVE BOX(d);
+                }
+                NEW listLog{
+                    caption = 'По описям';
+                    MOVE BOX(l);
+                }
+                NEW inListDetailLog{
+                    caption = 'По строкам описи(приход)';
+                    MOVE BOX(l2);
+                }
+            }
+            NEW print {
+                fill = 1;
+                caption = 'Печать';
+            }
         }
     }
 }
