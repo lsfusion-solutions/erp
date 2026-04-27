@@ -5,10 +5,11 @@ REQUIRE EDS, EDN;
 NAMESPACE EDN;
 
 EXTEND CLASS EDSApplication {
-    docudriveProxy '(ЭДиН) Прокси сервис Docudrive'
+    docudriveProxy '(ЭДиН) Прокси сервис Docudrive',
+    cloudSign '(ЭДиН) CloudSign'
 }
 
-isEDN(EDSApplication a) = a == EDSApplication.docudriveProxy;
+isEDN(EDSApplication a) = a == EDSApplication.docudriveProxy OR a == EDSApplication.cloudSign;
 
 aliasEDSService 'Токен ЭЦП - имя контейнера' = DATA STRING[150] (LegalEntity);
 passwordEDSService 'Токен ЭЦП - пароль' = DATA STRING[100] (LegalEntity) ECHO;
@@ -17,20 +18,20 @@ passwordEDSService 'Токен ЭЦП - пароль' = DATA STRING[100] (Stock)
 aliasEDSService 'Токен ЭЦП - имя контейнера' = DATA STRING[150] (Employee);
 passwordEDSService 'Токен ЭЦП - пароль' = DATA STRING[100] (Employee) ECHO;
 
-EDSService 'Прокси сервис Docudrive' = DATA EDSService (LegalEntity);
-descriptionEDSService 'Прокси сервис Docudrive' (LegalEntity o) = description(EDSService(o));
+EDSService 'Прокси сервис' = DATA EDSService (LegalEntity);
+descriptionEDSService 'Прокси сервис' (LegalEntity o) = description(EDSService(o));
 CONSTRAINT EDSService(LegalEntity o) AND NOT isEDN(edsApplication(EDSService(o)))
     CHECKED BY EDSService[LegalEntity]
     MESSAGE 'Задан тип приложения ЭЦП недоступный для провайдера';
 
-EDSService 'Прокси сервис Docudrive' = DATA EDSService (Stock);
-descriptionEDSService 'Прокси сервис Docudrive' (Stock o) = description(EDSService(o));
+EDSService 'Прокси сервис' = DATA EDSService (Stock);
+descriptionEDSService 'Прокси сервис' (Stock o) = description(EDSService(o));
 CONSTRAINT EDSService(Stock o) AND NOT isEDN(edsApplication(EDSService(o)))
     CHECKED BY EDSService[Stock]
     MESSAGE 'Задан тип приложения ЭЦП недоступный для провайдера';
 
-EDSService 'Прокси сервис Docudrive' = DATA EDSService (Employee);
-descriptionEDSService 'Прокси сервис Docudrive' (Employee o) = description(EDSService(o));
+EDSService 'Прокси сервис' = DATA EDSService (Employee);
+descriptionEDSService 'Прокси сервис' (Employee o) = description(EDSService(o));
 CONSTRAINT EDSService(Employee o) AND NOT isEDN(edsApplication(EDSService(o)))
     CHECKED BY EDSService[Employee]
     MESSAGE 'Задан тип приложения ЭЦП недоступный для провайдера';
@@ -105,6 +106,22 @@ PROPERTIES() IN signResult
     fileName EXTID '=urn:webservice:FileName', 
     fileData EXTID '=urn:webservice:FileData';
 
+description = DATA LOCAL STRING();
+keyId = DATA LOCAL STRING();
+content = DATA LOCAL STRING();
+attrCertSerial = DATA LOCAL STRING();
+container = DATA LOCAL STRING();
+
+FORM cloudSignRequest
+    PROPERTIES () documentType, description, keyId, content, attrCertSerial
+;
+
+message = DATA LOCAL STRING ();
+error = DATA LOCAL STRING ();
+
+FORM cloudSignError
+    PROPERTIES () message, error
+;
 
 migratedEDS = DATA BOOLEAN();
 onStarted()+{
