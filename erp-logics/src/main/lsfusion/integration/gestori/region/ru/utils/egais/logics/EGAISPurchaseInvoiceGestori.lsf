@@ -1,0 +1,58 @@
+MODULE EGAISPurchaseInvoiceGestori;
+
+REQUIRE EGAISPurchaseInvoice;
+
+PRIORITY Purchase;
+
+NAMESPACE EGAISPurchase;
+
+unlink 'Отвязать ТТН' (Invoice i) {
+    IF wayBillAct(wayBill(i)) THEN {
+        MESSAGE 'Невозможно отвязать, т.к. для ТТН есть акт приемки ЕГАИС';
+        RETURN;
+    }
+    
+    quantity(UserInvoiceDetail d, WayBillPosition p) <- NULL WHERE userInvoice(d) = i;
+    wayBill(i) <- NULL;
+}
+
+forbidAddUserInvoiceDetailTTN 'Запрещать добавлять в спецификацию накладной позиции из ЕГАИС ТТН при наличии не связанных позиций' = DATA BOOLEAN () PREREAD;
+EXTEND FORM integrationData
+    PROPERTIES() forbidAddUserInvoiceDetailTTN
+;
+
+DESIGN integrationData {
+    EGAISParams {
+        MOVE PROPERTY(forbidAddUserInvoiceDetailTTN());
+    }
+}
+
+existOtherProduct (Invoice i) = 
+    GROUP MIN TRUE IF NOT sku(UserInvoiceDetail d) == minItem(product(WayBillPosition pp)) AND sku(d) AND  minItem(product(pp)) AND wayBill(i) == wayBill(pp) AND invoice(d) == i;
+
+existOtherWayBillPosition(Invoice i) = 
+    GROUP MIN TRUE IF quantity(UserInvoiceDetail d, WayBillPosition p) AND NOT wayBill(i) == wayBill(p) AND wayBill(i) AND wayBill(p) AND invoice(d) == i;
+
+quantityExceedsTTN 'Превышение количества поставлено над ЕГАИС' (UserInvoiceDetail d) = shipmentQuantity(d) > quantityWayBill(d);
+backgroundShipmentQuantity(UserInvoiceDetail d) += RGB(255,212,212) IF  shipmentQuantity(d) > quantityWayBill(d);
+hideCreateDetail(UserInvoice i) += forbidAddUserInvoiceDetailTTN() AND (existOtherProduct(i) OR existOtherWayBillPosition(i));
+
+EXTEND FORM userInvoice
+    PROPERTIES(i) unlink SHOWIF NOT wayBillAct(wayBill(i))
+    
+    FILTERGROUP exceed
+        FILTER 'Превышение количества поставлено над ЕГАИС' quantityExceedsTTN(ed)
+;
+
+DESIGN userInvoice {
+    EGAISHeader {
+        MOVE PROPERTY(unlink(i));
+    }
+}
+
+ttnQuantity(WayBill w, Product p) = GROUP SUM quantity(WayBillPosition wp) BY wayBill(wp), product(wp); 
+shipmentQuantity(Invoice i, Product p) = GROUP SUM shipmentQuantity(InvoiceDetail d) BY invoice(d), minProduct(sku(d));
+countDetailsShipmentBiggerTTN (Invoice i) = GROUP SUM 1 IF invoice(InvoiceDetail d) = i AND minProduct(sku(d)) AND shipmentQuantity(d)
+    AND shipmentQuantity(i, minProduct(sku(d))) > ttnQuantity(wayBill(i), minProduct(sku(d)));
+
+overCheckProcess(Invoice i) += IF countDetailsShipmentBiggerTTN(i) AND i IS Invoice THEN 'По ' + countDetailsShipmentBiggerTTN(i) + ' позициям принятое количество превышает количество по ЕГАИС ТТН';

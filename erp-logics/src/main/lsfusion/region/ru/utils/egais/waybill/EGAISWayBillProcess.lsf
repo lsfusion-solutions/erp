@@ -20,12 +20,19 @@ META defineDocumentInWayBillActProcess (doc, quantityProp)
     quantity###doc 'Кол-во (в документе)' (WayBillPosition p) = GROUP SUM quantity(###doc##Detail d, p);
     quantityWayBill 'Кол-во (ЕГАИС)' (###doc###Detail d) = GROUP SUM quantity(d, WayBillPosition p) IF NOT canceled(p);
 
+    overCheckProcess = ABSTRACT VALUE STRING (###doc);
+    
     process 'Отправить в ЕГАИС' (###doc d) {
+        IF overCheckProcess(d) THEN {
+            MESSAGE overCheckProcess(d);
+            RETURN;
+        }
+        
         IF (GROUP SUM 1 IF doc(###doc##Detail dd) = d AND minProduct(sku(dd)) AND quantityProp(dd) > 0 AND NOT quantityProp(dd) = quantityWayBill(dd)) THEN {
             MESSAGE 'Не для всех строк документа выбраны строки ТТН ЕГАИС. Отправка невозможна.';
             RETURN;
         }
-
+        
         IF (GROUP SUM 1 IF doc(###doc##Detail dd) == d AND NOT minProduct(sku(dd))) THEN {
             ASK 'Для следующих товаров отсутствует аналог в справочнике ЕГАИС Алкогольная продукция: \n' +
                 (GROUP CONCAT name(sku(###doc##Detail dd)) IF doc(dd) == d AND NOT minProduct(sku(dd)), '\n' ORDER dd) + '\nПродолжить?' DO { } 
@@ -53,6 +60,7 @@ META defineDocumentInWayBillActProcess (doc, quantityProp)
 END
 
 META defineDocumentInWayBillActForm (doc, obj)
+    hideProcess = ABSTRACT BOOLEAN (###doc);
     EXTEND FORM doc##s
         OBJECTS w = WayBill PANEL
         PROPERTIES(w) READONLY accepted, canceled, number, date, shippingDate, nameStatus
@@ -65,7 +73,7 @@ META defineDocumentInWayBillActForm (doc, obj)
     
         PROPERTIES READONLY commentsWayBillAct 'Комментарий' = comments(wayBillActOutDoc(wayBillAct(w))) PANEL     
         PROPERTIES(obj) DRAW wp TOOLBAR 
-                        processEGAIS = process SHOWIF isPosted(obj) AND NOT activeWayBillAct(w),
+                        processEGAIS = process SHOWIF isPosted(obj) AND NOT activeWayBillAct(w) AND NOT hideProcess(obj),
                         cancelEGAIS = cancel SHOWIF accepted(w) AND NOT canceled(w) AND
                                                     activeWayBillAct(w) AND
                                                     NOT (notRejected(requestRepealWBOutDoc(wayBillAct(w))) AND hasRRWB(wayBillAct(w)))

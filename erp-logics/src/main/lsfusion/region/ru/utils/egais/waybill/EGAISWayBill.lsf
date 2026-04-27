@@ -304,11 +304,36 @@ FORM wayBills 'ТТН'
     PROPERTIES(p) READONLY identity, idProduct, fullNameProduct, quantity, price, idF1Reg, idF2Reg, 
                            idConsigneeF2Reg, realQuantity, bottlingDate
     FILTERS wayBill(p) = w
-    
-    LIST WayBill OBJECT w
 ;
 
 DESIGN wayBills {
+    OBJECTS {
+        NEW tabbedPane {
+            tabbed = TRUE;
+            fill = 1;
+            MOVE BOX(p) { caption = 'Позиции'; }
+        }
+    }
+}
+
+linkedDoc = ABSTRACT VALUE BOOLEAN (WayBill);
+overDialogBackground = ABSTRACT COLOR (WayBill);
+
+FORM dialogWayBills 'ТТН'
+    OBJECTS w = WayBill BACKGROUND overDialogBackground (w)
+    PROPERTIES(w) READONLY accepted, canceled, id, number, date, shippingDate,
+        shortNameShipper, descriptionShipper, shortNameConsignee, descriptionConsignee, regId,
+        base, note
+
+    OBJECTS p = WayBillPosition
+    PROPERTIES(p) READONLY identity, idProduct, fullNameProduct, quantity, price, idF1Reg, idF2Reg,
+        idConsigneeF2Reg, realQuantity, bottlingDate
+    FILTERS wayBill(p) = w
+
+    LIST WayBill OBJECT w
+;
+
+DESIGN dialogWayBills {
     OBJECTS {
         NEW tabbedPane {
             tabbed = TRUE;
@@ -340,8 +365,8 @@ DESIGN markCodes {
     }
 }
 
-
 META defineDocumentInWayBill (doc, quantityProp, supplierStock, customerStock, prefix, captionDocs)
+    
     quantity 'Кол-во (ЕГАИС)' = DATA NUMERIC[16,5] (###doc##Detail, WayBillPosition);
     
     fillQuantity 'Выбрать' (###doc##Detail d, WayBillPosition p) { 
@@ -365,11 +390,12 @@ META defineDocumentInWayBill (doc, quantityProp, supplierStock, customerStock, p
     numberDateWayBill 'ТТН ЕГАИС' (###doc i) = numberDate(wayBill(i));
     seriesNumber###doc captionDocs (WayBill w) = GROUP CONCAT seriesNumber(###doc d), ', ' ORDER d BY wayBill(d);
     ##doc = GROUP MAX ###doc i BY wayBill(i);
+    linkedDoc(WayBill w) += TRUE IF ##doc(w);
     isExport (WayBill w) = isExport(##doc(w));
     isExport (WayBillPosition p) = isExport(wayBill(p));
     
     changeNumberDateWayBill (###doc d) {
-        DIALOG wayBills OBJECTS w = wayBill(d) NULL INPUT FILTERS toAccept(w) AND matches(d, w) DO {
+        DIALOG dialogWayBills OBJECTS w = wayBill(d) NULL INPUT FILTERS toAccept(w) AND matches(d, w) DO {
             wayBill(d) <- w;
         }
     }
@@ -384,32 +410,39 @@ META defineDocumentInWayBill (doc, quantityProp, supplierStock, customerStock, p
         quantity(###doc##Detail d, WayBillPosition p) <- partitionQuantity(d, p)
                    WHERE doc(d) = i;
     }
-    fillDetailParams(WayBillPosition p, UserInvoiceDetail d) {
+    fillDetailParams(WayBillPosition p, ###doc##Detail d) {
         sku(d) <- minItem(product(p));
         quantity(d) <- quantity(p);
         quantity(d, p) <- quantity(p);
         invoicePrice(d) <- price(p);
         price(d) <- round2(price(p) * 100 / (100 + valueVAT(minItem(product(p)))));        
     }
+    
+    overCreateDetail ABSTRACT (###doc);
     createDetail 'Создать строки' (###doc i) {
-        FOR wayBill(WayBillPosition p) = wayBill(i) ORDER p DO NEW d = UserInvoiceDetail {
-            userInvoice(d) <- i;
+        FOR wayBill(WayBillPosition p) = wayBill(i) AND NOT [GROUP MIN quantity(###doc##Detail d, WayBillPosition pp) BY pp](p) ORDER p DO NEW d = ###doc##Detail {
+            ##doc(d) <- i;
             fillDetailParams(p,d);
-        } 
+        }
+        overCreateDetail(i);
     }
 
     quantityWayBill 'Кол-во (ЕГАИС)' (###doc##Detail d) = GROUP SUM quantity(d, WayBillPosition s) IF NOT canceled(s); // проверяем не wayBill(doc(d)) = wayBill(s), чтобы было одинаково с последующим подтверждением
     incorrectQuantityWayBill (###doc##Detail d) = quantityProp(d) AND NOT quantityProp(d) = quantityWayBill(d);
     backgroundQuantityWayBill(###doc##Detail d) = RGB(255,212,212) IF incorrectQuantityWayBill(d);
 
+    background###quantityProp = ABSTRACT COLOR (###doc##Detail);
+    hideCreateDetail = ABSTRACT BOOLEAN (###doc);
+    
     EXTEND FORM doc
         OBJECTS ed = ###doc##Detail
-        PROPERTIES(ed) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, price, quantityProp,
-                                quantityWayBill BACKGROUND backgroundQuantityWayBill(ed)
+        PROPERTIES(ed) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, price, 
+            quantityProp BACKGROUND background###quantityProp(ed),
+            quantityWayBill BACKGROUND backgroundQuantityWayBill(ed)
         ORDERS index(ed)
         FILTERS doc(ed) = i
     
-        PROPERTIES(i) DRAW ed TOOLBAR createDetail, fillQuantity
+        PROPERTIES(i) DRAW ed TOOLBAR createDetail SHOWIF NOT hideCreateDetail(i), fillQuantity
         PROPERTIES(i) numberDateWayBill ON CHANGE changeNumberDateWayBill(i)
         
         OBJECTS wp = WayBillPosition

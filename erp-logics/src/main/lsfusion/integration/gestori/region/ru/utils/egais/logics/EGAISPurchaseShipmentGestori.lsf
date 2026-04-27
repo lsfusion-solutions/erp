@@ -1,0 +1,15 @@
+MODULE EGAISPurchaseShipmentGestori;
+
+REQUIRE EGAISPurchaseShipment;
+
+NAMESPACE EGAISPurchase;
+
+canCreateLot (UserInvoice i) =
+    GROUP MAX TRUE IF quantity(UserInvoiceDetail d, wayBillPosition(WayBillMark m)) AND wayBill(wayBillPosition(m)) = wayBill(i) AND NOT lot(markCode(m));
+
+overCreateDetail(UserInvoice i) +{
+    IF canCreateLot(i) THEN
+        createLots(i);
+}
+
+hideCreateLots(UserInvoice i) += NOT canCreateLot (i) AND i IS UserInvoice;

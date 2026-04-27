@@ -19,6 +19,7 @@ activeWayBillAct (WayBill w) = notRejected(wayBillActOutDoc(wayBillAct(w)));
 GROUP header EXTID 'wa:Header';
 GROUP content EXTID 'wa:Content';
 GROUP contentMarkInfo EXTID 'wa=http://fsrar.ru/WEGAIS/ActTTNSingle_v4:MarkInfo';
+GROUP transport EXTID 'wa:Transport';
 
 FORM wayBillAct_v4 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:WayBillAct_v4'
     PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/CommonV3' EXTID 'xmlns:ce', ='http://fsrar.ru/WEGAIS/ActTTNSingle_v4' EXTID 'xmlns:wa'
@@ -40,6 +41,9 @@ FORM wayBillAct_v4 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:WayBill
     OBJECTS amc = WayBillMark EXTID 'ce:amc' IN contentMarkInfo
     PROPERTIES(amc) idMarkCode EXTID 'value'
     FILTERS wayBillPosition(amc) = p AND NOT accepted(amc)
+
+    PROPERTIES IN transport 
+        = IF isAccept(wayBill(a)) = 'Rejected'  THEN 'NotChange' ELSE 'IsChange' EXTID 'wa:ChangeOwnership'
 ;
 
 submitAct (WayBillActOutDoc a) {
