@@ -4,5 +4,10 @@ REQUIRE PriceListLedger, Item;
 
 NAMESPACE PriceList;
 
-showPriceListLedgerStock 'Показать изменение цены товара по складу' (Sku sku)  { SHOW movementPriceSkuStock OBJECTS s = sku; }  ASON CONTEXTMENU nameAttribute[Item];
-showPriceListLedger 'Показать изменение цены товара' (Sku sku)  { SHOW movementPriceSkuStocks OBJECTS s = sku; }  ASON CONTEXTMENU nameAttribute[Item];
+skipDockedMovementPriceSku = ABSTRACT BOOLEAN ();
+showPriceListLedgerStock 'Показать изменение цены товара по складу' (Sku sku) {
+    IF NOT skipDockedMovementPriceSku() THEN SHOW movementPriceSkuStock OBJECTS s = sku; ELSE SHOW movementPriceSkuStock OBJECTS s = sku DOCKED;
+} ASON CONTEXTMENU nameAttribute[Item];
+showPriceListLedger 'Показать изменение цены товара' (Sku sku) {
+    IF NOT skipDockedMovementPriceSku() THEN SHOW movementPriceSkuStocks OBJECTS s = sku; ELSE SHOW movementPriceSkuStocks OBJECTS s = sku DOCKED;
+} ASON CONTEXTMENU nameAttribute[Item];
