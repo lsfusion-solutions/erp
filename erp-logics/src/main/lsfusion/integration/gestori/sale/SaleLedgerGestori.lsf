@@ -1786,6 +1786,264 @@ DESIGN operativeReport {
     }
 }
 
+avgDateFrom 'Период (с)' = DATA LOCAL DATE ();
+avgDateTo 'Период (по)' = DATA LOCAL DATE ();
+
+inAvgSku 'Отм.' = DATA LOCAL BOOLEAN (Sku);
+inAvgSkuList 'Отм.' = DATA LOCAL BOOLEAN (List);
+anyAvgSkuList() = GROUP MAX inAvgSkuList(List l);
+nameAvgSkuLists 'Списки товаров' () = GROUP CONCAT name(List l) IF inAvgSkuList(l), ', ' ORDER name(l), l CHARWIDTH 30;
+
+deleteAvgSkuLists 'Сбросить список'() {
+    inAvgSkuList(List l) <- NULL;
+    inAvgSku(Sku s) <- NULL;
+} ASON CONTEXTMENU nameAvgSkuLists;
+
+inAvgSkuGroup 'Отм.' = DATA LOCAL BOOLEAN (SkuGroup);
+anyAvgSkuGroup() = GROUP MAX inAvgSkuGroup(SkuGroup g);
+nameAvgSkuGroups 'Товарные группы' () = GROUP CONCAT name(SkuGroup o) IF inAvgSkuGroup(o) AND NOT inAvgSkuGroup(parent(o)), '; ' ORDER o CHARWIDTH 30;
+
+deleteAvgSkuGroups 'Сбросить группы'() {
+    inAvgSkuGroup(SkuGroup g) <- NULL;
+} ASON CONTEXTMENU nameAvgSkuGroups;
+
+inAvgSkuByGroup(Sku s) = GROUP MAX inAvgSkuGroup(SkuGroup g) IF isParent(g, s);
+
+FORM selectAvgSku 'Выбор товаров'
+    TREE skuTree sg = SkuGroup PARENT parent(sg)
+    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F6' DEFAULT
+    ORDERS order(sg), skuGroupName
+
+    OBJECTS s = Sku
+    PROPERTIES(s) inAvgSku
+    PROPERTIES(s) READONLY id SHOWIF showIDs()
+    PROPERTIES(s) READONLY name, idBarcode, shortNameUOM
+    FILTERS isParent(sg, s), name(s)
+    ORDERS name(s)
+;
+
+FORM dialogAvgSkuGroups 'Выбор товарных групп'
+    TREE skuGroupTree sg = SkuGroup PARENT parent(sg)
+    PROPERTIES(sg) inAvgSkuGroup
+    PROPERTIES READONLY order(sg), sgName = name(sg)
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F6' DEFAULT
+    ORDERS order(sg), sgName
+;
+
+FORM dialogAvgSkuLists 'Выбор списков товаров'
+    OBJECTS o = List
+    PROPERTIES(o) inAvgSkuList
+    PROPERTIES(o) READONLY name
+    ORDERS name(o)
+;
+
+selectAvgSkus 'Фильтр по товарам' () {
+    DIALOG skuFilterType OBJECTS t INPUT DO {
+        CASE
+            WHEN t = SkuFilterType.sku THEN {
+                inAvgSkuList(List l) <- NULL;
+                inAvgSkuGroup(SkuGroup g) <- NULL;
+                SHOW selectAvgSku;
+            }
+            WHEN t = SkuFilterType.skuGroups THEN {
+                inAvgSkuList(List l) <- NULL;
+                inAvgSku(Sku s) <- NULL;
+                SHOW dialogAvgSkuGroups;
+            }
+            WHEN t = SkuFilterType.skuLists THEN {
+                inAvgSkuGroup(SkuGroup g) <- NULL;
+                DIALOG dialogAvgSkuLists DO {
+                    inAvgSku(Sku s) <- NULL;
+                    FOR inAvgSkuList(list(ListDetail ld)) AND Sku sk = sku(ld) DO
+                        inAvgSku(sk) <- TRUE;
+                }
+            };
+    }
+}
+
+selectedAvgSkuNames = GROUP CONCAT name(Sku s) IF inAvgSku(s), '; ' ORDER name(s), s;
+skuNamesFromAvgGroups = GROUP CONCAT name(Sku s) IF inAvgSkuByGroup(s) AND name(s), '; ' ORDER name(s), s;
+avgInSkus 'Товары' = OVERRIDE selectedAvgSkuNames(), skuNamesFromAvgGroups();
+
+anyAvgSkuSelected() = (GROUP MAX inAvgSku(Sku s)) OR anyAvgSkuGroup();
+
+avgSkuFilter(Sku s) = NOT anyAvgSkuSelected() OR inAvgSku(s) OR inAvgSkuByGroup(s);
+
+avgDaysInPeriod() = daysBetweenDates(avgDateTo(), avgDateFrom()) + 1;
+
+avgIsRetailSale(SaleLedger sl) = sl IS DateSaleSkuLedger;
+avgIsRetailReturn(SaleLedger sl) = sl IS DateReturnSkuLedger;
+
+avgSaleFilter(SaleLedger sl, Sku s, DepartmentStore st) =
+    sku(sl) = s AND stock(sl) = st AND active(sl)
+        AND (avgIsRetailSale(sl) OR avgIsRetailReturn(sl))
+        AND date(sl) >= avgDateFrom() AND date(sl) <= avgDateTo();
+
+avgRetailSalesQty 'Количество продаж через кассу' (Sku s, DepartmentStore st) =
+    (GROUP SUM quantity(SaleLedger sl) IF avgSaleFilter(sl, s, st) AND avgIsRetailSale(sl))
+        (-)
+        (GROUP SUM quantity(SaleLedger sl) IF avgSaleFilter(sl, s, st) AND avgIsRetailReturn(sl));
+
+avgDailySales 'Средняя реализация в день' (Sku s, DepartmentStore st) =
+    NUMERIC[18,3](round3(avgRetailSalesQty(s, st) / avgDaysInPeriod())) IF avgDaysInPeriod() > 0;
+
+avgRetailPrice 'Текущая отпускная цена в подразделении' (Sku s, DepartmentStore st) =
+    retailPriceA(s, st, toDateTime(avgDateTo()));
+
+avgAccountPrice 'Учетная цена' (Sku s, DepartmentStore st) =
+    accountPriceA(s, st, toDateTime(avgDateTo()));
+
+avgSalesRetailSum (Sku s, DepartmentStore st) =
+    (GROUP SUM sum(SaleLedger sl) IF avgSaleFilter(sl, s, st) AND avgIsRetailSale(sl))
+        (-)
+        (GROUP SUM sum(SaleLedger sl) IF avgSaleFilter(sl, s, st) AND avgIsRetailReturn(sl));
+
+avgSalesAccountSum (Sku s, DepartmentStore st) =
+    (GROUP SUM round2(quantity(SaleLedger sl) * accountPriceA(sku(sl), stock(sl), toDateTime(date(sl))))
+        IF avgSaleFilter(sl, s, st) AND avgIsRetailSale(sl))
+        (-)
+        (GROUP SUM round2(quantity(SaleLedger sl) * accountPriceA(sku(sl), stock(sl), toDateTime(date(sl))))
+            IF avgSaleFilter(sl, s, st) AND avgIsRetailReturn(sl));
+
+avgMarginPct 'Маржа %' (Sku s, DepartmentStore st) =
+    NUMERIC[18,2](round2((avgSalesRetailSum(s, st) (-) avgSalesAccountSum(s, st)) * 100.0 / avgSalesRetailSum(s, st)))
+        IF avgSalesRetailSum(s, st) > 0;
+
+avgBalance 'Текущий остаток в подразделении' (Sku s, DepartmentStore st) =
+    balanceA(s, st, avgDateTo());
+
+avgDaysOfSupply 'Запас в днях' (Sku s, DepartmentStore st) =
+    NUMERIC[18,2](round2(avgBalance(s, st) / avgDailySales(s, st)))
+        IF avgDailySales(s, st) > 0;
+
+avgLastPurchaseDetail(Sku sk, DepartmentStore stk) = GROUP LAST Purchase.InvoiceDetail d
+ORDER date(d), d
+WHERE isPosted(d) AND date(d) <= avgDateTo()
+BY sku(d), customerStock(d);
+
+avgLastSupplier 'Последний поставщик в компании' (Sku s, DepartmentStore st) =
+    CONCAT ' - ', id(supplier(avgLastPurchaseDetail(s, st))), name(supplier(avgLastPurchaseDetail(s, st)));
+
+avgLastPurchaseDate 'Дата последней поставки' (Sku s, DepartmentStore st) = date(avgLastPurchaseDetail(s, st));
+
+avgLastPurchasePrice 'Цена в последней поставке' (Sku s, DepartmentStore st) = price(avgLastPurchaseDetail(s, st));
+
+avgSkuGroupPath 'Категория' (Sku s) = CONCAT '/',
+    nameSkuGroup2(s), nameSkuGroup3(s), nameSkuGroup4(s);
+
+avgStockFullName 'Подразделение' (DepartmentStore st) = CONCAT ' - ', id(st), name(st);
+
+avgHasData(Sku s, DepartmentStore st) = inSaleReport(st) AND avgSkuFilter(s) AND
+    (avgRetailSalesQty(s, st) OR avgBalance(s, st) OR avgLastPurchaseDate(s, st));
+
+avgStockHeader(DepartmentStore st) = CONCAT '/', id(st), name(st);
+
+avgHeaderLastSupplier 'Последний поставщик в компании' (DepartmentStore st) = avgStockHeader(st) + ' | Последний поставщик в компании' IF st IS DepartmentStore;
+avgHeaderLastPurchaseDate 'Дата последней поставки' (DepartmentStore st) = avgStockHeader(st) + ' | Дата последней поставки' IF st IS DepartmentStore;
+avgHeaderLastPurchasePrice 'Цена в последней поставке' (DepartmentStore st) = avgStockHeader(st) + ' | Цена в последней поставке' IF st IS DepartmentStore;
+avgHeaderRetailPrice 'Текущая отпускная цена' (DepartmentStore st) = avgStockHeader(st) + ' | Текущая отпускная цена в подразделении' IF st IS DepartmentStore;
+avgHeaderSalesQty 'Количество продаж' (DepartmentStore st) = avgStockHeader(st) + ' | Количество продаж через кассу' IF st IS DepartmentStore;
+avgHeaderDailySales 'Средняя реализация в день' (DepartmentStore st) = avgStockHeader(st) + ' | Средняя реализация в день' IF st IS DepartmentStore;
+avgHeaderMarginPct 'Маржа %' (DepartmentStore st) = avgStockHeader(st) + ' | Маржа %' IF st IS DepartmentStore;
+avgHeaderBalance 'Текущий остаток' (DepartmentStore st) = avgStockHeader(st) + ' | Текущий остаток в подразделении' IF st IS DepartmentStore;
+avgHeaderDaysOfSupply 'Запас в днях' (DepartmentStore st) = avgStockHeader(st) + ' | Запас в днях' IF st IS DepartmentStore;
+
+initAvgDates() {
+    avgDateFrom() <- firstDayOfMonth(currentDate());
+    avgDateTo() <- currentDate();
+}
+
+FORM avgDailySalesReport 'Средняя реализация в день'
+    PROPERTIES() avgDateFrom, avgDateTo
+    PROPERTIES nameStockList() READONLY SHOWIF stockList()
+    PROPERTIES avgStocks 'Подразделения' = inSaleReportStocks() ON CHANGE { DIALOG dialogStocksSaleReportRu; } READONLYIF stockList()
+    PROPERTIES() nameAvgSkuLists READONLY SHOWIF anyAvgSkuList()
+    PROPERTIES avgSkuGroups 'Товарные группы' = nameAvgSkuGroups() READONLY SHOWIF anyAvgSkuGroup()
+    PROPERTIES avgSkus 'Товары' = avgInSkus() ON CHANGE selectAvgSkus() READONLYIF anyAvgSkuList() OR anyAvgSkuGroup()
+
+    OBJECTS st = DepartmentStore
+    FILTERS inSaleReport(st)
+
+    OBJECTS s = Sku
+    PROPERTIES(s) READONLY 'Код товара' = id, 'Баркод' = idBarcode, 'Наименование рабочее(полное)' = name
+    PROPERTIES READONLY 'Категория' = avgSkuGroupPath(s)
+    PROPERTIES READONLY COLUMNS 'st' (st)
+    avgLastSupplier(s, st) HEADER avgHeaderLastSupplier(st),
+        avgLastPurchaseDate(s, st) HEADER avgHeaderLastPurchaseDate(st),
+        avgLastPurchasePrice(s, st) HEADER avgHeaderLastPurchasePrice(st),
+        avgRetailPrice(s, st) HEADER avgHeaderRetailPrice(st),
+        avgRetailSalesQty(s, st) HEADER avgHeaderSalesQty(st),
+        avgDailySales(s, st) HEADER avgHeaderDailySales(st),
+        avgMarginPct(s, st) HEADER avgHeaderMarginPct(st),
+        avgBalance(s, st) HEADER avgHeaderBalance(st),
+        avgDaysOfSupply(s, st) HEADER avgHeaderDaysOfSupply(st)
+    FILTERS (GROUP MAX avgHasData(s, DepartmentStore dst) IF inSaleReport(dst))
+    ORDERS avgSkuGroupPath(s), name(s)
+
+    EVENTS ON INIT initAvgDates()
+;
+
+FORM avgDailySalesReportPrint 'Средняя реализация в день'
+    PROPERTIES() avgDateFrom, avgDateTo
+    PROPERTIES nameStockList() READONLY SHOWIF stockList()
+    PROPERTIES avgStocks 'Подразделения' = inSaleReportStocks() READONLYIF stockList()
+    PROPERTIES() nameAvgSkuLists READONLY SHOWIF anyAvgSkuList()
+    PROPERTIES avgSkuGroups 'Товарные группы' = nameAvgSkuGroups() READONLY SHOWIF anyAvgSkuGroup()
+    PROPERTIES avgSkus 'Товары' = avgInSkus() READONLYIF anyAvgSkuList() OR anyAvgSkuGroup()
+
+    OBJECTS st = DepartmentStore
+    PROPERTIES(st) READONLY id, name, avgStockFullName
+    FILTERS inSaleReport(st)
+    ORDERS avgStockFullName(st)
+
+    OBJECTS s = Sku
+    PROPERTIES(s) READONLY id, idBarcode, name
+    PROPERTIES READONLY avgSkuGroupPath(s)
+    PROPERTIES(s, st) READONLY
+    avgLastSupplier,
+        avgLastPurchaseDate,
+        avgLastPurchasePrice,
+        avgRetailPrice,
+        avgRetailSalesQty,
+        avgDailySales,
+        avgMarginPct,
+        avgBalance,
+        avgDaysOfSupply
+    FILTERS avgHasData(s, st)
+    ORDERS avgStockFullName(st), avgSkuGroupPath(s), id(s)
+;
+
+printAvgDailySales 'Отчет' () { PRINT avgDailySalesReportPrint XLSX; } IMAGE 'print.png';
+
+EXTEND FORM avgDailySalesReport
+    PROPERTIES() DISABLEIF NOT avgDateFrom() OR NOT avgDateTo() printAvgDailySales
+;
+
+DESIGN avgDailySalesReport {
+    NEW filters FIRST {
+        alignment = STRETCH;
+        NEW topRow {
+            horizontal = TRUE;
+            alignment = STRETCH;
+            MOVE PROPERTY(avgDateFrom());
+            MOVE PROPERTY(avgDateTo());
+            MOVE PROPERTY(printAvgDailySales()) { valueClass = 'btn-primary'; }
+        }
+        MOVE PROPERTY(nameStockList()) { alignment = STRETCH; }
+        MOVE PROPERTY(avgStocks) { alignment = STRETCH; }
+        MOVE PROPERTY(nameAvgSkuLists()) { alignment = STRETCH; }
+        MOVE PROPERTY(avgSkuGroups) { alignment = STRETCH; }
+        MOVE PROPERTY(avgSkus) { alignment = STRETCH; }
+    }
+    REMOVE BOX(st);
+    MOVE BOX(s) {
+        fill = 1;
+        caption = 'Средняя реализация в день';
+    }
+    MOVE TOOLBARBOX;
+}
+
 NAVIGATOR {
     salesReports {
         NEW bestWorstProducts;
@@ -1794,5 +2052,6 @@ NAVIGATOR {
         NEW assortmentHistoryReport;
         NEW comparativeTurnoverReport;
         NEW operativeReport;
+        NEW avgDailySalesReport;
     }
 }
