@@ -4,7 +4,7 @@ REQUIRE WBItemArticleMapping, WBBalance;
 
 NAMESPACE WB;
 
-price = ABSTRACT CASE INTEGER(Item);
+price 'Цена в ERP' = ABSTRACT CASE INTEGER(Item);
 priceERP 'Цена в ERP' = DATA INTEGER (Item);
 useCustomPrice = ABSTRACT BOOLEAN ();
 price (Item i) += WHEN i IS Item AND NOT useCustomPrice() THEN priceERP(i);
@@ -31,11 +31,34 @@ WHEN LOCAL CHANGED(clubDiscount(Item i)) AND clubDiscount(i) < 0.0 DO {
     clubDiscount(i) <- PREV(clubDiscount(i));
 }
 
-price = ABSTRACT CASE INTEGER (Size);
+price 'Цена в ERP' = ABSTRACT CASE INTEGER (Size);
 priceERP 'Цена в ERP' = DATA INTEGER (Size);
 useCustomPriceSize = ABSTRACT BOOLEAN ();
 price (Size s) += WHEN s IS Size AND NOT useCustomPriceSize() THEN priceERP(s);
 priceWB 'Цена, загружена на WB' = DATA INTEGER (Size);
+priceTypeWB 'Тип цен WB' = DATA PriceListType ();
+namePriceTypeWB 'Тип цен WB' = name(priceTypeWB());
+defaultStockWB 'Склад по умолчанию' = DATA Stock.Stock ();
+nameDefaultStockWB 'Склад по умолчанию' = name(defaultStockWB());
+
+price (Size s) += WHEN s IS Size AND NOT useCustomPriceSize() AND priceTypeWB() AND defaultStockWB() THEN
+    INTEGER (priceA(priceTypeWB(), item(s), defaultStockWB(), currentDateTime()) * 100);
+price (Item i) += WHEN i IS Item AND NOT useCustomPrice() AND priceTypeWB() AND defaultStockWB() AND NOT editableSizePrice(i) THEN
+    (GROUP MAX price(Size s) IF itemWB(s) = i);
+
+EXTEND FORM options
+    PROPERTIES priceTypeWB(), defaultStockWB()
+;
+
+DESIGN options {
+     WB {
+        NEW prices {
+            caption = 'Цены';
+            MOVE PROPERTY (priceTypeWB());
+            MOVE PROPERTY (defaultStockWB());
+        }
+    }
+}
 
 EXTEND FORM item 
     PROPERTIES(i) priceERP, discount, clubDiscount
