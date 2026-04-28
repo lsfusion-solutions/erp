@@ -20,4 +20,13 @@ EXTEND FORM groupsCashRegister
     PROPERTIES (grc) READONLYIF isReadonly() optionalLot
 ;
 
-info (MachineryPriceTransaction t, Barcode b, STRING key) += idLotType(sku(b)) IF in(t, b) AND key = 'optionalLot' AND NOT skipInfoLottype(t,b) AND optionalLot(groupMachinery(t));
+optionalLot 'Частичная выгрузка СИ (УКМ)' = DATA BOOLEAN (LotType);
+
+EXTEND FORM dialogLotTypes
+    PROPERTIES(t) optionalLot
+;
+WHEN LOCAL SET(optionalLot(GroupCashRegister r )) AND NOT GROUP SUM 1 IF optionalLot(LotType t) DO {
+    MESSAGE 'Нет типов маркировки с частичной выгрузкой! Настройка будет игнорироваться.' WARN;
+}
+
+info (MachineryPriceTransaction t, Barcode b, STRING key) += idLotType(sku(b)) IF in(t, b) AND key = 'optionalLot' AND NOT skipInfoLottype(t,b) AND optionalLot(groupMachinery(t)) AND optionalLot(lotType(sku(b)));
