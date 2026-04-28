@@ -256,6 +256,18 @@ CLASS WbStatus{
     cancel_missed_call 'Отмена по причине недозвона'
 }
 
+wbStatus (STRING str) = GROUP MAX WbStatus s IF staticName(s) == 'WB_WbStatus.' + str;
+customStatusIntenetOrder = ABSTRACT CASE StatusInternetOrder (WbStatus);
+statusInternetOrder(WbStatus ws) =
+    CASE WHEN ws = WbStatus.new AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.new
+         WHEN ws = WbStatus.confirm AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.agreed
+         WHEN ws = WbStatus.deliver AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.delivery
+         WHEN ws = WbStatus.receive AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.delivered
+         WHEN ws = WbStatus.reject AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.closed
+         WHEN ws = WbStatus.cancel AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.cancel
+         WHEN ws = WbStatus.cancel_missed_call AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.cancel
+;
+
 CLASS WbSystemStatus {
     waiting 'В работе',
     sold 'Получен покупателем',
@@ -269,6 +281,7 @@ CLASS WbSystemStatus {
 
 wbSystemStatus = DATA WbSystemStatus (InternetOrder);
 nameWbSystemStatus 'Системный статус WB' (InternetOrder o) = caption(wbSystemStatus(o));
+wbSystemStatus (STRING str) = GROUP MAX WbSystemStatus s IF staticName(s) == 'WB_WbSystemStatus.' + str;
 
 customCancelOrder = ABSTRACT BOOLEAN ();
 overCancelOrder ABSTRACT LIST (InternetOrder);
@@ -277,6 +290,11 @@ customCancelOrderStatus = ABSTRACT CASE StatusInternetOrder();
 orderByNumber(STRING number) = GROUP MAX InternetOrder o IF number(o) = number;
 
 wbStatus = DATA WbStatus(InternetOrder);
+nameWbStatus 'Статус WB' (InternetOrder o)= staticCaption(wbStatus(o));
+
+EXTEND FORM internetOrders
+PROPERTIES(o) nameWbStatus
+;
 
 orderId = DATA LOCAL STRING (INTEGER);
 supplierStatus = DATA LOCAL STRING(INTEGER);
