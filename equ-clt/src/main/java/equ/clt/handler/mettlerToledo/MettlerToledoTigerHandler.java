@@ -38,48 +38,50 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
         if (stopListInfo != null && !stopListInfo.exclude) {
             processStopListLogger.info(getLogPrefix() + "Send StopList # " + stopListInfo.number);
             for (MachineryInfo scales : machineryInfoList) {
-                List<String> localErrors = new ArrayList<>();
-                TCPPort port = getTCPPort(scales);
-                try {
-                    port.open();
-
-                    synchronizeTime(port);
-
-                    int globalError = 0;
+                if (scales.enabled && scales.port != null) {
+                    List<String> localErrors = new ArrayList<>();
+                    TCPPort port = getTCPPort(scales);
                     try {
-                        int count = 0;
-                        for (StopListItem item : stopListInfo.stopListItemMap.values()) {
-                            count++;
-                            if (globalError < 5) {
-                                if (item.idBarcode != null && item.idBarcode.length() <= 5) {
-                                    processStopListLogger.info(String.format(getLogPrefix() + "IP %s, StopList #%s, deleting item #%s (barcode %s)", scales.port, stopListInfo.number, count, item.idBarcode));
-                                    int attempts = 0;
-                                    Boolean result = null;
-                                    while ((result == null || !result) && attempts < 3) {
-                                        result = deletePLU(port, item);
-                                        attempts++;
+                        port.open();
+
+                        synchronizeTime(port);
+
+                        int globalError = 0;
+                        try {
+                            int count = 0;
+                            for (StopListItem item : stopListInfo.stopListItemMap.values()) {
+                                count++;
+                                if (globalError < 5) {
+                                    if (item.idBarcode != null && item.idBarcode.length() <= 5) {
+                                        processStopListLogger.info(String.format(getLogPrefix() + "IP %s, StopList #%s, deleting item #%s (barcode %s)", scales.port, stopListInfo.number, count, item.idBarcode));
+                                        int attempts = 0;
+                                        Boolean result = null;
+                                        while ((result == null || !result) && attempts < 3) {
+                                            result = deletePLU(port, item);
+                                            attempts++;
+                                        }
+                                        if (!result) {
+                                            logError(localErrors, String.format(getLogPrefix() + "IP %s, Result %s, item %s", scales.port, false, item.idItem));
+                                            globalError++;
+                                        }
+                                    } else {
+                                        processStopListLogger.info(String.format(getLogPrefix() + "IP %s, StopList #%s, item #%s: incorrect barcode %s", scales.port, stopListInfo.number, count, item.idBarcode));
                                     }
-                                    if (!result) {
-                                        logError(localErrors, String.format(getLogPrefix() + "IP %s, Result %s, item %s", scales.port, false, item.idItem));
-                                        globalError++;
-                                    }
-                                } else {
-                                    processStopListLogger.info(String.format(getLogPrefix() + "IP %s, StopList #%s, item #%s: incorrect barcode %s", scales.port, stopListInfo.number, count, item.idBarcode));
-                                }
-                            } else break;
+                                } else break;
+                            }
+                        } catch (Exception e) {
+                            logError(localErrors, String.format(getLogPrefix() + "IP %s error, StopList %s;", scales.port, stopListInfo.number), e);
                         }
                     } catch (Exception e) {
-                        logError(localErrors, String.format(getLogPrefix() + "IP %s error, StopList %s;", scales.port, stopListInfo.number), e);
+                        logError(localErrors, String.format(getLogPrefix() + "IP %s error, transaction %s;", scales.port, stopListInfo.number), e);
+                    } finally {
+                        try {
+                            port.close();
+                        } catch (CommunicationException ignored) {
+                        }
                     }
-                } catch (Exception e) {
-                    logError(localErrors, String.format(getLogPrefix() + "IP %s error, transaction %s;", scales.port, stopListInfo.number), e);
-                } finally {
-                    try {
-                        port.close();
-                    } catch (CommunicationException ignored) {
-                    }
+                    processStopListLogger.info(getLogPrefix() + "Completed ip: " + scales.port);
                 }
-                processStopListLogger.info(getLogPrefix() + "Completed ip: " + scales.port);
             }
         }
     }
