@@ -1,0 +1,50 @@
+MODULE EGAISOutDocGestori;
+
+REQUIRE EGAISOutDoc;
+
+NAMESPACE EGAIS;
+
+typeBaseDocument 'Тип документа-основания' = ABSTRACT BPISTRING[100] (OutDoc);
+numberBaseDocument 'Номер документа-основания' = ABSTRACT STRING (OutDoc);
+dateBaseDocument 'Дата документа-основания' = ABSTRACT DATE (OutDoc);
+
+META defineOutDocAbstractTypeNumberDateContraint(doc, docProp, numberProp, dateProp)
+    numberBaseDocument(###doc##OutDoc d) += numberProp(docProp(d));
+    dateBaseDocument(###doc##OutDoc d) += dateProp(docProp(d));
+    typeBaseDocument(###doc##OutDoc d) += objectClassName(docProp(d));
+END;
+
+META defineOutDocAbstractTypeNumberDateContraint(doc, docProp)
+    @defineOutDocAbstractTypeNumberDateContraint(doc, docProp, number, date);
+END;
+
+META defineOutDocAbstractTypeNumberDateContraint(doc)
+    @defineOutDocAbstractTypeNumberDateContraint(doc, doc, number, date);
+END;
+
+CLASS OutDocStatus 'Статус исходящего документа' {
+    error 'Ошибка отправки',
+    send 'Отправлен'
+}
+name 'Статус исходящего документа' (OutDocStatus s) = staticCaption(s);
+
+overOutDocStatus = ABSTRACT CASE OutDocStatus (OutDoc);
+outDocStatus 'Статус исходящего документа' (OutDoc o) = OVERRIDE overOutDocStatus(o),
+    CASE WHEN error(o) THEN OutDocStatus.error
+    ELSE OutDocStatus.send;
+nameOutOrderStatus 'Статус' (OutDoc o) = name(outDocStatus(o));
+
+documentString 'Документ' (OutDoc o) = STRING[255](document(o));
+errorString 'Ошибка' (OutDoc o) = STRING[255](error(o));
+
+EXTEND FORM outDocs
+    PROPERTIES(r) READONLY nameOutOrderStatus AFTER id(r)
+    PROPERTIES(r) READONLY AFTER nameDocType(r) typeBaseDocument, numberBaseDocument, dateBaseDocument
+    PROPERTIES(r) READONLY AFTER descriptionClient(r) documentString, errorString
+;
+
+DESIGN outDocs {
+    REMOVE PROPERTY(document(r));
+    REMOVE PROPERTY(error(r));
+    PROPERTY(id(r)) { caption = 'Номер транспортного пакета'; }
+}

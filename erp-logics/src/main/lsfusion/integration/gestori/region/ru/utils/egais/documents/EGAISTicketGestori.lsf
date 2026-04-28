@@ -1,0 +1,21 @@
+MODULE EGAISTicketGestori;
+
+REQUIRE EGAISTicket, EGAISOutDocGestori, EGAISInDocGestori;
+
+NAMESPACE EGAIS;
+
+EXTEND CLASS OutDocStatus {
+    rejected 'Отклонен',
+    complete 'Завершен'
+}
+
+overOutDocStatus(OutDoc o) += WHEN rejected(o) THEN OutDocStatus.rejected;
+
+lastConclusionTicket (OutDoc o) = GROUP LAST Ticket t ORDER t WHERE conclusion(t) BY outDoc(t) MATERIALIZED INDEXED;
+
+overOutDocStatus(OutDoc o) += WHEN lastConclusionTicket(o) AND lastOperationTicket(o) AND notRejected(o)
+    THEN OutDocStatus.complete;
+
+DESIGN outDocs {
+    BOX(t) { caption = CONCAT '', 'Квитанции', ' (' + countTickets(r) +  ')'; }
+}
