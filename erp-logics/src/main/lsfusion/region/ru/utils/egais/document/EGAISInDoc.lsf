@@ -235,3 +235,32 @@ clearApplicationLog () + {
         }
     }
 }  
+
+dataCountThreadInDoc = DATA INTEGER ();
+countThreadInDoc 'Кол-во потоков для обмена с ЕГАИС' () = OVERRIDE dataCountThreadInDoc (), 6;
+
+EXTEND FORM integrationData
+    PROPERTIES() countThreadInDoc
+;
+
+DESIGN integrationData {
+    EGAISParams {
+        MOVE PROPERTY (countThreadInDoc());
+    }
+}
+
+getInDocsMultithread 'Получить входящие документы (многопоточно)' () {
+    NEWEXECUTOR {
+        FOR url(UTM u) DO NEWTHREAD NEWSESSION NEWSQL {
+            getInDocs(u);
+        }
+    } THREADS countThreadInDoc();
+}
+
+processInDocsMultithread 'Обработать входящие документы (многопоточно)' () {
+    NEWEXECUTOR {
+        FOR toProcess(InDoc d) DO NEWTHREAD NEWSESSION NEWSQL{
+            process(d);
+        }
+    } THREADS countThreadInDoc();
+}
