@@ -1,0 +1,26 @@
+MODULE EGAISMarkCodePrint;
+
+REQUIRE EGAISMarkCode;
+
+NAMESPACE EGAIS;
+
+select 'Отм.' = DATA LOCAL NESTED BOOLEAN (MarkCode);
+countSelectMarkCode 'Кол-во отмеченных кодов маркировки ЕГАИС' =
+    GROUP SUM 1 IF select(MarkCode m);
+
+FORM printMarkCode 'Печать марок'
+    OBJECTS mc = MarkCode
+    PROPERTIES(mc) id, fullNameProduct, idProduct
+    ORDERS fullNameProduct(mc)
+    FILTERS select(mc)
+;
+
+print 'Печать' (MarkCode m) {
+    IF NOT countSelectMarkCode() THEN select(m) <- TRUE;
+    PRINT printMarkCode;
+    select (MarkCode mc) <- NULL;
+} IMAGE 'print.png';
+
+EXTEND FORM markCodes
+    PROPERTIES(m) select FIRST, print TOOLBAR
+;
