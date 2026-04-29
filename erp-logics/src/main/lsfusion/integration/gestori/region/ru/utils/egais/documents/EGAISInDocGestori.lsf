@@ -4,6 +4,31 @@ REQUIRE EGAISInDoc, EGAISOutDocGestori;
 
 NAMESPACE EGAIS;
 
+typeBaseDocumentOutDoc 'Тип документа-основания' (InDoc d) = typeBaseDocument(outDoc(d));
+numberBaseDocumentOutDoc 'Номер документа-основания' (InDoc d) = numberBaseDocument(outDoc(d));
+dateBaseDocumentOutDoc 'Дата документа-основания' (InDoc d) = dateBaseDocument(outDoc(d));
+
+EXTEND FORM inDocs
+    PROPERTIES(d) READONLY AFTER idOutDoc(d) typeBaseDocumentOutDoc, numberBaseDocumentOutDoc, dateBaseDocumentOutDoc
+    
+    FILTERGROUP filterProcessed
+        FILTER 'Необработанные' toProcess(d)
+        FILTER 'Обработанные' processed(d)
+    
+    FILTERGROUP filterDocType
+;
+
+DESIGN inDocs {
+    PROPERTY(idOutDoc(d)) { caption = 'Номер транспортного пакета исходящего документа'; }
+}
+
+META defineInDocsFilterDocType (type, caption)
+    EXTEND FORM inDocs
+        EXTEND FILTERGROUP filterDocType
+            FILTER caption docType(d) == DocType.type
+    ;
+END;
+
 DESIGN outDocs {
     BOX(i) { caption = CONCAT '', 'Входящие документы', ' (' + countInDocs(r) +  ')'; }
 }
