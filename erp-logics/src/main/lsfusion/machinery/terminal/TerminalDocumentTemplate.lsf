@@ -1,0 +1,370 @@
+MODULE TerminalDocumentTemplate;
+
+REQUIRE System, Terminal, LegalEntity;
+
+NAMESPACE TerminalDocumentTemplate;
+
+CLASS TerminalTemplate 'Шаблон документа ТСД';
+TABLE terminalTemplate (TerminalTemplate);
+//TABLE sessionTerminalTemplate (Session, TerminalTemplate);
+//TABLE terminalTemplateId(ISTRING[1000]);
+
+id 'Код' = DATA STRING[36] (TerminalTemplate) IN id INDEXED CHARWIDTH 10;
+id (TerminalTemplate t) <- STRING[1000](LONG(t)) WHEN SET(t IS TerminalTemplate);
+
+//terminalTemplate (id) = GROUP AGGR (TerminalTemplate t) BY id (td) MATERIALIZED TABLE terminalTemplateId;
+
+number 'Номер' = DATA STRING[1000] (TerminalTemplate) IN base CHARWIDTH 20;
+note 'Примечание' = DATA STRING[100] (TerminalTemplate) IN base CHARWIDTH 20;
+//quantity 'Количество' = DATA NUMERIC[14,3] (TerminalTemplate) IN base;
+
+inactive 'Неактивный' = DATA BOOLEAN (TerminalTemplate);
+active 'Активный' (TerminalTemplate t) = t IS TerminalTemplate AND NOT inactive(t) MATERIALIZED;
+
+type 'Тип документа' = DATA TerminalDocumentType (TerminalTemplate);
+nameType 'Тип документа' (TerminalTemplate t) = name(type(t)) CHARWIDTH 50;
+
+CONSTRAINT NOT type(TerminalTemplate t) AND t IS TerminalTemplate MESSAGE 'Не выбран тип документа';
+
+company 'Компания' = DATA LegalEntity (TerminalTemplate);
+nameCompany 'Компания' (TerminalTemplate t) = name(company(t)) CHARWIDTH 50;
+
+supplier = DATA LegalEntity (TerminalTemplate);
+idSupplier(TerminalTemplate t) = id(supplier(t));
+nameSupplier 'Поставщик' (TerminalTemplate t) = name(supplier(t))  CHARWIDTH 50;
+
+//CONSTRAINT  stock(TerminalTemplate d) AND NOT isCompany(stock(d)) CHECKED BY stock[TerminalTemplate]
+//    MESSAGE 'Для документа выбран склад, который не является складом компании';
+
+dateTime 'Время создания'= DATA DATETIME (TerminalTemplate);
+dateTime (TerminalTemplate t) <- currentDateTime() WHEN SET(t IS TerminalTemplate);
+
+createdUser = DATA CustomUser (TerminalTemplate);
+createdNameUser '{historizable.created.name.user}' (TerminalTemplate t) = (OVERRIDE name[Contact](createdUser(t)), login[Contact](createdUser(t))) CHARWIDTH 10;
+createdUser (TerminalTemplate t) <- currentUser() WHEN SET(t IS TerminalTemplate);
+
+CLASS TerminalTemplateDetail 'Строка шаблона документа ТСД';
+TABLE terminalTemplateDetail (TerminalTemplateDetail);
+//TABLE sessionTerminalTemplateDetail (Session, TerminalTemplateDetail);
+
+terminalTemplate = DATA TerminalTemplate(TerminalTemplateDetail) NONULL DELETE INDEXED;
+
+//id 'Код' = DATA STRING[1000] (TerminalTemplateDetail) IN id INDEXED CHARWIDTH 10;
+
+//index 'Номер строки ' (TerminalTemplateDetail d) =
+//    PARTITION SUM 1
+//    ORDER number(d), d BY terminalTemplate(d) CHARWIDTH 4;
+idBarcode 'Штрихкод' = DATA STRING[30] (TerminalTemplateDetail) IN base;
+quantity 'Количество' = DATA NUMERIC[14,3] (TerminalTemplateDetail) IN base;
+note 'Примечание' = DATA STRING[100] (TerminalTemplateDetail) IN base;
+
+sku = DATA Sku (TerminalTemplateDetail) INDEXED;
+nameSku 'Наименование товара' (TerminalTemplateDetail d) = name(sku(d)) IN base;
+//name 'Наименование' (TerminalTemplateDetail d) = nameSku(d) IN base;
+
+terminalTemplateDetail(terminalTemplate, sku) = GROUP MAX TerminalTemplateDetail detail BY terminalTemplate(detail), sku(detail);
+
+overSku = ABSTRACT Sku (TerminalTemplateDetail);
+
+WHEN LOCAL SETCHANGED(idBarcode(TerminalTemplateDetail d)) DO {
+    sku(d) <- OVERRIDE overSku(d), skuBarcode(idBarcode(d)), sku(idBarcode(d));
+}
+
+WHEN LOCAL SETCHANGED(sku(TerminalTemplateDetail d)) DO {
+    idBarcode(d) <- idBarcode(sku(d));
+}
+
+//terminalIdTerminalId (documentTemplateDetail, document) = GROUP AGGR TerminalTemplateDetail terminalTemplate 
+//    BY id (terminalTemplate(terminalTemplateDetail)), id(terminalTemplateDetail);    
+ 
+@defineDocumentIs(TerminalTemplate, TerminalTemplateDetail);
+@defineDocumentHeaderCount(terminalTemplate);
+@defineDocumentHeaderQuantity(terminalTemplate);
+
+filterCompany = DATA LOCAL NESTED LegalEntity ();
+nameFilterCompany 'Компания' = name(filterCompany()) CHARWIDTH 15;
+filterCompany (TerminalTemplate t) = company(t) == filterCompany() OR (t IS TerminalTemplate AND NOT filterCompany());
+
+filterSupplier = DATA LOCAL NESTED LegalEntity ();
+nameFilterSupplier 'Поставщик' = name(filterSupplier()) CHARWIDTH 15;
+filterSupplier (TerminalTemplate t) = supplier(t) == filterSupplier() OR (t IS TerminalTemplate AND NOT filterSupplier());
+
+// ----------------------------------------------- Формы документов ------------------------------------------ //
+
+FORM changeCompany 'Выбор компании'
+    TREE groupTree lg = LegalEntityGroup PARENT parent(lg)
+    PROPERTIES order(lg) READONLY, lgTreeName = name(lg) READONLY    
+    FILTERS [GROUP SUM 1 IF isParent(lg, LegalEntity le) AND isCompany(le)]()
+    ORDERS order(lg)
+
+    OBJECTS l = LegalEntity
+    PROPERTIES READONLY name(l), id(l) SHOWIF showIDs()
+    ORDERS name(l)
+    FILTERS isCompany(l)
+    FILTERS isParent(lg, l) OR
+        l IS LegalEntity AND NOT lg IS LegalEntityGroup OR
+        l IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroup(l)
+;
+
+DESIGN changeCompany {
+    BOX { size = (1024, 768); fill = 5;
+        NEW box { horizontal = TRUE; fill = 5;
+            MOVE BOX(TREE groupTree);
+            MOVE BOX(l);
+        } MOVE TOOLBARBOX;
+    }
+}
+
+FORM changeSupplier 'Выбор поставщика'
+    TREE groupTree lg = LegalEntityGroup PARENT parent(lg)
+    PROPERTIES order(lg) READONLY, lgTreeName = name(lg) READONLY
+    FILTERS [GROUP SUM 1 IF isParent(lg, LegalEntity le) AND isSupplier(le)]()
+    ORDERS order(lg)
+
+    OBJECTS l = LegalEntity
+    PROPERTIES READONLY name(l), id(l) SHOWIF showIDs()
+    ORDERS name(l)
+    FILTERS isSupplier(l)
+    FILTERS isParent(lg, l) OR
+        l IS LegalEntity AND NOT lg IS LegalEntityGroup OR
+        l IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroup(l)
+;
+
+DESIGN changeSupplier {
+    BOX { size = (1024, 768); fill = 5;
+        NEW box { horizontal = TRUE; fill = 5;
+            MOVE BOX(TREE groupTree);
+            MOVE BOX(l);
+        } MOVE TOOLBARBOX;
+    }
+}
+
+changeFilterCompany() {
+    DIALOG changeCompany OBJECTS l INPUT NULL DO {
+        filterCompany() <- l;
+    }
+}
+
+changeFilterSupplier() {
+    DIALOG changeSupplier OBJECTS l INPUT NULL DO {
+        filterSupplier() <- l;
+    }
+}
+
+changeCompany(TerminalTemplate t) {
+    DIALOG changeCompany OBJECTS l INPUT NULL DO {
+        company(t) <- l;
+    }
+}
+
+changeSupplier(TerminalTemplate t) {
+    DIALOG changeSupplier OBJECTS l INPUT NULL DO {
+        supplier(t) <- l;
+    }
+}
+
+FORM getTerminalTemplateDetails
+    OBJECTS ids = STRING[100]
+    
+    OBJECTS t = TerminalTemplate PANEL EXTID 'value'
+    
+    PROPERTIES id = NUMERIC(id(t)) EXTID 'id',
+        dateTime(t) EXTID 'date',
+        type = id(type(t)) EXTID 'type',
+        number(t) EXTID 'number',
+        idSupplier(t) EXTID 'supplier',
+        note(t) EXTID 'note',
+        countTerminalTemplateDetail(t) IN base EXTID 'count'
+
+    OBJECTS d = TerminalTemplateDetail EXTID 'details'
+    
+    PROPERTIES 
+        idBarcode(d) EXTID 'barcode', 
+        nameSku(d) EXTID 'name',
+        quantity(d) EXTID 'quantity', 
+        note(d) EXTID 'note'
+
+    FILTERS terminalTemplate(d) == t
+    FILTERS TRUE IF isWordInCSV(id(t), ids)
+;
+
+FORM getTerminalTemplates
+    OBJECTS t = TerminalTemplate PANEL EXTID 'value'
+    
+    PROPERTIES id(t) EXTID 'id',
+        dateTime(t) EXTID 'date',
+        type = id(type(t)) EXTID 'type',
+        number(t) EXTID 'number',
+        idSupplier(t) EXTID 'supplier',
+        note(t) EXTID 'note',
+        countTerminalTemplateDetail(t) IN base EXTID 'count'
+    
+    FILTERS id(t) AND NOT inactive(t);
+;
+
+getTerminalTemplateDetails() {
+    DIALOG dialogString OBJECTS s INPUT DO {
+        EXPORT getTerminalTemplateDetails OBJECTS ids = s JSON; // TO result;
+        resultString() <- NULL;
+        fileToString(exportFile());
+        //terminalTemplatesResult() <- resultString();
+        MESSAGE resultString();
+    }
+}
+
+getTerminalTemplates(STRING ids) {
+    IF NOT ids THEN {
+        EXPORT getTerminalTemplates JSON;
+    } ELSE {
+        EXPORT getTerminalTemplateDetails OBJECTS ids = ids JSON;
+    }
+}
+
+FORM terminalTemplate 'Шаблон документа ТСД'
+    OBJECTS t = TerminalTemplate PANEL
+    PROPERTIES(t) nameCompany ON CHANGE changeCompany(t)
+    PROPERTIES(t) nameSupplier ON CHANGE changeSupplier(t), nameType, number, note, inactive
+
+    OBJECTS d = TerminalTemplateDetail
+    PROPERTIES(d) idBarcode, nameSku, quantity, note, NEW, deletetdd = DELETE GRID
+    FILTERS terminalTemplate(d) == t
+
+    EDIT TerminalTemplate OBJECT t;
+;
+
+DESIGN terminalTemplate {
+    OBJECTS {
+        BOX(t){
+            NEW row1 {
+                horizontal = TRUE;
+                MOVE PROPERTY(nameCompany(t));
+                MOVE PROPERTY(nameSupplier(t));
+            }
+            NEW row2 {
+                horizontal = TRUE;
+                MOVE PROPERTY(number(t));
+                MOVE PROPERTY(note(t));
+            }
+        }
+        MOVE BOX(d);
+    }
+}
+
+
+FORM terminalTemplates 'Шаблоны документов ТСД'
+    PROPERTIES() 
+        //nameFilterCompany ON CHANGE changeFilterCompany(), nameFilterSupplier ON CHANGE changeFilterSupplier()
+        nameFilterCompany, nameFilterSupplier
+    
+    OBJECTS t = TerminalTemplate
+    PROPERTIES() getTerminalTemplateDetails TOOLBAR
+    PROPERTIES(t) READONLY active, id, dateTime, nameType, nameCompany, nameSupplier, number, note, 
+        countTerminalTemplateDetail, quantityTerminalTemplateDetail,
+        createdNameUser
+    PROPERTIES(t) NEWSESSION NEW, EDIT, DELETE 
+    OBJECTS d=TerminalTemplateDetail
+    PROPERTIES(d) READONLY idBarcode, nameSku, quantity, note
+    
+    FILTERS
+        filterCompany(t),
+        filterSupplier(t),
+        terminalTemplate(d) == t
+
+    FILTERGROUP inactive FILTER 'Активные' active(t) 'F6' DEFAULT    
+    
+//    EVENTS ON INIT {
+//        notUsedFilter()<- TRUE;
+//        isOpenedFilter()<- TRUE;
+//        fillTerminalTemplatesFilters();
+//    }, ON SCHEDULE PERIOD 60 formRefresh()
+;
+
+filterTemplate = ABSTRACT VALUE BOOLEAN(TerminalTemplate);
+filterTemplate(TerminalTemplate t) += active(t);
+
+DESIGN terminalTemplates {
+    BOX {
+        size = (1024, 768);
+
+        NEW documentContainer BEFORE TOOLBARBOX {
+            fill = 1;
+            NEW filtersBox {
+                fill = 1;
+                NEW topFilters {
+                    caption = 'Фильтры';
+                    alignment = STRETCH;
+                    NEW topFilters1 {
+                        horizontal = TRUE;
+                        alignment = STRETCH;
+                        MOVE PROPERTY(nameFilterCompany()) { fill = 1; }
+                        MOVE PROPERTY(nameFilterSupplier()) { fill = 1; }
+                    }
+                }
+                MOVE BOX(t) {
+                    fill = 1;
+                }
+            }
+            NEW documentDetail {
+                fill = 1;
+
+                MOVE BOX(d) {
+                    fill = 1;
+                    caption = 'Спецификация';
+                }
+            }
+        }
+    }
+}
+
+
+id 'Код' = DATA LOCAL STRING();
+dateTime 'Дата' = DATA LOCAL DATETIME();
+number 'Номер' = DATA LOCAL STRING();
+idType 'Тип' = DATA LOCAL STRING();
+idSupplier 'Поставщик' = DATA LOCAL STRING();
+note 'Примечание' = DATA LOCAL STRING();
+idBarcode 'Штрихкод' = DATA LOCAL STRING(INTEGER);
+quantity 'Количество' = DATA NUMERIC(INTEGER);
+note 'Примечание' = DATA LOCAL STRING(INTEGER);
+
+FORM importTemplate
+    PROPERTIES() id, dateTime EXTID 'date', number, idType, note, idSupplier
+    OBJECTS details = INTEGER
+    PROPERTIES(details) quantity, idBarcode
+;
+
+saveDocumentTemplate(FILE file) {
+    
+    fileToString(file);
+    logToFile('terminal', 'template file: ' + resultString());
+
+    IMPORT importTemplate JSON FROM file;
+
+    NEW t = TerminalTemplate {
+        id(t) <- id();
+        dateTime(t) <- dateTime();
+        number(t) <- number();
+        type(t) <- terminalDocumentType(idType());
+        number(t) <- number();
+        supplier(t) <- legalEntity(idSupplier());
+        note(t) <- note();
+        createdUser(t) <- currentUser();
+        company(t) <- legalEntity(currentUser());
+
+        FOR idBarcode(INTEGER r) NEW td = TerminalTemplateDetail DO {
+            terminalTemplate(td) <- t;
+            idBarcode(td) <- idBarcode(r);
+            quantity(td) <- quantity(r);
+            note(td) <- note(r);
+            //    sku(od) <- GROUP MAX Sku sku IF name(sku) = sku(iod); // находим sku с данным именем
+        }
+    }
+    
+    APPLY;
+}
+
+NAVIGATOR {
+    terminalNavigator {
+        NEW terminalTemplates AFTER terminalDocuments;
+    }
+}
