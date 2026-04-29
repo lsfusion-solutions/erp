@@ -128,3 +128,20 @@ EXTEND FORM applicationRequests
         FILTER 'Ожидается ответ' toReceive(r)
         FILTER 'Требуется обработка' toProcess(r)
 ;
+
+countDaysClearApplicationRequest '{service.define.log.count.days.clear.object} журнал Заявка в Ветис' = DATA INTEGER ();
+
+EXTEND FORM options PROPERTIES countDaysClearApplicationRequest();
+DESIGN options { log { MOVE PROPERTY(countDaysClearApplicationRequest());} }
+
+clearApplicationLog () + {
+    IF countDaysClearApplicationRequest() THEN {
+        NEWSESSION {
+            APPLY {
+                error(ApplicationRequest d) <- NULL WHERE d IS ApplicationRequest AND issued(d) <= subtract(currentDate(), countDaysClearApplicationRequest());
+                request(ApplicationRequest d) <- NULL WHERE d IS ApplicationRequest AND issued(d) <= subtract(currentDate(), countDaysClearApplicationRequest());
+                response(ApplicationRequest d) <- NULL WHERE d IS ApplicationRequest AND issued(d) <= subtract(currentDate(), countDaysClearApplicationRequest());
+            }
+        }
+    }
+}   

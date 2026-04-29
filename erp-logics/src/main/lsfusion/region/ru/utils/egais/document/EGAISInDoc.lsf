@@ -220,3 +220,18 @@ EXTEND FORM inDocs
      
     PROPERTIES() processInDocs DRAW d TOOLBAR
 ;
+
+//-- Очистка
+countDaysClearInDoc '{service.define.log.count.days.clear.object} журнал Входящий документ ЕГАИС' = DATA INTEGER ();
+
+EXTEND FORM options PROPERTIES countDaysClearInDoc();
+DESIGN options { log { MOVE PROPERTY(countDaysClearInDoc());} }
+clearApplicationLog () + {
+    IF countDaysClearInDoc() THEN {
+        NEWSESSION {
+            APPLY {
+                document(InDoc d) <- NULL WHERE d IS InDoc AND DATE(dateTime(d)) <= subtract(currentDate(), countDaysClearInDoc());
+            }
+        }
+    }
+}  
