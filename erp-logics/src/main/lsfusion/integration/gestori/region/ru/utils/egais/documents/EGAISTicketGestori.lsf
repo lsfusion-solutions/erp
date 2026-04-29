@@ -16,6 +16,11 @@ lastConclusionTicket (OutDoc o) = GROUP LAST Ticket t ORDER t WHERE conclusion(t
 overOutDocStatus(OutDoc o) += WHEN lastConclusionTicket(o) AND lastOperationTicket(o) AND notRejected(o)
     THEN OutDocStatus.complete;
 
+EXTEND FORM outDocs
+    EXTEND FILTERGROUP docStatusFilter
+        FILTER 'Ошибка и Отклонен' outDocStatus(r) == OutDocStatus.error OR outDocStatus(r) == OutDocStatus.rejected
+;
+
 DESIGN outDocs {
     BOX(t) { caption = CONCAT '', 'Квитанции', ' (' + countTickets(r) +  ')'; }
 }

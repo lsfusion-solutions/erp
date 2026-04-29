@@ -32,19 +32,66 @@ overOutDocStatus = ABSTRACT CASE OutDocStatus (OutDoc);
 outDocStatus 'Статус исходящего документа' (OutDoc o) = OVERRIDE overOutDocStatus(o),
     CASE WHEN error(o) THEN OutDocStatus.error
     ELSE OutDocStatus.send;
-nameOutOrderStatus 'Статус' (OutDoc o) = name(outDocStatus(o));
+nameOutDocStatus 'Статус' (OutDoc o) = name(outDocStatus(o));
 
 documentString 'Документ' (OutDoc o) = STRING[255](document(o));
 errorString 'Ошибка' (OutDoc o) = STRING[255](error(o));
 
+filterOutDocsDateFrom 'Дата с' = DATA LOCAL DATE();
+filterDateFrom 'Отбор по дате с' (OutDoc d) = date(d) >= filterOutDocsDateFrom() OR NOT filterOutDocsDateFrom();
+
+filterOutDocsDateTo 'Дата по' = DATA LOCAL DATE();
+filterDateTo 'Отбор по дате по' (OutDoc d) = date(d) <= filterOutDocsDateTo() OR NOT filterOutDocsDateTo();
+
+countDaysSetFilter 'Фильтр по количеству дней' = DATA LOCAL INTEGER;
+setFilterOutDocsDates 'Отобрать документа за количество дней' () {
+    INPUT i = INTEGER DO {
+        IF i > 0 THEN {
+            filterOutDocsDateFrom() <- sum(currentDate(), -i);
+        } ELSE {
+            filterOutDocsDateFrom() <- currentDate();
+        }
+        filterOutDocsDateTo() <- currentDate();
+    }
+}
+
+dropFilterOutDocsDates 'Сбросить' () {
+    filterOutDocsDateFrom() <- NULL;
+    filterOutDocsDateTo() <- NULL;
+}
+
 EXTEND FORM outDocs
-    PROPERTIES(r) READONLY nameOutOrderStatus AFTER id(r)
+    PROPERTIES() filterOutDocsDateFrom, filterOutDocsDateTo, dropFilterOutDocsDates,
+        countDaysSetFilter ON CHANGE setFilterOutDocsDates()
+    FILTERS filterDateFrom(r), filterDateTo(r)
+    
+    PROPERTIES(r) READONLY nameOutDocStatus AFTER id(r)
     PROPERTIES(r) READONLY AFTER nameDocType(r) typeBaseDocument, numberBaseDocument, dateBaseDocument
     PROPERTIES(r) READONLY AFTER descriptionClient(r) documentString, errorString
+    
+    FILTERGROUP docStatusFilter
+        FILTER 'Отправлен' outDocStatus(r) == OutDocStatus.send
 ;
 
 DESIGN outDocs {
     REMOVE PROPERTY(document(r));
     REMOVE PROPERTY(error(r));
     PROPERTY(id(r)) { caption = 'Номер транспортного пакета'; }
+    
+    pane {
+        NEW filters BEFORE BOX(r) {
+            horizontal = TRUE;
+            NEW filterDates {
+                caption = 'Отбор по датам';
+                horizontal = TRUE;
+                MOVE PROPERTY(filterOutDocsDateFrom());
+                MOVE PROPERTY(filterOutDocsDateTo());
+                MOVE PROPERTY(dropFilterOutDocsDates());
+            }
+            NEW filterAddition {
+                caption = 'Быстрый отбор';
+                MOVE PROPERTY(countDaysSetFilter());
+            }
+        }
+    }
 }
