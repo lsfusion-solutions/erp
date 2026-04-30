@@ -1,0 +1,14 @@
+MODULE SkuLedgerLotGestori;
+
+REQUIRE SkuLedgerLot;
+
+NAMESPACE Stock;
+
+notActiveSkuBalance = GROUP SUM signedQuantity(SkuLedger ledger, Lot lot) IF NOT active(ledger) BY lot, stock(ledger) CHARWIDTH 7;
+availableQuantity 'Доступный остаток' (Lot l, Stock st) = currentBalance(l, st) (+) notActiveSkuBalance(l, st);
+
+availableQuantity 'Доступный остаток' (Lot l) = GROUP SUM availableQuantity(l, Stock st);
+
+EXTEND FORM lots
+    PROPERTIES(l) READONLY availableQuantity
+;

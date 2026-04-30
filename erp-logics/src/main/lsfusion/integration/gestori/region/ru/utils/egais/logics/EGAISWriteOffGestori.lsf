@@ -1,0 +1,20 @@
+MODULE EGAISWriteOffGestori;
+
+REQUIRE EGAISWriteOff, SkuLedgerLotGestori;
+
+NAMESPACE EGAIS;
+
+minPostedActWriteOff (UserWriteOff w) = GROUP MIN ActWriteOff awo IF posted(actWriteOff(w)) AND actWriteOff(w) == awo;
+
+editQuantity(UserWriteOffDetail d, F2Reg r) += posted(actWriteOff(writeOff(d))) AND r IS F2Reg;
+hideFillQuantity(UserWriteOffDetail d, F2Reg r) += posted(actWriteOff(writeOff(d))) AND r IS F2Reg;
+hideFillQuantity(UserWriteOff w) += posted(actWriteOff(w));
+hideShowLots (UserWriteOffDetail w) += posted(actWriteOff(writeOff(w)));
+
+overCheckQuantity(UserWriteOffDetail d, F2Reg r, NUMERIC[16,5] n) += 
+    IF NOT currentBalance(r) >= n AND r IS F2Reg THEN 'Количество (ЕГАИС) не может быть больше текущего остатка';
+
+extraQuantity(ActWriteOffPosition p) += quantity(p);
+
+CONSTRAINT CHANGED(quantity(UserWriteOffDetail d, Lot l)) AND NOT (availableQuantity(l, stock(d)) == 1 OR NOT OVERRIDE availableQuantity(l, stock(d)), 0)
+    MESSAGE 'Неверное количество доступного остатка марок';

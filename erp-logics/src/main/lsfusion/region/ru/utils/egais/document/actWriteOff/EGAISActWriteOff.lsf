@@ -81,7 +81,15 @@ markCode 'Код маркировки' = DATA MarkCode (ActWriteOffMark) NONULL 
 idMarkCode 'Код маркировки' (ActWriteOffMark m) = id(markCode(m));
 dataQuantity = DATA INTEGER (ActWriteOffPosition);
 quantity 'Кол-во' (ActWriteOffPosition p) = GROUP SUM 1 IF actWriteOffPosition(ActWriteOffMark m) = p MATERIALIZED;
-overQuantity 'Кол-во' (ActWriteOffPosition p) = OVERRIDE dataQuantity(p), quantity(p);
+extraQuantity = ABSTRACT INTEGER (ActWriteOffPosition);
+overQuantity 'Кол-во' (ActWriteOffPosition p) = OVERRIDE extraQuantity(p), dataQuantity(p), quantity(p);
+changeOverQuantity (ActWriteOffPosition p)  {
+    IF p IS ActWriteOffPosition THEN {
+        INPUT n = NUMERIC[16,5] DO {
+            overQuantity(p) <- n;
+        }
+    }
+}
 sumSale 'Сумма продажи' = DATA NUMERIC[18,4](ActWriteOffPosition);
 // header properties
 
@@ -96,7 +104,7 @@ FORM actWriteOff 'Акт о списании с баланса ЕГАИС'
         idType, note
 
     OBJECTS p = ActWriteOffPosition
-    PROPERTIES(p) idProduct, fullNameProduct, idF2Reg, overQuantity, sumSale,
+    PROPERTIES(p) idProduct, fullNameProduct, idF2Reg, overQuantity ON CHANGE changeOverQuantity(p), sumSale,
         NEW, DELETE
     FILTERS actWriteOff(p) = w
 
@@ -126,6 +134,8 @@ show 'Просмотреть' (ActWriteOff w) {
 
 showToShow = ABSTRACT BOOLEAN (ActWriteOff);
 
+currentBalanceF2Reg 'Текущий остаток (справка Б)' (ActWriteOffMark m) = currentBalance(f2Reg(actWriteOffPosition(m)));
+
 FORM actWriteOffs 'Списания с баланса'
     OBJECTS d = ActWriteOff
     PROPERTIES(d) READONLY posted, canceled, errorPost, number, dateTime, regId,
@@ -139,7 +149,7 @@ FORM actWriteOffs 'Списания с баланса'
     FILTERS actWriteOff(p) = d
 
     OBJECTS m = ActWriteOffMark
-    PROPERTIES(m) READONLY idMarkCode
+    PROPERTIES(m) READONLY idF2Reg, currentBalanceF2Reg, idMarkCode
     FILTERS actWriteOffPosition(m) = p
 
     LIST ActWriteOff OBJECT d
