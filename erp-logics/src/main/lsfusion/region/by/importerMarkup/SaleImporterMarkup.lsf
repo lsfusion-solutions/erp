@@ -49,9 +49,11 @@ disableUpdateImporterMarkup = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
 overImporterMarkupBatch = ABSTRACT NUMERIC[8,4] (UserInvoiceDetail);
 dataImporterMarkup = ABSTRACT NUMERIC[8,4] (UserInvoiceDetail);
 
+changeImporterMarkupUserInvoice = ABSTRACT BOOLEAN(UserInvoiceDetail);
 WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR
     (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
-    CHANGED(batch(detail)) OR SET(showImporterMarkup(detail)))
+    CHANGED(batch(detail)) OR SET(showImporterMarkup(detail)) OR 
+    changeImporterMarkupUserInvoice(detail))
     AND batch(detail) AND NOT CHANGED(importerMarkup(detail)) AND showImporterMarkup(detail)
     AND NOT disableUpdateImporterMarkup(detail) AND NOT disableUpdateImporterMarkup(operation(detail)) DO {
     importerMarkup (detail) <- OVERRIDE overImporterMarkupBatch(detail),
@@ -65,7 +67,8 @@ WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR
 overImporterMarkupSku = ABSTRACT NUMERIC[8,4] (UserInvoiceDetail);
 WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR
     (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
-    DROPPED(batch(detail)) OR CHANGED(sku(detail)) OR SET(showImporterMarkup(detail)))
+    DROPPED(batch(detail)) OR CHANGED(sku(detail)) OR SET(showImporterMarkup(detail)) OR
+    changeImporterMarkupUserInvoice(detail))
     AND NOT batch(detail) AND NOT CHANGED(importerMarkup(detail)) AND showImporterMarkup(detail) 
     AND NOT disableUpdateImporterMarkup(detail) AND NOT disableUpdateImporterMarkup(operation(detail)) DO {
     importerMarkup (detail) <- OVERRIDE overImporterMarkupSku(detail),
