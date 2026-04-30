@@ -43,6 +43,7 @@ GROUP catalog;
 GROUP package;
 
 notes = DATA LOCAL STRING(INTEGER);
+mark_tree_status = DATA LOCAL INTEGER (INTEGER);
 date = DATA LOCAL DATE(INTEGER);
 number = DATA LOCAL STRING(INTEGER);
 innSupplier = DATA LOCAL STRING(INTEGER);
@@ -97,7 +98,7 @@ innCustomer = DATA LOCAL STRING(INTEGER);
 FORM invoiceInfo
     OBJECTS value = INTEGER
 
-    PROPERTIES(value) notes, id
+    PROPERTIES(value) notes, id, mark_tree_status
     PROPERTIES(value) IN info date, number
     PROPERTIES(value) IN customer innCustomer EXTID 'inn', nameCustomer EXTID 'name', addressCustomer EXTID 'address'
     PROPERTIES(value) IN executor innSupplier EXTID 'inn', nameSupplier EXTID 'name', addressSupplier EXTID 'address'
@@ -145,7 +146,7 @@ afterImportEInvoice ABSTRACT LIST(EInvoice);
 importInvoiceInfo(FILE f) {
     IMPORT invoiceInfo JSON FROM f;
     FOR id(INTEGER value) DO {
-        IF NOT eInvoiceByExternalId(id(value)) THEN NEW ei = EInvoice {
+        IF NOT eInvoiceByExternalId(id(value)) AND NOT mark_tree_status(value) == 1 THEN NEW ei = EInvoice {
             externalId(ei) <- id(value);
             docType(ei) <- EInvoiceDocType.esf;
             deliveryNoteNumber(ei) <- number(value);
