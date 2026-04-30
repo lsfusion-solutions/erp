@@ -8,14 +8,10 @@ typeBaseDocument 'Тип документа-основания' = ABSTRACT BPIST
 numberBaseDocument 'Номер документа-основания' = ABSTRACT STRING (OutDoc);
 dateBaseDocument 'Дата документа-основания' = ABSTRACT DATE (OutDoc);
 
-META defineOutDocAbstractTypeNumberDate(doc, docProp, numberProp, dateProp)
-    numberBaseDocument(###doc##OutDoc d) += numberProp(docProp(d));
-    dateBaseDocument(###doc##OutDoc d) += dateProp(docProp(d));
-    typeBaseDocument(###doc##OutDoc d) += objectClassName(docProp(d));
-END;
-
 META defineOutDocAbstractTypeNumberDate(doc, docProp)
-    @defineOutDocAbstractTypeNumberDate(doc, docProp, number, date);
+    numberBaseDocument(###doc##OutDoc d) += number(docProp(d));
+    dateBaseDocument(###doc##OutDoc d) += date(docProp(d));
+    typeBaseDocument(###doc##OutDoc d) += objectClassName(docProp(d));
 END;
 
 META defineOutDocAbstractTypeNumberDate(doc)
@@ -26,10 +22,14 @@ typeOriginalDocument 'Тип документа системы' = ABSTRACT BPIST
 numberOriginalDocument 'Номер документа системы' = ABSTRACT STRING (OutDoc);
 dateOriginalDocument 'Дата документа системы' = ABSTRACT DATE (OutDoc);
 
+META defineOutDocAbstractOriginalDocumentTypeNumberDate(outDoc, origDoc)
+    typeOriginalDocument(###outDoc##OutDoc d) += typeOriginalDocument(origDoc(d));
+    numberOriginalDocument(###outDoc##OutDoc d) += numberOriginalDocument(origDoc(d));
+    dateOriginalDocument(###outDoc##OutDoc d) += dateOriginalDocument(origDoc(d));
+END;
+
 META defineOutDocAbstractOriginalDocumentTypeNumberDate(doc)
-    typeOriginalDocument(###doc##OutDoc d) += typeOriginalDocument(doc(d));
-    numberOriginalDocument(###doc##OutDoc d) += numberOriginalDocument(doc(d));
-    dateOriginalDocument(###doc##OutDoc d) += dateOriginalDocument(doc(d));
+    @defineOutDocAbstractOriginalDocumentTypeNumberDate(doc, doc);
 END;
 
 CLASS OutDocStatus 'Статус исходящего документа' {
