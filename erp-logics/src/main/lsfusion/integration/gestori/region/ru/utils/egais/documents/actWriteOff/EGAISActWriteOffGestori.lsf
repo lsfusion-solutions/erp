@@ -4,6 +4,17 @@ REQUIRE EGAISActWriteOff, EGAISStock, EGAISItem, LotType;
 
 NAMESPACE EGAIS;
 
+typeOriginalDocument 'Тип документа системы' = ABSTRACT CASE BPISTRING[100] (ActWriteOff);
+numberOriginalDocument 'Номер документа системы' = ABSTRACT CASE STRING (ActWriteOff);
+dateOriginalDocument 'Дата документа системы' = ABSTRACT CASE DATE (ActWriteOff);
+
+META defineOriginalLastDocumentActWriteOffAttributes(object)
+    last##object (ActWriteOff a) = GROUP LAST ##object o ORDER o BY actWriteOff(o);
+    typeOriginalDocument(ActWriteOff a) += WHEN last##object(a) THEN objectClassName(last##object(a));
+    numberOriginalDocument(ActWriteOff a) += WHEN last##object(a) THEN number(last##object(a));
+    dateOriginalDocument(ActWriteOff a) += WHEN last##object(a) THEN date(last##object(a));
+END;
+
 createActWriteOff 'Создать списание ЕГАИС на основе реализации' ABSTRACT LIST (Client, DATE, DATE, WriteOffType);
 
 actWriteOffClient = DATA Client () NONULL ;

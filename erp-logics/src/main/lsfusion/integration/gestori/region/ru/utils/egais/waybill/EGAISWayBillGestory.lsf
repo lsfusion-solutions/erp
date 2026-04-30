@@ -4,6 +4,17 @@ REQUIRE EGAISWayBill, EGAISItemGestori;
 
 NAMESPACE EGAIS;
 
+typeOriginalDocument 'Тип документа системы' = ABSTRACT CASE BPISTRING[100] (WayBill);
+numberOriginalDocument 'Номер документа системы' = ABSTRACT CASE STRING (WayBill);
+dateOriginalDocument 'Дата документа системы' = ABSTRACT CASE DATE (WayBill);
+
+META defineOriginalLastDocumentWayBillAttributes(namespace, object)
+    last##namespace##object (WayBill b) = GROUP LAST ##namespace.##object o ORDER o BY wayBill(o);
+    typeOriginalDocument(WayBill b) += WHEN last##namespace##object(b) THEN objectClassName(last##namespace##object(b));
+    numberOriginalDocument(WayBill b) += WHEN last##namespace##object(b) THEN number(last##namespace##object(b));
+    dateOriginalDocument(WayBill b) += WHEN last##namespace##object(b) THEN date(last##namespace##object(b));
+END;
+
 notLinkedItem (WayBill w) = GROUP MIN WayBillPosition p IF NOT existItem(product(p)) AND product(p) BY wayBill(p);
 
 EXTEND FORM dialogWayBills

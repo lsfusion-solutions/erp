@@ -22,6 +22,16 @@ META defineOutDocAbstractTypeNumberDate(doc)
     @defineOutDocAbstractTypeNumberDate(doc, doc);
 END;
 
+typeOriginalDocument 'Тип документа системы' = ABSTRACT BPISTRING[100] (OutDoc);
+numberOriginalDocument 'Номер документа системы' = ABSTRACT STRING (OutDoc);
+dateOriginalDocument 'Дата документа системы' = ABSTRACT DATE (OutDoc);
+
+META defineOutDocAbstractOriginalDocumentTypeNumberDate(doc)
+    typeOriginalDocument(###doc##OutDoc d) += typeOriginalDocument(doc(d));
+    numberOriginalDocument(###doc##OutDoc d) += numberOriginalDocument(doc(d));
+    dateOriginalDocument(###doc##OutDoc d) += dateOriginalDocument(doc(d));
+END;
+
 CLASS OutDocStatus 'Статус исходящего документа' {
     error 'Ошибка отправки',
     send 'Отправлен'
@@ -66,7 +76,8 @@ EXTEND FORM outDocs
     FILTERS filterDateFrom(r), filterDateTo(r)
     
     PROPERTIES(r) READONLY nameOutDocStatus AFTER id(r)
-    PROPERTIES(r) READONLY AFTER nameDocType(r) typeBaseDocument, numberBaseDocument, dateBaseDocument
+    PROPERTIES(r) READONLY AFTER nameDocType(r) typeBaseDocument, numberBaseDocument, dateBaseDocument,
+        typeOriginalDocument, numberOriginalDocument, dateOriginalDocument
     PROPERTIES(r) READONLY AFTER descriptionClient(r) documentString, errorString
     
     FILTERGROUP docStatusFilter

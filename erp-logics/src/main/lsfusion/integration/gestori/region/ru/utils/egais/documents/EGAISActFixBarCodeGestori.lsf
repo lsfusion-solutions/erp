@@ -1,0 +1,16 @@
+MODULE EGAISActFixBarCodeGestori;
+
+REQUIRE EGAISActFixBarCode;
+
+NAMESPACE EGAIS;
+
+typeOriginalDocument 'Тип документа системы' = ABSTRACT CASE BPISTRING[100] (ActFixBarCode);
+numberOriginalDocument 'Номер документа системы' = ABSTRACT CASE STRING (ActFixBarCode);
+dateOriginalDocument 'Дата документа системы' = ABSTRACT CASE DATE (ActFixBarCode);
+
+META defineOriginalLastDocumentActFixBarCodeAttributes(object)
+    last##object (ActFixBarCode c) = GROUP LAST ##object o ORDER o BY actFixBarCode(o);
+    typeOriginalDocument(ActFixBarCode c) += WHEN last##object(c) THEN objectClassName(last##object(c));
+    numberOriginalDocument(ActFixBarCode c) += WHEN last##object(c) THEN number(last##object(c));
+    dateOriginalDocument(ActFixBarCode c) += WHEN last##object(c) THEN date(last##object(c));
+END;
