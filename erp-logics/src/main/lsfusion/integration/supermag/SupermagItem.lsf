@@ -334,7 +334,9 @@ importItem 'Импорт товаров' () {
     LOCAL length = NUMERIC[14,3] (INTEGER);
     LOCAL height = NUMERIC[14,3] (INTEGER);
     LOCAL vat = NUMERIC[8,4] (INTEGER);
+    LOCAL vatId = INTEGER (INTEGER);
     LOCAL taxItem = NUMERIC[8,4] (STRING);
+    LOCAL taxGgroup = INTEGER (STRING);
     LOCAL energy, fats, carbohydrates, proteins = NUMERIC[8,2] (INTEGER);
 
     EXTERNAL SQL connectionString()
@@ -345,16 +347,19 @@ importItem 'Импорт товаров' () {
     IMPORT TABLE FROM file() TO id, name, shortName, idMeasurement, idClass, country, accepted, scale, width, length, height, proteins, fats, carbohydrates, energy;
 
     EXTERNAL SQL connectionString()
-        EXEC 'SELECT cardtax.article, taxrate.TAXPERCENT AS VAT FROM SUPERMAG.SMCARDTAX cardtax, SUPERMAG.SMTAXGROUP taxgr, SUPERMAG.SMTAXRATE taxrate WHERE taxgr.TAXGROUPID = cardtax.TAXGROUPID AND taxrate.RATEID = taxgr.RATEID AND cardtax.datefrom = (SELECT MAX(crdtax.datefrom) FROM SUPERMAG.SMCARDTAX crdtax WHERE crdtax.article = cardtax.article)' TO file;
+        EXEC 'SELECT cardtax.article, taxrate.TAXPERCENT AS VAT, taxgr.TAXGROUPID FROM SUPERMAG.SMCARDTAX cardtax, SUPERMAG.SMTAXGROUP taxgr, SUPERMAG.SMTAXRATE taxrate WHERE taxgr.TAXGROUPID = cardtax.TAXGROUPID AND taxrate.RATEID = taxgr.RATEID AND cardtax.datefrom = (SELECT MAX(crdtax.datefrom) FROM SUPERMAG.SMCARDTAX crdtax WHERE crdtax.article = cardtax.article)' TO file;
 
-    IMPORT TABLE FROM file() TO taxArticle, vat;
+    IMPORT TABLE FROM file() TO taxArticle, vat, vatId;
 
-    FOR taxArticle(INTEGER i) DO { taxItem (taxArticle(i)) <- vat(i); }
+    FOR taxArticle(INTEGER i) DO { 
+        taxItem (taxArticle(i)) <- vat(i);
+        taxGgroup (taxArticle(i)) <- vatId(i); 
+    }
     
     country(INTEGER i) <- ISTRING[50](initcap(trim(country(i))));
     
     currentVersion(INTEGER i) <- CONCAT '~', id(i), name(i), shortName(i), TEXT (idMeasurement(i)), TEXT (idClass(i)), country(i), TEXT (accepted(i)), scale(i),
-        TEXT (width(i)), TEXT (length(i)), TEXT (height(i)), TEXT (taxItem(id(i))), TEXT (proteins(i)), TEXT (fats(i)), TEXT (carbohydrates(i)), TEXT (energy(i));
+        TEXT (width(i)), TEXT (length(i)), TEXT (height(i)), TEXT (taxGgroup(id(i))), TEXT (proteins(i)), TEXT (fats(i)), TEXT (carbohydrates(i)), TEXT (energy(i));
     //   logToFile('importSupermag', 'importItem_2');
 
     
@@ -388,7 +393,8 @@ importItem 'Импорт товаров' () {
     }
 
     FOR Item s = item(id(INTEGER i)) AND imported(s) DO {
-        VAT(s, Country c) <- GROUP MAX Tax.Range r IF valueRate(r) == taxItem(id(i)) AND c = defaultCountry();
+        VAT(s, Country c) <- OVERRIDE (GROUP MAX Tax.Range r IF number (r) == taxGgroup(id(i)) AND c = defaultCountry())
+        ,(GROUP MAX Tax.Range r IF valueRate(r) == taxItem(id(i)) AND c = defaultCountry());
     }
 
     logToFile('importSupermag', 'importItem_6');
