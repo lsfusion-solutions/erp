@@ -20,18 +20,6 @@ sendGetRequestEDI 'Отправить' (TEXT login, TEXT password, TEXT url, FIL
     sendRequestEDIStatus() <- statusHttp();
 }
 
-sendGetRequestEDI 'Отправить' (TEXT login, TEXT password, TEXT url, BOOLEAN basicAuthorization, BOOLEAN client) {
-    logToFile('edi', CONCAT ' ', 'SendRequestEDI ' + url, '(client)' IF client);
-    basic() <- encodeText(login + ':' + password, 'base64') IF basicAuthorization;
-    timeoutHttp() <- 300000;
-    IF client THEN {
-        EXTERNAL HTTP CLIENT GET url HEADERS httpHeadersEDI TO sendRequestEDIResponse;
-    } ELSE {
-        EXTERNAL HTTP GET url HEADERS httpHeadersEDI TO sendRequestEDIResponse;
-    }
-    sendRequestEDIStatus() <- statusHttp();
-}
-
 sendPostRequestEDI 'Отправить' (TEXT login, TEXT password, TEXT url, FILE request, BOOLEAN basicAuthorization, BOOLEAN client) {
     logToFile('edi', CONCAT ' ', 'SendRequestEDI ' + url, '(client)' IF client);
     sendRequestEDIRequest() <- request;
