@@ -10,7 +10,7 @@ nameLedgerStocks 'Склады' (MarkCode m) = nameLedgerStocks(f2Reg(m));
 idItem 'Коды товаров' (MarkCode m) = idItem(product(m));
 nameItem 'Товары' (MarkCode m) = nameItem(product(m));
 
-markType 'Тип марки' (MarkCode m) = STRING[3](substr(id(m), 1, 3));
+markType 'Код типа марки' (MarkCode m) = STRING[3](substr(id(m), 1, 3));
 markSeries 'Серия марки' (MarkCode m) = STRING[3](substr(id(m), 4, 3));
 markNumber 'Номер марки' (MarkCode m) = STRING[8](substr(id(m), 7, 8));
 
@@ -25,11 +25,65 @@ changeFilterStockMarkCode 'Выбор склада' () {
     }
 }
 
+CLASS MarkCodeType 'Тип марки';
+
+id 'Код' = DATA STRING[3] (MarkCodeType) INDEXED IN id;
+markCodeType = GROUP AGGR MarkCodeType t BY id(t);
+name 'Наименование' = DATA STRING[255] (MarkCodeType);
+
+FORM markCodeTypes 'Типы марок'
+    OBJECTS t = MarkCodeType
+    PROPERTIES(t) READONLY id, name
+    PROPERTIES(t) NEWSESSION NEW, EDIT, DELETE
+    
+    LIST MarkCodeType OBJECT t
+;
+
+FORM markCodeType 'Тип марки'
+    OBJECTS t = MarkCodeType PANEL
+    PROPERTIES(t) id, name
+    
+    EDIT MarkCodeType OBJECT t
+;
+
+importMarkCodeTypes 'Импорт типов марок' () {
+    NEWSESSION {
+        LOCAL id = STRING[3] (INTEGER);
+        LOCAL name = STRING[255] (INTEGER);
+        
+        INPUT f = EXCELFILE DO {
+            IMPORT XLS NOHEADER FROM f AS EXCELFILE TO id = A, name = B;
+            
+            FOR INTEGER r = [GROUP MIN INTEGER i BY id(i)](STRING[3] id) AND NOT markCodeType(id(r)) NEW t = MarkCodeType DO {
+                id(t) <- id;
+                name(t) <- name(r);
+            }
+
+            FOR INTEGER r = [GROUP MIN INTEGER i BY id(i)](STRING[3] id) AND MarkCodeType t = markCodeType(id(r)) DO {
+                name(t) <- name(r);
+            }
+            
+            APPLY;
+            IF NOT canceled() THEN MESSAGE 'Типы марки успешно загружены';
+        }
+    }
+} TOOLBAR;
+
+EXTEND FORM markCodeTypes PROPERTIES() importMarkCodeTypes DRAW t TOOLBAR;
+
+markCodeType 'Тип марки' (MarkCode m) = markCodeType(markType(m));
+idMarkCodeType 'Код типа марки' (MarkCode m) = id(markCodeType(m));
+nameMarkCodeType 'Тип марки' (MarkCode m) = name(markCodeType(m)) CHARWIDTH 50;
+
+overNameMarkCodeType 'Тип марки' (MarkCode m) = OVERRIDE nameMarkCodeType(m), 'Не определен' CHARWIDTH 30;
+backgroundOverNameMarkCodeType 'Цвет типа марки' (MarkCode m) = RGB(255, 204, 204) IF NOT markCodeType(m);
+
 EXTEND FORM markCodes
     PROPERTIES() nameFilterStockMarkCode ON CHANGE changeFilterStockMarkCode()
     FILTERS stockMarkCodeFilter(m)
     
-    PROPERTIES(m) READONLY AFTER id(m) markType, markSeries, markNumber
+    PROPERTIES(m) READONLY AFTER id(m) markType, overNameMarkCodeType BACKGROUND backgroundOverNameMarkCodeType(m),
+        markSeries, markNumber
     PROPERTIES(m) READONLY idItem, nameItem, idLedgerStocks, nameLedgerStocks
 ;
 
@@ -41,5 +95,11 @@ DESIGN markCodes {
             alignment = STRETCH;
             MOVE PROPERTY(nameFilterStockMarkCode());
         }
+    }
+}
+
+NAVIGATOR {
+    EGAISMasterData {
+        NEW markCodeTypes;
     }
 }
