@@ -30,7 +30,7 @@ deliveryNotePrevLineID 'Номер строки в приходном докум
 INDEX batch(InTrackingLedger l), stock(l), deliveryNoteDate(l), l;
 INDEX sku(InTrackingLedger l), stock(l), deliveryNoteDate(l), l;
 
-CLASS OutTrackingLedger 'Регистр прослеживаемого товара (расход)' ;
+CLASS ABSTRACT OutTrackingLedger 'Регистр прослеживаемого товара (расход)' ;
 TABLE outTrackingLedger(OutTrackingLedger);
 
 quantity 'Количество' = ABSTRACT NUMERIC[16,5] (OutTrackingLedger) MATERIALIZED;
@@ -82,8 +82,9 @@ FORM changeInTrackingLedger 'Выбор прихода прослеживаем�
     OBJECTS l = InTrackingLedger
     PROPERTIES(l) READONLY deliveryNotePrev, deliveryNotePrevLineID, prevBalanceTracking
     FILTERS sku(l) == s,
-        (batch(l) == b OR NOT b),
-        stock(l) == st
+        (batch(l) == b OR NOT b)
     FILTERGROUP balance
         FILTER 'С остатком' prevBalanceTracking(l) > 0 DEFAULT
+    FILTERGROUP stock
+        FILTER 'По складу' stock(l) == st DEFAULT
 ;
