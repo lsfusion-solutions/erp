@@ -162,11 +162,21 @@ fillTrackingBatch(Inventory i) + {
             deliveryNoteDate (b, st) <- DATE(dateTimeInventory(stocktake(td)));
             deliveryNotePrevLineID (b, st) <- index(td);
             lineItemQuantitySPT (b, st) <- trackingUOMCustomsGroup(td);
+            quantityDespatchedSPT (b, st) <- quantityPageInventoryDetail(td);
             itemCustomCode (b, st) <- codeSku(td);
             itemCustomCodeOther (b, st) <- extraCodeSku(td);
         }
     }
 }
+
+documentStocktakeMigrate(){
+    FOR lastStocktake(Inventory i) == Stocktake t AND Stock st == (GROUP MIN  Stock s IF include(s,i)) DO {
+        FOR batch(StocktakeDetail td) == Batch b AND stocktake(td)==t AND isTracking (b, st) DO {
+            quantityDespatchedSPT (b, st) <- quantityPageInventoryDetail(td);
+        }
+    }
+}
+@defOnStartMigrate(documentStocktakeMigrate);
 
 createdStocktake = DATA LOCAL Stocktake();
 

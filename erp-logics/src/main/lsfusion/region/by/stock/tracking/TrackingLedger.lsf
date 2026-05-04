@@ -1,0 +1,89 @@
+MODULE TrackingLedger;
+
+REQUIRE SkuLedger, LegalEntity, Barcode, EDI;
+
+CLASS ABSTRACT InTrackingLedger 'Регистр прослеживаемого товара (приход)';
+TABLE inTrackingLedger(InTrackingLedger);
+
+sku 'Товар' = ABSTRACT Sku (InTrackingLedger) MATERIALIZED;
+nameSku 'Наименование товара' (InTrackingLedger ledger) = name(sku(ledger)) CHARWIDTH 40;
+idSku 'Код товара' (InTrackingLedger ledger) = id(sku(ledger)) CHARWIDTH 15;
+idBarcodeSku 'Штрихкод товара' (InTrackingLedger ledger) = idBarcode(sku(ledger)) CHARWIDTH 15;
+
+stock 'Склад' = ABSTRACT Stock (InTrackingLedger) MATERIALIZED;
+nameStock 'Склад' (InTrackingLedger ledger) = name(stock(ledger)) CHARWIDTH 30;
+idStock 'Код склада' (InTrackingLedger ledger) = id(stock(ledger)) CHARWIDTH 10;
+
+quantity 'Количество' = ABSTRACT NUMERIC[16,5] (InTrackingLedger) MATERIALIZED;
+
+batch 'Партия' = ABSTRACT Batch (InTrackingLedger) MATERIALIZED;
+nameBatch 'Партия' (InTrackingLedger ledger) = name(batch(ledger)) CHARWIDTH 30;
+idBatch 'Код партии' (InTrackingLedger ledger) = id(batch(ledger)) CHARWIDTH 15;
+
+description 'Основание' = ABSTRACT STRING[250] (InTrackingLedger) MATERIALIZED;
+
+deliveryTypePrev 'Тип приходного документа' = ABSTRACT INTEGER (InTrackingLedger) MATERIALIZED;
+deliveryNotePrev 'Номер приходного документа' = ABSTRACT STRING[70] (InTrackingLedger) MATERIALIZED;
+deliveryNoteDate 'Дата создания приходного документа' = ABSTRACT DATE (InTrackingLedger) MATERIALIZED INDEXED;
+deliveryNotePrevLineID 'Номер строки в приходном документе' = ABSTRACT INTEGER (InTrackingLedger) MATERIALIZED;
+
+INDEX batch(InTrackingLedger l), stock(l), deliveryNoteDate(l), l;
+INDEX sku(InTrackingLedger l), stock(l), deliveryNoteDate(l), l;
+
+CLASS OutTrackingLedger 'Регистр прослеживаемого товара (расход)' ;
+TABLE outTrackingLedger(OutTrackingLedger);
+
+quantity 'Количество' = ABSTRACT NUMERIC[16,5] (OutTrackingLedger) MATERIALIZED;
+
+description 'Основание' = ABSTRACT STRING[250] (OutTrackingLedger) MATERIALIZED;
+
+@defineOption(notCheckBalanceTracking, 'Отключить контроль остатка прослеживаемого товара', stock);
+
+inTrackingLedger 'Приход прослеживаемого товара' = ABSTRACT InTrackingLedger (OutTrackingLedger) MATERIALIZED INDEXED;
+
+outQuantity 'Количество (расход)' (InTrackingLedger i) = GROUP SUM quantity(OutTrackingLedger o) BY inTrackingLedger(o);
+balanceTracking 'Остаток' (InTrackingLedger i) = quantity(i) (-) outQuantity(i) MATERIALIZED;
+prevBalanceTracking 'Остаток (предыдущий)' (InTrackingLedger i) = PREV(balanceTracking(i));
+
+CONSTRAINT balanceTracking(InTrackingLedger i) < 0 AND NOT notCheckBalanceTracking()
+    MESSAGE 'Остаток прослеживаемого товара по приходу не может быть отрицательным';
+
+FORM trackingLedger 'Регистр прослеживаемого товара'
+    OBJECTS l = InTrackingLedger
+    PROPERTIES(l) READONLY idBarcodeSku, idSku, nameSku, description, idBatch, nameBatch, idStock, nameStock, quantity,
+        deliveryTypePrev, deliveryNotePrev, deliveryNoteDate, deliveryNotePrevLineID,
+        balanceTracking
+
+    OBJECTS ol = OutTrackingLedger
+    PROPERTIES(ol) READONLY description, quantity
+    FILTERS inTrackingLedger(ol) == l
+;
+
+NAVIGATOR {
+    edi {
+        NEW trackingLedger;
+    }
+}
+
+
+lastInTrackingLedgerB = GROUP LAST InTrackingLedger l IF deliveryNoteDate(l) <= DATE date
+    ORDER deliveryNoteDate(l), l
+    BY sku(l), stock(l), date;
+prevLastInTrackingLedgerB(Sku s, Stock st, DATE dt) = PREV(lastInTrackingLedgerB(s, st, dt));
+
+lastInTrackingLedgerB = GROUP LAST InTrackingLedger l IF deliveryNoteDate(l) <= DATE date
+    ORDER deliveryNoteDate(l), l
+    BY batch(l), stock(l), date;
+prevLastInTrackingLedgerB(Batch b, Stock st, DATE dt) = PREV(lastInTrackingLedgerB(b, st, dt));
+
+FORM changeInTrackingLedger 'Выбор прихода прослеживаемого товара'
+    OBJECTS s = Sku PANEL, b = Batch PANEL NULL, st = Stock PANEL
+
+    OBJECTS l = InTrackingLedger
+    PROPERTIES(l) READONLY deliveryNotePrev, deliveryNotePrevLineID, prevBalanceTracking
+    FILTERS sku(l) == s,
+        (batch(l) == b OR NOT b),
+        stock(l) == st
+    FILTERGROUP balance
+        FILTER 'С остатком' prevBalanceTracking(l) > 0 DEFAULT
+;

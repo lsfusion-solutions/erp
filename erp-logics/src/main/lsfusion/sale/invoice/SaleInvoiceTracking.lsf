@@ -1,79 +1,67 @@
 MODULE SaleInvoiceTracking;
 
-REQUIRE SaleInvoice, ItemTracking, BatchInventoryTracking, PurchaseInvoiceTracking;
+REQUIRE SaleInvoice, ItemTracking, TrackingLedger, 
+        PurchaseInvoiceTracking, BatchInventoryTracking; // для миграции
 
 NAMESPACE Sale;
 
+TABLE trackingInvoiceDetail(InvoiceDetail);
+
 dateStartSPT 'Дата начала прослеживания' (UserInvoiceDetail d)=dateStartSPT(sku(d));
-isTracking (Invoice i) = GROUP SUM 1 IF isTrackingOver(sku(UserInvoiceDetail d)) AND date(d) >= dateStartSPT(d) AND invoice(d)==i;
-showSPT (Invoice i)= TRUE IF isTracking(i);
 isTracking 'Подлежит прослеживанию' (UserInvoiceDetail d) = TRUE IF isTrackingOver(sku(d)) AND date(d) >= dateStartSPT(d);
+isTracking (Invoice i) = GROUP SUM 1 IF isTracking(UserInvoiceDetail d) AND invoice(d)==i;
+showSPT (Invoice i)= TRUE IF isTracking(i);
 
-trackingInvoiceDetail = DATA Purchase.InvoiceDetail (UserInvoiceDetail) INDEXED;
-basisTracking 'Основание СПТ' (UserInvoiceDetail d) = description(trackingInvoiceDetail(d));
+trackingInvoiceDetail = DATA Purchase.InvoiceDetail (UserInvoiceDetail) INDEXED TABLE trackingInvoiceDetail;
 
-// на данный момент прослеживаемые только шт, не удаляю на случай если вернуться иные ед изм прослеживаемости
-//quantityDespatchedSPT 'Кол-во в ед.СПТ ' (UserInvoiceDetail d) =  NUMERIC[12,5] (CASE
-//    WHEN trackingUOMCustomsGroup(sku(d))=='112'  THEN (OVERRIDE quantity(d), 1.0)* volume(sku(d))
-//    WHEN trackingUOMCustomsGroup(sku(d))=='166'  THEN (OVERRIDE quantity(d), 1.0)* netWeight(sku(d))
-//    ELSE (OVERRIDE quantity(d), 1.0));
-//lineItemPriceSPT'Цена за единицу товара для прослеживаемости' (UserInvoiceDetail d) = NUMERIC[12,2] (CASE
-//    WHEN trackingUOMCustomsGroup(sku(d))=='112'  THEN (OVERRIDE price(d), 1.0)/ volume(sku(d))
-//    WHEN trackingUOMCustomsGroup(sku(d))=='166'  THEN (OVERRIDE price(d), 1.0)/ netWeight(sku(d))
-//    ELSE (OVERRIDE price(d), 1.0));
+inTrackingLedger = DATA InTrackingLedger (UserInvoiceDetail) INDEXED TABLE trackingInvoiceDetail;
+descriptionTracking 'Основание СПТ' (UserInvoiceDetail d) = description(inTrackingLedger(d));
 
-itemCustomCode 'Код ТНВЭД' (UserInvoiceDetail d) = OVERRIDE itemCustomCode(batch(d), supplierStock(d)),  codeCustomsGroupDefaultCountry(sku(d));
-itemCustomCodeOther 'Дополнительный таможенный код'(UserInvoiceDetail d) = OVERRIDE itemCustomCodeOther(batch(d), supplierStock(d)),  idExtraCode(sku(d));
-deliveryTypePrev 'Тип приходного документа'(UserInvoiceDetail d) = OVERRIDE deliveryTypePrev(batch(d), supplierStock(d)), deliveryTypePrev(trackingInvoiceDetail(d)), deliveryTypePrev(batch(d));
-deliveryNotePrev 'Номер приходного документа' (UserInvoiceDetail d) = OVERRIDE deliveryNotePrev(batch(d), supplierStock(d)),deliveryNotePrev(trackingInvoiceDetail(d)), deliveryNotePrev(batch(d));
-deliveryNoteDate 'Дата создания приходного документа' (UserInvoiceDetail d) = OVERRIDE deliveryNoteDate(batch(d), supplierStock(d)), deliveryNoteDate(trackingInvoiceDetail(d)), deliveryNoteDate(batch(d));
-deliveryNotePrevLineID 'Номер строки в приходном документе' (UserInvoiceDetail d) = OVERRIDE deliveryNotePrevLineID(batch(d), supplierStock(d)),deliveryNotePrevLineID(trackingInvoiceDetail(d)), deliveryNotePrevLineID(batch(d));
-lineItemQuantitySPT 'Ед. изм.СПТ' (UserInvoiceDetail d) = OVERRIDE lineItemQuantitySPT(batch(d), supplierStock(d)),  trackingUOMCustomsGroup(sku(d));
-quantityDespatchedSPT 'Кол-во в ед.СПТ ' (UserInvoiceDetail d) =  quantity(d); // на данный момент прослеживаемые только шт
-lineItemPriceSPT'Цена за единицу товара для прослеживаемости' (UserInvoiceDetail d) = price(d); // на данный момент прослеживаемые только шт
-
-FORM basisInvoiceDetail 'Строка накладной'
-    OBJECTS sk = Sku PANEL
-    PROPERTIES(sk) READONLY name, idBarcode, shortNameUOM
-
-    OBJECTS st = Stock PANEL
-    PROPERTIES (st) READONLY name
-    
-    OBJECTS dt = DATETIME PANEL
-    OBJECTS d = Purchase.InvoiceDetail LAST
-   
-    PROPERTIES(d) READONLY date, index, description, quantity, price, sum,  numberVAT, valueVAT, VATSum, invoiceSum,  nameCustomerStock, nameSupplierStock
-    FILTERS sku(d) == sk
-
-    FILTERGROUP filterStock
-        FILTER  'По складу пок.' customerStock(d) == st DEFAULT
-    
-    FILTERGROUP filterSDateStart
-        FILTER  'По дате СПТ' date(d) >= dateStartSPT(sk) DEFAULT
-;
-
-DESIGN basisInvoiceDetail {
-    BOX {
-        MOVE BOX(sk) {
-            horizontal = TRUE;
-            PROPERTY(name(sk)) {focusable = FALSE;}
-            PROPERTY(idBarcode(sk)) {focusable = FALSE;}
-            PROPERTY(shortNameUOM(sk)) {focusable = FALSE;}
-        }
-        MOVE BOX(d);
-        MOVE TOOLBARBOX;
+saleInvoiceTrackingMigrate(){
+    FOR isTracking(UserInvoiceDetail d) DO {
+        inTrackingLedger(d) <- OVERRIDE inTrackingLedger(trackingInvoiceDetail(d)), 
+                inTrackingLedger(batch(d), supplierStock(d)),
+                (GROUP MAX InTrackingLedger l IF TrackingLedger.batch(l) == batch(d));
     }
+    setNoCancelInTransaction();
 }
-changeBasisInvoiceDetaill(InvoiceDetail detail)  {
-        DIALOG basisInvoiceDetail OBJECTS sk = sku(detail), st = supplierStock(detail), dt = dateTime(detail),
-            d = trackingInvoiceDetail[UserInvoiceDetail](detail) CHANGE ;
+@defOnStartMigrate(saleInvoiceTrackingMigrate);
+
+
+itemCustomCode 'Код ТНВЭД' (UserInvoiceDetail d) = codeCustomsGroupDefaultCountry(sku(d));
+itemCustomCodeOther 'Дополнительный таможенный код'(UserInvoiceDetail d) = idExtraCode(sku(d));
+deliveryTypePrev 'Тип приходного документа'(UserInvoiceDetail d) = deliveryTypePrev(inTrackingLedger(d));
+deliveryNotePrev 'Номер приходного документа' (UserInvoiceDetail d) = deliveryNotePrev(inTrackingLedger(d));
+deliveryNoteDate 'Дата создания приходного документа' (UserInvoiceDetail d) = deliveryNoteDate(inTrackingLedger(d));
+deliveryNotePrevLineID 'Номер строки в приходном документе' (UserInvoiceDetail d) = deliveryNotePrevLineID(inTrackingLedger(d));
+lineItemQuantitySPT 'Ед. изм.СПТ' (UserInvoiceDetail d) = trackingUOMCustomsGroup(sku(d));
+quantityDespatchedSPT 'Кол-во в ед.СПТ ' (UserInvoiceDetail d) =  NUMERIC[16,5](quantity(d) * 1.0 IF inTrackingLedger(d)); // на данный момент прослеживаемые только шт
+lineItemPriceSPT'Цена за единицу товара для прослеживаемости' (UserInvoiceDetail d) = price(d) * 1.0 IF inTrackingLedger(d); // на данный момент прослеживаемые только шт
+
+EXTEND CLASS UserInvoiceDetail : OutTrackingLedger;
+
+TrackingLedger.inTrackingLedger(UserInvoiceDetail l) += inTrackingLedger(l);
+TrackingLedger.quantity(UserInvoiceDetail l) += quantityDespatchedSPT(l);
+TrackingLedger.description(UserInvoiceDetail l) += descriptionIndex(l) IF inTrackingLedger(l);
+
+WHEN LOCAL (CHANGED(sku(UserInvoiceDetail d)) OR CHANGED(supplierStock(d)) OR CHANGED(date(d)) OR CHANGED(batch(d))) AND NOT batch(d) DO {
+    inTrackingLedger(d) <- prevLastInTrackingLedgerB(sku(d), supplierStock(d), date(d));
+}
+
+WHEN LOCAL (CHANGED(sku(UserInvoiceDetail d)) OR CHANGED(supplierStock(d)) OR CHANGED(date(d)) OR CHANGED(batch(d))) AND batch(d) DO {
+    inTrackingLedger(d) <- prevLastInTrackingLedgerB(batch(d), supplierStock(d), date(d));
+}
+
+changeInTrackingLedger 'Выбрать приход' (UserInvoiceDetail out) {
+    DIALOG changeInTrackingLedger OBJECTS s = sku(out), b = batch(out), st = supplierStock(out), l INPUT DO
+        inTrackingLedger(out) <- l;
 }
 
 EXTEND FORM userInvoice
     OBJECTS d6 = UserInvoiceDetail GRID 
     PROPERTIES(d6) SHOWIF showSPT(i) READONLY index, idBarcodeSku, nameSku, isTracking BACKGROUND backgroundEC(extraCode(sku(d6))), itemCustomCode, itemCustomCodeOther, dateStartSPT,
         deliveryTypePrev, deliveryNotePrev, deliveryNoteDate, deliveryNotePrevLineID, lineItemQuantitySPT, quantityDespatchedSPT, lineItemPriceSPT
-    PROPERTIES (d6) SHOWIF showSPT(i) basisTracking ON CHANGE changeBasisInvoiceDetaill(d6)
+    PROPERTIES (d6) SHOWIF showSPT(i) descriptionTracking ON CHANGE changeInTrackingLedger(d6)
     FILTERS userInvoice(d6) == i, isTracking(d6)
 
 ;
@@ -87,3 +75,13 @@ DESIGN userInvoice{
     }
 }
 
+skipCheckBasisSale = DATA BOOLEAN () PREREAD;
+
+CONSTRAINT (SET(isPosted(UserInvoiceDetail id)) OR SETCHANGED(sku(id)) OR CHANGED(batch(id)) OR DROPPED(trackingInvoiceDetail(id))) AND isPosted(id) AND isTracking(id)
+    AND batch(id) AND date(id) >= dateStartSPT(id) AND NOT inTrackingLedger(id) AND NOT skipCheckBasisSale()
+    MESSAGE 'Укажите основание СПТ для прослеживаемого товара, отсутствуют данные для СПТ' ;
+
+
+CONSTRAINT (SET(isPosted(UserInvoiceDetail id)) OR SETCHANGED(sku(id)) OR CHANGED(batch(id))) AND isPosted(id) AND isTracking(id) AND date(id) >= dateStartSPT(id)
+    AND NOT batch(id) AND NOT skipCheckBasisSale()
+    MESSAGE 'Укажите партию для прослеживаемого товара' ;

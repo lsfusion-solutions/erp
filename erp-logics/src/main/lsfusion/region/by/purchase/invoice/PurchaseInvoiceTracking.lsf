@@ -1,0 +1,86 @@
+MODULE PurchaseInvoiceTracking;
+
+REQUIRE PurchaseInvoice, ItemTracking, PurchaseShipment, TrackingLedger;
+
+NAMESPACE Purchase;
+
+TABLE trackingInvoiceDetail(InvoiceDetail);
+
+isTrackingData 'Подлежит прослеживанию' = DATA BOOLEAN (Purchase.InvoiceDetail) TABLE trackingInvoiceDetail;
+dateStartSPT 'Дата начала прослеживания' (InvoiceDetail d)=dateStartSPT(sku(d));
+isTracking 'Подлежит прослеживанию'(InvoiceDetail d) = isTrackingOver(sku(d)) IF date(d) >= dateStartSPT(d);
+
+WHEN LOCAL CHANGED(sku(Purchase.InvoiceDetail d)) OR CHANGED(date(d)) DO {
+    isTrackingData(d) <- isTracking(d);
+}
+
+purchaseInvoiceTrackingMigrate(){
+    isTrackingData(Purchase.InvoiceDetail d) <- isTracking(d);
+}
+@defOnStartMigrate(purchaseInvoiceTrackingMigrate);
+
+isTracking 'Подлежит прослеживанию' (Invoice i) = GROUP SUM 1 IF isTracking(InvoiceDetail d) AND invoice(d) == i;
+
+itemCustomCode'Код ТНВЭД' = ABSTRACT VALUE STRING[10] (InvoiceDetail);
+itemCustomCodeOther 'Дополнительный таможенный код' = ABSTRACT VALUE STRING[4] (InvoiceDetail);
+deliveryTypePrev 'Тип приходного документа' = ABSTRACT VALUE INTEGER (InvoiceDetail);
+deliveryNotePrev 'Номер приходного документа' = ABSTRACT VALUE STRING[70] (InvoiceDetail);
+deliveryNoteDate 'Дата создания приходного документа' = ABSTRACT VALUE DATE (InvoiceDetail);
+deliveryNotePrevLineID 'Номер строки в приходном документе' = ABSTRACT VALUE INTEGER (InvoiceDetail);
+lineItemQuantitySPT 'Единица измерения прослеживаемости' = ABSTRACT VALUE STRING[3](InvoiceDetail);
+quantityDespatchedSPT 'Количество в единицах прослеживаемости' = ABSTRACT VALUE NUMERIC[12,5] (InvoiceDetail);
+lineItemPriceSPT 'Цена за единицу товара для прослеживаемости' = ABSTRACT VALUE NUMERIC[12,2] (InvoiceDetail);
+
+CLASS PurchaseInvoiceInTrackingLedger : InTrackingLedger;
+
+needTrackingLedger(InvoiceDetail d) = isPosted(d) AND isTrackingData(d);
+inTrackingLedger = AGGR PurchaseInvoiceInTrackingLedger WHERE needTrackingLedger(InvoiceDetail trackingInvoiceDetail) MATERIALIZED INDEXED trackingInvoiceDetail;
+
+sku(PurchaseInvoiceInTrackingLedger d) += sku(trackingInvoiceDetail(d));
+stock(PurchaseInvoiceInTrackingLedger d) += customerStock(trackingInvoiceDetail(d));
+quantity(PurchaseInvoiceInTrackingLedger d) += quantityDespatchedSPT(trackingInvoiceDetail(d));
+batch(PurchaseInvoiceInTrackingLedger d) += overBatch(trackingInvoiceDetail(d));
+description(PurchaseInvoiceInTrackingLedger d) += descriptionIndex(trackingInvoiceDetail(d));
+
+TrackingLedger.deliveryTypePrev(PurchaseInvoiceInTrackingLedger d) += deliveryTypePrev(trackingInvoiceDetail(d));
+TrackingLedger.deliveryNotePrev(PurchaseInvoiceInTrackingLedger d) += deliveryNotePrev(trackingInvoiceDetail(d));
+TrackingLedger.deliveryNoteDate(PurchaseInvoiceInTrackingLedger d) += deliveryNoteDate(trackingInvoiceDetail(d));
+
+TrackingLedger.deliveryNotePrevLineID(PurchaseInvoiceInTrackingLedger d) += deliveryNotePrevLineID(trackingInvoiceDetail(d));
+
+countrySupplier 'Страна грузоотправителя' (Invoice i) = name(country(supplier(i)));
+idCountrySupplier 'Код страны' (Invoice i) = sidOrigin2(country(supplier(i)));
+notImportEAEU = ABSTRACT BOOLEAN (Invoice);
+
+EXTEND FORM userInvoice
+    OBJECTS d6 = UserInvoiceDetail GRID
+    PROPERTIES (d6) SHOWIF isTracking(i) READONLY index, idBarcodeSku, nameSku, isTrackingData BACKGROUND backgroundEC(extraCode(sku(d6))) CHANGEABLE, itemCustomCode, itemCustomCodeOther, dateStartSPT,
+        deliveryTypePrev, deliveryNotePrev, deliveryNoteDate, deliveryNotePrevLineID, lineItemQuantitySPT, quantityDespatchedSPT, lineItemPriceSPT
+    PROPERTIES (i) SHOWIF isTracking(i) READONLY countrySupplier, idCountrySupplier
+    FILTERS userInvoice(d6) == i, isTracking(d6)
+;
+
+DESIGN userInvoice{
+    specificationBox {
+        NEW sptContainer {
+            caption = 'Прослеживание';
+            NEW trackingParam {
+                horizontal = TRUE;
+                NEW supplierParam {
+                    horizontal = TRUE;
+                    caption = 'Страна поставщика';
+                    MOVE PROPERTY(countrySupplier(i)) ;
+                    MOVE PROPERTY(idCountrySupplier(i)) ;
+                }
+            }
+            MOVE BOX(d6);
+        }
+    }
+}
+
+EXTEND FORM userInvoice
+    PROPERTIES (d) isTracking
+;
+EXTEND FORM invoices
+    PROPERTIES (d) READONLYIF isReadonly() isTracking
+;

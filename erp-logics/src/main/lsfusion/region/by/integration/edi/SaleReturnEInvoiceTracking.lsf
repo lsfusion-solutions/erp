@@ -1,0 +1,74 @@
+MODULE SaleReturnEInvoiceTracking;
+
+REQUIRE ItemTracking, TrackingLedger, SaleReturnEInvoice;
+
+NAMESPACE SaleReturn;
+
+isTrackingData 'Подлежит прослеживанию' = DATA BOOLEAN (SaleReturn.InvoiceDetail);
+dateStartSPT 'Дата начала прослеживания' (InvoiceDetail d)=dateStartSPT(sku(d));
+isTracking 'Подлежит прослеживанию'(InvoiceDetail d) = isTrackingOver(sku(d)) IF date(d) >= dateStartSPT(d);
+
+WHEN LOCAL CHANGED(sku(SaleReturn.InvoiceDetail d)) OR CHANGED(date(d)) DO {
+    isTrackingData(d) <- isTracking(d);
+}
+
+saleReturnInvoiceTrackingMigrate(){
+    isTrackingData(SaleReturn.InvoiceDetail d) <- isTracking(d);
+}
+@defOnStartMigrate(saleReturnInvoiceTrackingMigrate);
+
+isTracking 'Подлежит прослеживанию' (Invoice i) = GROUP SUM 1 IF isTracking(InvoiceDetail d) AND invoice(d)==i;
+
+itemCustomCode'Код ТНВЭД' (InvoiceDetail d) = itemCustomCode(eInvoiceDetail(d));
+itemCustomCodeOther 'Дополнительный таможенный код' (InvoiceDetail d) = itemCustomCodeOther(eInvoiceDetail(d));
+deliveryTypePrev 'Тип приходного документа' (InvoiceDetail d) = CASE WHEN isTN2(eInvoice(eInvoiceDetail(d))) THEN 2
+                                                                                WHEN eInvoice(eInvoiceDetail(d)) THEN 1;
+deliveryNotePrev 'Номер приходного документа' (InvoiceDetail d) = deliveryNoteNumber(eInvoice(eInvoiceDetail(d)));
+deliveryNoteDate 'Дата создания приходного документа' (InvoiceDetail d) = deliveryNoteDate(eInvoice(eInvoiceDetail(d)));
+deliveryNotePrevLineID 'Номер строки в приходном документе' (InvoiceDetail d) = lineItemNumber(eInvoiceDetail(d));
+lineItemQuantitySPT 'Единица измерения прослеживаемости' (InvoiceDetail d) = lineItemQuantitySPT(eInvoiceDetail(d));
+quantityDespatchedSPT 'Количество в единицах прослеживаемости' (InvoiceDetail d) = quantityDespatchedSPT(eInvoiceDetail(d));
+lineItemPriceSPT 'Цена за единицу товара для прослеживаемости' (InvoiceDetail d) = lineItemPriceSPT(eInvoiceDetail(d));
+
+
+CLASS SaleReturnInvoiceInTrackingLedger : InTrackingLedger;
+TABLE trackingInvoiceDetail(InvoiceDetail);
+
+needTrackingLedger(InvoiceDetail d) = isPosted(d) AND isTrackingData(d);
+inTrackingLedger = AGGR SaleReturnInvoiceInTrackingLedger WHERE needTrackingLedger(InvoiceDetail trackingInvoiceDetail) MATERIALIZED INDEXED trackingInvoiceDetail;
+
+sku(SaleReturnInvoiceInTrackingLedger d) += sku(trackingInvoiceDetail(d));
+stock(SaleReturnInvoiceInTrackingLedger d) += customerStock(trackingInvoiceDetail(d));
+quantity(SaleReturnInvoiceInTrackingLedger d) += quantityDespatchedSPT(trackingInvoiceDetail(d));
+batch(SaleReturnInvoiceInTrackingLedger d) += batch(trackingInvoiceDetail(d));
+description(SaleReturnInvoiceInTrackingLedger d) += descriptionIndex(trackingInvoiceDetail(d));
+
+TrackingLedger.deliveryTypePrev(SaleReturnInvoiceInTrackingLedger d) += deliveryTypePrev(trackingInvoiceDetail(d));
+TrackingLedger.deliveryNotePrev(SaleReturnInvoiceInTrackingLedger d) += deliveryNotePrev(trackingInvoiceDetail(d));
+TrackingLedger.deliveryNoteDate(SaleReturnInvoiceInTrackingLedger d) += deliveryNoteDate(trackingInvoiceDetail(d));
+
+TrackingLedger.deliveryNotePrevLineID(SaleReturnInvoiceInTrackingLedger d) += deliveryNotePrevLineID(trackingInvoiceDetail(d));
+
+
+EXTEND FORM userInvoice
+    OBJECTS d6 = UserInvoiceDetail GRID
+    PROPERTIES (d6) SHOWIF isTracking(i) READONLY index, idBarcodeSku, nameSku, isTrackingData BACKGROUND backgroundEC(extraCode(sku(d6))) CHANGEABLE, itemCustomCode, itemCustomCodeOther, dateStartSPT,
+        deliveryTypePrev, deliveryNotePrev, deliveryNoteDate, deliveryNotePrevLineID, lineItemQuantitySPT, quantityDespatchedSPT, lineItemPriceSPT
+    FILTERS userInvoice(d6) == i, isTracking(d6)
+;
+
+DESIGN userInvoice{
+    specificationBox {
+        NEW sptContainer {
+            caption = 'Прослеживание';
+            MOVE BOX(d6);
+        }
+    }
+}
+
+EXTEND FORM userInvoice
+    PROPERTIES (d) isTracking
+;
+EXTEND FORM invoices
+    PROPERTIES (d) READONLYIF  isReadonly() isTracking
+;

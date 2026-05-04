@@ -1,17 +1,40 @@
 MODULE BatchInventoryTracking;
 
-REQUIRE SkuLedger ;
+REQUIRE SkuLedger, TrackingLedger;
 
 NAMESPACE Stock;
 
-isTracking 'Подлежит прослеживанию' = ABSTRACT VALUE BOOLEAN (Batch);
-isTracking 'Подлежит прослеживанию' = DATA BOOLEAN (Batch, Stock);
-deliveryTypePrev 'Тип приходного документа' = DATA INTEGER (Batch, Stock);
-deliveryNotePrev 'Номер приходного документа'= DATA STRING[70] (Batch, Stock);
-deliveryNoteDate 'Дата создания приходного документа' = DATA DATE (Batch, Stock);
-deliveryNotePrevLineID 'Номер строки в приходном документе' = DATA INTEGER (Batch, Stock);
-lineItemQuantitySPT 'Единица измерения прослеживаемости' = DATA STRING[3] (Batch, Stock);
-//lineItemPriceSPT 'Цена за единицу товара для прослеживаемости' = DATA NUMERIC(Batch, Stock);////цену не сохраняем а рассчитываем в момент расхода
-//quantityDespatchedSPT 'Количество в единицах прослеживаемости' = DATA NUMERIC[12,5] (Batch, Stock);//кол-во не сохраняем а рассчитываем в момент расхода
+TABLE batchStockTracking (Batch, Stock);
+
+isTracking 'Подлежит прослеживанию' = DATA BOOLEAN (Batch, Stock) TABLE batchStockTracking;
+deliveryTypePrev 'Тип приходного документа' = DATA INTEGER (Batch, Stock) TABLE batchStockTracking;
+deliveryNotePrev 'Номер приходного документа'= DATA STRING[70] (Batch, Stock) TABLE batchStockTracking;
+deliveryNoteDate 'Дата создания приходного документа' = DATA DATE (Batch, Stock) TABLE batchStockTracking;
+deliveryNotePrevLineID 'Номер строки в приходном документе' = DATA INTEGER (Batch, Stock) TABLE batchStockTracking;
+lineItemQuantitySPT 'Единица измерения прослеживаемости' = DATA STRING[3] (Batch, Stock) TABLE batchStockTracking;
+quantityDespatchedSPT 'Количество в единицах прослеживаемости' = DATA NUMERIC[16,5] (Batch, Stock);
 itemCustomCode'Код ТНВЭД' = DATA STRING[10] (Batch, Stock);
 itemCustomCodeOther 'Дополнительный таможенный код' = DATA STRING[4] (Batch, Stock);
+
+CLASS BatchInTrackingLedger : InTrackingLedger;
+inTrackingLedger = AGGR BatchInTrackingLedger WHERE isTracking(Batch batch, Stock stock) AND batch IS Batch AND stock IS Stock MATERIALIZED INDEXED TABLE batchStockTracking;
+
+sku(BatchInTrackingLedger d) += sku(batch(d));
+stock(BatchInTrackingLedger d) += stock(d);
+quantity(BatchInTrackingLedger d) += quantityDespatchedSPT(batch(d), stock(d));
+batch(BatchInTrackingLedger d) += batch(d);
+description(BatchInTrackingLedger d) += STRING[250]('Инвентаризация по партии ' + name(batch(d))) IF batch(d) AND stock(d);
+
+deliveryTypePrev(BatchInTrackingLedger d) += deliveryTypePrev(batch(d), stock(d));
+deliveryNotePrev(BatchInTrackingLedger d) += deliveryNotePrev(batch(d), stock(d));
+deliveryNoteDate(BatchInTrackingLedger d) += deliveryNoteDate(batch(d), stock(d));
+
+deliveryNotePrevLineID(BatchInTrackingLedger d) += deliveryNotePrevLineID(batch(d), stock(d));
+
+batchInventoryMigrate(){
+    FOR isTracking(Batch batch, Stock stock) AND NOT inTrackingLedger(batch, stock) NEW l = BatchInTrackingLedger DO {
+        batch(l) <- batch;
+        stock(l) <- stock;
+    }
+}
+@defOnStartMigrate(batchInventoryMigrate);

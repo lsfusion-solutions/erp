@@ -1,6 +1,6 @@
 MODULE DocumentProduceMNS;
 
-REQUIRE ProductionOutput, LegalEntityMNS, LegalEntityBy, Lot, ItemTracking, DocumentMNS;
+REQUIRE ProductionOutput, LegalEntityMNS, LegalEntityBy, Lot, ItemTracking, DocumentMNS, TrackingLedger;
 
 NAMESPACE Production;
 
@@ -473,10 +473,22 @@ lineItemQuantitySPT 'Единица измерения прослеживаем�
 quantityDespatchedSPT 'Количество в единицах прослеживаемости' (ProductDetail pd) = NUMERIC[12,5](quantityInvoiceDetail(lastProduceMNSDetail(pd)));
 lineItemPriceSPT 'Цена за единицу товара для прослеживаемости' (ProductDetail pd) = NUMERIC[12,2](priceInvoiceDetail(lastProduceMNSDetail(pd)));
 
-deliveryTypePrev(OrderOutputDetail batch) += deliveryTypePrev(productDetail(batch));
-deliveryNotePrev(OrderOutputDetail batch) += deliveryNotePrev(productDetail(batch));
-deliveryNoteDate(OrderOutputDetail batch) += deliveryNoteDate(productDetail(batch));
-deliveryNotePrevLineID(OrderOutputDetail batch) += deliveryNotePrevLineID(productDetail(batch));
+CLASS ProductInTrackingLedger : InTrackingLedger;
+
+needTrackingLedger(ProductDetail d) = isPosted(d) AND lastProduceMNSDetail(d);
+inTrackingLedger = AGGR ProductInTrackingLedger WHERE needTrackingLedger(ProductDetail productDetrail);
+
+sku(ProductInTrackingLedger d) += sku(productDetrail(d));
+stock(ProductInTrackingLedger d) += stock(productDetrail(d));
+quantity(ProductInTrackingLedger d) += quantityDespatchedSPT(productDetrail(d));
+batch(ProductInTrackingLedger d) += orderOutputDetail(productDetrail(d));
+description(ProductInTrackingLedger d) += descriptionIndex(productDetrail(d));
+
+TrackingLedger.deliveryTypePrev(ProductInTrackingLedger d) += deliveryTypePrev(productDetrail(d));
+TrackingLedger.deliveryNotePrev(ProductInTrackingLedger d) += deliveryNotePrev(productDetrail(d));
+TrackingLedger.deliveryNoteDate(ProductInTrackingLedger d) += deliveryNoteDate(productDetrail(d));
+
+TrackingLedger.deliveryNotePrevLineID(ProductInTrackingLedger d) += deliveryNotePrevLineID(productDetrail(d));
 
 @defineOperationProperty(showTracking, 'Прослеживаемость', showContainer);
 

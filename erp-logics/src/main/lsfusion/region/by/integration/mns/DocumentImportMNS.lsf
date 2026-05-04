@@ -2,6 +2,42 @@ MODULE DocumentImportMNS;
 
 REQUIRE DocumentMNS, PurchaseInvoice, LegalEntityBy, Lot, PurchaseInvoiceTracking, PurchaseShipmentLot, LegalEntityCU, LegalEntityMNS;
 
+NAMESPACE Purchase;
+
+@defineOperationProperty(importEAEU, 'Импорт из ЕАЭС', showContainer);
+
+idShippingDocument 'Код сопроводительного документа' = DATA STRING[20](Invoice);
+nameShippingDocument 'Наименование сопроводительного документа' = DATA STRING[40](Invoice);
+dateShippingDocument 'Дата сопроводительного документа' = DATA DATE (Invoice);
+numberShippingDocument 'Регистрационный номер сопроводительного документа' = DATA STRING[40](Invoice);
+
+showImportEAEU (Invoice i) = TRUE  IF importEAEU(operation(i));
+isImportEAEU 'Импорт из ЕАЭС' (Invoice i) = TRUE IF (importEAEU(operation(i)) AND (idCountrySupplier(i) == 'RU' OR idCountrySupplier(i) == 'KG'
+    OR idCountrySupplier(i) == 'AM' OR idCountrySupplier(i) == 'KZ') );
+notImportEAEU (Invoice i) += TRUE IF i IS Invoice AND NOT isImportEAEU(i);
+
+EXTEND FORM userInvoice
+    PROPERTIES (i) SHOWIF (isTracking(i) AND showImportEAEU(i)) idShippingDocument, nameShippingDocument, numberShippingDocument, dateShippingDocument, isImportEAEU
+;
+
+DESIGN userInvoice{
+    trackingParam {
+
+        NEW importEAEU {
+            caption = 'Импорт из ЕАЭС';
+            NEW headerAccompanyingContainer {
+                horizontal = TRUE;
+                MOVE PROPERTY(idShippingDocument(i)) { caption = 'Код';}
+                MOVE PROPERTY(nameShippingDocument(i)) { caption = 'Наименование';}
+                MOVE PROPERTY(numberShippingDocument(i)) { caption = 'Рег.№';}
+                MOVE PROPERTY(dateShippingDocument(i)) { caption = 'Дата';}
+                MOVE PROPERTY(isImportEAEU(i)) ;
+            }
+        }
+    }
+
+}
+
 CLASS ImportDocMNS 'Документ выгрузки в МНС (подача сведений о ввозе)';
 
 id = STRING[50](ImportDocMNS s);
