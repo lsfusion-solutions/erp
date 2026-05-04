@@ -38,7 +38,7 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
         if (stopListInfo != null && !stopListInfo.exclude) {
             processStopListLogger.info(getLogPrefix() + "Send StopList # " + stopListInfo.number);
             for (MachineryInfo scales : machineryInfoList) {
-                if (scales.enabled && scales.port != null) {
+                if (scales.port != null) {
                     List<String> localErrors = new ArrayList<>();
                     TCPPort port = getTCPPort(scales);
                     try {
@@ -87,7 +87,7 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
     }
 
     private boolean deletePLU(TCPPort port, StopListItem item) throws IOException {
-        sendCommand(port, getDeletePLUBytes(item), pluID, (short) 1, (short) 0, (byte) 1);
+        sendCommand(port, getDeletePLUBytes(item), pluID, (short) 1, (short) 1, (byte) 0);
         return receiveReply(port);
     }
 
