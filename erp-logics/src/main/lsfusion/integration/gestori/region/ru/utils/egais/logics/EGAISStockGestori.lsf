@@ -1,0 +1,46 @@
+MODULE EGAISStockGestori;
+
+REQUIRE EGAISStock;
+
+NAMESPACE EGAIS;
+
+existItem 'Связан со складами' (Client c) = TRUE IF stock(c);
+nameLegalEntity 'Связанная организация' (Client c) = name(legalEntity(stock(c)));
+
+EXTEND FORM clients
+    PROPERTIES(o) READONLY existItem AFTER nameStock(o)
+;
+
+EXTEND FORM client 
+    PROPERTIES (o) READONLY nameLegalEntity
+;
+
+DESIGN client {
+    OBJECTS {
+        header {
+            horizontal = FALSE ;
+            alignment = STRETCH;
+            MOVE PROPERTY(id(o));
+            MOVE PROPERTY(tsNumber(o));
+            MOVE PROPERTY(shortName(o));
+            MOVE PROPERTY(fullName(o));
+            MOVE PROPERTY(own(o));
+            MOVE PROPERTY(nameUtm(o));
+        }
+        MOVE parameters AFTER header{
+            horizontal = FALSE;
+            alignment = STRETCH;
+            caption = '';
+            parametersRow1 {
+                horizontal = FALSE;
+                alignment = STRETCH;                
+            }
+            parametersRow2 {
+                horizontal = FALSE;
+                alignment = STRETCH;
+            }
+            MOVE PROPERTY (nameLegalEntity(o));
+        }
+        
+    }
+}

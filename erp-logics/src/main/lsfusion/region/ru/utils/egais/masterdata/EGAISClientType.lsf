@@ -1,0 +1,48 @@
+MODULE EGAISClientType;
+
+REQUIRE EGAIS;
+
+NAMESPACE EGAIS;
+
+CLASS ClientType 'Тип организации ЕГАИС';
+
+id 'Наименование' = DATA STRING[30] (ClientType) CHARWIDTH 15;
+clientType = GROUP AGGR ClientType t BY id(t);
+
+name 'Наименование' = DATA ISTRING (ClientType) CHARWIDTH 30;
+description 'Описание' = DATA ISTRING (ClientType) CHARWIDTH 30;
+
+FORM clientType 'Тип организации ЕГАИС'
+    OBJECTS o = ClientType PANEL
+    PROPERTIES(o) id, name, description
+
+    EDIT ClientType OBJECT o
+;
+
+FORM clientTypes 'Типы организации ЕГАИС'
+    OBJECTS o = ClientType
+    PROPERTIES(o) READONLY id, name, description
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+;
+
+FORM dialogClientTypes 'Тип организации ЕГАИС'
+    OBJECTS o = ClientType
+    PROPERTIES(o) READONLY id, name, description
+
+    LIST ClientType OBJECT o
+;
+
+NAVIGATOR {
+    EGAISMasterData {
+        NEW clientTypes LAST;
+    }
+}
+
+onStarted() + {
+    IF NOT GROUP SUM 1 IF t IS ClientType THEN {
+        NEW t = ClientType { id(t) <- 'UL'; name(t) <- 'Юридическое лицо'; description(t) <- 'Российская организация с ИНН и КПП'; }
+        NEW t = ClientType { id(t) <- 'FL'; name(t) <- 'Индивидуальный предприниматель';  description(t) <- 'ИП с ИНН и адресом регистрации'; }
+        NEW t = ClientType { id(t) <- 'FO'; name(t) <- 'Иностранная организация';  description(t) <- 'Организация-нерезидент (например, производитель из Германии)'; }
+        NEW t = ClientType { id(t) <- 'TS'; name(t) <- 'Организация из Таможенного союза'; }
+    }
+}

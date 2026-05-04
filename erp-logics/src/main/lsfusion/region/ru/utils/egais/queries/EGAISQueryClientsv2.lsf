@@ -63,20 +63,39 @@ GROUP replyClient_v2 EXTID 'ns:ReplyClient_v2' : document;
 GROUP replyClients EXTID 'rc:Clients' : replyClient_v2;
 
 client = DATA LOCAL TEXT (INTEGER);
+clientState = DATA LOCAL STRING(INTEGER);
+clientVersionWB = DATA LOCAL STRING(INTEGER);
+
+clientState = DATA LOCAL STRING();
+clientVersionWB = DATA LOCAL STRING();
 
 FORM replyClientv2 FORMEXTID 'ns:Documents'
     OBJECTS client = INTEGER EXTID 'rc:Client' IN replyClients
-    PROPERTIES(client) client EXTID 'oref:OrgInfoV2'
+    PROPERTIES(client) client EXTID 'oref:OrgInfoV2',    
+        clientState EXTID 'oref:State',
+        clientVersionWB EXTID 'oref:VersionWB'
 ;
+
+overImportClient (Client c) +{
+    active(c) <- clientState() == 'Active';
+    versionWB(c) <- clientVersionWB();
+}
+
+processReplyClient_v2 (INTEGER i) {
+    clientState() <- clientState(i);
+    clientVersionWB() <- clientVersionWB(i);
+}
 
 process (InDoc d) + {
     IF docType(d) = DocType.ReplyClient_v2 THEN {
         NEWSESSION {
             stringToFile(document(d));
             IMPORT replyClientv2 XML FROM resultFile();
-            FOR client(INTEGER i) DO
-                importClient(client(i));
-    
+            FOR client(INTEGER i) DO {
+                processReplyClient_v2(i);
+                importClient(client(i));                
+            }
+            
             processed(d) <- TRUE;
             APPLY;
         }

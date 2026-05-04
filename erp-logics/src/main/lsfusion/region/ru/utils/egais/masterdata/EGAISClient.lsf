@@ -1,6 +1,6 @@
 MODULE EGAISClient;
 
-REQUIRE EGAIS;
+REQUIRE EGAIS, EGAISClientType;
 
 NAMESPACE EGAIS;
 
@@ -28,16 +28,32 @@ xml 'Описание в XML' = DATA TEXT (Client);
 
 own 'Собственный' = DATA BOOLEAN (Client);
 
+active 'Активный' = DATA BOOLEAN (Client);
+versionWB 'Версия документооборота' = DATA STRING (Client);
+
 utm = DATA UTM (Client);
 nameUtm 'УТМ' (Client c) = name(utm(c));
 
 firstClient (UTM u) = GROUP LAST Client c ORDER DESC c BY utm(c);
-clients 'Клиенты' (UTM u) = GROUP CONCAT (CONCAT ' / ', shortName(Client c), description(c)) IF utm(c) = u, ',' ORDER c CHARWIDTH 30; 
+clients 'Клиенты' (UTM u) = GROUP CONCAT (CONCAT ' / ', shortName(Client c), description(c)) IF utm(c) = u, ',' ORDER c CHARWIDTH 30;
+
+type 'Тип' = DATA ClientType (Client) NONULL;
+idType 'Тип' (Client c) = id(type(c));
+nameType 'Тип' (Client c) = name(type(c));
+type = GROUP AGGR ClientType t BY id(t);
+
+overChangeOwn ABSTRACT (Client);
+changeOwn (Client c) {
+    INPUT b = BOOLEAN DO {
+        own(c) <- b;
+        overChangeOwn(c);
+    }
+}
 
 FORM client 'Организация'
     OBJECTS o = Client PANEL
-    PROPERTIES(o) id, shortName, description, fullName, own, nameUtm SHOWIF own(o),
-                  INN, KPP, tsNumber, sidCountry, nameCountry, regionCode, xml
+    PROPERTIES(o) id, shortName, description, fullName, own ON CHANGE changeOwn(o), nameUtm SHOWIF own(o),
+                  INN, KPP, tsNumber, sidCountry, nameCountry, regionCode, xml, nameType, active, versionWB
     
     EDIT Client OBJECT o
 ;
@@ -53,6 +69,9 @@ DESIGN client {
             MOVE PROPERTY(fullName(o));
             MOVE PROPERTY(own(o));
             MOVE PROPERTY(nameUtm(o));
+            MOVE PROPERTY(nameType(o));
+            MOVE PROPERTY(active(o));
+            MOVE PROPERTY(versionWB(o));
         }
         NEW tabbedPane {
             tabbed = TRUE;
@@ -83,10 +102,14 @@ DESIGN client {
     }
 }
 
+hideEdit 'Запретить редактирование' = ABSTRACT VALUE BOOLEAN (Client);
+hideDelete 'Запретить удаление' = ABSTRACT VALUE BOOLEAN (Client);
+
 FORM clients 'Организации'
     OBJECTS o = Client
-    PROPERTIES(o) READONLY id, shortName, description, fullName, own, nameUtm, INN, KPP, tsNumber, sidCountry, nameCountry, regionCode
-    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+    PROPERTIES(o) READONLY id, shortName, description, fullName, own, nameUtm, INN, KPP, tsNumber, sidCountry, nameCountry, regionCode, 
+        nameType, active, versionWB
+    PROPERTIES(o) NEWSESSION NEW, EDIT SHOWIF NOT hideEdit(o), DELETE SHOWIF NOT hideDelete(o)
 ;
 
 FORM dialogClients 'Организации'

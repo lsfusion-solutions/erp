@@ -110,3 +110,14 @@ DESIGN outDocs {
 NAVIGATOR {
     outDocs 'Исходящие документы УТМ';
 }
+
+
+minOutDocSend(Client c) = GROUP MIN OutDoc d IF outDocStatus(d) == OutDocStatus.send BY client(d);
+
+hideDelete (Client c) += TRUE IF minOutDocSend(c);
+
+CONSTRAINT DROPPED(own(Client c)) AND PREV(minOutDocSend(c))
+    MESSAGE 'Нельзя снять отметку "Собственный", если по организации есть незавершенные Исходящие документы';
+
+CONSTRAINT CHANGED(utm(Client c)) AND PREV(minOutDocSend(c))
+    MESSAGE 'Нельзя отвязать УТМ, если по организации есть незавершенные Исходящие документы';

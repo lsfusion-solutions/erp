@@ -4,6 +4,7 @@ REQUIRE EGAISClient;
 
 NAMESPACE EGAIS;
 
+GROUP client EXTID 'oref:Client';
 GROUP UL EXTID 'oref:UL';
 
 clientRegId = DATA LOCAL STRING();
@@ -11,6 +12,7 @@ INN = DATA LOCAL STRING[12]();
 KPP = DATA LOCAL STRING[9]();
 clientFullName = DATA LOCAL STRING();
 clientShortName = DATA LOCAL STRING();
+clientIdType = DATA LOCAL STRING();
 
 GROUP addressUL EXTID 'oref:address' : UL;
 
@@ -18,22 +20,34 @@ sidCountry = DATA LOCAL STRING();
 regionCode = DATA LOCAL STRING[10]();
 description = DATA LOCAL STRING();
 
-FORM importClient FORMEXTID 'oref:Client'
+FORM importClient FORMEXTID 'oref:Client' 
     PROPERTIES() IN UL
                  clientRegId EXTID 'oref:ClientRegId', 
                  INN EXTID 'oref:INN', 
                  KPP EXTID 'oref:KPP', 
                  clientFullName EXTID 'oref:FullName', 
-                 clientShortName EXTID 'oref:ShortName'
+                 clientShortName EXTID 'oref:ShortName',
+                 clientIdType EXTID 'oref:Type'
     
     PROPERTIES() IN addressUL sidCountry EXTID 'oref:Country', 
                               regionCode EXTID 'oref:RegionCode', 
                               description EXTID 'oref:description'
 ;
 
+overImportClient ABSTRACT LIST (Client);
+
 importClient(TEXT xml) {
+    LOCAL locXml = TEXT ();
+    
+    locXml() <-   replace(replace(replace(replace(xml, 
+        '</oref:UL>', '<oref:Type>UL</oref:Type>' + '\n' + '</oref:UL>'),
+        '</oref:FO>', '<oref:Type>FO</oref:Type>' + '\n' + '</oref:FO>'),
+        '</oref:FL>', '<oref:Type>FL</oref:Type>' + '\n' + '</oref:FL>'),
+        '</oref:FL>', '<oref:Type>FL</oref:Type>' + '\n' + '</oref:TS>')
+    ;
+    
     stringToFile('<oref:Client xmlns:oref="http://fsrar.ru/WEGAIS/ClientRef_v2">' + 
-                  replace(replace(replace(xml, 'oref:FO', 'oref:UL'), 'oref:FL', 'oref:UL'), 'oref:TS', 'oref:UL') + 
+                  replace(replace(replace(locXml(), 'oref:FO', 'oref:UL'), 'oref:FL', 'oref:UL'), 'oref:TS', 'oref:UL') + 
                   '</oref:Client>');
         
     IMPORT importClient XML FROM resultFile();
@@ -45,6 +59,7 @@ importClient(TEXT xml) {
     FOR id(Client c) = clientRegId() DO {
         shortName(c) <- clientShortName() WHERE clientShortName(); // иногда почему-то приходит без short name
         fullName(c) <- clientFullName();
+        type(c) <- type(clientIdType());
 
         INN(c) <- INN();
         KPP(c) <- KPP();
@@ -53,6 +68,8 @@ importClient(TEXT xml) {
         
         regionCode(c) <- regionCode();
         description(c) <- description();
+
+        overImportClient(c);
         
         xml(c) <- xml;
     }

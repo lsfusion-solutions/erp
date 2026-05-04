@@ -1,0 +1,30 @@
+MODULE EGAISClientGestori;
+
+REQUIRE EGAISClient, EGAISGestori;
+
+NAMESPACE EGAIS;
+
+synchronized 'Синхронизирован' = DATA BOOLEAN (Client);
+
+CONSTRAINT SETCHANGED(utm(Client t)) AND fsrarId(utm(t)) AND NOT fsrarId(utm(t)) == id(t)
+    MESSAGE 'Нельзя связывать УТМ с организацией у которой FSRAR_ID отличается от FSRAR_ID УТМ';
+
+show 'Просмотреть' (Client c)  {
+    NEWSESSION {
+        SHOW client OBJECTS o = c DOCKED READONLY;
+    }
+}
+
+hideEdit (Client c) += synchronized(c);
+
+hideDelete (Client c) += synchronized(c);
+hideDelete (Client c) += TRUE IF utm(c);
+
+EXTEND FORM clients
+    PROPERTIES show(o) SHOWIF synchronized(o)
+;
+
+overChangeOwn(Client c) +{
+    utm(c) <- NULL;
+}
+
