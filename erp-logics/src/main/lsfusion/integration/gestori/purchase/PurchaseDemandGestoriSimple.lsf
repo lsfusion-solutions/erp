@@ -27,16 +27,16 @@ recQuantityGestoriGross 'Кол-во к заказу' (Sku s, UserOrder o) =  pl
     (+) stockReserve(customerStock(o), s, date(o))
     (-) prevCurrentReservePurchase(s, customerStock(o));
 
-recQuantityGestoriMax (Sku s, UserOrder o) = IF recQuantityGestoriGross(s, o) > dataMaxQuantityOrder(s, customerStock(o)) THEN dataMaxQuantityOrder(s, customerStock(o)) ELSE recQuantityGestoriGross(s, o);
-recQuantityGestoriMin (Sku s, UserOrder o) = IF recQuantityGestoriMax(s, o) < dataMinQuantityOrder(s, customerStock(o)) THEN dataMinQuantityOrder(s, customerStock(o)) ELSE recQuantityGestoriMax(s, o);
+recQuantityGestoriMax (Sku s, UserOrder o) = IF recQuantityGestoriGross(s, o) > 0 THEN IF recQuantityGestoriGross(s, o) > dataMaxQuantityOrder(s, customerStock(o)) THEN dataMaxQuantityOrder(s, customerStock(o)) ELSE recQuantityGestoriGross(s, o);
+recQuantityGestoriMin (Sku s, UserOrder o) = IF recQuantityGestoriMax(s, o) > 0 THEN IF recQuantityGestoriMax(s, o) < dataMinQuantityOrder(s, customerStock(o)) THEN dataMinQuantityOrder(s, customerStock(o)) ELSE recQuantityGestoriMax(s, o);
 recQuantityGestoriMin2 (Sku s, UserOrder o) = IF (recQuantityGestoriMin(s, o) == 0 OR NOT recQuantityGestoriMin(s, o)) AND (averageSold(s, o) == 0 OR NOT averageSold(s, o)) THEN quantityPacksNull(s, customerStock(o)) * Purchase.amountPack(s) ELSE recQuantityGestoriMin(s,o);
 
 roundPurchaseAutoOrder (NUMERIC[44,21] n, Sku s) = CASE 
-        WHEN overRoundPurchaseAutoOrder(s) = RoundPurchaseAutoOrder.floor THEN NUMERIC[16,5](floor(n, Purchase.amountPack(s)))
-        WHEN overRoundPurchaseAutoOrder(s) = RoundPurchaseAutoOrder.rule45 THEN NUMERIC[16,5] (round0(n/Purchase.amountPack(s)))
-        ELSE NUMERIC[16,5](ceil(n, Purchase.amountPack(s)));
+        WHEN overRoundPurchaseAutoOrder(s) = RoundPurchaseAutoOrder.floor THEN NUMERIC[16,5](floor(n, (OVERRIDE Purchase.amountPack(s),1)))
+        WHEN overRoundPurchaseAutoOrder(s) = RoundPurchaseAutoOrder.rule45 THEN NUMERIC[16,5] (round0(n/(OVERRIDE Purchase.amountPack(s),1)))
+        ELSE NUMERIC[16,5](ceil(n, (OVERRIDE Purchase.amountPack(s),1)));
 
 recommendedQuantity (Sku s, UserOrder o) +=
     CASE WHEN (demandLogic(s, customerStock(o)) == 2 OR demandLogic(s, customerStock(o)) == 12) AND recQuantityGestoriMin2(s, o) > 0 THEN roundPurchaseAutoOrder(recQuantityGestoriMin2(s, o), s)
          WHEN demandLogic(s, customerStock(o)) == 1 THEN (NUMERIC[16,5](recQuantity(s, o)) IF recQuantity(s, o) > 0)
-         ELSE (NUMERIC[16,5](recQuantity(s, o)) IF recQuantity(s, o) > 0);
+         WHEN NOT demandLogic(s, customerStock(o)) THEN (NUMERIC[16,5](recQuantity(s, o)) IF recQuantity(s, o) > 0);
