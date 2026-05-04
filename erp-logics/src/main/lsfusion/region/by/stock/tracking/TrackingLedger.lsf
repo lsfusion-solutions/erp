@@ -31,15 +31,15 @@ INDEX batch(InTrackingLedger l), stock(l), deliveryNoteDate(l), l;
 INDEX sku(InTrackingLedger l), stock(l), deliveryNoteDate(l), l;
 
 CLASS ABSTRACT OutTrackingLedger 'Регистр прослеживаемого товара (расход)' ;
-TABLE outTrackingLedger(OutTrackingLedger);
+TABLE outTrackingLedger(OutTrackingLedger) NODEFAULT;
 
-quantity 'Количество' = ABSTRACT NUMERIC[16,5] (OutTrackingLedger) MATERIALIZED;
+quantity 'Количество' = ABSTRACT NUMERIC[16,5] (OutTrackingLedger) MATERIALIZED TABLE outTrackingLedger;
 
-description 'Основание' = ABSTRACT STRING[250] (OutTrackingLedger) MATERIALIZED;
+description 'Основание' = ABSTRACT STRING[250] (OutTrackingLedger) MATERIALIZED TABLE outTrackingLedger;
 
 @defineOption(notCheckBalanceTracking, 'Отключить контроль остатка прослеживаемого товара', stock);
 
-inTrackingLedger 'Приход прослеживаемого товара' = ABSTRACT InTrackingLedger (OutTrackingLedger) MATERIALIZED INDEXED;
+inTrackingLedger 'Приход прослеживаемого товара' = ABSTRACT InTrackingLedger (OutTrackingLedger) MATERIALIZED INDEXED TABLE outTrackingLedger;
 
 outQuantity 'Количество (расход)' (InTrackingLedger i) = GROUP SUM quantity(OutTrackingLedger o) BY inTrackingLedger(o);
 balanceTracking 'Остаток' (InTrackingLedger i) = quantity(i) (-) outQuantity(i) MATERIALIZED;
