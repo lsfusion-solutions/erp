@@ -182,6 +182,11 @@ useCustomAlcoholLimitPrice = ABSTRACT BOOLEAN ();
 
 skipAlcoholLimitPrice = ABSTRACT VALUE BOOLEAN (AlcoholLimitDetail);
 
+alcoholLimitDetail (Item s, DATETIME dt) = GROUP
+    LAST AlcoholLimitDetail ad ORDER dateTime(ad), ad
+    WHERE isPosted(ad) AND productType(s) == productType(ad) AND toDate(dt) >= fromDate(alcoholLimit(ad)) AND
+        toDate(dt) <= toDate(alcoholLimit(ad)) AND value(alcohol(s)) >= fromValueAlcohol(ad) AND value(alcohol(s)) < toValueAlcohol(ad);
+
 minAlcoholLimitPriceCalc (Item s, DATETIME dt) = GROUP
     LAST NUMERIC[16,4](ceil(minPrice(AlcoholLimitDetail ad)*volume(s)*100/volume(ad))/100)
     ORDER dateTime(ad), ad
@@ -215,6 +220,9 @@ singleMinPrice 'ЕМЦ' (ItemGroup g) = GROUP LAST price(SingleMinPrice s) IF it
 
 singleMinPrice 'ЕМЦ' (Item i, DATE dt) = GROUP LAST singleMinPrice(ItemGroup g, dt) IF isParent(g, i) ORDER g;
 singleMinPrice 'ЕМЦ' (Item i) = GROUP LAST singleMinPrice(ItemGroup g) IF isParent(g, i) ORDER g;
+
+singleMinPrice(Item i, DATETIME dt) = GROUP LAST SingleMinPrice s ORDER date(s), s
+    WHERE toDate(dt) >= date(s) AND isParent(itemGroup(s), i) AND singleMinPrice(i, toDate(dt));
 
 EXTEND FORM itemGroup
     PROPERTIES (g) isSingleMinPrice
@@ -294,3 +302,5 @@ CONSTRAINT (SET(isPosted(AlcoholLimitDetail a)) OR CHANGED(fromDate(alcoholLimit
 
 defaultMinPrice = ABSTRACT NUMERIC[16,4] (Barcode, Stock);
 dataMinPrice(Barcode b, Stock st) += OVERRIDE minAlcoholLimitPrice(sku(b), currentDateTime()), singleMinPrice(sku(b), currentDate()), defaultMinPrice(b, st);
+
+dateMinPrice (Sku s, DATETIME dt) = OVERRIDE fromDate(alcoholLimitDetail(s, dt)), date(singleMinPrice(s, dt));
