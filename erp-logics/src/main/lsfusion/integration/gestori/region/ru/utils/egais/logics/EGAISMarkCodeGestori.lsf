@@ -1,0 +1,45 @@
+MODULE EGAISMarkCodeGestori;
+
+REQUIRE EGAISMarkCode, EGAISItemGestori, EGAISFRegLedgerGestori;
+
+NAMESPACE EGAIS;
+
+idLedgerStocks 'Коды складов' (MarkCode m) = idLedgerStocks(f2Reg(m));
+nameLedgerStocks 'Склады' (MarkCode m) = nameLedgerStocks(f2Reg(m));
+
+idItem 'Коды товаров' (MarkCode m) = idItem(product(m));
+nameItem 'Товары' (MarkCode m) = nameItem(product(m));
+
+markType 'Тип марки' (MarkCode m) = STRING[3](substr(id(m), 1, 3));
+markSeries 'Серия марки' (MarkCode m) = STRING[3](substr(id(m), 4, 3));
+markNumber 'Номер марки' (MarkCode m) = STRING[8](substr(id(m), 7, 8));
+
+filterStockMarkCode 'Склад' = DATA LOCAL Stock ();
+nameFilterStockMarkCode 'Склад' () = name(filterStockMarkCode());
+stockMarkCodeFilter 'Отбор по складу' (MarkCode m) =
+    hasFRegLedger(f2Reg(m), filterStockMarkCode()) OR NOT filterStockMarkCode();
+
+changeFilterStockMarkCode 'Выбор склада' () {
+    DIALOG stocks OBJECTS s = filterStockMarkCode() INPUT LIST name(s) FILTERS isCompany(s) DO {
+        filterStockMarkCode() <- s;
+    }
+}
+
+EXTEND FORM markCodes
+    PROPERTIES() nameFilterStockMarkCode ON CHANGE changeFilterStockMarkCode()
+    FILTERS stockMarkCodeFilter(m)
+    
+    PROPERTIES(m) READONLY AFTER id(m) markType, markSeries, markNumber
+    PROPERTIES(m) READONLY idItem, nameItem, idLedgerStocks, nameLedgerStocks
+;
+
+DESIGN markCodes {
+    OBJECTS {
+        NEW filters FIRST {
+            caption = 'Фильтры';
+            horizontal = TRUE;
+            alignment = STRETCH;
+            MOVE PROPERTY(nameFilterStockMarkCode());
+        }
+    }
+}

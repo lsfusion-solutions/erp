@@ -1,6 +1,6 @@
 MODULE EGAISWayBillGestory;
 
-REQUIRE EGAISWayBill, EGAISItemGestori;
+REQUIRE EGAISWayBill, EGAISItemGestori, EGAISMarkCodeGestori;
 
 NAMESPACE EGAIS;
 
@@ -13,6 +13,13 @@ META defineOriginalLastDocumentWayBillAttributes(namespace, object)
     typeOriginalDocument(WayBill b) += WHEN last##namespace##object(b) THEN objectClassName(last##namespace##object(b));
     numberOriginalDocument(WayBill b) += WHEN last##namespace##object(b) THEN number(last##namespace##object(b));
     dateOriginalDocument(WayBill b) += WHEN last##namespace##object(b) THEN date(last##namespace##object(b));
+END;
+
+stockOriginalDocument 'Склад документа системы' = ABSTRACT CASE Stock (WayBill);
+stockOriginalDocument 'Склад документа системы' (WayBillPosition p) = stockOriginalDocument(wayBill(p));
+
+META defineOriginalLastDocumentWayBillAttributes(namespace, object, prop)
+    stockOriginalDocument(WayBill b) += WHEN last##namespace##object(b) THEN prop(last##namespace##object(b));
 END;
 
 notLinkedItem (WayBill w) = GROUP MIN WayBillPosition p IF NOT existItem(product(p)) AND product(p) BY wayBill(p);

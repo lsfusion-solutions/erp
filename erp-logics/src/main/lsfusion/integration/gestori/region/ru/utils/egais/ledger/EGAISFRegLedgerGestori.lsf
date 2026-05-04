@@ -1,0 +1,19 @@
+MODULE EGAISFRegLedgerGestori;
+
+REQUIRE EGAISFRegLedger, EGAISItemGestori;
+
+NAMESPACE EGAIS;
+
+stock 'Склад документа системы' = ABSTRACT Stock (FRegLedger) MATERIALIZED;
+idStock 'Код склада документа системы' (FRegLedger l) = id(stock(l));
+nameStock 'Склад документа системы' (FRegLedger l) = name(stock(l));
+
+hasFRegLedger 'С движением по регистру' (F2Reg r, Stock s) =
+    GROUP MIN FRegLedger l IF posted(l) BY f2Reg(l), stock(l);
+
+idLedgerStocks 'Коды складов' (F2Reg r) = GROUP CONCAT id(Stock s) IF hasFRegLedger(r, s), ',' ORDER s CHARWIDTH 20;
+nameLedgerStocks 'Склады' (F2Reg r) = GROUP CONCAT name(Stock s) IF hasFRegLedger(r, s), ',' ORDER s CHARWIDTH 20;
+
+EXTEND FORM balanceReg
+    PROPERTIES(l) READONLY nameStock AFTER objectClassName(l)
+;
