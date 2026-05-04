@@ -10,9 +10,6 @@ isTracking(ConsignmentDetail cd) += isTrackingOver(sku(cd)) AND date(consignment
 trackingUOM = ABSTRACT VALUE STRING[3] (ConsignmentDetail);
 trackingUOM(ConsignmentDetail cd) += trackingUOMCustomsGroup(sku(cd));
 
-EXTEND CLASS ConsignmentDetail : OutTrackingLedger;
-//inTrackingLedger = ABSTRACT InTrackingLedger (ConsignmentDetail);
-
 overCreate(EInvoiceDetail eid, ConsignmentDetail cd) + {
     //чтобы ТНВЭД и 4х зн код передавался для всех товаров с такими свойствами, а не только для прослеживаемых
     itemCustomCode(eid) <- codeCustomsGroupDefaultCountry(sku(cd));
@@ -20,10 +17,10 @@ overCreate(EInvoiceDetail eid, ConsignmentDetail cd) + {
     IF isTracking(cd) THEN {
         itemCustomCode(eid) <- codeCustomsGroupDefaultCountry(sku(cd));
         itemCustomCodeOther(eid) <- idExtraCode(sku(cd));
-        deliveryTypePrev(eid) <- deliveryTypePrev(inTrackingLedger(cd));
-        deliveryNotePrev(eid) <- deliveryNotePrev(inTrackingLedger(cd));
-        deliveryNoteDatePrev(eid) <- DATETIME(deliveryNoteDate(inTrackingLedger(cd)));
-        deliveryNotePrevLineID(eid) <- deliveryNotePrevLineID(inTrackingLedger(cd));
+        deliveryTypePrev(eid) <- deliveryTypePrev(trackingLedger(cd));
+        deliveryNotePrev(eid) <- deliveryNotePrev(trackingLedger(cd));
+        deliveryNoteDatePrev(eid) <- DATETIME(deliveryNoteDate(trackingLedger(cd)));
+        deliveryNotePrevLineID(eid) <- deliveryNotePrevLineID(trackingLedger(cd));
         lineItemQuantitySPT(eid) <- trackingUOM(cd);
         quantityDespatchedSPT(eid) <- NUMERIC[12,5](OVERRIDE despatchUnitQuantityDespatched(cd), NUMERIC[12,5](quantity(cd)), 1.0);
         // на данный момент прослеживаемые только шт

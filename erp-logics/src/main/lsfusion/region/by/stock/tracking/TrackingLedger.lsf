@@ -1,6 +1,6 @@
 MODULE TrackingLedger;
 
-REQUIRE SkuLedger, LegalEntity, Barcode, EDI;
+REQUIRE SkuLedger, LegalEntity, Barcode, EDI, Consignment;
 
 CLASS ABSTRACT InTrackingLedger 'Регистр прослеживаемого товара (приход)';
 TABLE inTrackingLedger(InTrackingLedger);
@@ -31,15 +31,15 @@ INDEX batch(InTrackingLedger l), stock(l), deliveryNoteDate(l), l;
 INDEX sku(InTrackingLedger l), stock(l), deliveryNoteDate(l), l;
 
 CLASS ABSTRACT OutTrackingLedger 'Регистр прослеживаемого товара (расход)' ;
-TABLE outTrackingLedger(OutTrackingLedger) NODEFAULT;
+TABLE outTrackingLedger(OutTrackingLedger);
 
-quantity 'Количество' = ABSTRACT NUMERIC[16,5] (OutTrackingLedger) MATERIALIZED TABLE outTrackingLedger;
+quantity 'Количество' = ABSTRACT NUMERIC[16,5] (OutTrackingLedger) MATERIALIZED;
 
-description 'Основание' = ABSTRACT STRING[250] (OutTrackingLedger) MATERIALIZED TABLE outTrackingLedger;
+description 'Основание' = ABSTRACT STRING[250] (OutTrackingLedger) MATERIALIZED;
 
 @defineOption(notCheckBalanceTracking, 'Отключить контроль остатка прослеживаемого товара', stock);
 
-inTrackingLedger 'Приход прослеживаемого товара' = ABSTRACT InTrackingLedger (OutTrackingLedger) MATERIALIZED INDEXED TABLE outTrackingLedger;
+inTrackingLedger 'Приход прослеживаемого товара' = ABSTRACT InTrackingLedger (OutTrackingLedger) MATERIALIZED INDEXED;
 
 outQuantity 'Количество (расход)' (InTrackingLedger i) = GROUP SUM quantity(OutTrackingLedger o) BY inTrackingLedger(o);
 balanceTracking 'Остаток' (InTrackingLedger i) = quantity(i) (-) outQuantity(i) MATERIALIZED;
@@ -88,3 +88,5 @@ FORM changeInTrackingLedger 'Выбор прихода прослеживаем�
     FILTERGROUP stock
         FILTER 'По складу' stock(l) == st DEFAULT
 ;
+
+trackingLedger = ABSTRACT InTrackingLedger (ConsignmentDetail);
