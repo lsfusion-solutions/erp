@@ -53,6 +53,14 @@ DESIGN userInvoice {
     }
 }
 
+countProductDetails 'Кол-во строк алкогольной продукции' (Invoice i) =
+    GROUP SUM 1 IF minProduct(sku(InvoiceDetail d)) BY invoice(d);
+
+EXTEND FORM invoices
+    FILTERGROUP egais
+        FILTER 'С алкогольной продукцией' countProductDetails(i)
+;
+
 ttnQuantity(WayBill w, Product p) = GROUP SUM quantity(WayBillPosition wp) BY wayBill(wp), product(wp); 
 shipmentQuantity(Invoice i, Product p) = GROUP SUM shipmentQuantity(InvoiceDetail d) BY invoice(d), minProduct(sku(d));
 countDetailsShipmentBiggerTTN (Invoice i) = GROUP SUM 1 IF invoice(InvoiceDetail d) = i AND minProduct(sku(d)) AND shipmentQuantity(d)
