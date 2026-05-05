@@ -19,7 +19,7 @@ purchaseInvoiceTrackingMigrate(){
 }
 @defOnStartMigrate(purchaseInvoiceTrackingMigrate);
 
-isTracking 'Подлежит прослеживанию' (Invoice i) = GROUP SUM 1 IF isTracking(InvoiceDetail d) AND invoice(d) == i;
+isTracking 'Подлежит прослеживанию' (Invoice i) = GROUP SUM 1 IF isTrackingData(InvoiceDetail d) AND invoice(d) == i;
 
 itemCustomCode'Код ТНВЭД' = ABSTRACT VALUE STRING[10] (InvoiceDetail);
 itemCustomCodeOther 'Дополнительный таможенный код' = ABSTRACT VALUE STRING[4] (InvoiceDetail);
@@ -54,7 +54,7 @@ notImportEAEU = ABSTRACT BOOLEAN (Invoice);
 
 EXTEND FORM userInvoice
     OBJECTS d6 = UserInvoiceDetail GRID
-    PROPERTIES (d6) SHOWIF isTracking(i) READONLY index, idBarcodeSku, nameSku, isTrackingData BACKGROUND backgroundEC(extraCode(sku(d6))) CHANGEABLE, itemCustomCode, itemCustomCodeOther, dateStartSPT,
+    PROPERTIES (d6) SHOWIF isTracking(d6) READONLY index, idBarcodeSku, nameSku, isTrackingData BACKGROUND backgroundEC(extraCode(sku(d6))) CHANGEABLE, itemCustomCode, itemCustomCodeOther, dateStartSPT,
         deliveryTypePrev, deliveryNotePrev, deliveryNoteDate, deliveryNotePrevLineID, lineItemQuantitySPT, quantityDespatchedSPT, lineItemPriceSPT
     PROPERTIES (i) SHOWIF isTracking(i) READONLY countrySupplier, idCountrySupplier
     FILTERS userInvoice(d6) == i, isTracking(d6)
@@ -79,8 +79,8 @@ DESIGN userInvoice{
 }
 
 EXTEND FORM userInvoice
-    PROPERTIES (d) isTracking
+    PROPERTIES (d) isTracking ON CHANGE {INPUT bo = BOOLEAN DO isTrackingData(d) <- bo; }
 ;
 EXTEND FORM invoices
-    PROPERTIES (d) READONLYIF isReadonly() isTracking
+    PROPERTIES (d) READONLYIF isReadonly() isTracking ON CHANGE {INPUT bo = BOOLEAN DO isTrackingData(d) <- bo; }
 ;
