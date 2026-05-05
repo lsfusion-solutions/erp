@@ -32,9 +32,9 @@ httpHeaders = DATA LOCAL NESTED TEXT(TEXT);
 
 domain 'Домен' = DATA STRING();
 sandbox 'Режим песочницы(тестовый)' = DATA BOOLEAN ();
-token 'Токен (общий)' = DATA TEXT ();
+tokenWB 'Токен (общий)' = DATA TEXT ();
 tokenCategoryRequest 'Токен' = DATA STRING(CategoryRequest);
-token 'Токен'(CategoryRequest cr) = STRING(OVERRIDE tokenCategoryRequest(cr), token());
+token 'Токен'(CategoryRequest cr) = STRING(OVERRIDE tokenCategoryRequest(cr), tokenWB());
 urlId 'Подстрока' = DATA STRING(CategoryRequest); 
 url 'URL' (CategoryRequest cr)= CONCAT '', 'https://', urlId(cr), '-sandbox' IF sandbox(),'.',domain(); 
 
@@ -139,7 +139,7 @@ setHttpHeadersIS 'Задать токен' (STRING token){
 }
 
 setHttpHeadersIS 'Задать токен' () {
-    setHttpHeadersIS(token());
+    setHttpHeadersIS(tokenWB());
 }
 
 afterSendRequestIS () {
@@ -175,7 +175,7 @@ ping 'Проверка подключения' (CategoryRequest cr) {
 @extendFormEditable(integrationData);
 
 EXTEND FORM integrationData
-    PROPERTIES() domain, sandbox, token
+    PROPERTIES() domain, sandbox, tokenWB
     OBJECTS cr = CategoryRequest
     PROPERTIES(cr) ping GRID, staticCaption READONLY, urlId, url, token
     ORDERS staticCaption(cr)
@@ -195,7 +195,7 @@ DESIGN integrationData {
                     caption = 'Настройки подключения';
                     MOVE PROPERTY (domain());
                     MOVE PROPERTY (sandbox());
-                    MOVE PROPERTY (token());
+                    MOVE PROPERTY (tokenWB());
                     MOVE BOX(cr) {
                         PROPERTY(ping(cr)) {
                             charWidth=12;
