@@ -12,19 +12,20 @@ DESIGN dialogLots {
     PROPERTY(id(l)){charWidth=170;}
 }
 
-//CONSTRAINT SET(ReceiptDetail d IS ReceiptDetail) AND lotType(sku(d)) AND NOT lot(d)
-//    MESSAGE 'В чеке присутствуют позиции чека с маркированной продукцией без указания кода маркировки';
-//
-//CONSTRAINT DROPPED(lot(ReceiptDetail d)) AND lotType(sku(d))
-//    MESSAGE 'В чеке присутствуют позиции чека с маркированной продукцией без указания кода маркировки';
+CONSTRAINT SET(ReceiptDetail d IS ReceiptDetail) AND lotType(sku(d)) AND NOT lot(d) AND currentUser() IS CustomUser
+    MESSAGE 'В чеке присутствуют позиции чека с маркированной продукцией без указания кода маркировки';
 
-//@defineOption(skipLotBalanceControl, 'Разрешать продажу марок без остатка', BOOLEAN, zReport);
-//
-//skipLotBalanceControl (ReceiptDetail d) = skipLotBalanceControl() AND d IS ReceiptDetail;
+CONSTRAINT DROPPED(lot(ReceiptDetail d)) AND lotType(sku(d)) AND currentUser() IS CustomUser
+    MESSAGE 'В чеке присутствуют позиции чека с маркированной продукцией без указания кода маркировки';
 
-//CONSTRAINT lot(ReceiptSaleDetail d) AND d IS ReceiptSaleDetail AND NOT currentBalance(lot(d)) AND NOT skipLotBalanceControl(d) 
-//    CHECKED BY lot[ReceiptSaleDetail]
-//    MESSAGE 'Запрещено добавлять в чек код маркировки, не находящийся на остатке';
+@defineOption(skipLotBalanceControl, 'Разрешать продажу марок без остатка', BOOLEAN, zReport);
+
+skipLotBalanceControl (ReceiptDetail d) = skipLotBalanceControl() AND d IS ReceiptDetail;
+
+CONSTRAINT SETCHANGED(lot(ReceiptSaleDetail d)) AND departmentStore(d) AND NOT prevCurrentBalance(lot(d), departmentStore(d)) > 0.0 AND NOT skipLotBalanceControl(d) AND 
+    currentUser() IS CustomUser
+    CHECKED BY lot[ReceiptSaleDetail]
+    MESSAGE 'Запрещено добавлять в чек код маркировки, не находящийся на остатке';
 
 WHEN LOCAL FORMS zReport CHANGED (idBarcode(ReceiptDetail d))  AND NOT (sku(d)) DO {
     sku(d) <- sku(barcode(idBarcode(d)));

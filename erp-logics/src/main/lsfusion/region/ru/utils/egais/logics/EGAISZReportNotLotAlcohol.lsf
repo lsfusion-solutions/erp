@@ -20,7 +20,10 @@ EXTEND FORM actWriteOff
 ;
 
 skipCreateActLot  (ActWriteOff w) += notLot(w);
-actWriteOffNotLot = GROUP MAX ActWriteOff a IF skipCreateActLot(a) BY client(a), date(a), type(a);
+
+overSaleDate = ABSTRACT DATE (ActWriteOff);
+saleDate(ActWriteOff a) = OVERRIDE overSaleDate(a), date(a);
+actWriteOffNotLot = GROUP MAX ActWriteOff a IF skipCreateActLot(a) BY client(a), saleDate(a), type(a);
 
 soldQNotLot 'Продано за день' = DATA LOCAL NUMERIC[16,5](Client, Sku, DATE);
 soldSNotLot 'Продано за день' = DATA LOCAL NUMERIC[18,4](Client, Sku, DATE);
@@ -33,6 +36,9 @@ createActWriteOffNotLotOver(Client c, DATE d)+ WHEN c IS Client AND d IS DATE TH
     soldQNotLot (c, Sku s, d) <- soldNotLot(c,s,d);
     soldSNotLot (c, Sku s, d) <- sumSoldNotLot(c,s,d);
 }
+
+overFillActWriteOffNotLot ABSTRACT (ActWriteOff);
+
 createActWriteOffNotLot 'Создать списание на основе реализации' (Client c, DATE d) {    
     NEWSESSION {
         createActWriteOffNotLotOver(c,d);
@@ -67,6 +73,8 @@ createActWriteOffNotLot 'Создать списание на основе ре�
             dateTime(a) <- dateTimeToDateTime(d, 23:59);
             type(a) <- writeOffType('Реализация');
             note(a) <- 'Списание на основе реализации';
+
+            overFillActWriteOffNotLot(a);
 
             FOR to(F2Reg f) INLINE NEW ps = ActWriteOffPosition DO {
                 actWriteOff(ps) <- a;

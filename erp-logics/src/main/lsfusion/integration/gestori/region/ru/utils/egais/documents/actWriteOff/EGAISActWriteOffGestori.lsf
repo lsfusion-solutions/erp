@@ -8,6 +8,10 @@ typeOriginalDocument 'Тип документа системы' = ABSTRACT CASE 
 numberOriginalDocument 'Номер документа системы' = ABSTRACT CASE STRING (ActWriteOff);
 dateOriginalDocument 'Дата документа системы' = ABSTRACT CASE DATE (ActWriteOff);
 
+dataSaleDateTime 'Дата и время продажи' = DATA DATETIME (ActWriteOff);
+dataSaleDateTime(ActWriteOff a) <- currentDateTime() WHEN SET(a IS ActWriteOff);
+dataSaleDate 'Дата продажи' (ActWriteOff a) = DATE(dataSaleDateTime(a));
+
 META defineOriginalLastDocumentActWriteOffAttributes(object)
     last##object (ActWriteOff a) = GROUP LAST ##object o ORDER o BY actWriteOff(o);
     typeOriginalDocument(ActWriteOff a) += WHEN last##object(a) THEN objectClassName(last##object(a));
@@ -120,6 +124,7 @@ EXTEND FORM actWriteOffs
     PROPERTIES (d) post SHOWIF NOT posted(d), unpost SHOWIF posted(d)
 
     PROPERTIES (d) edit SHOWIF showToShow(d)
+    PROPERTIES (d) READONLY dataSaleDateTime AFTER dateTime(d)
     
     PROPERTIES (p) READONLY idEgais
 ;
@@ -148,6 +153,7 @@ DESIGN actWriteOffs {
 }
 
 EXTEND FORM actWriteOff
+    PROPERTIES (w) READONLY dataSaleDateTime
     PROPERTIES (p) READONLY idEgais
 ;
 
