@@ -1,6 +1,6 @@
 MODULE TrackingLedger;
 
-REQUIRE SkuLedger, LegalEntity, Barcode, EDI, Consignment;
+REQUIRE SkuLedger, LegalEntity, Barcode, EDI, Consignment, Invoice;
 
 CLASS ABSTRACT InTrackingLedger 'Регистр прослеживаемого товара (приход)';
 TABLE inTrackingLedger(InTrackingLedger);
@@ -39,6 +39,7 @@ description 'Основание' = ABSTRACT STRING[250] (OutTrackingLedger) MATE
 
 @defineOption(notCheckBalanceTracking, 'Отключить контроль остатка прослеживаемого товара', stock);
 
+isTrackingLedger = ABSTRACT BOOLEAN (InvoiceDetail);
 inTrackingLedger 'Приход прослеживаемого товара' = ABSTRACT InTrackingLedger (OutTrackingLedger) MATERIALIZED INDEXED;
 
 outQuantity 'Количество (расход)' (InTrackingLedger i) = GROUP SUM quantity(OutTrackingLedger o) BY inTrackingLedger(o);
@@ -71,9 +72,9 @@ lastInTrackingLedgerB = GROUP LAST InTrackingLedger l IF deliveryNoteDate(l) <= 
     BY sku(l), stock(l), date;
 prevLastInTrackingLedgerB(Sku s, Stock st, DATE dt) = PREV(lastInTrackingLedgerB(s, st, dt));
 
-lastInTrackingLedgerB = GROUP LAST InTrackingLedger l IF deliveryNoteDate(l) <= DATE date
+lastInTrackingLedgerB = GROUP LAST InTrackingLedger l IF deliveryNoteDate(l) <= DATE date AND countLedger(batch(l), Stock st)
     ORDER deliveryNoteDate(l), l
-    BY batch(l), stock(l), date;
+    BY batch(l), st, date;
 prevLastInTrackingLedgerB(Batch b, Stock st, DATE dt) = PREV(lastInTrackingLedgerB(b, st, dt));
 
 FORM changeInTrackingLedger 'Выбор прихода прослеживаемого товара'
@@ -87,6 +88,7 @@ FORM changeInTrackingLedger 'Выбор прихода прослеживаем�
         FILTER 'С остатком' prevBalanceTracking(l) > 0 DEFAULT
     FILTERGROUP stock
         FILTER 'По складу' stock(l) == st DEFAULT
+        FILTER 'С движением по складу' countLedger(batch(l), st)
 ;
 
 trackingLedger = ABSTRACT InTrackingLedger (ConsignmentDetail);

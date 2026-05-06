@@ -41,9 +41,9 @@ lineItemPriceSPT'Цена за единицу товара для прослеж
 EXTEND CLASS UserInvoiceDetail : OutTrackingLedger;
 trackingLedger[ConsignmentDetail](UserInvoiceDetail d) += inTrackingLedger(d);
 
-TrackingLedger.inTrackingLedger(UserInvoiceDetail l) += inTrackingLedger(l);
-TrackingLedger.quantity(UserInvoiceDetail l) += quantityDespatchedSPT(l);
-TrackingLedger.description(UserInvoiceDetail l) += descriptionIndex(l) IF inTrackingLedger(l);
+TrackingLedger.inTrackingLedger(UserInvoiceDetail l) += inTrackingLedger(l) IF isTrackingLedger(l);
+TrackingLedger.quantity(UserInvoiceDetail l) += quantityDespatchedSPT(l) IF isTrackingLedger(l);
+TrackingLedger.description(UserInvoiceDetail l) += descriptionIndex(l) IF inTrackingLedger(l) AND isTrackingLedger(l);
 
 WHEN LOCAL (CHANGED(sku(UserInvoiceDetail d)) OR CHANGED(supplierStock(d)) OR CHANGED(date(d)) OR CHANGED(batch(d))) AND NOT batch(d) DO {
     inTrackingLedger(d) <- prevLastInTrackingLedgerB(sku(d), supplierStock(d), date(d));
