@@ -492,4 +492,36 @@ clearApplicationLog () + {
             APPLY;
         }
     }
-}    
+}
+
+createSnapshotStopListMachinery 'Перегрузить все позиции'(StopList stopList)  {
+    IF isPosted(stopList) AND exclude(stopList) THEN {
+        NEWSESSION {
+            createMachineryPriceTransactionSnapshot() <- TRUE;
+            createMachineryPriceTransaction(Sku sku) <- TRUE IF GROUP SUM 1 IF sku == sku(StopListDetail d) AND stopList == stopList(d);
+            FOR in(Stock stock, stopList) DO {
+                createMachineryPriceTransaction(stock);
+            }
+            APPLY;
+        }
+    } ELSE {
+        MESSAGE 'Документ не проведен или запрещен к загрузке' NOWAIT;
+    }
+} CONFIRM;
+
+
+EXTEND FORM stopLists
+    PROPERTIES(sl) createSnapshotStopListMachinery SHOWIF isPosted(sl) AND exclude(sl)
+;
+
+DESIGN stopLists {
+    documentDetail {
+        NEW actionContainer {
+            caption = 'Действия';
+            NEW machineryContainer {
+                caption = 'Загрузки' ;
+                MOVE PROPERTY (createSnapshotStopListMachinery(sl));;
+            }
+        }
+    }
+}
