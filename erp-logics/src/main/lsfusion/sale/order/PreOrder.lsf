@@ -98,7 +98,7 @@ FORM preOrder 'Резерв'
 
     OBJECTS d = PreOrderDetail
     PROPERTIES (d) index
-    PROPERTIES (d) idBarcodeSku, idSku, nameSku, shortNameUOMSku//, nameBatch
+    PROPERTIES (d) idBarcodeSku, idSku, nameSku, shortNameUOMSku
     PROPERTIES (d) quantity                
                 
     PROPERTIES (d) NEW, deleteid=DELETE GRID
@@ -332,10 +332,18 @@ batchReserve 'Резерв по партиям' = DATA BOOLEAN ();
 customReserve = ABSTRACT BOOLEAN ();
 WHEN (SETCHANGED(sku(Sale.OrderDetail d)) OR SETCHANGED(supplierStock(d)) OR SETCHANGED(quantity(d))) AND NOT (batchReserve() OR customReserve())  DO {
     preOrderDetail(d) <- NULL;
-    preOrderDetail(d) <- GROUP LAST PreOrderDetail pd IF calcQuantity(pd) >= quantity(d) 
-                               AND sku(d) == sku(pd) AND dateTime(d) >= fromDateTime(pd)
-                               AND supplierStock(d) == supplierStock(pd) AND (operation(pd) == operation(d) OR in(pd,operation(d)))
-                               ORDER DESC fromDate(pd), pd;
+    preOrderDetail(d) <- GROUP LAST PreOrderDetail pd IF calcQuantity(pd) >= quantity(d) AND sku(d) == sku(pd) AND 
+                            dateTime(d) >= fromDateTime(pd) AND supplierStock(d) == supplierStock(pd) AND 
+                            (operation(pd) == operation(d) OR in(pd,operation(d)))
+                        ORDER DESC fromDate(pd), pd;
+}
+
+WHEN (SETCHANGED(batch(Sale.OrderDetail d)) OR SETCHANGED(supplierStock(d)) OR SETCHANGED(quantity(d))) AND batchReserve() AND NOT customReserve() DO {
+    preOrderDetail(d) <- NULL;
+    preOrderDetail(d) <- GROUP LAST PreOrderDetail pd IF calcQuantity(pd) >= quantity(d) AND batch(d) == batch(pd) AND 
+                            dateTime(d) >= fromDateTime(pd) AND supplierStock(d) == supplierStock(pd) AND 
+                            (operation(pd) == operation(d) OR in(pd,operation(d)))
+                        ORDER DESC fromDate(pd), pd;
 }
 
 WHEN FORMS userWriteOff (SETCHANGED(sku(WriteOffDetail d)) OR SETCHANGED(stock(d)) OR SETCHANGED(quantity(d))) DO {
@@ -444,18 +452,18 @@ show[OrderLedger](PreOrderDetail ledger) + { show(ledger);};
 
 TABLE operationStockSku (Sale.Operation,Stock,Sku);
 
-quantityPreOrder 'Резерв операции' (o,st,s) = GROUP SUM calcQuantity(PreOrderDetail d) 
+quantityPreOrder 'Резерв операции' = GROUP SUM calcQuantity(PreOrderDetail d) 
     IF isOpened(d) AND (operation(d) == Sale.Operation op OR in(d,op)) 
-    BY op, sku(d), supplierStock(d) MATERIALIZED;
+    BY op, sku(d), supplierStock(d) MATERIALIZED CHARWIDTH 7;
 prevQuantityPreOrder 'Резерв операции' (Sale.Operation o, Sku s, Stock st) = PREV(quantityPreOrder(o, s, st));
     
 prevQuantityPreOrder 'Резерв операции' (Sku s, Stock st, UserOrder o) = prevQuantityPreOrder(operation(o), s, st);  
 
 TABLE operationStockBatch (Sale.Operation,Stock,Batch);
 
-quantityPreOrder 'Резерв операции' (o,st,s) = GROUP SUM calcQuantity(PreOrderDetail d) 
+quantityPreOrder 'Резерв операции' = GROUP SUM calcQuantity(PreOrderDetail d) 
     IF isOpened(d) AND (operation(d) == Sale.Operation op OR in(d,op))
-    BY op, batch(d), supplierStock(d) MATERIALIZED;
+    BY op, batch(d), supplierStock(d) MATERIALIZED CHARWIDTH 7;
 prevQuantityPreOrder 'Резерв операции' (Sale.Operation o, Batch b, Stock st) = PREV(quantityPreOrder(o, b, st));
     
 prevQuantityPreOrder 'Резерв операции' (Batch b, Stock st, UserOrder o) = prevQuantityPreOrder(operation(o), b, st);  
