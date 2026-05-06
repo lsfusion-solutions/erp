@@ -100,6 +100,10 @@ notCheckDepth 'Не проверять глубину матрицы' = DATA BOO
 notCheckDepthLoc 'Не проверять глубину матрицы' = DATA LOCAL BOOLEAN ();
 useCountRecSku 'Использовать накопительное кол-во товаров при проверке глубины матрицы' = DATA BOOLEAN ();
 
+dataUseCountRecSku 'Использовать накопительное кол-во товаров при проверке глубины матрицы' = DATA BOOLEAN (Range);
+
+useCountRecSku(Range r) = OVERRIDE dataUseCountRecSku(r), useCountRecSku() AND r IS Range;
+
 EXTEND FORM options
     PROPERTIES () notCheckDepthRange, notCheckDepth, useCountRecSku
 ;
@@ -133,14 +137,14 @@ countRecSku 'Кол-во товаров' (Range r, RangeLevel l, DATE d)= countR
 
 countSkus 'Кол-во наименований' = GROUP SUM 1 BY RangeRev v, level(v,Sku sku);
 
-CONSTRAINT CHANGED(countSku(RangeRev v, RangeLevel l)) AND depth(range(v), l) < countSku(v,l) AND NOT countSku(v,l) < PREV(countSku(v,l)) AND NOT useCountRecSku() AND NOT (notCheckDepth() OR notCheckDepthLoc())
+CONSTRAINT CHANGED(countSku(RangeRev v, RangeLevel l)) AND depth(range(v), l) < countSku(v,l) AND NOT countSku(v,l) < PREV(countSku(v,l)) AND NOT useCountRecSku(range(v)) AND NOT (notCheckDepth() OR notCheckDepthLoc())
     MESSAGE 'Превышено максимально количество товаров по матрице для уровня';
-CONSTRAINT CHANGED(countRecSku(RangeRev v, RangeLevel l)) AND depth(range(v), l) < countRecSku(v,l) AND NOT countRecSku(v,l) < PREV(countRecSku(v,l)) AND useCountRecSku() AND NOT (notCheckDepth() OR notCheckDepthLoc())
+CONSTRAINT CHANGED(countRecSku(RangeRev v, RangeLevel l)) AND depth(range(v), l) < countRecSku(v,l) AND NOT countRecSku(v,l) < PREV(countRecSku(v,l)) AND useCountRecSku(range(v)) AND NOT (notCheckDepth() OR notCheckDepthLoc())
     MESSAGE 'Превышено максимально количество товаров по матрице для уровня';
 //CONSTRAINT CHANGED(countSku(RangeRev v, RangeLevel l)) AND depth(range(v), l) < countSku(v,l) AND NOT (PREV(countSku(v,l)) >= countSku(v,l) )
 //    MESSAGE 'Превышено максимально количество товаров по матрице для уровня';
 
-CONSTRAINT CHANGED(depth(range(RangeRev v), RangeLevel l)) AND rangeRev(range(v), currentDate()) == v AND  depth(range(v), l) < (OVERRIDE countRecSku(v,l) IF useCountRecSku(), countSku(v,l)) AND NOT (notCheckDepthRange() OR notCheckDepthLoc())
+CONSTRAINT CHANGED(depth(range(RangeRev v), RangeLevel l)) AND rangeRev(range(v), currentDate()) == v AND  depth(range(v), l) < (OVERRIDE countRecSku(v,l) IF useCountRecSku(range(v)), countSku(v,l)) AND NOT (notCheckDepthRange() OR notCheckDepthLoc())
     MESSAGE 'Превышено максимально количество товаров по матрице для действующей версии';
 
 countSkus 'Кол-во наименований (всего)' (RangeRev v, supplier, LedgerPriceListType pt, Stock d) = GROUP SUM 1 IF level(v, Sku sku)
@@ -182,8 +186,8 @@ EXTEND FORM rangeRev
     
     OBJECTS su = LegalEntity
     PROPERTIES READONLY name(su), countSkus(v, su, pt, d),
-                        countSkus(v, l2, su, pt, d) COLUMNS (l2) HEADER name(l2) SHOWIF NOT useCountRecSku(),
-                        countRecSkus(v, l2, su, pt, d) COLUMNS (l2) HEADER name(l2) SHOWIF useCountRecSku()
+                        countSkus(v, l2, su, pt, d) COLUMNS (l2) HEADER name(l2) SHOWIF NOT useCountRecSku(range(v)),
+                        countRecSkus(v, l2, su, pt, d) COLUMNS (l2) HEADER name(l2) SHOWIF useCountRecSku(range(v))
     ORDERS name(su)
     FILTERS countSkus(v, su, pt, d)      
 ;
@@ -202,8 +206,8 @@ EXTEND FORM range
     FILTERS in(r, vl)
     
     PROPERTIES READONLY countSku(v) AFTER dateTime(v),
-                        countSku(v, vl) COLUMNS (vl) HEADER name(vl) SHOWIF NOT useCountRecSku(),
-                        countRecSku(v, vl) COLUMNS (vl) HEADER name(vl) SHOWIF useCountRecSku()
+                        countSku(v, vl) COLUMNS (vl) HEADER name(vl) SHOWIF NOT useCountRecSku(r),
+                        countRecSku(v, vl) COLUMNS (vl) HEADER name(vl) SHOWIF useCountRecSku(r)
 ;
 
 countSkuNotSupplier 'Кол-во товаров без поставщика' (DataPriceListType pt, DepartmentStore d, RangeRev v) = GROUP 
@@ -220,8 +224,8 @@ EXTEND FORM ranges
     OBJECTS vl = RangeLevel GRID BEFORE r
 
     PROPERTIES READONLY countSku(r, d)
-    PROPERTIES READONLY countSku(r, vl, d) DRAW r COLUMNS (vl) HEADER name(vl) SHOWIF NOT useCountRecSku(),
-                        countRecSku(r, vl, d) DRAW r COLUMNS (vl) HEADER name(vl) SHOWIF useCountRecSku()
+    PROPERTIES READONLY countSku(r, vl, d) DRAW r COLUMNS (vl) HEADER name(vl) SHOWIF NOT useCountRecSku(r),
+                        countRecSku(r, vl, d) DRAW r COLUMNS (vl) HEADER name(vl) SHOWIF useCountRecSku(r)
     
     PROPERTIES READONLY countSkuNotSupplier(pt,ds,r1,d)
     PROPERTIES fillCountSkuNotSupplier(pt, ds, d) DRAW r1 TOOLBAR BEFORE createRangeRev(r1,d) 
