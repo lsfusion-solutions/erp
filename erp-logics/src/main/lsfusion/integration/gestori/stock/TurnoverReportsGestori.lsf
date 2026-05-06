@@ -214,8 +214,8 @@ fillTurnoverOnlyQuantityGestori 'Только количество' () {
 
 /////
 priceSku 'Цена товара' (Sku sk, Stock st, DATE d) = CASE
-    WHEN priceReportType()=PriceReportType.accountingCost THEN costPrice(sk, st, d)
-    WHEN priceReportType()=PriceReportType.purchase THEN accountPrice(sk, st, d)
+    WHEN priceReportType()=PriceReportType.accountingCost THEN OVERRIDE costPrice(sk, st, d), NUMERIC[17,5](round5(priceSku(sk, st, d) * 100 / (100 + valueVAT(sk))))
+    WHEN priceReportType()=PriceReportType.purchase THEN OVERRIDE accountPrice(sk, st, d), accountPriceB(sk, st, dateTimeToDateTime(d, 23:59))
     ELSE prevPriceA(dataPriceListType('retail'), sk, st, dateTimeToDateTime(d, 23:59));
 
 sumB 'Остаток на начало' = DATA LOCAL NUMERIC[16,4] (Sku, Stock);
