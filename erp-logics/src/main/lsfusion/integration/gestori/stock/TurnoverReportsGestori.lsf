@@ -115,6 +115,8 @@ deleteReportSkuGroups 'Сбросить группы' () {
     inReportSkuGroup(SkuGroup g) <- NULL;
 } ASON CONTEXTMENU nameReportSkuGroups;
 
+inReportSkuByGroup(Sku s) = GROUP MAX inReportSkuGroup(SkuGroup g) IF isParent(g, s);
+
 FORM selectReportSku 'Выбор товаров'
     TREE skuTree sg = SkuGroup PARENT parent(sg)
     PROPERTIES READONLY order(sg), skuGroupName = name(sg)
@@ -127,6 +129,14 @@ FORM selectReportSku 'Выбор товаров'
     PROPERTIES(s) READONLY name, idBarcode, shortNameUOM
     FILTERS isParent(sg, s), name(s)
     ORDERS name(s)
+;
+
+FORM dialogReportSkuGroups 'Выбор товарных групп'
+    TREE skuGroupTree sg = SkuGroup PARENT parent(sg)
+    PROPERTIES(sg) inReportSkuGroup
+    PROPERTIES READONLY order(sg), sgName = name(sg)
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F6' DEFAULT
+    ORDERS order(sg), sgName
 ;
 
 FORM dialogReportSkuLists 'Выбор списков товаров'
@@ -147,7 +157,7 @@ selectReportSkus 'Фильтр по товарам' () {
             WHEN t = ReportSkuFilterType.skuGroups THEN {
                 inReportSkuList(List l) <- NULL;
                 inReportSku(Sku s) <- NULL;
-                SHOW filterGroupType;
+                SHOW dialogReportSkuGroups;
             }
             WHEN t = ReportSkuFilterType.skuLists THEN {
                 inReportSkuGroup(SkuGroup g) <- NULL;
@@ -156,20 +166,19 @@ selectReportSkus 'Фильтр по товарам' () {
                     FOR inReportSkuList(list(ListDetail ld)) AND Sku sk = sku(ld) DO
                         inReportSku(sk) <- TRUE;
                 }
-            };
+            }
     }
 }
 
 selectedReportSkuNames = GROUP CONCAT name(Sku s) IF inReportSku(s), '; ' ORDER name(s), s;
-inReportSessionParent(Sku s) = GROUP MAX inReportSkuGroup(SkuGroup g) IF isParent(g, s);
-skuNamesFromReportGroups = GROUP CONCAT name(Sku s) IF inReportSessionParent(s) AND name(s), '; ' ORDER name(s), s;
+skuNamesFromReportGroups = GROUP CONCAT name(Sku s) IF inReportSkuByGroup(s) AND name(s), '; ' ORDER name(s), s;
 reportInSkus 'Товары' = OVERRIDE selectedReportSkuNames(), skuNamesFromReportGroups();
 
 anyReportSkuSelected() = (GROUP MAX inReportSku(Sku s)) OR anyReportSkuGroup();
+inReportSkuFilter(Sku s) = NOT anyReportSkuSelected() OR inReportSku(s) OR inReportSkuByGroup(s);
 
 inReportSupplierFilter(Batch bt) = NOT anyReportSupplier() OR inReportSupplier(supplier(bt));
 inReportStockFilter(Stock st) = inSaleReport(st);
-inReportSkuFilter(Sku s) = NOT anyReportSkuSelected() OR inReportSku(s) OR inReportSessionParent(s);
 
 balanceB 'Остаток на начало' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
 quantityPurchase 'Приход' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
