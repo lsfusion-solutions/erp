@@ -1,7 +1,7 @@
 MODULE ProductionOrderGestori;
 
 REQUIRE ProductionOrder, ProductionOutput, ManufacturingTransferDashboard, ManufacturingTransferDashboardReturn,
-        BOMOperation, BomStock,ProductionConsumption;
+        BOMOperation, BomStock, ProductionConsumption, StockList, PriceListStore;
 
 NAMESPACE Production;
 
@@ -434,3 +434,459 @@ CONSTRAINT SET(BOM o IS BOM) AND isElaboration(operation(o)) AND banRepeat(BOM o
     (GROUP SUM 1 IF sku(Product pd) = sku(Product pd1) AND BOM(pd) = o AND BOM(pd1) = o1) = (GROUP SUM 1 IF BOM(Product pd) = o) AND
     (GROUP SUM 1 IF sku(Product pd) = sku(Product pd1) AND BOM(pd) = o AND BOM(pd1) = o1) = (GROUP SUM 1 IF BOM(Product pd) = o1) MESSAGE 'Запрещено повторять спецификацию ' 
     PROPERTIES '' = number(o), number(o1);
+
+CLASS ProductionReportFlow 'Тип движения' {
+    income 'Приход',
+    expense 'Расход'
+}
+name 'Тип движения' (ProductionReportFlow o) = staticCaption(o) IF o IS ProductionReportFlow CHARWIDTH 10;
+
+CLASS SkuFilterType {
+    sku 'Товары',
+    skuGroups 'Товарные группы',
+    skuLists 'Списки товаров'
+}
+name 'Тип фильтра' (SkuFilterType o) = staticCaption(o) IF o IS SkuFilterType CHARWIDTH 20;
+
+FORM dialogSkuFilterType 'Способ выбора товаров'
+    OBJECTS t = SkuFilterType
+    PROPERTIES(t) READONLY name
+    LIST SkuFilterType OBJECT t
+;
+
+prDateFrom 'Дата (с)' = DATA LOCAL DATE ();
+prDateTo 'Дата (по)' = DATA LOCAL DATE ();
+
+prIncludeExpense 'С учетом расходной части по операциям' = DATA LOCAL BOOLEAN ();
+
+prInStock 'Отм.' = DATA LOCAL BOOLEAN (Stock);
+prAnyStock () = GROUP MAX prInStock(Stock s);
+prNameStocks 'Подразделения' () = GROUP CONCAT (CONCAT ' ', id(Stock s), name(s)) IF prInStock(s), ', '
+ORDER id(s), s CHARWIDTH 40;
+
+prStockList = DATA LOCAL StockList();
+prNameStockList 'Список подразделений' () = name(prStockList());
+
+prShop = DATA LOCAL Stock();
+prNameShop 'Магазин' () = CONCAT ' ', id(prShop()), name(prShop());
+
+prFirstSelectedStock () = GROUP LAST Stock s IF prInStock(s) AND isCompany(s) ORDER DESC id(s), s;
+
+prAutoFillShop () {
+    IF NOT prShop() THEN {
+        prShop() <- prFirstSelectedStock();
+    }
+}
+
+prChangeStockList 'Список подразделений' () {
+    DIALOG stockLists OBJECTS o INPUT DO {
+        prStockList() <- o;
+        prInStock(Stock s) <- NULL;
+        prInStock(Stock s) <- TRUE WHERE in(o, s) AND isCompany(s);
+        prAutoFillShop();
+    }
+}
+
+prDeleteStockList 'Сбросить список' () {
+    prStockList() <- NULL;
+    prInStock(Stock s) <- NULL;
+} ASON CONTEXTMENU prNameStockList;
+
+prSelectAllStocks 'Выбрать все' () {
+    prStockList() <- NULL;
+    prInStock(Stock s) <- TRUE WHERE isCompany(s) AND active(s);
+    prAutoFillShop();
+} ASON CONTEXTMENU prNameStocks;
+
+prDeselectAllStocks 'Сбросить все' () {
+    prStockList() <- NULL;
+    prInStock(Stock s) <- NULL;
+} ASON CONTEXTMENU prNameStocks;
+
+FORM prDialogStocks 'Выбор подразделений'
+    TREE stockTree a = BPSTRING[3], sg = StockGroup PARENT parent(sg)
+    PROPERTIES READONLY VALUE(a), name(sg)
+    ORDERS name(sg)
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS s = Stock
+    PROPERTIES(s) prInStock READONLYIF prStockList()
+    PROPERTIES(s) READONLY id, name, address, nameRegion
+    PROPERTIES prChangeStockList() TOOLBAR
+    ORDERS name(s)
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
+        isCompany(s)
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT
+    FILTERGROUP selectedStock FILTER 'Отмеченные' prInStock(s) 'F9'
+;
+
+DESIGN prDialogStocks {
+    BOX {
+        size = (1024, 768);
+        NEW topContainer {
+            horizontal = TRUE;
+            fill = 1;
+            MOVE BOX(TREE stockTree) { caption = 'Группы складов'; }
+            MOVE BOX(s) {
+                fill = 3;
+                GRID(s) { defaultComponent = TRUE; }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+prChangeStocks 'Подразделения' () {
+    DIALOG prDialogStocks;
+    prAutoFillShop();
+}
+
+prChangeShop 'Магазин' () {
+    DIALOG companysStock OBJECTS s = prShop() CHANGE LIST name(s);
+}
+
+prDeleteShop 'Сбросить магазин' () {
+    prShop() <- NULL;
+} ASON CONTEXTMENU prNameShop;
+
+prInSku 'Отм.' = DATA LOCAL BOOLEAN (Sku);
+prInSkuGroup 'Отм.' = DATA LOCAL BOOLEAN (SkuGroup);
+prInSkuList 'Отм.' = DATA LOCAL BOOLEAN (List);
+
+prAnySkuList () = GROUP MAX prInSkuList(List l);
+prAnySkuGroup () = GROUP MAX prInSkuGroup(SkuGroup g);
+prAnySku () = GROUP MAX prInSku(Sku s);
+prAnySkuSelected () = prAnySku() OR prAnySkuGroup();
+
+prNameSkuLists 'Списки товаров' () = GROUP CONCAT name(List l) IF prInSkuList(l), ', '
+ORDER name(l), l CHARWIDTH 30;
+prNameSkuGroups 'Товарные группы' () = GROUP CONCAT name(SkuGroup o) IF prInSkuGroup(o) AND NOT prInSkuGroup(parent(o)), '; '
+ORDER o CHARWIDTH 30;
+
+prInSkuByGroup (Sku s) = GROUP MAX prInSkuGroup(SkuGroup g) IF isParent(g, s);
+
+prSelectedSkuNames () = GROUP CONCAT name(Sku s) IF prInSku(s), '; ' ORDER name(s), s;
+prSkuNamesFromGroups () = GROUP CONCAT name(Sku s) IF prInSkuByGroup(s) AND name(s), '; ' ORDER name(s), s;
+prInSkus 'Товары' () = OVERRIDE prSelectedSkuNames(), prSkuNamesFromGroups();
+
+prDeleteSkuLists 'Сбросить список' () {
+    prInSkuList(List l) <- NULL;
+    prInSku(Sku s) <- NULL;
+} ASON CONTEXTMENU prNameSkuLists;
+
+prDeleteSkuGroups 'Сбросить группы' () {
+    prInSkuGroup(SkuGroup g) <- NULL;
+} ASON CONTEXTMENU prNameSkuGroups;
+
+FORM prSelectSku 'Выбор товаров'
+    TREE skuTree sg = SkuGroup PARENT parent(sg)
+    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F6' DEFAULT
+    ORDERS order(sg), skuGroupName
+
+    OBJECTS s = Sku
+    PROPERTIES(s) prIn = prInSku
+    PROPERTIES(s) READONLY id SHOWIF showIDs()
+    PROPERTIES(s) READONLY name, idBarcode, shortNameUOM
+    FILTERS isParent(sg, s), name(s)
+    ORDERS name(s)
+;
+
+FORM prDialogSkuGroups 'Выбор товарных групп'
+    TREE skuGroupTree sg = SkuGroup PARENT parent(sg)
+    PROPERTIES(sg) prInSkuGroup
+    PROPERTIES READONLY order(sg), sgName = name(sg)
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F6' DEFAULT
+    ORDERS order(sg), sgName
+;
+
+FORM prDialogSkuLists 'Выбор списков товаров'
+    OBJECTS o = List
+    PROPERTIES(o) prInSkuList
+    PROPERTIES(o) READONLY name
+    ORDERS name(o)
+;
+
+prSelectSkus 'Фильтр по товарам' () {
+    DIALOG dialogSkuFilterType OBJECTS t INPUT DO {
+        CASE
+            WHEN t = SkuFilterType.sku THEN {
+                prInSkuList(List l) <- NULL;
+                prInSkuGroup(SkuGroup g) <- NULL;
+                SHOW prSelectSku;
+            }
+            WHEN t = SkuFilterType.skuGroups THEN {
+                prInSkuList(List l) <- NULL;
+                prInSku(Sku s) <- NULL;
+                SHOW prDialogSkuGroups;
+            }
+            WHEN t = SkuFilterType.skuLists THEN {
+                prInSkuGroup(SkuGroup g) <- NULL;
+                DIALOG prDialogSkuLists DO {
+                    prInSku(Sku s) <- NULL;
+                    FOR prInSkuList(list(ListDetail ld)) AND Sku s == sku(ld) DO
+                        prInSku(s) <- TRUE;
+                }
+            };
+    }
+}
+
+prSkuFilter (Sku s) = NOT prAnySkuSelected() OR prInSku(s) OR prInSkuByGroup(s);
+
+prInOperation 'Отм.' = DATA LOCAL BOOLEAN (Operation);
+prAnyOperation () = GROUP MAX prInOperation(Operation o);
+prNameOperations 'Операции' () = OVERRIDE
+    (GROUP CONCAT name(Operation o) IF prInOperation(o), ', ' ORDER name(o), o),
+    'Все операции производства' CHARWIDTH 30;
+
+prSelectAllOperations 'Выбрать все' () {
+    prInOperation(Operation o) <- TRUE;
+} ASON CONTEXTMENU prNameOperations;
+
+prDeselectAllOperations 'Сбросить все' () {
+    prInOperation(Operation o) <- NULL;
+} ASON CONTEXTMENU prNameOperations;
+
+FORM prDialogOperations 'Выбор операций производства'
+    OBJECTS o = Operation
+    PROPERTIES(o) prInOperation
+    PROPERTIES(o) READONLY name, id
+    PROPERTIES TOOLBAR prSelectAllOperations(), prDeselectAllOperations()
+    ORDERS name(o)
+;
+
+prChangeOperations 'Операции' () {
+    DIALOG prDialogOperations;
+}
+
+prInitDates () {
+    prDateTo() <- currentDate();
+    prDateFrom() <- sumMonth(currentDate(), -1);
+    prIncludeExpense() <- NULL;
+    prInOperation(Operation o) <- TRUE WHERE o IS Operation;
+}
+
+prOperationFilter (Operation op) = NOT prAnyOperation() OR prInOperation(op);
+
+prFlowFilter (ProductionReportFlow flow) =
+    flow == ProductionReportFlow.income OR (flow == ProductionReportFlow.expense AND prIncludeExpense());
+
+prOrderFilter (Order o) =
+    isPosted(o)
+        AND date(o) >= prDateFrom()
+        AND date(o) <= prDateTo()
+        AND prOperationFilter(operation(o));
+
+prProductDetailFilter (ProductDetail d) =
+    prOrderFilter(order(d))
+        AND prInStock(productsStock(order(d)))
+        AND prSkuFilter(sku(d));
+
+prComponentDetailFilter (ComponentDetail d) =
+    prOrderFilter(order(d))
+        AND prInStock(componentsStock(order(d)))
+        AND prSkuFilter(sku(d));
+
+prPackWeight 'Фасовка, кг (вес нетто)' (Sku s) = netWeight(s);
+
+prShopRetailPrice (Sku s) =
+    retailPriceA(s, prShop(), toDateTime(prDateTo())) IF prShop();
+
+prAccountPrice (Sku s, Stock st) =
+    accountPriceA(s, st, toDateTime(prDateTo()));
+
+prVatRate (Sku s, Stock st) = valueVAT(s, country(st), prDateTo());
+
+prVatCoef (Sku s, Stock st) = 1.0 + (OVERRIDE prVatRate(s, st), 0.0) / 100.0;
+
+prRowProduct 'Кол-во прихода' (Stock st, Operation op, Sku s) =
+    GROUP SUM quantity(ProductDetail d)
+        IF prProductDetailFilter(d)
+            AND productsStock(order(d)) == st
+            AND operation(order(d)) == op
+            AND sku(d) == s;
+
+prRowProductSum 'Сумма прихода (документ, с НДС)' (Stock st, Operation op, Sku s) =
+    GROUP SUM sum(ProductDetail d)
+        IF prProductDetailFilter(d)
+            AND productsStock(order(d)) == st
+            AND operation(order(d)) == op
+            AND sku(d) == s;
+
+prRowComponent 'Кол-во расхода' (Stock st, Operation op, Sku s) =
+    GROUP SUM quantity(ComponentDetail d)
+        IF prComponentDetailFilter(d)
+            AND componentsStock(order(d)) == st
+            AND operation(order(d)) == op
+            AND sku(d) == s;
+
+prRowComponentSum 'Сумма расхода (документ, с НДС)' (Stock st, Operation op, Sku s) =
+    GROUP SUM sum(ComponentDetail d)
+        IF prComponentDetailFilter(d)
+            AND componentsStock(order(d)) == st
+            AND operation(order(d)) == op
+            AND sku(d) == s;
+
+prQty (Stock st, Operation op, Sku s, ProductionReportFlow flow) =
+    CASE
+        WHEN flow == ProductionReportFlow.income THEN prRowProduct(st, op, s)
+        WHEN flow == ProductionReportFlow.expense THEN prRowComponent(st, op, s);
+
+prQtyKg (Stock st, Operation op, Sku s, ProductionReportFlow flow) =
+    NUMERIC[18,3](round3(prQty(st, op, s, flow) * prPackWeight(s)));
+
+prSumDocWithVat (Stock st, Operation op, Sku s, ProductionReportFlow flow) =
+    NUMERIC[18,2](round2(
+            CASE
+                WHEN flow == ProductionReportFlow.income THEN prRowProductSum(st, op, s)
+                WHEN flow == ProductionReportFlow.expense THEN prRowComponentSum(st, op, s)));
+
+prSumAccountWithVat (Stock st, Operation op, Sku s, ProductionReportFlow flow) =
+    NUMERIC[18,2](round2(prQty(st, op, s, flow) * prAccountPrice(s, st)))
+        IF prQty(st, op, s, flow) AND prAccountPrice(s, st);
+
+prSumAccountNoVat (Stock st, Operation op, Sku s, ProductionReportFlow flow) =
+    NUMERIC[18,2](round2(prSumAccountWithVat(st, op, s, flow) / prVatCoef(s, st)))
+        IF prSumAccountWithVat(st, op, s, flow);
+
+prSumWorkshopWithVat (Stock st, Operation op, Sku s, ProductionReportFlow flow) =
+    prSumDocWithVat(st, op, s, flow);
+
+prSumWorkshopNoVat (Stock st, Operation op, Sku s, ProductionReportFlow flow) =
+    NUMERIC[18,2](round2(prSumWorkshopWithVat(st, op, s, flow) / prVatCoef(s, st)))
+        IF prSumWorkshopWithVat(st, op, s, flow);
+
+prSumShopWithVat (Stock st, Operation op, Sku s, ProductionReportFlow flow) =
+    NUMERIC[18,2](round2(prQty(st, op, s, flow) * prShopRetailPrice(s)))
+        IF prQty(st, op, s, flow) AND prShopRetailPrice(s);
+
+prSumShopNoVat (Stock st, Operation op, Sku s, ProductionReportFlow flow) =
+    NUMERIC[18,2](round2(prSumShopWithVat(st, op, s, flow) / prVatCoef(s, st)))
+        IF prSumShopWithVat(st, op, s, flow);
+
+prWorkshopProfitNoVat (Stock st, Operation op, Sku s, ProductionReportFlow flow) =
+    prSumWorkshopNoVat(st, op, s, flow) (-) prSumAccountNoVat(st, op, s, flow);
+
+prShopGrossIncomeWithVat (Stock st, Operation op, Sku s, ProductionReportFlow flow) =
+    prSumShopWithVat(st, op, s, flow) (-) prSumWorkshopWithVat(st, op, s, flow);
+
+prShopMarkupNoVat (Stock st, Operation op, Sku s, ProductionReportFlow flow) =
+    prSumShopNoVat(st, op, s, flow) (-) prSumWorkshopNoVat(st, op, s, flow);
+
+prShopMarkupPct (Stock st, Operation op, Sku s, ProductionReportFlow flow) =
+    NUMERIC[18,2](round2(prShopMarkupNoVat(st, op, s, flow) * 100.0 / prSumWorkshopNoVat(st, op, s, flow)))
+        IF prSumWorkshopNoVat(st, op, s, flow) > 0.0;
+
+prHasFlowData (Stock st, Operation op, Sku s, ProductionReportFlow flow) =
+    prFlowFilter(flow) AND prQty(st, op, s, flow);
+
+prHasAnyDataForRow (Stock st, Sku s) = GROUP MAX 1
+    IF prHasFlowData(st, Operation op, s, ProductionReportFlow flow)
+        AND prOperationFilter(op);
+
+prHasRow (Stock st, Sku s) =
+    prInStock(st) AND prSkuFilter(s) AND prHasAnyDataForRow(st, s);
+
+FORM productionReport 'Отчёт по производству'
+    PROPERTIES() prDateFrom, prDateTo
+    PROPERTIES() prIncludeExpense
+    PROPERTIES prNameStockList() READONLY SHOWIF prStockList()
+    PROPERTIES prStocksCaption = prNameStocks() ON CHANGE prChangeStocks() READONLYIF prStockList()
+    PROPERTIES prShopCaption = prNameShop() ON CHANGE prChangeShop()
+    PROPERTIES prNameSkuLists() READONLY SHOWIF prAnySkuList()
+    PROPERTIES prSkuGroupsCaption = prNameSkuGroups() READONLY SHOWIF prAnySkuGroup()
+    PROPERTIES prSkusCaption = prInSkus() ON CHANGE prSelectSkus() READONLYIF prAnySkuList() OR prAnySkuGroup()
+    PROPERTIES prOperationsCaption = prNameOperations() ON CHANGE prChangeOperations()
+
+    OBJECTS report = (st = Stock, s = Sku, op = Operation, flow = ProductionReportFlow)
+    PROPERTIES(op) READONLY 'Операция' = name
+    PROPERTIES(flow) READONLY 'Тип движения' = staticCaption
+    PROPERTIES(st) READONLY 'Код подразделения' = id, 'Наименование подразделения' = name
+    PROPERTIES(s) READONLY 'Код товарной группы' = idSkuGroup3, 'Наименование товарной группы' = nameSkuGroup3
+    PROPERTIES(s) READONLY 'Код товара' = id, 'Наименование товара' = name
+    PROPERTIES(s) READONLY 'Единица измерения' = shortNameUOM
+    PROPERTIES(s) READONLY prPackWeight
+    PROPERTIES READONLY
+    'Кол-во' = prQty(st, op, s, flow),
+        'Кол-во в кг' = prQtyKg(st, op, s, flow),
+        'Сумма по учетной цене без НДС, руб.' = prSumAccountNoVat(st, op, s, flow),
+        'Сумма по учетной цене с НДС, руб.' = prSumAccountWithVat(st, op, s, flow),
+        'Сумма по отпускной цене цеха без НДС, руб.' = prSumWorkshopNoVat(st, op, s, flow),
+        'Сумма по отпускной цене цеха с НДС, руб.' = prSumWorkshopWithVat(st, op, s, flow),
+        'Сумма по отпускной цене магазина с НДС, руб.' = prSumShopWithVat(st, op, s, flow),
+        'Прибыль цеха без НДС, руб.' = prWorkshopProfitNoVat(st, op, s, flow),
+        'Валовой доход магазина с НДС, руб.' = prShopGrossIncomeWithVat(st, op, s, flow),
+        'Торговая наценка без НДС, руб.' = prShopMarkupNoVat(st, op, s, flow),
+        'Торговая наценка, %' = prShopMarkupPct(st, op, s, flow)
+    FILTERS prHasRow(st, s),
+        prOperationFilter(op),
+        prHasFlowData(st, op, s, flow)
+    ORDERS name(op), staticCaption(flow), id(st), idSkuGroup3(s), id(s)
+
+    EVENTS ON INIT prInitDates()
+;
+
+FORM productionReportPrint 'Отчёт по производству'
+    PROPERTIES() 'Дата с' = prDateFrom, 'Дата по' = prDateTo
+
+    OBJECTS st = Stock, s = Sku, op = Operation, flow = ProductionReportFlow
+    PROPERTIES(op) READONLY 'Операция' = name
+    PROPERTIES(flow) READONLY 'Тип движения' = staticCaption
+    PROPERTIES(st) READONLY 'Код подразделения' = id, 'Наименование подразделения' = name
+    PROPERTIES(s) READONLY 'Код товарной группы' = idSkuGroup3, 'Наименование товарной группы' = nameSkuGroup3,
+        'Код товара' = id, 'Наименование товара' = name,
+        'Единица измерения' = shortNameUOM
+    PROPERTIES(s) READONLY 'Фасовка, кг (вес нетто)' = prPackWeight
+    PROPERTIES READONLY
+    'Кол-во' = prQty(st, op, s, flow),
+        'Кол-во в кг' = prQtyKg(st, op, s, flow),
+        'Сумма по учетной цене без НДС, руб.' = prSumAccountNoVat(st, op, s, flow),
+        'Сумма по учетной цене с НДС, руб.' = prSumAccountWithVat(st, op, s, flow),
+        'Сумма по отпускной цене цеха без НДС, руб.' = prSumWorkshopNoVat(st, op, s, flow),
+        'Сумма по отпускной цене цеха с НДС, руб.' = prSumWorkshopWithVat(st, op, s, flow),
+        'Сумма по отпускной цене магазина с НДС, руб.' = prSumShopWithVat(st, op, s, flow),
+        'Прибыль цеха без НДС, руб.' = prWorkshopProfitNoVat(st, op, s, flow),
+        'Валовой доход магазина с НДС, руб.' = prShopGrossIncomeWithVat(st, op, s, flow),
+        'Торговая наценка без НДС, руб.' = prShopMarkupNoVat(st, op, s, flow),
+        'Торговая наценка, %' = prShopMarkupPct(st, op, s, flow)
+    FILTERS prHasRow(st, s),
+        prOperationFilter(op),
+        prHasFlowData(st, op, s, flow)
+    ORDERS name(op), staticCaption(flow), id(st), idSkuGroup3(s), id(s)
+;
+
+prPrintReport 'Отчёт' () { PRINT productionReportPrint XLSX; } IMAGE 'print.png';
+
+EXTEND FORM productionReport
+    PROPERTIES() DISABLEIF NOT prDateFrom() OR NOT prDateTo() OR NOT prAnyStock() prPrintReport
+;
+
+DESIGN productionReport {
+    NEW filters FIRST {
+        alignment = STRETCH;
+        NEW topRow {
+            horizontal = TRUE;
+            alignment = STRETCH;
+            MOVE PROPERTY(prDateFrom());
+            MOVE PROPERTY(prDateTo());
+            MOVE PROPERTY(prIncludeExpense());
+            MOVE PROPERTY(prPrintReport()) { valueClass = 'btn-primary'; }
+        }
+        MOVE PROPERTY(prNameStockList()) { alignment = STRETCH; }
+        MOVE PROPERTY(prStocksCaption) { alignment = STRETCH; }
+        MOVE PROPERTY(prShopCaption) { alignment = STRETCH; }
+        MOVE PROPERTY(prNameSkuLists()) { alignment = STRETCH; }
+        MOVE PROPERTY(prSkuGroupsCaption) { alignment = STRETCH; }
+        MOVE PROPERTY(prSkusCaption) { alignment = STRETCH; }
+        MOVE PROPERTY(prOperationsCaption) { alignment = STRETCH; }
+    }
+    BOX(report) {
+        caption = 'Отчёт по производству';
+    }
+}
+
+NAVIGATOR {
+    manufacturingReports {
+        NEW productionReport;
+    }
+}
