@@ -11,3 +11,18 @@ NAMESPACE EGAIS;
 DESIGN actWriteOffs {
     PROPERTY(id(odd)) { caption = 'Номер транспортного пакета'; }
 }
+
+checkConditions(ActWriteOff w) += 'Дата/время акта должна быть не старше трех дней от текущей даты/времени' 
+    IF secondsBetweenDates(currentDateTime(), dateTime(w)) > 3*86400;
+
+checkConditions(ActWriteOff w) += 'Дата/время акта должна быть не больше текущей даты/времени'
+    IF dateTime(w) > currentDateTime();
+
+minPosition(ActWriteOff w) = GROUP MIN ActWriteOffPosition p BY actWriteOff(p);
+checkConditions(ActWriteOff w) += 'Отсутствуют записи в спецификации'
+    IF w IS ActWriteOff AND NOT minPosition(w);
+
+wrangQuantity (ActWriteOffPosition p) = NOT overQuantity(p) == quantity(p) IF quantity(p);
+wrangQuantity (ActWriteOff w) = GROUP MIN ActWriteOffPosition p BY actWriteOff(p) IF wrangQuantity(p);
+checkConditions(ActWriteOff w) += 'Количество кодов маркировки не соответствует количеству по позиции акта'
+    IF wrangQuantity(w);

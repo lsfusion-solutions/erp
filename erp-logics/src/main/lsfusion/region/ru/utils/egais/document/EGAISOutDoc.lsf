@@ -169,7 +169,14 @@ END
 META defineDocumentOutProcess(doc, container)
     overProcess ABSTRACT (###doc);
     overShowProcess = ABSTRACT BOOLEAN (###doc);
+    checkConditions = ABSTRACT VALUE STRING (###doc);
+    
     process 'Отправить в ЕГАИС' (###doc t) {
+        IF checkConditions(t) THEN {
+            MESSAGE checkConditions(t);
+            RETURN;
+        }
+        
         NEW r = ###doc##OutDoc {
             client(r) <- client(t);
             doc(r) <- t;

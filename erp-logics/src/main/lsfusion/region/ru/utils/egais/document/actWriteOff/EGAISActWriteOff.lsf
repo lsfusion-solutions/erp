@@ -81,8 +81,9 @@ markCode 'Код маркировки' = DATA MarkCode (ActWriteOffMark) NONULL 
 idMarkCode 'Код маркировки' (ActWriteOffMark m) = id(markCode(m));
 dataQuantity = DATA INTEGER (ActWriteOffPosition);
 quantity 'Кол-во' (ActWriteOffPosition p) = GROUP SUM 1 IF actWriteOffPosition(ActWriteOffMark m) = p MATERIALIZED;
-extraQuantity = ABSTRACT INTEGER (ActWriteOffPosition);
-overQuantity 'Кол-во' (ActWriteOffPosition p) = OVERRIDE extraQuantity(p), dataQuantity(p), quantity(p);
+
+skipDataQuantity = ABSTRACT BOOLEAN (ActWriteOffPosition);
+overQuantity 'Кол-во' (ActWriteOffPosition p) = OVERRIDE dataQuantity(p) IF NOT skipDataQuantity(p), quantity(p);
 changeOverQuantity (ActWriteOffPosition p)  {
     IF p IS ActWriteOffPosition THEN {
         INPUT n = NUMERIC[16,5] DO {
@@ -97,6 +98,11 @@ minActWriteOffPosition (ActWriteOff w) = GROUP MIN ActWriteOffPosition p BY actW
 
 readonlyDescriptionClient = ABSTRACT BOOLEAN ();
 
+delete 'Удалить' (ActWriteOffPosition p)  {
+    DELETE ActWriteOffMark m WHERE p == actWriteOffPosition(m);
+    DELETE p;
+} IMAGE 'delete.png';
+
 FORM actWriteOff 'Акт о списании с баланса ЕГАИС'
     OBJECTS w = ActWriteOff PANEL
     PROPERTIES(w) posted, canceled, errorPost, number, dateTime, regId,
@@ -105,7 +111,7 @@ FORM actWriteOff 'Акт о списании с баланса ЕГАИС'
 
     OBJECTS p = ActWriteOffPosition
     PROPERTIES(p) idProduct, fullNameProduct, idF2Reg, overQuantity ON CHANGE changeOverQuantity(p), sumSale,
-        NEW, DELETE
+        NEW, delete
     FILTERS actWriteOff(p) = w
 
     OBJECTS m = ActWriteOffMark

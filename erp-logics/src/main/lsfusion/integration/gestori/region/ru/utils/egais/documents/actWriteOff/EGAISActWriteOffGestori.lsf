@@ -12,6 +12,8 @@ dataSaleDateTime 'Дата и время продажи' = DATA DATETIME (ActWri
 dataSaleDateTime(ActWriteOff a) <- currentDateTime() WHEN SET(a IS ActWriteOff);
 dataSaleDate 'Дата продажи' (ActWriteOff a) = DATE(dataSaleDateTime(a));
 
+stockClientName 'Склад организации' (ActWriteOff w) = name(stock(client(w))) IN id;
+
 META defineOriginalLastDocumentActWriteOffAttributes(object)
     last##object (ActWriteOff a) = GROUP LAST ##object o ORDER o BY actWriteOff(o);
     typeOriginalDocument(ActWriteOff a) += WHEN last##object(a) THEN objectClassName(last##object(a));
@@ -54,7 +56,7 @@ edit 'Редактировать' (ActWriteOff o)  {
 
 readonlyDescriptionClient() += TRUE;
 
-in (ActWriteOff w, MarkCode c) = GROUP MIN TRUE BY actWriteOff(actWriteOffPosition(ActWriteOffMark m)), markCode(m); 
+in (ActWriteOff w, MarkCode c) = GROUP MIN TRUE BY actWriteOff(actWriteOffPosition(ActWriteOffMark m)), markCode(m);
 
 processInputIdMarkCode(ActWriteOff w, ActWriteOffPosition p, STRING[200] s) {
     LOCAL markCode = MarkCode ();
@@ -124,7 +126,7 @@ EXTEND FORM actWriteOffs
     PROPERTIES (d) post SHOWIF NOT posted(d), unpost SHOWIF posted(d)
 
     PROPERTIES (d) edit SHOWIF showToShow(d)
-    PROPERTIES (d) READONLY dataSaleDateTime AFTER dateTime(d)
+    PROPERTIES (d) READONLY dataSaleDateTime AFTER dateTime(d), stockClientName AFTER shortNameClient(d)
     
     PROPERTIES (p) READONLY idEgais
 ;
@@ -169,9 +171,9 @@ CONSTRAINT client(ActWriteOff a) AND NOT stock(client(a))
     CHECKED BY client[ActWriteOff]
     MESSAGE 'Доступны только организации, связанные со складами/отделами магазинов системы';
 
-CONSTRAINT product(ActWriteOffPosition d) AND NOT product(f2Reg(d)) == product(d)
+CONSTRAINT product(ActWriteOffPosition d) AND f2Reg(d) AND NOT product(f2Reg(d)) == product(d)
     CHECKED BY f2Reg[ActWriteOffPosition]
-    MESSAGE 'Для строики акта списания с баланса ЕГАИС справка Б должна соответствовать продукции';
+    MESSAGE 'Для строки акта списания с баланса ЕГАИС справка Б должна соответствовать продукции';
 
 WHEN LOCAL FORMS actWriteOff CHANGED ( idF2Reg(ActWriteOffPosition d)) AND NOT (product(d)) DO {
     product(d) <- product(f2Reg(d));
@@ -196,12 +198,19 @@ DESIGN actWriteOff {
 lotType (ActWriteOff w) = GROUP MIN TRUE IF lotType(minItem(product(ActWriteOffPosition p))) AND product(p) BY actWriteOff(p);
 notLotType (ActWriteOff w) = GROUP MIN TRUE IF NOT lotType(minItem(product(ActWriteOffPosition p))) AND product(p) BY actWriteOff(p);
 
-CONSTRAINT SETCHANGED(lotType(minItem(product(ActWriteOffPosition p)))) AND lotType(actWriteOff(p)) AND notLotType(actWriteOff(p)) 
+CONSTRAINT CHANGED(lotType(minItem(product(ActWriteOffPosition p)))) AND lotType(actWriteOff(p)) AND notLotType(actWriteOff(p)) 
+    MESSAGE 'Запрещено добавлять в спецификацию документа маркированную и немаркированную продукцию';
+
+CONSTRAINT SET(ActWriteOffPosition p IS ActWriteOffPosition) AND lotType(actWriteOff(p)) AND notLotType(actWriteOff(p))
     MESSAGE 'Запрещено добавлять в спецификацию документа маркированную и немаркированную продукцию';
 
 CONSTRAINT (SETCHANGED(overQuantity(ActWriteOffPosition d)) OR SETCHANGED(f2Reg(d))) AND overQuantity(d) AND currentBalance(f2Reg(d)) < overQuantity(d)
     MESSAGE 'Количество не должно превышать остаток по справке Б';
 
+CONSTRAINT (SETCHANGED(posted(ActWriteOff d)) OR SETCHANGED(canceled(d))) AND posted(d) AND canceled(d)
+    MESSAGE 'Документ не может быть проведен и отклонен одновременно';
+
 NAVIGATOR {
     actWriteOffs 'Акты списания с баланса';
 }
+
