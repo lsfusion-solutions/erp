@@ -9,8 +9,20 @@ dataEDIProviderDocument 'EDI-провайдер для документов' = D
 EDIProviderDocument 'EDI-провайдер для документов' (LegalEntity legalEntity, LegalEntity company) = OVERRIDE dataEDIProviderDocument(legalEntity, company), EDIProvider(legalEntity) IF isCompany(company);
 nameEDIProviderDocument 'EDI-провайдер для документов' (LegalEntity legalEntity, LegalEntity company) = staticCaption(EDIProviderDocument(legalEntity, company));
 
+useV2 'Использовать формат V2' = DATA BOOLEAN (LegalEntity);// вообще надо в topBy перенести при случае
+
 EXTEND FORM legalEntity
-    PROPERTIES nameEDIProviderDocument(l, eCom);
+    PROPERTIES nameEDIProviderDocument(l, eCom)
+    PROPERTIES useV2(l);
+
+DESIGN legalEntity {
+    EDI {
+        NEW EDocument {
+            caption = 'Документы';
+            MOVE PROPERTY (useV2(l));
+        }
+    }
+}
 
 //-----------------------------------------Электронный документ----------------------------------------------//
 CLASS EDocument 'Электронный документ EDI';
