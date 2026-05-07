@@ -105,6 +105,7 @@ WHEN LOCAL FORMS actChargeOn CHANGED ( idF2Reg(ActChargeOnPosition d)) AND NOT (
 EXTEND FORM actChargeOn
     PROPERTIES (a) DRAW m  addMarkCodeInputIdMarkCode SHOWIF NOT minActChargeOnPosition(a)
     PROPERTIES (p) DRAW m  addMarkCodeInputIdMarkCode SHOWIF minActChargeOnPosition(a)
+    PROPERTIES idF2Reg 'Справка Б' = idF2Reg(p) AFTER fullNameProduct(p) NOSELECT 
     PROPERTIES (m) DELETE GRID
 ;
 
@@ -115,18 +116,21 @@ DESIGN actChargeOn {
             MOVE PROPERTY (shortNameClient(a));
             MOVE PROPERTY (descriptionClient(a)) {caption = 'Адрес'; charWidth = 100;};
         }
+        PROPERTY (idF2Reg(p)) {hide = TRUE;}
     }
 }
 
 lotType (ActChargeOn w) = GROUP MIN TRUE IF lotType(minItem(product(ActChargeOnPosition p))) AND product(p) BY actChargeOn(p);
 notLotType (ActChargeOn w) = GROUP MIN TRUE IF NOT lotType(minItem(product(ActChargeOnPosition p))) AND product(p) BY actChargeOn(p);
 
-CONSTRAINT SETCHANGED(lotType(minItem(product(ActChargeOnPosition p)))) AND lotType(actChargeOn(p)) AND notLotType(actChargeOn(p))
+CONSTRAINT CHANGED(lotType(minItem(product(ActChargeOnPosition p)))) AND lotType(actChargeOn(p)) AND notLotType(actChargeOn(p))
+    MESSAGE 'Запрещено добавлять в спецификацию документа маркированную и немаркированную продукцию';
+
+CONSTRAINT SET(ActChargeOnPosition p IS ActChargeOnPosition) AND lotType(actChargeOn(p)) AND notLotType(actChargeOn(p))
     MESSAGE 'Запрещено добавлять в спецификацию документа маркированную и немаркированную продукцию';
 
 CONSTRAINT (SETCHANGED(overQuantity(ActChargeOnPosition d)) OR SETCHANGED(f2Reg(d))) AND overQuantity(d) AND currentBalance(f2Reg(d)) < overQuantity(d)
     MESSAGE 'Количество не должно превышать остаток по справке Б';
-
 
 CONSTRAINT (SETCHANGED(posted(ActChargeOn d)) OR SETCHANGED(canceled(d))) AND posted(d) AND canceled(d)
     MESSAGE 'Документ не может быть проведен и отклонен одновременно';

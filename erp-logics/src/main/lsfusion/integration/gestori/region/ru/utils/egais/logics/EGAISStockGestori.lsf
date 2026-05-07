@@ -4,8 +4,7 @@ REQUIRE EGAISStock;
 
 NAMESPACE EGAIS;
 
-existItem 'Связан со складами' (Client c) = TRUE IF stock(c);
-nameLegalEntity 'Связанная организация' (Client c) = name(legalEntity(stock(c)));
+existStock'Связан со складами' (Client c) = TRUE IF stock(c);
 
 EXTEND FORM dialogClients
     OBJECTS s = Stock
@@ -25,11 +24,15 @@ DESIGN dialogClients {
 }
 
 EXTEND FORM clients
-    PROPERTIES(o) READONLY existItem AFTER nameStock(o)    
+    PROPERTIES(o) READONLY existStock AFTER nameStock(o)    
 ;
 
+in(LegalEntity le, Client o) = GROUP MIN TRUE BY legalEntity(Stock st), client(st);
+
 EXTEND FORM client 
-    PROPERTIES (o) READONLY nameLegalEntity
+    OBJECTS le = LegalEntity
+    PROPERTIES (le) READONLY id, name, fullName, address 
+    FILTERS in(le, o)
 ;
 
 DESIGN client {
@@ -55,9 +58,13 @@ DESIGN client {
             parametersRow2 {
                 horizontal = FALSE;
                 alignment = STRETCH;
-            }
-            MOVE PROPERTY (nameLegalEntity(o));
+            }            
         }
-        
+        tabbedPane {
+            NEW products {
+                caption = 'Связь с организациями';
+                MOVE BOX(le);
+            }
+        }
     }
 }

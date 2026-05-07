@@ -101,6 +101,11 @@ readonlyDescriptionClientActChargeOn = ABSTRACT BOOLEAN ();
 markQuantity 'Кол-во' (ActChargeOnPosition p) = GROUP SUM 1 IF actChargeOnPosition(ActChargeOnMark m) = p MATERIALIZED;
 overQuantity 'Кол-во' (ActChargeOnPosition p) = OVERRIDE quantity(p), markQuantity(p);
 
+delete 'Удалить' (ActChargeOnPosition p)  {
+    DELETE ActChargeOnMark m WHERE p == actChargeOnPosition(m);
+    DELETE p;
+} IMAGE 'delete.png';
+
 FORM actChargeOn 'Постановка на баланс ЕГАИС'
     OBJECTS a = ActChargeOn PANEL
     PROPERTIES(a) posted, canceled, errorPost, number, dateTime, regId,
@@ -109,7 +114,7 @@ FORM actChargeOn 'Постановка на баланс ЕГАИС'
     OBJECTS p = ActChargeOnPosition
     
     PROPERTIES(p) idProduct, fullNameProduct, idF2Reg, overQuantity,        
-        NEW, DELETE
+        NEW, delete
     
     //Продукция, полученная
     PROPERTIES(p) //SHOWIF 'Продукция, полученная до 01.01.2016' == idType(p)

@@ -134,3 +134,37 @@ status (ActChargeOn c) += WHEN canceled(c) THEN ActChargeOnStatus.acceptedReques
 
 showToShow(ActChargeOn c) += posted(c);
 overShowProcess(ActChargeOn w) += canceled(w);
+
+countRequestRepealOutDocs 'Исходящие документы отмены' (ActChargeOn d) = GROUP SUM 1 IF actChargeOn(RequestRepealACOOutDoc od) = d MATERIALIZED;
+
+EXTEND FORM actChargeOns
+    OBJECTS rraco = RequestRepealACOOutDoc
+    PROPERTIES(rraco) READONLY id, dateTime, createdNameUser, comments
+    FILTERS actChargeOn(rraco) = d
+;
+
+DESIGN actChargeOns {
+    tabbedPane {
+        NEW requestRepealAWOOutDoc {
+            caption = CONCAT ' ', 'Исходящие документы отмены', '(' + countRequestRepealOutDocs(d) + ')';
+            MOVE BOX(rraco);
+        }
+    }
+}
+
+requestRepealActChargeOn (Ticket t) = actChargeOn[RequestRepealACOOutDoc](outDoc(t)) MATERIALIZED INDEXED;
+requestRepealCountTickets 'Квитанции отмены' (ActChargeOn d) = GROUP SUM 1 IF requestRepealActChargeOn(Ticket t) = d MATERIALIZED;
+
+EXTEND FORM actChargeOns
+    OBJECTS rrtc = Ticket
+    PROPERTIES(rrtc) READONLY docId, transportId, conclusion, comments, operationName, operationResult, operationDate, operationComment
+    FILTERS requestRepealActChargeOn(rrtc) = d
+;
+
+DESIGN actChargeOns {
+    tabbedPane {
+        MOVE BOX(rrtc) {
+            caption = CONCAT '', 'Квитанции отмены', '(' + requestRepealCountTickets(d) +  ')';
+        }
+    }
+}
