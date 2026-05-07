@@ -1,7 +1,19 @@
 MODULE EGAISRequestRepealAWOGestori;
 
-REQUIRE EGAISRequestRepealAWO, EGAISActWriteOffExchangeGestori;
+REQUIRE EGAISRequestRepealAWO, EGAISActWriteOffExchangeGestori, EGAISWriteOffGestori;
 
 NAMESPACE EGAIS;
 
 @defineOutDocAbstractTypeNumberDate(requestRepealAWO, actWriteOff);
+
+cancel 'Отменить' (WriteOff w) {
+    cancel(actWriteOff(w));
+} CONFIRM;
+
+EXTEND FORM writeOffs
+    PROPERTIES(w) DRAW wp TOOLBAR
+        cancelEGAIS = cancel SHOWIF posted(a) AND NOT hasRRAWO(a) AND NOT canceled(a) AND own(client(a))
+;
+
+skipShowEdit(WriteOff w) += hasRRAWO(actWriteOff(w)) AND NOT canceled(actWriteOff(w));
+hideEdit(ActWriteOff a) += hasRRAWO(a) AND NOT canceled(a);

@@ -1,0 +1,75 @@
+MODULE EGAISDocGestori;
+
+REQUIRE EGAISDoc;
+
+NAMESPACE EGAIS;
+
+disableEGAISDocumentConstraints 'Отключить ограничения по документам ЕГАИС' = DATA BOOLEAN ();
+
+META defineDocumentEGAISSupplierCustomerConstraint(actProp, doc, object, description)
+    CONSTRAINT (DROPCHANGED(supplier(###object i)) OR DROPCHANGED(customer(i)) OR DROPCHANGED(supplierStock(i)) OR DROPCHANGED(customerStock(i))
+        OR DROPCHANGED(number(i)) OR DROPCHANGED(series(i)) OR DROPCHANGED(date(i)))
+        AND NOT disableEGAISDocumentConstraints() AND actProp(doc(i))
+        MESSAGE 'Запрещено изменять атрибуты документа '##description##' после отправки в ЕГАИС';
+END;
+
+META defineBaseDocumentEGAISConstraint(actProp, doc, object, description)
+    skipShowDelete(###object i) += NOT forbidEditSendDocument() AND NOT disableEGAISDocumentConstraints()
+        AND actProp(doc(i));
+
+    hideFillQuantity(User###object i) += TRUE IF NOT disableEGAISDocumentConstraints() AND actProp(doc(i));
+
+    CONSTRAINT DROPPED(###object i IS ###object) AND NOT disableEGAISDocumentConstraints()
+        AND actProp(doc(i))
+        MESSAGE 'Запрещено удалять документ '##description##' после отправки в ЕГАИС';
+
+    CONSTRAINT (SETCHANGED(sku(###object##Detail d)) OR SETCHANGED(quantity(d)) OR DROPPED(sku(d))
+        OR DROPPED(quantity(d)) OR DROPPED(d IS ###object##Detail))
+        AND NOT disableEGAISDocumentConstraints() AND actProp(doc(object(d)))
+        MESSAGE 'Запрещено изменять строки документа '##description##' после отправки в ЕГАИС';
+
+    CONSTRAINT (SETCHANGED(quantity(###object##Detail d, Lot l)) OR DROPPED(quantity(d, l)))
+        AND NOT disableEGAISDocumentConstraints() AND actProp(doc(object(d)))
+        MESSAGE 'Запрещено изменять марки строки документа '##description##' после отправки в ЕГАИС';
+END;
+
+META defineDocumentEGAISConstraint(actProp, doc, object, description)
+    @defineBaseDocumentEGAISConstraint(actProp, doc, object, description);
+    @defineDocumentEGAISSupplierCustomerConstraint(actProp, doc, object, description);
+END;
+
+META defineDocumentEGAISStockConstraint(actProp, doc, object, description)
+    CONSTRAINT (DROPCHANGED(stock(###object i)) OR DROPCHANGED(number(i)) OR DROPCHANGED(series(i)) OR DROPCHANGED(date(i)))
+        AND NOT disableEGAISDocumentConstraints() AND actProp(doc(i))
+        MESSAGE 'Запрещено изменять атрибуты документа '##description##' после отправки в ЕГАИС';
+END;
+
+META defineSimpleDocumentEGAISConstraint(actProp, doc, object, description)
+    @defineBaseDocumentEGAISConstraint(actProp, doc, object, description);
+    @defineDocumentEGAISStockConstraint(actProp, doc, object, description);
+END;
+
+META defineDenyEditDocumentEGAISCanceledInProcess(actProp, doc, object, countProp)
+    countPostitionsWithoutRealQuantity 'Кол-во непринятых строк' (###doc b) =
+        GROUP SUM 1 IF realQuantity(###doc##Position p) BY doc(p);
+    countPositions 'Кол-во строк' (###doc b) =
+        GROUP SUM 1 BY doc(###doc##Position p);
+    canceledInProcess 'В процессе отмены' (###doc b) =
+        TRUE IF countPostitionsWithoutRealQuantity(b) == countProp(b) AND NOT canceled(b);
+
+    skipShowEdit(###object i) += NOT forbidEditSendDocument() AND NOT disableEGAISDocumentConstraints()
+        AND actProp(doc(i)) AND canceledInProcess(doc(i));
+END;
+
+META defineDenyEditDocumentEGAISDiffQuantity(regProp, doc, object)
+    currentBalanceConsigneeF2Reg 'Текущий остаток по справке Б получателя' (###doc##Position p) =
+        currentBalance(regProp(p));
+    countDiffQuantityTTN 'Кол-во строк с отклонением количества по ЕГАИС' (WayBill b) =
+        GROUP SUM 1 IF currentBalanceConsigneeF2Reg(###doc##Position p) != realQuantity(p) BY doc(p);
+    countNotCurrentBalanceLots 'Кол-во марок не на балансе' (###object##Detail d) =
+        GROUP SUM 1 IF quantity(d, Lot l) AND NOT currentBalance(l, customerStock(d));
+    countNotCurrentBalanceLots 'Кол-во марок не на балансе' (###object i) =
+        GROUP SUM countNotCurrentBalanceLots(###object##Detail d) BY object(d);
+
+    disableCancel(###object i) += TRUE IF countDiffQuantityTTN(doc(i)) OR countNotCurrentBalanceLots(i);
+END;

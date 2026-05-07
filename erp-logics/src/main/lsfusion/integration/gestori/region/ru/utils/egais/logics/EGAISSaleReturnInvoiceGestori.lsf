@@ -1,0 +1,21 @@
+MODULE EGAISSaleReturnInvoiceGestori;
+
+REQUIRE EGAISSaleReturnInvoice, EGAISWayBillGestory, SkuLedgerLotGestori, SaleReturnInvoiceTerminal;
+
+PRIORITY SaleReturn;
+
+NAMESPACE EGAIS;
+
+@defineOriginalLastDocumentWayBillAttributes(SaleReturn, Invoice);
+@defineOriginalLastDocumentWayBillAttributes(SaleReturn, Invoice, supplierStock);
+
+@defineDenyEditDocumentEGAISDiffQuantity(consigneeF2Reg, wayBill, invoice);
+
+hideCreateDetail(UserInvoice i) += NOT disableEGAISDocumentConstraints() AND activeWayBillAct(wayBill(i));
+disableChangeWayBill(UserInvoice i) += TRUE IF NOT disableEGAISDocumentConstraints() AND activeWayBillAct(wayBill(i));
+
+@defineDocumentWayBillConstraint(invoice, 'Накладная (продажа-возврат)');
+
+DESIGN userInvoice {
+    importTSD { showIf = NOT disableEGAISDocumentConstraints() AND activeWayBillAct(wayBill(invoice(d))); }
+}

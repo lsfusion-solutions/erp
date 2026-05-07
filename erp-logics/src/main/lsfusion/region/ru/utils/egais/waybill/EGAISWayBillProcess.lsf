@@ -4,17 +4,6 @@ REQUIRE EGAISWayBillActExchange, EGAISRequestRepealWB, EGAISWayBillConfirmTicket
 
 NAMESPACE EGAIS;
 
-forbidEditWayBillAct 'Запретить изменять документы после отправки' = DATA BOOLEAN () PREREAD;
-EXTEND FORM integrationData
-    PROPERTIES() forbidEditWayBillAct
-;
-
-DESIGN integrationData {
-    EGAISParams {
-        MOVE PROPERTY(forbidEditWayBillAct());
-    }
-}
-
 // in
 META defineDocumentInWayBillActProcess (doc, quantityProp)
     quantity###doc 'Кол-во (в документе)' (WayBillPosition p) = GROUP SUM quantity(###doc##Detail d, p);
@@ -55,12 +44,13 @@ META defineDocumentInWayBillActProcess (doc, quantityProp)
         cancel(wayBillAct(wayBill(d)));
     } CONFIRM;
 
-    skipShowEdit(###doc d) += forbidEditWayBillAct() AND activeWayBillAct(wayBill(d));
-    skipShowDelete(###doc d) += forbidEditWayBillAct() AND activeWayBillAct(wayBill(d));
+    skipShowEdit(###doc d) += forbidEditSendDocument() AND activeWayBillAct(wayBill(d));
+    skipShowDelete(###doc d) += forbidEditSendDocument() AND activeWayBillAct(wayBill(d));
 END
 
 META defineDocumentInWayBillActForm (doc, obj)
     hideProcess = ABSTRACT BOOLEAN (###doc);
+    disableCancel = ABSTRACT BOOLEAN (###doc);
     EXTEND FORM doc##s
         OBJECTS w = WayBill PANEL
         PROPERTIES(w) READONLY accepted, canceled, number, date, shippingDate, nameStatus
@@ -74,7 +64,7 @@ META defineDocumentInWayBillActForm (doc, obj)
         PROPERTIES READONLY commentsWayBillAct 'Комментарий' = comments(wayBillActOutDoc(wayBillAct(w))) PANEL     
         PROPERTIES(obj) DRAW wp TOOLBAR 
                         processEGAIS = process SHOWIF isPosted(obj) AND NOT activeWayBillAct(w) AND NOT hideProcess(obj),
-                        cancelEGAIS = cancel SHOWIF accepted(w) AND NOT canceled(w) AND
+                        cancelEGAIS = cancel READONLYIF disableCancel(obj) SHOWIF accepted(w) AND NOT canceled(w) AND
                                                     activeWayBillAct(w) AND
                                                     NOT (notRejected(requestRepealWBOutDoc(wayBillAct(w))) AND hasRRWB(wayBillAct(w)))
     ;
@@ -222,11 +212,13 @@ META defineDocumentOutWayBillProcess (doc, supplier, customer, prefix, captionDo
         confirm(wayBillAct(wayBill(i)));
     }
 
-    skipShowEdit(###doc d) += forbidEditWayBillAct() AND activeWayBillAct(wayBill(d));
-    skipShowDelete(###doc d) += forbidEditWayBillAct() AND activeWayBillAct(wayBill(d));
+    skipShowEdit(###doc d) += forbidEditSendDocument() AND activeWayBillAct(wayBill(d));
+    skipShowDelete(###doc d) += forbidEditSendDocument() AND activeWayBillAct(wayBill(d));
 END
 
 META defineDocumentOutWayBillForm (doc, obj)
+    disableCancel = ABSTRACT BOOLEAN (###doc);
+    
     EXTEND FORM doc##s
         OBJECTS w = WayBill PANEL
         PROPERTIES(w) READONLY accepted, canceled, id, number, date, shippingDate, nameStatus
@@ -243,7 +235,7 @@ META defineDocumentOutWayBillForm (doc, obj)
                                  
         PROPERTIES(obj) DRAW wp TOOLBAR 
                         processEGAIS = process SHOWIF isPosted(obj) AND NOT activeWayBillOutDoc(w),
-                        cancelEGAIS = cancel SHOWIF activeWayBillOutDoc(w) AND NOT activeWayBillAct(w)
+                        cancelEGAIS = cancel READONLYIF disableCancel(obj) SHOWIF activeWayBillOutDoc(w) AND NOT activeWayBillAct(w)
                                                     AND NOT accepted(w),
                         confirmEGAIS = confirm SHOWIF differences(wayBillAct(w)) AND NOT accepted(w) AND NOT canceled(w) AND 
                                                       NOT notRejected(wayBillTicketOutDoc(wayBillAct(w)))  
@@ -265,6 +257,6 @@ META defineDocumentOutWayBillForm (doc, obj)
         }
     }
 
-    skipShowEdit(###doc d) += forbidEditWayBillAct() AND activeWayBillOutDoc(wayBill(d));
-    skipShowDelete(###doc d) += forbidEditWayBillAct() AND activeWayBillOutDoc(wayBill(d));
+    skipShowEdit(###doc d) += forbidEditSendDocument() AND activeWayBillOutDoc(wayBill(d));
+    skipShowDelete(###doc d) += forbidEditSendDocument() AND activeWayBillOutDoc(wayBill(d));
 END

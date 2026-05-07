@@ -1,6 +1,7 @@
 MODULE EGAISPurchaseInvoiceGestori;
 
-REQUIRE EGAISPurchaseInvoice, EGAISWayBillGestory;
+REQUIRE EGAISPurchaseInvoice, EGAISWayBillGestory,
+        PurchaseInvoiceTerminal, PurchaseShipmentInvoiceTerminal, SkuLedgerLotGestori;
 
 PRIORITY Purchase;
 
@@ -67,3 +68,15 @@ countDetailsShipmentBiggerTTN (Invoice i) = GROUP SUM 1 IF invoice(InvoiceDetail
     AND shipmentQuantity(i, minProduct(sku(d))) > ttnQuantity(wayBill(i), minProduct(sku(d)));
 
 overCheckProcess(Invoice i) += IF countDetailsShipmentBiggerTTN(i) AND i IS Invoice THEN 'По ' + countDetailsShipmentBiggerTTN(i) + ' позициям принятое количество превышает количество по ЕГАИС ТТН';
+
+@defineDenyEditDocumentEGAISDiffQuantity(consigneeF2Reg, wayBill, invoice);
+
+hideCreateDetail(UserInvoice i) += NOT disableEGAISDocumentConstraints() AND activeWayBillAct(wayBill(i));
+disableChangeWayBill(UserInvoice i) += TRUE IF NOT disableEGAISDocumentConstraints() AND activeWayBillAct(wayBill(i));
+
+@defineDocumentWayBillConstraint(invoice, 'Накладная (закупка)');
+
+DESIGN userInvoice {
+    importTSD { showIf = NOT disableEGAISDocumentConstraints() AND activeWayBillAct(wayBill(invoice(d))); }
+    importTSD2 { showIf = NOT disableEGAISDocumentConstraints() AND activeWayBillAct(wayBill(invoice(d))); }
+}

@@ -1,6 +1,6 @@
 MODULE EGAISSaleShipmentGestori;
 
-REQUIRE EGAISSaleShipment, SkuLedgerLotGestori, EGAISWayBillGestory;
+REQUIRE EGAISSaleShipment, SkuLedgerLotGestori, EGAISWayBillGestory, SaleInvoiceTerminal;
 
 PRIORITY Sale;
 
@@ -12,3 +12,14 @@ CONSTRAINT CHANGED(quantity(UserShipmentDetail d, Lot l)) AND d IS UserShipmentD
 
 @defineOriginalLastDocumentWayBillAttributes(Sale, Invoice);
 @defineOriginalLastDocumentWayBillAttributes(Sale, Invoice, supplierStock);
+
+@defineDenyEditDocumentEGAISCanceledInProcess(activeWayBillAct, wayBill, invoice, countWayBillActs);
+
+editQuantity(UserInvoiceDetail d, F2Reg r) += NOT hideFillQuantity(userInvoice(d));
+hideFillQuantity(UserInvoiceDetail d, F2Reg r) += hideFillQuantity(userInvoice(d));
+
+@defineDocumentWayBillConstraint(invoice, 'Накладная (продажа)');
+
+DESIGN userInvoice {
+    PROPERTY(addDetailDialogTerminalUserInvoiceDetail(i)) { showIf = NOT disableEGAISDocumentConstraints() AND activeWayBillAct(wayBill(invoice(d))); }
+}

@@ -1,6 +1,6 @@
 MODULE EGAISWriteOffGestori;
 
-REQUIRE EGAISWriteOff, EGAISActWriteOffGestori, SkuLedgerLotGestori;
+REQUIRE EGAISWriteOff, EGAISActWriteOffGestori, SkuLedgerLotGestori, EGAISDocGestori, WriteOffTerminal;
 
 NAMESPACE EGAIS;
 
@@ -19,5 +19,17 @@ skipDataQuantity(ActWriteOffPosition p) += TRUE IF quantity(p);
 CONSTRAINT SETCHANGED(quantity(UserWriteOffDetail d, Lot l)) AND availableQuantity(l, stock(d)) < 0
     MESSAGE 'Неверное количество доступного остатка марок';
 
+skipShowEdit(WriteOff w) += forbidEditSendDocument() AND activeActWriteOff(w);
+skipShowDelete(WriteOff w) += forbidEditSendDocument() AND activeActWriteOff(w);
+
 @defineOriginalLastDocumentActWriteOffAttributes(WriteOff);
 @defineOriginalLastDocumentWayBillAttributes(WriteOff, stock);
+
+editQuantity(UserWriteOffDetail d, F2Reg r) += NOT hideFillQuantity(userWriteOff(d));
+hideFillQuantity(UserWriteOffDetail d, F2Reg r) += hideFillQuantity(userWriteOff(d));
+
+@defineSimpleDocumentEGAISConstraint(activeActWriteOff, , writeOff, 'Списание');
+
+DESIGN userWriteOff {
+    PROPERTY(addDetailDialogTerminalUserWriteOffDetail(w)) { showIf = NOT disableEGAISDocumentConstraints() AND activeActWriteOff(w); }
+}

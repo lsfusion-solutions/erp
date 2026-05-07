@@ -1,6 +1,6 @@
 MODULE EGAISPurchaseReturnShipmentGestori;
 
-REQUIRE EGAISPurchaseReturnShipment, SkuLedgerLotGestori, EGAISWayBillGestory;
+REQUIRE EGAISPurchaseReturnShipment, SkuLedgerLotGestori, EGAISWayBillGestory, PurchaseReturnInvoiceTerminal;
 
 PRIORITY PurchaseReturn;
 
@@ -11,3 +11,14 @@ CONSTRAINT SETCHANGED(quantity(UserShipmentDetail d, Lot l)) AND availableQuanti
 
 @defineOriginalLastDocumentWayBillAttributes(PurchaseReturn, Shipment);
 @defineOriginalLastDocumentWayBillAttributes(PurchaseReturn, Shipment, customerStock);
+
+@defineDenyEditDocumentEGAISCanceledInProcess(activeWayBillAct, wayBill, invoice, countWayBillActs);
+
+editQuantity(UserInvoiceDetail d, F2Reg r) += NOT hideFillQuantity(userInvoice(d));
+hideFillQuantity(UserInvoiceDetail d, F2Reg r) += hideFillQuantity(userInvoice(d));
+
+@defineDocumentWayBillConstraint(invoice, 'Накладная (закупка-возврат)');
+
+DESIGN userInvoice {
+    importTSD { showIf = NOT disableEGAISDocumentConstraints() AND activeWayBillAct(wayBill(invoice(d))); }
+}

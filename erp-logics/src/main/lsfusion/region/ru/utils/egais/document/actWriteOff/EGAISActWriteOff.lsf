@@ -138,7 +138,9 @@ show 'Просмотреть' (ActWriteOff w) {
     }
 }
 
-showToShow = ABSTRACT BOOLEAN (ActWriteOff);
+showToShow = ABSTRACT VALUE BOOLEAN (ActWriteOff);
+hideEdit = ABSTRACT VALUE BOOLEAN (ActWriteOff);
+hideDelete = ABSTRACT VALUE BOOLEAN (ActWriteOff);
 
 currentBalanceF2Reg 'Текущий остаток (справка Б)' (ActWriteOffMark m) = currentBalance(f2Reg(actWriteOffPosition(m)));
 
@@ -148,7 +150,8 @@ FORM actWriteOffs 'Списания с баланса'
         shortNameClient, descriptionClient,
         idType, note
     PROPERTIES show(d) SHOWIF showToShow(d)
-    PROPERTIES(d) NEWSESSION NEW, EDIT SHOWIF NOT showToShow(d), DELETE SHOWIF NOT showToShow(d)
+    PROPERTIES(d) NEWSESSION NEW, EDIT SHOWIF NOT showToShow(d) AND NOT hideEdit(d),
+        DELETE SHOWIF NOT showToShow(d) AND NOT hideDelete(d)
 
     OBJECTS p = ActWriteOffPosition
     PROPERTIES(p) READONLY idProduct, fullNameProduct, idF2Reg, overQuantity, sumSale

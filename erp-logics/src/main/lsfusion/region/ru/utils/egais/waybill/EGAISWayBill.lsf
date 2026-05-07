@@ -432,7 +432,9 @@ META defineDocumentInWayBill (doc, quantityProp, supplierStock, customerStock, p
     backgroundQuantityWayBill(###doc##Detail d) = RGB(255,212,212) IF incorrectQuantityWayBill(d);
 
     background###quantityProp = ABSTRACT COLOR (###doc##Detail);
-    hideCreateDetail = ABSTRACT BOOLEAN (###doc);
+    hideCreateDetail = ABSTRACT VALUE BOOLEAN (###doc);
+    hideFillQuantity = ABSTRACT VALUE BOOLEAN (###doc);
+    disableChangeWayBill = ABSTRACT VALUE BOOLEAN (###doc);
     
     EXTEND FORM doc
         OBJECTS ed = ###doc##Detail
@@ -442,13 +444,14 @@ META defineDocumentInWayBill (doc, quantityProp, supplierStock, customerStock, p
         ORDERS index(ed)
         FILTERS doc(ed) = i
     
-        PROPERTIES(i) DRAW ed TOOLBAR createDetail SHOWIF NOT hideCreateDetail(i), fillQuantity
-        PROPERTIES(i) numberDateWayBill ON CHANGE changeNumberDateWayBill(i)
+        PROPERTIES(i) DRAW ed TOOLBAR createDetail SHOWIF NOT hideCreateDetail(i), fillQuantity SHOWIF NOT hideFillQuantity(i)
+        PROPERTIES(i) READONLYIF disableChangeWayBill(i) numberDateWayBill ON CHANGE changeNumberDateWayBill(i)
         
         OBJECTS wp = WayBillPosition
         PROPERTIES(wp) READONLY idProduct PANEL, fullNameProduct, quantity, price, idF1Reg PANEL, idF2Reg PANEL, 
                                 idConsigneeF2Reg PANEL, bottlingDate PANEL
-        PROPERTIES(ed, wp) quantity, fillQuantity GRID
+        PROPERTIES(ed, wp) READONLYIF NOT hideFillQuantity(i) quantity,
+            fillQuantity SHOWIF NOT hideFillQuantity(i) GRID
         FILTERS wayBill(wp) = wayBill(i)
         
         FILTERGROUP sku

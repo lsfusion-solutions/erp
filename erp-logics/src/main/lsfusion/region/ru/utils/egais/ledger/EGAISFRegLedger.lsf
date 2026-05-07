@@ -73,7 +73,7 @@ NAVIGATOR {
 }
 
 META defineDocumentOutBalance (doc, obj, supplierStock, quantityProp)
-    editQuantity = ABSTRACT BOOLEAN (###doc##Detail, F2Reg);
+    editQuantity = ABSTRACT VALUE BOOLEAN (###doc##Detail, F2Reg);
     quantity 'Кол-во (ЕГАИС)' = DATA NUMERIC[16,5] (###doc##Detail, F2Reg);
     overCheckQuantity = ABSTRACT VALUE STRING (###doc##Detail, F2Reg, NUMERIC[16,5]);
 
@@ -90,7 +90,7 @@ META defineDocumentOutBalance (doc, obj, supplierStock, quantityProp)
         }
     }
 
-    hideFillQuantity = ABSTRACT BOOLEAN (###doc##Detail, F2Reg);
+    hideFillQuantity = ABSTRACT VALUE BOOLEAN (###doc##Detail, F2Reg);
     fillQuantity 'Выбрать' (###doc##Detail d, F2Reg s) { 
         LOCAL locQuantity = NUMERIC[16,5]();
         locQuantity() <- quantityProp(d) (-) GROUP SUM quantity(d, F2Reg ss) IF NOT ss == s;
@@ -112,7 +112,7 @@ META defineDocumentOutBalance (doc, obj, supplierStock, quantityProp)
     calcQuantity(###doc##Detail d, F2Reg r) = 
         PARTITION UNGROUP quantityProp LIMIT prevCurrentBalance(r) IF matches(d, r) ORDER r BY d;
 
-    hideFillQuantity = ABSTRACT BOOLEAN (###doc);
+    hideFillQuantity = ABSTRACT VALUE BOOLEAN (###doc);
     fillQuantity 'Заполнить' ABSTRACT CASE (###doc);
     
     fillQuantity  (###doc s) + WHEN s IS ###doc THEN {
@@ -129,7 +129,7 @@ META defineDocumentOutBalance (doc, obj, supplierStock, quantityProp)
     
     numberF2Reg 'Справка Б' (###doc##Detail d) =
         GROUP CONCAT id(F2Reg r) IF quantity(d, r), ',' ORDER r;
-                
+        
     EXTEND FORM doc
         OBJECTS ed = ###doc##Detail
         PROPERTIES(ed) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantityProp,
