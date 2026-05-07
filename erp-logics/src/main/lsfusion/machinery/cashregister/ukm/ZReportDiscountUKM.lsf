@@ -26,6 +26,7 @@ checkIndex (STRING connectionString, STRING index, STRING table, STRING columns)
 }
 
 cashRegister = GROUP AGGR CashRegister r WHERE active(groupCashRegister(r)) AND sidModel(groupCashRegister(r)) == 'Ukm4-mysql' BY sectionGroupMachinery(r), npp(r);
+cashRegister = GROUP MAX CashRegister r IF active(groupCashRegister(r)) AND sidModel(groupCashRegister(r)) == 'Ukm4-mysql' BY npp(r);
 
 
 idReceipt = DATA LOCAL STRING[100](INTEGER );
@@ -72,9 +73,17 @@ importDiscounts (STRING connectionString, DATE date) {
     LOCAL sku = Sku(INTEGER );
     
     IMPORT FROM file() TO store, cash_number, number, date, local_number, item, increment, card_number, discount_type, name;
+    
+    LOCAL nppGroup = INTEGER (INTEGER);
+    
+    IF useCashIdUKM() THEN {
+        nppGroup(INTEGER r) <- npp(groupCashRegister(cashRegister(cash_number(r))));
+    } ELSE {
+        nppGroup(INTEGER r) <- npp(groupCashRegister(cashRegister(store(r), cash_number(r))));
+    }
 
     idReceipt(INTEGER r) <- NULL;
-    idReceipt(INTEGER r) <- CONCAT '_', npp(groupCashRegister(cashRegister(store(r), cash_number(r)))), cash_number(r), number(r), toChar(date(r), 'DDMMYYYY'), local_number(r);
+    idReceipt(INTEGER r) <- CONCAT '_', nppGroup(r), cash_number(r), number(r), toChar(date(r), 'DDMMYYYY'), local_number(r);
     index(INTEGER r)  <- PARTITION SUM 1 ORDER r BY idReceipt(r), item(r);
     
     sku(INTEGER r) <- OVERRIDE sku(item(r)), skuBarcode(item(r));
