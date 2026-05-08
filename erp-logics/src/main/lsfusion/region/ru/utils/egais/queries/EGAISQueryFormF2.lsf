@@ -1,0 +1,135 @@
+MODULE EGAISQueryFormF2;
+
+REQUIRE EGAISClient, EGAISOutDoc, EGAISInDoc, EGAISClientImport, EGAISTicket, EGAISFReg,
+        EGAISProductImport, EGAISClientImport, EGAISWayBillExchange;
+
+NAMESPACE EGAIS;
+
+CLASS QueryFormF2 'Запрос справки Б' : OutDoc;
+TABLE queryFormF2(QueryFormF2);
+
+EXTEND CLASS DocType { QueryFormF2 'Запрос справки Б' }
+docType (QueryFormF2 r) += DocType.QueryFormF2 IF r IS QueryFormF2;
+
+f2Reg 'Справка Б' = DATA F2Reg (QueryFormF2);
+idF2Reg 'Код справки' (QueryFormF2 r) = id(f2Reg(r));
+
+FORM queryFormF2 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:QueryFormF2'
+    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/QueryFormF1F2' EXTID 'xmlns:qf',
+        ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+
+    OBJECTS q = QueryFormF2 PANEL
+    PROPERTIES = idF2Reg(q) EXTID 'qf:FormRegId'
+;
+
+FORM queryFormF2Params 'Параметры запроса'
+    OBJECTS r = QueryFormF2 PANEL
+    PROPERTIES(r) idClient, shortNameClient, descriptionClient, nameUtm, idF2Reg
+;
+
+queryFormF2 (QueryFormF2 q) {
+    EXPORT queryFormF2 OBJECTS q = q XML;
+    submit(q, exportFile());
+}
+
+queryFormF2 'Запросить справку Б' (F2Reg fr) {
+    NEWSESSION {
+        NEW r = QueryFormF2 {
+            f2Reg(r) <- fr;
+            DIALOG queryFormF2Params OBJECTS r = r NOMANAGESESSION DO {
+                queryFormF2(r);
+                APPLY;
+            }
+        }
+    }
+}
+
+EXTEND FORM f2Regs
+    PROPERTIES(r) queryFormF2 DRAW r TOOLBAR
+;
+
+// response
+EXTEND CLASS DocType { ReplyForm2 'Ответ на запрос справки Б' }
+
+GROUP replyForm2 EXTID 'ns:ReplyForm2' : document;
+
+replyShipper 'Отправитель' = DATA Client(F2Reg);
+shortNameReplyShipper 'Отправитель' (F2Reg r) = shortName(replyShipper(r));
+replyConsignee 'Получатель' = DATA Client(F2Reg);
+shortNameReplyConsignee 'Получатель' (F2Reg r) = shortName(replyConsignee(r));
+replyProduct 'Продукция' = DATA Product(F2Reg);
+fullNameReplyProduct 'Продукция' (F2Reg r) = fullName(replyProduct(r));
+
+replyTTNNumber 'Номер ТТН' = DATA STRING(F2Reg);
+replyTTNDate 'Дата ТТН' = DATA DATE(F2Reg);
+replyShippingDate 'Дата отгрузки' = DATA DATE(F2Reg);
+replyQuantity 'Кол-во' = DATA NUMERIC[16,5](F2Reg);
+
+EXTEND FORM f2Regs
+    PROPERTIES(r) READONLY PANEL replyTTNNumber, replyTTNDate, replyShippingDate,
+        shortNameReplyShipper, shortNameReplyConsignee, fullNameReplyProduct, replyQuantity
+;
+
+DESIGN f2Regs {
+    pane {
+        NEW response {
+            caption = 'Запрос';
+            horizontal = TRUE;
+            MOVE PROPERTY(replyTTNNumber(r));
+            MOVE PROPERTY(replyTTNDate(r));
+            MOVE PROPERTY(replyShippingDate(r));
+            MOVE PROPERTY(shortNameReplyShipper(r));
+            MOVE PROPERTY(shortNameReplyConsignee(r));
+            MOVE PROPERTY(fullNameReplyProduct(r));
+            MOVE PROPERTY(replyQuantity(r));
+            MOVE PROPERTY(queryFormF2(r));
+        }
+    }
+}
+
+replyQuantity = DATA LOCAL NUMERIC[16,5]();
+
+FORM replyForm2 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:Documents'
+    PROPERTIES() IN owner FSRAR_ID EXTID 'ns:FSRAR_ID'
+    PROPERTIES ATTR IN replyForm2 = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+
+    PROPERTIES() IN replyForm2 shipper EXTID 'rfb:Shipper',
+        consignee EXTID 'rfb:Consignee',
+        product EXTID 'rfb:Product',
+        informF2RegId EXTID 'rfb:InformF2RegId',
+        NUMBER EXTID 'rfb:TTNNumber',
+        date EXTID 'rfb:TTNDate',
+        shippingDate EXTID 'rfb:ShippingDate',
+        replyQuantity EXTID 'rfb:Quantity'
+;
+
+process (InDoc d) + {
+    IF docType(d) = DocType.ReplyForm2 THEN {
+        NEWSESSION {
+            stringToFile(document(d));
+            IMPORT replyForm2 XML FROM resultFile();
+            
+            LOCAL f2Reg = F2Reg ();
+            f2Reg() <- f2Reg(informF2RegId());
+
+            IF f2Reg() THEN {
+                importClient(shipper());
+                replyShipper(f2Reg()) <- client(clientRegId());
+
+                importClient(consignee());
+                replyConsignee(f2Reg()) <- client(clientRegId());
+                
+                importProduct(product());
+                replyProduct(f2Reg()) <- product(alcCode());
+
+                replyTTNNumber(f2Reg()) <- NUMBER();
+                replyTTNDate(f2Reg()) <- date();
+                replyShippingDate(f2Reg()) <- shippingDate();
+                replyQuantity(f2Reg()) <- replyQuantity();
+            }
+
+            processed(d) <- TRUE;
+            APPLY;
+        }
+    }
+}
