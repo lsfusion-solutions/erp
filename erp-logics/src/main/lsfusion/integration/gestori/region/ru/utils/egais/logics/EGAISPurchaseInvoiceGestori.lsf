@@ -1,7 +1,8 @@
 MODULE EGAISPurchaseInvoiceGestori;
 
 REQUIRE EGAISPurchaseInvoice, EGAISWayBillGestory,
-        PurchaseInvoiceTerminal, PurchaseShipmentInvoiceTerminal, SkuLedgerLotGestori;
+        PurchaseInvoiceTerminal, PurchaseShipmentInvoiceTerminal, SkuLedgerLotGestori,
+        EGAISItem;
 
 PRIORITY Purchase;
 
@@ -79,4 +80,21 @@ disableChangeWayBill(UserInvoice i) += TRUE IF NOT disableEGAISDocumentConstrain
 DESIGN userInvoice {
     importTSD { showIf = NOT disableEGAISDocumentConstraints() AND activeWayBillAct(wayBill(invoice(d))); }
     importTSD2 { showIf = NOT disableEGAISDocumentConstraints() AND activeWayBillAct(wayBill(invoice(d))); }
+}
+
+minNoInItemWayBillPosition(WayBill w) = GROUP MIN TRUE IF WayBillPosition p IS WayBillPosition AND NOT minItem(product(p)) BY wayBill(p);
+checkUserInvoiceConditions(WayBill w) += 'Не вся алкогольная продукция ТТН связана с товарами системы' IF minNoInItemWayBillPosition(w);
+
+CONSTRAINT [GROUP SUM 1 BY wayBill(Invoice i)](WayBill w) > 1
+    MESSAGE 'Запрещено привязывать несколько накладных закупки с одной ЕГАИС ТТН';
+
+countQuantityInvoice (WayBill w) = GROUP SUM 1 IF wayBill(WayBillPosition p) = w AND quantityInvoice(p) > 0;
+realQuantityInvoiceDifferences (WayBill w) = GROUP SUM 1 IF wayBill(WayBillPosition p) = w AND NOT quantity(p) = quantityInvoice(p);
+captionProcess = CASE
+    WHEN w IS WayBill AND NOT countQuantityInvoice(w) THEN 'Отправить отказ в ЕГАИС'
+    WHEN realQuantityInvoiceDifferences(w) THEN 'Отправить расхождение в ЕГАИС'
+    ELSE 'Отправить подтверждение в ЕГАИС';
+
+DESIGN invoices {
+    PROPERTY (processEGAIS) {caption = captionProcess(w);}
 }
