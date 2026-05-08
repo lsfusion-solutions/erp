@@ -1780,75 +1780,72 @@ DESIGN avgDailySalesReport {
 mcReportDate 'На дату' = DATA LOCAL DATE ();
 mcMarkupLessThan 'Наценка на товар менее, %' = DATA LOCAL NUMERIC[10,2] ();
 
-inMcPriceListType 'Отм.' = DATA LOCAL BOOLEAN (PriceListType);
-anyMcPriceListType() = GROUP MAX inMcPriceListType(PriceListType plt);
-nameMcPriceListTypes 'Виды цен продажи' () = OVERRIDE
-    (GROUP CONCAT name(PriceListType plt) IF inMcPriceListType(plt), ', ' ORDER name(plt), plt),
-    'Все виды цен' CHARWIDTH 30;
+mcIsRetailIdPLT(PriceListType plt) = isSubstring(lower(id(plt)), 'retail');
 
-deleteMcPriceListTypes 'Сбросить'() {
-    inMcPriceListType(PriceListType plt) <- NULL;
-} ASON CONTEXTMENU nameMcPriceListTypes;
+inMcPriceListType 'Отм.' = DATA LOCAL BOOLEAN (PriceListType);
+nameMcPriceListTypes 'Виды цен продажи' () = GROUP CONCAT name(PriceListType plt) IF inMcPriceListType(plt), ', ' ORDER name(plt), plt CHARWIDTH 30;
 
 FORM dialogMcPriceListTypes 'Выбор видов цен продажи'
     OBJECTS plt = PriceListType
     PROPERTIES(plt) inMcPriceListType
     PROPERTIES(plt) READONLY name
-    FILTERS plt IS PriceListType
+    FILTERS mcIsRetailIdPLT(plt)
     ORDERS name(plt)
 ;
 
 selectAllMcPriceListTypes 'Выбрать все' () {
-    inMcPriceListType(PriceListType plt) <- TRUE WHERE plt IS PriceListType;
+    inMcPriceListType(PriceListType plt) <- TRUE WHERE mcIsRetailIdPLT(plt);
 } ASON CONTEXTMENU nameMcPriceListTypes;
 
 deselectAllMcPriceListTypes 'Сбросить все' () {
     inMcPriceListType(PriceListType plt) <- NULL;
 } ASON CONTEXTMENU nameMcPriceListTypes;
 
-mcReportDateRun = DATA LOCAL DATE ();
-mcMarkupLessThanRun = DATA LOCAL NUMERIC[10,2] ();
-inMcPriceListTypeRun = DATA LOCAL BOOLEAN (PriceListType);
-
-anyMcPriceListTypeRun() = GROUP MAX inMcPriceListTypeRun(PriceListType plt);
-
-mcLastPurchaseDetail(Sku s, Stock st) = lastPurchaseDetailByDate(s, st, mcReportDateRun());
-
-mcSupplierBySku(Sku s, Stock st) = supplier(mcLastPurchaseDetail(s, st));
-mcSupplierFilter(Sku s, Stock st) = NOT fAnySupplier() OR fInSupplier(mcSupplierBySku(s, st));
+anyMcCustomer() = GROUP MAX inCustomer(LegalEntity l);
 
 mcAccountPrice 'Средняя закуп. цена' (Sku s, Stock st) =
-    accountPriceA(s, st, toDateTime(mcReportDateRun()));
+    accountPriceA(s, st, toDateTime(mcReportDate()));
+
+mcInvoiceDetail(Sku s, Stock st, PriceListType plt) =
+    GROUP LAST Sale.InvoiceDetail d
+    ORDER dateTime(d), d
+    WHERE active(d)
+        AND sku(d) == s
+        AND Sale.supplierStock(d) == st
+        AND Sale.priceListType(d) == plt
+        AND date(d) <= mcReportDate()
+        AND (NOT anyMcCustomer() OR inCustomer(Sale.customer(d)));
+
+mcInvoicePrice(Sku s, Stock st, PriceListType plt) =
+    invoicePrice(mcInvoiceDetail(s, st, plt));
 
 mcSalePrice 'Цена продажи' (Sku s, Stock st, PriceListType plt) =
-    prevPriceA(plt, s, st, toDateTime(mcReportDateRun()));
+    OVERRIDE mcInvoicePrice(s, st, plt),
+        prevPriceA(plt, s, st, toDateTime(mcReportDate()));
 
 mcMarkupPct 'Наценка %' (Sku s, Stock st, PriceListType plt) =
     NUMERIC[10,2](round2((mcSalePrice(s, st, plt) (-) mcAccountPrice(s, st)) * 100.0 / mcAccountPrice(s, st)))
         IF mcAccountPrice(s, st) > 0;
 
-mcInPriceFilter(PriceListType plt) = NOT anyMcPriceListTypeRun() OR inMcPriceListTypeRun(plt);
-
-mcMarkupLessThanFilter(Sku s, Stock st, PriceListType plt) =
-    NOT mcMarkupLessThanRun() OR mcMarkupPct(s, st, plt) < mcMarkupLessThanRun();
+mcSaleExists(Sku s, Stock st) =
+    GROUP MAX 1 IF active(SaleLedger sl)
+        AND sku(sl) == s
+        AND stock(sl) == st
+        AND date(sl) <= mcReportDate()
+        AND (NOT anyMcCustomer() OR inCustomer(customer(sl)));
 
 mcRowFilter(Sku s, Stock st, PriceListType plt) =
     inSaleReport(st)
         AND fSkuFilter(s)
-        AND mcSupplierFilter(s, st)
-        AND mcInPriceFilter(plt)
+        AND inMcPriceListType(plt)
         AND mcSalePrice(s, st, plt)
-        AND mcMarkupLessThanFilter(s, st, plt);
+        AND mcSaleExists(s, st)
+        AND (NOT mcMarkupLessThan() OR mcMarkupPct(s, st, plt) < mcMarkupLessThan());
 
 initMcDates() {
     mcReportDate() <- currentDate();
-    mcMarkupLessThan() <- 0.0;
-}
-
-runMcReport 'Сформировать отчет' () {
-    mcReportDateRun() <- mcReportDate();
-    mcMarkupLessThanRun() <- mcMarkupLessThan();
-    inMcPriceListTypeRun(PriceListType plt) <- inMcPriceListType(plt);
+    mcMarkupLessThan() <- 100.0;
+    inMcPriceListType(PriceListType plt) <- TRUE WHERE mcIsRetailIdPLT(plt);
 }
 
 FORM markupControlReport 'Контроль наценки товара'
@@ -1858,8 +1855,8 @@ FORM markupControlReport 'Контроль наценки товара'
     PROPERTIES mcSkuListsCaption 'Списки товаров' = fNameSkuLists() READONLY SHOWIF fAnySkuList()
     PROPERTIES mcSkuGroupsCaption 'Товарные группы' = fNameSkuGroups() READONLY SHOWIF fAnySkuGroup()
     PROPERTIES mcSkusCaption 'Товары' = fInSkus() ON CHANGE fSelectSkus() READONLYIF fAnySkuList() OR fAnySkuGroup()
-    PROPERTIES fNameSupplierList() READONLY SHOWIF fSupplierList()
-    PROPERTIES mcSuppliersCaption 'Поставщики' = fNameSuppliers() ON CHANGE { DIALOG fDialogSuppliers; } READONLYIF fSupplierList()
+    PROPERTIES nameCustomerList() READONLY SHOWIF customerList()
+    PROPERTIES mcCustomersCaption 'Покупатели' = nameCustomers() ON CHANGE { DIALOG dialogCustomers; } READONLYIF customerList()
     PROPERTIES mcPriceTypesCaption 'Виды цен продажи' = nameMcPriceListTypes() ON CHANGE { DIALOG dialogMcPriceListTypes; }
 
     OBJECTS report = (st = Stock, s = Sku, plt = PriceListType)
@@ -1867,33 +1864,32 @@ FORM markupControlReport 'Контроль наценки товара'
     PROPERTIES(s) READONLY skuGroup2Full, skuGroup3Full, skuGroup4Full
     PROPERTIES(s) READONLY 'Код товара' = id, 'Наименование товара' = name, 'Баркод' = idBarcode
     PROPERTIES(s, st) READONLY mcAccountPrice
-    PROPERTIES(plt) READONLY 'Название вида цены продажи' = name
     PROPERTIES(s, st, plt) READONLY mcSalePrice, mcMarkupPct
+    PROPERTIES(plt) READONLY 'Название вида цены продажи' = name
     FILTERS mcRowFilter(s, st, plt)
-    ORDERS stockFullName(st), skuGroup2Full(s), skuGroup3Full(s), skuGroup4Full(s), name(s), name(plt)
+    ORDERS stockFullName(st), skuGroup2Full(s), skuGroup3Full(s), skuGroup4Full(s), id(s), name(plt)
 
     EVENTS ON INIT initMcDates()
 ;
 
 FORM markupControlReportPrint 'Контроль наценки товара'
-    PROPERTIES() 'На дату' = mcReportDateRun, 'Наценка менее, %' = mcMarkupLessThanRun
+    PROPERTIES() mcReportDate
 
     OBJECTS report = (st = Stock, s = Sku, plt = PriceListType)
     PROPERTIES(st) READONLY stockFullName
     PROPERTIES(s) READONLY skuGroup2Full, skuGroup3Full, skuGroup4Full
-    PROPERTIES(s) READONLY 'Код товара' = id, 'Наименование товара' = name, 'Баркод' = idBarcode
-    PROPERTIES READONLY 'Средняя закуп. цена' = mcAccountPrice(s, st)
-    PROPERTIES(plt) READONLY 'Название вида цены продажи' = name
-    PROPERTIES READONLY 'Цена продажи' = mcSalePrice(s, st, plt), 'Наценка %' = mcMarkupPct(s, st, plt)
+    PROPERTIES(s) READONLY id, name, idBarcode
+    PROPERTIES READONLY mcAccountPrice(s, st)
+    PROPERTIES(plt) READONLY name
+    PROPERTIES READONLY mcSalePrice(s, st, plt), mcMarkupPct(s, st, plt)
     FILTERS mcRowFilter(s, st, plt)
-    ORDERS stockFullName(st), skuGroup2Full(s), skuGroup3Full(s), skuGroup4Full(s), id(s), name(s), name(plt)
+    ORDERS stockFullName(st), skuGroup2Full(s), skuGroup3Full(s), skuGroup4Full(s), id(s), name(plt)
 ;
 
 printMcReport 'Печать' () { PRINT markupControlReportPrint XLSX; } IMAGE 'print.png';
 
 EXTEND FORM markupControlReport
-    PROPERTIES() runMcReport
-    PROPERTIES() DISABLEIF NOT mcReportDateRun() printMcReport
+    PROPERTIES() printMcReport
 ;
 
 DESIGN markupControlReport {
@@ -1903,7 +1899,6 @@ DESIGN markupControlReport {
             horizontal = TRUE;
             MOVE PROPERTY(mcReportDate());
             MOVE PROPERTY(mcMarkupLessThan());
-            MOVE PROPERTY(runMcReport()) { valueClass = 'btn-primary'; fontSize = 16; }
             MOVE PROPERTY(printMcReport()) { valueClass = 'btn-warning'; }
         }
         MOVE PROPERTY(nameStockList()) { alignment = STRETCH; }
@@ -1911,8 +1906,8 @@ DESIGN markupControlReport {
         MOVE PROPERTY(mcSkuListsCaption) { alignment = STRETCH; }
         MOVE PROPERTY(mcSkuGroupsCaption) { alignment = STRETCH; }
         MOVE PROPERTY(mcSkusCaption) { alignment = STRETCH; }
-        MOVE PROPERTY(fNameSupplierList()) { alignment = STRETCH; }
-        MOVE PROPERTY(mcSuppliersCaption) { alignment = STRETCH; }
+        MOVE PROPERTY(nameCustomerList()) { alignment = STRETCH; }
+        MOVE PROPERTY(mcCustomersCaption) { alignment = STRETCH; }
         MOVE PROPERTY(mcPriceTypesCaption) { alignment = STRETCH; }
     }
     BOX(report) {
