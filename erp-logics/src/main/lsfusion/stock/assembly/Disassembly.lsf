@@ -55,6 +55,15 @@ CONSTRAINT SETCHANGED(batch(Disassembly disassembly)) AND NOT countLedger(batch(
     CHECKED BY batch[Disassembly]
     MESSAGE 'Расходовать можно только партию с движением по складу';
 
+changeBatch (Disassembly a) {
+    DIALOG dialogBatchStockOut OBJECTS
+        st = stock(a),
+        t = dateTime(a),
+        sk = sku(a),
+        bt = batch(a) INPUT NULL LIST name(bt) NEWSESSION DO
+            batch(a) <- bt;
+}
+
 @defineDocumentDetailQuantityCustomPrefix(disassembly, ,);
 
 @defineDocumentDetailPriceCustomPrefix (disassembly, , );
@@ -135,7 +144,7 @@ supplierStock(Disassembly disassembly) += stock(disassembly);
 FORM disassembly 'Разборка'
     OBJECTS a = Disassembly PANEL
     PROPERTIES(a) isPosted, nameOperation, nameNumerator, number, series, nameStock ON CHANGE changeStockCompany(a),
-                  idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku, nameBatch,
+                  idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku, nameBatch ON CHANGE changeBatch(a),
                   quantity, nameCurrency, price, sum, 
                   date, time, countDisassemblyDetail, quantityDisassemblyDetail, sumDisassemblyDetail, note
 
