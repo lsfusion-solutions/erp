@@ -2058,6 +2058,19 @@ typeNamedIdDocument 'Идентификатор типа документа' = D
 functionDocument 'Идентификатор функции документа' = DATA LOCAL STRING (INTEGER);
 versionDocument 'Идентификатор версии документа' = DATA LOCAL STRING (INTEGER);
 
+isPowerOfAttorney 'Передавать МЧД' = DATA BOOLEAN ();
+
+EXTEND FORM integrationData
+    PROPERTIES() isPowerOfAttorney
+;
+DESIGN integrationData {
+    diadocAPI {
+        MOVE PROPERTY (isPowerOfAttorney());
+    }
+}
+
+useDefault (INTEGER i) = IF i IS INTEGER AND isPowerOfAttorney() THEN 'true' ;
+
 GROUP signedContent EXTID 'SignedContent';
 GROUP powerOf EXTID 'PowerOfAttorney' : signedContent;
 
@@ -2078,6 +2091,7 @@ FORM exportMessageToPost
     PROPERTIES(d) typeNamedIdDocument EXTID 'TypeNamedId',
                   functionDocument EXTID 'Function',
                   versionDocument EXTID 'Version'
+    PROPERTIES(d) IN powerOf useDefault EXTID 'UseDefault'
     FILTERS contentDocument(d)
 ;
 
@@ -2483,19 +2497,6 @@ isSignatures 'Подпись' = DATA LOCAL BOOLEAN (INTEGER);
 isRevocationRequests 'Предложение об аннулировании' = DATA LOCAL BOOLEAN (INTEGER);
 isXmlSignatureRejections 'Отказ от подписи/аннулировании' = DATA LOCAL BOOLEAN (INTEGER);
 isRecipientTitles 'Титул получателя' = DATA LOCAL BOOLEAN (INTEGER);
-
-isPowerOfAttorney 'Передавать МЧД' = DATA BOOLEAN ();
-
-EXTEND FORM integrationData
-    PROPERTIES() isPowerOfAttorney
-;
-DESIGN integrationData {
-    diadocAPI {
-        MOVE PROPERTY (isPowerOfAttorney());
-    }
-}
-
-useDefault (INTEGER i) = IF i IS INTEGER AND isPowerOfAttorney() THEN 'true' ;
 
 FORM exportMessagePatchToPost
     PROPERTIES boxId() EXTID 'BoxId',
