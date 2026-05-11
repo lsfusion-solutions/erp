@@ -1,0 +1,106 @@
+MODULE PurchaseEInvoiceReplace;
+
+REQUIRE PurchaseEInvoice, PurchaseDemand;
+
+NAMESPACE Purchase;
+
+idEInvoiceDetail 'Штрихкод из ЭТТН' (Purchase.InvoiceDetail d) = lineItemID(eInvoiceDetail(d));
+
+EXTEND FORM userInvoice
+    PROPERTIES SHOWIF eInvoiceAll(userInvoice(d)) idEInvoiceDetail(d) READONLY
+;
+
+level '{hierarchy.level}' (EInvoice child, EInvoice parent) = RECURSION 1l IF child IS EInvoice AND parent == child
+                                                                STEP 2l IF deliveryNoteNumber(parent) == overReplaceNumber($parent) MATERIALIZED;
+in (Invoice i, EInvoice ei) = GROUP SUM 1 IF invoice(EInvoice e) == i AND (level(e, ei) OR level(ei, e));
+
+skipCreatePurchaseInvoice(EInvoice ei) += TRUE IF (overReplaceNumber(ei) AND (GROUP SUM 1 IF in(Invoice i, ei)));
+
+noticeMessage (InvoiceDetail d) = CONCAT ' ', 'строка ' + index(d), 'товар ' + (OVERRIDE GTIN(sku(d)), idBarcodeSku(d), idEInvoiceDetail(d)),
+    (CASE WHEN d IS InvoiceDetail AND NOT sku(d) THEN 'неизвестный товар'
+          WHEN shipmentQuantity(d) > quantity(d) THEN CONCAT ' ', 'избыток', trim(toChar(shipmentQuantity(d) (-) quantity(d),'FM999990.99999')), shortNameUOMSku(d)
+          WHEN shipmentQuantity(d) < quantity(d) OR NOT shipmentQuantity(d) THEN CONCAT ' ', 'недостача', trim(toChar(quantity(d) (-) shipmentQuantity(d),'FM999990.99999')), shortNameUOMSku(d)
+    );
+
+overNoticeMessage = DATA LOCAL NESTED TEXT ();
+
+fillNoticeMessage(EInvoice ei) + {
+    IF invoice(ei) IS Purchase.Invoice THEN
+        noticeMessage() <- OVERRIDE overNoticeMessage(), (GROUP CONCAT noticeMessage(InvoiceDetail d) IF eInvoice(invoice(d)) == ei AND NOT (quantity(d) == shipmentQuantity(d) AND sku(d)), '; ' ORDER index(d), d);
+}
+
+sku 'Товар' (EInvoiceDetail ed) = OVERRIDE sku(lineItemBuyerID(ed)), skuGTIN(lineItemID(ed)), sku(lineItemID(ed));
+localIndexSku = DATA LOCAL INTEGER (Purchase.InvoiceDetail);
+indexSku(EInvoiceDetail ed) = PARTITION SUM 1 ORDER quantityDespatched(ed), ed BY sku(ed), eInvoice(ed) MATERIALIZED INDEXED;
+defaultEInvoiceDetail (Purchase.InvoiceDetail d, EInvoice ei) = GROUP MAX EInvoiceDetail ed IF eInvoice(ed) == ei AND sku(ed) == sku(d) AND localIndexSku(d) == indexSku(ed);
+
+quantityInvoice 'Кол-во поставлено в накладной' = DATA LOCAL NUMERIC[16,5] (Invoice, Sku, NUMERIC[16,4]);
+quantityReplace 'Кол-во в ЭТТН замены' = DATA LOCAL NUMERIC[16,5] (Invoice, Sku, NUMERIC[16,4]);
+
+noticeMessageReplaceText(UserInvoice i, Sku s, NUMERIC[16,4] p) =  CASE WHEN quantityReplace(i,s,p) > quantityInvoice(i,s,p) OR NOT quantityInvoice(i,s,p) THEN CONCAT ' ', 'избыток', trim(toChar(quantityReplace(i,s,p) (-) quantityInvoice(i,s,p),'FM999990.99999')), shortNameUOM(s)
+                                                                                WHEN quantityReplace(i,s,p) < quantityInvoice(i,s,p) OR NOT quantityReplace(i,s,p) THEN CONCAT ' ', 'недостача', trim(toChar(quantityInvoice(i,s,p) (-) quantityReplace(i,s,p),'FM999990.99999')), shortNameUOM(s);
+
+noticeMessageReplace(UserInvoice i, Sku s, NUMERIC[16,4] p) = IF ((quantityInvoice(i,s,p) OR quantityReplace(i,s,p)) AND NOT quantityInvoice(i,s,p) == quantityReplace(i,s,p)) THEN CONCAT ' ', (OVERRIDE GTIN(s), idBarcode(s)), noticeMessageReplaceText(i,s,p);
+noticeMessageReplace(UserInvoice i) = GROUP CONCAT noticeMessageReplace(i, Sku s, NUMERIC[16,4] p),'; ' ORDER s, p;
+
+noticeMessageReplace(EInvoiceDetail ed) = IF ed IS EInvoiceDetail AND NOT sku(ed) THEN CONCAT ' ', 'неизвестный товар',  lineItemID(ed);
+noticeMessageReplace(EInvoice ei) = GROUP CONCAT noticeMessageReplace(EInvoiceDetail ed), '; ' ORDER ed BY eInvoice(ed);
+
+confirmReplace 'Подтвердить замену' (Purchase.Invoice i, EInvoice ei, BOOLEAN dialog) {
+    quantityInvoice(i, Sku s, NUMERIC[16,4] p) <- GROUP SUM shipmentQuantity(InvoiceDetail d) IF invoice(d) == i AND sku(d) == s AND price(d) == p;
+    quantityReplace(i, Sku s, NUMERIC[16,4] p) <- GROUP SUM quantityDespatched(EInvoiceDetail ed) IF eInvoice(ed) == ei AND sku(ed) == s AND lineItemPrice(ed) == p;
+    overNoticeMessage() <- CONCAT '; ', noticeMessageReplace(i), noticeMessageReplace(ei);
+
+    IF overNoticeMessage() THEN {
+        in(EInvoice e) <- e = ei;
+        IF dialog THEN {
+            signAndSendNoticeCustomerEDI();
+        } ELSE {
+            signAndSendNoticeCustomerEDIWithoutDialog();
+        }
+        in(EInvoice e) <- NULL;
+        overNoticeMessage() <- NULL;
+    } ELSE NEWSESSION {
+        invoice(ei) <- i;
+        number(i) <- deliveryNoteNumber(ei);
+        series(i) <- NULL;
+        date(i) <- deliveryNoteDate(ei);
+
+        localIndexSku(Purchase.InvoiceDetail d) <- PARTITION SUM 1 ORDER quantity(d), d BY sku(d), invoice(d) WHERE invoice(d) == i;
+
+        FOR invoice(Purchase.InvoiceDetail d) == i DO {
+            eInvoiceDetail(d) <- OVERRIDE defaultEInvoiceDetail(d, ei),
+                (GROUP LAST EInvoiceDetail ed IF eInvoice(ed) == ei AND sku(d) == sku(ed) AND quantityDespatched(ed) >= (OVERRIDE shipmentQuantity(d), quantity(d)) ORDER ed);
+        
+            quantity(d) <- quantityDespatched(eInvoiceDetail(d));
+//            shipmentQuantity(d) <- OVERRIDE quantityDespatched(eInvoiceDetail(d)), 0.0;  // лучше не делать, т.к. это может быть реальное кол-во после приёмки  
+//            price(d) <- lineItemPrice(eInvoiceDetail(d)) WHERE diffPriceLocal(d);        // если заменять, то с предупреждением или формой сверки цен 
+        }
+
+        //в замене могут отсутствовать строки
+        DELETE Purchase.UserInvoiceDetail d WHERE invoice(d) = i AND NOT eInvoice(eInvoiceDetail(d)) == ei;
+
+        APPLY;
+        signAndSendCustomerEDI(i);
+    }
+}
+
+confirmReplace 'Подтвердить замену' (Purchase.Invoice i, EInvoice ei) {
+    confirmReplace(i, ei, TRUE);
+} CONFIRM;
+
+noticeMessage 'Сообщение об изменении' (EInvoice ei) = description(GROUP LAST EInvoiceMessage m IF code(m) == '2750' AND eInvoice(m) == ei ORDER dateTime(m), m) CHARWIDTH 30;
+
+EXTEND FORM invoices
+    OBJECTS ei = EInvoice GRID
+    PROPERTIES (ei) READONLY exportedBlrapnCustomer, exportedCustomer, exportedNoticeCustomer, isCancel,
+        deliveryNoteNumber, deliveryNoteDate, overReplaceNumber, noticeMessage, statusDescription
+    PROPERTIES TOOLBAR confirmReplace(i,ei) SHOWIF overReplaceNumber(ei) AND NOT exportedCustomer(ei) AND NOT exportedNoticeCustomer(ei)
+    FILTERS in(i,ei)
+;
+
+DESIGN invoices {
+    eInvoice {
+        MOVE BOX(ei);
+    }
+}
