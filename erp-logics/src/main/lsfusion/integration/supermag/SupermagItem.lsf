@@ -95,6 +95,10 @@ shortName 'Краткое наименование' = DATA ISTRING[250](Item) IN
 @defineItemAttribute(shortName, , 'Краткое наименование', itemBase);
 @implementItemAttribute(shortName, 'Краткое наименование', String, itemShortName);
 
+dataWeightPrefix1 'Префикс весовых товаров' = DATA STRING[2] () TABLE settings;
+weightPrefix1 'Префикс весовых товаров' () = OVERRIDE dataWeightPrefix1(), '21';
+weightPrefix2 'Префикс штучных товаров' = DATA STRING[2] () TABLE settings;
+
 importBarcodeItem 'Импорт штрихкодов товара' () {
     NEWSESSION {
         LOCAL id = TEXT (INTEGER);
@@ -107,7 +111,7 @@ importBarcodeItem 'Импорт штрихкодов товара' () {
 
         name(INTEGER i) <- left(name(i), 15);
         //весовой товар 
-        name(INTEGER i) <- substrFrom(name(i), 3) WHERE substr(name(i), 1, 2) = '21' AND length(name(i)) = 7;
+        name(INTEGER i) <- substrFrom(name(i), 3) WHERE (substr(name(i), 1, 2) = weightPrefix1() OR substr(name(i), 1, 2) = weightPrefix2()) AND length(name(i)) = 7;
         
         name(INTEGER i) <- trim(replace(name(i), '¶', ''));
 
@@ -407,7 +411,7 @@ importItem 'Импорт товаров' () {
 EXTEND FORM integrationData PROPERTIES importItem();
 
 
-importItemImages () {
+importItemImages 'Импорт изображений товаров' () {
     NEWSESSION {
         LOCAL id = STRING (INTEGER);
         LOCAL image = RAWFILE(INTEGER);
@@ -518,6 +522,8 @@ importItemPart 'Импорт комплектов' () {
 
 EXTEND FORM integrationData PROPERTIES importItemPart(), importItemImages();
 
+EXTEND FORM integrationData PROPERTIES weightPrefix1(), weightPrefix2();
+
 DESIGN integrationData {
     supermagImportButtons {
         NEW importItem1 {
@@ -532,8 +538,13 @@ DESIGN integrationData {
             MOVE PROPERTY (importItemAttribute());
             MOVE PROPERTY (importSkuLists());
             MOVE PROPERTY (importItemPart());
-            MOVE PROPERTY (importBarcodeItem());
             MOVE PROPERTY (importItemImages());
+        }
+        NEW barcodeItem {
+            horizontal = TRUE;
+            MOVE PROPERTY (weightPrefix1());
+            MOVE PROPERTY (weightPrefix2());
+            MOVE PROPERTY (importBarcodeItem());
         }
 
     }
