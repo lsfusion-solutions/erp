@@ -229,6 +229,11 @@ accountPrice 'Учетная цена' (SkuLedger o) = signedPrice(o);
 sumByAccountPrice 'Сумма по учетной цене' (SkuLedger o) = signedSum(o);
 supplier 'Поставщик' (SkuLedger o) = nameSupplier[Document](stockDocumentLedger(o));
 
+stockFullName 'Подразделение' (SkuLedger o) = CONCAT ' ', idStock(o), nameStock(o);
+skuGroup2Full 'Код и наименование Отдела' (SkuLedger o) = CONCAT ' ', idSkuGroup2(sku(o)), nameSkuGroup2(sku(o));
+skuGroup3Full 'Код и наименование Группы' (SkuLedger o) = CONCAT ' ', idSkuGroup3(sku(o)), nameSkuGroup3(sku(o));
+skuGroup4Full 'Код и наименование Подгруппы' (SkuLedger o) = CONCAT ' ', idSkuGroup4(sku(o)), nameSkuGroup4(sku(o));
+
 isRetailSale (SkuLedger o) = o IS DateSaleSkuLedger;
 isRetailReturn (SkuLedger o) = o IS DateReturnSkuLedger;
 isRetailOperation (SkuLedger o) = isRetailSale(o) OR isRetailReturn(o);
@@ -411,12 +416,13 @@ FORM operationReport 'Отчет по хозяйственной операци�
     PROPERTIES opInSkus 'Товары' = inSkus() ON CHANGE selectSkus() READONLYIF anySkuList() OR anySkuGroup()
 
     OBJECTS o = SkuLedger
-    PROPERTIES(o) READONLY idSku, nameSku, nameUOM, netWeight, idStock,
+    PROPERTIES(o) READONLY idSku, nameSku, nameUOM, netWeight, stockFullName,
+        skuGroup2Full, skuGroup3Full, skuGroup4Full,
         nameOperationEx, numberDocument, dateDocument, supplier,
         signedQuantity, netTotalWeight, cost, sumCost, accountPrice,
         sumByAccountPrice, retailPrice, sumRetail, valueVAT, sumVAT, profit,
         sortKey1, sortKey2
-    ORDERS supplier(o), nameOperationEx(o), sortKey1(o), sortKey2(o)
+    ORDERS supplier(o), stockFullName(o), skuGroup2Full(o), skuGroup3Full(o), skuGroup4Full(o), nameOperationEx(o), sortKey1(o), sortKey2(o)
     FILTERS inInterval(o),
         inSaleReport(stock(o)),
         signedQuantity(o),
