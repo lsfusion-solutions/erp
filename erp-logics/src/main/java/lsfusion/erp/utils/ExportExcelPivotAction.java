@@ -79,6 +79,8 @@ public abstract class ExportExcelPivotAction extends InternalAction {
                 FormEntity formEntity = findForm(idForm);
                 //todo: replace deprecated createFormInstance after upgrading erp to 6.1
                 FormInstance formInstance = context.createFormInstance(formEntity);
+                //todo: replace deprecated getRichDesign after upgrading erp to 7.0
+                //ImOrderSet<PropertyDrawView> properties = formEntity.view.getPropertiesList();
                 ImOrderSet<PropertyDrawView> properties = formEntity.getRichDesign().getPropertiesList();
 
                 if (valuesMap != null)
@@ -148,6 +150,8 @@ public abstract class ExportExcelPivotAction extends InternalAction {
                     String fieldValue = null;
                     for (PropertyDrawView property : properties) {
                         if (property.entity.getSID().equals(field)) {
+                            //replace deprecated usage after upgrading erp to 6.3
+                            //fieldValue = property.entity.getCaption().toString();
                             fieldValue = property.getCaption().toString();
                             break;
                         }

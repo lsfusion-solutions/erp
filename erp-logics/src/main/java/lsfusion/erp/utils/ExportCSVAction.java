@@ -52,8 +52,11 @@ public abstract class ExportCSVAction extends DefaultExportAction {
                 FormInstance formInstance = context.createFormInstance(formEntity);
 
                 if (valuesMap != null)
-                    for (Map.Entry<String, DataObject> entry : valuesMap.entrySet())
+                    for (Map.Entry<String, DataObject> entry : valuesMap.entrySet()) {
+                        //todo: replace deprecated seekObject after upgrading erp to 7.0
+                        //formInstance.seekObject(formInstance.instanceFactory.getInstance(LM.getObjectEntityByName(formEntity, entry.getKey())), entry.getValue(), ThreadLocalContext.getStack());
                         formInstance.seekObject(formInstance.instanceFactory.getInstance(LM.getObjectEntityByName(formEntity, entry.getKey())), entry.getValue());
+                    }
 
                     /*ftp://username:password@host:port/path_to_file*/
                 Pattern connectionStringPattern = Pattern.compile("ftp:\\/\\/(.*):(.*)@(.*):([^\\/]*)(?:\\/(.*))?");
@@ -126,6 +129,8 @@ public abstract class ExportCSVAction extends DefaultExportAction {
 
         PrintWriter bw = new PrintWriter(new OutputStreamWriter(os, charset));
 
+        //todo: replace deprecated getFormData after upgrading erp to 6.3
+        //FormData formData = formInstance.getFormData(formInstance.getProperties(), formInstance.getGroups(), new LimitOffset(0));
         FormData formData = formInstance.getFormData(0);
 
         for (FormRow row : formData.rows) {
