@@ -64,13 +64,35 @@ sumSale 'Сумма продажи' = DATA NUMERIC[18,4](ActChargeOnPosition);
 f2Reg 'Справка Б' = DATA F2Reg (ActChargeOnPosition);// TODO NONULL;
 idF2Reg 'Справка Б' (ActChargeOnPosition p) = id(f2Reg(p));
 
-quantityBatch 'Количество единиц в партии' = DATA NUMERIC[16,5] (ActChargeOnPosition);
-bottlingDate 'Дата розлива/производства продукции' = DATA DATE (ActChargeOnPosition);
-ttnNumber 'Номер ТТН' = DATA STRING (ActChargeOnPosition);
-ttnDate 'Дата ТТН' = DATA DATE (ActChargeOnPosition);
-egaisFixNumber 'Номер фиксации ЕГАИС' = DATA STRING (ActChargeOnPosition);
-egaisFixDate 'Дата фиксации ЕГАИС' = DATA DATE (ActChargeOnPosition);
+dataQuantityBatch 'Количество единиц в партии' = DATA NUMERIC[16,5] (ActChargeOnPosition);
+overQuantityBatch 'Количество единиц в партии' = ABSTRACT NUMERIC[16,5] (ActChargeOnPosition);
+quantityBatch 'Количество единиц в партии' (ActChargeOnPosition p) = 
+    OVERRIDE dataQuantityBatch(p), overQuantityBatch(p);
 
+dataBottlingDate 'Дата розлива/производства продукции' = DATA DATE (ActChargeOnPosition);
+overBottlingDate 'Дата розлива/производства продукции' = ABSTRACT DATE (ActChargeOnPosition);
+bottlingDate 'Дата розлива/производства продукции' (ActChargeOnPosition p) = 
+    OVERRIDE dataBottlingDate(p), overBottlingDate(p);
+
+dataOriginalDocNumber 'Номер документа основания' = DATA STRING (ActChargeOnPosition);
+overOriginalDocNumber 'Номер документа основания' = ABSTRACT STRING (ActChargeOnPosition);
+originalDocNumber 'Номер документа основания' (ActChargeOnPosition p) = 
+    OVERRIDE dataOriginalDocNumber(p), overOriginalDocNumber(p);
+
+dataOriginalDocDate 'Дата документа основания' = DATA DATE (ActChargeOnPosition);
+overOriginalDocDate 'Дата документа основания' = ABSTRACT DATE (ActChargeOnPosition);
+originalDocDate 'Дата документа основания' (ActChargeOnPosition p) =
+    OVERRIDE dataOriginalDocDate(p), overOriginalDocDate(p);
+
+dataEgaisFixNumber 'Номер фиксации ЕГАИС' = DATA STRING (ActChargeOnPosition);
+overEgaisFixNumber 'Номер фиксации ЕГАИС' = ABSTRACT STRING (ActChargeOnPosition);
+egaisFixNumber 'Номер фиксации ЕГАИС' (ActChargeOnPosition p) = 
+    OVERRIDE dataEgaisFixNumber(p), overEgaisFixNumber(p);
+
+dataEgaisFixDate 'Дата фиксации ЕГАИС' = DATA DATE (ActChargeOnPosition);
+overEgaisFixDate 'Дата фиксации ЕГАИС' = ABSTRACT DATE (ActChargeOnPosition);
+egaisFixDate 'Дата фиксации ЕГАИС' (ActChargeOnPosition p) =
+    OVERRIDE dataEgaisFixDate(p), overEgaisFixDate(p);
 
 idType 'Тип' (ActChargeOnPosition p) = idType(actChargeOn(p));
 
@@ -119,7 +141,7 @@ FORM actChargeOn 'Постановка на баланс ЕГАИС'
     //Продукция, полученная
     PROPERTIES(p) //SHOWIF 'Продукция, полученная до 01.01.2016' == idType(p)
         quantityBatch, bottlingDate,
-        ttnNumber, ttnDate,
+        originalDocNumber, originalDocDate,
         egaisFixNumber, egaisFixDate
     
     FILTERS actChargeOn(p) = a
@@ -166,7 +188,7 @@ FORM actChargeOns 'Постановка на баланс'
     //Продукция, полученная до 2016
     PROPERTIES(p) READONLY //SHOWIF 'Продукция, полученная до 01.01.2016' == idType(p)
         quantityBatch, bottlingDate,
-        ttnNumber, ttnDate,
+        originalDocNumber, originalDocDate,
         egaisFixNumber, egaisFixDate    
     FILTERS actChargeOn(p) = d
 

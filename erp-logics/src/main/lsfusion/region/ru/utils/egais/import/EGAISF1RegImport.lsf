@@ -1,0 +1,141 @@
+MODULE EGAISF1RegImport;
+
+REQUIRE EGAISFReg, EGAISDoc, EGAISClientImport, EGAISProductImport, EGAISTicket;
+
+NAMESPACE EGAIS;
+
+CLASS QueryForm1 'Запрос справки А' : OutDoc;
+TABLE queryForm1(QueryForm1);
+
+EXTEND CLASS DocType { QueryFormF1 'Запрос справки А' }
+docType (QueryForm1 r) += DocType.QueryFormF1 IF r IS QueryForm1;
+
+f1Reg 'Справка Б' = DATA F1Reg (QueryForm1);
+idF1Reg 'Код справки' (QueryForm1 r) = id(f1Reg(r));
+
+FORM queryForm1 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:QueryFormF1'
+    OBJECTS r = QueryForm1 PANEL
+    PROPERTIES(r) idF1Reg EXTID 'qf=http://fsrar.ru/WEGAIS/QueryFormF1F2:FormRegId'
+;
+
+FORM queryForm1Params 'Параметры запроса'
+    OBJECTS r = QueryForm1 PANEL
+    PROPERTIES(r) idClient, shortNameClient, descriptionClient, nameUtm, idF1Reg
+;
+
+DESIGN queryForm1Params {
+    size = (-1, -1);
+}
+
+queryForm1 (QueryForm1 r) {
+    EXPORT queryForm1 OBJECTS r = r XML;    
+    submit(r, exportFile());
+}
+
+queryForm1 'Запросить справку А' (F1Reg r) {
+    NEWSESSION {
+        NEW q = QueryForm1 {
+            f1Reg(q) <- r;
+            DIALOG queryForm1Params OBJECTS r = q NOMANAGESESSION DO {
+                queryForm1(q);
+                APPLY;
+            }
+        }
+    }
+}
+
+// extend form
+originalClient 'Производитель (импортер)' = DATA Client (F1Reg);
+shortNameOriginalClient 'Производитель (импортер)' (F1Reg r) = shortName(originalClient(r));
+originalDocNumber 'Номер документа основания' = DATA STRING (F1Reg);
+originalDocDate 'Дата документа основания' = DATA DATE (F1Reg);
+bottlingDate 'Дата розлива' = DATA DATE (F1Reg);
+quantityBatch 'Количество (общий объем)' = DATA NUMERIC[16,5] (F1Reg);
+egaisFixNumber 'Номер фиксации ЕГАИС' = DATA STRING (F1Reg);
+egaisFixDate 'Дата фиксации ЕГАИС' = DATA DATE (F1Reg);
+replyProduct 'Продукция' = DATA Product(F1Reg);
+fullNameReplyProduct 'Продукция' (F1Reg r) = fullName(replyProduct(r));
+
+EXTEND FORM f1Regs
+    PROPERTIES(r) queryForm1 DRAW r TOOLBAR
+
+    PROPERTIES(r) READONLY PANEL shortNameOriginalClient, originalDocNumber, originalDocDate, bottlingDate,
+        fullNameReplyProduct, quantityBatch, egaisFixNumber, egaisFixDate
+;
+
+DESIGN f1Regs {
+    pane {
+        NEW response {
+            caption = 'Запрос';
+            horizontal = TRUE;
+            MOVE PROPERTY(shortNameOriginalClient(r));
+            MOVE PROPERTY(originalDocNumber(r));
+            MOVE PROPERTY(originalDocDate(r));
+            MOVE PROPERTY(bottlingDate(r));
+            MOVE PROPERTY(fullNameReplyProduct(r));
+            MOVE PROPERTY(quantityBatch(r));
+            MOVE PROPERTY(egaisFixNumber(r));
+            MOVE PROPERTY(egaisFixDate(r));
+        }
+    }
+}
+
+// reply
+EXTEND CLASS DocType { ReplyForm1 'Ответ на запрос справки А' }
+
+GROUP replyForm1 EXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:ReplyForm1' : document;
+GROUP replyForm1OriginalClient EXTID 'rfa=http://fsrar.ru/WEGAIS/ReplyForm1:OriginalClient' : replyForm1;
+
+replyForm1OriginalClient = DATA LOCAL STRING();
+replyForm1Product = DATA LOCAL STRING();
+
+informF1RegId = DATA LOCAL STRING();
+originalDocNumber = DATA LOCAL STRING();
+originalDocDate = DATA LOCAL DATE();
+bottlingDate = DATA LOCAL DATE();
+quantityBatch = DATA LOCAL NUMERIC[16,5]();
+EGAISNumber = DATA LOCAL STRING();
+EGAISDate = DATA LOCAL DATE();
+
+FORM replyForm1 FORMEXTID '=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:Documents'
+    PROPERTIES() IN replyForm1 
+        informF1RegId EXTID 'rfa=http://fsrar.ru/WEGAIS/ReplyForm1:InformF1RegId', 
+        originalDocNumber EXTID 'rfa=http://fsrar.ru/WEGAIS/ReplyForm1:OriginalDocNumber', 
+        originalDocDate EXTID 'rfa=http://fsrar.ru/WEGAIS/ReplyForm1:OriginalDocDate', 
+        bottlingDate EXTID 'rfa=http://fsrar.ru/WEGAIS/ReplyForm1:BottlingDate',
+        quantityBatch EXTID 'rfa=http://fsrar.ru/WEGAIS/ReplyForm1:Quantity', 
+        EGAISNumber EXTID 'rfa=http://fsrar.ru/WEGAIS/ReplyForm1:EGAISNumber', 
+        EGAISDate EXTID 'rfa=http://fsrar.ru/WEGAIS/ReplyForm1:EGAISDate',
+            
+        replyForm1OriginalClient EXTID 'rfa=http://fsrar.ru/WEGAIS/ReplyForm1:OriginalClient',
+        replyForm1Product EXTID 'rfa=http://fsrar.ru/WEGAIS/ReplyForm1:Product'
+;
+
+process (InDoc d) + {
+    IF docType(d) = DocType.ReplyForm1 THEN {
+        NEWSESSION {
+            stringToFile(document(d));
+            IMPORT replyForm1 XML FROM resultFile();
+
+            LOCAL f1Reg = F1Reg ();
+            f1Reg() <- f1Reg(informF1RegId());
+
+            IF f1Reg() THEN {
+                importClient(replyForm1OriginalClient());
+                originalClient(f1Reg()) <- client(clientRegId());
+                importProduct(replyForm1Product());
+                replyProduct(f1Reg()) <- product(alcCode());
+
+                originalDocNumber(f1Reg()) <- originalDocNumber();
+                originalDocDate(f1Reg()) <- originalDocDate();
+                bottlingDate(f1Reg()) <- bottlingDate();
+                quantityBatch(f1Reg()) <- quantityBatch();
+                egaisFixNumber(f1Reg()) <- EGAISNumber();
+                egaisFixDate(f1Reg()) <- EGAISDate();                
+            }
+
+            processed(d) <- TRUE;
+            APPLY;
+        }
+    }
+}
