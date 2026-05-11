@@ -70,7 +70,7 @@ public class ExportExcelPivotClientAction implements ClientAction {
 
         ActiveXComponent excelComponent = new ActiveXComponent("Excel.Application");
 
-        //replace deprecated after upgrading erp to 6.1
+        //todo: replace deprecated after upgrading erp to 6.1
         //File reportFile = ReportGenerator.exportToFile(reportData, FormPrintType.XLSX, null, null, false, null);
         File reportFile = ReportGenerator.exportToXlsx(reportData);
         Dispatch workbooks = excelComponent.getProperty("Workbooks").toDispatch();
