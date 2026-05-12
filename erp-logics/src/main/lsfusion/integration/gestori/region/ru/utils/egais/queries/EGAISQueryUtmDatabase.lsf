@@ -1,0 +1,40 @@
+MODULE EGAISQueryUtmDatabase;
+
+REQUIRE EGAIS;
+
+NAMESPACE EGAIS;
+
+utmDBDateTime 'Дата и время создания текущей БД УТМ' = DATA LOCAL STRING ();
+utmDBDateTime 'Дата и время создания текущей БД УТМ' = DATA DATETIME (UTM);
+
+getUtmDBDateTime 'Получить дату и время создания БД УТМ' (UTM u) {
+    LOCAL response = FILE();
+
+    TRY {
+        timeoutHttp() <- 60000;
+
+        IF EGAISTestMode() THEN {
+            showTextDialog('Запрос на дату и время создания БД УТМ', 'Введите ответ');
+            response() <- resultFile();            
+        } ELSE {
+            EXTERNAL HTTP GET url(u) + '/info/dbtime' PARAMS exportFile() TO response;
+        }
+    } CATCH {
+        fileToString(response());
+        LOCAL error = TEXT();
+        error() <- CONCAT '\n', 'Ошибка при формировании запроса даты и времени создания БД УТМ:', name(u), url(u), messageCaughtException(), resultString();
+        logToFile('egais', error());
+        MESSAGE error();
+        RETURN;
+    }
+
+    fileToString(response());
+    IF NOT resultString() THEN RETURN;
+    utmDBDateTime(u) <- DATETIME(toDateTimeFormat(resultString(), 'YYYY-MM-DD HH24:MI:SS'));
+
+    APPLY;
+}
+
+EXTEND FORM integrationData
+    PROPERTIES(utm) utmDBDateTime READONLY, getUtmDBDateTime GRID
+;

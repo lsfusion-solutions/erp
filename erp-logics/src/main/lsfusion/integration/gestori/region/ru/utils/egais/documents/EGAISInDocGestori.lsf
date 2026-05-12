@@ -1,16 +1,25 @@
 MODULE EGAISInDocGestori;
 
-REQUIRE EGAISInDoc, EGAISOutDocGestori;
+REQUIRE EGAISInDoc, EGAISOutDocGestori, EGAISQueryUtmDatabase;
 
 NAMESPACE EGAIS;
 
-typeBaseDocumentOutDoc 'Тип документа-основания' (InDoc d) = typeBaseDocument(outDoc(d));
-numberBaseDocumentOutDoc 'Номер документа-основания' (InDoc d) = numberBaseDocument(outDoc(d));
-dateBaseDocumentOutDoc 'Дата документа-основания' (InDoc d) = dateBaseDocument(outDoc(d));
+overTypeBaseDocument 'Тип документа-основания' = ABSTRACT BPISTRING[100] (InDoc);
+typeBaseDocumentOutDoc 'Тип документа-основания' (InDoc d) = OVERRIDE typeBaseDocument(outDoc(d)), overTypeBaseDocument(d);
+
+overNumberBaseDocument 'Номер документа-основания' = ABSTRACT CASE STRING (InDoc);
+numberBaseDocumentOutDoc 'Номер документа-основания' (InDoc d) = OVERRIDE numberBaseDocument(outDoc(d)), overNumberBaseDocument(d);
+
+overDateBaseDocument 'Дата документа-основания' = ABSTRACT CASE DATE (InDoc);
+dateBaseDocumentOutDoc 'Дата документа-основания' (InDoc d) = OVERRIDE dateBaseDocument(outDoc(d)), overDateBaseDocument(d);
 
 typeOriginalDocumentOutDoc 'Тип документа системы' (InDoc d) = typeOriginalDocument(outDoc(d));
 numberOriginalDocumentOutDoc 'Номер документа системы' (InDoc d) = numberOriginalDocument(outDoc(d));
 dateOriginalDocumentOutDoc 'Дата документа системы' (InDoc d) = dateOriginalDocument(outDoc(d));
+
+overTypeBaseDocument(InDoc d) += name(docType(d));
+
+skipUrl(InDoc d) += dateTime(d) < utmDBDateTime(utm(d));
 
 EXTEND FORM inDocs
     PROPERTIES(d) READONLY AFTER idOutDoc(d) typeBaseDocumentOutDoc, numberBaseDocumentOutDoc, dateBaseDocumentOutDoc,

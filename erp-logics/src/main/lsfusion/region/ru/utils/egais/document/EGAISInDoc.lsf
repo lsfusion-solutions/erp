@@ -23,9 +23,6 @@ dateTime 'Время' = DATA DATETIME (InDoc);
 dateTime(InDoc d) <- currentDateTime() WHEN SET(d IS InDoc);
 
 url 'Url' = DATA STRING (InDoc) INDEXED;
-//url 'Url' = DATA STRING (InDoc, DATE) INDEXED;
-//newestUrlDate (InDoc d) = ;
-//currentUrl 'Url' (InDoc d) = OVERRIDE url(d) INDEXED;
 
 document 'Документ' = DATA TEXT (InDoc); 
 
@@ -141,7 +138,11 @@ DESIGN integrationData {
         MOVE PROPERTY(inDocInterval());
     }
 }
-inDoc = GROUP MAX InDoc d IF dateTime(d) >= subtractDay(currentDateTime(), OVERRIDE inDocInterval(), 14) BY utm(d), url(d);
+
+skipUrl = ABSTRACT BOOLEAN (InDoc);
+inDoc = GROUP MAX InDoc d 
+    IF dateTime(d) >= subtractDay(currentDateTime(), OVERRIDE inDocInterval(), 14) AND NOT skipUrl(d) 
+    BY utm(d), url(d);
 
 getInDocs 'Получить входящие документы' (UTM u) {
     LOCAL response = FILE();
