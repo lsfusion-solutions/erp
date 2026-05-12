@@ -42,28 +42,28 @@ prevPriceB 'Цена (пред.)' (PriceListType type, Batch batch, Stock stock,
 prevPriceA 'Цена (пред.)' (PriceListType type, Batch batch, Stock stock, DATETIME dateTime) = PREV(priceA(type, batch, stock, dateTime)) CHARWIDTH 7 COMPLEX;
 
 prevPriceMVAT 'Цена без НДС (пред.)' (PriceListType type, Sku sku, Stock stock, DATETIME dateTime, NUMERIC[10,5] VAT) =
-    IF includeVAT(type)
+    IF includeVAT(type, stock)
         THEN
             prevPriceB(type, sku, stock, dateTime) * 100 /(100 + VAT)
         ELSE
             prevPriceB(type, sku, stock, dateTime) IF VAT IS NUMERIC[10,5];
 
 prevPricePVAT 'Цена с НДС (пред.)' (PriceListType type, Sku sku, Stock stock, DATETIME dateTime, NUMERIC[10,5] VAT) =
-    IF includeVAT(type)
+    IF includeVAT(type, stock)
         THEN
             prevPriceB(type, sku, stock, dateTime) IF VAT IS NUMERIC[10,5]
         ELSE
             prevPriceB(type, sku, stock, dateTime) * (100 + VAT)/100;
 
 prevPriceMVAT 'Цена без НДС (пред.)' (PriceListType type, Batch batch, Stock stock, DATETIME dateTime, NUMERIC[10,5] VAT) =
-    IF includeVAT(type)
+    IF includeVAT(type, stock)
         THEN
             prevPriceB(type, batch, stock, dateTime) * 100 /(100 + VAT)
         ELSE
             prevPriceB(type, batch, stock, dateTime) IF VAT IS NUMERIC[10,5];
 
 prevPricePVAT 'Цена с НДС (пред.)' (PriceListType type, Batch batch, Stock stock, DATETIME dateTime, NUMERIC[10,5] VAT) =
-    IF includeVAT(type)
+    IF includeVAT(type, stock)
         THEN
             prevPriceB(type, batch, stock, dateTime) IF VAT IS NUMERIC[10,5]
         ELSE
@@ -476,7 +476,7 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, da
     overRecalculatePrice###detail  ABSTRACT LIST ( );
     
     recalculatePrice###detail 'Пересчитать цены'()  { 
-        FOR PriceListType pt == priceListType(###detail d) AND sku(d) AND NOT disableUpdateInvoicePrice(d) AND [ FILTER form.d](d) AND includeVAT(pt) NOINLINE (pt) DO {
+        FOR PriceListType pt == priceListType(###detail d) AND sku(d) AND NOT disableUpdateInvoicePrice(d) AND [ FILTER form.d](d) AND includeVAT(pt, stockProp(d)) NOINLINE (pt) DO {
             IF notUseRound2() THEN {
                  price(d) <-prevList(pt, d) * 100.0 /(100.0 (+) calcValueVAT(d));
                  invoicePrice(d) <- prevList(pt, d);           
@@ -485,7 +485,7 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, da
                 invoicePrice(d) <- round(prevList(pt, d), defaultPriceRound(d));
             }    
         }
-        FOR PriceListType pt == priceListType(###detail d) AND sku(d) AND NOT disableUpdateInvoicePrice(d) AND [ FILTER form.d](d) AND NOT includeVAT(pt) NOINLINE (pt) DO {
+        FOR PriceListType pt == priceListType(###detail d) AND sku(d) AND NOT disableUpdateInvoicePrice(d) AND [ FILTER form.d](d) AND NOT includeVAT(pt, stockProp(d)) NOINLINE (pt) DO {
             IF notUseRound2() THEN {
                 price(d) <- prevList(pt, d);
                 invoicePrice(d) <- prevList(pt, d) * (100.0 (+) calcValueVAT(d)) / 100.0;            
