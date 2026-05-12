@@ -391,6 +391,8 @@ showBatch(ComponentDetail d) = d IS ComponentDetail AND NOT hideBatch(d);
  
 batch = DATA Batch (ComponentDetail) INDEXED;
 nameBatch 'Партия' (ComponentDetail d) = name(batch(d)) CHARWIDTH 20;
+prevNameBatch 'Партия' (ComponentDetail d) = prevName(batch(d)) CHARWIDTH 20 IN id;
+prevNameSkuBatch 'SKU партии' (ComponentDetail d) = prevNameSku(batch(d)) CHARWIDTH 20 IN id;
 
 INDEX sku(ComponentDetail cd), order(cd), batch(cd);
 
@@ -975,13 +977,13 @@ recordMarkup(ProductDetail detail)  {
 
 // расчет НДС
 valueVAT 'НДС, %' = DATA NUMERIC[10,5] (Sku, Order);
-
+skipAutoSetValueVATSku = DATA  LOCAL BOOLEAN (Order);
 WHEN LOCAL (CHANGED(componentsCountry(Order order)) OR
               CHANGED(date(order)) OR 
               CHANGED(VAT(order)) OR 
               SET(quantityComponentDetail(Sku sku, order)))
                  AND quantityComponentDetail(sku, order)
-                 AND VAT(order) DO {                                      
+                 AND VAT(order) AND NOT skipAutoSetValueVATSku(order) DO {                                      
     valueVAT(sku, order) <- valueVAT(sku, componentsCountry(order), date(order));
 }
      
