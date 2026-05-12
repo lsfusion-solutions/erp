@@ -1372,6 +1372,126 @@ DESIGN turnoverByCounterpartyGestori {
     MOVE TOOLBARBOX;
 }
 
+CLASS CSPriceType 'Тип цены для сличительной ведомости' {
+    retail 'Цена продажи',
+    account 'Учетная цена',
+    cost 'Бухгалтерская себестоимость'
+}
+
+FORM dialogCSPriceType 'Тип цены'
+    OBJECTS t = CSPriceType
+    PROPERTIES(t) READONLY staticCaption
+    LIST CSPriceType OBJECT t
+;
+
+csPriceType 'Тип цены' = DATA LOCAL CSPriceType (CollationSheet);
+nameCSPriceType 'Тип цены' (CollationSheet o) = staticCaption(csPriceType(o));
+
+initCSPriceType (CollationSheet o) {
+    IF NOT csPriceType(o) THEN csPriceType(o) <- CSPriceType.retail;
+}
+
+csUnitPrice 'Цена, руб. коп.' (CollationSheet o, Sku s) =
+    CASE
+        WHEN csPriceType(o) = CSPriceType.retail
+        THEN NUMERIC[18,4](retailPriceA(s, stock(o), dateTime(o)))
+        WHEN csPriceType(o) = CSPriceType.account
+        THEN NUMERIC[18,4](accountPriceA(s, stock(o), dateTime(o)))
+        WHEN csPriceType(o) = CSPriceType.cost
+        THEN NUMERIC[18,4](round2(accountPriceA(s, stock(o), dateTime(o)) /
+            (1.0 + (OVERRIDE valueVAT(s, stock(o)), 0.0) / 100.0)))
+        ELSE NUMERIC[18,4](priceBalance(o, s));
+
+csUnitPriceCaption 'Название колонки цены' (CollationSheet o) =
+    CASE
+        WHEN csPriceType(o) = CSPriceType.retail
+        THEN 'Отпускная цена, руб. коп.'
+        WHEN csPriceType(o) = CSPriceType.account
+        THEN 'Учетная цена, руб. коп.'
+        WHEN csPriceType(o) = CSPriceType.cost
+        THEN 'Бухгалтерская себестоимость, руб. коп.'
+        ELSE 'Цена, руб. коп.';
+
+csIdSku 'Код товара' (CollationSheet o, Sku s) = id(s);
+csNameSku 'Наименование товара' (CollationSheet o, Sku s) = name(s);
+csUOM 'Единица измерения' (CollationSheet o, Sku s) = shortNameUOM(s);
+
+csQtyAccount 'Количество (учет)' (CollationSheet o, Sku s) = quantityBalance(o, s);
+csSumAccount 'Сумма (учет)' (CollationSheet o, Sku s) =
+    NUMERIC[18,4](round2(quantityBalance(o, s) * csUnitPrice(o, s)));
+
+csQtyFact 'Количество (факт)' (CollationSheet o, Sku s) = quantityPageInventoryDetail(o, s);
+csSumFact 'Сумма (факт)' (CollationSheet o, Sku s) =
+    NUMERIC[18,4](round2(quantityPageInventoryDetail(o, s) * csUnitPrice(o, s)));
+
+csQtyDiff 'Количество (расхождение)' (CollationSheet o, Sku s) =
+    quantityPageInventoryDetail(o, s) (-) quantityBalance(o, s);
+csSumDiff 'Сумма (расхождение)' (CollationSheet o, Sku s) =
+    NUMERIC[18,4](round2(csQtyDiff(o, s) * csUnitPrice(o, s)));
+
+csInclude (CollationSheet o, Sku s) =
+    include(o, s) AND (quantityBalance(o, s) OR quantityPageInventoryDetail(o, s));
+
+csNumberInventory 'Номер акта' (CollationSheet o) = number(inventory(o));
+csDateInventory 'Дата акта' (CollationSheet o) = date(inventory(o));
+
+FORM collationSheetPrice 'Сличительная ведомость (по типу цен)'
+    OBJECTS o = CollationSheet PANEL
+    PROPERTIES(o) READONLY csNumberInventory, csDateInventory, csUnitPriceCaption
+    PROPERTIES(o) nameCSPriceType
+    OBJECTS s = Sku
+    PROPERTIES(o, s) READONLY
+    csIdSku, csNameSku, csUOM, csUnitPrice,
+        csQtyAccount, csSumAccount,
+        csQtyFact, csSumFact,
+        csQtyDiff, csSumDiff
+    FILTERS csInclude(o, s)
+    ORDERS csNameSku(o, s)
+;
+
+printCollationSheetPrice 'Печать в XLSX' (CollationSheet o) {
+    PRINT collationSheetPrice OBJECTS o = o XLSX;
+} IMAGE 'print.png';
+
+EXTEND FORM collationSheetPrice
+    PROPERTIES(o) printCollationSheetPrice
+;
+
+EXTEND FORM inventory
+    OBJECTS csp = CollationSheet
+    PROPERTIES(csp) READONLY name, nameTypeOfAddition, nameStock
+    PROPERTIES(csp) nameCSPriceType ON CHANGE {
+        DIALOG dialogCSPriceType OBJECTS t = csPriceType(csp) INPUT DO {
+            csPriceType(csp) <- t;
+        }
+    }
+    PROPERTIES(csp) printCollationSheetPrice
+    FILTERS inventory(csp) == in
+
+    OBJECTS sp = Sku
+    PROPERTIES(csp, sp) READONLY
+    csIdSku, csNameSku, csUOM, csUnitPrice,
+        csQtyAccount, csSumAccount,
+        csQtyFact, csSumFact,
+        csQtyDiff, csSumDiff
+    FILTERS csInclude(csp, sp)
+    ORDERS csNameSku(csp, sp)
+
+    EVENTS ON INIT {
+        FOR inventory(CollationSheet c) == in DO initCSPriceType(c);
+    }
+;
+
+DESIGN inventory {
+    topContainer {
+        NEW priceCSBox {
+            caption = 'Сличительная ведомость по ценам';
+            MOVE BOX(csp);
+            MOVE BOX(sp) { fill = 1000; }
+        }
+    }
+}
+
 NAVIGATOR {
     stockReports {
         NEW inventoryRegister;
