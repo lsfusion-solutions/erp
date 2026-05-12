@@ -29,11 +29,6 @@ fillNoticeMessage(EInvoice ei) + {
         noticeMessage() <- OVERRIDE overNoticeMessage(), (GROUP CONCAT noticeMessage(InvoiceDetail d) IF eInvoice(invoice(d)) == ei AND NOT (quantity(d) == shipmentQuantity(d) AND sku(d)), '; ' ORDER index(d), d);
 }
 
-sku 'Товар' (EInvoiceDetail ed) = OVERRIDE sku(lineItemBuyerID(ed)), skuGTIN(lineItemID(ed)), sku(lineItemID(ed));
-localIndexSku = DATA LOCAL INTEGER (Purchase.InvoiceDetail);
-indexSku(EInvoiceDetail ed) = PARTITION SUM 1 ORDER quantityDespatched(ed), ed BY sku(ed), eInvoice(ed) MATERIALIZED INDEXED;
-defaultEInvoiceDetail (Purchase.InvoiceDetail d, EInvoice ei) = GROUP MAX EInvoiceDetail ed IF eInvoice(ed) == ei AND sku(ed) == sku(d) AND localIndexSku(d) == indexSku(ed);
-
 quantityInvoice 'Кол-во поставлено в накладной' = DATA LOCAL NUMERIC[16,5] (Invoice, Sku, NUMERIC[16,4]);
 quantityReplace 'Кол-во в ЭТТН замены' = DATA LOCAL NUMERIC[16,5] (Invoice, Sku, NUMERIC[16,4]);
 
@@ -66,12 +61,8 @@ confirmReplace 'Подтвердить замену' (Purchase.Invoice i, EInvoi
         series(i) <- NULL;
         date(i) <- deliveryNoteDate(ei);
 
-        localIndexSku(Purchase.InvoiceDetail d) <- PARTITION SUM 1 ORDER quantity(d), d BY sku(d), invoice(d) WHERE invoice(d) == i;
-
+        bindEInvoiceDetails(i, ei);
         FOR invoice(Purchase.InvoiceDetail d) == i DO {
-            eInvoiceDetail(d) <- OVERRIDE defaultEInvoiceDetail(d, ei),
-                (GROUP LAST EInvoiceDetail ed IF eInvoice(ed) == ei AND sku(d) == sku(ed) AND quantityDespatched(ed) >= (OVERRIDE shipmentQuantity(d), quantity(d)) ORDER ed);
-        
             quantity(d) <- quantityDespatched(eInvoiceDetail(d));
 //            shipmentQuantity(d) <- OVERRIDE quantityDespatched(eInvoiceDetail(d)), 0.0;  // лучше не делать, т.к. это может быть реальное кол-во после приёмки  
 //            price(d) <- lineItemPrice(eInvoiceDetail(d)) WHERE diffPriceLocal(d);        // если заменять, то с предупреждением или формой сверки цен 

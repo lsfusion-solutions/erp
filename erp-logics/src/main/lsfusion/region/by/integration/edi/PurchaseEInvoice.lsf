@@ -25,6 +25,7 @@ nameReceiver 'Приёмщик'(Invoice i) = name(receiver(i));
 
 eInvoiceDetail 'Строка ЭТТН' = DATA EInvoiceDetail (Purchase.InvoiceDetail) INDEXED;
 numberEInvoiceDetail 'Строка ЭТТН' (Purchase.InvoiceDetail d) = lineItemNumber(eInvoiceDetail(d));
+descriptionEInvoiceDetail 'Строка ЭТТН' (Purchase.InvoiceDetail d) = deliveryNoteNumber(eInvoice(eInvoiceDetail(d))) + ' строка ' + lineItemNumber(eInvoiceDetail(d));
 
 overPrevList = ABSTRACT NUMERIC[16,4] (EInvoiceDetail);
 prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND eInvoiceDetail(d) THEN (OVERRIDE overPrevList(eInvoiceDetail(d)), NUMERIC[16,4](lineItemPrice(eInvoiceDetail(d))));
@@ -130,6 +131,24 @@ createInvoice 'Создать на основе накладных EDI' (DATE d)
     }
 }
 
+localIndexSku = DATA LOCAL INTEGER (Purchase.InvoiceDetail);
+indexSku(EInvoiceDetail ed) = PARTITION SUM 1 ORDER quantityDespatched(ed), ed BY sku(ed), eInvoice(ed) MATERIALIZED INDEXED;
+defaultEInvoiceDetail (Purchase.InvoiceDetail d, EInvoice ei) = GROUP MAX EInvoiceDetail ed IF eInvoice(ed) == ei AND sku(ed) == sku(d) AND localIndexSku(d) == indexSku(ed);
+
+bindEInvoiceDetails (Purchase.Invoice i, EInvoice ei)  {
+
+    localIndexSku(Purchase.InvoiceDetail d) <- PARTITION SUM 1 ORDER quantity(d), d BY sku(d), invoice(d) WHERE invoice(d) == i;
+
+    FOR invoice(Purchase.InvoiceDetail d) == i DO {
+        eInvoiceDetail(d) <- OVERRIDE defaultEInvoiceDetail(d, ei),
+            (GROUP LAST EInvoiceDetail ed IF eInvoice(ed) == ei AND sku(d) == sku(ed) AND quantityDespatched(ed) >= (OVERRIDE shipmentQuantity(d), quantity(d)) ORDER ed);
+    }
+}
+
+bindEInvoiceDetails 'Привязать строки электронной накладной' (Purchase.Invoice i)  {
+    bindEInvoiceDetails(i, eInvoice(i));
+}
+
 FORM dialogEInvoiceCustomer 'Выбор электронной накладной'
     OBJECTS i = EInvoice
     PROPERTIES(i) READONLY deliveryNoteDate, deliveryNoteNumber, nameSupplier, nameCustomer, nameCustomerStock
@@ -138,6 +157,7 @@ FORM dialogEInvoiceCustomer 'Выбор электронной накладно�
 ;
 @extendFormFilterAccessStock(dialogEInvoiceCustomer, i, dialogEInvoiceCustomer, customerStock, Company);
 
+
 overChangeEInvoiceCustomer ABSTRACT LIST (EInvoice, UserInvoice);
 
 changeEInvoiceCustomer(Invoice in) {
@@ -145,12 +165,46 @@ changeEInvoiceCustomer(Invoice in) {
         invoice(EInvoice e) <- NULL WHERE e == eInvoice(in) AND NOT isCancel(e);
         invoice(i) <- in;
         overChangeEInvoiceCustomer(i,in);
+        bindEInvoiceDetails(in, eInvoice(in));
     }
 }
 
-EXTEND FORM userInvoice 
+skipCheckEInvoiceDetail = DATA BOOLEAN () PREREAD;
+
+CONSTRAINT (CHANGED(eInvoiceDetail(Purchase.UserInvoiceDetail  detail)) OR CHANGED(sku(detail))) AND sku(detail) != sku(eInvoiceDetail(detail)) AND NOT skipCheckEInvoiceDetail()
+    CHECKED BY eInvoiceDetail[Purchase.UserInvoiceDetail]
+    MESSAGE 'Товар в электроной накладной и накладной должны соответствовать друг другу';
+
+CONSTRAINT CHANGED(eInvoiceDetail(Purchase.UserInvoiceDetail detail)) AND eInvoiceAll(invoice(detail)) != eInvoice(eInvoiceDetail(detail)) AND NOT skipCheckEInvoiceDetail()
+    CHECKED BY eInvoiceDetail[Purchase.UserInvoiceDetail]
+    MESSAGE 'Электронная накладная в строке накладной и накладной должны соответствовать друг другу';
+
+CONSTRAINT SETCHANGED(eInvoice(invoice(Purchase.UserInvoiceDetail detail))) AND NOT eInvoiceDetail(detail) AND NOT skipCheckEInvoiceDetail()
+    MESSAGE 'Для строки должна быть задана строка электронной накладной';
+
+FORM selectEInvoiceDetail 'Выбрать строку электронной накладной'
+    OBJECTS i = EInvoice PANEL
+    OBJECTS sk = Sku PANEL
+    OBJECTS d = EInvoiceDetail
+    PROPERTIES(d) READONLY lineItemNumber, lineItemID, lineItemBuyerID, lineItemName, quantityDespatched, expiryDate,
+        lineItemPrice, lineItemAmount
+    FILTERS eInvoice(d) == i
+    FILTERGROUP  sku 
+        FILTER 'По товару' sku(d) == sk OR NOT sku(d) DEFAULT
+;
+
+changeEInvoiceDetail (Purchase.UserInvoiceDetail d)  {
+    DIALOG selectEInvoiceDetail OBJECTS i = eInvoiceAll(invoice(d)), d = eInvoiceDetail(d) INPUT ed NULL DO {
+        eInvoiceDetail(d) <- ed;
+    }
+}
+
+EXTEND FORM Purchase.userInvoice
+    PROPERTIES(d) descriptionEInvoiceDetail SHOWIF eInvoiceAll(i) ON CHANGE changeEInvoiceDetail(d);
+
+EXTEND FORM userInvoice
     PROPERTIES READONLYIF exportedCustomer(eInvoice(i)) numberEInvoice(i) ON CHANGE changeEInvoiceCustomer(i)
-    PROPERTIES(i) READONLYIF exportedCustomer(eInvoice(i)) importFromEInvoice, nameReceiver
+    PROPERTIES(i) READONLYIF exportedCustomer(eInvoice(i)) importFromEInvoice, nameReceiver, bindEInvoiceDetails
 ;
 
 DESIGN userInvoice {
@@ -161,6 +215,7 @@ DESIGN userInvoice {
             MOVE PROPERTY(numberEInvoice(i));
             MOVE PROPERTY(nameReceiver(i));
             MOVE PROPERTY(importFromEInvoice(i));
+            MOVE PROPERTY(bindEInvoiceDetails(i));
         }
     }
 }
