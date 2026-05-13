@@ -1492,6 +1492,60 @@ DESIGN inventory {
     }
 }
 
+importInvFromExcelStock 'Загрузить из Excel' (Inventory inv, Stock st) {
+    IF NOT inv THEN {
+        MESSAGE 'Не выбрана инвентаризация';
+        RETURN;
+    }
+    IF NOT st THEN {
+        MESSAGE 'Не выбран склад';
+        RETURN;
+    }
+    IF NOT include(st, inv) THEN {
+        MESSAGE 'Выбранный склад не включен в инвентаризацию';
+        RETURN;
+    }
+
+    LOCAL idSku = STRING[100] (INTEGER);
+    LOCAL nameSku = STRING[200] (INTEGER);
+    LOCAL quantity = NUMERIC[16,5] (INTEGER);
+
+    INPUT f = EXCELFILE DO {
+        IMPORT XLS NOHEADER FROM f TO idSku = A, nameSku = B, quantity = C;
+
+        LOCAL countOk = INTEGER ();
+        countOk() <- GROUP SUM 1 IF imported(INTEGER i) AND trim(idSku(i)) AND sku(trim(idSku(i))) AND quantity(i);
+
+        IF NOT countOk() THEN {
+            MESSAGE 'Нет корректных строк для импорта';
+            RETURN;
+        }
+
+        NEW li = ListInventory {
+            stock(li) <- st;
+            inventory(li) <- inv;
+
+            NEW pg = PageInventory {
+                listInventory(pg) <- li;
+                LOCAL qty = NUMERIC[16,5] (Sku);
+                qty(Sku s) <- GROUP SUM quantity(INTEGER i) IF imported(i) AND sku(trim(idSku(i))) = s AND quantity(i);
+                FOR qty(Sku s) NEW d = PageInventoryDetail DO {
+                    pageInventory(d) <- pg;
+                    sku(d) <- s;
+                    quantity(d) <- qty(s);
+                    price(d) <- prevAccountPriceA(s, st, dateTime(inv));
+                }
+            }
+        }
+
+        MESSAGE 'Импортировано строк: ' + countOk();
+    }
+}
+
+EXTEND FORM inventory
+    PROPERTIES(in, ds) importInvFromExcelStock SHOWIF (saved(in) AND NOT notShowAddListInventory(in))
+;
+
 NAVIGATOR {
     stockReports {
         NEW inventoryRegister;
