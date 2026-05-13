@@ -74,5 +74,4 @@ curl -sS -H "X-Redmine-API-Key: $REDMINE_API_KEY" \
   генерируемые, править нельзя.
 - Перед правкой `.lsf` подгружать `mcp__lsfusion__lsfusion_get_guidance` и следовать
   его правилам (правила NULL/BOOLEAN, naming, форм, сессий, импорта).
-- Дедуп/выбор «канонической» строки в импортах — через `GROUP LAST ... BY <key>`
-  (модульное свойство), а не через цепочки `LOCAL` + `GROUP MIN`.
+
