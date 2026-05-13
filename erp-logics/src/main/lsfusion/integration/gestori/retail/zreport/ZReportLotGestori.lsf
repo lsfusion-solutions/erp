@@ -1,6 +1,6 @@
 MODULE ZReportLotGestori;
 
-REQUIRE ZReportLot, EGAISMarkCode, EGAISSkuLedgerLot;
+REQUIRE ZReportLot, EGAISMarkCode, EGAISSkuLedgerLot, SkuLedgerLotGestori;
 
 NAMESPACE ZReport;
 
@@ -22,10 +22,10 @@ CONSTRAINT DROPPED(lot(ReceiptDetail d)) AND lotType(sku(d)) AND currentUser() I
 
 skipLotBalanceControl (ReceiptDetail d) = skipLotBalanceControl() AND d IS ReceiptDetail;
 
-CONSTRAINT SETCHANGED(lot(ReceiptSaleDetail d)) AND departmentStore(d) AND NOT prevCurrentBalance(lot(d), departmentStore(d)) > 0.0 AND NOT skipLotBalanceControl(d) AND 
+CONSTRAINT SETCHANGED(lot(ReceiptSaleDetail d)) AND departmentStore(d) AND availableQuantity(lot(d), departmentStore(d)) < 0.0 AND NOT skipLotBalanceControl(d) AND 
     currentUser() IS CustomUser
     CHECKED BY lot[ReceiptSaleDetail]
-    MESSAGE 'Запрещено добавлять в чек код маркировки, не находящийся на остатке';
+    MESSAGE 'Превышен свободный остаток для кода маркировки';
 
 WHEN LOCAL FORMS zReport CHANGED (idBarcode(ReceiptDetail d))  AND NOT (sku(d)) DO {
     sku(d) <- sku(barcode(idBarcode(d)));
