@@ -1,6 +1,6 @@
 MODULE SaleLedgerGestori;
 
-REQUIRE RangeSimple, InventoryGestori, PurchaseShipment, RangeLevelLog;
+REQUIRE InventoryGestori, PriceListContract;
 
 NAMESPACE Sale;
 
@@ -1915,6 +1915,175 @@ DESIGN markupControlReport {
     }
 }
 
+amxReportDate 'На дату' = DATA LOCAL DATE ();
+amxOnlyInContract 'Только товары в действующих спецификациях договоров' = DATA LOCAL BOOLEAN ();
+
+amxContractSku = DATA LOCAL ContractSku ();
+amxNameContractSku 'Договор (спецификация)' () = OVERRIDE description(amxContractSku()), 'Все договоры' CHARWIDTH 30;
+
+amxPriceList = DATA LOCAL PriceList ();
+amxNamePriceList 'Прайс-лист' () = OVERRIDE description(amxPriceList()), 'Все прайс-листы' CHARWIDTH 30;
+
+deleteAmxContractSku 'Сбросить выбранный договор' () {
+    amxContractSku() <- NULL;
+    amxPriceList() <- NULL;
+} ASON CONTEXTMENU amxNameContractSku;
+
+deleteAmxPriceList 'Сбросить выбранный прайс-лист' () {
+    amxPriceList() <- NULL;
+} ASON CONTEXTMENU amxNamePriceList;
+
+amxActivePriceList(PriceList pl) =
+    isPosted(pl) AND isActive(pl, toDateTime(amxReportDate()));
+
+amxSupplierMatch(PriceList pl) =
+    NOT fAnySupplier() OR fInSupplier(company(pl));
+
+amxContractMatch(PriceList pl) =
+    NOT amxContractSku() OR contractSku(pl) = amxContractSku();
+
+amxPriceListMatch(PriceList pl) =
+    NOT amxPriceList() OR pl = amxPriceList();
+
+amxPriceListSuitable(PriceList pl) =
+    amxActivePriceList(pl)
+        AND amxSupplierMatch(pl)
+        AND amxContractMatch(pl)
+        AND amxPriceListMatch(pl);
+
+amxInActivePriceList(Sku s) =
+    GROUP MAX 1 IF active(PriceListDetail pld)
+        AND sku(pld) = s
+        AND amxPriceListSuitable(priceList(pld));
+
+amxContractSupplierName 'Поставщик по договору' (Sku s) =
+    GROUP CONCAT name(company(PriceList pl)) IF active(PriceListDetail pld)
+        AND sku(pld) = s
+        AND priceList(pld) = pl
+        AND amxPriceListSuitable(pl), ',' ORDER id(company(pl)), pl CHARWIDTH 30;
+
+amxLastPriceListDetail(Sku s) = GROUP LAST PriceListDetail pld
+ORDER date(priceList(pld)), pld
+WHERE active(pld)
+    AND sku(pld) = s
+    AND amxPriceListSuitable(priceList(pld));
+
+amxContractPrice 'Цена по спецификации договора' (Sku s) = price(amxLastPriceListDetail(s));
+
+amxSkuFilter(Sku s) =
+    fSkuFilter(s) AND (NOT amxOnlyInContract() OR amxInActivePriceList(s));
+
+amxRangeActive(Range.Range r) = NOT inactive(r) AND r IS Range.Range;
+
+amxSkuInAnyStock(Sku s, Range.Range r) =
+    GROUP MAX 1 IF skuInRangeForStock(s, r, Stock st, amxReportDate()) AND inSaleReport(st);
+
+amxRangeMarker 'Признак вхождения' (Sku s, Range.Range r) =
+    ('+' IF amxRangeActive(r) AND amxSkuInAnyStock(s, r)) CHARWIDTH 20;
+
+amxHasAnyRange(Sku s) = GROUP MAX 1 IF amxRangeActive(Range.Range r) AND amxSkuInAnyStock(s, r);
+
+amxSkuHasData(Sku s) =
+    amxSkuFilter(s) AND amxHasAnyRange(s);
+
+initAmxDates() {
+    amxReportDate() <- currentDate();
+}
+
+FORM contractAssortmentMatrixReport 'Ассортимент товаров по матрицам и спецификациям договоров'
+    PROPERTIES() amxReportDate
+    PROPERTIES() amxOnlyInContract
+    PROPERTIES nameStockList() READONLY SHOWIF stockList()
+    PROPERTIES amxStocks 'Подразделения' = inSaleReportStocks() ON CHANGE changeStocksDialog() READONLYIF stockList()
+    PROPERTIES amxSkuListsCaption 'Списки товаров' = fNameSkuLists() READONLY SHOWIF fAnySkuList()
+    PROPERTIES amxSkuGroupsCaption 'Товарные группы' = fNameSkuGroups() READONLY SHOWIF fAnySkuGroup()
+    PROPERTIES amxSkusCaption 'Товары' = fInSkus() ON CHANGE fSelectSkus() READONLYIF fAnySkuList() OR fAnySkuGroup()
+    PROPERTIES fNameSupplierList() READONLY SHOWIF fSupplierList() AND amxOnlyInContract()
+    PROPERTIES amxSuppliersCaption 'Поставщики' = fNameSuppliers() ON CHANGE { DIALOG fDialogSuppliers; } SHOWIF amxOnlyInContract() READONLYIF fSupplierList()
+    PROPERTIES amxContractCaption 'Договор (спецификация)' = amxNameContractSku() ON CHANGE { DIALOG contractSkus OBJECTS c INPUT DO amxContractSku() <- c; } SHOWIF amxOnlyInContract()
+    PROPERTIES amxPriceListCaption 'Прайс-лист' = amxNamePriceList() ON CHANGE { DIALOG priceLists OBJECTS p INPUT DO amxPriceList() <- p; } SHOWIF amxOnlyInContract()
+
+    OBJECTS s = Sku
+    PROPERTIES READONLY
+    skuGroupCaption 'Товарная группа' = skuGroup3Full(s),
+        barcode 'Штрихкод' = idBarcode(s),
+        skuId 'Код товара' = id(s),
+        skuName 'Наименование товара' = name(s)
+    PROPERTIES READONLY supplierFromContract 'Поставщик по договору' = amxContractSupplierName(s)
+    PROPERTIES READONLY contractPrice 'Цена по спецификации договора' = amxContractPrice(s)
+    PROPERTIES(s) READONLY priceSegmentCaption 'Ценовой сегмент' = namePriceSegment
+
+    OBJECTS r = Range.Range
+    FILTERS amxRangeActive(r)
+
+    PROPERTIES READONLY amxRangeMarker(s, r) COLUMNS 'range' (r) HEADER name(r)
+
+    FILTERS amxSkuHasData(s)
+
+    EVENTS ON INIT initAmxDates()
+;
+
+FORM contractAssortmentMatrixReportPrint 'Ассортимент товаров по матрицам и спецификациям договоров'
+    PROPERTIES() amxReportDate
+
+    OBJECTS s = Sku
+    PROPERTIES READONLY
+    skuGroupCaption 'Товарная группа' = skuGroup3Full(s),
+        barcode 'Штрихкод' = idBarcode(s),
+        skuId 'Код товара' = id(s),
+        skuName 'Наименование товара' = name(s)
+    PROPERTIES READONLY supplierFromContract 'Поставщик по договору' = amxContractSupplierName(s)
+    PROPERTIES READONLY contractPrice 'Цена по спецификации договора' = amxContractPrice(s)
+    PROPERTIES(s) READONLY priceSegmentCaption 'Ценовой сегмент' = namePriceSegment
+
+    OBJECTS r = Range.Range
+    FILTERS amxRangeActive(r)
+
+    PROPERTIES READONLY amxRangeMarker(s, r) COLUMNS 'range' (r) HEADER name(r)
+
+    FILTERS amxSkuHasData(s)
+;
+
+printContractAssortmentMatrixReport 'Печать' () { PRINT contractAssortmentMatrixReportPrint XLSX; } IMAGE 'print.png';
+
+EXTEND FORM contractAssortmentMatrixReport
+    PROPERTIES() DISABLEIF NOT amxReportDate() printContractAssortmentMatrixReport
+;
+
+DESIGN contractAssortmentMatrixReport {
+    NEW filters FIRST {
+        alignment = STRETCH;
+        NEW topRow {
+            horizontal = TRUE;
+            alignment = STRETCH;
+            MOVE PROPERTY(amxReportDate());
+            MOVE PROPERTY(printContractAssortmentMatrixReport()) { valueClass = 'btn-primary'; }
+            NEW row1right {
+                horizontal = TRUE;
+                fill = 1;
+                childrenAlignment = END;
+                MOVE PROPERTY(amxOnlyInContract());
+            }
+        }
+        MOVE PROPERTY(nameStockList());
+        MOVE PROPERTY(amxStocks);
+        MOVE PROPERTY(amxSkuListsCaption);
+        MOVE PROPERTY(amxSkuGroupsCaption);
+        MOVE PROPERTY(amxSkusCaption);
+        MOVE PROPERTY(fNameSupplierList());
+        MOVE PROPERTY(amxSuppliersCaption);
+        NEW contractRow {
+            horizontal = TRUE;
+            alignment = STRETCH;
+            MOVE PROPERTY(amxContractCaption);
+            MOVE PROPERTY(amxPriceListCaption);
+        }
+    }
+    BOX(s) {
+        caption = 'Товары и их вхождение в ассортиментные матрицы';
+    }
+}
+
 NAVIGATOR {
     salesReports {
         NEW bestWorstProducts;
@@ -1925,5 +2094,6 @@ NAVIGATOR {
         NEW operativeReport;
         NEW avgDailySalesReport;
         NEW markupControlReport;
+        NEW contractAssortmentMatrixReport;
     }
 }
