@@ -1,6 +1,6 @@
 MODULE TurnoverReportsGestori;
 
-REQUIRE SaleLedgerGestori, AccountDocument, ProductionOutput, ProductionConsumption, StockAdjustment;
+REQUIRE SaleLedgerGestori, AccountDocument, ProductionOutput, ProductionConsumption, StockAdjustment, Disparity;
 
 NAMESPACE StockReports;
 
@@ -475,38 +475,38 @@ fillTurnoverDetailGestori 'Приходы-расходы подробно' () {
 
     quantityPurchaseInventory(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) IF
         active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger) = st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
-            id(operationDocument(ledger)) == 'inventory' AND cost(ledger,b)>0 AND
+            (ledger IS InInventoryBatchDetail OR ledger IS InInventorySkuDetail) AND 
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
     sumPurchaseInventory(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) * priceSku(sk,st,date(ledger)) IF
         active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger) = st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
-            id(operationDocument(ledger)) == 'inventory' AND cost(ledger,b)>0 AND
+            (ledger IS InInventoryBatchDetail OR ledger IS InInventorySkuDetail) AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
     quantitySaleInventory(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) IF
         active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger) = st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
-            id(operationDocument(ledger)) == 'inventory' AND cost(ledger,b)<0 AND
+            (ledger IS OutInventoryBatchDetail OR ledger IS OutInventorySkuDetail) AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
     sumSaleInventory(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) * priceSku(sk,st,date(ledger)) IF
         active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger) = st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
-            id(operationDocument(ledger)) == 'inventory' AND cost(ledger,b)<0 AND
+            (ledger IS OutInventoryBatchDetail OR ledger IS OutInventorySkuDetail) AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-
+    
     quantityPurchaseDisparity(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) IF
         active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger) = st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
-            id(operationDocument(ledger)) == 'Уценка' AND cost(ledger,b)>0 AND
+            ledger IS InputDisparityDetail AND 
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
     sumPurchaseDisparity(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) * priceSku(sk,st,date(ledger)) IF
         active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger) = st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
-            id(operationDocument(ledger)) == 'Уценка' AND cost(ledger,b)>0 AND
+            ledger IS InputDisparityDetail AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
     quantitySaleDisparity(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) IF
         active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger) = st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
-            id(operationDocument(ledger)) == 'Уценка' AND cost(ledger,b)<0 AND
+            ledger IS DisparityDetail AND NOT ledger IS InputDisparityDetail AND 
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
     sumSaleDisparity(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) * priceSku(sk,st,date(ledger)) IF
         active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger) = st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
-            id(operationDocument(ledger)) == 'Уценка' AND cost(ledger,b)<0 AND
+            ledger IS DisparityDetail AND NOT ledger IS InputDisparityDetail AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-
+    
     quantityPurchaseAdjustment(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) IF
         active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger) = st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
             ledger IS InAdjustmentSkuDetail AND
@@ -533,7 +533,6 @@ fillTurnoverDetailGestori 'Приходы-расходы подробно' () {
             id(operationDocument(ledger)) == 'naturalLoss' AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
-    /////
     quantitySaleWriteOff(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) IF
         active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger) = st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
             ledger IS WriteOffDetail AND 
@@ -542,7 +541,6 @@ fillTurnoverDetailGestori 'Приходы-расходы подробно' () {
         active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger) = st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
             ledger IS WriteOffDetail AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-    /////
     
     quantityOutput(Sku sk, Stock st) <- GROUP SUM cost(SkuLedger ledger, Batch b) IF
         active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger)=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
@@ -560,7 +558,7 @@ fillTurnoverDetailGestori 'Приходы-расходы подробно' () {
         active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND stock(ledger)=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
             (ledger IS Production.ConsumptionDetail) AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-
+    
     quantityRetailSale(Sku sk, Stock st) <- GROUP SUM cost(SaleLedger ledger, Batch b) IF active(ledger) AND ledger IS DateSaleSkuLedger AND 
         sku(ledger)=sk AND sku(b)=sk AND stock(ledger)=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
         inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
