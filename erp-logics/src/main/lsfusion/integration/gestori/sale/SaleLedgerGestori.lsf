@@ -1976,7 +1976,7 @@ amxSkuFilter(Sku s) =
 amxRangeActive(Range.Range r) = NOT inactive(r) AND r IS Range.Range;
 
 amxSkuInAnyStock(Sku s, Range.Range r) =
-    GROUP MAX 1 IF skuInRangeForStock(s, r, Stock st, amxReportDate()) AND inSaleReport(st);
+    GROUP MAX 1 IF skuInRangeForStock(s, r, Stock st, amxReportDate()) AND st IS Stock;
 
 amxRangeMarker 'Признак вхождения' (Sku s, Range.Range r) =
     ('+' IF amxRangeActive(r) AND amxSkuInAnyStock(s, r)) CHARWIDTH 20;
@@ -1993,8 +1993,6 @@ initAmxDates() {
 FORM contractAssortmentMatrixReport 'Ассортимент товаров по матрицам и спецификациям договоров'
     PROPERTIES() amxReportDate
     PROPERTIES() amxOnlyInContract
-    PROPERTIES nameStockList() READONLY SHOWIF stockList()
-    PROPERTIES amxStocks 'Подразделения' = inSaleReportStocks() ON CHANGE changeStocksDialog() READONLYIF stockList()
     PROPERTIES amxSkuListsCaption 'Списки товаров' = fNameSkuLists() READONLY SHOWIF fAnySkuList()
     PROPERTIES amxSkuGroupsCaption 'Товарные группы' = fNameSkuGroups() READONLY SHOWIF fAnySkuGroup()
     PROPERTIES amxSkusCaption 'Товары' = fInSkus() ON CHANGE fSelectSkus() READONLYIF fAnySkuList() OR fAnySkuGroup()
@@ -2065,8 +2063,6 @@ DESIGN contractAssortmentMatrixReport {
                 MOVE PROPERTY(amxOnlyInContract());
             }
         }
-        MOVE PROPERTY(nameStockList());
-        MOVE PROPERTY(amxStocks);
         MOVE PROPERTY(amxSkuListsCaption);
         MOVE PROPERTY(amxSkuGroupsCaption);
         MOVE PROPERTY(amxSkusCaption);
