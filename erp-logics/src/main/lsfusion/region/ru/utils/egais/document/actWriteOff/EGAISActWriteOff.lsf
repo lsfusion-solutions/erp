@@ -87,7 +87,7 @@ overQuantity 'Кол-во' (ActWriteOffPosition p) = OVERRIDE dataQuantity(p) IF
 changeOverQuantity (ActWriteOffPosition p)  {
     IF p IS ActWriteOffPosition THEN {
         INPUT n = NUMERIC[16,5] DO {
-            overQuantity(p) <- n;
+            dataQuantity(p) <- n;
         }
     }
 }
@@ -101,7 +101,7 @@ readonlyDescriptionClient = ABSTRACT BOOLEAN ();
 delete 'Удалить' (ActWriteOffPosition p)  {
     DELETE ActWriteOffMark m WHERE p == actWriteOffPosition(m);
     DELETE p;
-} IMAGE 'delete.png';
+} IMAGE 'delete.png' TOOLBAR;
 
 FORM actWriteOff 'Акт о списании с баланса ЕГАИС'
     OBJECTS w = ActWriteOff PANEL
@@ -110,8 +110,8 @@ FORM actWriteOff 'Акт о списании с баланса ЕГАИС'
         idType, note
 
     OBJECTS p = ActWriteOffPosition
-    PROPERTIES(p) idProduct, fullNameProduct, idF2Reg, overQuantity ON CHANGE changeOverQuantity(p), sumSale,
-        NEW, delete
+    PROPERTIES(p) idProduct, fullNameProduct, idF2Reg, overQuantity ON CHANGE changeOverQuantity(p) READONLYIF skipDataQuantity(p), sumSale,
+        NEW, delete LAST 
     FILTERS actWriteOff(p) = w
 
     OBJECTS m = ActWriteOffMark
@@ -136,7 +136,7 @@ show 'Просмотреть' (ActWriteOff w) {
     NEWSESSION{
         SHOW actWriteOff OBJECTS w = w DOCKED READONLY;
     }
-}
+} TOOLBAR;
 
 showToShow = ABSTRACT VALUE BOOLEAN (ActWriteOff);
 hideEdit = ABSTRACT VALUE BOOLEAN (ActWriteOff);

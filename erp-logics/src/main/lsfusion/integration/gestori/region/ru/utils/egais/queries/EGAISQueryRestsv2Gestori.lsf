@@ -8,3 +8,17 @@ EXTEND FORM inDocs
     EXTEND FILTERGROUP filterDocType
         FILTER 'Запрос остатков' docType(d) == DocType.ReplyRests_v2 OR docType(d) == DocType.ReplyRests_Mini
 ;
+
+createActChargeOnBYQueryRest 'Формировать акт постановки при запросе остатков из ЕГАИС' = DATA BOOLEAN ();
+
+EXTEND FORM integrationData
+    PROPERTIES createActChargeOnBYQueryRest()
+;
+
+DESIGN integrationData {
+    EGAISParams {
+        MOVE PROPERTY(createActChargeOnBYQueryRest());
+    }
+}
+
+skipCreateActChargeOn(InDoc d) += d IS InDoc AND NOT createActChargeOnBYQueryRest();

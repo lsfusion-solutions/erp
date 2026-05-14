@@ -12,34 +12,37 @@ DESIGN actChargeOns {
 
 @defineInDocsFilterDocType(ActInventoryInformF2Reg, 'Уведомление постановки на баланс');
 
-checkConditions(ActChargeOn w) += 'Дата/время акта должна быть не старше трех дней от текущей даты/времени'
-    IF secondsBetweenDates(currentDateTime(), dateTime(w)) > 3*86400;
+checkConditions(ActChargeOn a) += 'Дата/время акта должна быть не старше трех дней от текущей даты/времени'
+    IF secondsBetweenDates(currentDateTime(), dateTime(a)) > 3*86400;
 
-checkConditions(ActChargeOn w) += 'Дата/время акта должна быть не больше текущей даты/времени'
-    IF dateTime(w) > currentDateTime();
+checkConditions(ActChargeOn a) += 'Дата/время акта должна быть не больше текущей даты/времени'
+    IF dateTime(a) > currentDateTime();
 
-minPosition(ActChargeOn w) = GROUP MIN ActChargeOnPosition p BY actChargeOn(p);
-checkConditions(ActChargeOn w) += 'Отсутствуют записи в спецификации'
-    IF w IS ActChargeOn AND NOT minPosition(w);
+minPosition(ActChargeOn a) = GROUP MIN ActChargeOnPosition p BY actChargeOn(p);
+checkConditions(ActChargeOn a) += 'Отсутствуют записи в спецификации'
+    IF a IS ActChargeOn AND NOT minPosition(a);
 
-wrangQuantity (ActChargeOnPosition p) = NOT overQuantity(p) == quantity(p) IF quantity(p);
-wrangQuantity (ActChargeOn w) = GROUP MIN ActChargeOnPosition p BY actChargeOn(p) IF wrangQuantity(p);
-checkConditions(ActChargeOn w) += 'Количество кодов маркировки не соответствует количеству по позиции акта'
-    IF wrangQuantity(w);
+wrangQuantity (ActChargeOnPosition p) = NOT overQuantity(p) == markQuantity(p) IF markQuantity(p);
+wrangQuantity (ActChargeOn a) = GROUP MIN ActChargeOnPosition p BY actChargeOn(p) IF wrangQuantity(p);
+checkConditions(ActChargeOn a) += 'Количество кодов маркировки не соответствует количеству по позиции акта'
+    IF wrangQuantity(a);
 
-hideEdit(ActChargeOn a) += TRUE IF forbidEditSendDocument() AND notRejected(actChargeOnOutDoc(a)) AND NOT canceled(a);
-hideDelete(ActChargeOn a) += TRUE IF forbidEditSendDocument() AND notRejected(actChargeOnOutDoc(a)) AND NOT canceled(a);
+checkConditions(ActChargeOn a) += 'Для документа не задана организация'
+    IF NOT client(a);
+
+hideEdit(ActChargeOn a) += TRUE IF forbidEditSendDocument() AND notRejected(actChargeOnOutDoc(a));
+hideDelete(ActChargeOn a) += TRUE IF forbidEditSendDocument() AND notRejected(actChargeOnOutDoc(a));
 
 CONSTRAINT DROPPED(ActChargeOn a IS ActChargeOn) AND NOT disableEGAISDocumentConstraints()
-    AND notRejected(actChargeOnOutDoc(a)) AND NOT canceled(a)
+    AND notRejected(actChargeOnOutDoc(a))
     MESSAGE 'Запрещено удалять акт постановки на баланс после отправки в ЕГАИС';
 
 CONSTRAINT (DROPCHANGED(number(ActChargeOn a)) OR DROPCHANGED(dateTime(a)) OR DROPCHANGED(regId(a))
     OR CHANGED(type(a)) OR DROPCHANGED(client(a)))
-    AND notRejected(actChargeOnOutDoc(a)) AND NOT canceled(a) AND NOT disableEGAISDocumentConstraints()
+    AND notRejected(actChargeOnOutDoc(a)) AND NOT disableEGAISDocumentConstraints()
     MESSAGE 'Запрещено изменять атрибуты акта постановки на баланс после отправки в ЕГАИС';
 
-CONSTRAINT (SETCHANGED(product(ActChargeOnPosition p)) OR SETCHANGED(f2Reg(p)) OR SETCHANGED(overQuantity(p))
+CONSTRAINT (SETCHANGED(product(ActChargeOnPosition p)) OR SETCHANGED(overQuantity(p)) // OR SETCHANGED(f2Reg(p)) меняется уведомлением
     OR SETCHANGED(sumSale(p)) OR SETCHANGED(quantityBatch(p)) OR SETCHANGED(bottlingDate(p)) OR SETCHANGED(originalDocNumber(p))
     OR SETCHANGED(originalDocDate(p)) OR SETCHANGED(egaisFixNumber(p)) OR SETCHANGED(egaisFixDate(p))
     OR DROPPED(product(p)) OR DROPPED(f2Reg(p)) OR DROPPED(overQuantity(p))
@@ -47,10 +50,10 @@ CONSTRAINT (SETCHANGED(product(ActChargeOnPosition p)) OR SETCHANGED(f2Reg(p)) O
     OR DROPPED(originalDocNumber(p)) OR DROPPED(originalDocDate(p)) OR DROPPED(egaisFixNumber(p))
     OR DROPPED(egaisFixDate(p)) OR DROPPED(p IS ActChargeOnPosition))
     AND notRejected(actChargeOnOutDoc(actChargeOn(p)))
-    AND NOT canceled(p) AND NOT disableEGAISDocumentConstraints()
+    AND NOT disableEGAISDocumentConstraints()
     MESSAGE 'Запрещено изменять атрибуты строки акта постановки на баланс после отправки в ЕГАИС';
 
 CONSTRAINT (SETDROPPED(ActChargeOnMark m IS ActChargeOnMark) OR DROPCHANGED(markCode(m)))
     AND notRejected(actChargeOnOutDoc(actChargeOn(actChargeOnPosition(m))))
-    AND NOT canceled(m) AND NOT disableEGAISDocumentConstraints()
+    AND NOT disableEGAISDocumentConstraints()
     MESSAGE 'Запрещено изменять марки акта постановки на баланс после отправки в ЕГАИС';

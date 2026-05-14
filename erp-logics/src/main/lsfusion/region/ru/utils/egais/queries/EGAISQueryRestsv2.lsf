@@ -96,6 +96,7 @@ postActChargeOnRests 'Проводить постановку на баланс 
 
 processReplyRests_v2 ABSTRACT LIST(InDoc);
 
+skipCreateActChargeOn = ABSTRACT BOOLEAN (InDoc);
 process (InDoc d) + {
     IF docType(d) = DocType.ReplyRests_v2 THEN {
         NEWSESSION {
@@ -116,7 +117,7 @@ process (InDoc d) + {
                 client(r) <- OVERRIDE client(outDoc(d)), (GROUP  MAX Client c IF utm(c)==utm(d) AND own(c));
             }
             
-            NEW a = ActChargeOn {
+            IF NOT skipCreateActChargeOn(d) THEN NEW a = ActChargeOn {
                 client(a) <- OVERRIDE client(outDoc(d)), (GROUP  MAX Client c IF utm(c)==utm(d) AND own(c));
                 dateTime(a) <- restsDate();
                 posted(a) <- postActChargeOnRests();
@@ -240,7 +241,7 @@ process (InDoc d) + {
                 client(r) <- OVERRIDE client(outDoc(d)), (GROUP  MAX Client c IF utm(c)==utm(d) AND own(c));
             }
 
-            NEW a = ActChargeOn {
+            IF NOT skipCreateActChargeOn(d) THEN NEW a = ActChargeOn {
                 client(a) <- OVERRIDE client(outDoc(d)), (GROUP  MAX Client c IF utm(c)==utm(d) AND own(c));
                 dateTime(a) <- restsDate();
                 posted(a) <- postActChargeOnRests();

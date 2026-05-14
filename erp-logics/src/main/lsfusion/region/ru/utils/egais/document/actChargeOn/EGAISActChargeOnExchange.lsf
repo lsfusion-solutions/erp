@@ -110,6 +110,7 @@ EXTEND FORM actChargeOns
 ;
 
 //Уведомление о постановке на баланс
+
 CLASS ActInventoryInform 'Уведомление о постановке на баланс';
 
 inDoc = DATA InDoc (ActInventoryInform) INDEXED;
@@ -122,44 +123,44 @@ docType 'Тип документа' = DATA STRING (ActInventoryInform);
 
 EXTEND CLASS DocType { ActInventoryInformF2Reg 'Уведомление о постановке на баланс' }
 
-
-GROUP actInventoryInformF2Reg EXTID 'ns:ActInventoryInformF2Reg';
-GROUP headerInform EXTID 'aint:Header' : actInventoryInformF2Reg;
-GROUP contentInform EXTID 'aint:Content' : actInventoryInformF2Reg;
-
-GROUP informF2 EXTID 'aint:InformF2';
+// import
+GROUP actinventoryinformf2reg EXTID 'ns:ActInventoryInformF2Reg' : document;
+GROUP headerInform EXTID 'aint:Header' : actinventoryinformf2reg;
+GROUP contentInform EXTID 'aint:Content' : actinventoryinformf2reg;
+GROUP positionInform EXTID 'aint:Position';
+GROUP informf2 EXTID 'aint:InformF2';
+GROUP informf2item EXTID 'aint:InformF2Item' : informf2;
 
 FSRARIDInform = DATA LOCAL STRING();
 actRegId = DATA LOCAL STRING();
 number = DATA LOCAL STRING();
 identityF1Inform = DATA LOCAL STRING(INTEGER);
 informF1RegIdInform = DATA LOCAL STRING(INTEGER);
-positionInformF2Item = DATA LOCAL INTEGER(INTEGER);
 identityF2Inform = DATA LOCAL STRING(INTEGER);
 f2RegId = DATA LOCAL STRING(INTEGER);
-informF2Item = DATA LOCAL STRING(INTEGER);
 
-FORM actInventoryInform FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01'
-    PROPERTIES ATTR    
-    ='http://fsrar.ru/WEGAIS/ActInventoryInformF2Reg' EXTID 'xmlns:aint',
-    ='http://fsrar.ru/WEGAIS/ProductRef_v2' EXTID 'xmlns:pref',
-    ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
-    
-    PROPERTIES() IN headerInform 
-        actRegId EXTID 'aint:ActRegId', 
+FORM actInventoryInform FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:Documents'
+    PROPERTIES ATTR = '1.0' EXTID 'Version'
+    PROPERTIES() IN owner
+        FSRARIDInform EXTID 'ns:FSRAR_ID'
+
+    PROPERTIES() IN headerInform
+        actRegId EXTID 'aint:ActRegId',
         number EXTID 'aint:Number'
 
-    OBJECTS position = INTEGER EXTID 'aint:Position' IN contentInform
-    PROPERTIES (position)
-        identityF1Inform EXTID 'aint:Identity', 
-        informF1RegIdInform EXTID 'aint:InformF1RegId'
+    OBJECTS positionInform = INTEGER EXTID 'aint:Position' IN contentInform
 
-    OBJECTS informF2Item = INTEGER EXTID 'aint:InformF2Item' IN informF2
-    PROPERTIES(informF2Item)   
-        identityF2Inform EXTID 'aint:Identity',
-        f2RegId EXTID 'aint:F2RegId'
-    FILTERS positionInformF2Item(informF2Item) == position
+    PROPERTIES(positionInform)
+    identityF1Inform EXTID 'aint:Identity',
+    informF1RegIdInform EXTID 'aint:InformF1RegId'
+    
+    PROPERTIES(positionInform) IN informf2item
+    identityF2Inform EXTID 'aint:Identity',
+    f2RegId EXTID 'aint:F2RegId'
+    
+    FILTERS imported(positionInform)
 ;
+
 
 processActInventoryInform ABSTRACT LIST(InDoc);
 
@@ -171,6 +172,7 @@ process (InDoc d) + {
             stringToFile(document(d));
             IMPORT actInventoryInform XML FROM resultFile();
 
+            
             NEW a = ActInventoryInform {
                 inDoc(a) <- d;
                 outDoc(a) <- outDoc(d);
@@ -184,12 +186,12 @@ process (InDoc d) + {
 
                 FOR INTEGER j = [GROUP MIN INTEGER i BY f2RegId(i)](STRING idF2) AND NOT f2Reg(idF2) DO NEW r = F2Reg {
                     id(r) <- idF2;
-                    f1Reg(r) <- f1Reg(informF1RegIdInform(positionInformF2Item(j)));
+                    f1Reg(r) <- f1Reg(informF1RegIdInform(j));
                     client(r) <- OVERRIDE client(FSRARIDInform()), (GROUP MAX Client c IF utm(c) == utm(d) AND own(c));
                 }
 
                 FOR INTEGER j = [GROUP MIN INTEGER i BY identityF2Inform(i)](STRING id) DO {
-                    f2Reg(actChargeOnPosition(LONG(id))) <- f2Reg(f2RegId(positionInformF2Item(j)));
+                    f2Reg(actChargeOnPosition(LONG(id))) <- f2Reg(f2RegId(j));
                 }
                 
                 waitActInventoryInform(actChargeOn[ActChargeOnOutDoc](outDoc(a))) <- NULL;

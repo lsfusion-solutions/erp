@@ -9,7 +9,7 @@ numberOriginalDocument 'Номер документа системы' = ABSTRACT
 dateOriginalDocument 'Дата документа системы' = ABSTRACT CASE DATE (ActWriteOff);
 
 dataSaleDateTime 'Дата и время продажи' = DATA DATETIME (ActWriteOff);
-dataSaleDateTime(ActWriteOff a) <- currentDateTime() WHEN SET(a IS ActWriteOff);
+//dataSaleDateTime(ActWriteOff a) <- currentDateTime() WHEN SET(a IS ActWriteOff);
 dataSaleDate 'Дата продажи' (ActWriteOff a) = DATE(dataSaleDateTime(a));
 
 stockClientName 'Склад организации' (ActWriteOff w) = name(stock(client(w))) IN id;
@@ -48,11 +48,35 @@ unpost 'Распровести' (ActWriteOff o)  {
     NEWSESSION { posted(o) <- NULL; apply(); }
 } TOOLBAR CONFIRM;
 
-edit 'Редактировать' (ActWriteOff o)  {
+edit 'Редактировать (адм.доступ)' (ActWriteOff o)  {
     NEWSESSION {
         SHOW actWriteOff OBJECTS w = o DOCKED;
     }
 } TOOLBAR CONFIRM IMAGE 'edit.png';
+
+copy 'Копировать' (ActWriteOff a) {
+    NEWSESSION {
+        NEW na = ActWriteOff {
+            client(na) <- client(a);
+            dateTime(na) <- dateTime(a);
+            type(na) <- type(a);
+
+            FOR actWriteOff(ActWriteOffPosition ad) == a NEW d = ActWriteOffPosition DO {
+                actWriteOff(d) <- na;
+                f2Reg(d) <- f2Reg(d);
+                product(d) <- product(ad);
+                dataQuantity(d) <- dataQuantity(ad);
+
+                FOR actWriteOffPosition(ActWriteOffMark am) == ad NEW m = ActWriteOffMark DO {
+                    actWriteOffPosition(m) <- d;
+                    markCode(m) <- markCode(am);
+                }
+            }
+
+            SHOW actWriteOff OBJECTS w = na;
+        }
+    }
+} TOOLBAR;
 
 readonlyDescriptionClient() += TRUE;
 
@@ -93,6 +117,8 @@ processInputIdMarkCode(ActWriteOff w, ActWriteOffPosition p, STRING[200] s) {
         actWriteOffPosition(m) <- position();
         markCode(m) <- markCode();
     }
+    
+    dataQuantity(position()) <- NULL;
 
     seek(position());
 }
@@ -125,8 +151,8 @@ EXTEND FORM actWriteOffs
     PROPERTIES (dFrom, dTo) createActWriteOff
     PROPERTIES (d) post SHOWIF NOT posted(d), unpost SHOWIF posted(d)
 
-    PROPERTIES (d) edit SHOWIF showToShow(d) AND NOT hideEdit(d)
-    PROPERTIES (d) READONLY dataSaleDateTime AFTER dateTime(d), stockClientName AFTER shortNameClient(d)
+    PROPERTIES (d) edit SHOWIF showToShow(d) AND NOT hideEdit(d), copy
+    PROPERTIES (d) READONLY dataSaleDate AFTER dateTime(d), stockClientName AFTER shortNameClient(d)
     
     PROPERTIES (p) READONLY idEgais
 ;
@@ -155,7 +181,7 @@ DESIGN actWriteOffs {
 }
 
 EXTEND FORM actWriteOff
-    PROPERTIES (w) READONLY dataSaleDateTime
+    PROPERTIES (w) READONLY dataSaleDate
     PROPERTIES (p) READONLY idEgais
 ;
 
@@ -174,6 +200,11 @@ CONSTRAINT client(ActWriteOff a) AND NOT stock(client(a))
 CONSTRAINT product(ActWriteOffPosition d) AND f2Reg(d) AND NOT product(f2Reg(d)) == product(d)
     CHECKED BY f2Reg[ActWriteOffPosition]
     MESSAGE 'Для строки акта списания с баланса ЕГАИС справка Б должна соответствовать продукции';
+
+countPositionSameF2Reg (ActWriteOffPosition p) =
+    GROUP SUM 1 IF f2Reg(ActWriteOffPosition pp) == f2Reg(p) AND actWriteOff(pp) == actWriteOff(p);
+CONSTRAINT (SETCHANGED(f2Reg(ActWriteOffPosition p))) AND countPositionSameF2Reg(p) > 1
+    MESSAGE 'Запрещено наличие несколько позиций с одной справкой Б в документе';
 
 WHEN LOCAL FORMS actWriteOff CHANGED ( idF2Reg(ActWriteOffPosition d)) AND NOT (product(d)) DO {
     product(d) <- product(f2Reg(d));

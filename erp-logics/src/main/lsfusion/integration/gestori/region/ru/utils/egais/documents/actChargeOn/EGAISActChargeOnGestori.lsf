@@ -4,6 +4,12 @@ REQUIRE EGAISActChargeOn, EGAISActChargeOnTypeGestori, EGAISStock, EGAISItem, Lo
 
 NAMESPACE EGAIS;
 
+dataSaleReturnDateTime 'Дата и время возврата' = DATA DATETIME (ActChargeOn);
+//dataSaleReturnDateTime(ActChargeOn a) <- currentDateTime() WHEN SET(a IS ActChargeOn);
+dataSaleReturnDate 'Дата возврата' (ActChargeOn a) = DATE(dataSaleReturnDateTime(a));
+
+stockClientName 'Склад организации' (ActChargeOn a) = name(stock(client(a))) IN id;
+
 overQuantityBatch(ActChargeOnPosition p) += quantityBatch(f1Reg(f2Reg(p)));
 overBottlingDate(ActChargeOnPosition p) += bottlingDate(f1Reg(f2Reg(p)));
 overOriginalDocNumber(ActChargeOnPosition p) += originalDocNumber(f1Reg(f2Reg(p)));
@@ -19,13 +25,45 @@ unpost 'Распровести' (ActChargeOn o)  {
     NEWSESSION { posted(o) <- NULL; apply(); }
 } TOOLBAR CONFIRM;
 
-edit 'Редактировать' (ActChargeOn o)  {
+edit 'Редактировать (адм.доступ)' (ActChargeOn o)  {
     NEWSESSION {
         SHOW actChargeOn OBJECTS a = o DOCKED;
     }
 } TOOLBAR CONFIRM IMAGE 'edit.png';
 
+copy 'Копировать' (ActChargeOn a) {
+    NEWSESSION {
+        NEW na = ActChargeOn {
+            client(na) <- client(a);
+            dateTime(na) <- dateTime(a);            
+            type(na) <- type(a);
+            
+            FOR actChargeOn(ActChargeOnPosition ad) == a NEW d = ActChargeOnPosition DO {
+                actChargeOn(d) <- na;
+                product(d) <- product(ad);
+                f2Reg(d) <- f2Reg(ad);
+                quantity(d) <- quantity(ad);
+                dataQuantityBatch(d) <- dataQuantityBatch(ad);
+                dataBottlingDate(d) <- dataBottlingDate(ad);
+                dataOriginalDocNumber(d) <- dataOriginalDocNumber(ad);
+                dataOriginalDocDate(d) <- dataOriginalDocDate(ad);
+                dataEgaisFixNumber(d) <- dataEgaisFixNumber(ad);
+                dataEgaisFixDate(d) <- dataEgaisFixDate(ad);
+
+                FOR actChargeOnPosition(ActChargeOnMark am) == ad NEW m = ActChargeOnMark DO {
+                    actChargeOnPosition(m) <- d;
+                    markCode(m) <- markCode(am);
+                }
+            }
+
+            SHOW actChargeOn OBJECTS a = na;
+        }
+    }
+} TOOLBAR;
+
 readonlyDescriptionClientActChargeOn() += TRUE;
+
+skipQuantity(ActChargeOnPosition p) += TRUE IF markQuantity(p);
 
 in (ActChargeOn w, MarkCode c) = GROUP MIN TRUE BY actChargeOn(actChargeOnPosition(ActChargeOnMark m)), markCode(m);
 
@@ -65,6 +103,7 @@ processInputIdMarkCode(ActChargeOn w, ActChargeOnPosition p, STRING[200] s) {
         markCode(m) <- markCode();
     }
 
+    quantity(position()) <- NULL;
     seek(position());
 }
 
@@ -88,7 +127,8 @@ addMarkCodeInputIdMarkCode 'Ввод кода маркировки :' (ActCharge
 
 EXTEND FORM actChargeOns 
     PROPERTIES (d) post SHOWIF NOT posted(d), unpost SHOWIF posted(d)
-    PROPERTIES (d) edit SHOWIF showToShow(d)
+    PROPERTIES (d) edit SHOWIF showToShow(d), copy
+    PROPERTIES (d) READONLY dataSaleReturnDate AFTER dateTime(d), stockClientName AFTER shortNameClient(d)
 ;
 
 DESIGN actChargeOns {
@@ -110,6 +150,7 @@ WHEN LOCAL FORMS actChargeOn CHANGED ( idF2Reg(ActChargeOnPosition d)) AND NOT (
 }
 
 EXTEND FORM actChargeOn
+    PROPERTIES (a) READONLY dataSaleReturnDate
     PROPERTIES (a) DRAW m  addMarkCodeInputIdMarkCode SHOWIF NOT minActChargeOnPosition(a)
     PROPERTIES (p) DRAW m  addMarkCodeInputIdMarkCode SHOWIF minActChargeOnPosition(a)
     PROPERTIES idF2Reg 'Справка Б' = idF2Reg(p) AFTER fullNameProduct(p) NOSELECT 
