@@ -2547,6 +2547,33 @@ FORM replaceToItemGroupDialog 'Соответствие групп для пер
 overReplaceToItemGroup ABSTRACT LIST (CustomGroup, ItemGroup);
 overChangeItemGroup ABSTRACT LIST (CustomGroupType);
 
+dataReplaceToItemGroup(CustomGroup g, ItemGroup ng) {
+    pieceNumerator(ng) <- pieceNumerator(itemGroup(g));
+    userShowCaption(ng) <- userShowCaption(itemGroup(g));
+    userShowUOM(ng) <- userShowUOM(itemGroup(g));
+    userShowBrand(ng) <- userShowBrand(itemGroup(g));
+    userShowCountry(ng) <- userShowCountry(itemGroup(g));
+    userShowManufacturer(ng) <- userShowManufacturer(itemGroup(g));
+    userShowComposition(ng) <- userShowComposition(itemGroup(g));
+    userShowSplit(ng) <- userShowSplit(itemGroup(g));
+    userShowFixedPrice(ng) <- userShowFixedPrice(itemGroup(g));
+    userShowPriceSegment(ng) <- userShowPriceSegment(itemGroup(g));
+    userShowBanPurchase(ng) <- userShowBanPurchase(itemGroup(g));
+    userShowConditionStorage(ng) <- userShowConditionStorage(itemGroup(g));
+    userShowOriginalCaption(ng) <- userShowOriginalCaption(itemGroup(g));
+    userShowOriginalComposition(ng) <- userShowOriginalComposition(itemGroup(g));
+    userShowNetWeight(ng) <- userShowNetWeight(itemGroup(g));
+    userShowGrossWeight(ng) <-userShowGrossWeight(itemGroup(g));
+    userShowExpiry(ng) <- userShowExpiry(itemGroup(g));
+    dataCaption(ng) <- prevCaption(itemGroup(g));
+    dataUOM(ng) <- prevUOM(itemGroup(g));
+    dataRequired(ItemAttribute ia, ng) <- OVERRIDE dataRequired(ia,itemGroup(g)), PREV(nearestRequired(ia,itemGroup(g)));
+    dataNumberInName(ItemAttribute ia, ng) <- OVERRIDE dataNumberInName(ia,itemGroup(g)), PREV(nearestNumberInName(ia,itemGroup(g)));
+    dataNumberInNameCashRegister(ItemAttribute ia, ng) <- OVERRIDE dataNumberInNameCashRegister(ia,itemGroup(g)), PREV(nearestNumberInNameCashRegister(ia,itemGroup(g)));
+    dataNumberInNameScales(ItemAttribute ia, ng) <- OVERRIDE dataNumberInNameScales(ia,itemGroup(g)), PREV(nearestNumberInNameScales(ia,itemGroup(g)));
+    dataCustomGroup(CustomGroupType cgt, ng) <- prevCustomGroup(cgt,itemGroup(g));
+}
+
 overOkReplaceToItemGroupDialog 'OK' (CustomGroupType t) {
     IF (GROUP SUM 1 IF customGroupType(CustomGroup g) == t AND NOT itemGroup(g)) THEN
         ASK 'Не для всех групп задано соответствие. Хотите продолжить замену?' DO {
@@ -2560,30 +2587,7 @@ overOkReplaceToItemGroupDialog 'OK' (CustomGroupType t) {
         parent(ng) <- IF id(parent(g)) == 'Все' THEN itemGroup('Все') ELSE itemGroup('tst_' + id(parent(g)));
         order(ng) <- order(g);
 
-        pieceNumerator(ng) <- pieceNumerator(itemGroup(g));
-        userShowCaption(ng) <- userShowCaption(itemGroup(g));
-        userShowUOM(ng) <- userShowUOM(itemGroup(g));
-        userShowBrand(ng) <- userShowBrand(itemGroup(g));
-        userShowCountry(ng) <- userShowCountry(itemGroup(g));
-        userShowManufacturer(ng) <- userShowManufacturer(itemGroup(g));
-        userShowComposition(ng) <- userShowComposition(itemGroup(g));
-        userShowSplit(ng) <- userShowSplit(itemGroup(g));
-        userShowFixedPrice(ng) <- userShowFixedPrice(itemGroup(g));
-        userShowPriceSegment(ng) <- userShowPriceSegment(itemGroup(g));
-        userShowBanPurchase(ng) <- userShowBanPurchase(itemGroup(g));
-        userShowConditionStorage(ng) <- userShowConditionStorage(itemGroup(g));
-        userShowOriginalCaption(ng) <- userShowOriginalCaption(itemGroup(g));
-        userShowOriginalComposition(ng) <- userShowOriginalComposition(itemGroup(g));
-        userShowNetWeight(ng) <- userShowNetWeight(itemGroup(g));
-        userShowGrossWeight(ng) <-userShowGrossWeight(itemGroup(g));
-        userShowExpiry(ng) <- userShowExpiry(itemGroup(g));
-        dataCaption(ng) <- prevCaption(itemGroup(g));
-        dataUOM(ng) <- prevUOM(itemGroup(g));
-        dataRequired(ItemAttribute ia, ng) <- OVERRIDE dataRequired(ia,itemGroup(g)), PREV(nearestRequired(ia,itemGroup(g)));
-        dataNumberInName(ItemAttribute ia, ng) <- OVERRIDE dataNumberInName(ia,itemGroup(g)), PREV(nearestNumberInName(ia,itemGroup(g)));
-        dataNumberInNameCashRegister(ItemAttribute ia, ng) <- OVERRIDE dataNumberInNameCashRegister(ia,itemGroup(g)), PREV(nearestNumberInNameCashRegister(ia,itemGroup(g)));
-        dataNumberInNameScales(ItemAttribute ia, ng) <- OVERRIDE dataNumberInNameScales(ia,itemGroup(g)), PREV(nearestNumberInNameScales(ia,itemGroup(g)));
-        dataCustomGroup(CustomGroupType cgt, ng) <- prevCustomGroup(cgt,itemGroup(g));
+        dataReplaceToItemGroup(g,ng);
 
         overReplaceToItemGroup(g,ng);
 
