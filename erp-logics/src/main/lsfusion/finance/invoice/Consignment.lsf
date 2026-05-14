@@ -305,6 +305,9 @@ overPackQuantityConsignmentDetail 'Общее количество грузов�
     packQuantityConsignmentDetail(consignment);
 
 printAllConsignmentDetail = ABSTRACT BOOLEAN();
+readonlyIndex = ABSTRACT BOOLEAN(Consignment);
+readonlyPrice = ABSTRACT BOOLEAN(Consignment);
+readonlySum = ABSTRACT BOOLEAN(Consignment);
 
 FORM consignment 'Атрибуты накладной'
     OBJECTS c = Consignment PANEL
@@ -313,8 +316,8 @@ FORM consignment 'Атрибуты накладной'
                   addressSupplier READONLY, addressCustomer READONLY, fullNameSupplier READONLY, fullNameCustomer READONLY
     
     OBJECTS d = ConsignmentDetail
-    PROPERTIES(d) order, index
-    PROPERTIES(d) nameSku READONLY, shortNameUOM READONLY, quantity, price, sum
+    PROPERTIES(d) order, index READONLYIF readonlyIndex(c)
+    PROPERTIES(d) nameSku READONLY, shortNameUOM READONLY, quantity, price READONLYIF readonlyPrice(c), sum READONLYIF readonlySum(c)
     ORDERS order(d), index(d)
 
     FILTERS IF NOT printAllConsignmentDetail() THEN consignment(d) == c ELSE TRUE,
