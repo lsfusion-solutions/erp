@@ -11,7 +11,7 @@ canceled 'Отменен' = DATA BOOLEAN (ActFixBarCode);
 number 'Номер' = DATA STRING (ActFixBarCode) IN id;
 number(ActFixBarCode a) <- STRING(a) WHEN SET(a IS ActFixBarCode);
 
-dateTime 'Время' = DATA DATETIME (ActFixBarCode) IN id;
+dateTime 'Дата и время' = DATA DATETIME (ActFixBarCode) IN id;
 dateTime(ActFixBarCode a) <- currentDateTime() WHEN SET(a IS ActFixBarCode);
 
 date 'Дата' (ActFixBarCode a) = DATE(dateTime(a));
@@ -71,6 +71,8 @@ idF2Reg 'Справка Б' (ActFixBarCodeMark p) = idF2Reg(actFixBarCodePositio
 markCode 'Код маркировки' = DATA MarkCode (ActFixBarCodeMark) NONULL INDEXED;
 idMarkCode 'Код маркировки' (ActFixBarCodeMark m) = id(markCode(m));
 
+minActChargeOnPosition (ActFixBarCode a) = GROUP MIN ActFixBarCodePosition p BY actFixBarCode(p);
+
 INDEX markCode(ActFixBarCodeMark m), actFixBarCodePosition(m);
 actFixBarCodePosition (MarkCode c) = 
         GROUP LAST actFixBarCodePosition(ActFixBarCodeMark m) ORDER m 
@@ -82,10 +84,12 @@ countMarkCodes 'Кол-во марок' (ActFixBarCodePosition p) = GROUP SUM 1 
 
 // header properties
 
+readonlyDescriptionClientActFixBarCode = ABSTRACT BOOLEAN ();
+
 FORM actFixBarCode 'Акт фиксации штрихкодов на балансе ЕГАИС'
     OBJECTS w = ActFixBarCode PANEL
     PROPERTIES(w) posted, canceled, number, dateTime,
-                  shortNameClient, descriptionClient, note
+                  shortNameClient, descriptionClient READONLYIF readonlyDescriptionClientActFixBarCode(), note
 
     OBJECTS p = ActFixBarCodePosition
     PROPERTIES(p) idProduct, fullNameProduct, idF2Reg, countMarkCodes,

@@ -1,6 +1,6 @@
 MODULE EGAISActFixBarCodeGestori;
 
-REQUIRE EGAISActFixBarCode;
+REQUIRE EGAISActFixBarCode, EGAISStock;
 
 NAMESPACE EGAIS;
 
@@ -14,3 +14,103 @@ META defineOriginalLastDocumentActFixBarCodeAttributes(object)
     numberOriginalDocument(ActFixBarCode c) += WHEN last##object(c) THEN number(last##object(c));
     dateOriginalDocument(ActFixBarCode c) += WHEN last##object(c) THEN date(last##object(c));
 END;
+
+readonlyDescriptionClientActFixBarCode() += TRUE;
+
+post 'Провести' (ActFixBarCode a)  {
+    NEWSESSION { posted(a) <- TRUE; apply(); }
+} TOOLBAR CONFIRM;
+
+unpost 'Распровести' (ActFixBarCode a)  {
+    NEWSESSION { posted(a) <- NULL; apply(); }
+} TOOLBAR CONFIRM;
+
+in (ActFixBarCode a, MarkCode c) = GROUP MIN TRUE BY actFixBarCode(actFixBarCodePosition(ActFixBarCodeMark m)), markCode(m);
+
+processInputIdMarkCode(ActFixBarCode a, ActFixBarCodePosition p, STRING[200] s) {
+    LOCAL markCode = MarkCode ();
+    LOCAL position = ActFixBarCodePosition ();
+
+    markCode() <- markCode(s);
+    position() <- p;
+
+    IF NOT markCode() THEN {
+        MESSAGE 'Код маркировки ЕГАИС "' + s + '" не найден' NOWAIT;
+        RETURN;
+    }
+
+    IF in(a, markCode()) THEN {
+        MESSAGE 'Код маркировки ЕГАИС "' + s + '" уже присутствует в этом документе' NOWAIT;
+        RETURN;
+    }
+
+    IF NOT f2Reg(position()) == f2Reg(markCode()) THEN {
+        position() <- GROUP MIN ActFixBarCodePosition ap IF f2Reg(ap) == f2Reg(markCode()) AND actFixBarCode(ap) == a;
+    }
+
+    IF NOT position() IS ActFixBarCodePosition THEN {
+        NEW pos = ActFixBarCodePosition {
+            actFixBarCode(pos) <- a;
+            f2Reg(pos) <- f2Reg(markCode());
+            product(pos) <- product(markCode());
+
+            position() <- pos;
+        }
+    }
+
+    NEW m = ActFixBarCodeMark {
+        actFixBarCodePosition(m) <- position();
+        markCode(m) <- markCode();
+    }
+
+    seek(position());
+}
+
+changeAddMarkCodeInputIdMarkCode(ActFixBarCodePosition p)  {
+    INPUT s = STRING[200] DO {
+        processInputIdMarkCode(actFixBarCode(p), p, s);
+    }
+};
+
+changeAddMarkCodeInputIdMarkCode(ActFixBarCode a)  {
+    INPUT s = STRING[200] DO {
+        processInputIdMarkCode(a, NULL, s);
+    }
+};
+
+addMarkCodeInputIdMarkCode 'Ввод кода маркировки :' (ActFixBarCodePosition p) =
+    DATA LOCAL STRING[200] (ActFixBarCodePosition) TOOLBAR CHARWIDTH 50 CHANGEKEY 'F4;editing=all'
+    EVENTID 'SCANNER' ON CHANGE { changeAddMarkCodeInputIdMarkCode(p); }
+
+addMarkCodeInputIdMarkCode 'Ввод кода маркировки :' (ActFixBarCode a) =
+    DATA LOCAL STRING[200] (ActFixBarCode) TOOLBAR CHARWIDTH 50 CHANGEKEY 'F4;editing=all'
+    EVENTID 'SCANNER' ON CHANGE { changeAddMarkCodeInputIdMarkCode(a); }
+
+EXTEND FORM actFixBarCode
+    PROPERTIES(w) DRAW m  addMarkCodeInputIdMarkCode SHOWIF NOT minActChargeOnPosition(w)
+    PROPERTIES(p) DRAW m  addMarkCodeInputIdMarkCode SHOWIF minActChargeOnPosition(w)
+;
+
+DESIGN actFixBarCode {
+    PROPERTY(descriptionClient(w)) { caption = 'Адрес'; }
+}
+
+EXTEND FORM actFixBarCodes
+    PROPERTIES(d) post SHOWIF NOT posted(d), unpost SHOWIF posted(d)
+;
+
+DESIGN actFixBarCodes {
+    PROPERTY(descriptionClient(d)) { caption = 'Адрес'; }
+}
+
+CONSTRAINT client(ActFixBarCode a) AND NOT stock(client(a))
+    CHECKED BY client[ActFixBarCode]
+    MESSAGE 'Для акта фиксации штрихкодов ЕГАИС доступны только организации, связанные со складами/отделами магазинов системы';
+
+CONSTRAINT product(ActFixBarCodePosition p) AND NOT product(f2Reg(p)) == product(p) AND f2Reg(p)
+    CHECKED BY f2Reg[ActFixBarCodePosition]
+    MESSAGE 'Для строки акта фиксации штрихкодов ЕГАИС справка Б должна соответствовать продукции';
+
+WHEN LOCAL FORMS actFixBarCodes CHANGED(idF2Reg(ActFixBarCodePosition p)) AND NOT (product(p)) DO {
+    product(p) <- product(f2Reg(p));
+}
