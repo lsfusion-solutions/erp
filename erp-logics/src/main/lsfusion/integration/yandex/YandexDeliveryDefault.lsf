@@ -1,0 +1,1138 @@
+MODULE YandexDeliveryDefault;
+
+REQUIRE SaleInternetPickingTerminalOrder, Store, ItemInternet;
+
+NAMESPACE YandexDelivery;
+
+@defineLogRotate(yandexDelivery, 5, weekly);
+
+//настройки Яндекс.Доставка
+tokenYandexDelivery 'Токен Яндекс.Доставка' = DATA STRING ();
+skipClientNotify 'Не отправлять отправителю / получателю смс-нотификации, когда к нему направится курьер' = DATA BOOLEAN ();
+skipDoorToDoor 'Отказ от доставки до двери (курьер доставит заказ только на улицу, до подъезда)' = DATA BOOLEAN ();
+optionalReturnDelivery 'Не требуется возврат товаров в случае отмены заказа' = DATA BOOLEAN ();
+bufferWeightDiff 'Буфер веса для выбора тарифа (в кг)' = DATA NUMERIC[5,3] ();
+skipEmergencyNotify 'Не отправлять нотификации emergency контакту' = DATA BOOLEAN ();
+skipConfirmationClient 'Не требовать подтверждения клиента' = DATA BOOLEAN ();
+commentTextDelivery 'Текст комментария для курьера' = DATA STRING ();
+defaultTaxiClass 'Тариф по умолчанию' = DATA STRING[20] ();
+weightChangeTaxiClass 'Пограничный вес' = DATA INTEGER ();
+enableLogYandexDelivery 'Логировать все запросы ЯндексДоставки' = DATA BOOLEAN ();
+sendSflatDetail 'Отправлять квартиру в sflat' = DATA BOOLEAN ();
+
+logToFileYD(STRING s, STRING t){
+    IF enableLogYandexDelivery() THEN logToFile(s, t);
+}
+
+EXTEND FORM integrationData
+    PROPERTIES () tokenYandexDelivery, skipClientNotify, skipDoorToDoor, skipConfirmationClient, optionalReturnDelivery, sendSflatDetail,
+        bufferWeightDiff, skipEmergencyNotify, commentTextDelivery, defaultTaxiClass, weightChangeTaxiClass, enableLogYandexDelivery
+;
+
+DESIGN integrationData{
+    delivery{
+        NEW yandexDelivery{
+            caption = 'Яндекс.Доставка';
+            MOVE PROPERTY (tokenYandexDelivery());
+            MOVE PROPERTY (skipClientNotify());
+            MOVE PROPERTY (skipDoorToDoor());
+            MOVE PROPERTY (skipConfirmationClient());
+            MOVE PROPERTY (optionalReturnDelivery());
+            MOVE PROPERTY (bufferWeightDiff());
+            MOVE PROPERTY (sendSflatDetail());
+            MOVE PROPERTY (skipEmergencyNotify());
+            MOVE PROPERTY (commentTextDelivery());
+            MOVE PROPERTY (defaultTaxiClass());
+            MOVE PROPERTY (weightChangeTaxiClass());
+            MOVE PROPERTY (enableLogYandexDelivery());
+        }
+    }
+}
+
+//телефон для уведомлений
+phoneNotification 'Телефон для уведовлений(доставка)' = DATA STRING[30] (DepartmentStore);
+
+EXTEND FORM departmentStore
+    PROPERTIES (d) phoneNotification
+;
+DESIGN departmentStore{
+    headerExtraParams{
+        MOVE PROPERTY (phoneNotification(d));
+    }
+}
+
+latitude '{geo.latitude.poi}' = DATA NUMERIC[11,6] (InternetOrder);
+longitude '{geo.longitude.poi}' = DATA NUMERIC[11,6] (InternetOrder);
+delivery 'Доставка' = DATA BOOLEAN (InternetOrder);
+slotDelivery 'Слотовая доставка' = DATA BOOLEAN (InternetOrder);
+detailAddress 'Квартира, подъезд' = DATA STRING (InternetOrder);
+sflat 'Квартира'= DATA STRING (InternetOrder);
+porch 'Подъезд' = DATA STRING (InternetOrder);
+sfloor 'Этаж' = DATA STRING (InternetOrder);
+
+CLASS DeliveryRequest 'Заявка на доставку' ;
+TABLE deliveryRequest (DeliveryRequest);
+
+@defineExternalizable(deliveryRequest, STRING[100]);
+@defineDocumentHeaderTimePrefix(DeliveryRequest, , ' заявки');
+@deriveDocumentHeaderTimePrefix(DeliveryRequest, );
+
+internetOrder = DATA InternetOrder (DeliveryRequest);
+numberInternetOrder 'Интернет-заказ'  (DeliveryRequest r) = number(internetOrder(r));
+
+CLASS StatusDeliveryRequest{
+    new 'Создана',
+    estimating 'Оценка',
+    estimating_failed 'Не удалось оценить',
+    ready_for_approval 'Готова к одобрению',
+    accepted 'Принята',
+    performer_lookup 'Взята в обработку',
+    performer_draft 'Поиск исполнителя',
+    performer_found 'Исполнитель найден',
+    performer_not_found 'Не удалось найти исполнителя',
+    pickup_arrived 'Исполнитель приехал в ПВЗ',
+    ready_for_pickup_confirmation '(ПВЗ)Ожидание кода подтвеждения',
+    pickuped 'Исполнитель успешно забрал груз',
+    delivery_arrived 'Исполнитель приехал в точку назначения',
+    ready_for_delivery_confirmation '(КЛИЕНТ)Ожидание кода подтвеждения',
+    pay_waiting 'оплата_ожидание',
+    delivered 'Успешная доставка',
+    delivered_finish 'Заказ завершен',
+    returning 'Исполнителю пришлось вернуть груз и он едет в точку возврата',
+    return_arrived '(ВОЗВРАТ)Исполнитель приехал в ПВЗ',
+    ready_for_return_confirmation '(ВОЗВРАТ)Ожидание кода подтвеждения',
+    returned 'Груз вернули в ПВЗ',
+    returned_finish '(ВОЗВРАТ)Заказ завершён',
+    failed 'При выполнение заказа произошла ошибка, дальнейшее выполнение невозможно',
+    cancelled 'ОТМЕНА (Бесплатно)',
+    cancelled_with_payment 'Платная отмена',
+    cancelled_by_taxi 'Заказ завершен', //'Исполнитель отменил заказ (до получения груза)',
+    cancelled_with_items_on_hands 'Платная отмена(БЕЗ ВОЗВРАТА)'
+}
+status = DATA StatusDeliveryRequest (DeliveryRequest);
+nameStatus 'Статус' (DeliveryRequest r) = staticCaption(status(r));
+nameStatusName (DeliveryRequest r) = staticName(status(r));
+statusDelivery (STRING id) = GROUP MAX StatusDeliveryRequest s
+    IF staticName(s) == id;
+
+usePerformerLookupRecalculate 'Пересчитывть вес когда заявка в обработке' = DATA BOOLEAN ();
+
+allowRecalculate(DeliveryRequest r) = status(r) = StatusDeliveryRequest.new OR
+    status(r) = StatusDeliveryRequest.ready_for_approval OR
+    status(r) = StatusDeliveryRequest.accepted OR
+    status(r) = StatusDeliveryRequest.performer_draft OR
+    (status(r) = StatusDeliveryRequest.performer_lookup AND usePerformerLookupRecalculate())OR
+    status(r) = StatusDeliveryRequest.cancelled OR
+    status(r) = StatusDeliveryRequest.performer_not_found
+;
+
+//интернет-заказы
+weightPosition (InternetOrderDetail d) = IF pickingQuantity(d) THEN
+    (OVERRIDE grossWeight(sku(d)), 0.5) * pickingQuantity(d)
+    ELSE
+    (OVERRIDE grossWeight(sku(d)), 0.5) * quantity(d)
+;
+
+sumGrossWeight 'Вес заказа' = GROUP SUM weightPosition(InternetOrderDetail d) BY internetOrder(d);
+sumGrossWeight 'Вес заявки' = DATA NUMERIC (DeliveryRequest);
+
+carrierDeliveryWebSite () = GROUP MAX Carrier c IF id(c) = 'yandexDelivery';
+
+classTaxi 'Тариф' (DeliveryRequest d) = IF sumGrossWeight(internetOrder(d)) (-) bufferWeightDiff() >
+    OVERRIDE weightChangeTaxiClass(), 20
+    THEN 'express' ELSE 'courier';
+overTaxiClass (DeliveryRequest r) = OVERRIDE defaultTaxiClass(), classTaxi(r);
+classTaxiName 'Тариф'(DeliveryRequest r) = IF overTaxiClass(r) = 'express' THEN 'Экспресс' ELSE 'Стандарт';
+timeFormat(DATETIME dt) = toChar(dt,'YYYY-MM-DD"T"HH24:MI:SS+03:00');
+due 'Время доставки' (DeliveryRequest r)= dateTimeToDateTime(deliveryDate(internetOrder(r)),
+    deliveryTimeFromInternetOrder(internetOrder(r)));
+confirmationCode 'Код подтверждения' = DATA STRING[50] (DeliveryRequest);
+
+//точки маршрута и курьера
+CLASS ABSTRACT Point 'Точка';
+
+latitude '{geo.latitude.poi}' = DATA NUMERIC[11,6] (Point);
+longitude '{geo.longitude.poi}' = DATA NUMERIC[11,6] (Point);
+
+deliveryRequest = DATA DeliveryRequest (Point) NONULL DELETE;
+name = ABSTRACT STRING (Point);
+
+CLASS Perfomer 'Исполнитель': Point;
+
+performer(DeliveryRequest r) = GROUP MAX Perfomer p IF deliveryRequest(p) = r AND p IS Perfomer;
+
+CLASS RoutePoint 'Точка маршрута' : Point;
+TABLE routePoint (RoutePoint);
+
+comment 'Коментарий' = DATA STRING[100] (RoutePoint);
+fitBounds = DATA BOOLEAN (RoutePoint);
+coordinates 'Координаты' = DATA STRING[100] (RoutePoint);
+fullname 'Адрес' = DATA STRING[400] (RoutePoint);
+sflat 'Квартира' = DATA STRING[100] (RoutePoint);
+porch 'Подъезд' = DATA STRING[100] (RoutePoint);
+sfloor 'Этаж' = DATA STRING[10] (RoutePoint);
+nameContact 'Контакт' = DATA STRING[255] (RoutePoint);
+phone 'Телефон' = DATA STRING[100] (RoutePoint);
+source 'Точка А' = DATA BOOLEAN (RoutePoint);
+type (RoutePoint r) = IF source(r) THEN 'source' ELSE 'destination';
+dataPointId 'Изменить порядок' = DATA INTEGER (RoutePoint);
+pointId (RoutePoint r) = IF source(r) THEN 1 ELSE OVERRIDE dataPointId(r), 2;
+name (RoutePoint r) += CONCAT ' : ', pointId(r) + ' - ', nameContact(r), fullname(r);
+externalOrderId (RoutePoint r) = IF NOT source(r) THEN number(internetOrder(deliveryRequest(r)));
+skipConfirmation(RoutePoint r) = CASE
+    WHEN source(r) THEN TFALSE
+    WHEN NOT source(r) AND skipConfirmationClient() THEN TTRUE
+    WHEN NOT source(r) AND NOT skipConfirmationClient() THEN TFALSE
+;
+
+calculateCoordinates '{geo.calculate.coordinates}'(RoutePoint r) {
+    getCoordinates (CONCAT ',', 'Беларусь', fullname(r));
+    coordinates(r) <- CONCAT '', '[', readLatitude(), ', ', readLongitude(), ']';
+}
+
+createdTime 'Создана' = DATA DATETIME (DeliveryRequest);
+updatedTime 'Обновлена' = DATA DATETIME (DeliveryRequest);
+
+verifyCodeA 'Код подтверждения курьера' = DATA STRING[20] (DeliveryRequest);
+preCost 'Оценка' = DATA NUMERIC[18,4] (DeliveryRequest);
+cost 'Стоимость' = DATA NUMERIC[18,4] (DeliveryRequest);
+
+commentDeliveryRequest (DeliveryRequest r) = replace(commentTextDelivery(), '[phone]',
+    OVERRIDE phoneNotification(supplierStock(internetOrder(r))), '');
+
+isRequest (DeliveryRequest r) = IF r IS DeliveryRequest THEN TRUE;
+
+GROUP address;
+GROUP contact;
+GROUP external_order_cost;
+GROUP client_requirements;
+GROUP size;
+GROUP emergency_contact;
+
+FORM claimsCreate FORMEXTID 'null'
+    OBJECTS c = DeliveryRequest PANEL
+
+    PROPERTIES commentDeliveryRequest(c) EXTID 'comment', = IF isRequest(c) THEN TFALSE EXTID 'skip_act',
+        = IF skipClientNotify() AND isRequest(c) THEN TTRUE ELSE TFALSE EXTID 'skip_client_notify',
+        = IF skipDoorToDoor() AND isRequest(c) THEN TTRUE ELSE TFALSE EXTID 'skip_door_to_door',
+        = IF skipEmergencyNotify() AND isRequest(c) THEN TTRUE ELSE TFALSE EXTID 'skip_emergency_notify',
+        = IF optionalReturnDelivery() AND isRequest(c) THEN TTRUE ELSE TFALSE EXTID 'optional_return',
+        = IF isRequest(c) THEN 'lsFusion ERP' EXTID 'referral_source', = timeFormat(due(c)) EXTID 'due'
+    PROPERTIES IN client_requirements = IF isRequest(c) THEN TFALSE EXTID 'assign_robot',
+        = IF isRequest(c) THEN TFALSE EXTID 'pro_courier', overTaxiClass(c) EXTID 'taxi_class'
+
+    OBJECTS r = RoutePoint EXTID 'route_points'
+    PROPERTIES IN contact nameContact(r) EXTID 'name', phone(r)
+    PROPERTIES IN address fullname(r), coordinates(r), comment(r), = IF r IS RoutePoint AND sflat(r) THEN sflat(r) EXTID 'sflat',
+        porch(r) EXTID 'porch', sfloor(r) EXTID 'sfloor'
+    PROPERTIES IN external_order_cost = IF isRequest(deliveryRequest(r)) THEN 'BYN' EXTID 'currency',
+        = IF isRequest(deliveryRequest(r)) THEN 'BYN' EXTID 'currency_sign',
+        = STRING (round2(sumInternetOrderDetail(internetOrder(deliveryRequest(r))))) EXTID 'value'
+    PROPERTIES type(r), pointId(r) EXTID 'point_id', = OVERRIDE pointId(r) EXTID 'visit_order',
+        skipConfirmation(r) EXTID 'skip_confirmation', externalOrderId(r) EXTID 'external_order_id'
+    FILTERS deliveryRequest(r) = c
+
+    OBJECTS id = InternetOrderDetail EXTID 'items'
+    PROPERTIES nameSku(id) EXTID 'title', = IF id IS InternetOrderDetail THEN 1 EXTID 'quantity', = IF id IS InternetOrderDetail THEN 2 EXTID 'droppof_point',
+        = OVERRIDE STRING(round2(sum(id))) EXTID 'cost_value',
+        = IF id IS InternetOrderDetail THEN 'BYN' EXTID 'cost_currency', = IF id IS InternetOrderDetail THEN 1 EXTID 'pickup_point',
+        //        = (OVERRIDE grossWeight(sku(id)) * quantity(id), 0.5) EXTID 'weight',  
+        = weightPosition(id) EXTID 'weight',
+        = number(internetOrder(id)) + '_' +  index(id) EXTID 'extra_id'
+
+    FILTERS (internetOrder(id) = internetOrder(c) AND weightPosition(id) > 0) OR NOT internetOrder(c)
+;
+
+//импорт заявки
+GROUP performer_info;
+GROUP callback_properties;
+GROUP route_points;
+GROUP payment_on_delivery;
+GROUP customer : payment_on_delivery;
+GROUP visited_at;
+GROUP taxi_offer;
+GROUP carrier_info;
+GROUP items;
+GROUP fiscalization;
+GROUP mark : fiscalization;
+GROUP pricing;
+GROUP offer : pricing;
+GROUP currency_rules : pricing;
+
+assign_robot = DATA LOCAL STRING();
+taxi_class = DATA LOCAL STRING();
+cargo_loaders = DATA LOCAL STRING();
+cargo_options = DATA LOCAL STRING(INTEGER);
+client_requirementsCargo_options = DATA LOCAL INTEGER(INTEGER);
+cargo_type = DATA LOCAL STRING();
+pro_courier = DATA LOCAL STRING();
+skip_client_notify = DATA LOCAL STRING();
+code = DATA LOCAL STRING(INTEGER);
+message = DATA LOCAL STRING(INTEGER);
+car_model = DATA LOCAL STRING();
+park_clid = DATA LOCAL STRING();
+courier_name = DATA LOCAL STRING();
+car_number = DATA LOCAL STRING();
+transport_type = DATA LOCAL STRING();
+car_color = DATA LOCAL STRING();
+legal_name = DATA LOCAL STRING();
+car_color_hex = DATA LOCAL STRING();
+callback_url = DATA LOCAL STRING();
+available_cancel_state = DATA LOCAL STRING();
+building_name = DATA LOCAL STRING(INTEGER);
+country = DATA LOCAL STRING(INTEGER);
+door_code_extra = DATA LOCAL STRING(INTEGER);
+city = DATA LOCAL STRING(INTEGER);
+porch = DATA LOCAL STRING(INTEGER);
+coordinates = DATA LOCAL STRING(INTEGER);
+addressCoordinates = DATA LOCAL INTEGER(INTEGER);
+sflat = DATA LOCAL STRING(INTEGER);
+description = DATA LOCAL STRING(INTEGER);
+shortname = DATA LOCAL STRING(INTEGER);
+uri = DATA LOCAL STRING(INTEGER);
+building = DATA LOCAL STRING(INTEGER);
+doorbell_name = DATA LOCAL STRING(INTEGER);
+sfloor = DATA LOCAL STRING(INTEGER);
+flat = DATA LOCAL STRING(INTEGER);
+street = DATA LOCAL STRING(INTEGER);
+comment = DATA LOCAL STRING(INTEGER);
+fullname = DATA LOCAL STRING(INTEGER);
+floor = DATA LOCAL STRING(INTEGER);
+door_code = DATA LOCAL STRING(INTEGER);
+visit_status = DATA LOCAL STRING(INTEGER);
+client_order_id = DATA LOCAL STRING(INTEGER);
+cost = DATA LOCAL STRING(INTEGER);
+payment_ref_id = DATA LOCAL STRING(INTEGER);
+is_paid = DATA LOCAL STRING(INTEGER);
+payment_method = DATA LOCAL STRING(INTEGER);
+full_name = DATA LOCAL STRING(INTEGER);
+phone = DATA LOCAL STRING(INTEGER);
+inn = DATA LOCAL STRING(INTEGER);
+email = DATA LOCAL STRING(INTEGER);
+type = DATA LOCAL STRING(INTEGER);
+leave_under_door = DATA LOCAL STRING(INTEGER);
+meet_outside = DATA LOCAL STRING(INTEGER);
+return_reasons = DATA LOCAL STRING(INTEGER);
+route_pointsReturn_reasons = DATA LOCAL INTEGER(INTEGER);
+no_door_call = DATA LOCAL STRING(INTEGER);
+pickup_code = DATA LOCAL STRING(INTEGER);
+phone1 = DATA LOCAL STRING(INTEGER);
+name = DATA LOCAL STRING(INTEGER);
+email1 = DATA LOCAL STRING(INTEGER);
+currency_sign = DATA LOCAL STRING(INTEGER);
+currency = DATA LOCAL STRING(INTEGER);
+value = DATA LOCAL STRING(INTEGER);
+external_order_id = DATA LOCAL STRING(INTEGER);
+visit_order = DATA LOCAL STRING(INTEGER);
+actual = DATA LOCAL STRING(INTEGER);
+expected = DATA LOCAL STRING(INTEGER);
+expected_waiting_time_sec = DATA LOCAL STRING(INTEGER);
+id = DATA LOCAL STRING(INTEGER);
+return_comment = DATA LOCAL STRING(INTEGER);
+skip_confirmation = DATA LOCAL STRING(INTEGER);
+eta = DATA LOCAL STRING();
+created_ts = DATA LOCAL STRING();
+shipping_document = DATA LOCAL STRING();
+id1 = DATA LOCAL STRING();
+updated_ts = DATA LOCAL STRING();
+price_raw = DATA LOCAL STRING();
+price = DATA LOCAL STRING();
+offer_id = DATA LOCAL STRING();
+skip_door_to_door = DATA LOCAL STRING();
+optional_return = DATA LOCAL STRING();
+code1 = DATA LOCAL STRING(INTEGER);
+source = DATA LOCAL STRING(INTEGER);
+message1 = DATA LOCAL STRING(INTEGER);
+user_request_revision = DATA LOCAL STRING();
+current_point_id = DATA LOCAL STRING();
+version = DATA LOCAL STRING();
+revision = DATA LOCAL STRING();
+due = DATA LOCAL STRING();
+skip_act = DATA LOCAL STRING();
+address1 = DATA LOCAL STRING();
+inn1 = DATA LOCAL STRING();
+name1 = DATA LOCAL STRING();
+comment1 = DATA LOCAL STRING();
+corp_client_id = DATA LOCAL STRING();
+cargo_type_int = DATA LOCAL STRING(INTEGER);
+door_to_door = DATA LOCAL STRING(INTEGER);
+taxi_class1 = DATA LOCAL STRING(INTEGER);
+cargo_loaders1 = DATA LOCAL STRING(INTEGER);
+cargo_type1 = DATA LOCAL STRING(INTEGER);
+pro_courier1 = DATA LOCAL STRING(INTEGER);
+client_taxi_class = DATA LOCAL STRING(INTEGER);
+extra_id = DATA LOCAL STRING(INTEGER);
+quantity = DATA LOCAL STRING(INTEGER);
+length = DATA LOCAL STRING(INTEGER);
+width = DATA LOCAL STRING(INTEGER);
+height = DATA LOCAL STRING(INTEGER);
+cost_currency = DATA LOCAL STRING(INTEGER);
+droppof_point = DATA LOCAL STRING(INTEGER);
+pickup_point = DATA LOCAL STRING(INTEGER);
+weight = DATA LOCAL STRING(INTEGER);
+cost_value = DATA LOCAL STRING(INTEGER);
+item_type = DATA LOCAL STRING(INTEGER);
+excise = DATA LOCAL STRING(INTEGER);
+supplier_inn = DATA LOCAL STRING(INTEGER);
+vat_code_str = DATA LOCAL STRING(INTEGER);
+article = DATA LOCAL STRING(INTEGER);
+code2 = DATA LOCAL STRING(INTEGER);
+kind = DATA LOCAL STRING(INTEGER);
+title = DATA LOCAL STRING(INTEGER);
+skip_emergency_notify = DATA LOCAL STRING();
+price_raw1 = DATA LOCAL STRING();
+valid_until = DATA LOCAL STRING();
+price1 = DATA LOCAL STRING();
+offer_id1 = DATA LOCAL STRING();
+template = DATA LOCAL STRING();
+code3 = DATA LOCAL STRING();
+sign = DATA LOCAL STRING();
+text = DATA LOCAL STRING();
+final_pricing_calc_id = DATA LOCAL STRING();
+final_price = DATA LOCAL STRING();
+currency1 = DATA LOCAL STRING();
+phone2 = DATA LOCAL STRING();
+name2 = DATA LOCAL STRING();
+status = DATA LOCAL STRING();
+
+FORM getInforequestDelivery
+    PROPERTIES() skip_client_notify, available_cancel_state, eta, created_ts, shipping_document, id1 EXTID 'id',
+        updated_ts, skip_door_to_door, optional_return, user_request_revision, current_point_id, version, revision, due,
+        skip_act, comment1 EXTID 'comment', corp_client_id, skip_emergency_notify, status
+    PROPERTIES() IN client_requirements assign_robot, taxi_class, cargo_loaders, cargo_type, pro_courier
+
+    OBJECTS cargo_options = INTEGER IN client_requirements
+    PROPERTIES(cargo_options) cargo_options EXTID 'value'
+    FILTERS imported(cargo_options)
+
+    OBJECTS error_messages = INTEGER
+    PROPERTIES(error_messages) code, message
+    FILTERS imported(error_messages)
+    PROPERTIES() IN performer_info car_model, park_clid, courier_name, car_number, transport_type, car_color,
+        legal_name, car_color_hex
+    PROPERTIES() IN callback_properties callback_url
+
+    OBJECTS route_points = INTEGER
+
+    PROPERTIES(route_points) visit_status, type, leave_under_door, meet_outside, no_door_call, pickup_code,
+        external_order_id, visit_order, id, return_comment, skip_confirmation
+    PROPERTIES(route_points) IN address building_name, country, door_code_extra, city, porch, sflat, description,
+        shortname, uri, building, doorbell_name, sfloor, flat, street, comment, fullname, floor, door_code
+
+    OBJECTS coordinates = INTEGER IN address
+    PROPERTIES(coordinates) coordinates EXTID 'value'
+    FILTERS addressCoordinates(coordinates) == route_points
+
+    OBJECTS payment_on_delivery = INTEGER
+    PROPERTIES(route_points) IN payment_on_delivery client_order_id, cost, payment_ref_id, is_paid, payment_method
+    PROPERTIES(route_points) IN customer full_name, phone, inn, email
+
+    OBJECTS return_reasons = INTEGER
+    PROPERTIES(return_reasons) return_reasons EXTID 'value'
+    FILTERS imported(return_reasons)
+    FILTERS route_pointsReturn_reasons(return_reasons) == route_points
+    PROPERTIES(route_points) IN contact phone1 EXTID 'phone', name, email1 EXTID 'email'
+    PROPERTIES(route_points) IN external_order_cost currency_sign, currency, value
+    PROPERTIES(route_points) IN visited_at actual, expected, expected_waiting_time_sec
+    PROPERTIES() IN taxi_offer price_raw, price, offer_id
+
+    OBJECTS warnings = INTEGER
+    PROPERTIES(warnings) code1 EXTID 'code', source, message1 EXTID 'message'
+    FILTERS imported(warnings)
+    PROPERTIES() IN carrier_info address1 EXTID 'address', inn1 EXTID 'inn', name1 EXTID 'name'
+
+    OBJECTS matched_cars = INTEGER
+    PROPERTIES(matched_cars) cargo_type_int, door_to_door, taxi_class1 EXTID 'taxi_class', cargo_loaders1 EXTID 'cargo_loaders',
+        cargo_type1 EXTID 'cargo_type', pro_courier1 EXTID 'pro_courier', client_taxi_class
+    FILTERS imported(matched_cars)
+
+    OBJECTS items = INTEGER
+    PROPERTIES(items) extra_id, quantity, cost_currency, droppof_point, pickup_point, weight, cost_value, title
+    PROPERTIES(items) IN size length, width, height
+
+    OBJECTS fiscalization = INTEGER
+    PROPERTIES(items) IN fiscalization item_type, excise, supplier_inn, vat_code_str, article
+    PROPERTIES(items) IN mark code2 EXTID 'code', kind
+    PROPERTIES() IN pricing final_pricing_calc_id, final_price, currency1 EXTID 'currency'
+    PROPERTIES() IN offer price_raw1 EXTID 'price_raw', valid_until, price1 EXTID 'price', offer_id1 EXTID 'offer_id'
+    PROPERTIES() IN currency_rules template, code3 EXTID 'code', sign, text
+    PROPERTIES() IN emergency_contact phone2 EXTID 'phone', name2 EXTID 'name'
+;
+
+
+//обработка заявки
+headersYandexDelivery (STRING s) = CASE
+    WHEN s = 'Authorization' THEN CONCAT ' ', 'Bearer', tokenYandexDelivery()
+    WHEN s = 'Accept-Language' THEN 'ru'
+;
+
+customData = ABSTRACT CASE BOOLEAN (DeliveryRequest);
+customDataExport ABSTRACT LIST (DeliveryRequest);
+
+createClaim 'Создать заявку' (DeliveryRequest c){
+    generateUUID();
+    LOCAL f = FILE ();
+    IF customData(c) THEN customDataExport(c);
+    ELSE EXPORT claimsCreate OBJECTS c = c JSON;
+    fileToString(exportFile());
+    logToFileYD('yandexDelivery', CONCAT ' : ', 'create', id(c), resultString());
+    TRY {
+        timeoutHttp() <- 30000;
+        EXTERNAL HTTP POST 'https://b2b.taxi.yandex.net/b2b/cargo/integration/v2/claims/create?request_id=' + generatedUUID()
+            HEADERS headersYandexDelivery PARAMS exportFile() TO f;
+        IMPORT getInforequestDelivery FROM f();
+        id(c) <- STRING[100](id1());
+        createdTime(c) <- sumMinutes(DATETIME(created_ts()), 180);
+        updatedTime(c) <- sumMinutes(DATETIME(updated_ts()), 180);
+        fileToString(f());
+        logToFileYD('yandexDelivery', CONCAT ' : ', 'createAnswer', id(c), resultString());
+        status(c) <- statusDelivery('YandexDelivery_StatusDeliveryRequest.' + status());
+        //        sumGrossWeight(c) <- sumGrossWeight(internetOrder(c));
+        APPLY;
+    }
+        CATCH {
+        fileToString(f());
+        logToFile('yandexDelivery', CONCAT ' : ', 'createAnswer', id(c), resultString());
+        MESSAGE CONCAT '', messageCaughtException(), resultString();
+    }
+}
+
+
+WHEN SET (number(InternetOrder o) AND carrier(o) = carrierDeliveryWebSite()) DO{
+    NEW d = DeliveryRequest{
+        internetOrder(d) <- o;
+        date(d) <- currentDate();
+        time(d) <- TIME(currentDateTime());
+        sumGrossWeight(d) <- sumGrossWeight(o);
+    }
+}
+
+courrierName 'Курьер' = DATA STRING[50] (DeliveryRequest);
+phoneCourrier 'Телефон' = DATA STRING[50] (DeliveryRequest);
+extraNumber 'Добавочный' = DATA STRING[20] (DeliveryRequest);
+
+name (Perfomer p) += CONCAT ' : ', 'Курьер', courrierName(deliveryRequest(p));
+
+getInfo 'Обновить статус' (DeliveryRequest c) {
+    LOCAL f = FILE();
+    TRY {
+        timeoutHttp() <- 30000;
+        EXTERNAL HTTP POST 'https://b2b.taxi.yandex.net/b2b/cargo/integration/v2/claims/info/?claim_id=' + id(c)
+            HEADERS headersYandexDelivery PARAMS exportFile() TO f;
+        IMPORT getInforequestDelivery FROM f();
+        updatedTime(c) <- sumMinutes(DATETIME(updated_ts()), 180);
+        preCost(c) <- NUMERIC[18,4](price1());
+        status(c) <- statusDelivery('YandexDelivery_StatusDeliveryRequest.' + status());
+        cost(c) <- NUMERIC[18,4](final_price());
+        courrierName(c) <- courier_name() WHERE courier_name();
+        fileToString(f());
+        logToFileYD('yandexDelivery', CONCAT ' : ', 'getInfo', id(c), resultString());
+        APPLY;
+    }
+        CATCH{
+        fileToString(f());
+        logToFile('yandexDelivery', CONCAT ' : ', 'ERROR', 'getInfo', id(c), resultString());
+    }
+}
+
+accept 'Подтвердить'(DeliveryRequest c){
+    LOCAL f = FILE();
+    TRY{
+        EXPORT JSON FROM version = 1;
+        timeoutHttp() <- 30000;
+        EXTERNAL HTTP POST 'https://b2b.taxi.yandex.net/b2b/cargo/integration/v1/claims/accept?claim_id=' + id(c)
+            HEADERS headersYandexDelivery PARAMS exportFile() TO f;
+        IMPORT getInforequestDelivery FROM f();
+        fileToString(f());
+        logToFileYD('yandexDelivery', CONCAT ' : ', 'accept', id(c), resultString());
+        status(c) <- statusDelivery('YandexDelivery_StatusDeliveryRequest.' + status());
+        APPLY;
+    }
+        CATCH{
+        fileToString(f());
+        logToFile('yandexDelivery', CONCAT ' : ', 'ERROR', 'accept', id(c), resultString());
+    }
+}
+
+
+cancel 'Отменить' (DeliveryRequest c, STRING cancelStatus){
+    LOCAL f = FILE();
+    TRY{
+        EXPORT JSON FROM cancel_state = cancelStatus, version = 1;
+        timeoutHttp() <- 30000;
+        EXTERNAL HTTP POST 'https://b2b.taxi.yandex.net/b2b/cargo/integration/v1/claims/cancel/?claim_id=' + id(c)
+            HEADERS headersYandexDelivery PARAMS exportFile() TO f;
+        IMPORT getInforequestDelivery FROM f();
+        fileToString(f());
+        logToFileYD('yandexDelivery', CONCAT ' : ', 'cancel', id(c), resultString());
+        status(c) <- statusDelivery('YandexDelivery_StatusDeliveryRequest.' + status());
+        logToFileYD('yandexDelivery', CONCAT ' : ',  'cancel', nameStatus(c), id(c), resultString());
+        APPLY;
+    }
+        CATCH{
+        fileToString(f());
+        logToFile('yandexDelivery', CONCAT ' : ', 'ERROR', 'cancel', id(c), resultString());
+    }
+}
+
+code = DATA LOCAL STRING ();
+attempts = DATA LOCAL INTEGER ();
+
+FORM confirmationCode
+    PROPERTIES code(), attempts()
+;
+
+requestConfirmationCode 'Код подтверждения' (DeliveryRequest c){
+    LOCAL f = FILE ();
+    TRY{
+        EXPORT JSON FROM claim_id = id(c);
+        timeoutHttp() <- 30000;
+        EXTERNAL HTTP POST 'https://b2b.taxi.yandex.net/b2b/cargo/integration/v2/claims/confirmation_code/'
+            HEADERS headersYandexDelivery PARAMS exportFile() TO f;
+        IMPORT confirmationCode FROM f();
+        confirmationCode(c) <- STRING[50](code());
+        fileToString(f());
+        logToFileYD('yandexDelivery', CONCAT ' : ', 'confirmationCode', id(c), resultString());
+        APPLY;
+    }
+        CATCH{
+        fileToString(f());
+        logToFile('yandexDelivery', CONCAT ' : ', 'ERROR', 'confirmationCode', id(c), resultString());
+        MESSAGE (CONCAT ' : ', 'ERROR', 'confirmationCode', id(c), resultString(), messageCaughtException());
+    }
+}
+ext = DATA LOCAL STRING();
+phone = DATA LOCAL STRING();
+ttl_seconds = DATA LOCAL NUMERIC();
+
+FORM voiceforwarding
+    PROPERTIES() ext, phone, ttl_seconds;
+
+requestVoiceforwarding 'Получить номер телефона' (DeliveryRequest c){
+    LOCAL f = FILE ();
+    TRY{
+        EXPORT JSON FROM claim_id = id(c);
+        timeoutHttp() <- 30000;
+        EXTERNAL HTTP POST 'https://b2b.taxi.yandex.net/b2b/cargo/integration/v1/driver-voiceforwarding'
+            HEADERS headersYandexDelivery PARAMS exportFile() TO f;
+        IMPORT voiceforwarding FROM f();
+        phoneCourrier(c) <- STRING[50](phone());
+        extraNumber(c) <- ext();
+        fileToString(f());
+        logToFileYD('yandexDelivery', CONCAT ' : ', 'requestVoiceforwarding', id(c), resultString());
+        APPLY;
+    }
+        CATCH{
+        fileToString(f());
+        logToFile('yandexDelivery', CONCAT ' : ', 'ERROR', 'requestVoiceforwarding', id(c), resultString());
+    }
+}
+
+GROUP position;
+sharing_link = DATA LOCAL STRING(INTEGER);
+lon = DATA LOCAL NUMERIC();
+lat = DATA LOCAL NUMERIC();
+speed = DATA LOCAL NUMERIC();
+timestamp = DATA LOCAL NUMERIC();
+direction = DATA LOCAL NUMERIC();
+
+FORM positionCurrier
+    OBJECTS route_points = INTEGER
+    PROPERTIES(route_points) sharing_link, visit_order, id, type
+    FILTERS imported(route_points)
+    PROPERTIES() IN position lon, lat, speed, timestamp, direction
+;
+
+sharingLink 'Url отслеживания' = DATA STRING (DeliveryRequest);
+
+showLink 'Отслеживание' (DeliveryRequest c){
+    open(LINK(sharingLink(c)));
+}
+
+getPosition 'Позиция курьера' (DeliveryRequest c){
+    LOCAL f = FILE();
+    TRY{
+        timeoutHttp() <- 30000;
+        EXTERNAL HTTP GET 'https://b2b.taxi.yandex.net/b2b/cargo/integration/v1/claims/performer-position/?claim_id=' + id(c)
+            HEADERS headersYandexDelivery TO f;
+        IMPORT positionCurrier FROM f();
+        FOR imported(INTEGER i) AND sharing_link(i) DO sharingLink(c) <- sharing_link(i);
+        IF NOT performer(c) THEN NEW p = Perfomer{
+            deliveryRequest(p) <- c;
+        }
+        latitude(performer(c)) <- NUMERIC[11,6](lat());
+        longitude(performer(c)) <- NUMERIC[11,6] (lon());
+        fileToString(f());
+        logToFileYD('yandexDelivery', CONCAT ' : ', 'getPosition', id(c), resultString());
+        APPLY;
+    }
+        CATCH{
+        fileToString(f());
+        logToFile('yandexDelivery', CONCAT ' : ', 'ERROR', 'getPosition', id(c), resultString());
+    }
+}
+
+
+//cобытия
+skipAutoCreateRP = ABSTRACT CASE BOOLEAN (DeliveryRequest);
+
+WHEN SET (date(DeliveryRequest d) AND time(d) AND NOT skipAutoCreateRP(d)) DO{
+    sumGrossWeight(d) <- sumGrossWeight(internetOrder(d));
+    NEW r = RoutePoint{
+        source(r) <- TRUE;
+        fullname(r) <- address(store(supplierStock(internetOrder(d))));
+        latitude(r) <- latitude(store(supplierStock(internetOrder(d))));
+        longitude(r) <- longitude(store(supplierStock(internetOrder(d))));
+        coordinates(r) <- CONCAT '', '[', longitude(store(supplierStock(internetOrder(d)))),
+            ', ', latitude(store(supplierStock(internetOrder(d)))), ']';
+        deliveryRequest(r) <- d;
+        nameContact(r) <- 'ПВЗ';
+        phone(r) <- phoneNotification(supplierStock(internetOrder(d)));
+    }
+    NEW r = RoutePoint{
+        fullname(r) <- addressInternetCustomer(internetOrder(d));
+        nameContact(r) <- nameInternetCustomer(internetOrder(d));
+        latitude(r) <- latitude(internetOrder(d));
+        longitude(r) <- longitude(internetOrder(d));
+        sflat(r) <- sflat(internetOrder(d)) WHERE sendSflatDetail();
+        sfloor(r) <- sfloor(internetOrder(d)) WHERE sendSflatDetail();
+        porch(r) <- porch(internetOrder(d)) WHERE sendSflatDetail();
+        coordinates(r) <- CONCAT '', '[', longitude(r),
+            ', ', latitude(r), ']';
+        phone(r) <- CONCAT '' , '+', phoneInternetCustomer(internetOrder(d));
+        comment(r) <- STRING[100](customerComment(internetOrder(d)));
+        deliveryRequest(r) <- d;
+    }
+}
+//отмена заявки
+requestCancelState 'Отмена заявки' (DeliveryRequest c){
+    LOCAL f = FILE();
+    TRY{
+        LOCAL cancelState = STRING();
+        LOCAL code = STRING ();
+        LOCAL message = STRING ();
+        timeoutHttp() <- 30000;
+        EXTERNAL HTTP POST 'https://b2b.taxi.yandex.net/b2b/cargo/integration/v2/claims/cancel-info/?claim_id=' + id(c)
+            HEADERS headersYandexDelivery TO f;
+        logToFileYD('yandexDelivery', CONCAT ' : ', 'cancel_state', id(c), resultString());
+        IMPORT JSON FROM f() TO() cancelState = cancel_state, message = message, code = code;
+        IF cancelState() = 'free' OR cancelState() = 'paid' THEN cancel(c, cancelState());
+        ELSE {
+            MESSAGE CONCAT '\n', 'Заказ ' + number(internetOrder(c)), 'Ошибка отмены заявки' + id(c), cancelState(), message(), code();
+        }
+        APPLY;
+    }
+        CATCH{
+        fileToString(f());
+        logToFile('yandexDelivery', CONCAT ' : ', 'ERROR', 'requestCancelState', id(c), resultString(), messageCaughtException());
+    }
+}
+//зпд
+showPersonalInfoUser (DeliveryRequest r) = showPersonalInfoUser(internetOrder(r));
+showPersonalInfoUser (RoutePoint r) = showPersonalInfoUser(deliveryRequest(r));
+
+
+FORM dialogDeliveryRequest 'Информация по заявке'
+    OBJECTS d = DeliveryRequest PANEL
+    PROPERTIES (d) READONLY id, nameStatus, createdTime, updatedTime, classTaxiName, preCost, cost, courrierName,
+        phoneCourrier, extraNumber, confirmationCode
+
+    PROPERTIES (d) createClaim, getInfo, requestCancelState, accept, requestConfirmationCode, requestVoiceforwarding, getPosition, showLink SHOWIF sharingLink(d)
+    OBJECTS p = RoutePoint
+    PROPERTIES (p) 'Порядок' = pointId, nameContact SHOWIF showPersonalInfoUser(p),
+        phone SHOWIF showPersonalInfoUser(p), fullname SHOWIF showPersonalInfoUser(p), source, coordinates, longitude, latitude
+    FILTERS deliveryRequest(p) = d
+
+    OBJECTS m = Point MAP
+    PROPERTIES name(m), latitude(m), longitude(m)
+    FILTERS deliveryRequest(m) = d
+
+    EVENTS ON SCHEDULE PERIOD 30 formRefresh()
+
+    EDIT DeliveryRequest OBJECT d
+;
+
+DESIGN dialogDeliveryRequest{
+    OBJECTS {
+        horizontal = TRUE;
+        alignment = STRETCH ;
+        NEW info{
+            fill = 1;
+            NEW mainInfo{
+                alignment = STRETCH;
+                lines = 3;
+                NEW first{
+                    MOVE PROPERTY (id(d));
+                    MOVE PROPERTY (nameStatus(d));
+                    MOVE PROPERTY (createdTime(d));
+                    MOVE PROPERTY (updatedTime(d));
+                    MOVE PROPERTY (classTaxiName(d));
+                }
+                NEW second{
+                    MOVE PROPERTY (preCost(d));
+                    MOVE PROPERTY (cost(d));
+                    MOVE PROPERTY (courrierName(d));
+                    MOVE PROPERTY (phoneCourrier(d));
+                    MOVE PROPERTY (extraNumber(d));
+                    MOVE PROPERTY (confirmationCode(d));
+                }
+                NEW third{
+                    NEW action{
+                        caption = 'Действия';
+                        MOVE PROPERTY (createClaim(d));
+                        MOVE PROPERTY (getInfo(d));
+                        MOVE PROPERTY (accept(d));
+                        MOVE PROPERTY (requestConfirmationCode(d));
+                        MOVE PROPERTY (requestVoiceforwarding(d));
+                        MOVE PROPERTY (getPosition(d));
+                        MOVE PROPERTY (showLink(d));
+                        MOVE PROPERTY (requestCancelState(d));
+                    }
+                };
+            }
+
+            MOVE BOX (p);
+        }
+        NEW map{
+            fill = 0.7;
+            MOVE BOX (m);
+        }
+    }
+}
+
+showInfo(DeliveryRequest d) {
+    SHOW dialogDeliveryRequest OBJECTS d = d;
+}
+confirmationCode (InternetOrder o) = confirmationCode(GROUP MAX DeliveryRequest r IF internetOrder(r) = o);
+
+EXTEND FORM internetOrders
+    OBJECTS r = DeliveryRequest
+    PROPERTIES(r) READONLY nameStatus, createdTime, updatedTime, classTaxiName, preCost, cost, confirmationCode, sumGrossWeight
+    PROPERTIES(r) NEW, EDIT, DELETE
+    FILTERS internetOrder(r) = o
+
+    OBJECTS rp = RoutePoint
+    PROPERTIES (rp) 'Порядок' = pointId, nameContact SHOWIF showPersonalInfoUser(r),
+        phone SHOWIF showPersonalInfoUser(r), fullname SHOWIF showPersonalInfoUser(r), source, coordinates
+    FILTERS deliveryRequest(rp) = r
+
+    PROPERTIES (o) sumGrossWeight
+;
+
+DESIGN internetOrders{
+    documentDetail{
+        NEW request{
+            caption = 'Доставка';
+            horizontal = TRUE;
+            MOVE BOX (r);
+            MOVE BOX (rp);
+        }
+    }
+}
+
+isOpen(DeliveryRequest r) = IF status(r) = StatusDeliveryRequest.returned_finish OR status(r) = StatusDeliveryRequest.cancelled
+    OR status(r) = StatusDeliveryRequest.cancelled_with_payment OR status(r) = StatusDeliveryRequest.failed
+    OR status(r) = StatusDeliveryRequest.cancelled_by_taxi OR status(r) = StatusDeliveryRequest.cancelled_with_items_on_hands
+    OR status(r) = StatusDeliveryRequest.delivered_finish OR status(r) = StatusDeliveryRequest.performer_not_found
+    OR status(r) = StatusDeliveryRequest.estimating_failed THEN NULL ELSE TRUE;
+;
+// YandexDelivery_StatusDeliveryRequest.pickuped
+statusDR (DeliveryRequest r, STRING status) = IF status(r) = statusDelivery('YandexDelivery_StatusDeliveryRequest.' + status) THEN TRUE;
+
+isDelivery (DeliveryRequest r) = IF status(r) = StatusDeliveryRequest.pickuped OR status(r) = StatusDeliveryRequest.delivery_arrived
+    OR status(r) = StatusDeliveryRequest.returning THEN TRUE;
+
+needConfirmation (DeliveryRequest r) = IF status(r) = StatusDeliveryRequest.pickup_arrived
+    OR status(r) = StatusDeliveryRequest.ready_for_pickup_confirmation
+    OR status(r) = StatusDeliveryRequest.ready_for_return_confirmation
+    OR status(r) = StatusDeliveryRequest.performer_found THEN TRUE;
+
+
+
+//пересчет заявки
+allowRecalculateWeight 'Пересчитывать вес' = DATA BOOLEAN () PREREAD;
+
+WHEN CHANGED(sumGrossWeight(internetOrder(DeliveryRequest r))) AND (
+    (sumGrossWeight(internetOrder(r)) < 20 AND sumGrossWeight(r) > 20) OR
+        (sumGrossWeight(internetOrder(r)) < 10 AND sumGrossWeight(r) > 10)
+    )
+    AND allowRecalculate(r) AND allowRecalculateWeight() DO{
+    TRY{
+        requestCancelState(r);
+        NEW d = DeliveryRequest{
+            internetOrder(d) <- internetOrder(r);
+            date(d) <- currentDate();
+            time(d) <- TIME(currentDateTime());
+            sumGrossWeight(d) <- sumGrossWeight(internetOrder(r));
+        }
+    }
+        CATCH {
+        MESSAGE CONCAT '\n', 'Не удалось отменить заявку при пересчете веса', messageCaughtException();
+    }
+}
+
+
+////для планировщика
+yandexDeliveryRequest 'Заявки на доставку'(){
+    //создание заявки
+    FOR internetOrder(DeliveryRequest r) AND NOT id(r) DO createClaim(r);
+
+    //обновление статуса
+    FOR id(DeliveryRequest r) AND isOpen(r) DO getInfo(r);
+
+    //подтверждение заявки
+    FOR status(DeliveryRequest r) = StatusDeliveryRequest.ready_for_approval DO accept(r);
+
+    //информация о исполнителе
+    FOR status(DeliveryRequest r) = StatusDeliveryRequest.performer_found DO {
+        IF NOT (GROUP MAX Perfomer p AND deliveryRequest(p) = r ) THEN NEW p = Perfomer{
+            deliveryRequest(p) <- r;
+            APPLY NESTED LOCAL;
+        }
+        requestVoiceforwarding(r);
+        getPosition(r);
+    }
+
+    //получение кода подтверждения
+    FOR needConfirmation(DeliveryRequest r) DO requestConfirmationCode(r);
+
+    //Обновление позиции курьера    
+    FOR isDelivery(DeliveryRequest r) DO getPosition(r);
+}
+
+
+
+finalCost 'Стоимость доставки (факт)' = DATA NUMERIC[18,4] (InternetOrder);
+preCost 'Оценка' (InternetOrder o) = GROUP LAST preCost(DeliveryRequest r) ORDER r WHERE internetOrder(r) = o;
+
+WHEN CHANGED (status(DeliveryRequest r)) DO {
+    IF status(r) == StatusDeliveryRequest.delivered_finish
+        OR status(r) == StatusDeliveryRequest.returned_finish
+        OR status(r) == StatusDeliveryRequest.cancelled_with_payment
+        OR status(r) == StatusDeliveryRequest.cancelled_with_items_on_hands THEN
+        finalCost(internetOrder(r)) <- cost(r);
+    ELSE
+        finalCost(internetOrder(r)) <- 0;
+}
+
+EXTEND FORM internetOrders
+    PROPERTIES (o) preCost BEFORE deliverySumInternetOrder(o), finalCost AFTER deliverySumInternetOrder(o)
+;
+
+//слотовая доставка
+
+EXTEND CLASS Point : POI;
+
+latitude (Point point) += latitude(point);
+longitude (Point point) += longitude(point);
+
+CLASS SlotDeliveryRequest 'Заявка на слотовую доставку': DeliveryRequest;
+TABLE slotDeliveryReuest(SlotDeliveryRequest);
+
+isSlot (SlotDeliveryRequest r) = TRUE IF r IS SlotDeliveryRequest;
+skipAutoCreateRP(DeliveryRequest d) += WHEN d IS SlotDeliveryRequest THEN TRUE;
+in = DATA BOOLEAN (DeliveryRequest, InternetOrder);
+internetOrder = DATA InternetOrder (RoutePoint);
+
+routePoint (InternetOrderDetail d, SlotDeliveryRequest r) = GROUP MAX RoutePoint rp IF deliveryRequest(rp) = r AND in(r, internetOrder(d)) AND internetOrder(rp) = internetOrder(d);
+pointId(InternetOrderDetail d, SlotDeliveryRequest r) = pointId(routePoint(d, r));
+
+sumRequest (DeliveryRequest r) = round2(GROUP SUM sumInternetOrderDetail(InternetOrder o) IF in(r, o));
+
+sumRoutePoint(RoutePoint rp) = IF source(rp) THEN sumRequest(deliveryRequest(rp)) ELSE sumInternetOrderDetail(internetOrder(rp));
+
+createSlotDelivery 'Создать заявку с мультиточками' (DepartmentStore ds){
+    IF GROUP SUM 1 IF in(InternetOrder o) AND NOT GROUP SUM 1 IF in(DeliveryRequest d, o) THEN{
+        NEW r = SlotDeliveryRequest{
+            NEW rp = RoutePoint{
+                source(rp) <- TRUE;
+                fullname(rp) <- OVERRIDE address(store(ds)), 'ПВЗ';
+                latitude(rp) <- latitude(store(ds));
+                longitude(rp) <- longitude(store(ds));
+                coordinates(rp) <- CONCAT '', '[', longitude(store(ds)),
+                    ', ', latitude(store(ds)), ']';
+                deliveryRequest(rp) <- r;
+                nameContact(rp) <- 'ПВЗ';
+                phone(rp) <- phoneNotification(ds);
+            }
+            FOR in(InternetOrder o) DO NEW rp = RoutePoint{
+                internetOrder(rp) <- o;
+                fullname(rp) <- OVERRIDE addressInternetCustomer(o), 'Клиент';
+                nameContact(rp) <- nameInternetCustomer(o);
+                latitude(rp) <- latitude(o);
+                longitude(rp) <- longitude(o);
+                coordinates(rp) <- CONCAT '', '[', longitude(o),
+                    ', ', latitude(o), ']';
+                phone(rp) <- CONCAT '' , '+', phoneInternetCustomer(o);
+                comment(rp) <- STRING[100](customerComment(o));
+                deliveryRequest(rp) <- r;
+                in(r, o) <- TRUE;
+
+            }
+            dataPointId(RoutePoint rp) <- (PARTITION SUM 1 IF deliveryRequest(rp) = r AND NOT source(rp) ORDER rp BY deliveryRequest(rp)) (+) 1 WHERE deliveryRequest(rp) = r;
+        }
+        APPLY;
+    }
+}
+
+sumGrossWeight 'Вес заявки' (SlotDeliveryRequest r) = GROUP SUM sumGrossWeight(internetOrder(RoutePoint rp)) IF deliveryRequest(rp) = r;
+
+sumEndInternetOrderDetail 'Собрано' (RoutePoint r) = pickingSumInternetOrderDetail(internetOrder(r));
+sumInternetOrderDetail 'Заказано' (RoutePoint r) = sumInternetOrderDetail(internetOrder(r));
+sumEndInternetOrderDetail 'Собрано' (SlotDeliveryRequest r) = GROUP SUM pickingSumInternetOrderDetail(internetOrder(RoutePoint rp)) IF deliveryRequest(rp) = r;
+sumInternetOrderDetail 'Заказано'  (SlotDeliveryRequest r) = GROUP SUM sumInternetOrderDetail(internetOrder(RoutePoint rp)) IF deliveryRequest(rp) = r;
+
+FORM slotDelivery 'Слотовая доставка'
+    OBJECTS s = DepartmentStore PANEL
+    PROPERTIES (s) name SELECTOR
+
+    EVENTS
+        ON INIT { SEEK slotDelivery.s = (stock(currentUser())); }
+
+    OBJECTS o = InternetOrder
+    PROPERTIES (o) READONLY number, date, longitude, latitude, nameSupplierStock, nameStatus, addressInternetCustomer
+    PROPERTIES createSlotDelivery(s) TOOLBAR DRAW o SHOWIF (GROUP SUM 1 IF in(InternetOrder order))
+    PROPERTIES in(o) FIRST
+    FILTERS slotDelivery(o)
+    FILTERGROUP open
+        FILTER 'Открыт' isOpened(o) 'F6' DEFAULT
+
+    OBJECTS r = SlotDeliveryRequest
+    PROPERTIES(r) READONLY nameStatus, createdTime, updatedTime, classTaxiName, preCost, cost, confirmationCode, sumInternetOrderDetail, sumEndInternetOrderDetail
+    PROPERTIES(r) EDIT, DELETE
+    FILTERS in(r, o)
+
+    OBJECTS rp = RoutePoint
+    PROPERTIES (rp) READONLY 'Порядок' = pointId, dataPointId, nameContact SHOWIF showPersonalInfoUser(r),
+        phone SHOWIF showPersonalInfoUser(r), fullname SHOWIF showPersonalInfoUser(r), source, coordinates
+    FILTERS deliveryRequest(rp) = r
+
+    FILTERS supplierStock(o) = s
+;
+
+CONSTRAINT SETCHANGED (in(DeliveryRequest r, InternetOrder o)) AND slotDelivery(o) AND (GROUP SUM 1 IF in(DeliveryRequest dr, o)) > 1 MESSAGE 'Заказ уже находится в заявке!';
+
+EXTEND FORM dialogDeliveryRequest
+    PROPERTIES (d) SHOWIF isSlot(d) sumGrossWeight, sumInternetOrderDetail, sumEndInternetOrderDetail
+    PROPERTIES SHOWIF isSlot(d) dataPointId(p)
+    PROPERTIES SHOWIF isSlot(d) READONLY 'Заказ'= number(internetOrder(p)) READONLY, 'Вес' = sumGrossWeight(internetOrder(p)),
+        sumInternetOrderDetail(p), sumEndInternetOrderDetail(p)
+;
+
+DESIGN dialogDeliveryRequest{
+    second{
+        MOVE PROPERTY (sumInternetOrderDetail(d));
+        MOVE PROPERTY (sumEndInternetOrderDetail(d));
+        MOVE PROPERTY (sumGrossWeight(d));
+    }
+}
+
+FORM claimsCreateSlot FORMEXTID 'null'
+    OBJECTS c = SlotDeliveryRequest PANEL
+
+    PROPERTIES commentDeliveryRequest(c) EXTID 'comment', = IF isRequest(c) THEN TFALSE EXTID 'skip_act',
+        = IF skipClientNotify() AND isRequest(c) THEN TTRUE ELSE TFALSE EXTID 'skip_client_notify',
+        = IF skipDoorToDoor() AND isRequest(c) THEN TTRUE ELSE TFALSE EXTID 'skip_door_to_door',
+        = IF skipEmergencyNotify() AND isRequest(c) THEN TTRUE ELSE TFALSE EXTID 'skip_emergency_notify',
+        = IF optionalReturnDelivery() AND isRequest(c) THEN TTRUE ELSE TFALSE EXTID 'optional_return',
+        = IF isRequest(c) THEN 'lsFusion ERP' EXTID 'referral_source', = timeFormat(due(c)) EXTID 'due'
+    PROPERTIES IN client_requirements = IF isRequest(c) THEN TFALSE EXTID 'assign_robot',
+        = IF isRequest(c) THEN TFALSE EXTID 'pro_courier', overTaxiClass(c) EXTID 'taxi_class'
+
+    OBJECTS r = RoutePoint EXTID 'route_points'
+    PROPERTIES IN contact nameContact(r) EXTID 'name', phone(r)
+    PROPERTIES IN address fullname(r), coordinates(r), comment(r), = IF sendSflatDetail() AND r IS RoutePoint THEN sflat(r) EXTID 'sflat'
+    PROPERTIES IN external_order_cost = IF isRequest(deliveryRequest(r)) THEN 'BYN' EXTID 'currency',
+        = IF isRequest(deliveryRequest(r)) THEN 'BYN' EXTID 'currency_sign',
+        = STRING (round2(sumInternetOrderDetail(internetOrder(deliveryRequest(r))))) EXTID 'value'
+    PROPERTIES type(r), pointId(r) EXTID 'point_id', = OVERRIDE pointId(r) EXTID 'visit_order',
+        skipConfirmation(r) EXTID 'skip_confirmation', externalOrderId(r) EXTID 'external_order_id'
+    FILTERS deliveryRequest(r) = c
+
+    OBJECTS id = InternetOrderDetail EXTID 'items'
+    PROPERTIES nameSku(id) EXTID 'title', = IF id IS InternetOrderDetail THEN 1 EXTID 'quantity',
+        = pointId(id, c) EXTID 'droppof_point',
+        = OVERRIDE STRING(round2(sum(id))) EXTID 'cost_value',
+        = IF id IS InternetOrderDetail THEN 'BYN' EXTID 'cost_currency', = IF id IS InternetOrderDetail THEN 1 EXTID 'pickup_point',
+        //        = (OVERRIDE grossWeight(sku(id)) * quantity(id), 0.5) EXTID 'weight',
+        weightPosition(id) EXTID 'weight',
+        = number(internetOrder(id)) + '_' +  index(id) EXTID 'extra_id'
+
+    FILTERS internetOrder(id) = internetOrder(c) OR NOT internetOrder(c)
+;
+
+EXTEND FORM claimsCreateSlot
+    PROPERTIES IN external_order_cost = STRING (sumRoutePoint(r)) EXTID 'value'
+    FILTERS (in(c, internetOrder(id)) AND c IS SlotDeliveryRequest) OR NOT c IS SlotDeliveryRequest
+;
+
+customData (DeliveryRequest r) += WHEN r IS SlotDeliveryRequest THEN TRUE;
+customDataExport(SlotDeliveryRequest c) +{
+    EXPORT claimsCreateSlot OBJECTS c = c JSON;
+}
+
+NAVIGATOR {
+    eShop{
+        NEW slotDelivery;
+    }
+}
+countThreadYandexDelivery 'Кол-во потоков при обработке ЯндексДоставка' = DATA INTEGER () PREREAD;
+
+EXTEND FORM integrationData
+    PROPERTIES()  allowRecalculateWeight, countThreadYandexDelivery,
+        usePerformerLookupRecalculate
+;
+DESIGN integrationData{
+    yandexDelivery{
+        MOVE PROPERTY(allowRecalculateWeight());
+        MOVE PROPERTY(countThreadYandexDelivery());
+        MOVE PROPERTY(usePerformerLookupRecalculate());
+    }
+}
+
+
+overCountThreadYandexDelivery = OVERRIDE countThreadYandexDelivery(), 4;
+///для планировщика
+yandexDeliveryRequestMultiThread 'Заявки на доставку(многопоточно)'(){
+    NEWSESSION {
+        DELETE DeliveryRequest r WHERE NOT id(r) AND due(r) < currentDateTime();
+        APPLY;
+    }
+    //создание заявки
+
+    NEWEXECUTOR {
+        FOR internetOrder(DeliveryRequest r) AND NOT id(r) DO NEWTHREAD NEWSESSION NEWSQL createClaim(r);
+    } THREADS overCountThreadYandexDelivery();
+
+    //обновление статуса
+    NEWEXECUTOR {
+        FOR id(DeliveryRequest r) AND isOpen(r) DO NEWTHREAD NEWSESSION NEWSQL getInfo(r);
+    } THREADS overCountThreadYandexDelivery();
+
+    //подтверждение заявки
+    NEWEXECUTOR {
+        FOR status(DeliveryRequest r) = StatusDeliveryRequest.ready_for_approval DO NEWTHREAD NEWSESSION NEWSQL accept(r);
+    } THREADS overCountThreadYandexDelivery();
+
+    //информация о исполнителе
+    NEWEXECUTOR {
+        FOR status(DeliveryRequest r) = StatusDeliveryRequest.performer_found DO NEWTHREAD NEWSESSION NEWSQL{
+            IF NOT (GROUP MAX Perfomer p AND deliveryRequest(p) = r ) THEN NEW p = Perfomer{
+                deliveryRequest(p) <- r;
+                APPLY NESTED LOCAL;
+            }
+            requestVoiceforwarding(r);
+            getPosition(r);
+        }
+    } THREADS overCountThreadYandexDelivery();
+
+    NEWEXECUTOR {
+        //получение кода подтверждения
+        FOR needConfirmation(DeliveryRequest r) DO NEWTHREAD NEWSESSION NEWSQL requestConfirmationCode(r);
+    } THREADS overCountThreadYandexDelivery();
+
+    NEWEXECUTOR {
+        //Обновление позиции курьера    
+        FOR isDelivery(DeliveryRequest r) DO NEWTHREAD NEWSESSION NEWSQL getPosition(r);
+    } THREADS overCountThreadYandexDelivery();
+}
