@@ -6,3 +6,43 @@ NAMESPACE EGAISSale;
 
 CONSTRAINT SETCHANGED(quantity(UserInvoiceDetail d, Lot l)) AND availableQuantity(l, supplierStock(d)) < 0
     MESSAGE 'Неверное количество доступного остатка марок';
+
+unlinkLot 'Отвязать от документа' (UserInvoiceDetail d, Lot l) {
+    quantity(d, l) <- NULL;
+} TOOLBAR;
+
+FORM dialogUserInvoiceDetailLots 'Список марок'
+    OBJECTS ed = UserInvoiceDetail PANEL
+
+    OBJECTS led = Lot
+    PROPERTIES(led) READONLY id BACKGROUND backgroundLot(led)
+    PROPERTIES(led) READONLY count
+    PROPERTIES(ed, led) unlinkLot
+    FILTERS quantity(ed, led)
+;
+
+showLinkedLots 'Список марок' (UserInvoiceDetail d) {
+    SHOW dialogUserInvoiceDetailLots OBJECTS ed = d;
+}
+
+FORM dialogUserInvoiceF2RegDetailLots 'Список марок'
+    OBJECTS ed = UserInvoiceDetail PANEL
+    OBJECTS re = F2Reg PANEL
+    
+    OBJECTS lre = Lot
+    PROPERTIES(lre) READONLY id BACKGROUND backgroundLot(lre)
+    PROPERTIES(lre) READONLY count
+    FILTERS quantity(ed, lre), f2Reg(markCode(id(lre))) == re
+;
+
+showLinkedLots 'Список марок' (UserInvoiceDetail d, F2Reg r) {
+    SHOW dialogUserInvoiceF2RegDetailLots OBJECTS ed = d, re = r;
+}
+
+EXTEND FORM userInvoice
+    PROPERTIES (ed) showLinkedLots TOOLBAR
+    PROPERTIES (ed, re) showLinkedLots TOOLBAR
+;
+DESIGN userInvoice {
+    PROPERTY(showLots(ed)) {showIf = NULL;}
+}

@@ -23,3 +23,47 @@ hideFillQuantity(UserInvoiceDetail d, F2Reg r) += hideFillQuantity(userInvoice(d
 DESIGN userInvoice {
     PROPERTY(addDetailDialogTerminalUserInvoiceDetail(i)) { showIf = NOT disableEGAISDocumentConstraints() AND activeWayBillAct(wayBill(invoice(d))); }
 }
+
+overCheckProcess(Shipment s) += 'Количество в позиции документа должно соответствовать количеству привязанных марок' 
+    IF [GROUP SUM 1 IF minProduct(sku(ShipmentDetail d)) AND lotType(sku(d)) AND NOT quantity(d) = quantityLot(d) BY shipment(d)](s);
+
+notCorrect(ShipmentDetail d, F2Reg r) = minProduct(sku(d)) AND quantity(d, r) AND lotType(sku(d)) AND NOT quantity(d, r) == [GROUP SUM quantity(d, Lot l) BY f2Reg(markCode(id(l)))](r);
+overCheckProcess(Shipment s) += 'Количество в позиции по справке Б должно соответствовать количеству привязанных марок'
+    IF [GROUP SUM 1 IF notCorrect(ShipmentDetail d, F2Reg r) BY shipment(d)](s);
+
+overCheckProcess(Shipment s) += 'Срок годности товара истек'
+    IF [GROUP SUM 1 IF expiryDate(ShipmentDetail d) < currentDate() BY shipment(d)](s);
+
+overCheckProcess(Shipment s) += 'Не задан водитель ТС'
+    IF s IS Shipment AND NOT nameDriverTrip(s);
+
+overCheckProcess(Shipment s) += 'Не задана марка ТС'
+    IF s IS Shipment AND NOT nameTruckModelTrip(s);
+
+overCheckProcess(Shipment s) += 'Не задан номер ТС'
+    IF s IS Shipment AND NOT sid(truck(trip(s)));
+
+overProcessFillWayBill(Shipment s) +{
+    transportRegNumber(wayBill(s)) <- CONCAT ' ', nameTruckModel(truck(trip(s))), sid(truck(trip(s)));
+    tranRedirect(wayBill(s)) <- OVERRIDE redirect(trip(s)), 'Нет' IF wayBill(s);
+    tranForwarder(wayBill(s)) <- OVERRIDE forwarder(trip(s)), tranDriver(wayBill(s));
+}
+
+CONSTRAINT DROPPED(Sale.Shipment s IS Sale.Shipment) AND PREV(activeWayBillOutDoc(wayBill(s)))
+    MESSAGE 'Запрещено удаление поставки, по которой выполнена отправка в ЕГАИС';
+
+DESIGN truck { 
+    PROPERTY(sid(t)) { 
+        regexp = '^[АВЕКМНОРСТУХABEKMHOPCTYXавекмнорстухabekmhopctyx][АВЕКМНОРСТУХABEKMHOPCTYXавекмнорстухabekmhopctyx]?\\d{3}\\d?[АВЕКМНОРСТУХABEKMHOPCTYXавекмнорстухabekmhopctyx][АВЕКМНОРСТУХABEKMHOPCTYXавекмнорстухabekmhopctyx]?\\d{2}\\d?$';
+        regexpMessage = 'Неправильный формат номера';
+    }
+
+    PROPERTY(trailer(t)) {
+        regexp = '^[АВЕКМНОРСТУХABEKMHOPCTYXавекмнорстухabekmhopctyx][АВЕКМНОРСТУХABEKMHOPCTYXавекмнорстухabekmhopctyx]?\\d{3}\\d?[АВЕКМНОРСТУХABEKMHOPCTYXавекмнорстухabekmhopctyx][АВЕКМНОРСТУХABEKMHOPCTYXавекмнорстухabekmhopctyx]?\\d{2}\\d?$';
+        regexpMessage = 'Неправильный формат номера';
+    }
+}
+
+DESIGN invoices {
+    PROPERTY(cancelEGAIS) { caption = 'Отправить в ЕГАИС акт отказа от ТТН';}
+}

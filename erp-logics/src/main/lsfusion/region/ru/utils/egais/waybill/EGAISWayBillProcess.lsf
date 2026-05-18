@@ -110,7 +110,10 @@ META defineDocumentOutWayBillProcess (doc, supplier, customer, prefix, captionDo
     
     price = GROUP MAX price(###doc##Detail detail) IF quantity(detail, F2Reg reg) BY ##doc(detail), reg; 
     showFormWaybill###doc = ABSTRACT BOOLEAN ();
-    process 'Отправить в ЕГАИС' (###doc i) {
+    overCheckProcess = ABSTRACT VALUE STRING (###doc);
+    overProcessFillWayBill ABSTRACT LIST (###doc);
+    
+    process 'Отправить в ЕГАИС' (###doc i) {    
         IF GROUP SUM 1 IF doc(###doc##Detail d) = i AND minProduct(sku(d)) AND NOT quantity(d) = quantityF2Reg(d) THEN {
             MESSAGE 'Не по всем строкам накладной выбраны справки Б в ЕГАИС. Отправка в ЕГАИС невозможна';
             RETURN;
@@ -127,6 +130,11 @@ META defineDocumentOutWayBillProcess (doc, supplier, customer, prefix, captionDo
             ELSE RETURN;
         }
 
+        IF overCheckProcess(i) THEN {
+            MESSAGE overCheckProcess(i);
+            RETURN;
+        }
+        
         NEWSESSION {
             NEW w = WayBill {
                 wayBill(i) <- w;
@@ -158,6 +166,8 @@ META defineDocumentOutWayBillProcess (doc, supplier, customer, prefix, captionDo
                 tranRedirect(w) <- redirect(trip(i));
                 tranForwarder(w) <- forwarder(trip(i));
 
+                overProcessFillWayBill(i);
+                
                 LOCAL boxId = STRING(); 
                 boxId() <- lpad(STRING(w), 18, '0');
                 IF NOT box(boxId()) THEN NEW b = Box {
