@@ -1,6 +1,40 @@
 MODULE EGAISQueryFormF2Gestori;
 
-REQUIRE EGAISQueryFormF2, EGAISOutDocGestori;
+REQUIRE EGAISQueryFormF2, EGAISOutDocGestori, EGAISWayBillGestory;
 
 numberBaseDocument(QueryFormF2 d) += id(f2Reg(d));
 typeBaseDocument(QueryFormF2 d) += objectClassName(f2Reg(d));
+
+queryFormF2WayBill'Запросить справку Б' (F2Reg fr){
+    NEWSESSION {
+        NEW r = QueryFormF2 {
+            f2Reg(r) <- fr;
+            client(r) <- client(fr);
+            utm(r) <- utm(client(r));
+            queryFormF2(r);
+            APPLY;
+        }
+    }
+}
+
+queryForm2 'Запросить справку Б' (WayBill p) {
+    FOR wayBill(WayBillPosition pp) == p DO {
+        queryFormF2WayBill(f2Reg(pp));
+    }
+} TOOLBAR;
+
+queryForm2 'Запросить справку Б' (WayBillPosition p) {
+    IF NOT countWayBillPositions() THEN {
+        select(p) <- TRUE;
+    }
+    FOR select(WayBillPosition pp) DO {
+        queryFormF2WayBill(f2Reg(pp));
+    }
+
+    select(WayBillPosition pp) <- NULL;
+} TOOLBAR;
+
+EXTEND FORM wayBills
+    PROPERTIES (w) queryForm2
+    PROPERTIES (p) queryForm2
+;
