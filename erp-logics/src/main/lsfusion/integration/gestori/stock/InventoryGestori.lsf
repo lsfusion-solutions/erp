@@ -1507,14 +1507,18 @@ importInvFromExcelStock 'Загрузить из Excel' (Inventory inv, Stock st
     }
 
     LOCAL idSku = STRING[100] (INTEGER);
-    LOCAL nameSku = STRING[200] (INTEGER);
+    LOCAL idBarcode = STRING[15] (INTEGER);
     LOCAL quantity = NUMERIC[16,5] (INTEGER);
 
     INPUT f = EXCELFILE DO {
-        IMPORT XLS NOHEADER FROM f TO idSku = A, nameSku = B, quantity = C;
+        IMPORT XLS NOHEADER FROM f TO idSku = A, idBarcode = B, quantity = C;
+
+        LOCAL skuByRow = Sku (INTEGER);
+        skuByRow(INTEGER i) <- skuBarcode(trim(idBarcode(i))) WHERE imported(i) AND NOT trim(idSku(i)) AND trim(idBarcode(i));
+        skuByRow(INTEGER i) <- sku(trim(idSku(i))) WHERE imported(i) AND trim(idSku(i));
 
         LOCAL countOk = INTEGER ();
-        countOk() <- GROUP SUM 1 IF imported(INTEGER i) AND trim(idSku(i)) AND sku(trim(idSku(i))) AND quantity(i);
+        countOk() <- GROUP SUM 1 IF imported(INTEGER i) AND skuByRow(i) AND quantity(i);
 
         IF NOT countOk() THEN {
             MESSAGE 'Нет корректных строк для импорта';
@@ -1528,7 +1532,7 @@ importInvFromExcelStock 'Загрузить из Excel' (Inventory inv, Stock st
             NEW pg = PageInventory {
                 listInventory(pg) <- li;
                 LOCAL qty = NUMERIC[16,5] (Sku);
-                qty(Sku s) <- GROUP SUM quantity(INTEGER i) IF imported(i) AND sku(trim(idSku(i))) = s AND quantity(i);
+                qty(Sku s) <- GROUP SUM quantity(INTEGER i) IF imported(i) AND skuByRow(i) = s AND quantity(i);
                 FOR qty(Sku s) NEW d = PageInventoryDetail DO {
                     pageInventory(d) <- pg;
                     sku(d) <- s;
