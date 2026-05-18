@@ -1,0 +1,202 @@
+MODULE SbisAuthentication;
+
+REQUIRE Utils, Time, Integration, Certificate, Authentication;
+
+NAMESPACE Sbis;
+
+// ----------------------------- Настройки -----------------------------//
+
+authUrl 'Url сервиса аутентификации' = DATA STRING ();
+serviceUrl 'Url сервиса документов' = DATA STRING ();
+accountNumber 'Номер аккаунта (если несколько кабинетов)' = DATA STRING ();
+useTestSignature 'Использовать тестовую подпись' = DATA BOOLEAN ();
+
+defaultAuthUrl () = 'https://online.sbis.ru/auth/service/';
+defaultServiceUrl () = 'https://online.sbis.ru/service/?srv=1';
+
+resolvedAuthUrl () = OVERRIDE authUrl(), defaultAuthUrl();
+resolvedServiceUrl () = OVERRIDE serviceUrl(), defaultServiceUrl();
+
+// ----------------------------- Пользователь --------------------------//
+
+CLASS User 'Пользователь СБИС';
+TABLE user (User);
+
+login 'Логин' = DATA STRING (User) IN id INDEXED CHARWIDTH 50 NONULL;
+user (login) = GROUP AGGR User user BY login(user);
+password 'Пароль' = DATA STRING (User) IN id ECHO CHARWIDTH 50 NONULL;
+
+token = DATA LOCAL STRING ();
+token 'Токен сессии' = DATA STRING (User);
+tokenDateTime 'Время получения токена' = DATA DATETIME (User);
+
+FORM sbisUser 'Пользователь СБИС'
+    OBJECTS u = User PANEL
+    PROPERTIES(u) login, password
+
+    EDIT User OBJECT u
+;
+
+FORM sbisUsers 'Пользователи СБИС'
+    OBJECTS u = User
+    PROPERTIES(u) READONLY login
+    PROPERTIES(u) NEWSESSION NEW, EDIT, DELETE
+
+    LIST User OBJECT u
+;
+
+// ----------------------------- HTTP заголовки -----------------------//
+
+httpHeadersAuth (TEXT name) = CASE
+    WHEN name == 'Content-Type' THEN 'application/json-rpc; charset=utf-8'
+    WHEN name == 'Accept' THEN 'application/json-rpc';
+
+httpHeaders (TEXT name) = CASE
+    WHEN name == 'Content-Type' THEN 'application/json-rpc; charset=utf-8'
+    WHEN name == 'Accept' THEN 'application/json-rpc'
+    WHEN name == 'X-SBISSessionID' THEN token();
+
+// ----------------------------- Запрос аутентификации ----------------//
+// JSON-RPC envelope собираем через EXPORT FORM JSON (а не конкатенацией строк) —
+// чтобы корректно экранировать кавычки/спецсимволы в логине/пароле.
+
+jsonrpcReq = DATA LOCAL STRING ();
+methodReq = DATA LOCAL STRING ();
+idReq = DATA LOCAL STRING ();
+
+loginReq = DATA LOCAL STRING ();
+passwordReq = DATA LOCAL STRING ();
+accountReq = DATA LOCAL STRING ();
+
+GROUP authParams EXTID 'params';
+GROUP authParameter EXTID 'Параметр' : authParams;
+
+FORM exportAuthRequest
+    PROPERTIES() jsonrpcReq EXTID 'jsonrpc',
+                 methodReq EXTID 'method',
+                 idReq EXTID 'id'
+    PROPERTIES() IN authParameter
+                 loginReq EXTID 'Логин',
+                 passwordReq EXTID 'Пароль',
+                 accountReq EXTID 'НомерАккаунта'
+;
+
+// ----------------------------- Парсинг ответа -----------------------//
+
+GROUP authError EXTID 'error';
+
+resultR = DATA LOCAL STRING ();
+errorCodeR = DATA LOCAL INTEGER ();
+errorMessageR = DATA LOCAL STRING ();
+
+FORM importAuthResponse
+    PROPERTIES() resultR EXTID 'result'
+    PROPERTIES() IN authError
+                    errorCodeR EXTID 'code',
+                    errorMessageR EXTID 'message'
+;
+
+// ----------------------------- Получение токена ---------------------//
+
+getToken (User u) {
+    IF NOT tokenDateTime(u) > sumMinutes(currentDateTime(), -720) OR NOT token(u) THEN {
+        NEWSESSION NESTED LOCAL {
+            jsonrpcReq() <- '2.0';
+            methodReq() <- 'СБИС.Аутентифицировать';
+            idReq() <- '0';
+            loginReq() <- login(u);
+            passwordReq() <- password(u);
+            accountReq() <- accountNumber();
+
+            EXPORT exportAuthRequest JSON;
+
+            LOCAL result = FILE ();
+            LOCAL newToken = STRING ();
+            TRY {
+                EXTERNAL HTTP POST resolvedAuthUrl() HEADERS httpHeadersAuth PARAMS exportFile() TO result;
+                resultR() <- NULL;
+                errorCodeR() <- NULL;
+                errorMessageR() <- NULL;
+                IMPORT importAuthResponse JSON FROM result();
+                IF errorMessageR() THEN {
+                    MESSAGE 'Ошибка авторизации СБИС: ' + errorMessageR();
+                } ELSE {
+                    newToken() <- resultR();
+                }
+            } CATCH {
+                fileToString(result(), 'UTF-8');
+                MESSAGE 'Ошибка авторизации СБИС ' + statusHttp() + ' ' + resultString();
+            }
+
+            IF newToken() THEN {
+                token(u) <- newToken();
+                tokenDateTime(u) <- currentDateTime();
+            }
+            APPLY;
+        }
+    }
+    token() <- token(u);
+}
+
+logout (User u) {
+    IF token(u) THEN {
+        token() <- token(u);
+
+        EXPORT JSON FROM jsonrpc = '2.0', method = 'СБИС.Выход', id = '0';
+
+        LOCAL result = FILE ();
+        TRY {
+            EXTERNAL HTTP POST resolvedAuthUrl() HEADERS httpHeaders PARAMS exportFile() TO result;
+        } CATCH {
+            fileToString(result(), 'UTF-8');
+            MESSAGE 'Ошибка завершения сессии СБИС ' + statusHttp() + ' ' + resultString();
+        }
+        NEWSESSION {
+            token(u) <- NULL;
+            tokenDateTime(u) <- NULL;
+            APPLY;
+        }
+    }
+}
+
+// ----------------------------- Привязка к сотруднику ----------------//
+
+userSbis 'Пользователь СБИС' = DATA User (CustomUser);
+loginSbis 'Пользователь СБИС' (CustomUser u) = login(userSbis(u));
+
+EXTEND FORM employee
+    PROPERTIES(e) loginSbis
+;
+
+DESIGN employee {
+    authentication {
+        MOVE PROPERTY(loginSbis(e));
+    }
+}
+
+// ----------------------------- Настройки интеграции -----------------//
+
+EXTEND FORM integrationData
+    PROPERTIES authUrlSbis = authUrl(), serviceUrlSbis = serviceUrl(),
+               accountNumberSbis = accountNumber(), useTestSignatureSbis = useTestSignature()
+;
+
+DESIGN integrationData {
+    pane {
+        NEW sbisAPI {
+            caption = 'СБИС API';
+            MOVE PROPERTY(authUrlSbis);
+            MOVE PROPERTY(serviceUrlSbis);
+            MOVE PROPERTY(accountNumberSbis);
+            MOVE PROPERTY(useTestSignatureSbis);
+        }
+    }
+}
+
+NAVIGATOR {
+    customsNavigator {
+        NEW FOLDER sbisNavigator 'СБИС' {
+            NEW sbisUsers;
+        }
+    }
+}

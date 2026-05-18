@@ -1,0 +1,179 @@
+MODULE SbisUkdDocument;
+
+REQUIRE SbisDocument, UkdDocument, CryptoPro, CryptoProLegalEntity;
+
+NAMESPACE Sbis;
+
+// ----------------------------- Экспортируемый УКД -------------------//
+
+exportUkdDocument = DATA LOCAL UkdDocument ();
+
+overExportUkdDocument ABSTRACT (UkdDocument);
+
+
+GROUP ukdParams EXTID 'params';
+GROUP ukdDocG EXTID 'Документ' : ukdParams;
+GROUP ukdRegulation EXTID 'Регламент' : ukdDocG;
+GROUP ukdBase EXTID 'Основание' : ukdDocG;
+
+GROUP ukdSeller EXTID 'Продавец' : ukdDocG;
+GROUP ukdSellerEntity EXTID 'СвЮЛ' : ukdSeller;
+
+GROUP ukdBuyer EXTID 'Покупатель' : ukdDocG;
+GROUP ukdBuyerEntity EXTID 'СвЮЛ' : ukdBuyer;
+
+// Каждая строка имеет два подобъекта "До" и "После"
+GROUP ukdItemBefore EXTID 'До';
+GROUP ukdItemAfter EXTID 'После';
+GROUP ukdItemUnitBefore EXTID 'ЕдИзм' : ukdItemBefore;
+GROUP ukdItemUnitAfter EXTID 'ЕдИзм' : ukdItemAfter;
+
+regulationIdReqUkd = DATA LOCAL STRING ();
+regulationNameReqUkd = DATA LOCAL STRING ();
+
+baseDocTypeReqUkd = DATA LOCAL STRING ();
+baseDocNumberReqUkd = DATA LOCAL STRING ();
+baseDocDateReqUkd = DATA LOCAL STRING ();
+
+sellerNameReqUkd = DATA LOCAL STRING ();
+sellerInnReqUkd = DATA LOCAL STRING ();
+sellerKppReqUkd = DATA LOCAL STRING ();
+
+buyerNameReqUkd = DATA LOCAL STRING ();
+buyerInnReqUkd = DATA LOCAL STRING ();
+buyerKppReqUkd = DATA LOCAL STRING ();
+
+FORM exportUkdRequest
+    PROPERTIES() jsonrpcReq EXTID 'jsonrpc',
+                 methodReq EXTID 'method',
+                 idReq EXTID 'id'
+
+    PROPERTIES IN ukdDocG
+                 typeUkd = 'УКД' EXTID 'Тип',
+                 functionUkd = nameStatus(exportUkdDocument()) EXTID 'Функция',
+                 numberUkd = numberInvoice(exportUkdDocument()) EXTID 'Номер',
+                 dateUkd = toDateDDMMYYYY(dateInvoice(exportUkdDocument())) EXTID 'Дата',
+                 currencyUkd = codeCurrency(exportUkdDocument()) EXTID 'Валюта',
+                 decreaseSumUkd = decreaseSum(exportUkdDocument()) EXTID 'СуммаУменьшения',
+                 increaseSumUkd = increaseSum(exportUkdDocument()) EXTID 'СуммаУвеличения',
+                 decreaseVatUkd = decreaseVATSum(exportUkdDocument()) EXTID 'СуммаНДСУменьшения',
+                 increaseVatUkd = increaseVATSum(exportUkdDocument()) EXTID 'СуммаНДСУвеличения',
+                 operationDescrUkd = description(exportUkdDocument()) EXTID 'СодержаниеОперации'
+
+    PROPERTIES() IN ukdRegulation
+                 regulationIdReqUkd EXTID 'Идентификатор',
+                 regulationNameReqUkd EXTID 'Название'
+
+    PROPERTIES() IN ukdBase
+                 baseDocTypeReqUkd EXTID 'Тип',
+                 baseDocNumberReqUkd EXTID 'Номер',
+                 baseDocDateReqUkd EXTID 'Дата'
+
+    PROPERTIES() IN ukdSeller
+                 sellerNameReqUkd EXTID 'Название'
+    PROPERTIES() IN ukdSellerEntity
+                 sellerInnReqUkd EXTID 'ИНН',
+                 sellerKppReqUkd EXTID 'КПП'
+
+    PROPERTIES() IN ukdBuyer
+                 buyerNameReqUkd EXTID 'Название'
+    PROPERTIES() IN ukdBuyerEntity
+                 buyerInnReqUkd EXTID 'ИНН',
+                 buyerKppReqUkd EXTID 'КПП'
+
+    OBJECTS i = UkdDocumentDetail EXTID 'Номенклатура' IN ukdDocG
+    FILTERS ukdDocument(i) == exportUkdDocument()
+    PROPERTIES nameI = nameSku(i) EXTID 'Название',
+               codeI = idSku(i) EXTID 'Код'
+    PROPERTIES IN ukdItemBefore
+               qtyB = quantityB(i) EXTID 'Количество',
+               priceB = priceB(i) EXTID 'Цена',
+               sumNoVatB = sumB(i) EXTID 'СуммаБезНДС',
+               vatRateB = nameVATStatusB(i) EXTID 'СтавкаНДС',
+               vatB = VATSumB(i) EXTID 'СуммаНДС',
+               totalB = invoiceSumB(i) EXTID 'СуммаВсего'
+    PROPERTIES IN ukdItemUnitBefore
+               unitCodeB = idUOMB(i) EXTID 'Код',
+               unitNameB = nameUOMB(i) EXTID 'Название'
+    PROPERTIES IN ukdItemAfter
+               qtyA = quantityA(i) EXTID 'Количество',
+               priceA = priceA(i) EXTID 'Цена',
+               sumNoVatA = sumA(i) EXTID 'СуммаБезНДС',
+               vatRateA = nameVATStatusA(i) EXTID 'СтавкаНДС',
+               vatA = VATSumA(i) EXTID 'СуммаНДС',
+               totalA = invoiceSumA(i) EXTID 'СуммаВсего'
+    PROPERTIES IN ukdItemUnitAfter
+               unitCodeA = idUOMA(i) EXTID 'Код',
+               unitNameA = nameUOMA(i) EXTID 'Название'
+;
+
+
+sendUkdDocument 'Отправить УКД в СБИС' (UkdDocument d) {
+    APPLY;
+    IF canceled() THEN RETURN;
+    FOR User u == userSbis(currentUser()) DO NEWSESSION {
+        exportUkdDocument() <- d;
+
+        jsonrpcReq() <- '2.0';
+        methodReq() <- 'СБИС.ЗаписатьДокумент';
+        idReq() <- '0';
+
+        regulationIdReqUkd() <- 'УКД';
+        regulationNameReqUkd() <- 'УКД';
+
+        baseDocTypeReqUkd() <- 'УПД';
+        baseDocNumberReqUkd() <- baseInvoiceNumber(d);
+        baseDocDateReqUkd() <- toDateDDMMYYYY(baseDateInvoice(d));
+
+        sellerNameReqUkd() <- nameSupplier(d);
+        sellerInnReqUkd() <- OVERRIDE innSupplier(d), innSupplierIE(d);
+        sellerKppReqUkd() <- kppSupplier(d);
+
+        buyerNameReqUkd() <- nameCustomer(d);
+        buyerInnReqUkd() <- OVERRIDE innCustomer(d), innCustomerIE(d);
+        buyerKppReqUkd() <- kppCustomer(d);
+
+        overExportUkdDocument(d);
+
+        EXPORT exportUkdRequest JSON;
+
+        LOCAL contentToSign = FILE ();
+        contentToSign() <- exportFile();
+
+        sendWriteRequest(u);
+
+        IF createdDocumentId() AND NOT useTestSignature() THEN {
+            signature() <- NULL;
+            sign(contentToSign(), TRUE, supplier(d));
+            IF encodedSignature() THEN {
+                signSbisDocument(u, createdDocumentId(), encodedSignature());
+            }
+        }
+    }
+}
+
+EXTEND FORM ukdDocument
+    PROPERTIES(u) sendUkdDocument
+;
+
+DESIGN ukdDocument {
+    transfer {
+        NEW sbis {
+            caption = 'СБИС API';
+            MOVE PROPERTY (sendUkdDocument(u));
+        }
+    }
+}
+
+EXTEND FORM ukdDocuments
+    PROPERTIES(u) PANEL sendUkdDocument
+;
+
+DESIGN ukdDocuments {
+    export {
+        NEW sbis {
+            caption = 'СБИС API';
+            MOVE PROPERTY (sendUkdDocument(u));
+        }
+    }
+}

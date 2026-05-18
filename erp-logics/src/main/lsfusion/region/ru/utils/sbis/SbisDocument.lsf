@@ -1,0 +1,351 @@
+MODULE SbisDocument;
+
+REQUIRE SbisAuthentication;
+
+NAMESPACE Sbis;
+
+// ----------------------------- Документ -----------------------------//
+
+CLASS Document 'Документ СБИС';
+TABLE document (Document);
+
+documentId 'Идентификатор' = DATA STRING (Document) IN id INDEXED CHARWIDTH 20 NONULL;
+document (documentId) = GROUP AGGR Document document BY documentId(document);
+
+documentType 'Тип документа' = DATA STRING[50] (Document) CHARWIDTH 20;
+documentName 'Название' = DATA STRING[255] (Document) CHARWIDTH 30;
+documentNumber 'Номер' = DATA STRING[50] (Document) CHARWIDTH 15;
+// Дата приходит от СБИС в формате DD.MM.YYYY — храним строкой, разбор оставлен потребителю
+documentDate 'Дата' = DATA STRING[20] (Document) CHARWIDTH 10;
+documentSum 'Сумма' = DATA NUMERIC[18,2] (Document);
+
+counteragentName 'Наименование контрагента' = DATA STRING[255] (Document) CHARWIDTH 30;
+counteragentInn 'ИНН контрагента' = DATA STRING[12] (Document) CHARWIDTH 12;
+counteragentKpp 'КПП контрагента' = DATA STRING[9] (Document) CHARWIDTH 10;
+
+statusName 'Статус' = DATA STRING[100] (Document) CHARWIDTH 20;
+loadDateTime 'Время загрузки' = DATA DATETIME (Document);
+
+rawContent 'Содержимое (JSON)' = DATA TEXT (Document);
+
+// ----------------------------- JSON-RPC: общая обвязка --------------//
+
+GROUP docRpcResult EXTID 'result';
+GROUP docRpcError EXTID 'error';
+
+docErrorCodeR = DATA LOCAL INTEGER ();
+docErrorMessageR = DATA LOCAL STRING ();
+
+FORM importDocRpcError
+    PROPERTIES() IN docRpcError
+                    docErrorCodeR EXTID 'code',
+                    docErrorMessageR EXTID 'message'
+;
+
+// ----------------------------- Запрос: список документов ------------//
+
+
+filterDateFromReq = DATA LOCAL STRING ();
+filterDateToReq = DATA LOCAL STRING ();
+filterTypeReq = DATA LOCAL STRING ();
+
+GROUP listParams EXTID 'params';
+GROUP listFilter EXTID 'Фильтр' : listParams;
+
+FORM exportListRequest
+    PROPERTIES() jsonrpcReq EXTID 'jsonrpc',
+                 methodReq EXTID 'method',
+                 idReq EXTID 'id'
+    PROPERTIES() IN listFilter
+                 filterDateFromReq EXTID 'ДатаС',
+                 filterDateToReq EXTID 'ДатаПо',
+                 filterTypeReq EXTID 'Тип'
+;
+
+// ----------------------------- Импорт списка документов -------------//
+
+GROUP sbisCounteragent EXTID 'Контрагент';
+
+idR = DATA LOCAL STRING (INTEGER);
+typeR = DATA LOCAL STRING (INTEGER);
+nameR = DATA LOCAL STRING (INTEGER);
+numberR = DATA LOCAL STRING (INTEGER);
+dateR = DATA LOCAL STRING (INTEGER);
+sumR = DATA LOCAL NUMERIC[18,2] (INTEGER);
+
+counteragentNameR = DATA LOCAL STRING (INTEGER);
+counteragentInnR = DATA LOCAL STRING (INTEGER);
+counteragentKppR = DATA LOCAL STRING (INTEGER);
+
+statusR = DATA LOCAL STRING (INTEGER);
+
+FORM importDocumentList
+    OBJECTS d = INTEGER EXTID 'Документ' IN docRpcResult
+    PROPERTIES(d) idR EXTID 'Идентификатор',
+                  typeR EXTID 'Тип',
+                  nameR EXTID 'Название',
+                  numberR EXTID 'Номер',
+                  dateR EXTID 'Дата',
+                  sumR EXTID 'Сумма',
+                  statusR EXTID 'Состояние'
+    PROPERTIES(d) IN sbisCounteragent
+                  counteragentNameR EXTID 'Название',
+                  counteragentInnR EXTID 'СвФизИП',
+                  counteragentKppR EXTID 'СвЮЛ'
+;
+
+// ----------------------------- Получить список ----------------------//
+
+filterDateFrom 'Дата с' = DATA LOCAL DATE ();
+filterDateTo 'Дата по' = DATA LOCAL DATE ();
+filterDocumentType 'Тип документа' = DATA LOCAL STRING[50] ();
+
+getDocuments 'Получить список документов СБИС' (User u) {
+    NEWSESSION {
+        getToken(u);
+        IF NOT token() THEN RETURN;
+
+        jsonrpcReq() <- '2.0';
+        methodReq() <- 'СБИС.СписокДокументов';
+        idReq() <- '0';
+        filterDateFromReq() <- toDateDDMMYYYY(filterDateFrom());
+        filterDateToReq() <- toDateDDMMYYYY(filterDateTo());
+        filterTypeReq() <- filterDocumentType();
+
+        EXPORT exportListRequest JSON;
+
+        LOCAL result = FILE ();
+        TRY {
+            EXTERNAL HTTP POST resolvedServiceUrl() HEADERS httpHeaders PARAMS exportFile() TO result;
+
+            docErrorMessageR() <- NULL;
+            IMPORT importDocRpcError JSON FROM result();
+            IF docErrorMessageR() THEN {
+                MESSAGE 'Ошибка получения списка документов СБИС: ' + docErrorMessageR();
+                RETURN;
+            }
+
+            IMPORT importDocumentList JSON FROM result();
+        } CATCH {
+            fileToString(result(), 'UTF-8');
+            MESSAGE 'Ошибка получения списка документов СБИС ' + statusHttp() + ' ' + resultString();
+            RETURN;
+        }
+
+        FOR idR(INTEGER i) AND NOT document(idR(i)) NEW d = Document DO {
+            documentId(d) <- idR(i);
+        }
+        FOR Document d == document(idR(INTEGER i)) DO {
+            documentType(d) <- typeR(i);
+            documentName(d) <- nameR(i);
+            documentNumber(d) <- numberR(i);
+            documentDate(d) <- dateR(i);
+            documentSum(d) <- sumR(i);
+            counteragentName(d) <- counteragentNameR(i);
+            counteragentInn(d) <- counteragentInnR(i);
+            counteragentKpp(d) <- counteragentKppR(i);
+            statusName(d) <- statusR(i);
+            loadDateTime(d) <- currentDateTime();
+        }
+        APPLY;
+    }
+}
+
+// ----------------------------- Запрос: прочитать документ -----------//
+
+readIdReq = DATA LOCAL STRING ();
+
+GROUP readParams EXTID 'params';
+GROUP readDoc EXTID 'Документ' : readParams;
+
+FORM exportReadRequest
+    PROPERTIES() jsonrpcReq EXTID 'jsonrpc',
+                 methodReq EXTID 'method',
+                 idReq EXTID 'id'
+    PROPERTIES() IN readDoc
+                 readIdReq EXTID 'Идентификатор'
+;
+
+readDocument 'Прочитать документ СБИС' (User u, Document d) {
+    NEWSESSION {
+        getToken(u);
+        IF NOT token() THEN RETURN;
+
+        jsonrpcReq() <- '2.0';
+        methodReq() <- 'СБИС.ПрочитатьДокумент';
+        idReq() <- '0';
+        readIdReq() <- documentId(d);
+
+        EXPORT exportReadRequest JSON;
+
+        LOCAL result = FILE ();
+        TRY {
+            EXTERNAL HTTP POST resolvedServiceUrl() HEADERS httpHeaders PARAMS exportFile() TO result;
+
+            docErrorMessageR() <- NULL;
+            IMPORT importDocRpcError JSON FROM result();
+            IF docErrorMessageR() THEN {
+                MESSAGE 'Ошибка чтения документа СБИС: ' + docErrorMessageR();
+                RETURN;
+            }
+
+            fileToString(result(), 'UTF-8');
+            rawContent(d) <- resultString();
+        } CATCH {
+            fileToString(result(), 'UTF-8');
+            MESSAGE 'Ошибка чтения документа СБИС ' + statusHttp() + ' ' + resultString();
+            RETURN;
+        }
+        APPLY;
+    }
+}
+
+// ----------------------------- Записать документ --------------------//
+
+createdDocumentId = DATA LOCAL STRING ();
+createdDocumentIdR = DATA LOCAL STRING ();
+
+FORM importWriteResponse
+    PROPERTIES() IN docRpcResult
+                    createdDocumentIdR EXTID 'Идентификатор'
+;
+
+sendWriteRequest 'Отправить документ СБИС' (User u) {
+    NEWSESSION {
+        getToken(u);
+        IF NOT token() THEN RETURN;
+
+        LOCAL result = FILE ();
+        TRY {
+            EXTERNAL HTTP POST resolvedServiceUrl() HEADERS httpHeaders PARAMS exportFile() TO result;
+
+            docErrorMessageR() <- NULL;
+            IMPORT importDocRpcError JSON FROM result();
+            IF docErrorMessageR() THEN {
+                MESSAGE 'Ошибка отправки документа СБИС: ' + docErrorMessageR();
+                RETURN;
+            }
+
+            createdDocumentIdR() <- NULL;
+            IMPORT importWriteResponse JSON FROM result();
+            createdDocumentId() <- createdDocumentIdR();
+        } CATCH {
+            fileToString(result(), 'UTF-8');
+            MESSAGE 'Ошибка отправки документа СБИС ' + statusHttp() + ' ' + resultString();
+            RETURN;
+        }
+
+        IF createdDocumentId() AND NOT document(createdDocumentId()) THEN NEW d = Document {
+            documentId(d) <- createdDocumentId();
+            loadDateTime(d) <- currentDateTime();
+        }
+        APPLY;
+    }
+}
+
+// ----------------------------- Подписать документ ------------------//
+// СБИС.ПодписатьДокумент принимает идентификатор документа и base64-подпись.
+// Сама подпись формируется отдельно через КриптоПро в надстраивающем модуле
+// (см. SbisUpdDocument / SbisUkdDocument).
+
+signDocIdReq = DATA LOCAL STRING ();
+signatureBase64Req = DATA LOCAL STRING ();
+
+GROUP signParams EXTID 'params';
+GROUP signDoc EXTID 'Документ' : signParams;
+
+FORM exportSignRequest
+    PROPERTIES() jsonrpcReq EXTID 'jsonrpc',
+                 methodReq EXTID 'method',
+                 idReq EXTID 'id'
+    PROPERTIES() IN signDoc
+                 signDocIdReq EXTID 'Идентификатор',
+                 signatureBase64Req EXTID 'Подпись'
+;
+
+signSbisDocument 'Подписать документ в СБИС' (User u, STRING docId, STRING signatureBase64) {
+    getToken(u);
+    IF NOT token() THEN RETURN;
+
+    jsonrpcReq() <- '2.0';
+    methodReq() <- 'СБИС.ПодписатьДокумент';
+    idReq() <- '0';
+    signDocIdReq() <- docId;
+    signatureBase64Req() <- signatureBase64;
+
+    EXPORT exportSignRequest JSON;
+
+    LOCAL result = FILE ();
+    TRY {
+        EXTERNAL HTTP POST resolvedServiceUrl() HEADERS httpHeaders PARAMS exportFile() TO result;
+
+        docErrorMessageR() <- NULL;
+        IMPORT importDocRpcError JSON FROM result();
+        IF docErrorMessageR() THEN {
+            MESSAGE 'Ошибка подписания документа СБИС: ' + docErrorMessageR();
+        }
+    } CATCH {
+        fileToString(result(), 'UTF-8');
+        MESSAGE 'Ошибка подписания документа СБИС ' + statusHttp() + ' ' + resultString();
+    }
+}
+
+// ----------------------------- Формы --------------------------------//
+
+FORM sbisDocument 'Документ СБИС'
+    OBJECTS d = Document PANEL
+    PROPERTIES(d) documentId, documentType, documentName, documentNumber, documentDate,
+                  documentSum, counteragentName, counteragentInn, counteragentKpp,
+                  statusName, loadDateTime, rawContent
+
+    EDIT Document OBJECT d
+;
+
+DESIGN sbisDocument {
+    OBJECTS {
+        NEW header {
+            horizontal = TRUE;
+            MOVE PROPERTY(documentId(d));
+            MOVE PROPERTY(documentType(d));
+            MOVE PROPERTY(statusName(d));
+        }
+        NEW body {
+            horizontal = TRUE;
+            NEW fields {
+                MOVE PROPERTY(documentName(d));
+                MOVE PROPERTY(documentNumber(d));
+                MOVE PROPERTY(documentDate(d));
+                MOVE PROPERTY(documentSum(d));
+            }
+            NEW counteragent {
+                caption = 'Контрагент';
+                MOVE PROPERTY(counteragentName(d));
+                MOVE PROPERTY(counteragentInn(d));
+                MOVE PROPERTY(counteragentKpp(d));
+            }
+        }
+        MOVE PROPERTY(loadDateTime(d));
+        MOVE PROPERTY(rawContent(d)) { fill = 1; }
+    }
+}
+
+FORM sbisDocuments 'Документы СБИС'
+    OBJECTS u = User PANEL
+    PROPERTIES(u) READONLY login
+    FILTERS u == userSbis(currentUser())
+
+    PROPERTIES() filterDateFrom, filterDateTo, filterDocumentType
+    PROPERTIES getDocuments(u)
+
+    OBJECTS d = Document
+    PROPERTIES(d) READONLY documentId, documentType, documentName, documentNumber, documentDate,
+                            documentSum, counteragentName, counteragentInn, statusName, loadDateTime
+    PROPERTIES(d) NEWSESSION EDIT, DELETE
+    PROPERTIES readDocument(u, d) TOOLBAR
+;
+
+NAVIGATOR {
+    sbisNavigator {
+        NEW sbisDocuments;
+    }
+}

@@ -1,0 +1,167 @@
+MODULE SbisUpdDocument;
+
+REQUIRE SbisDocument, UpdDocument, CryptoPro, CryptoProLegalEntity;
+
+NAMESPACE Sbis;
+
+// ----------------------------- Экспортируемый УПД -------------------//
+
+exportUpdDocument = DATA LOCAL UpdDocument ();
+
+overExportUpdDocument ABSTRACT (UpdDocument);
+
+GROUP updParams EXTID 'params';
+GROUP updDocG EXTID 'Документ' : updParams;
+GROUP updRegulation EXTID 'Регламент' : updDocG;
+GROUP updBase EXTID 'Основание' : updDocG;
+
+// --- Поставщик: вложенный объект "Продавец" ---
+GROUP updSeller EXTID 'Продавец' : updDocG;
+GROUP updSellerEntity EXTID 'СвЮЛ' : updSeller;
+
+// --- Покупатель ---
+GROUP updBuyer EXTID 'Покупатель' : updDocG;
+GROUP updBuyerEntity EXTID 'СвЮЛ' : updBuyer;
+
+// --- Номенклатурная строка ---
+GROUP updItemUnit EXTID 'ЕдИзм';
+
+
+regulationIdReq = DATA LOCAL STRING ();     
+regulationNameReq = DATA LOCAL STRING ();
+
+baseDocNameReq = DATA LOCAL STRING ();       // Документ-основание
+baseDocNumberReq = DATA LOCAL STRING ();
+baseDocDateReq = DATA LOCAL STRING ();
+
+sellerNameReq = DATA LOCAL STRING ();
+sellerInnReq = DATA LOCAL STRING ();
+sellerKppReq = DATA LOCAL STRING ();
+
+buyerNameReq = DATA LOCAL STRING ();
+buyerInnReq = DATA LOCAL STRING ();
+buyerKppReq = DATA LOCAL STRING ();
+
+FORM exportUpdRequest
+    PROPERTIES() jsonrpcReq EXTID 'jsonrpc',
+                 methodReq EXTID 'method',
+                 idReq EXTID 'id'
+
+    PROPERTIES IN updDocG
+                 typeUpd = 'УПД' EXTID 'Тип',
+                 functionUpd = nameStatus(exportUpdDocument()) EXTID 'Функция',
+                 numberUpd = numberInvoice(exportUpdDocument()) EXTID 'Номер',
+                 dateUpd = toDateDDMMYYYY(dateInvoice(exportUpdDocument())) EXTID 'Дата',
+                 currencyUpd = codeCurrency(exportUpdDocument()) EXTID 'Валюта',
+                 sumNoVat = sum(exportUpdDocument()) EXTID 'СуммаБезНДС',
+                 sumVat = VATSum(exportUpdDocument()) EXTID 'СуммаНДС',
+                 sumTotal = invoiceSum(exportUpdDocument()) EXTID 'Сумма',
+                 operationDescr = description(exportUpdDocument()) EXTID 'СодержаниеОперации'
+
+    PROPERTIES() IN updRegulation
+                 regulationIdReq EXTID 'Идентификатор',
+                 regulationNameReq EXTID 'Название'
+
+    PROPERTIES() IN updBase
+                 baseDocNameReq EXTID 'Название',
+                 baseDocNumberReq EXTID 'Номер',
+                 baseDocDateReq EXTID 'Дата'
+
+    PROPERTIES() IN updSeller
+                 sellerNameReq EXTID 'Название'
+    PROPERTIES() IN updSellerEntity
+                 sellerInnReq EXTID 'ИНН',
+                 sellerKppReq EXTID 'КПП'
+
+    PROPERTIES() IN updBuyer
+                 buyerNameReq EXTID 'Название'
+    PROPERTIES() IN updBuyerEntity
+                 buyerInnReq EXTID 'ИНН',
+                 buyerKppReq EXTID 'КПП'
+
+    OBJECTS i = UpdDocumentDetail EXTID 'Номенклатура' IN updDocG
+    FILTERS updDocument(i) == exportUpdDocument()
+    PROPERTIES nameI = nameSku(i) EXTID 'Название',
+               codeI = idSku(i) EXTID 'Код',
+               qtyI = quantity(i) EXTID 'Количество',
+               priceI = price(i) EXTID 'Цена',
+               sumNoVatI = sum(i) EXTID 'СуммаБезНДС',
+               vatRateI = nameVATStatus(i) EXTID 'СтавкаНДС',
+               vatI = VATSum(i) EXTID 'СуммаНДС',
+               totalI = invoiceSum(i) EXTID 'СуммаВсего'
+    PROPERTIES IN updItemUnit
+               unitCodeI = idUOM(i) EXTID 'Код',
+               unitNameI = nameUOM(i) EXTID 'Название'
+;
+
+// ----------------------------- Действие отправки --------------------//
+
+sendUpdDocument 'Отправить УПД в СБИС' (UpdDocument d) {
+    APPLY;
+    IF canceled() THEN RETURN;
+    FOR User u == userSbis(currentUser()) DO NEWSESSION {
+        exportUpdDocument() <- d;
+
+        jsonrpcReq() <- '2.0';
+        methodReq() <- 'СБИС.ЗаписатьДокумент';
+        idReq() <- '0';
+
+        regulationIdReq() <- 'УПД';
+        regulationNameReq() <- 'УПД';
+
+        baseDocNameReq() <- descriptionContract(d);
+        baseDocNumberReq() <- numberContract(d);
+        baseDocDateReq() <- toDateDDMMYYYY(dateContract(d));
+
+        sellerNameReq() <- nameSupplier(d);
+        sellerInnReq() <- OVERRIDE innSupplier(d), innSupplierIE(d);
+        sellerKppReq() <- kppSupplier(d);
+
+        buyerNameReq() <- nameCustomer(d);
+        buyerInnReq() <- OVERRIDE innCustomer(d), innCustomerIE(d);
+        buyerKppReq() <- kppCustomer(d);
+
+        overExportUpdDocument(d);
+
+        EXPORT exportUpdRequest JSON;
+        
+        LOCAL contentToSign = FILE ();
+        contentToSign() <- exportFile();
+
+        sendWriteRequest(u);
+
+        IF createdDocumentId() AND NOT useTestSignature() THEN {
+            signature() <- NULL;
+            sign(contentToSign(), TRUE, supplier(d));
+            IF encodedSignature() THEN {
+                signSbisDocument(u, createdDocumentId(), encodedSignature());
+            }
+        }
+    }
+}
+
+EXTEND FORM updDocument
+    PROPERTIES(u) sendUpdDocument
+;
+
+DESIGN updDocument {
+    transfer {
+        NEW sbis {
+            caption = 'СБИС API';
+            MOVE PROPERTY (sendUpdDocument(u));
+        }
+    }
+}
+
+EXTEND FORM updDocuments
+    PROPERTIES(u) PANEL sendUpdDocument
+;
+
+DESIGN updDocuments {
+    export {
+        NEW sbisAPI {
+            caption = 'СБИС API';
+            MOVE PROPERTY (sendUpdDocument(u));
+        }
+    }
+}
