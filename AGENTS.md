@@ -94,11 +94,19 @@ curl -sS -X PUT \
 
 ## MCP-серверы
 
-- `lsfusion` — HTTP `http://localhost:63342/lsfusion` (плагин lsFusion в IDEA);
-  обязательно использовать `mcp__lsfusion__*` для поиска элементов, документации и
-  валидации синтаксиса при работе с `.lsf`-файлами.
-- `jetbrains` — stdio `npx -y @jetbrains/mcp-proxy`;
-  доступ к открытому проекту в IDEA (файлы, терминал, дебаггер).
+- `lsfusion-sse` — SSE `http://localhost:64342/sse` (плагин lsFusion в IDEA);
+  **основной сервер**. Объединяет знаниевые функции (`lsfusion_get_guidance`,
+  `lsfusion_find_elements`, `lsfusion_retrieve_docs`) и доступ к открытому проекту
+  в IDEA: файлы (`read_file`, `replace_text_in_file`, `create_new_file`, ...),
+  поиск (`search_text`, `search_regex`, `search_symbol`, ...), сборка
+  (`build_project`, `get_run_configurations`, `execute_run_configuration`),
+  отладчик xdebug. Все правила ниже используют префикс `mcp__lsfusion-sse__*`.
+- `lsfusion-local` — HTTP `http://localhost:63342/lsfusion`; облегчённое зеркало
+  знаниевых функций (только `lsfusion_get_guidance` / `lsfusion_find_elements` /
+  `lsfusion_retrieve_docs`). Использовать как фолбэк, если `lsfusion-sse` недоступен.
+- `claude.ai lsfusion` — HTTPS `https://ai.lsfusion.org/mcp`; облачное зеркало
+  `lsfusion_get_guidance` / `lsfusion_retrieve_docs`. Работает без локального
+  плагина IDEA — фолбэк на случай, когда IDEA не запущена.
 
 ## Конвенции репозитория
 
@@ -107,9 +115,9 @@ curl -sS -X PUT \
 
 ### Обязательный вызов `lsfusion_get_guidance` перед работой с `.lsf`
 
-Перед **любой** операцией с `.lsf`-файлом (чтением, анализом, правкой) агент
-**обязан** один раз за сессию вызвать `mcp__lsfusion__lsfusion_get_guidance` и
-применять полученные правила.
+Перед **любой** операцией с `.lsf`-файлом (Read, Edit, Write — то есть и чтение, и
+анализ, и правка) агент **обязан** один раз за сессию вызвать
+`mcp__lsfusion-sse__lsfusion_get_guidance` и применять полученные правила
 
 Это **жёсткое требование**, а не рекомендация. Причины:
 
@@ -121,9 +129,12 @@ curl -sS -X PUT \
 
 #### Как соблюдать
 
-1. Вызвать `mcp__lsfusion__lsfusion_get_guidance` **до** первой операции с
-   `.lsf`-файлом в текущей сессии.
-2. Дальше в этой же сессии повторный вызов не требуется.
+1. Если `mcp__lsfusion-sse__lsfusion_get_guidance` помечен как deferred — сначала
+   подгрузи схему через `ToolSearch` запросом
+   `select:mcp__lsfusion-sse__lsfusion_get_guidance`.
+2. Вызови инструмент **до** первого `Read`/`Edit`/`Write` по `.lsf`-файлу
+   в текущей сессии.
+3. Дальше в этой же сессии повторный вызов не требуется.
 
 ### Проверка результата правок `.lsf`: только запуск службы
 
@@ -145,7 +156,18 @@ curl -sS -X PUT \
 4. Финальный отчёт оформлять так, чтобы было видно: правки внесены, окончательная
    проверка — за запуском службы (а не за результатом сборки).
 
-#### Доступные механизмы запуска и остановки
+1. Вызвать `mcp__lsfusion-sse__get_run_configurations` и показать пользователю
+   доступные конфигурации (если инструмент помечен как deferred — сначала
+   подгрузить схему через `ToolSearch` запросом
+   `select:mcp__lsfusion-sse__get_run_configurations,mcp__lsfusion-sse__execute_run_configuration`).
+2. **Предложить** пользователю запустить подходящую конфигурацию (как правило —
+   серверную для текущего модуля). Имя конфигурации не угадывать: брать из ответа
+   `get_run_configurations`. Если подходящих несколько — перечислить и спросить.
+3. **Не запускать** конфигурацию самостоятельно. `mcp__lsfusion-sse__execute_run_configuration`
+   вызывается только после явного согласия пользователя в этом же сообщении —
+   старые согласия не переносятся.
+4. Финальный отчёт о задаче формулировать так, чтобы было видно: правки внесены,
+   но окончательная проверка — за запуском службы (а не за результатом сборки).
 
 - **`mcp__sse__xdebug_start_debugger_session(configurationName=…)`** — основной
   запуск. Подходит и для верификации без отладки. Возвращает `sessionId`,
