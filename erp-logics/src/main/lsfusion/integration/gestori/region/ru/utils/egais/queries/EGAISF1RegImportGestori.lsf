@@ -1,8 +1,42 @@
 MODULE EGAISF1RegImportGestori;
 
-REQUIRE EGAISF1RegImport, EGAISOutDocGestori;
+REQUIRE EGAISF1RegImport, EGAISOutDocGestori, EGAISWayBillGestory;
 
 NAMESPACE EGAIS;
 
 numberBaseDocument(QueryForm1 d) += id(f1Reg(d));
 typeBaseDocument(QueryForm1 d) += objectClassName(f1Reg(d));
+
+queryForm1WayBill 'Запросить справку А' (F1Reg r) {
+    NEWSESSION {
+        NEW q = QueryForm1 {
+            f1Reg(q) <- r;
+            client(q) <- client(maxF2Reg(r));
+            utm(q) <- utm(client(q));
+            queryForm1(q);
+            APPLY;
+        }
+    }
+}
+
+queryForm1 'Запросить справку А'(WayBill p) {
+    FOR wayBill(WayBillPosition pp) == p DO {
+        queryForm1WayBill(f1Reg(pp));
+    }
+} TOOLBAR;
+
+queryForm1 'Запросить справку А' (WayBillPosition p) {
+    IF NOT countWayBillPositions() THEN {
+        select(p) <- TRUE;
+    }
+    FOR select(WayBillPosition pp) DO {
+        queryForm1WayBill(f1Reg(pp));
+    }
+
+    select(WayBillPosition pp) <- NULL; 
+} TOOLBAR;
+
+EXTEND FORM wayBills
+    PROPERTIES (w) queryForm1
+    PROPERTIES (p) queryForm1
+;
