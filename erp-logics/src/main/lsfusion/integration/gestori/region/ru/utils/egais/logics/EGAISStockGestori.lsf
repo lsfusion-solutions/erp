@@ -1,6 +1,6 @@
 MODULE EGAISStockGestori;
 
-REQUIRE EGAISStock;
+REQUIRE EGAISStock, LegalEntityRu;
 
 NAMESPACE EGAIS;
 
@@ -28,8 +28,25 @@ EXTEND FORM clients
 ;
 
 in(LegalEntity le, Client o) = GROUP MIN TRUE BY legalEntity(Stock st), client(st);
+innLegalEntity 'ИНН' (Stock st) = inn(legalEntity(st));
+kppLegalEntity 'КПП' (Stock st) = kpp(legalEntity(st));
 
-EXTEND FORM client 
+addStock 'Добавить' (Client c){
+    DIALOG stocks OBJECTS s INPUT DO {
+        client(s) <- c;
+    }
+} IMAGE 'add.png' CHANGEKEY 'INSERT';
+
+delete 'Отключить' (Stock st) {
+    client(st) <- NULL;
+} IMAGE 'delete.png';
+
+EXTEND FORM client
+    OBJECTS st = Stock
+    PROPERTIES (st) READONLY id, name, idLegalEntity, nameLegalEntity, innLegalEntity, kppLegalEntity
+    PROPERTIES addStock(o) DRAW st TOOLBAR, delete(st) GRID
+    FILTERS client(st) == o
+
     OBJECTS le = LegalEntity
     PROPERTIES (le) READONLY id, name, fullName, address 
     FILTERS in(le, o)
@@ -61,10 +78,14 @@ DESIGN client {
             }            
         }
         tabbedPane {
-            NEW products {
+            NEW stocks {
+                caption = 'Связь со складами';
+                MOVE BOX(st);
+            }
+            NEW legalEntities {
                 caption = 'Связь с организациями';
                 MOVE BOX(le);
-            }
+            }            
         }
     }
 }

@@ -1,6 +1,6 @@
 MODULE EGAISWayBillGestory;
 
-REQUIRE EGAISWayBill, EGAISItemGestori, EGAISMarkCodeGestori, EGAISDocGestori;
+REQUIRE EGAISWayBill, EGAISItemGestori, EGAISMarkCodeGestori, EGAISDocGestori, EGAISPurchaseInvoice, EGAISStockGestori;
 
 NAMESPACE EGAIS;
 
@@ -38,6 +38,91 @@ overDialogBackground(WayBill w) += RGB(255,212,212) IF notLinkedItem(w);
 select 'Отм.' = DATA LOCAL BOOLEAN (WayBillPosition);
 countWayBillPositions = GROUP SUM 1 IF select(WayBillPosition p);
 
-EXTEND FORM wayBills
+idShipper 'Код отправителя' (WayBill w) = id(shipper(w));
+idConsignee 'Код получателя' (WayBill w) = id(consignee(w));
+
+linkedLegalEntity (Client o) =  GROUP MIN TRUE IF in(LegalEntity le, o);
+backGroundShipper(WayBill w) = RGB (255, 200, 200) IF shipper(w) AND NOT linkedLegalEntity(shipper(w));
+backGroundConsignee(WayBill w) = RGB (255, 200, 200) IF consignee(w) AND NOT linkedLegalEntity(consignee(w));
+
+linkedItem (Product p) =  GROUP MIN TRUE IF in(Item i, p);
+backGroundProduct(WayBillPosition p) = RGB (255, 200, 200) IF product(p) AND NOT linkedItem(product(p));
+
+reject 'Отказ от ТТН' (WayBill w) {
+    NEWSESSION {
+        realQuantity(WayBillPosition p) <- NULL WHERE wayBill(p) = w;
+        accepted(WayBillMark a) <- NULL WHERE wayBill(wayBillPosition(a)) = w;
+
+        IF NOT notRejected(wayBillActOutDoc(wayBillAct(w))) THEN {
+            NEW wa = WayBillAct {
+                wayBill(wa) <- w;
+                number(wa) <- STRING(wa);
+                date(wa) <- currentDate();
+            }
+        }
+        submitAct(wayBillAct(w), NULL);
+        APPLY;
+    }
+} TOOLBAR CONFIRM;
+
+EXTEND FORM wayBills 
+    PROPERTIES (w) READONLY idShipper BEFORE shortNameShipper(w), idConsignee BEFORE shortNameConsignee(w)
+    PROPERTIES (w) reject
     PROPERTIES (p) select FIRST
 ;
+
+DESIGN wayBills {
+    PROPERTY (idShipper(w)) {background = backGroundShipper(w);}
+    PROPERTY (shortNameShipper(w)) {background = backGroundShipper(w);}
+    PROPERTY (descriptionShipper(w)) {background = backGroundShipper(w);}
+
+    PROPERTY (idConsignee(w)) {background = backGroundConsignee(w);}
+    PROPERTY (shortNameConsignee(w)) {background = backGroundConsignee(w);}
+    PROPERTY (descriptionConsignee(w)) {background = backGroundConsignee(w);}
+
+    PROPERTY (idProduct(p)) {background = backGroundProduct(p);}
+    PROPERTY (fullNameProduct(p)) {background = backGroundProduct(p);}    
+}
+
+EXTEND FORM wayBill
+    PROPERTIES (w) idShipper, idConsignee
+;
+
+DESIGN wayBill {
+    header {
+        tabbed = TRUE;
+        NEW mainInfo {
+            caption = 'Основная информация';
+            MOVE statuses;
+            MOVE base;
+            MOVE legalEntities {
+                horizontal = FALSE;
+                alignment = STRETCH;
+                MOVE PROPERTY(idShipper(w)) {background = backGroundShipper(w);};
+                MOVE PROPERTY(shortNameShipper(w)) {background = backGroundShipper(w);};
+                MOVE PROPERTY (descriptionShipper(w)) {caption = 'Адрес отправителя'; charWidth = 100; background = backGroundShipper(w);};
+                MOVE PROPERTY(idConsignee(w)) {background = backGroundConsignee(w);};
+                MOVE PROPERTY(shortNameConsignee(w)) {background = backGroundConsignee(w);};
+                MOVE PROPERTY (descriptionConsignee(w)) {caption = 'Адрес получателя'; charWidth = 100; background = backGroundConsignee(w);};
+
+                PROPERTY (idProduct(p)) {background = backGroundProduct(p);}
+                PROPERTY (fullNameProduct(p)) {background = backGroundProduct(p);}
+            }
+            MOVE notes;
+        }
+        MOVE transport;
+    }
+    detail {
+        horizontal = FALSE;
+        fill = 1;
+        MOVE BOX(p);
+        MOVE detailBox {
+            horizontal = TRUE;
+            fill = 0.5;
+            MOVE BOX(b) {
+                fill = 0.3;
+            }
+            MOVE BOX(m);
+        }
+    }
+}
