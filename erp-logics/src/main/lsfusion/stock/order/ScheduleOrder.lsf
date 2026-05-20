@@ -224,15 +224,15 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     dateOrder 'Дата заказа' = DATA DATE (ScheduleOrderDetail) IN id;
     dateSupply 'Дата поставки' = DATA DATE (ScheduleOrderDetail) IN id;
     
-    isClosed  'Аннулирован' = DATA BOOLEAN (ScheduleOrderDetail );
-    isOpened  'Не аннулирован' (ScheduleOrderDetail o) = o IS ScheduleOrderDetail  AND NOT isClosed (o) MATERIALIZED;
+    isClosed 'Аннулирован' = DATA BOOLEAN (ScheduleOrderDetail );
+    isOpened 'Не аннулирован' (ScheduleOrderDetail o) = o IS ScheduleOrderDetail  AND NOT isClosed (o) MATERIALIZED;
     INDEX isOpened(ScheduleOrderDetail o), dateOrder(o);
 
-    close  'Аннулировать' (ScheduleOrderDetail o)  { 
+    close 'Аннулировать' (ScheduleOrderDetail o)  { 
 	NEWSESSION { isClosed (o) <- TRUE; apply(); }
 } TOOLBAR CONFIRM;
 
-    open  'Отменить аннулирование' (ScheduleOrderDetail o)  { 
+    open 'Отменить аннулирование' (ScheduleOrderDetail o)  { 
 	NEWSESSION { isClosed (o) <- NULL; apply(); }
 } TOOLBAR CONFIRM;
     
@@ -453,7 +453,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
  
     prevLastCreatedOrder (ScheduleOrder o) = PREV(lastCreatedOrder(o));
     
-    reCreate  'Перегенерировать предварительные заказы'(ScheduleOrder scheduleOrder)  { 
+    reCreate 'Перегенерировать предварительные заказы'(ScheduleOrder scheduleOrder)  { 
         DELETE ScheduleOrderDetail d WHERE d IS ScheduleOrderDetail AND scheduleOrder(d) == scheduleOrder AND isOpened(d) AND NOT [GROUP SUM 1 BY scheduleOrderDetail( UserOrder o)](d);
         create(scheduleOrder);    
     } TOOLBAR;

@@ -61,7 +61,7 @@ lastStockLot = GROUP LAST stock(SkuLedger ledger, Lot lot)
 
 jsonDropLot (Lot l) =  JSON FROM  command = 'deleteExciseMarkWhite', excisemarkid = id(l);
 
-deleteExciseMarkWhite  'Удалить марку из оборудования' (Lot l) {
+deleteExciseMarkWhite 'Удалить марку из оборудования' (Lot l) {
     FOR  sidModel(GroupMachinery gm) == 'Artix' AND directoryPickList(gm) AND transferLot(gm) AND stock(gm)==lastStockLot(l) DO {
         LOCAL rezult = TEXT ();
         rezult()<- TEXT(jsonDropLot(l));
@@ -88,7 +88,7 @@ WHEN DROPPED(currentBalance(Lot l, Stock st)) AND transferLot(st) AND l IS Lot A
     toDrop(l,st) <- TRUE;  
 }
 
-deleteExciseMarkWhite  'Удалить марки из оборудования (без остатка)' (Stock st, BOOLEAN message) {
+deleteExciseMarkWhite 'Удалить марки из оборудования (без остатка)' (Stock st, BOOLEAN message) {
     LOCAL NESTED drop = BOOLEAN (Lot, Stock);
     drop(Lot l, st) <- toDrop(l,st);
 
@@ -113,7 +113,7 @@ deleteExciseMarkWhite  'Удалить марки из оборудования 
     }    
 }
 
-deleteExciseMarkWhite  'Удалить марки из оборудования (без остатка)' () {
+deleteExciseMarkWhite 'Удалить марки из оборудования (без остатка)' () {
     FOR  [GROUP SUM 1 IF toDrop(Lot l, Stock st) BY st](Stock st) AND transferLot(st) AND transferLotDrop() DO {
         deleteExciseMarkWhite(st,TRUE);
     }
@@ -130,7 +130,7 @@ DESIGN options{
         MOVE PROPERTY(countMachineryPriceTransactionLot());
     }
 }
-deleteExciseMarkWhiteMultithread  'Удалить марки из оборудования (без остатка) многопоточно' () {
+deleteExciseMarkWhiteMultithread 'Удалить марки из оборудования (без остатка) многопоточно' () {
     NEWEXECUTOR
         FOR [GROUP SUM 1 IF toDrop(Lot l, Stock st) BY st](Stock st) AND transferLot(st) AND transferLotDrop() DO NEWTHREAD NEWSESSION NEWSQL {
             deleteExciseMarkWhite(st, NULL);

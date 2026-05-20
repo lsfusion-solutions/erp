@@ -46,7 +46,7 @@ WHEN DROPPED(aggregateLot(LotOrderDetail d)) DO {
 CLASS AggregateLotOrderStatus {
     new 'Новый',
     process 'Обрабатывается',
-    done  'Выполнено'
+    done 'Выполнено'
 }
 
 aggregateLotOrderStatus 'Статус' = ABSTRACT CASE AggregateLotOrderStatus (LotOrder);
@@ -62,9 +62,9 @@ aggregateLotOrderStatus (LotOrder l) += WHEN NOT isProcess (l) THEN AggregateLot
 aggregateLotOrderStatus (LotOrder l) += WHEN isProcess(l) AND NOT isDone(l) THEN AggregateLotOrderStatus.process;
 aggregateLotOrderStatus (LotOrder l) += WHEN isDone(l) THEN AggregateLotOrderStatus.done;
 
-createAggregationLotOrder  'Создать заказ' ABSTRACT LIST ();
+createAggregationLotOrder 'Создать заказ' ABSTRACT LIST ();
 exchangeAggregationLotOrder 'Обмен данными' ABSTRACT LIST (LotOrder);
-exportTxtAggregationLotOrder  'Сохранить (txt)' (LotOrder o) {
+exportTxtAggregationLotOrder 'Сохранить (txt)' (LotOrder o) {
     EXPORT CSV '|' NOHEADER CHARSET 'CP1251' FROM idAggregateLot(LotOrderDetail d) WHERE lotOrder(d) = o;
     WRITE CLIENT DIALOG TEXTFILE(exportFile()) TO 'exportAggrLot';
 }
