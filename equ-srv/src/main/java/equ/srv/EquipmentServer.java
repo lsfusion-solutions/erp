@@ -2664,7 +2664,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                                 expiryDate, passScales, valueVAT, pluNumber, flags, null, canonicalNameSkuGroup, null, extraInfo, null, null));
                     }
 
-                    //закомментировали, чтобы снизить обьём передаваемых данных
+                    //закомментировали, чтобы снизить объём передаваемых данных
                     List<TerminalAssortment> terminalAssortmentList = new ArrayList<>();//TerminalEquipmentServer.readTerminalAssortmentList(session, getBusinessLogics(), priceListTypeGroupMachinery, stockGroupTerminal);
                     List<TerminalHandbookType> terminalHandbookTypeList = TerminalEquipmentServer.readTerminalHandbookTypeList(session, getBusinessLogics());
                     List<TerminalDocumentType> terminalDocumentTypeList = TerminalEquipmentServer.readTerminalDocumentTypeListEquipment(session, getBusinessLogics(), groupMachineryObject);
