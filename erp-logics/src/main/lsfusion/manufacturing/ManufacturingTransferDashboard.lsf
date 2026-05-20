@@ -10,13 +10,17 @@ nameCateringSaleOperation 'Операция (расход на цех)' = name(c
 cateringPurchaseOperation = DATA Purchase.Operation();
 nameCateringPurchaseOperation 'Операция (приход на цех)' = name(cateringPurchaseOperation());
 
+wholesaleCateringPurchaseOperation = DATA Purchase.Operation();
+nameWholesaleCateringPurchaseOperation 'Операция (приход на цех) опт или учет по с/с' = name(wholesaleCateringPurchaseOperation());
+
 EXTEND FORM options
-    PROPERTIES() nameCateringSaleOperation, nameCateringPurchaseOperation
+    PROPERTIES() nameCateringSaleOperation, nameCateringPurchaseOperation, nameWholesaleCateringPurchaseOperation
 ;
 DESIGN options {
     manufacturing {        
         MOVE PROPERTY(nameCateringSaleOperation());
         MOVE PROPERTY(nameCateringPurchaseOperation());
+        MOVE PROPERTY(nameWholesaleCateringPurchaseOperation());
     }
 }
 
@@ -155,6 +159,8 @@ createManufacturingPurchaseSale 'Создать поступление на це
                 currency(pi) <- currency(si);
                 IF NOT wholeCatering(si) THEN {
                     operation(pi) <- cateringPurchaseOperation();
+                } ELSE {
+                    operation(pi) <- wholesaleCateringPurchaseOperation();
                 }
                 createManufacturingPurchaseSaleOver(si,pi);
 
