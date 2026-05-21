@@ -155,9 +155,10 @@ titleDocument 'Документ Диадока' (UpdDocument d) = title(document
 primaryStatusTextDocument 'Статус' (UpdDocument d) = (GROUP CONCAT primaryStatusText(Box b, document(d)), ', ' ORDER b) CHARWIDTH 20;
 
 overMessageUniversalTransferDocument ABSTRACT (UpdDocument);
-    
+overUserDiadoc = ABSTRACT User(); 
+
 messageUniversalTransferDocument 'Подписать и отправить через Диадок' (UpdDocument d) {
-    FOR User u == userDiadoc(currentUser()) DO NEWSESSION {
+    FOR User u == (OVERRIDE overUserDiadoc(), userDiadoc(currentUser())) DO NEWSESSION {
         fromBox() <- GROUP LAST Box b IF legalEntity(organization(b)) == supplier(invoice(d)) ORDER b;
         toBox() <- GROUP LAST Box b IF legalEntity(organization(b)) == customer(invoice(d)) ORDER b;
         overMessageUniversalTransferDocument(d);
