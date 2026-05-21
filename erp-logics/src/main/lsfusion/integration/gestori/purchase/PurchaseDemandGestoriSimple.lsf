@@ -19,7 +19,7 @@ recQuantity 'Кол-во к заказу' (Sku s, UserOrder o) =  plan(s, o) * c
 // Формула 2 и 12
 planGestori 'Планируемые продажи' (Sku s, UserOrder o) = (GROUP SUM averageSold(s, customerStock(o)) *
     (OVERRIDE promoCoeff(s, customerStock(o), DATE dt) IF promoCoeff(s, customerStock(o), dt) > 0, 1.0)  *
-    (OVERRIDE dowCoeff(s, customerStock(o), extractDOW(dt)) IF dowCoeff(s, customerStock(o), extractDOW(dt)) > 0, 1.0) IF iterate(dt, sum(shipmentDate(o),1), nextShipmentDate(o))) *
+    (OVERRIDE dowCoeff(s, customerStock(o), extractDOW(dt)) IF dowCoeff(s, customerStock(o), extractDOW(dt)) > 0, 1.0) IF iterate(dt, shipmentDate(o), sum(nextShipmentDate(o), -1))) *
     (OVERRIDE extraCoeff(s, customerStock(o)) IF extraCoeff(s, customerStock(o)) > 0, 1.0);
 
 recQuantityGestoriGross 'Кол-во к заказу' (Sku s, UserOrder o) =  planGestori(s, o)
