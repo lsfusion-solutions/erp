@@ -1,6 +1,6 @@
 MODULE EGAISOutDocGestori;
 
-REQUIRE EGAISOutDoc;
+REQUIRE EGAISOutDoc, TextHighlight;
 
 NAMESPACE EGAIS;
 
@@ -79,6 +79,8 @@ EXTEND FORM outDocs
     PROPERTIES(r) READONLY AFTER nameDocType(r) typeBaseDocument, numberBaseDocument, dateBaseDocument,
         typeOriginalDocument, numberOriginalDocument, dateOriginalDocument
     PROPERTIES(r) READONLY AFTER descriptionClient(r) documentString, errorString
+
+    PROPERTIES(r) READONLY PANEL hldocument = document CUSTOM 'xmlHighlight'
     
     FILTERGROUP docStatusFilter
         FILTER 'Отправлен' outDocStatus(r) == OutDocStatus.send
@@ -104,6 +106,11 @@ DESIGN outDocs {
                 MOVE PROPERTY(countDaysSetFilter());
             }
         }
+    }
+
+    document {
+        REMOVE PROPERTY(pdocument);
+        MOVE PROPERTY(hldocument) { caption = ''; autoSize = TRUE; panelCaptionVertical = TRUE; }
     }
 }
 
