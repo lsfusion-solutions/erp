@@ -20,6 +20,7 @@ processEInvoiceMessage (INTEGER i, STRING[100] login, STRING[100] password, TEXT
             XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(), 'yyyyMMdd') + '/' + id(i);
         }
     }
+    APPLY NESTED LOCAL;
     IF canceled() THEN {
         logToFile('edi', provider + ' (' + login + ') Import EInvoice ' + id(i) + ' failed: ' + applyMessage());
         eInvoicesFailed() <- eInvoicesFailed() + 1;
@@ -54,7 +55,6 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                 NEWSESSION NESTED LOCAL {
                     createEInvoice();
                     processEInvoiceMessage(i, login, password, url, archiveDir, disableConfirmation, provider);
-                    APPLY NESTED LOCAL;
                 }
             } ELSE {
                 logToFile('edi', provider + ' (' + login + ') Import EInvoice ' + id(i) + ' skipped: ' + skipInvoice());
