@@ -52,33 +52,22 @@
 средствами ОС, убивая процесс, держащий порт сервера (по умолчанию 7651);
 этот фолбэк **не использовать** для своих запусков.
 
-### Параметры запуска: всегда добавлять devmode
-
-При запуске lsFusion-конфигурации через MCP плагин IDE прокидывает свои
-штатные VM-опции (`lsfusion.server.lightstart`, `lsfusion.server.plugin.enabled`,
-`lsfusion.server.debug.actions`), но **не** добавляет
-`-Dlsfusion.server.devmode=true` — в отличие от ручного клика Run/Debug в IDE,
-где плагин ставит этот флаг сам. Без devmode часть полезной разработческой
-функциональности (в т.ч. анонимный доступ к HTTP-API сервера) недоступна.
-
-Поэтому **по умолчанию всегда добавлять** при старте через MCP:
+### Параметры запуска:
 
 ```
 xdebug_start_debugger_session(
   configurationName="<имя из get_run_configurations>",
-  envs={"_JAVA_OPTIONS": "-Dlsfusion.server.devmode=true"},
 )
 ```
 
-JVM подхватит `_JAVA_OPTIONS` автоматически — менять саму run configuration
-не нужно. Тот же `envs` валиден и для `execute_run_configuration`.
+**В предложении пользователю запустить службу явно указывать, что запуск будет
+без devmode.** Нужен ли devmode (анонимный доступ к HTTP-API сервера и прочая
+разработческая функциональность), пользователь решает сам. Если нужен — он один
+раз добавит `-Dlsfusion.server.devmode=true` в VM options самой run configuration
+(Edit Configurations).
 
-Маркер успеха — в начале лога строка `Picked up _JAVA_OPTIONS:
--Dlsfusion.server.devmode=true` и `-Dlsfusion.server.devmode=true` в
-последующем `INFO StartLogger - JVM arguments: [...]`.
-
-**Исключение**: если пользователь явно сказал запускать **без** devmode —
-тогда `envs` не передавать.
+Devmode сам через `envs` не добавлять — launch override уводит запуск в обход
+before-launch (сервер на старом `target/classes`).
 
 ## Доступные источники лога
 
