@@ -75,8 +75,22 @@ sumItemBatchShortage 'Сумма недостачи / излишка, товар
 sumContainerBatchShortage 'Сумма недостачи / излишка, тара' (BinInventory binInventory) =
     GROUP SUM sumShortage(Batch batch, binInventory) IF in(batch, binInventory) IF isContainer(batch) MATERIALIZED;
 
+sumItemQtyBatchShortage 'Сумма расхождений по кол-ву, товар' (BinInventory binInventory) =
+    GROUP SUM sumShortage(Batch batch, binInventory) IF in(batch, binInventory) AND isItem(batch) AND quantityShortage(batch, binInventory) MATERIALIZED;
+sumItemRoundingBatchShortage 'Сумма округлений, товар' (BinInventory binInventory) =
+    GROUP SUM sumShortage(Batch batch, binInventory) IF in(batch, binInventory) AND isItem(batch) AND NOT quantityShortage(batch, binInventory) AND sumShortage(batch, binInventory) MATERIALIZED;
+sumContainerQtyBatchShortage 'Сумма расхождений по кол-ву, тара' (BinInventory binInventory) =
+    GROUP SUM sumShortage(Batch batch, binInventory) IF in(batch, binInventory) AND isContainer(batch) AND quantityShortage(batch, binInventory) MATERIALIZED;
+sumContainerRoundingBatchShortage 'Сумма округлений, тара' (BinInventory binInventory) =
+    GROUP SUM sumShortage(Batch batch, binInventory) IF in(batch, binInventory) AND isContainer(batch) AND NOT quantityShortage(batch, binInventory) AND sumShortage(batch, binInventory) MATERIALIZED;
+
 sumItemShortage(BinInventory i) += WHEN typeSkuLedger(i)==TypeSkuLedger.byBatches THEN sumItemBatchShortage(i);
 sumContainerShortage(BinInventory i) += WHEN typeSkuLedger(i)==TypeSkuLedger.byBatches THEN sumContainerBatchShortage(i);
+
+sumItemQtyShortage(BinInventory i) += WHEN typeSkuLedger(i)==TypeSkuLedger.byBatches THEN sumItemQtyBatchShortage(i);
+sumItemRoundingShortage(BinInventory i) += WHEN typeSkuLedger(i)==TypeSkuLedger.byBatches THEN sumItemRoundingBatchShortage(i);
+sumContainerQtyShortage(BinInventory i) += WHEN typeSkuLedger(i)==TypeSkuLedger.byBatches THEN sumContainerQtyBatchShortage(i);
+sumContainerRoundingShortage(BinInventory i) += WHEN typeSkuLedger(i)==TypeSkuLedger.byBatches THEN sumContainerRoundingBatchShortage(i);
 
 overFillSum 'Заполнить сумму по описям для ячеек-партий' (BinInventory i) {
     outSum(Batch batch, Bin b, ListBinInventory li) <- calcOutSum(batch, b, li) WHERE in(batch, b, li) AND binInventory(li)==i;
@@ -225,15 +239,22 @@ description[DataSkuLedger] (InventoryBatchDetail ledger) += ISTRING[200](descrip
 changed(InventoryBatchDetail ledger) += CHANGED(batch(ledger));
 batch(InventoryBatchDetail ledger) += batch(ledger);
 
+isRoundingBatchDetail(InventoryBatchDetail d) = NOT quantityShortage(batch(d), binInventory(d));
+isRoundingBatchLedger(InventoryBatchDetail d) = isRoundingBatchDetail(d) AND splitRoundingBinInventoryLedger(binInventory(d));
+
 EXTEND CLASS OutInventoryBatchDetail : OutFIFOSkuLedger;
 quantity (OutInventoryBatchDetail ledger) += quantity(ledger);
 sum (OutInventoryBatchDetail ledger) += sum(ledger);
-stockDocumentLedger(OutInventoryBatchDetail ledger) += binInventorySDLedger(binInventory(ledger));
+stockDocumentLedger(OutInventoryBatchDetail ledger) += MULTI
+    (outRoundingBinInventorySDLedger(binInventory(ledger)) IF isRoundingBatchLedger(ledger)),
+    (outBinInventorySDLedger(binInventory(ledger)) IF NOT isRoundingBatchLedger(ledger));
 
 EXTEND CLASS InInventoryBatchDetail : InLIFOSkuLedger;
 quantity (InInventoryBatchDetail ledger) += quantity(ledger);
 sum (InInventoryBatchDetail ledger) += sum(ledger);
-stockDocumentLedger(InInventoryBatchDetail ledger) += binInventorySDLedger(binInventory(ledger));
+stockDocumentLedger(InInventoryBatchDetail ledger) += MULTI
+    (incRoundingBinInventorySDLedger(binInventory(ledger)) IF isRoundingBatchLedger(ledger)),
+    (incBinInventorySDLedger(binInventory(ledger)) IF NOT isRoundingBatchLedger(ledger));
 
 edit(InInventoryBatchDetail d) + { DIALOG binInventory OBJECTS i = binInventory(d), cbt = batch(d) DOCKED; }
 edit(OutInventoryBatchDetail d) + { DIALOG binInventory OBJECTS i = binInventory(d), cbt = batch(d) DOCKED; }

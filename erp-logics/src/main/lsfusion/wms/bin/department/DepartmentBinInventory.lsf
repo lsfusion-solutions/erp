@@ -117,25 +117,64 @@ committee (BinInventory binInventory) <- inventoryCommittee(department(binInvent
 
 //---------------------------- Проведение по StockDocumentBinLedger----------------------------//
 
-CLASS BinInventorySDBinLedger 'Инвентаризация' : OutStockDocumentBinLedger; ////BinInventoryStockDocumentBinLedger
+CLASS OutBinInventorySDBinLedger 'Инвентаризация (расход)' : OutStockDocumentBinLedger; ////BinInventoryStockDocumentBinLedger
+CLASS IncBinInventorySDBinLedger 'Инвентаризация (приход)' : IncStockDocumentBinLedger;
+CLASS OutRoundingBinInventorySDBinLedger 'Инвентаризация (расход, округления)' : OutStockDocumentBinLedger;
+CLASS IncRoundingBinInventorySDBinLedger 'Инвентаризация (приход, округления)' : IncStockDocumentBinLedger;
 
 needToStockDocumentBinLedger(BinInventory binInventory) =
     createSkuLedger(binInventory) AND isPosted(binInventory);
 
-binInventorySDBinLedger = AGGR BinInventorySDBinLedger WHERE needToStockDocumentBinLedger(BinInventory binInventory) MATERIALIZED INDEXED;
+needToOutBinInventorySDBinLedger(BinInventory binInventory) =
+    needToStockDocumentBinLedger(binInventory) AND
+    (mainSumItemShortage(binInventory) > 0 OR mainSumContainerShortage(binInventory) > 0);
 
-series[OutStockDocumentBinLedger] (BinInventorySDBinLedger ledger) += series(binInventory(ledger));
-number[OutStockDocumentBinLedger] (BinInventorySDBinLedger ledger) += number(binInventory(ledger));
-dateTime[OutStockDocumentBinLedger] (BinInventorySDBinLedger ledger) += dateTime(binInventory(ledger));
-isPosted[OutStockDocumentBinLedger] (BinInventorySDBinLedger ledger) += isPosted(binInventory(ledger));
-isClosed[OutStockDocumentBinLedger] (BinInventorySDBinLedger ledger) += isClosed(binInventory(ledger));
-stock[OutStockDocumentBinLedger] (BinInventorySDBinLedger ledger) += stock(binInventory(ledger));
-description[OutStockDocumentBinLedger] (BinInventorySDBinLedger ledger) += STRING[200](description(binInventory(ledger)));
-sumItem[OutStockDocumentBinLedger](BinInventorySDBinLedger ledger) += sumItemShortage(binInventory(ledger));
-sumContainer[OutStockDocumentBinLedger] (BinInventorySDBinLedger ledger) += sumContainerShortage(binInventory(ledger));
-operation[OutStockDocumentBinLedger](BinInventorySDBinLedger ledger) += operation(binInventory(ledger));
-department[OutStockDocumentBinLedger] (BinInventorySDBinLedger ledger) += department(binInventory(ledger));
-skip[OutStockDocumentBinLedger] (BinInventorySDBinLedger ledger) += ledger IS BinInventorySDBinLedger AND NOT department(ledger);
+needToIncBinInventorySDBinLedger(BinInventory binInventory) =
+    needToStockDocumentBinLedger(binInventory) AND
+    (mainSumItemShortage(binInventory) < 0 OR mainSumContainerShortage(binInventory) < 0);
+
+needToOutRoundingBinInventorySDBinLedger(BinInventory binInventory) =
+    needToStockDocumentBinLedger(binInventory) AND splitRoundingBinInventoryLedger(binInventory) AND
+    (sumItemRoundingShortage(binInventory) > 0 OR sumContainerRoundingShortage(binInventory) > 0);
+
+needToIncRoundingBinInventorySDBinLedger(BinInventory binInventory) =
+    needToStockDocumentBinLedger(binInventory) AND splitRoundingBinInventoryLedger(binInventory) AND
+    (sumItemRoundingShortage(binInventory) < 0 OR sumContainerRoundingShortage(binInventory) < 0);
+
+outBinInventorySDBinLedger = AGGR OutBinInventorySDBinLedger WHERE needToOutBinInventorySDBinLedger(BinInventory binInventory) MATERIALIZED INDEXED;
+incBinInventorySDBinLedger = AGGR IncBinInventorySDBinLedger WHERE needToIncBinInventorySDBinLedger(BinInventory binInventory) MATERIALIZED INDEXED;
+outRoundingBinInventorySDBinLedger = AGGR OutRoundingBinInventorySDBinLedger WHERE needToOutRoundingBinInventorySDBinLedger(BinInventory binInventory) MATERIALIZED INDEXED;
+incRoundingBinInventorySDBinLedger = AGGR IncRoundingBinInventorySDBinLedger WHERE needToIncRoundingBinInventorySDBinLedger(BinInventory binInventory) MATERIALIZED INDEXED;
+
+META implBinInventorySDBinLedger(ledgerClass)
+    series[StockDocumentBinLedger] (ledgerClass ledger) += series(binInventory(ledger));
+    number[StockDocumentBinLedger] (ledgerClass ledger) += number(binInventory(ledger));
+    dateTime[StockDocumentBinLedger] (ledgerClass ledger) += dateTime(binInventory(ledger));
+    isPosted[StockDocumentBinLedger] (ledgerClass ledger) += isPosted(binInventory(ledger));
+    isClosed[StockDocumentBinLedger] (ledgerClass ledger) += isClosed(binInventory(ledger));
+    stock[StockDocumentBinLedger] (ledgerClass ledger) += stock(binInventory(ledger));
+    description[StockDocumentBinLedger] (ledgerClass ledger) += STRING[200](description(binInventory(ledger)));
+    operation[StockDocumentBinLedger] (ledgerClass ledger) += operation(binInventory(ledger));
+    department[StockDocumentBinLedger] (ledgerClass ledger) += department(binInventory(ledger));
+    skip[StockDocumentBinLedger] (ledgerClass ledger) += ledger IS ledgerClass AND NOT department(ledger);
+END
+
+@implBinInventorySDBinLedger(OutBinInventorySDBinLedger);
+@implBinInventorySDBinLedger(IncBinInventorySDBinLedger);
+@implBinInventorySDBinLedger(OutRoundingBinInventorySDBinLedger);
+@implBinInventorySDBinLedger(IncRoundingBinInventorySDBinLedger);
+
+sumItem[OutStockDocumentBinLedger]      (OutBinInventorySDBinLedger ledger) += mainSumItemShortage(binInventory(ledger)) IF mainSumItemShortage(binInventory(ledger)) > 0;
+sumContainer[OutStockDocumentBinLedger] (OutBinInventorySDBinLedger ledger) += mainSumContainerShortage(binInventory(ledger)) IF mainSumContainerShortage(binInventory(ledger)) > 0;
+
+sumItem[IncStockDocumentBinLedger]      (IncBinInventorySDBinLedger ledger) += -mainSumItemShortage(binInventory(ledger)) IF mainSumItemShortage(binInventory(ledger)) < 0;
+sumContainer[IncStockDocumentBinLedger] (IncBinInventorySDBinLedger ledger) += -mainSumContainerShortage(binInventory(ledger)) IF mainSumContainerShortage(binInventory(ledger)) < 0;
+
+sumItem[OutStockDocumentBinLedger]      (OutRoundingBinInventorySDBinLedger ledger) += sumItemRoundingShortage(binInventory(ledger)) IF sumItemRoundingShortage(binInventory(ledger)) > 0;
+sumContainer[OutStockDocumentBinLedger] (OutRoundingBinInventorySDBinLedger ledger) += sumContainerRoundingShortage(binInventory(ledger)) IF sumContainerRoundingShortage(binInventory(ledger)) > 0;
+
+sumItem[IncStockDocumentBinLedger]      (IncRoundingBinInventorySDBinLedger ledger) += -sumItemRoundingShortage(binInventory(ledger)) IF sumItemRoundingShortage(binInventory(ledger)) < 0;
+sumContainer[IncStockDocumentBinLedger] (IncRoundingBinInventorySDBinLedger ledger) += -sumContainerRoundingShortage(binInventory(ledger)) IF sumContainerRoundingShortage(binInventory(ledger)) < 0;
 
 isResponsiblePerson 'Материально ответственное лицо' = DATA BOOLEAN (Department, Employee);
 orderResponsiblePerson 'Порядок отображения в печатной форме' = DATA INTEGER (Department, Employee);

@@ -52,37 +52,56 @@ createSkuLedger 'Проводить по регистру движения' = DA
 typeSkuLedger = DATA TypeSkuLedger (Operation);
 nameTypeSkuLedger 'Тип проведения по регистру движения' (Operation o)= caption(typeSkuLedger(o)) NOSELECT;
 
+splitRoundingBinInventoryLedger 'Выделять округления в отдельную строку' = DATA BOOLEAN (Operation);
+
 EXTEND FORM operation
     PROPERTIES(o) createSkuLedger
     PROPERTIES(o) nameTypeSkuLedger SHOWIF createSkuLedger(o)
+    PROPERTIES(o) splitRoundingBinInventoryLedger SHOWIF createSkuLedger(o)
 ;
 
 DESIGN operation {
     createContainer {
         MOVE PROPERTY(createSkuLedger(o));
         MOVE PROPERTY(nameTypeSkuLedger(o));
+        MOVE PROPERTY(splitRoundingBinInventoryLedger(o));
     }
 }
 
 createSkuLedger 'Проводить по регистру движения' = DATA BOOLEAN (BinInventory);
 typeSkuLedger = DATA TypeSkuLedger (BinInventory);
 nameTypeSkuLedger 'Тип проведения по регистру движения' (BinInventory o)= caption(typeSkuLedger(o)) NOSELECT;
+splitRoundingBinInventoryLedger 'Выделять округления в отдельную строку' = DATA BOOLEAN (BinInventory);
 
 createSkuLedger (BinInventory o) <- createSkuLedger(operation(o)) WHEN CHANGED(operation(o));
 typeSkuLedger (BinInventory o) <- typeSkuLedger(operation(o)) WHEN CHANGED(operation(o));
+splitRoundingBinInventoryLedger (BinInventory o) <- splitRoundingBinInventoryLedger(operation(o)) WHEN CHANGED(operation(o));
 
-CONSTRAINT SET(createSkuLedger(BinInventory i) AND NOT typeSkuLedger(i)) 
+CONSTRAINT SET(createSkuLedger(BinInventory i) AND NOT typeSkuLedger(i))
     MESSAGE 'При проведении инвентаризации по ячейкам по регистру движения необходимо выбрать тип';
 
 EXTEND FORM binInventory
     PROPERTIES(i) createSkuLedger
     PROPERTIES(i) nameTypeSkuLedger SHOWIF createSkuLedger(i)
+    PROPERTIES(i) splitRoundingBinInventoryLedger SHOWIF createSkuLedger(i)
 ;
 
 DESIGN binInventory {
     topRow2 {
         MOVE PROPERTY(createSkuLedger(i));
         MOVE PROPERTY(nameTypeSkuLedger(i));
+        MOVE PROPERTY(splitRoundingBinInventoryLedger(i));
+    }
+}
+
+setSplitRoundingBinInventoryLedger = DATA BOOLEAN () TABLE migrate;
+onStarted() + {
+    NEWSESSION {
+        IF NOT setSplitRoundingBinInventoryLedger() THEN {
+            setSplitRoundingBinInventoryLedger() <- TRUE;
+            splitRoundingBinInventoryLedger(BinInventory i) <- TRUE WHERE createSkuLedger(i);
+            APPLY;
+        }
     }
 }
 
@@ -135,16 +154,34 @@ sumSku 'Сумма по описям' = GROUP SUM sum(Sku sku, BinInventory i) B
 sumSkuBalance 'Сумма по остаткам'  = GROUP SUM sumBalance(Sku sku, BinInventory i) BY i CHARWIDTH 12 PATTERN '#,##0.00##';
 sumSkuShortage 'Сумма недостачи / излишка' = GROUP SUM sumShortage(Sku sku, BinInventory i) BY i CHARWIDTH 12 PATTERN '#,##0.00##';
 
-sumItemSkuShortage 'Сумма недостачи / излишка, товар' (BinInventory binInventory) = 
+sumItemSkuShortage 'Сумма недостачи / излишка, товар' (BinInventory binInventory) =
     GROUP SUM sumShortage(Sku sku, binInventory) IF in(sku, binInventory) IF isItem(sku) MATERIALIZED;
-sumContainerSkuShortage 'Сумма недостачи / излишка, тара' (BinInventory binInventory) = 
+sumContainerSkuShortage 'Сумма недостачи / излишка, тара' (BinInventory binInventory) =
     GROUP SUM sumShortage(Sku sku, binInventory) IF in(sku, binInventory) IF isContainer(sku) MATERIALIZED;
+
+sumItemQtySkuShortage 'Сумма расхождений по кол-ву, товар' (BinInventory binInventory) =
+    GROUP SUM sumShortage(Sku sku, binInventory) IF in(sku, binInventory) AND isItem(sku) AND quantityShortage(sku, binInventory) MATERIALIZED;
+sumItemRoundingSkuShortage 'Сумма округлений, товар' (BinInventory binInventory) =
+    GROUP SUM sumShortage(Sku sku, binInventory) IF in(sku, binInventory) AND isItem(sku) AND NOT quantityShortage(sku, binInventory) AND sumShortage(sku, binInventory) MATERIALIZED;
+sumContainerQtySkuShortage 'Сумма расхождений по кол-ву, тара' (BinInventory binInventory) =
+    GROUP SUM sumShortage(Sku sku, binInventory) IF in(sku, binInventory) AND isContainer(sku) AND quantityShortage(sku, binInventory) MATERIALIZED;
+sumContainerRoundingSkuShortage 'Сумма округлений, тара' (BinInventory binInventory) =
+    GROUP SUM sumShortage(Sku sku, binInventory) IF in(sku, binInventory) AND isContainer(sku) AND NOT quantityShortage(sku, binInventory) AND sumShortage(sku, binInventory) MATERIALIZED;
 
 sumItemShortage 'Сумма недостачи / излишка, товар' = ABSTRACT CASE NUMERIC[18,4] (BinInventory) CHARWIDTH 12 PATTERN '#,##0.00##';
 sumItemShortage(BinInventory i) += WHEN typeSkuLedger(i)==TypeSkuLedger.bySkus THEN sumItemSkuShortage(i);
 
 sumContainerShortage 'Сумма недостачи / излишка, тара' = ABSTRACT CASE NUMERIC[18,4] (BinInventory) CHARWIDTH 12 PATTERN '#,##0.00##';
 sumContainerShortage(BinInventory i) += WHEN typeSkuLedger(i)==TypeSkuLedger.bySkus THEN sumContainerSkuShortage(i);
+
+sumItemQtyShortage 'Сумма расхождений по кол-ву, товар' = ABSTRACT CASE NUMERIC[18,4] (BinInventory) CHARWIDTH 12 PATTERN '#,##0.00##';
+sumItemQtyShortage(BinInventory i) += WHEN typeSkuLedger(i)==TypeSkuLedger.bySkus THEN sumItemQtySkuShortage(i);
+sumItemRoundingShortage 'Сумма округлений, товар' = ABSTRACT CASE NUMERIC[18,4] (BinInventory) CHARWIDTH 12 PATTERN '#,##0.00##';
+sumItemRoundingShortage(BinInventory i) += WHEN typeSkuLedger(i)==TypeSkuLedger.bySkus THEN sumItemRoundingSkuShortage(i);
+sumContainerQtyShortage 'Сумма расхождений по кол-ву, тара' = ABSTRACT CASE NUMERIC[18,4] (BinInventory) CHARWIDTH 12 PATTERN '#,##0.00##';
+sumContainerQtyShortage(BinInventory i) += WHEN typeSkuLedger(i)==TypeSkuLedger.bySkus THEN sumContainerQtySkuShortage(i);
+sumContainerRoundingShortage 'Сумма округлений, тара' = ABSTRACT CASE NUMERIC[18,4] (BinInventory) CHARWIDTH 12 PATTERN '#,##0.00##';
+sumContainerRoundingShortage(BinInventory i) += WHEN typeSkuLedger(i)==TypeSkuLedger.bySkus THEN sumContainerRoundingSkuShortage(i);
 
 overFillCollationSheet ABSTRACT (BinInventory);
 fillCollationSheet 'Заполнить сличительную ведомость' (BinInventory i) {
@@ -229,25 +266,68 @@ DESIGN binInventory {
 
 //---------------------------- Проведение по StockDocumentLedger----------------------------//
 
-CLASS BinInventorySDLedger 'Инвентаризация' : OutStockDocumentLedger; //BinInventoryStockDocumentLedger
+CLASS OutBinInventorySDLedger 'Инвентаризация (расход)' : OutStockDocumentLedger; //BinInventoryStockDocumentLedger
+CLASS IncBinInventorySDLedger 'Инвентаризация (приход)' : IncStockDocumentLedger;
+CLASS OutRoundingBinInventorySDLedger 'Инвентаризация (расход, округления)' : OutStockDocumentLedger;
+CLASS IncRoundingBinInventorySDLedger 'Инвентаризация (приход, округления)' : IncStockDocumentLedger;
 
 needToStockDocumentLedger(BinInventory binInventory) =
     createSkuLedger(binInventory) AND isPosted(binInventory);
 
-binInventorySDLedger = AGGR BinInventorySDLedger WHERE needToStockDocumentLedger(BinInventory binInventory) MATERIALIZED INDEXED;
+mainSumItemShortage(BinInventory i) =
+    IF splitRoundingBinInventoryLedger(i) THEN sumItemQtyShortage(i) ELSE sumItemShortage(i);
+mainSumContainerShortage(BinInventory i) =
+    IF splitRoundingBinInventoryLedger(i) THEN sumContainerQtyShortage(i) ELSE sumContainerShortage(i);
 
-series[StockDocumentLedger] (BinInventorySDLedger ledger) += series(binInventory(ledger));
-number[StockDocumentLedger] (BinInventorySDLedger ledger) += number(binInventory(ledger));
-dateTime[StockDocumentLedger] (BinInventorySDLedger ledger) += dateTime(binInventory(ledger));
-isPosted[StockDocumentLedger] (BinInventorySDLedger ledger) += isPosted(binInventory(ledger));
-isClosed[StockDocumentLedger] (BinInventorySDLedger ledger) += isClosed(binInventory(ledger));
-stock[StockDocumentLedger] (BinInventorySDLedger ledger) += stock(binInventory(ledger));
-description[StockDocumentLedger] (BinInventorySDLedger ledger) += STRING[200](description(binInventory(ledger)));
-operation[StockDocumentLedger] (BinInventorySDLedger ledger) += operation(binInventory(ledger));
+needToOutBinInventorySDLedger(BinInventory binInventory) =
+    needToStockDocumentLedger(binInventory) AND
+    (mainSumItemShortage(binInventory) > 0 OR mainSumContainerShortage(binInventory) > 0);
 
-type(BinInventorySDLedger l) += STRING[50]('Инвентаризация') IF l IS BinInventorySDLedger;
-sumItem (BinInventorySDLedger ledger) += sumItemShortage(binInventory(ledger));
-sumContainer (BinInventorySDLedger ledger) += sumContainerShortage(binInventory(ledger));
+needToIncBinInventorySDLedger(BinInventory binInventory) =
+    needToStockDocumentLedger(binInventory) AND
+    (mainSumItemShortage(binInventory) < 0 OR mainSumContainerShortage(binInventory) < 0);
+
+needToOutRoundingBinInventorySDLedger(BinInventory binInventory) =
+    needToStockDocumentLedger(binInventory) AND splitRoundingBinInventoryLedger(binInventory) AND
+    (sumItemRoundingShortage(binInventory) > 0 OR sumContainerRoundingShortage(binInventory) > 0);
+
+needToIncRoundingBinInventorySDLedger(BinInventory binInventory) =
+    needToStockDocumentLedger(binInventory) AND splitRoundingBinInventoryLedger(binInventory) AND
+    (sumItemRoundingShortage(binInventory) < 0 OR sumContainerRoundingShortage(binInventory) < 0);
+
+outBinInventorySDLedger = AGGR OutBinInventorySDLedger WHERE needToOutBinInventorySDLedger(BinInventory binInventory) MATERIALIZED INDEXED;
+incBinInventorySDLedger = AGGR IncBinInventorySDLedger WHERE needToIncBinInventorySDLedger(BinInventory binInventory) MATERIALIZED INDEXED;
+outRoundingBinInventorySDLedger = AGGR OutRoundingBinInventorySDLedger WHERE needToOutRoundingBinInventorySDLedger(BinInventory binInventory) MATERIALIZED INDEXED;
+incRoundingBinInventorySDLedger = AGGR IncRoundingBinInventorySDLedger WHERE needToIncRoundingBinInventorySDLedger(BinInventory binInventory) MATERIALIZED INDEXED;
+
+META implBinInventorySDLedger(ledgerClass)
+    series[StockDocumentLedger] (ledgerClass ledger) += series(binInventory(ledger));
+    number[StockDocumentLedger] (ledgerClass ledger) += number(binInventory(ledger));
+    dateTime[StockDocumentLedger] (ledgerClass ledger) += dateTime(binInventory(ledger));
+    isPosted[StockDocumentLedger] (ledgerClass ledger) += isPosted(binInventory(ledger));
+    isClosed[StockDocumentLedger] (ledgerClass ledger) += isClosed(binInventory(ledger));
+    stock[StockDocumentLedger] (ledgerClass ledger) += stock(binInventory(ledger));
+    description[StockDocumentLedger] (ledgerClass ledger) += STRING[200](description(binInventory(ledger)));
+    operation[StockDocumentLedger] (ledgerClass ledger) += operation(binInventory(ledger));
+    type(ledgerClass l) += STRING[50]('Инвентаризация') IF l IS ledgerClass;
+END
+
+@implBinInventorySDLedger(OutBinInventorySDLedger);
+@implBinInventorySDLedger(IncBinInventorySDLedger);
+@implBinInventorySDLedger(OutRoundingBinInventorySDLedger);
+@implBinInventorySDLedger(IncRoundingBinInventorySDLedger);
+
+sumItem      (OutBinInventorySDLedger ledger) += mainSumItemShortage(binInventory(ledger)) IF mainSumItemShortage(binInventory(ledger)) > 0;
+sumContainer (OutBinInventorySDLedger ledger) += mainSumContainerShortage(binInventory(ledger)) IF mainSumContainerShortage(binInventory(ledger)) > 0;
+
+sumItem      (IncBinInventorySDLedger ledger) += -mainSumItemShortage(binInventory(ledger)) IF mainSumItemShortage(binInventory(ledger)) < 0;
+sumContainer (IncBinInventorySDLedger ledger) += -mainSumContainerShortage(binInventory(ledger)) IF mainSumContainerShortage(binInventory(ledger)) < 0;
+
+sumItem      (OutRoundingBinInventorySDLedger ledger) += sumItemRoundingShortage(binInventory(ledger)) IF sumItemRoundingShortage(binInventory(ledger)) > 0;
+sumContainer (OutRoundingBinInventorySDLedger ledger) += sumContainerRoundingShortage(binInventory(ledger)) IF sumContainerRoundingShortage(binInventory(ledger)) > 0;
+
+sumItem      (IncRoundingBinInventorySDLedger ledger) += -sumItemRoundingShortage(binInventory(ledger)) IF sumItemRoundingShortage(binInventory(ledger)) < 0;
+sumContainer (IncRoundingBinInventorySDLedger ledger) += -sumContainerRoundingShortage(binInventory(ledger)) IF sumContainerRoundingShortage(binInventory(ledger)) < 0;
 
 //---------------------------- Проведение по SkuLedger-------------------------------------//
 
@@ -314,15 +394,22 @@ sku[DataSkuLedger] (InventorySkuDetail ledger) += sku(ledger);
 stock[DataSkuLedger] (InventorySkuDetail ledger) += stock(ledger);
 description[DataSkuLedger] (InventorySkuDetail ledger) += ISTRING[200](description(ledger));
 
+isRoundingDetail(InventorySkuDetail d) = NOT quantityShortage(sku(d), binInventory(d));
+isRoundingLedger(InventorySkuDetail d) = isRoundingDetail(d) AND splitRoundingBinInventoryLedger(binInventory(d));
+
 EXTEND CLASS OutInventorySkuDetail : OutFIFOSkuLedger;
 quantity (OutInventorySkuDetail ledger) += quantity(ledger);
 sum (OutInventorySkuDetail ledger) += sum(ledger);
-stockDocumentLedger(OutInventorySkuDetail ledger) += binInventorySDLedger(binInventory(ledger));
+stockDocumentLedger(OutInventorySkuDetail ledger) += MULTI
+    (outRoundingBinInventorySDLedger(binInventory(ledger)) IF isRoundingLedger(ledger)),
+    (outBinInventorySDLedger(binInventory(ledger)) IF NOT isRoundingLedger(ledger));
 
 EXTEND CLASS InInventorySkuDetail : InLIFOSkuLedger;
 quantity (InInventorySkuDetail ledger) += quantity(ledger);
 sum (InInventorySkuDetail ledger) += sum(ledger);
-stockDocumentLedger(InInventorySkuDetail ledger) += binInventorySDLedger(binInventory(ledger));
+stockDocumentLedger(InInventorySkuDetail ledger) += MULTI
+    (incRoundingBinInventorySDLedger(binInventory(ledger)) IF isRoundingLedger(ledger)),
+    (incBinInventorySDLedger(binInventory(ledger)) IF NOT isRoundingLedger(ledger));
 
 edit(InInventorySkuDetail d) + { DIALOG binInventory OBJECTS i = binInventory(d), cs = sku(d) DOCKED; }
 edit(OutInventorySkuDetail d) + { DIALOG binInventory OBJECTS i = binInventory(d), cs = sku(d) DOCKED; }
