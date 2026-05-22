@@ -198,15 +198,16 @@ unblock 'Разблокировать' (STRING ds, DATETIME df, DATETIME dt) {
 
         getStatusBlock(ds);
 
-        blockId(INTEGER i) <- NULL WHERE blockId(i) AND NOT 
-            (from(i) == toChar(df, 'YYYY-MM-DD"T"HH24:MI:SS+0300') AND to(i) == toChar(dt, 'YYYY-MM-DD"T"HH24:MI:SS+0300'));
+        blockId(INTEGER i) <- NULL WHERE blockId(i) AND NOT to(i) == toChar(dt, 'YYYY-MM-DD"T"HH24:MI:SS+0300');
+        IF (GROUP SUM 1 IF blockId(INTEGER i)) THEN {
 
-        LOCAL f = FILE();
-        EXPORT unblockRequest FILTERS vendorInfo = ds JSON;
-        
-        EXTERNAL HTTP POST baseUrlVendor() + '/unblock' HEADERS blockHeaders PARAMS exportFile() TO f;
-        MESSAGE CONCAT '\n', 'Успешно разблокировано', 'id ' + ds, 'from ' + toChar(df, 'YYYY-MM-DD"T"HH24:MI:SS+03:00'), 'to ' + toChar(dt, 'YYYY-MM-DD"T"HH24:MI:SS+03:00') NOWAIT;
+            LOCAL f = FILE();
+            EXPORT unblockRequest FILTERS vendorInfo = ds JSON;
 
-        blockId(INTEGER i) <- NULL;
+            EXTERNAL HTTP POST baseUrlVendor() + '/unblock' HEADERS blockHeaders PARAMS exportFile() TO f;
+            MESSAGE CONCAT '\n', 'Успешно разблокировано', 'id ' + ds, 'from ' + toChar(df, 'YYYY-MM-DD"T"HH24:MI:SS+03:00'), 'to ' + toChar(dt, 'YYYY-MM-DD"T"HH24:MI:SS+03:00') NOWAIT;
+
+            blockId(INTEGER i) <- NULL;
+        }
     }
 }
