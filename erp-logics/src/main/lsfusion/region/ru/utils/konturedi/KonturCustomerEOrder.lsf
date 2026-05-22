@@ -1,16 +1,16 @@
-MODULE DiadocCustomerEOrder;
+MODULE KonturCustomerEOrder;
 
-REQUIRE Bank, Item, EDI, LegalEntityRu, EOrder, CustomerEOrderEDI, DiadocEDIOrganization,
-        PurchaseShipment, PurchaseReturnInvoice, PurchaseOrderStatusEOrder, DiadocEDIMessage;
+REQUIRE Bank, Item, EDI, LegalEntityRu, EOrder, CustomerEOrderEDI, KonturEDIOrganization,
+        PurchaseShipment, PurchaseReturnInvoice, PurchaseOrderStatusEOrder, KonturEDIMessage;
 
-NAMESPACE DiadocEDI;
+NAMESPACE KonturEDI;
 
 EXTEND CLASS EDIProvider {
-    diadoc 'Diadoc'
+    kontur 'Контур.EDI'
 }
 
 dateStartEDI 'Дата начала работы EDI' = DATA DATE(LegalEntity);
-sendInvoicePrice 'Выгружать цену с НДС вместо цены без НДС(EDI)' = DATA BOOLEAN(LegalEntity); 
+sendInvoicePrice 'Выгружать цену с НДС вместо цены без НДС (EDI)' = DATA BOOLEAN(LegalEntity); 
 
 EXTEND FORM legalEntity 
     PROPERTIES dateStartEDI(l), sendInvoicePrice(l);
@@ -23,7 +23,7 @@ DESIGN legalEntity {
 }
 
 EXTEND CLASS TypeChange{
-    edi 'Отправлен поставщику(EDI)'
+    edi 'Отправлен поставщику (EDI)'
 }
 
 logSendDocumentOrder (Purchase.Order o) {
@@ -52,7 +52,7 @@ EXTEND FORM integrationData
 ;
 
 DESIGN integrationData {
-    diadocEDI {
+    konturEDI {
         MOVE PROPERTY(tempPath());
     }
 }
@@ -60,17 +60,17 @@ DESIGN integrationData {
 overReceiveMessages ABSTRACT LIST ();
 afterReceiveMessage ABSTRACT LIST (Message);
 
-importAnswersDiadoc 'Прием ответов' () {
+importAnswersKontur 'Прием ответов' () {
     overReceiveMessages();
 }
 
 EXTEND FORM integrationData
-    PROPERTIES () importAnswersDiadoc
+    PROPERTIES () importAnswersKontur
 ;
 
 DESIGN integrationData {
-    diadocEDI {
-        MOVE PROPERTY(importAnswersDiadoc());
+    konturEDI {
+        MOVE PROPERTY(importAnswersKontur());
     }
 }
 
@@ -181,14 +181,14 @@ exportOrderDocument = DATA LOCAL EOrder();
 nameMessage = DATA LOCAL STRING();
 sendingCancelled = DATA LOCAL BOOLEAN ();
 
-GLNSupplierStockDiadoc 'GLN поставщика' (EOrder e) = IF notUseStockGLN(supplier(e)) THEN GLNSupplier(e) ELSE (OVERRIDE GLN(supplierStock(e)), GLNSupplier(e));
-GLNSupplierStockDiadoc 'GLN поставщика' (PurchaseReturn.UserInvoice e) = IF notUseStockGLN(supplier(e)) THEN GLN(supplier(e)) ELSE (OVERRIDE GLN(supplierStock(e)), GLN(supplier(e)));
+GLNSupplierStockKontur 'GLN поставщика' (EOrder e) = IF notUseStockGLN(supplier(e)) THEN GLNSupplier(e) ELSE (OVERRIDE GLN(supplierStock(e)), GLNSupplier(e));
+GLNSupplierStockKontur 'GLN поставщика' (PurchaseReturn.UserInvoice e) = IF notUseStockGLN(supplier(e)) THEN GLN(supplier(e)) ELSE (OVERRIDE GLN(supplierStock(e)), GLN(supplier(e)));
 
-FORM ordersDiadoc FORMEXTID 'eDIMessage'
+FORM ordersKontur FORMEXTID 'eDIMessage'
         PROPERTIES nameMessage() EXTID 'id' ATTR, currentDateTime_ = toChar(currentDateTime(), 'yyyy-MM-ddThh24:mi:ss') EXTID 'creationDateTime' ATTR
         PROPERTIES IN interchangeHeader
             sender = GLNCustomer(exportOrderDocument()), 
-            recipient = GLNSupplierStockDiadoc(exportOrderDocument()),
+            recipient = GLNSupplierStockKontur(exportOrderDocument()),
             documentType = 'ORDERS', 
             creationDateTime = toChar(currentDateTime(), 'yyyy-MM-ddThh24:mi:ss'),
             isTest = IF useTest() THEN '1' ELSE '0'
@@ -199,7 +199,7 @@ FORM ordersDiadoc FORMEXTID 'eDIMessage'
             status_ = (IF sendingCancelled() THEN 'Canceled') EXTID 'status'
 
         PROPERTIES IN seller 
-            gln = GLNSupplierStockDiadoc(exportOrderDocument()) EXTID 'gln' 
+            gln = GLNSupplierStockKontur(exportOrderDocument()) EXTID 'gln' 
 
         PROPERTIES IN organization_ EXTID 'organization' 
             name = fullName(supplier(exportOrderDocument())) EXTID 'name', 
@@ -243,7 +243,7 @@ FORM ordersDiadoc FORMEXTID 'eDIMessage'
 
 // -------------------- Заказ EDI -------------------- //
 
-sendPurchaseOrderDiadocEDI 'Отправить заказ EDI (Диадок)' (EOrder o, User r) {
+sendPurchaseOrderKonturEDI 'Отправить заказ (Контур.EDI)' (EOrder o, User r) {
     IF url() THEN {
         LOCAL error = TEXT();
         error() <- '';
@@ -252,13 +252,13 @@ sendPurchaseOrderDiadocEDI 'Отправить заказ EDI (Диадок)' (E
         IF NOT GLNCustomerStock(o) THEN error() <- error() + 'EOrder ' + number(o) + ': Не задан GLN склада покупателя\n';
 
         IF error() == '' THEN {
-            fromBox() <- diadocEDIBox(customer(o));
+            fromBox() <- konturEDIBox(customer(o));
             getTokenUser(r);
             exportOrderDocument() <- o;
             generatedUUID() <- NULL;
             generateUUID();
             nameMessage() <- CONCAT '', 'ORDERS_', generatedUUID();
-            EXPORT ordersDiadoc XML;
+            EXPORT ordersKontur XML;
             WRITE exportFile() TO tempPath() + nameMessage();
             LOCAL result = FILE ();
             TRY {
@@ -273,21 +273,21 @@ sendPurchaseOrderDiadocEDI 'Отправить заказ EDI (Диадок)' (E
                 MESSAGE 'Ошибка отправки ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
             }
         } ELSE {
-            logToFile('diadoc', ' SendOrder: Не все поля заполнены. ' + error());
+            logToFile('kontur', ' SendOrder: Не все поля заполнены. ' + error());
             MESSAGE ' Заказ не выгружен: Не все поля заполнены ' + error() NOWAIT;
         }
     }
     APPLY NESTED LOCAL;
 }
 
-sendPurchaseOrderDiadoc 'Отправить заказ EDI (Диадок)' (EOrder o) {
+sendPurchaseOrderKontur 'Отправить заказ (Контур.EDI)' (EOrder o) {
     IF currentUser() IS SystemUser THEN {
         FOR User u == (GROUP MIN User us IF us IS User) DO {
-            sendPurchaseOrderDiadocEDI(o, u);
+            sendPurchaseOrderKonturEDI(o, u);
         }
     } ELSE {
-        FOR User u == userDiadocEDI(currentUser()) DO {
-            sendPurchaseOrderDiadocEDI(o, u);
+        FOR User u == userKonturEDI(currentUser()) DO {
+            sendPurchaseOrderKonturEDI(o, u);
         }
     }
 }
@@ -298,7 +298,7 @@ sendPurchase 'Отправить заказ EDI' (Purchase.Order o) {
     IF exported(o) OR isSent(o) THEN {
         MESSAGE 'Заказ уже отправлен ';
     } ELSE {
-        sendPurchaseOrderDiadoc(o);
+        sendPurchaseOrderKontur(o);
     }
 }
 
@@ -315,22 +315,22 @@ DESIGN Purchase.orders {
 }
 
 send(EOrder o) + {
-    IF EDIProvider(supplier(o)) == EDIProvider.diadoc AND NOT isCancel(o) THEN {
+    IF EDIProvider(supplier(o)) == EDIProvider.kontur AND NOT isCancel(o) THEN {
         IF NOT toSend(o) THEN {
             MESSAGE 'Заказ уже отправлен';
         } ELSE {
-            sendPurchaseOrderDiadoc(o);
+            sendPurchaseOrderKontur(o);
         }
     }
 }
 
 cancel(EOrder o) + {
-    IF EDIProvider(supplier(o)) == EDIProvider.diadoc AND isCancel(o) THEN {
+    IF EDIProvider(supplier(o)) == EDIProvider.kontur AND isCancel(o) THEN {
         IF exportedCanceled(o) THEN {
             MESSAGE 'Заказ уже отменен';
         } ELSE {
             sendingCancelled() <- TRUE;
-            sendPurchaseOrderDiadoc(o);
+            sendPurchaseOrderKontur(o);
             sendingCancelled() <- NULL;
         }
     }
@@ -367,7 +367,7 @@ GROUP orderedQuantity1 EXTID 'orderedQuantity' : lineItem1;
 GROUP confirmedQuantity1 EXTID 'confirmedQuantity' : lineItem1;
 GROUP onePlaceQuantity1 EXTID 'onePlaceQuantity' : lineItem1;
 
-FORM ordrspDiadoc FORMEXTID 'eDIMessage'
+FORM ordrspKontur FORMEXTID 'eDIMessage'
     PROPERTIES() IN interchangeHeader 
         ordrspBuyerGLN EXTID 'recipient',
         ordrspSupplierGLN EXTID 'sender'
@@ -401,7 +401,7 @@ overReceiveMessages () + {
     FOR nameFile(Message m) AND NOT dateTimeProcessed(m) AND NOT denyReceiveMessage(m) DO {
         IF nameFile(m) AND isISubstring(nameFile(m), 'ORDRSP_') AND NOT denyReceiveMessage(m) THEN {
             TRY {
-                IMPORT ordrspDiadoc XML FROM rawFile(m);
+                IMPORT ordrspKontur XML FROM rawFile(m);
                 ordrspOrderNumber() <- STRING[48](trim(ordrspOrderNumber()));
                 overReceiveMessageOrdrsp(m);
                 IF eOrder(ordrspOrderNumber()) THEN {
@@ -512,7 +512,7 @@ desadvLineItemAmountWithoutCharges = DATA LOCAL NUMERIC[16,4](INTEGER);
 desadvLineItemAmount = DATA LOCAL NUMERIC[16,4](INTEGER);
 desadvLineItemAmountCharges = DATA LOCAL NUMERIC[16,4](INTEGER);
 
-FORM desadvDiadoc FORMEXTID 'eDIMessage'
+FORM desadvKontur FORMEXTID 'eDIMessage'
     PROPERTIES() IN interchangeHeader2
         desadvBuyerGLN EXTID 'recipient', 
         desadvSupplierGLN EXTID 'sender'
@@ -540,7 +540,7 @@ overReceiveMessages() + {
     FOR nameFile(Message m) AND NOT dateTimeProcessed(m) AND NOT denyReceiveMessage(m) DO {
         IF nameFile(m) AND isISubstring(nameFile(m), 'DESADV_') THEN {
             TRY {
-                IMPORT desadvDiadoc XML FROM rawFile(m);
+                IMPORT desadvKontur XML FROM rawFile(m);
                 desadvOrderNumber() <- STRING[48](trim(desadvOrderNumber()));
                 overReceiveMessageDesadv(m);
                 IF eOrder(desadvOrderNumber()) THEN {
@@ -643,7 +643,7 @@ FORM recadv FORMEXTID 'eDIMessage'
     PROPERTIES nameMessage() EXTID 'id' ATTR, currentDateTime1 = (toChar(currentDateTime(), 'yyyy-MM-ddThh24:mi:ss')) EXTID 'creationDateTime' ATTR
     PROPERTIES IN interchangeHeaderrecadv
         senderrecadv = GLNCustomer(exportDocument()) EXTID 'sender',
-        recipientrecadv = GLNSupplierStockDiadoc(exportDocument()) EXTID 'recipient',
+        recipientrecadv = GLNSupplierStockKontur(exportDocument()) EXTID 'recipient',
         documentTyperecadv = 'RECADV' EXTID 'documentType',
         creationDateTimerecadv = toChar(currentDateTime(), 'yyyy-MM-ddThh24:mi:ss') EXTID 'creationDateTime',
         isTestrecadv = (IF useTest() THEN '1' ELSE '0') EXTID 'isTest'
@@ -661,7 +661,7 @@ FORM recadv FORMEXTID 'eDIMessage'
         date1recadv = toChar(date(invoiceEDI()), 'yyyy-MM-dd') EXTID 'date'
 
     PROPERTIES IN sellerrecadv
-        gln = GLNSupplierStockDiadoc(exportDocument()) EXTID 'gln'
+        gln = GLNSupplierStockKontur(exportDocument()) EXTID 'gln'
 
     PROPERTIES IN buyerrecadv
         gln1 = GLNCustomer(exportDocument()) EXTID 'gln'
@@ -699,8 +699,8 @@ FORM recadv FORMEXTID 'eDIMessage'
     FILTERS order(i) == exportDocument(), invoiceSum(i) > 0 
 ;
 
-sendRecadvDiadoc 'Отправить RECADV' (EOrder o) {
-    FOR User u == userDiadocEDI(currentUser()) DO NEWSESSION {
+sendRecadvKontur 'Отправить RECADV' (EOrder o) {
+    FOR User u == userKonturEDI(currentUser()) DO NEWSESSION {
         IF url() THEN {
             LOCAL error = TEXT();
             error() <- '';
@@ -708,7 +708,7 @@ sendRecadvDiadoc 'Отправить RECADV' (EOrder o) {
             IF NOT GLNCustomer(o) THEN error() <- error() + 'RECADV ' + number(o) + ': Не задан GLN покупателя\n';
 
             IF error() == '' THEN {
-                fromBox() <- diadocEDIBox(customer(o));
+                fromBox() <- konturEDIBox(customer(o));
                 getTokenUser(u);
                 exportDocument() <- o;
                 generatedUUID() <- NULL;
@@ -724,7 +724,7 @@ sendRecadvDiadoc 'Отправить RECADV' (EOrder o) {
                     MESSAGE 'Ошибка отправки ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
                 }
             } ELSE {
-                logToFile('diadoc', ' RECADV: Не все поля заполнены. ' + error());
+                logToFile('kontur', ' RECADV: Не все поля заполнены. ' + error());
                 MESSAGE 'RECADV не выгружен: Не все поля заполнены ' + error() NOWAIT;
             }
         }
@@ -828,14 +828,14 @@ FORM retann FORMEXTID 'eDIMessage'
     PROPERTIES nameMessage() EXTID 'id' ATTR, currentDateTime1 = (toChar(currentDateTime(), 'yyyy-MM-ddThh24:mi:ss')) EXTID 'creationDateTime' ATTR
     PROPERTIES IN interchangeHeaderRetann 
         senderRetann = GLN(customer(exportDocumentReturn())) EXTID 'sender',
-        recipientRetann = GLNSupplierStockDiadoc(exportDocumentReturn()) EXTID 'recipient', 
+        recipientRetann = GLNSupplierStockKontur(exportDocumentReturn()) EXTID 'recipient', 
         documentTypeRetann = 'RETANN' EXTID 'documentType', 
         creationDateTimeRetann = toChar(currentDateTime(), 'yyyy-MM-ddThh24:mi:ss') EXTID 'creationDateTime'
     PROPERTIES IN announcementForReturns
         numberRetann = number(exportDocumentReturn()) EXTID 'number',
         dateRetann= toChar(currentDateTime(), 'yyyy-MM-dd') EXTID 'date'
     PROPERTIES IN sellerRetann
-        glnRetann = GLNSupplierStockDiadoc(exportDocumentReturn()) EXTID 'gln'
+        glnRetann = GLNSupplierStockKontur(exportDocumentReturn()) EXTID 'gln'
     PROPERTIES IN organizationRetann
         name1Retann = fullName(supplier(exportDocumentReturn())) EXTID 'name',
         inn1Retann = inn[Organization](supplier(exportDocumentReturn())) EXTID 'inn',
@@ -869,7 +869,7 @@ FORM retann FORMEXTID 'eDIMessage'
 ;
 
 sendRetann 'Отправить RETANN' (PurchaseReturn.Invoice o) {
-    FOR User u == userDiadocEDI(currentUser()) DO NEWSESSION {
+    FOR User u == userKonturEDI(currentUser()) DO NEWSESSION {
         IF url() THEN {
             LOCAL error = TEXT();
             error() <- '';
@@ -877,7 +877,7 @@ sendRetann 'Отправить RETANN' (PurchaseReturn.Invoice o) {
             IF NOT GLN(customer(o)) THEN error() <- error() + 'RETANN ' + number(o) + ': Не задан GLN покупателя\n';
 
             IF error() == '' THEN {
-                fromBox() <- diadocEDIBox(customer(o));
+                fromBox() <- konturEDIBox(customer(o));
                 getTokenUser(u);
                 exportDocumentReturn() <- o;
                 generatedUUID() <- NULL;
@@ -893,7 +893,7 @@ sendRetann 'Отправить RETANN' (PurchaseReturn.Invoice o) {
                     MESSAGE 'Ошибка отправки ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
                 }
             } ELSE {
-                logToFile('diadoc', ' RETANN: Не все поля заполнены. ' + error());
+                logToFile('kontur', ' RETANN: Не все поля заполнены. ' + error());
                 MESSAGE 'RETANN не выгружен: Не все поля заполнены ' + error() NOWAIT;
             }
         }
@@ -914,8 +914,8 @@ EXTEND FORM PurchaseReturn.invoices
 
 DESIGN PurchaseReturn.invoices {
     actionContainer {
-        NEW actionDiadocEDI {
-            caption = 'EDI (Diadoc)';
+        NEW actionKonturEDI {
+            caption = 'Контур.EDI';
             MOVE PROPERTY (sendRetann(i));
         }
     }

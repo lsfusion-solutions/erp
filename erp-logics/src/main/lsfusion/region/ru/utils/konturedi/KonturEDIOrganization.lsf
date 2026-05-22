@@ -1,8 +1,8 @@
-MODULE DiadocEDIOrganization;
+MODULE KonturEDIOrganization;
 
-REQUIRE DiadocEDI;
+REQUIRE KonturEDI;
 
-NAMESPACE DiadocEDI;
+NAMESPACE KonturEDI;
 
 CLASS OrganizationType 'Тип организации' {
     type1 'Юридическое лицо, состоящее на учете в налоговых органах',
@@ -25,7 +25,7 @@ FORM organizationTypes 'Типы организации'
     LIST OrganizationType OBJECT t
 ;
 
-CLASS Organization 'Организация (EDI)';
+CLASS Organization 'Организация Контур.EDI';
 TABLE organization (Organization);
 
 orgId 'Идентификатор' = DATA STRING (Organization) IN id INDEXED CHARWIDTH 10 NONULL;
@@ -61,7 +61,7 @@ TABLE box (Box);
 boxId 'Идентификатор' = DATA STRING (Box) IN id INDEXED CHARWIDTH 10 NONULL;
 box (boxId) = GROUP AGGR Box box BY boxId(box);
 title 'Наименование' = DATA ISTRING (Box) CHARWIDTH 30 IN id;
-organization 'Организация (EDI)' = DATA Organization (Box) NONULL DELETE;
+organization 'Организация Контур.EDI' = DATA Organization (Box) NONULL DELETE;
 isTest 'Тестовый' = DATA BOOLEAN (Box);
 lastEventId 'Идентификатор последнего события' = DATA STRING (Box);
 
@@ -69,7 +69,7 @@ legalEntityOrganization 'Организация' (Box b) = legalEntity(organizat
 
 defaultBox 'Ящик по умолчанию' = DATA Box (LegalEntity);
 isDefault 'По умолчанию' (Box b) = TRUE IF defaultBox(legalEntityOrganization(b)) == b;
-diadocEDIBox 'Ящик организации (EDI)' (LegalEntity l) = OVERRIDE defaultBox(l), [GROUP LAST Box b ORDER b BY legalEntityOrganization(b)](l);
+konturEDIBox 'Ящик организации Контур.EDI' (LegalEntity l) = OVERRIDE defaultBox(l), [GROUP LAST Box b ORDER b BY legalEntityOrganization(b)](l);
 
 changeLegalEntityDefaultBox 'Выбрать ящик по умолчанию' (Box b) {
     IF defaultBox(legalEntityOrganization(b)) == b THEN {
@@ -172,7 +172,7 @@ show 'Просмотреть' (Organization o) {
 FORM organizations 'Организации EDI'
     OBJECTS u = User PANEL
     PROPERTIES(u) READONLY login
-    FILTERS u == userDiadocEDI(currentUser())
+    FILTERS u == userKonturEDI(currentUser())
 
     OBJECTS o = Organization
     PROPERTIES(o) READONLY orgId, shortName, fullName, inn, kpp
@@ -184,13 +184,13 @@ FORM organizations 'Организации EDI'
 FORM dialogOrganizations 'Организации EDI'
     OBJECTS o = Organization
     PROPERTIES(o) READONLY orgId, shortName, fullName, inn, kpp
- //   FILTERS isEmployee(o,userDiadocEDI(currentUser()))
+ //   FILTERS isEmployee(o,userKonturEDI(currentUser()))
 
     LIST Organization OBJECT o
 ;
 
 NAVIGATOR {
-    diadocEDI {
+    konturEDI {
         NEW organizations;
     }
 }

@@ -1,10 +1,10 @@
-MODULE DiadocEDIMessage;
+MODULE KonturEDIMessage;
 
-REQUIRE DiadocEDIOrganization, DiadocMessage, EOrder;
+REQUIRE KonturEDIOrganization, EOrder;
 
-NAMESPACE DiadocEDI;
+NAMESPACE KonturEDI;
 
-CLASS Message 'Cообщения EDI(Diadoc)';
+CLASS Message 'Сообщения Контур.EDI';
 TABLE message (Message);
 
 messageId 'Идентификатор' = DATA STRING (Message) IN id INDEXED CHARWIDTH 10 NONULL;
@@ -43,7 +43,7 @@ messageStatus 'Статус сообщения' (Message m) = CASE WHEN uncorrec
 FORM messagesEDI 'Cообщения EDI'
     OBJECTS u = User PANEL
     PROPERTIES(u) READONLY login
-    FILTERS u == userDiadocEDI(currentUser())
+    FILTERS u == userKonturEDI(currentUser())
 
     OBJECTS b = Box PANEL
     PROPERTIES(b) title IN base SELECTOR
@@ -65,7 +65,7 @@ DESIGN messagesEDI {
 }
 
 NAVIGATOR {
-    diadocEDI {
+    konturEDI {
         NEW messagesEDI;
     }
 }
@@ -116,7 +116,7 @@ overProcessGetEventsEdiError(STRING message) +{
     MESSAGE message;
 }
 
-getNewEventsEDI 'Получить новые сообщения(EDI)' (User u, Box b) {
+getNewEventsEDI 'Получить новые сообщения (EDI)' (User u, Box b) {
     NEWSESSION {
         getTokenUser(u);
         LOCAL result = FILE ();

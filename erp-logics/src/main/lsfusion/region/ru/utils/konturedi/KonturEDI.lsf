@@ -1,28 +1,28 @@
-MODULE DiadocEDI;
+MODULE KonturEDI;
 
 REQUIRE Utils, Time, Integration, Certificate, Authentication;
 
-NAMESPACE DiadocEDI;
+NAMESPACE KonturEDI;
 
 url 'Url' = DATA STRING ();
 clientId 'Ключ разработчика' = DATA STRING ();
 useTest 'Тест' = DATA BOOLEAN ();
 
-CLASS User 'Пользователь Диадок(EDI)';
+CLASS User 'Пользователь Контур.EDI';
 TABLE user (User);
 
 login 'Логин' = DATA STRING (User) IN id INDEXED CHARWIDTH 50 NONULL;
 user (login) = GROUP AGGR User user BY login(user);
 password 'Пароль' = DATA STRING (User) IN id ECHO CHARWIDTH 50 NONULL;
 
-FORM diadocUserEDI 'Пользователь Диадок(EDI)'
+FORM konturUserEDI 'Пользователь Контур.EDI'
     OBJECTS u = User PANEL
     PROPERTIES(u) login, password
 
     EDIT User OBJECT u
 ;
 
-FORM diadocUsersEDI 'Пользователи EDI'
+FORM konturUsersEDI 'Пользователи EDI'
     OBJECTS u = User
     PROPERTIES(u) READONLY login
     PROPERTIES(u) NEWSESSION NEW, EDIT, DELETE
@@ -36,12 +36,12 @@ tokenDateTime = DATA DATETIME (User);
 countMinutesEDITokenData 'Перезапрашивать токен каждые (минут)' = DATA INTEGER ();
 countMinutesEDIToken 'Перезапрашивать токен каждые (минут)' () = OVERRIDE countMinutesEDITokenData(), 480;
 
-userDiadocEDI 'Пользователь Диадок(EDI)' = DATA User (CustomUser);
-loginDiadocEDI 'Пользователь Диадок(EDI)' (CustomUser u) = login(userDiadocEDI(u));
+userKonturEDI 'Пользователь Контур.EDI' = DATA User (CustomUser);
+loginKonturEDI 'Пользователь Контур.EDI' (CustomUser u) = login(userKonturEDI(u));
 
-httpHeadersDiadoc(TEXT name) = CASE
+httpHeadersKontur(TEXT name) = CASE
     WHEN name == 'Authorization' THEN 'KonturEdiAuth konturediauth_api_client_id='+clientId() +
-        ',konturediauth_login=' + login(userDiadocEDI(currentUser())) + ',konturediauth_password=' + password(userDiadocEDI(currentUser()));
+        ',konturediauth_login=' + login(userKonturEDI(currentUser())) + ',konturediauth_password=' + password(userKonturEDI(currentUser()));
 
 httpHeadersTokenUser(TEXT name) = CASE
     WHEN name == 'Authorization' THEN 'KonturEdiAuth konturediauth_api_client_id=' + clientId() + ',konturediauth_token=' + token()
@@ -52,7 +52,7 @@ getTokenUser (User u) {
         NEWSESSION NESTED LOCAL {
             LOCAL result = STRING ();
             TRY {
-                EXTERNAL HTTP POST url() + '/V1/Authenticate' HEADERS httpHeadersDiadoc TO result;
+                EXTERNAL HTTP POST url() + '/V1/Authenticate' HEADERS httpHeadersKontur TO result;
 
                 token(u) <- result();
                 tokenDateTime(u) <- currentDateTime();
@@ -67,25 +67,25 @@ getTokenUser (User u) {
 
 
 EXTEND FORM employee
-    PROPERTIES(e) loginDiadocEDI
+    PROPERTIES(e) loginKonturEDI
 ;
 
 DESIGN employee {
     authentication {
-        MOVE PROPERTY(loginDiadocEDI(e));
+        MOVE PROPERTY(loginKonturEDI(e));
     }
 }
 
 EXTEND FORM integrationData
-    PROPERTIES urlDiadocEDI = url(), clientIdDiadocEDI = clientId(), useTest(), countMinutesEDITokenData()
+    PROPERTIES urlKonturEDI = url(), clientIdKonturEDI = clientId(), useTest(), countMinutesEDITokenData()
 ;
 
 DESIGN integrationData {
     pane {
-        NEW diadocEDI {
-            caption = 'Диадок(EDI)';
-            MOVE PROPERTY(urlDiadocEDI);
-            MOVE PROPERTY(clientIdDiadocEDI);
+        NEW konturEDI {
+            caption = 'Контур.EDI';
+            MOVE PROPERTY(urlKonturEDI);
+            MOVE PROPERTY(clientIdKonturEDI);
             MOVE PROPERTY(useTest());
             MOVE PROPERTY(countMinutesEDITokenData());
         }
@@ -94,8 +94,8 @@ DESIGN integrationData {
 
 NAVIGATOR {
     financeNavigator {
-        NEW FOLDER diadocEDI 'Диадок(EDI)' {
-            NEW diadocUsersEDI;
+        NEW FOLDER konturEDI 'Контур.EDI' {
+            NEW konturUsersEDI;
         }
     }
 }
