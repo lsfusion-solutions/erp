@@ -179,8 +179,9 @@ CONSTRAINT CHANGED(eInvoiceDetail(Purchase.UserInvoiceDetail detail)) AND eInvoi
     CHECKED BY eInvoiceDetail[Purchase.UserInvoiceDetail]
     MESSAGE 'Электронная накладная в строке накладной и накладной должны соответствовать друг другу';
 
-CONSTRAINT SETCHANGED(eInvoice(invoice(Purchase.UserInvoiceDetail detail))) AND NOT eInvoiceDetail(detail) AND NOT skipCheckEInvoiceDetail()
-    AND shipmentQuantity(detail) > 0
+CONSTRAINT (SETCHANGED(eInvoice(invoice(Purchase.UserInvoiceDetail detail))) OR DROPPED(eInvoiceDetail(detail)))
+    AND eInvoice(invoice(detail)) AND shipmentQuantity(detail) > 0
+    AND NOT eInvoiceDetail(detail) AND NOT skipCheckEInvoiceDetail()
     MESSAGE 'Для строки должна быть задана строка электронной накладной';
 
 FORM selectEInvoiceDetail 'Выбрать строку электронной накладной'
