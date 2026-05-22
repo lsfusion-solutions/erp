@@ -509,6 +509,8 @@ filterSumFrom (Receipt r) = sumReceiptDetail(r) >= filterReceiptSumFrom() OR (r 
 filterReceiptSumTo 'Сумма по' = DATA LOCAL NUMERIC[18,4] () PREREAD;
 filterSumTo (Receipt r) = sumReceiptDetail(r) <= filterReceiptSumTo() OR (r IS Receipt AND NOT filterReceiptSumTo());   
 
+skipDepStore = ABSTRACT BOOLEAN ();
+
 FORM receiptListPeriod 'Реестр чеков'
 
     OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
@@ -533,7 +535,7 @@ FORM receiptListPeriod 'Реестр чеков'
             filterSumTo(r)
             
     FILTERGROUP department
-        FILTER 'По магазину' departmentStore(r) == st 'F9' DEFAULT
+        FILTER 'По магазину' departmentStore(r) == st OR skipDepStore() 'F9' DEFAULT
 ;
 DESIGN receiptListPeriod {
     BOX {
