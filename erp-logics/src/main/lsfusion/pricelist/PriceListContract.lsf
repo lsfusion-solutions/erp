@@ -49,11 +49,14 @@ DESIGN options {
     }
 }   
    
-CONSTRAINT contractSku(UserPriceList o) 
+skipDateContract = ABSTRACT VALUE BOOLEAN (UserPriceList);
+
+CONSTRAINT contractSku(UserPriceList o)
+    AND NOT skipDateContract(o)
     AND NOT (dateFrom(contractSku(o)) <= fromDate(o) AND NOT (dateTo(contractSku(o)) < fromDate(o)))
     AND NOT (dateFromConstraintContractUserPriceList() > fromDate(o))
            CHECKED BY contractSku[UserPriceList]
-           MESSAGE 'Договор прайс-листа просрочен или еще не действует';   
+           MESSAGE 'Договор прайс-листа просрочен или еще не действует';
 
 CONSTRAINT contractSku(UserPriceList o) AND NOT company(o) == partyA(contractSku(o))
     CHECKED BY contractSku[UserPriceList] MESSAGE 'Организация (поставщик) договора прайса не соответствует компании прайса';
@@ -64,7 +67,12 @@ CONSTRAINT contractSku(UserPriceList o) AND NOT isSeller(partyA(contractSku(o)))
 CONSTRAINT contractSku(UserPriceList o) AND NOT isBuyer(partyB(contractSku(o)))
     CHECKED BY contractSku[UserPriceList] MESSAGE 'Организация (покупатель) договора прайса не является покупателем или компанией';
                
-CONSTRAINT contractSku(UserPriceList o) AND countSuppliersStock(contractSku(o)) AND NOT inSupplier(companyStock(o),contractSku(o))
+skipSupplierStockContract = ABSTRACT VALUE BOOLEAN (UserPriceList);
+
+CONSTRAINT contractSku(UserPriceList o)
+    AND NOT skipSupplierStockContract(o)
+    AND countSuppliersStock(contractSku(o))
+    AND NOT inSupplier(companyStock(o),contractSku(o))
     CHECKED BY contractSku[UserPriceList] MESSAGE 'Для прайса выбран склад организации, который не включен в договор';
 
 skipShowContract= ABSTRACT BOOLEAN ();
