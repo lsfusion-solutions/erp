@@ -78,7 +78,9 @@ actFixBarCodePosition (MarkCode c) =
         GROUP LAST actFixBarCodePosition(ActFixBarCodeMark m) ORDER m 
         WHERE posted(actFixBarCodePosition(m)) AND NOT canceled(actFixBarCodePosition(m)) 
         BY markCode(m) MATERIALIZED INDEXED;
-f2Reg (MarkCode c) += f2Reg(actFixBarCodePosition(c));
+
+skipF2Reg = ABSTRACT BOOLEAN (MarkCode);
+f2Reg (MarkCode c) += f2Reg(actFixBarCodePosition(c)) IF NOT skipF2Reg(c);
 
 countMarkCodes 'Кол-во марок' (ActFixBarCodePosition p) = GROUP SUM 1 IF actFixBarCodePosition(ActFixBarCodeMark m) = p MATERIALIZED;
 

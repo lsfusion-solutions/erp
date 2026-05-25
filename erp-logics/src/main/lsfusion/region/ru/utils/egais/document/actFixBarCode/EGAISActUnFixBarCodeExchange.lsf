@@ -1,0 +1,56 @@
+MODULE EGAISActUnFixBarCodeExchange;
+
+REQUIRE EGAISActUnFixBarCode, EGAISTicket;
+
+NAMESPACE EGAIS;
+
+@defineDocumentOutDoc(actUnFixBarCode, ActUnFixBarCode, 'Акт отмены фиксации штрихкодов на балансе');
+
+activeActUnFixBarCodeOutDoc (ActUnFixBarCode a) = notRejected(actUnFixBarCodeOutDoc(a)) AND NOT canceled(a);
+
+GROUP header EXTID 'awr:Header';
+GROUP content EXTID 'awr:Content';
+
+GROUP markInfo EXTID 'awr:MarkInfo';
+
+FORM actUnFixBarCodeOutDoc FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:ActUnFixBarCode'
+    PROPERTIES ATTR = 'http://fsrar.ru/WEGAIS/ActUnFixBarCode' EXTID 'xmlns:awr', = 'http://fsrar.ru/WEGAIS/CommonV3' EXTID 'xmlns:ce'
+
+    OBJECTS r = ActUnFixBarCodeOutDoc PANEL
+
+    PROPERTIES =LONG(r) EXTID 'awr:Identity'
+
+    PROPERTIES IN header
+    =number(actUnFixBarCode(r)) EXTID 'awr:Number',
+        =toDateISO(date(actUnFixBarCode(r))) EXTID 'awr:ActDate',
+        =note(actUnFixBarCode(r)) EXTID 'awr:Note'
+
+    OBJECTS p = ActUnFixBarCodePosition IN content EXTID 'awr:Position'
+    PROPERTIES =LONG(p) EXTID 'awr:Identity', idF2Reg(p) EXTID 'awr:Inform2RegId'
+    FILTERS actUnFixBarCode(p) = actUnFixBarCode(r)
+
+    OBJECTS m = ActUnFixBarCodeMark EXTID 'ce:amc' IN markInfo
+    PROPERTIES(m) idMarkCode EXTID 'value'
+    FILTERS actUnFixBarCodePosition(m) = p
+;
+
+@defineDocumentOutProcess(actUnFixBarCode, tabbedPane);
+
+// ticket
+
+@defineOutDocTicket(actUnFixBarCode, d, tabbedPane);
+
+processActUnFixBarCodeTicket ABSTRACT (Client, TEXT);
+process (Ticket t) + {
+    IF docType(t) = 'ActUnFixBarCode' THEN {
+        IF operationName(t) = 'Confirm' AND operationResult(t) = 'Accepted' THEN {
+            posted(actUnFixBarCode(outDoc(t))) <- TRUE;
+        }
+        IF operationName(t) = 'Confirm' AND operationResult(t) = 'Rejected' THEN {
+            IF utm(outDoc(t)) = utm(inDoc(t)) THEN {
+                canceled(actUnFixBarCode(outDoc(t))) <- TRUE;
+            }
+        }
+        processed() <- TRUE;
+    }
+}

@@ -1,0 +1,177 @@
+MODULE EGAISActUnFixBarCode;
+
+REQUIRE EGAISClient, EGAISFReg, EGAISMarkCode, EGAISActFixBarCode;
+
+NAMESPACE EGAIS;
+
+CLASS ActUnFixBarCode 'Акт отмены фиксации штрихкодов на балансе ЕГАИС';
+
+posted 'Проведен' = DATA BOOLEAN (ActUnFixBarCode);
+
+canceled 'Отменен' = DATA BOOLEAN (ActUnFixBarCode);
+
+number 'Номер' = DATA STRING (ActUnFixBarCode) IN id;
+number(ActUnFixBarCode a) <- STRING(a) WHEN SET(a IS ActUnFixBarCode);
+
+dateTime 'Дата и время' = DATA DATETIME (ActUnFixBarCode) IN id;
+dateTime(ActUnFixBarCode a) <- currentDateTime() WHEN SET(a IS ActUnFixBarCode);
+
+date 'Дата' (ActUnFixBarCode a) = DATE(dateTime(a));
+
+numberDate (ActUnFixBarCode w) = CONCAT ' от ', number(w), toDateDDMMYY(dateTime(w));
+
+// transport
+
+client = DATA Client (ActUnFixBarCode) INDEXED;
+shortNameClient 'Организация' (ActUnFixBarCode w) = shortName(client(w)) IN id;
+descriptionClient 'Описание организации' (ActUnFixBarCode w) = description(client(w)) IN id;
+
+note 'Примечание' = DATA STRING (ActUnFixBarCode);
+
+// position
+
+CLASS ActUnFixBarCodePosition 'Строка акта отмены фиксации штрихкодов на балансе ЕГАИС';
+
+actUnFixBarCode 'Акт отмены фиксации штрихкодов на балансе ЕГАИС' = DATA ActUnFixBarCode (ActUnFixBarCodePosition) INDEXED NONULL DELETE;
+
+posted 'Проведен' (ActUnFixBarCodePosition p) = posted(actUnFixBarCode(p));
+canceled 'Отменен' (ActUnFixBarCodePosition p) = canceled(actUnFixBarCode(p));
+
+number 'Номер' (ActUnFixBarCodePosition p) = number(actUnFixBarCode(p));
+dateTime 'Время' (ActUnFixBarCodePosition p) = dateTime(actUnFixBarCode(p));
+date 'Дата' (ActUnFixBarCodePosition p) = date(actUnFixBarCode(p));
+
+client (ActUnFixBarCodePosition p) = client(actUnFixBarCode(p));
+shortNameClient 'Организация' (ActUnFixBarCodePosition p) = shortNameClient(actUnFixBarCode(p));
+descriptionClient 'Описание организации' (ActUnFixBarCodePosition p) = descriptionClient(actUnFixBarCode(p));
+
+product 'Продукция' = DATA Product (ActUnFixBarCodePosition) NONULL INDEXED;
+idProduct 'Код продукции' (ActUnFixBarCodePosition p) = id(product(p));
+fullNameProduct 'Продукция' (ActUnFixBarCodePosition p) = fullName(product(p));
+
+f2Reg 'Справка Б' = DATA F2Reg (ActUnFixBarCodePosition) NONULL;
+idF2Reg 'Справка Б' (ActUnFixBarCodePosition p) = id(f2Reg(p));
+
+// mark
+
+CLASS ActUnFixBarCodeMark 'Строка маркировки акта отмены фиксации ЕГАИС';
+
+actUnFixBarCodePosition 'Строка акта отмены фиксации' = DATA ActUnFixBarCodePosition (ActUnFixBarCodeMark) NONULL DELETE INDEXED;
+
+posted 'Проведен' (ActUnFixBarCodeMark p) = posted(actUnFixBarCodePosition(p));
+canceled 'Отменен' (ActUnFixBarCodeMark p) = canceled(actUnFixBarCodePosition(p));
+
+number 'Номер' (ActUnFixBarCodeMark p) = number(actUnFixBarCodePosition(p));
+date 'Дата' (ActUnFixBarCodeMark p) = date(actUnFixBarCodePosition(p));
+
+client (ActUnFixBarCodeMark p) = client(actUnFixBarCodePosition(p));
+shortNameClient 'Организация' (ActUnFixBarCodeMark p) = shortNameClient(actUnFixBarCodePosition(p));
+descriptionClient 'Описание организации' (ActUnFixBarCodeMark p) = descriptionClient(actUnFixBarCodePosition(p));
+
+idF2Reg 'Справка Б' (ActUnFixBarCodeMark p) = idF2Reg(actUnFixBarCodePosition(p));
+
+markCode 'Код маркировки' = DATA MarkCode (ActUnFixBarCodeMark) NONULL INDEXED;
+idMarkCode 'Код маркировки' (ActUnFixBarCodeMark m) = id(markCode(m));
+
+minActChargeOnPosition (ActUnFixBarCode a) = GROUP MIN ActUnFixBarCodePosition p BY actUnFixBarCode(p);
+
+INDEX markCode(ActUnFixBarCodeMark m), actUnFixBarCodePosition(m);
+actUnFixBarCodePosition (MarkCode c) =
+    GROUP LAST actUnFixBarCodePosition(ActUnFixBarCodeMark m) ORDER m
+    WHERE posted(actUnFixBarCodePosition(m)) AND NOT canceled(actUnFixBarCodePosition(m))
+    BY markCode(m) MATERIALIZED INDEXED;
+
+skipF2Reg(MarkCode c) += TRUE IF dateTime(actFixBarCodePosition(c)) <= dateTime(actUnFixBarCodePosition(c));
+
+countMarkCodes 'Кол-во марок' (ActUnFixBarCodePosition p) = GROUP SUM 1 IF actUnFixBarCodePosition(ActUnFixBarCodeMark m) = p MATERIALIZED;
+
+// header properties
+
+readonlyDescriptionClientActUnFixBarCode = ABSTRACT BOOLEAN ();
+
+FORM actUnFixBarCode 'Акт отмены фиксации штрихкодов на балансе ЕГАИС'
+    OBJECTS w = ActUnFixBarCode PANEL
+    PROPERTIES(w) posted, canceled, number, dateTime,
+        shortNameClient, descriptionClient READONLYIF readonlyDescriptionClientActUnFixBarCode(), note
+
+    OBJECTS p = ActUnFixBarCodePosition
+    PROPERTIES(p) idProduct, fullNameProduct, idF2Reg, countMarkCodes,
+        NEW, DELETE
+    FILTERS actUnFixBarCode(p) = w
+
+    OBJECTS m = ActUnFixBarCodeMark
+    PROPERTIES(m) idMarkCode
+    FILTERS actUnFixBarCodePosition(m) = p
+
+    EDIT ActUnFixBarCode OBJECT w
+;
+
+DESIGN actUnFixBarCode {
+    OBJECTS {
+        NEW pane {
+            fill = 1;
+            horizontal = TRUE;
+            MOVE BOX(p) { caption = 'Позиции'; }
+            MOVE BOX(m) { caption = 'Марки'; }
+        }
+    }
+}
+
+hideEdit = ABSTRACT VALUE BOOLEAN (ActUnFixBarCode);
+hideDelete = ABSTRACT VALUE BOOLEAN (ActUnFixBarCode);
+
+FORM actUnFixBarCodes 'Отмена фиксации штрихкодов на балансе'
+    OBJECTS d = ActUnFixBarCode
+    PROPERTIES(d) READONLY posted, canceled, number, dateTime,
+        shortNameClient, descriptionClient, note
+    PROPERTIES(d) NEWSESSION NEW, EDIT SHOWIF NOT hideEdit(d),
+        DELETE SHOWIF NOT hideDelete(d)
+
+    OBJECTS p = ActUnFixBarCodePosition
+    PROPERTIES(p) READONLY idProduct, fullNameProduct, idF2Reg, countMarkCodes
+    FILTERS actUnFixBarCode(p) = d
+
+    OBJECTS m = ActUnFixBarCodeMark
+    PROPERTIES(m) idMarkCode
+    FILTERS actUnFixBarCodePosition(m) = p
+
+    LIST ActUnFixBarCode OBJECT d
+;
+
+DESIGN actUnFixBarCodes {
+    OBJECTS {
+        NEW tabbedPane {
+            tabbed = TRUE;
+            fill = 1;
+            NEW specification {
+                caption = 'Спецификация';
+                horizontal = TRUE;
+                MOVE BOX(p) { caption = 'Позиции'; }
+                MOVE BOX(m) { caption = 'Марки'; }
+            }
+        }
+    }
+}
+
+NAVIGATOR {
+    EGAISReg {
+        NEW actUnFixBarCodes;
+    }
+}
+
+EXTEND FORM markCodes
+    OBJECTS aufb = ActUnFixBarCodeMark
+    PROPERTIES(aufb) READONLY posted, canceled, number, date,
+        shortNameClient, descriptionClient,
+        idF2Reg
+    PROPERTIES(aufb) EDIT
+    FILTERS markCode(aufb) = m
+;
+
+DESIGN markCodes {
+    pane {
+        MOVE BOX(aufb) { caption = 'Отмена фиксации штрихкодов'; }
+    }
+}
+
+

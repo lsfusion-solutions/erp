@@ -1,0 +1,133 @@
+MODULE EGAISActUnFixBarCodeGestori;
+
+REQUIRE EGAISActUnFixBarCode, EGAISStock;
+
+NAMESPACE EGAIS;
+
+readonlyDescriptionClientActUnFixBarCode() += TRUE;
+
+post 'Провести' (ActUnFixBarCode a)  {
+    NEWSESSION { posted(a) <- TRUE; apply(); }
+} TOOLBAR CONFIRM;
+
+unpost 'Распровести' (ActUnFixBarCode a)  {
+    NEWSESSION { posted(a) <- NULL; apply(); }
+} TOOLBAR CONFIRM;
+
+in (ActUnFixBarCode a, MarkCode c) = GROUP MIN TRUE BY actUnFixBarCode(actUnFixBarCodePosition(ActUnFixBarCodeMark m)), markCode(m);
+
+countOtherMarkCodes 'Кол-во кодов маркировки вне документа' (ActUnFixBarCode a, F2Reg d) =
+    GROUP SUM 1 IF NOT in(a, MarkCode m) BY f2Reg(m);
+markedQuantity 'Доступно к отмене' (ActUnFixBarCodePosition p) =
+    countOtherMarkCodes(actUnFixBarCode(p), f2Reg(p));
+
+processInputIdMarkCode(ActUnFixBarCode a, ActUnFixBarCodePosition p, STRING[200] s) {
+    LOCAL markCode = MarkCode ();
+    LOCAL position = ActUnFixBarCodePosition ();
+
+    markCode() <- markCode(s);
+    position() <- p;
+
+    IF markedQuantity(p) <= countMarkCodes(p) THEN {
+        MESSAGE 'По выбранной справке нет доступного к отмене маркировки количества' NOWAIT;
+        RETURN;
+    }
+
+    IF NOT markCode() THEN {
+        MESSAGE 'Код маркировки ЕГАИС "' + s + '" не найден' NOWAIT;
+        RETURN;
+    }
+
+    IF NOT f2Reg(markCode()) THEN {
+        MESSAGE 'Код маркировки ЕГАИС "' + s + '" не находится на балансе организации' NOWAIT;
+        RETURN;
+    }
+
+    IF in(a, markCode()) THEN {
+        MESSAGE 'Код маркировки ЕГАИС "' + s + '" уже присутствует в этом документе' NOWAIT;
+        RETURN;
+    }
+
+    IF NOT f2Reg(position()) == f2Reg(markCode()) THEN {
+        position() <- GROUP MIN ActUnFixBarCodePosition ap IF f2Reg(ap) == f2Reg(markCode()) AND actUnFixBarCode(ap) == a;
+    }
+
+    IF NOT position() IS ActUnFixBarCodePosition THEN {
+        NEW pos = ActUnFixBarCodePosition {
+            actUnFixBarCode(pos) <- a;
+            f2Reg(pos) <- f2Reg(markCode());
+            product(pos) <- product(markCode());
+
+            position() <- pos;
+        }
+    }
+
+    NEW m = ActUnFixBarCodeMark {
+        actUnFixBarCodePosition(m) <- position();
+        markCode(m) <- markCode();
+    }
+
+    seek(position());
+}
+
+changeAddMarkCodeInputIdMarkCode(ActUnFixBarCodePosition p)  {
+    INPUT s = STRING[200] DO {
+        processInputIdMarkCode(actUnFixBarCode(p), p, s);
+    }
+};
+
+changeAddMarkCodeInputIdMarkCode(ActUnFixBarCode a)  {
+    INPUT s = STRING[200] DO {
+        processInputIdMarkCode(a, NULL, s);
+    }
+};
+
+addMarkCodeInputIdMarkCode 'Ввод кода маркировки :' (ActUnFixBarCodePosition p) =
+    DATA LOCAL STRING[200] (ActUnFixBarCodePosition) TOOLBAR CHARWIDTH 50 CHANGEKEY 'F4;editing=all'
+    EVENTID 'SCANNER' ON CHANGE { changeAddMarkCodeInputIdMarkCode(p); }
+
+addMarkCodeInputIdMarkCode 'Ввод кода маркировки :' (ActUnFixBarCode a) =
+    DATA LOCAL STRING[200] (ActUnFixBarCode) TOOLBAR CHARWIDTH 50 CHANGEKEY 'F4;editing=all'
+    EVENTID 'SCANNER' ON CHANGE { changeAddMarkCodeInputIdMarkCode(a); }
+
+EXTEND FORM actUnFixBarCode
+    PROPERTIES(w) DRAW m  addMarkCodeInputIdMarkCode SHOWIF NOT minActChargeOnPosition(w)
+    PROPERTIES(p) DRAW m addMarkCodeInputIdMarkCode SHOWIF minActChargeOnPosition(w)
+    PROPERTIES(p) READONLY markedQuantity BEFORE countMarkCodes(p)
+    PROPERTIES(m) DELETE GRID
+;
+
+DESIGN actUnFixBarCode {
+    OBJECTS {
+        NEW address BEFORE pane {
+            align = STRETCH;
+            MOVE PROPERTY(shortNameClient(w));
+            MOVE PROPERTY(descriptionClient(w)) { caption = 'Адрес'; charWidth = 100; }
+        }
+    }
+
+}
+
+EXTEND FORM actUnFixBarCodes
+    PROPERTIES(d) post SHOWIF NOT posted(d), unpost SHOWIF posted(d)
+;
+
+DESIGN actUnFixBarCodes {
+    PROPERTY(descriptionClient(d)) { caption = 'Адрес'; }
+}
+
+CONSTRAINT client(ActUnFixBarCode a) AND NOT stock(client(a))
+    CHECKED BY client[ActUnFixBarCode]
+    MESSAGE 'Для акта фиксации штрихкодов ЕГАИС доступны только организации, связанные со складами/отделами магазинов системы';
+
+CONSTRAINT product(ActUnFixBarCodePosition p) AND NOT product(f2Reg(p)) == product(p) AND f2Reg(p)
+    CHECKED BY f2Reg[ActUnFixBarCodePosition]
+    MESSAGE 'Для строки акта фиксации штрихкодов ЕГАИС справка Б должна соответствовать продукции';
+
+CONSTRAINT (SETCHANGED(markCode(ActUnFixBarCodeMark m)) OR SETCHANGED(f2Reg(actUnFixBarCodePosition(m))))
+    AND NOT f2Reg(markCode(m)) == f2Reg(actUnFixBarCodePosition(m))
+    MESSAGE 'Отменяемый код маркировки должен находится на балансе';
+
+WHEN LOCAL FORMS actUnFixBarCode CHANGED(idF2Reg(ActUnFixBarCodePosition p)) AND NOT (product(p)) DO {
+    product(p) <- product(f2Reg(p));
+}
