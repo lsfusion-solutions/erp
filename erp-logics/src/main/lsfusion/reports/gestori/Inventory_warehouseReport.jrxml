@@ -10,7 +10,7 @@
 	<property name="net.sf.jasperreports.export.xls.one.page.per.sheet" value="false"/>
 	<property name="net.sf.jasperreports.export.xls.autofit.column" value="true"/>
 	<property name="net.sf.jasperreports.export.xls.ignore.cell.border" value="false"/>
-	<property name="net.sf.jasperreports.export.xls.freeze.row" value="6"/>
+	<property name="net.sf.jasperreports.export.xls.freeze.row" value="17"/>
 	<style name="DefaultStyle" isDefault="true" vAlign="Middle" fontName="lsf.TimesNewRoman" fontSize="10">
 		<box>
 			<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
@@ -32,6 +32,7 @@
 	<field name="wrhReportDate()" class="java.time.LocalDate"/>
 	<field name="wrhDaysBack()" class="java.lang.Integer"/>
 	<field name="wrhRCNames()" class="java.lang.String"/>
+	<field name="nameWrhRCStockList()" class="java.lang.String"/>
 	<field name="nameWrhMasterStock()" class="java.lang.String"/>
 	<field name="nameWrhRetailPriceStock()" class="java.lang.String"/>
 	<field name="wrhRangeNames()" class="java.lang.String"/>
@@ -68,13 +69,16 @@
 	<field name="wrhMarkupPct(s)" class="java.math.BigDecimal"/>
 	<field name="wrhReserve(s)" class="java.math.BigDecimal"/>
 	<field name="wrhSpecPrice(s)" class="java.math.BigDecimal"/>
+	<field name="amountPackLayerShown(s)" class="java.lang.Integer"/>
+	<field name="amountPackPalletShown(s)" class="java.lang.Integer"/>
+	<field name="top500RankShown(s)" class="java.lang.Integer"/>
 	<field name="wrhInRange(s,r)" class="java.lang.String"/>
 	<field name="wrhInRange(s,r).header" class="java.lang.String"/>
 	<variable name="xlsRow" class="java.lang.Integer">
-		<variableExpression><![CDATA[$V{REPORT_COUNT} + 7]]></variableExpression>
+		<variableExpression><![CDATA[$V{REPORT_COUNT} + 16]]></variableExpression>
 	</variable>
 	<title>
-		<band height="42" splitType="Prevent">
+		<band height="240" splitType="Prevent">
 			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
 				<reportElement style="GroupCellStyle1" stretchType="RelativeToBandHeight" mode="Opaque" x="0" y="0" width="5760" height="24" backcolor="#FFFFFF" uuid="a0000001-0001-0001-0001-000000000001"/>
 				<box>
@@ -85,15 +89,125 @@
 				</textElement>
 				<textFieldExpression><![CDATA["Отчет по складу"]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle1" stretchType="RelativeToBandHeight" mode="Opaque" x="0" y="24" width="5760" height="18" backcolor="#FFFFFF" uuid="a0000002-0001-0001-0001-000000000001"/>
+			<textField isStretchWithOverflow="true" evaluationTime="Report" isBlankWhenNull="true">
+				<reportElement style="GroupCellStyle1" stretchType="RelativeToBandHeight" mode="Opaque" x="0" y="24" width="5760" height="18" backcolor="#FFFFFF" uuid="a0000011-0001-0001-0001-000000000001"/>
 				<box>
 					<pen lineWidth="0.5" lineColor="#FFFFFF"/>
 				</box>
-				<textElement textAlignment="Center">
-					<font size="11" isBold="false"/>
+				<textElement textAlignment="Left">
+					<font size="10"/>
 				</textElement>
-				<textFieldExpression><![CDATA["на дату: " + ($F{wrhReportDate()} != null ? $F{wrhReportDate()}.format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy")) : "")]]></textFieldExpression>
+				<textFieldExpression><![CDATA["Дата отчета: " + ($F{wrhReportDate()} != null ? $F{wrhReportDate()}.format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy")) : "")]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" evaluationTime="Report" isBlankWhenNull="true">
+				<reportElement style="GroupCellStyle1" stretchType="RelativeToBandHeight" mode="Opaque" x="0" y="42" width="5760" height="18" backcolor="#FFFFFF" uuid="a0000021-0001-0001-0001-000000000001"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#FFFFFF"/>
+				</box>
+				<textElement textAlignment="Left">
+					<font size="10"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Число дней: " + ($F{wrhDaysBack()} != null ? $F{wrhDaysBack()}.toString() : "")]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" evaluationTime="Report" isBlankWhenNull="true">
+				<reportElement style="GroupCellStyle1" stretchType="RelativeToBandHeight" mode="Opaque" x="0" y="60" width="5760" height="18" backcolor="#FFFFFF" uuid="a0000031-0001-0001-0001-000000000001"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#FFFFFF"/>
+				</box>
+				<textElement textAlignment="Left">
+					<font size="10"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Список подразделений-склад: " + ($F{nameWrhRCStockList()} != null ? $F{nameWrhRCStockList()} : "")]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" evaluationTime="Report" isBlankWhenNull="true">
+				<reportElement style="GroupCellStyle1" stretchType="RelativeToBandHeight" mode="Opaque" x="0" y="78" width="5760" height="18" backcolor="#FFFFFF" uuid="a0000041-0001-0001-0001-000000000001"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#FFFFFF"/>
+				</box>
+				<textElement textAlignment="Left">
+					<font size="10"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Подразделения-склад: " + ($F{wrhRCNames()} != null ? $F{wrhRCNames()} : "")]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" evaluationTime="Report" isBlankWhenNull="true">
+				<reportElement style="GroupCellStyle1" stretchType="RelativeToBandHeight" mode="Opaque" x="0" y="96" width="5760" height="18" backcolor="#FFFFFF" uuid="a0000051-0001-0001-0001-000000000001"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#FFFFFF"/>
+				</box>
+				<textElement textAlignment="Left">
+					<font size="10"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Мастер-подразделение: " + ($F{nameWrhMasterStock()} != null ? $F{nameWrhMasterStock()} : "")]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" evaluationTime="Report" isBlankWhenNull="true">
+				<reportElement style="GroupCellStyle1" stretchType="RelativeToBandHeight" mode="Opaque" x="0" y="114" width="5760" height="18" backcolor="#FFFFFF" uuid="a0000061-0001-0001-0001-000000000001"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#FFFFFF"/>
+				</box>
+				<textElement textAlignment="Left">
+					<font size="10"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Подразделение розничной цены: " + ($F{nameWrhRetailPriceStock()} != null ? $F{nameWrhRetailPriceStock()} : "")]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" evaluationTime="Report" isBlankWhenNull="true">
+				<reportElement style="GroupCellStyle1" stretchType="RelativeToBandHeight" mode="Opaque" x="0" y="132" width="5760" height="18" backcolor="#FFFFFF" uuid="a0000071-0001-0001-0001-000000000001"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#FFFFFF"/>
+				</box>
+				<textElement textAlignment="Left">
+					<font size="10"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Ассортиментные матрицы: " + ($F{wrhRangeNames()} != null ? $F{wrhRangeNames()} : "")]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" evaluationTime="Report" isBlankWhenNull="true">
+				<reportElement style="GroupCellStyle1" stretchType="RelativeToBandHeight" mode="Opaque" x="0" y="150" width="5760" height="18" backcolor="#FFFFFF" uuid="a0000081-0001-0001-0001-000000000001"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#FFFFFF"/>
+				</box>
+				<textElement textAlignment="Left">
+					<font size="10"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Список подразделений-магазинов: " + ($F{nameStockList()} != null ? $F{nameStockList()} : "")]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" evaluationTime="Report" isBlankWhenNull="true">
+				<reportElement style="GroupCellStyle1" stretchType="RelativeToBandHeight" mode="Opaque" x="0" y="168" width="5760" height="18" backcolor="#FFFFFF" uuid="a0000091-0001-0001-0001-000000000001"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#FFFFFF"/>
+				</box>
+				<textElement textAlignment="Left">
+					<font size="10"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Подразделения-магазины: " + ($F{wrhStores} != null ? $F{wrhStores} : "")]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" evaluationTime="Report" isBlankWhenNull="true">
+				<reportElement style="GroupCellStyle1" stretchType="RelativeToBandHeight" mode="Opaque" x="0" y="186" width="5760" height="18" backcolor="#FFFFFF" uuid="a00000a1-0001-0001-0001-000000000001"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#FFFFFF"/>
+				</box>
+				<textElement textAlignment="Left">
+					<font size="10"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Списки товаров: " + ($F{nameSkuLists()} != null ? $F{nameSkuLists()} : "")]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" evaluationTime="Report" isBlankWhenNull="true">
+				<reportElement style="GroupCellStyle1" stretchType="RelativeToBandHeight" mode="Opaque" x="0" y="204" width="5760" height="18" backcolor="#FFFFFF" uuid="a00000b1-0001-0001-0001-000000000001"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#FFFFFF"/>
+				</box>
+				<textElement textAlignment="Left">
+					<font size="10"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Товарные группы: " + ($F{wrhSelectedSkuGroups} != null ? $F{wrhSelectedSkuGroups} : "")]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" evaluationTime="Report" isBlankWhenNull="true">
+				<reportElement style="GroupCellStyle1" stretchType="RelativeToBandHeight" mode="Opaque" x="0" y="222" width="5760" height="18" backcolor="#FFFFFF" uuid="a00000c1-0001-0001-0001-000000000001"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#FFFFFF"/>
+				</box>
+				<textElement textAlignment="Left">
+					<font size="10"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Товары: " + ($F{wrhSkus} != null ? $F{wrhSkus} : "")]]></textFieldExpression>
 			</textField>
 		</band>
 	</title>
@@ -1124,14 +1238,14 @@
 				<textElement textAlignment="Right">
 					<font size="8"/>
 				</textElement>
-				<textFieldExpression><![CDATA[""]]></textFieldExpression>
+				<textFieldExpression><![CDATA["7"]]></textFieldExpression>
 			</textField>
 			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
 				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" mode="Opaque" x="2080" y="0" width="80" height="14" backcolor="#E8F8F5" uuid="d000001a-0001-0001-0001-000000000001"/>
 				<textElement textAlignment="Right">
 					<font size="8"/>
 				</textElement>
-				<textFieldExpression><![CDATA[""]]></textFieldExpression>
+				<textFieldExpression><![CDATA["14"]]></textFieldExpression>
 			</textField>
 			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
 				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" mode="Opaque" x="2160" y="0" width="80" height="14" backcolor="#E8F8F5" uuid="d000001b-0001-0001-0001-000000000001"/>
@@ -1170,14 +1284,14 @@
 				<textElement textAlignment="Right">
 					<font size="8"/>
 				</textElement>
-				<textFieldExpression><![CDATA[""]]></textFieldExpression>
+				<textFieldExpression><![CDATA[$F{amountPackLayerShown(s)}]]></textFieldExpression>
 			</textField>
 			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
 				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" mode="Opaque" x="2560" y="0" width="80" height="14" backcolor="#E8F8F5" uuid="d0000020-0001-0001-0001-000000000001"/>
 				<textElement textAlignment="Right">
 					<font size="8"/>
 				</textElement>
-				<textFieldExpression><![CDATA[""]]></textFieldExpression>
+				<textFieldExpression><![CDATA[$F{amountPackPalletShown(s)}]]></textFieldExpression>
 			</textField>
 			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
 				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" mode="Opaque" x="2640" y="0" width="80" height="14" backcolor="#E8F8F5" uuid="d0000021-0001-0001-0001-000000000001">
@@ -1335,7 +1449,7 @@
 				<textElement textAlignment="Right">
 					<font size="8"/>
 				</textElement>
-				<textFieldExpression><![CDATA[""]]></textFieldExpression>
+				<textFieldExpression><![CDATA[$F{top500RankShown(s)}]]></textFieldExpression>
 			</textField>
 		</band>
 	</detail>
