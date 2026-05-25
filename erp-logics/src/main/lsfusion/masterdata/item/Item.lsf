@@ -2544,6 +2544,9 @@ FORM replaceToItemGroupDialog 'Соответствие групп для пер
     ORDERS canonicalName(g)
 ;
 
+// Глобальная настройка: при замене товарных групп переносить только собственные настройки
+onlyDataReplaceToItemGroup 'Копировать только собственные настройки групп при замене' = DATA BOOLEAN () PREREAD;
+
 overReplaceToItemGroup ABSTRACT LIST (CustomGroup, ItemGroup);
 overChangeItemGroup ABSTRACT LIST (CustomGroupType);
 
@@ -2565,13 +2568,13 @@ dataReplaceToItemGroup(CustomGroup g, ItemGroup ng) {
     userShowNetWeight(ng) <- userShowNetWeight(itemGroup(g));
     userShowGrossWeight(ng) <-userShowGrossWeight(itemGroup(g));
     userShowExpiry(ng) <- userShowExpiry(itemGroup(g));
-    dataCaption(ng) <- prevCaption(itemGroup(g));
-    dataUOM(ng) <- prevUOM(itemGroup(g));
-    dataRequired(ItemAttribute ia, ng) <- OVERRIDE dataRequired(ia,itemGroup(g)), PREV(nearestRequired(ia,itemGroup(g)));
-    dataNumberInName(ItemAttribute ia, ng) <- OVERRIDE dataNumberInName(ia,itemGroup(g)), PREV(nearestNumberInName(ia,itemGroup(g)));
-    dataNumberInNameCashRegister(ItemAttribute ia, ng) <- OVERRIDE dataNumberInNameCashRegister(ia,itemGroup(g)), PREV(nearestNumberInNameCashRegister(ia,itemGroup(g)));
-    dataNumberInNameScales(ItemAttribute ia, ng) <- OVERRIDE dataNumberInNameScales(ia,itemGroup(g)), PREV(nearestNumberInNameScales(ia,itemGroup(g)));
-    dataCustomGroup(CustomGroupType cgt, ng) <- prevCustomGroup(cgt,itemGroup(g));
+    dataCaption(ng) <- IF onlyDataReplaceToItemGroup() THEN dataCaption(itemGroup(g)) ELSE prevCaption(itemGroup(g));
+    dataUOM(ng) <- IF onlyDataReplaceToItemGroup() THEN dataUOM(itemGroup(g)) ELSE prevUOM(itemGroup(g));
+    dataRequired(ItemAttribute ia, ng) <- IF onlyDataReplaceToItemGroup() THEN dataRequired(ia,itemGroup(g)) ELSE (OVERRIDE dataRequired(ia,itemGroup(g)), PREV(nearestRequired(ia,itemGroup(g))));
+    dataNumberInName(ItemAttribute ia, ng) <- IF onlyDataReplaceToItemGroup() THEN dataNumberInName(ia,itemGroup(g)) ELSE (OVERRIDE dataNumberInName(ia,itemGroup(g)), PREV(nearestNumberInName(ia,itemGroup(g))));
+    dataNumberInNameCashRegister(ItemAttribute ia, ng) <- IF onlyDataReplaceToItemGroup() THEN dataNumberInNameCashRegister(ia,itemGroup(g)) ELSE (OVERRIDE dataNumberInNameCashRegister(ia,itemGroup(g)), PREV(nearestNumberInNameCashRegister(ia,itemGroup(g))));
+    dataNumberInNameScales(ItemAttribute ia, ng) <- IF onlyDataReplaceToItemGroup() THEN dataNumberInNameScales(ia,itemGroup(g)) ELSE (OVERRIDE dataNumberInNameScales(ia,itemGroup(g)), PREV(nearestNumberInNameScales(ia,itemGroup(g))));
+    dataCustomGroup(CustomGroupType cgt, ng) <- IF onlyDataReplaceToItemGroup() THEN dataCustomGroup(cgt,itemGroup(g)) ELSE prevCustomGroup(cgt,itemGroup(g));
 }
 
 overOkReplaceToItemGroupDialog 'OK' (CustomGroupType t) {
