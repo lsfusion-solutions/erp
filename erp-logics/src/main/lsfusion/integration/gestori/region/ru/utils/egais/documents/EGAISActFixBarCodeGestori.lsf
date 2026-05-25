@@ -1,6 +1,6 @@
 MODULE EGAISActFixBarCodeGestori;
 
-REQUIRE EGAISActFixBarCode, EGAISStock;
+REQUIRE EGAISActFixBarCode, EGAISStock, EGAISSkuLedgerLotGestori;
 
 NAMESPACE EGAIS;
 
@@ -27,6 +27,11 @@ unpost 'Распровести' (ActFixBarCode a)  {
 
 in (ActFixBarCode a, MarkCode c) = GROUP MIN TRUE BY actFixBarCode(actFixBarCodePosition(ActFixBarCodeMark m)), markCode(m);
 
+countOtherMarkCodes 'Кол-во кодов маркировки вне документа' (ActFixBarCode a, F2Reg d) =
+    GROUP SUM 1 IF NOT in(a, MarkCode m) BY f2Reg(m);
+unmarkedQuantity 'Доступно к маркировке' (ActFixBarCodePosition p) =
+    currentBalance(f2Reg(p)) (-) countOtherMarkCodes(actFixBarCode(p), f2Reg(p));
+
 processInputIdMarkCode(ActFixBarCode a, ActFixBarCodePosition p, STRING[200] s) {
     LOCAL markCode = MarkCode ();
     LOCAL position = ActFixBarCodePosition ();
@@ -34,8 +39,18 @@ processInputIdMarkCode(ActFixBarCode a, ActFixBarCodePosition p, STRING[200] s) 
     markCode() <- markCode(s);
     position() <- p;
 
+    IF unmarkedQuantity(p) <= countMarkCodes(p) THEN {
+        MESSAGE 'По выбранной справке нет доступного к маркировке количества' NOWAIT;
+        RETURN;
+    }
+    
     IF NOT markCode() THEN {
         MESSAGE 'Код маркировки ЕГАИС "' + s + '" не найден' NOWAIT;
+        RETURN;
+    }
+    
+    IF f2Reg(markCode()) THEN {
+        MESSAGE 'Код маркировки ЕГАИС "' + s + '" уже находится на балансе организации' NOWAIT;
         RETURN;
     }
 
@@ -88,11 +103,20 @@ addMarkCodeInputIdMarkCode 'Ввод кода маркировки :' (ActFixBar
 
 EXTEND FORM actFixBarCode
     PROPERTIES(w) DRAW m  addMarkCodeInputIdMarkCode SHOWIF NOT minActChargeOnPosition(w)
-    PROPERTIES(p) DRAW m  addMarkCodeInputIdMarkCode SHOWIF minActChargeOnPosition(w)
+    PROPERTIES(p) DRAW m addMarkCodeInputIdMarkCode SHOWIF minActChargeOnPosition(w)
+    PROPERTIES(p) READONLY unmarkedQuantity BEFORE countMarkCodes(p)
+    PROPERTIES(m) DELETE GRID
 ;
 
 DESIGN actFixBarCode {
-    PROPERTY(descriptionClient(w)) { caption = 'Адрес'; }
+    OBJECTS {
+        NEW address BEFORE pane {
+            align = STRETCH;
+            MOVE PROPERTY(shortNameClient(w));
+            MOVE PROPERTY(descriptionClient(w)) { caption = 'Адрес'; charWidth = 100; }
+        }
+    }
+    
 }
 
 EXTEND FORM actFixBarCodes
@@ -111,6 +135,10 @@ CONSTRAINT product(ActFixBarCodePosition p) AND NOT product(f2Reg(p)) == product
     CHECKED BY f2Reg[ActFixBarCodePosition]
     MESSAGE 'Для строки акта фиксации штрихкодов ЕГАИС справка Б должна соответствовать продукции';
 
-WHEN LOCAL FORMS actFixBarCodes CHANGED(idF2Reg(ActFixBarCodePosition p)) AND NOT (product(p)) DO {
+CONSTRAINT (SETCHANGED(countMarkCodes(ActFixBarCodePosition p)) OR SETCHANGED(f2Reg(p)))
+    AND unmarkedQuantity(p) < countMarkCodes(p)
+    MESSAGE 'Количество не должно превышать доступный остаток по справке Б';
+
+WHEN LOCAL FORMS actFixBarCode CHANGED(idF2Reg(ActFixBarCodePosition p)) AND NOT (product(p)) DO {
     product(p) <- product(f2Reg(p));
 }
