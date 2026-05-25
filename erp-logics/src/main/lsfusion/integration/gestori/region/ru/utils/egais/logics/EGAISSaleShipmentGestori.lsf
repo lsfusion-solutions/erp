@@ -13,6 +13,9 @@ CONSTRAINT CHANGED(quantity(UserShipmentDetail d, Lot l)) AND d IS UserShipmentD
 @defineOriginalLastDocumentWayBillAttributes(Sale, Invoice);
 @defineOriginalLastDocumentWayBillAttributes(Sale, Invoice, supplierStock);
 
+lastSaleInvoiceDetail (WayBillPosition wp) = GROUP LAST Sale.InvoiceDetail o IF wayBill(invoice(o)) == wayBill(wp) AND (in(sku(o), product(wp)) OR quantity(shipmentDetail(wp), wp)) ORDER o;
+skuPositionOriginalDocument(WayBillPosition wp) += WHEN lastSaleInvoiceDetail(wp) THEN sku(lastSaleInvoiceDetail(wp));
+
 @defineDenyEditDocumentEGAISCanceledInProcess(activeWayBillAct, wayBill, invoice, countWayBillActs);
 
 editQuantity(UserInvoiceDetail d, F2Reg r) += NOT hideFillQuantity(userInvoice(d));

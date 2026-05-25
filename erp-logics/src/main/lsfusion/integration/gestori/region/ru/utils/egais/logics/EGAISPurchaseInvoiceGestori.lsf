@@ -1,7 +1,8 @@
 MODULE EGAISPurchaseInvoiceGestori;
 
 REQUIRE EGAISPurchaseInvoice, EGAISWayBillGestory,
-        PurchaseInvoiceTerminal, PurchaseShipmentInvoiceTerminal, SkuLedgerLotGestori,
+        PurchaseInvoiceTerminal, PurchaseShipmentInvoiceTerminal, SkuLedgerLotGestori, 
+        EGAISFRegLedgerGestori, EGAISWayBillLedger,
         EGAISItem;
 
 PRIORITY Purchase;
@@ -10,6 +11,8 @@ NAMESPACE EGAISPurchase;
 
 @defineOriginalLastDocumentWayBillAttributes(Purchase, Invoice);
 @defineOriginalLastDocumentWayBillAttributes(Purchase, Invoice, customerStock);
+
+@defineOriginalLastPositionDocumentWayBillAttributes(Purchase, invoice, InvoiceDetail);
 
 unlink 'Отвязать ТТН' (Invoice i) {
     IF wayBillAct(wayBill(i)) THEN {
@@ -98,3 +101,13 @@ captionProcess = CASE
 DESIGN invoices {
     PROPERTY (processEGAIS) {caption = captionProcess(w);}
 }
+
+maxInvoice(WayBillPosition p) = GROUP MAX UserInvoice i IF wayBill(i) == wayBill(p);
+
+showPurchaseInvoice 'Показать накладную (закупка)' (FRegLedger l)  {
+    IF maxInvoice(position[WayBillInLedger](l)) THEN {
+        SHOW userInvoice OBJECTS i = maxInvoice(position[WayBillInLedger](l));
+    } ELSE {
+        MESSAGE 'Накладная не найдена';
+    }
+}  ASON CONTEXTMENU number[FRegLedger];

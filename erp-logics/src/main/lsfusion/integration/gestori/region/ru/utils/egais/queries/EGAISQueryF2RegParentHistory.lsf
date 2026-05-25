@@ -1,0 +1,142 @@
+MODULE EGAISQueryF2RegParentHistory;
+
+REQUIRE EGAISFReg, EGAISOutDoc, EGAISFRegLedger, EGAISInDoc;
+
+NAMESPACE EGAIS;
+
+CLASS QueryForm2ParentHistory 'Запрос истории поставок по справке Б' : OutDoc;
+TABLE queryForm2ParentHistory(QueryForm2ParentHistory);
+
+EXTEND CLASS DocType { QueryForm2ParentHistory 'Запрос истории поставок по справке Б' }
+docType (QueryForm2ParentHistory r) += DocType.QueryForm2ParentHistory IF r IS QueryForm2ParentHistory;
+
+pf2Name (QueryForm2ParentHistory q) = 'PF2' IF q IS QueryForm2ParentHistory;
+f2Reg 'Справка Б' = DATA F2Reg (QueryForm2ParentHistory);
+idF2Reg 'Код справки' (QueryForm2ParentHistory r) = id(f2Reg(r));
+
+GROUP parameters EXTID 'qp=http://fsrar.ru/WEGAIS/QueryParameters:Parameters';
+GROUP parameter EXTID 'qp:Parameter' : parameters;
+
+FORM queryForm2ParentHistory FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:QueryParentHistForm2'
+    OBJECTS r = QueryForm2ParentHistory PANEL
+    PROPERTIES(r) IN parameter
+        pf2Name EXTID 'qp:Name', 
+        idF2Reg EXTID 'qp:Value'
+;
+
+FORM queryForm2ParentHistoryParams 'Параметры запроса'
+    OBJECTS r = QueryForm2ParentHistory PANEL
+    PROPERTIES(r) idClient, shortNameClient, descriptionClient, nameUtm, idF2Reg
+;
+
+DESIGN queryForm2ParentHistoryParams {
+    size = (-1, -1);
+}
+
+queryForm2ParentHistory (QueryForm2ParentHistory r) {
+    EXPORT queryForm2ParentHistory OBJECTS r = r XML;
+    submit(r, exportFile());
+}
+
+queryForm2ParentHistory 'Запрос истории поставок по справке Б' (F2Reg r) {
+    NEWSESSION {
+        NEW q = QueryForm2ParentHistory {
+            f2Reg(q) <- r;
+            DIALOG queryForm2ParentHistoryParams OBJECTS r = q NOMANAGESESSION DO {
+                queryForm2ParentHistory(q);
+                APPLY;
+            }
+        }
+    }
+}
+
+CLASS ParentF2RegHistoryStep 'История поставок по справке Б';
+f2Reg = DATA F2Reg (ParentF2RegHistoryStep);
+level 'Уровень' = DATA INTEGER (ParentF2RegHistoryStep);
+childF2RegId 'Справка Б' = DATA STRING (ParentF2RegHistoryStep);
+parentF2RegId 'Справка Б (родитель)' = DATA STRING (ParentF2RegHistoryStep);
+shipperId 'Код отправителя' = DATA STRING (ParentF2RegHistoryStep);
+consigneeId 'Код получателя' = DATA STRING (ParentF2RegHistoryStep);
+wayBillRegId 'Номер ТТН' = DATA STRING (ParentF2RegHistoryStep);
+amount 'Количество' = DATA NUMERIC[16,4] (ParentF2RegHistoryStep);
+
+EXTEND FORM balanceReg
+    PROPERTIES(r) queryForm2ParentHistory DRAW r TOOLBAR
+
+    OBJECTS ps = ParentF2RegHistoryStep
+    PROPERTIES(ps) READONLY level, childF2RegId, parentF2RegId, shipperId, consigneeId, wayBillRegId, amount
+    FILTERS f2Reg(ps) = r
+;
+
+DESIGN balanceReg {
+    tabPane {
+        MOVE BOX(ps);
+    }
+}
+
+// ответ
+EXTEND CLASS DocType { ReplyParentHistForm2 'Ответ на запрос истории поставок по справке Б ' }
+
+GROUP replyParentHistForm2 EXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:ReplyParentHistForm2' : document;
+GROUP parentHist EXTID 'hf=http://fsrar.ru/WEGAIS/ReplyParentHistForm2:ParentHist' : replyParentHistForm2;
+
+parentHistForm2Date = DATA LOCAL DATETIME();
+parentHistLev = DATA LOCAL INTEGER(INTEGER);
+parentHistForm2 = DATA LOCAL STRING(INTEGER);
+parentHistParentForm2 = DATA LOCAL STRING(INTEGER);
+parentHistShipper = DATA LOCAL STRING(INTEGER);
+parentHistConsignee = DATA LOCAL STRING(INTEGER);
+parentHistWBRegId = DATA LOCAL STRING(INTEGER);
+parentHistAmount = DATA LOCAL NUMERIC[16,4](INTEGER);
+
+FORM replyParentHistForm2 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:Documents'
+    PROPERTIES() IN replyParentHistForm2 
+        informF2RegId EXTID 'hf:InformF2RegId', 
+        parentHistForm2Date EXTID 'hf=http://fsrar.ru/WEGAIS/ReplyParentHistForm2:HistForm2Date'
+
+    OBJECTS step = INTEGER EXTID 'hf=http://fsrar.ru/WEGAIS/ReplyParentHistForm2:step' IN parentHist
+    PROPERTIES(step)
+        parentHistLev EXTID 'hf=http://fsrar.ru/WEGAIS/ReplyParentHistForm2:lev',
+        parentHistForm2 EXTID 'hf=http://fsrar.ru/WEGAIS/ReplyParentHistForm2:Form2',
+        parentHistParentForm2 EXTID 'hf=http://fsrar.ru/WEGAIS/ReplyParentHistForm2:parentForm2',
+        parentHistShipper EXTID 'hf=http://fsrar.ru/WEGAIS/ReplyParentHistForm2:Shipper',
+        parentHistConsignee EXTID 'hf=http://fsrar.ru/WEGAIS/ReplyParentHistForm2:Consignee',
+        parentHistWBRegId EXTID 'hf=http://fsrar.ru/WEGAIS/ReplyParentHistForm2:WBRegId',
+        parentHistAmount EXTID 'hf=http://fsrar.ru/WEGAIS/ReplyParentHistForm2:amount'
+;
+
+parentHistoryStep (F2Reg f2Reg, STRING form2Id, STRING wbRegId) = 
+    GROUP MIN ParentF2RegHistoryStep s BY f2Reg(s), childF2RegId(s), wayBillRegId(s);
+
+process (InDoc d) + {
+    IF docType(d) = DocType.ReplyParentHistForm2 THEN {
+        NEWSESSION {
+            stringToFile(document(d));
+            IMPORT replyParentHistForm2 XML FROM resultFile();
+
+            LOCAL f2Reg = F2Reg ();
+            f2Reg() <- f2Reg(informF2RegId());
+                        
+            IF f2Reg() THEN {
+                FOR parentHistWBRegId(INTEGER i) AND NOT parentHistoryStep(f2Reg(), parentHistForm2(i), parentHistWBRegId(i)) DO NEW s = ParentF2RegHistoryStep {
+                    f2Reg(s) <- f2Reg();
+                    childF2RegId(s) <- parentHistForm2(i);
+                    wayBillRegId(s) <- parentHistWBRegId(i);
+                }
+
+                FOR parentHistWBRegId(INTEGER i) AND ParentF2RegHistoryStep s = parentHistoryStep(f2Reg(), parentHistForm2(i), parentHistWBRegId(i)) DO {
+                    level(s) <- parentHistLev(i);
+                    childF2RegId(s) <- parentHistForm2(i);
+                    parentF2RegId(s) <- parentHistParentForm2(i);
+                    shipperId(s) <- parentHistShipper(i);
+                    consigneeId(s) <- parentHistConsignee(i);
+                    wayBillRegId(s) <- parentHistWBRegId(i);
+                    amount(s) <- parentHistAmount(i);
+                }
+            }
+
+            processed(d) <- TRUE;
+            APPLY;
+        }
+    }
+}

@@ -1,7 +1,7 @@
 MODULE EGAISSaleReturnInvoice;
 
 REQUIRE SaleReturnInvoice, SaleReturnShipmentLot,
-        EGAISStock, EGAISItem, EGAISWayBillProcess;
+        EGAISStock, EGAISItem, EGAISWayBillProcess, EGAISFRegLedgerGestori, EGAISWayBillLedger;
 
 PRIORITY SaleReturn;
 
@@ -20,3 +20,14 @@ quantity(UserInvoiceDetail d, WayBillPosition p) += quantity(d, p);
 @defineDocumentInWayBillActProcess(invoice, shipmentQuantity);  
 
 @defineDocumentInWayBillActForm(invoice, i);
+
+maxInvoice(WayBillPosition p) = GROUP MAX UserInvoice i IF wayBill(i) == wayBill(p);
+
+showSaleReturnInvoice 'Показать накладную (продажа-возврат)' (FRegLedger l) {
+    IF maxInvoice(position[WayBillInLedger](l)) THEN {
+        SHOW userInvoice OBJECTS i = maxInvoice(position[WayBillInLedger](l));
+    } ELSE {
+        MESSAGE 'Накладная не найдена';
+    }
+    
+}  ASON CONTEXTMENU number[FRegLedger];

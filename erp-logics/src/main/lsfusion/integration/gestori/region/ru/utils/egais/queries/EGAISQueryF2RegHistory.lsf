@@ -1,0 +1,133 @@
+MODULE EGAISQueryF2RegHistory;
+
+REQUIRE EGAISFReg, EGAISOutDoc, EGAISFRegLedger, EGAISInDoc;
+
+NAMESPACE EGAIS;
+
+CLASS QueryForm2History 'Запрос истории движения по справке Б' : OutDoc;
+TABLE queryForm2History(QueryForm2History);
+
+EXTEND CLASS DocType { QueryForm2History 'Запрос истории движения по справке Б' }
+docType (QueryForm2History r) += DocType.QueryForm2History IF r IS QueryForm2History;
+
+rfbName (QueryForm2History q) = 'RFB' IF q IS QueryForm2History;
+f2Reg 'Справка Б' = DATA F2Reg (QueryForm2History);
+idF2Reg 'Код справки' (QueryForm2History r) = id(f2Reg(r));
+
+GROUP parameters EXTID 'qp=http://fsrar.ru/WEGAIS/QueryParameters:Parameters';
+GROUP parameter EXTID 'qp:Parameter' : parameters;
+
+FORM queryForm2History FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:QueryForm2History'
+    OBJECTS r = QueryForm2History PANEL
+    PROPERTIES(r) IN parameter
+        rfbName EXTID 'qp:Name',
+        idF2Reg EXTID 'qp:Value'
+;
+
+FORM queryForm2HistoryParams 'Параметры запроса'
+    OBJECTS r = QueryForm2History PANEL
+    PROPERTIES(r) idClient, shortNameClient, descriptionClient, nameUtm, idF2Reg
+;
+
+DESIGN queryForm2HistoryParams {
+    size = (-1, -1);
+}
+
+queryForm2History (QueryForm2History r) {
+    EXPORT queryForm2History OBJECTS r = r XML;
+    submit(r, exportFile());
+}
+
+queryForm2History 'Запрос истории движения по справке Б' (F2Reg r) {
+    NEWSESSION {
+        NEW q = QueryForm2History {
+            f2Reg(q) <- r;
+            DIALOG queryForm2HistoryParams OBJECTS r = q NOMANAGESESSION DO {
+                queryForm2History(q);
+                APPLY;
+            }
+        }
+    }
+}
+
+CLASS F2RegHistoryStep 'История движения по справке Б';
+f2Reg = DATA F2Reg (F2RegHistoryStep);
+operDateTime 'Дата' = DATA DATETIME (F2RegHistoryStep);
+docType 'Тип документа' = DATA STRING (F2RegHistoryStep);
+docId 'Номер документа' = DATA STRING (F2RegHistoryStep);
+operation 'Операция' = DATA STRING (F2RegHistoryStep);
+quantity 'Количество' = DATA NUMERIC[16,4] (F2RegHistoryStep);
+
+EXTEND FORM balanceReg
+    PROPERTIES(r) queryForm2History DRAW r TOOLBAR
+
+    OBJECTS s = F2RegHistoryStep
+    PROPERTIES(s) READONLY operDateTime, docType, docId, operation, quantity
+    FILTERS f2Reg(s) = r
+;
+
+DESIGN balanceReg {
+    tabPane {
+        MOVE BOX(s);
+    }
+}
+
+// ответ
+EXTEND CLASS DocType { ReplyHistForm2 'Ответ на запрос истории движения по справке Б' }
+
+GROUP replyHistForm2 EXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:ReplyHistForm2' : document;
+GROUP historyF2 EXTID 'hf=http://fsrar.ru/WEGAIS/ReplyHistForm2:HistoryF2' : replyHistForm2;
+
+histForm2OperDate = DATA LOCAL DATETIME(INTEGER);
+histForm2Date = DATA LOCAL DATETIME();
+histForm2DocType = DATA LOCAL STRING(INTEGER);
+histForm2DocId = DATA LOCAL STRING(INTEGER);
+histForm2Operation = DATA LOCAL STRING(INTEGER);
+histForm2Quantity = DATA LOCAL NUMERIC[16,4](INTEGER);
+
+FORM replyHistForm2 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:ReplyHistForm2'
+    PROPERTIES() IN replyHistForm2 
+        informF2RegId EXTID 'hf=http://fsrar.ru/WEGAIS/ReplyHistForm2:InformF2RegId', 
+        histForm2Date EXTID 'hf=http://fsrar.ru/WEGAIS/ReplyHistForm2:HistForm2Date'
+
+    OBJECTS operationB = INTEGER EXTID 'hf=http://fsrar.ru/WEGAIS/ReplyHistForm2:OperationB' IN historyF2
+    PROPERTIES(operationB) 
+        histForm2DocType EXTID 'hf=http://fsrar.ru/WEGAIS/ReplyHistForm2:DocType', 
+        histForm2DocId EXTID 'hf=http://fsrar.ru/WEGAIS/ReplyHistForm2:DocId',
+        histForm2Operation EXTID 'hf=http://fsrar.ru/WEGAIS/ReplyHistForm2:Operation',
+        histForm2Quantity EXTID 'hf=http://fsrar.ru/WEGAIS/ReplyHistForm2:Quantity',
+        histForm2OperDate EXTID 'hf=http://fsrar.ru/WEGAIS/ReplyHistForm2:OperDate'
+;
+
+historyStep (F2Reg f2Reg, STRING histForm2Operation, STRING histForm2DocId, DATETIME histForm2Date) =
+    GROUP MIN F2RegHistoryStep s BY f2Reg(s), operation(s), docId(s), operDateTime(s);
+
+process (InDoc d) + {
+    IF docType(d) = DocType.ReplyHistForm2 THEN {
+        NEWSESSION {
+            stringToFile(document(d));
+            IMPORT replyHistForm2 XML FROM resultFile();
+
+            LOCAL f2Reg = F2Reg ();
+            f2Reg() <- f2Reg(informF2RegId());
+
+            IF f2Reg() THEN {
+                FOR histForm2Operation(INTEGER i) AND NOT historyStep(f2Reg(), histForm2Operation(i), histForm2DocId(i), histForm2OperDate(i)) DO NEW s = F2RegHistoryStep {
+                    f2Reg(s) <- f2Reg();
+                    operation(s) <- histForm2Operation(i);
+                    docId(s) <- histForm2DocId(i);
+                    operDateTime(s) <- histForm2OperDate(i);
+                }
+
+                FOR histForm2OperDate(INTEGER i) AND F2RegHistoryStep s = historyStep(f2Reg(), histForm2Operation(i), histForm2DocId(i), histForm2OperDate(i)) DO {
+                    docType(s) <- histForm2DocType(i);
+                    docType(s) <- histForm2DocType(i);
+                    quantity(s) <- histForm2Quantity(i);
+                }
+            }
+
+            processed(d) <- TRUE;
+            APPLY;
+        }
+    }
+}

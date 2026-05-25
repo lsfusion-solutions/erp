@@ -7,12 +7,28 @@ NAMESPACE EGAIS;
 typeOriginalDocument 'Тип документа системы' = ABSTRACT CASE BPISTRING[100] (WayBill);
 numberOriginalDocument 'Номер документа системы' = ABSTRACT CASE STRING (WayBill);
 dateOriginalDocument 'Дата документа системы' = ABSTRACT CASE DATE (WayBill);
+supplierStockOriginalDocument 'Склад поставщика документа системы' = ABSTRACT CASE Stock (WayBill);
+
+typeOriginalDocument 'Склад документа системы' (WayBillPosition p) = typeOriginalDocument(wayBill(p));
+numberOriginalDocument 'Склад документа системы' (WayBillPosition p) = numberOriginalDocument(wayBill(p));
+dateOriginalDocument 'Склад документа системы' (WayBillPosition p) = dateOriginalDocument(wayBill(p));
+supplierStockOriginalDocument 'Склад поставщика документа системы' (WayBillPosition p) = supplierStockOriginalDocument(wayBill(p));
+
+skuPositionOriginalDocument 'Товар ' = ABSTRACT CASE Sku (WayBillPosition);
+pricePositionOriginalDocument 'Товар ' = ABSTRACT CASE NUMERIC[16,4] (WayBillPosition);
 
 META defineOriginalLastDocumentWayBillAttributes(namespace, object)
     last##namespace##object (WayBill b) = GROUP LAST ##namespace.##object o ORDER o BY wayBill(o);
     typeOriginalDocument(WayBill b) += WHEN last##namespace##object(b) THEN objectClassName(last##namespace##object(b));
     numberOriginalDocument(WayBill b) += WHEN last##namespace##object(b) THEN number(last##namespace##object(b));
     dateOriginalDocument(WayBill b) += WHEN last##namespace##object(b) THEN date(last##namespace##object(b));
+    supplierStockOriginalDocument(WayBill b) += WHEN last##namespace##object(b) THEN supplierStock(last##namespace##object(b));
+END;
+
+META defineOriginalLastPositionDocumentWayBillAttributes(namespace, doc, objectPosition)
+    last##namespace##objectPosition (WayBillPosition wp) = GROUP LAST ##namespace.##objectPosition o IF wayBill(doc(o)) == wayBill(wp) AND (in(sku(o), product(wp)) OR quantity(o, wp)) ORDER o;
+    skuPositionOriginalDocument(WayBillPosition wp) += WHEN last##namespace##objectPosition(wp) THEN sku(last##namespace##objectPosition(wp));
+    pricePositionOriginalDocument(WayBillPosition wp) += WHEN last##namespace##objectPosition(wp) THEN price(last##namespace##objectPosition(wp));
 END;
 
 stockOriginalDocument 'Склад документа системы' = ABSTRACT CASE Stock (WayBill);
