@@ -1,6 +1,6 @@
 MODULE EGAISActUnFixBarCodeGestori;
 
-REQUIRE EGAISActUnFixBarCode, EGAISStock;
+REQUIRE EGAISActUnFixBarCode, EGAISStock, EGAISLotGestori;
 
 NAMESPACE EGAIS;
 
@@ -116,13 +116,17 @@ DESIGN actUnFixBarCodes {
     PROPERTY(descriptionClient(d)) { caption = 'Адрес'; }
 }
 
-CONSTRAINT client(ActUnFixBarCode a) AND NOT stock(client(a))
+CONSTRAINT client(ActUnFixBarCode a) AND NOT isCompany(stock(client(a)))
     CHECKED BY client[ActUnFixBarCode]
-    MESSAGE 'Для акта фиксации штрихкодов ЕГАИС доступны только организации, связанные со складами/отделами магазинов системы';
+    MESSAGE 'Для акта отмены фиксации штрихкодов ЕГАИС доступны только организации, связанные со складами/отделами магазинов компании';
+
+CONSTRAINT f2Reg(ActUnFixBarCodePosition p) AND NOT hasItemLotType(product(f2Reg(p)))
+    CHECKED BY f2Reg[ActUnFixBarCodePosition]
+    MESSAGE 'Для строки акта отмены фиксации штрихкодов ЕГАИС справка Б должна относиться к алкогольной продукции';
 
 CONSTRAINT product(ActUnFixBarCodePosition p) AND NOT product(f2Reg(p)) == product(p) AND f2Reg(p)
     CHECKED BY f2Reg[ActUnFixBarCodePosition]
-    MESSAGE 'Для строки акта фиксации штрихкодов ЕГАИС справка Б должна соответствовать продукции';
+    MESSAGE 'Для строки акта отмены фиксации штрихкодов ЕГАИС справка Б должна соответствовать продукции';
 
 CONSTRAINT (SETCHANGED(markCode(ActUnFixBarCodeMark m)) OR SETCHANGED(f2Reg(actUnFixBarCodePosition(m))))
     AND NOT f2Reg(markCode(m)) == f2Reg(actUnFixBarCodePosition(m))

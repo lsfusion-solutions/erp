@@ -1,6 +1,6 @@
 MODULE EGAISActFixBarCodeGestori;
 
-REQUIRE EGAISActFixBarCode, EGAISStock;
+REQUIRE EGAISActFixBarCode, EGAISStock, EGAISLotGestori;
 
 NAMESPACE EGAIS;
 
@@ -127,9 +127,13 @@ DESIGN actFixBarCodes {
     PROPERTY(descriptionClient(d)) { caption = 'Адрес'; }
 }
 
-CONSTRAINT client(ActFixBarCode a) AND NOT stock(client(a))
+CONSTRAINT client(ActFixBarCode a) AND NOT isCompany(stock(client(a)))
     CHECKED BY client[ActFixBarCode]
-    MESSAGE 'Для акта фиксации штрихкодов ЕГАИС доступны только организации, связанные со складами/отделами магазинов системы';
+    MESSAGE 'Для акта фиксации штрихкодов ЕГАИС доступны только организации, связанные со складами/отделами магазинов компании';
+
+CONSTRAINT f2Reg(ActFixBarCodePosition p) AND NOT hasItemLotType(product(f2Reg(p)))
+    CHECKED BY f2Reg[ActFixBarCodePosition]
+    MESSAGE 'Для строки акта отмены фиксации штрихкодов ЕГАИС справка Б должна относиться к алкогольной продукции';
 
 CONSTRAINT product(ActFixBarCodePosition p) AND NOT product(f2Reg(p)) == product(p) AND f2Reg(p)
     CHECKED BY f2Reg[ActFixBarCodePosition]
