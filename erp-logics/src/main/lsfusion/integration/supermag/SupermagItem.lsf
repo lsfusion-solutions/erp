@@ -92,44 +92,8 @@ EXTEND FORM integrationData PROPERTIES importUOM(), importCountries();
 
 shortName 'Краткое наименование' = DATA ISTRING[250](Item) IN itemBase;
 
-@defineItemAttribute(shortName, , 'Краткое наименование', itemBase){
-    @defineItemAttribute(shortName, 'Краткое наименование', itemBase){
-    userShowShortName 'Краткое наименование' (itemGroup) = DATA BOOLEAN (ItemGroup) IN itemBase;
-
-    quantityChildWithShortName(ItemGroup itemGroup)  = GROUP SUM 1 IF userShowShortName(ItemGroup childItemGroup) AND isParent(childItemGroup, itemGroup) MATERIALIZED;
-    quantityParentWithShortName(ItemGroup itemGroup)  = GROUP SUM 1 IF userShowShortName(ItemGroup parentItemGroup) AND isParent(itemGroup, parentItemGroup) MATERIALIZED;
-
-    showShortName 'Краткое наименование' (ItemGroup itemGroup) = TRUE IF (quantityChildWithShortName (itemGroup) (+) quantityParentWithShortName (itemGroup)) > 0 MATERIALIZED;
-    showAnyShortName 'Краткое наименование' (ItemGroup itemGroup) = showShortName(itemGroup) OR NOT itemGroup IS ItemGroup;
-    showEditShortName 'Краткое наименование' (ItemGroup itemGroup) = OVERRIDE userShowShortName(itemGroup), TRUE IF quantityParentWithShortName(itemGroup);
-
-    showShortName 'Краткое наименование' (Item item) = TRUE IF quantityParentWithShortName(itemGroup(item));
-
-    backgroundShowShortName (ItemGroup itemGroup) =
-        IF userShowShortName(itemGroup) THEN
-            RGB(0,0,0) IF itemGroup IS ItemGroup
-        ELSE
-            RGB(203,203,206) IF quantityChildWithShortName (itemGroup) != descendantNumber(itemGroup)
-                             AND NOT quantityParentWithShortName (itemGroup);
-
-    setNullShowShortName 'Снять признак для всех потомков'(ItemGroup itemGroup)  { 
-        FOR isParent (ItemGroup childGroup, itemGroup) DO {
-            userShowShortName(childGroup) <- NULL;
-        }
-    } ASON CONTEXTMENU userShowShortName[ItemGroup] CONFIRM;
-};
-
-    EXTEND FORM itemGroup PROPERTIES(g) userShowShortName;
-    EXTEND FORM itemOptions PROPERTIES(g) READONLYIF isReadonly() showEditShortName BACKGROUND backgroundShowShortName(g);
-    
-    backgroundShortName = ABSTRACT COLOR (Item);
-    EXTEND FORM item PROPERTIES(i) shortName SHOWIF showShortName(i) BACKGROUND backgroundShortName(i);
-    EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei shortName SHOWIF showAnyShortName(g);
-};
-@implementItemAttribute(shortName, 'Краткое наименование', String, itemShortName){
-    EXTEND CLASS StringItemAttribute { itemShortName 'Краткое наименование' }
-    value[Item,StringItemAttribute](Item i, StringItemAttribute a) += WHEN a == StringItemAttribute.itemShortName AND i IS Item THEN shortName(i);
-};
+@defineItemAttribute(shortName, , 'Краткое наименование', itemBase);
+@implementItemAttribute(shortName, 'Краткое наименование', String, itemShortName);
 
 dataWeightPrefix1 'Префикс весовых товаров' = DATA STRING[2] () TABLE settings;
 weightPrefix1 'Префикс весовых товаров' () = OVERRIDE dataWeightPrefix1(), '21';
