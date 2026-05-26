@@ -633,7 +633,12 @@ showCreateDocument(Document d) += WHEN typeNamedId(d) == 'UniversalCorrectionDoc
 
 createDocument(Document d) + {
     IF typeNamedId(d) == 'UniversalCorrectionDocument' AND NOT ukdDocument(d) THEN NEWSESSION {
-        IMPORT importUKD FROM data(entity(d));
+        TRY {
+            IMPORT importUKD FROM data(entity(d));
+        } CATCH {
+            MESSAGE 'Файл в документе' + title(d) + ' не соответствует структуре' NOWAIT;
+            RETURN;
+        }
 
         NEW ukd = UkdDocument {
             uuid(ukd) <- ISTRING[36](getWord(vidFail1(), '_', wordCount(vidFail1(), '_')));

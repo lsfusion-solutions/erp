@@ -106,7 +106,12 @@ showCreateDocument(Document d) += WHEN typeNamedId(d) == 'XmlTorgBlr' AND NOT eI
 overCreateDocument ABSTRACT LIST (EInvoice); 
 createDocument(Document d) + {
     IF (typeNamedId(d) == 'XmlTorgBlr') AND NOT eInvoice(d) THEN NEWSESSION {
-        IMPORT importEInvoice FROM data(entity(d));
+        TRY {
+            IMPORT importEInvoice FROM data(entity(d));
+        } CATCH {
+            MESSAGE 'Файл в документе ' + title(d) + ' не соответствует структуре' NOWAIT;
+            RETURN;
+        }
         NEW ei = EInvoice {
             importedCustomer(ei) <- TRUE;
             isNewFormat(ei) <- TRUE;

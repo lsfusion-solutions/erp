@@ -800,7 +800,12 @@ showCreateDocument(Document d) += WHEN (typeNamedId(d) == 'UniversalTransferDocu
 updDocumentDetailExtra ABSTRACT LIST (UpdDocumentDetail, STRING, STRING); 
 createDocument(Document d) + {
     IF (typeNamedId(d) == 'UniversalTransferDocument' OR typeNamedId(d) == 'UniversalTransferDocumentRevision') AND NOT updDocument(d) THEN NEWSESSION {
-        IMPORT importUPD FROM data(entity(d));
+        TRY {
+            IMPORT importUPD FROM data(entity(d));
+        } CATCH {
+            MESSAGE 'Файл в документе ' + title(d) + ' не соответствует структуре' NOWAIT;
+            RETURN;
+        }
 
         NEW upd = UpdDocument {
             LOCAL is503 = BOOLEAN ();
