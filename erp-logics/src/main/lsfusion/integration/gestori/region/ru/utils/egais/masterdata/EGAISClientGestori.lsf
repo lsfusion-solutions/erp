@@ -1,6 +1,6 @@
 MODULE EGAISClientGestori;
 
-REQUIRE EGAISClient, EGAISGestori, TextHighlight;
+REQUIRE EGAISClient, EGAISGestori, EGAISUTMGestori, TextHighlight;
 
 NAMESPACE EGAIS;
 
@@ -27,6 +27,44 @@ EXTEND FORM clients
 overChangeOwn(Client c) +{
     utm(c) <- NULL;
 }
+
+clientsFull 'Клиенты' (UTM u) = 
+    GROUP CONCAT
+        (CONCAT ' / ', id(Client c), shortName(c), INN(c), KPP(c))
+        IF utm(c) = u, ', ' ORDER c CHARWIDTH 60;
+
+EXTEND FORM integrationData
+    PROPERTIES(utm) READONLY clientsFull
+;
+
+DESIGN integrationData {
+    REMOVE PROPERTY(clients(utm));
+}
+
+FORM dialogClientsForUtm 'Организации'
+    OBJECTS u = UTM PANEL
+
+    OBJECTS o = Client
+    PROPERTIES(o) READONLY id, shortName, INN, KPP
+    FILTERS NOT fsrarId(u) OR id(o) = fsrarId(u)
+
+    LIST Client OBJECT o
+;
+
+addClientToUtm 'Привязать клиента' (UTM u) {
+    DIALOG dialogClientsForUtm OBJECTS u = u, o INPUT DO {
+        utm(o) <- u;
+    }
+}
+
+removeClientFromUtm 'Отвязать' (Client c) {
+    utm(c) <- NULL;
+} CONFIRM;
+
+EXTEND FORM UTM
+    PROPERTIES(o) addClientToUtm DRAW c TOOLBAR
+    PROPERTIES(c) removeClientFromUtm TOOLBAR
+;
 
 EXTEND FORM client
     PROPERTIES(o) hlxml = xml CUSTOM 'xmlHighlight'

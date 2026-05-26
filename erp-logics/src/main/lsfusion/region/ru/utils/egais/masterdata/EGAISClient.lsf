@@ -126,21 +126,28 @@ NAVIGATOR {
 }
 
 // default client
-
 defaultClient = DATA Client();
 idDefaultClient 'Код организации по умолчанию' () = id(defaultClient());
 shortNameDefaultClient 'Организация по умолчанию' () = shortName(defaultClient());
 
+codeAndNameDefaultClient 'Организация ЕГАИС по умолчанию' () =
+    CONCAT ' / ', id(defaultClient()), shortName(defaultClient());
+
+changeDefaultClient 'Выбрать организацию ЕГАИС по умолчанию' () {
+    DIALOG dialogClients OBJECTS o INPUT DO {
+        defaultClient() <- o;
+    }
+}
+
 EXTEND FORM integrationData
-    PROPERTIES() idDefaultClient, shortNameDefaultClient
-    
+    PROPERTIES() codeAndNameDefaultClient ON CHANGE changeDefaultClient()
+
     PROPERTIES(utm) clients
 ;
 
 DESIGN integrationData {
     EGAISParams {
-        MOVE PROPERTY(idDefaultClient());
-        MOVE PROPERTY(shortNameDefaultClient());
+        MOVE PROPERTY(codeAndNameDefaultClient());
     }
 }
 

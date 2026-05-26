@@ -1,0 +1,56 @@
+MODULE EGAISUTMGestori;
+
+REQUIRE EGAISGestori, EGAISClient;
+
+NAMESPACE EGAIS;
+
+inactive 'Неактивный' = DATA BOOLEAN (UTM);
+
+EXTEND FORM UTM
+    PROPERTIES(o) inactive
+;
+
+EXTEND FORM integrationData
+    PROPERTIES(utm) READONLY inactive AFTER default(utm)
+;
+
+DESIGN UTM {
+    PROPERTY(name(o)) { charWidth = 40; }
+    PROPERTY(url(o)) {
+        regexp = '^http://[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+:[0-9]+/?$';
+        regexpMessage = 'URL УТМ должен соответствовать формату http://[IP]:[PORT], например http://192.168.1.1:8080';
+    }
+}
+
+changeDefaultUtm(UTM u) + {
+    IF NOT default(u) THEN {  // пользователь устанавливает флаг
+        IF defaultUtm() AND NOT defaultUtm() == u THEN {
+            ASK 'УТМ "' + name(defaultUtm()) + '" уже установлен как "По умолчанию".\nЗаменить на "' + name(u) + '"?' DO {
+                defaultUtm() <- u;
+            }
+        } ELSE {
+            defaultUtm() <- u;
+        }
+    } ELSE {  // пользователь снимает флаг
+        defaultUtm() <- NULL;
+    }
+}
+
+countActiveUtmsWithSameUrl(UTM u) =
+    GROUP SUM 1 IF NOT inactive(UTM u2) AND url(u2) = url(u) AND NOT u2 = u;
+
+CONSTRAINT NOT inactive(UTM u) AND countActiveUtmsWithSameUrl(u) > 0
+    CHECKED BY url[UTM], inactive[UTM]
+    MESSAGE 'Нельзя указывать одинаковый адрес УТМ для активных записей';
+
+EXTEND FORM UTM
+    OBJECTS c = Client
+    PROPERTIES(c) READONLY id, shortName, INN, KPP
+    FILTERS utm(c) = o
+;
+
+DESIGN UTM {
+    OBJECTS {
+        MOVE BOX(c) { caption = 'Связанные организации ЕГАИС'; fill = 1; }
+    }
+}

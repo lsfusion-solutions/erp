@@ -73,6 +73,8 @@ ver 'Версия' = DATA STRING (OutDoc);
 document 'Документ' = DATA TEXT (OutDoc);
 error 'Ошибка' = DATA TEXT (OutDoc);
 
+beforeSubmit ABSTRACT (UTM);
+
 EXTEND FORM outDocs
     PROPERTIES(r) READONLY document, error, sign, ver
     PROPERTIES(r) READONLY PANEL pdocument = document, perror = error
@@ -118,9 +120,11 @@ FORM submitOutDocResponse FORMEXTID 'A'
 
 submit (OutDoc r) {
     EXPORT submitOutDoc OBJECTS r = r XML;
-    
+
     IF NOT utm(r) THEN utm(r) <- OVERRIDE utm(client(r)), defaultUtm();
-    
+
+    beforeSubmit(utm(r));
+
     LOCAL response = FILE();
     TRY {
         logToFile('egais', 'Submit document ' + (OVERRIDE urlUtm(r) + '/opt/in/' + idDocType(r), ''));
@@ -216,6 +220,21 @@ submit (OutDoc r, BOOLEAN skiptTrowException) {
     EXPORT submitOutDoc OBJECTS r = r XML;
 
     IF NOT utm(r) THEN utm(r) <- OVERRIDE utm(client(r)), defaultUtm();
+
+    TRY {
+        beforeSubmit(utm(r));
+    } CATCH {
+        LOCAL preCheckError = TEXT();
+        preCheckError() <- messageCaughtException();
+        // Не логируем здесь: реализация beforeSubmit уже залогировала с контекстом
+        IF NOT skiptTrowException THEN {
+            throwException(preCheckError());
+        } ELSE {
+            MESSAGE preCheckError() NOWAIT;
+            CANCEL;
+            RETURN;
+        }
+    }
 
     LOCAL response = FILE();
     TRY {

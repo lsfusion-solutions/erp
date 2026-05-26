@@ -1,0 +1,142 @@
+MODULE EGAISUTMQueryInfoGestori;
+
+REQUIRE EGAISGestori, EGAISInDoc, EGAISOutDoc;
+
+NAMESPACE EGAIS;
+
+utmVersion 'Версия УТМ' = DATA STRING (UTM) CHARWIDTH 15;
+utmBuildNumber 'Номер сборки УТМ' = DATA STRING (UTM) CHARWIDTH 15;
+utmVersionDateTime 'Дата и время запроса версии' = DATA DATETIME (UTM);
+
+getUtmVersion 'Запросить версию УТМ' (UTM u) {
+    LOCAL response = FILE();
+    TRY {
+        timeoutHttp() <- 60000;
+        IF EGAISTestMode() THEN {
+            showTextDialog('Запрос версии УТМ ' + name(u), 'Введите версию УТМ');
+            response() <- resultFile();
+        } ELSE {
+            EXTERNAL HTTP GET url(u) + '/info/version' TO response;
+        }
+    } CATCH {
+        LOCAL error = TEXT();
+        error() <- CONCAT '\n', 'Ошибка при запросе версии УТМ:', name(u), url(u), messageCaughtException();
+        logToFile('egais', error());
+        MESSAGE error();
+        RETURN;
+    }
+    fileToString(response());
+    IF NOT resultString() THEN RETURN;
+    utmVersion(u) <- splitPart(trim(resultString()), 'b', 1);
+    utmBuildNumber(u) <- splitPart(trim(resultString()), 'b', 2);
+    utmVersionDateTime(u) <- currentDateTime();
+    APPLY;
+} TOOLBAR;
+
+regexpMatchUtm = FORMULA NULL STRING PG 'SELECT (regexp_match($1, $2))[1]';
+
+getFsrarIdFromUtm 'Запросить FSRAR_ID УТМ' (UTM u) {
+    LOCAL response = FILE();
+    TRY {
+        timeoutHttp() <- 60000;
+        IF EGAISTestMode() THEN {
+            showTextDialog('Запрос FSRAR_ID для УТМ ' + name(u),
+                'Введите XML-ответ УТМ (тег <CN> содержит FSRAR_ID)');
+            response() <- resultFile();
+        } ELSE {
+            EXTERNAL HTTP GET url(u) + '/diagnosis' TO response;
+        }
+    } CATCH {
+        LOCAL error = TEXT();
+        error() <- CONCAT '\n', 'Ошибка при запросе FSRAR_ID УТМ:', name(u), url(u), messageCaughtException();
+        logToFile('egais', error());
+        MESSAGE error();
+        RETURN;
+    }
+    fileToString(response());
+    LOCAL fsrarId = STRING();
+    // FSRAR_ID находится в теге <CN> ответа /diagnosis
+    fsrarId() <- regexpMatchUtm(resultString(), '<CN>([^<]+)</CN>');
+    IF NOT fsrarId() THEN {
+        MESSAGE 'Не удалось получить FSRAR_ID (тег <CN>) из ответа УТМ ' + name(u) + '. Проверьте доступность /diagnosis.' NOWAIT;
+        logToFile('egais', 'FSRAR_ID (<CN>) не найден в ответе УТМ ' + name(u) + ': ' + resultString());
+        RETURN;
+    }
+    fsrarId(u) <- fsrarId();
+    fsrarIdDateTime(u) <- currentDateTime();
+    APPLY;
+} TOOLBAR;
+
+checkUtmAvailability 'Проверить доступность УТМ' (UTM u) {
+    IF NOT url(u) THEN
+        throwException('УТМ не настроен (не указан URL): ' + name(u));
+
+    IF NOT firstClient(u) THEN
+        throwException('УТМ не настроен (нет связанных организаций): ' + name(u));
+
+    LOCAL response = FILE();
+    TRY {
+        timeoutHttp() <- 10000;
+        IF EGAISTestMode() THEN {
+            showTextDialog('Проверка УТМ ' + name(u) + ' (/diagnosis)',
+                'Введите XML-ответ УТМ (тег <CN> содержит FSRAR_ID)');
+            response() <- resultFile();
+        } ELSE {
+            EXTERNAL HTTP GET url(u) + '/diagnosis' TO response;
+        }
+    } CATCH {
+        throwException(CONCAT '\n', 'УТМ недоступен: ' + name(u) + ' (' + url(u) + ').', messageCaughtException());
+    }
+
+    fileToString(response());
+    LOCAL fsrarId = STRING();
+    fsrarId() <- regexpMatchUtm(resultString(), '<CN>([^<]+)</CN>');
+
+    IF NOT fsrarId() THEN
+        throwException('УТМ ' + name(u) + ': не удалось получить FSRAR_ID из /diagnosis (тег <CN> не найден).');
+
+    IF firstClient(u) AND NOT (fsrarId() == id(firstClient(u))) THEN
+        throwException(CONCAT '\n',
+            'Несоответствие FSRAR_ID для УТМ "' + name(u) + '":',
+            ' FSRAR_ID по данным УТМ (/diagnosis): ' + fsrarId(),
+            ' Код организации ЕГАИС: ' + id(firstClient(u)) + ' (' + shortName(firstClient(u)) + ')');
+} TOOLBAR;
+
+beforeSubmit(UTM u) + {
+    TRY {
+        checkUtmAvailability(u);
+    } CATCH {
+        LOCAL error = TEXT();
+        error() <- messageCaughtException();
+        logToFile('egais', 'Блокировка отправки документа (УТМ "' + name(u) + '"): ' + error());
+        throwException(error());
+    }
+}
+
+beforeGetInDocs(UTM u) + {
+    TRY {
+        checkUtmAvailability(u);
+    } CATCH {
+        LOCAL error = TEXT();
+        error() <- messageCaughtException();
+        logToFile('egais', 'Пропуск УТМ "' + name(u) + '" при получении документов: ' + error());
+        MESSAGE error() NOWAIT;
+        utmCheckPassed() <- NULL;
+    }
+}
+
+EXTEND FORM UTM
+    PROPERTIES(o) READONLY utmVersion, utmBuildNumber, utmVersionDateTime 
+    PROPERTIES(o) getUtmVersion, getFsrarIdFromUtm
+;
+DESIGN UTM {
+    TOOLBARRIGHT {
+        MOVE PROPERTY(getUtmVersion(o));
+        MOVE PROPERTY(getFsrarIdFromUtm(o));        
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES(utm) READONLY utmVersion, utmBuildNumber, utmVersionDateTime
+    PROPERTIES(utm) getUtmVersion, getFsrarIdFromUtm 
+;

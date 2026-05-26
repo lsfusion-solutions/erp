@@ -140,11 +140,19 @@ DESIGN integrationData {
 }
 
 skipUrl = ABSTRACT BOOLEAN (InDoc);
-inDoc = GROUP MAX InDoc d 
-    IF dateTime(d) >= subtractDay(currentDateTime(), OVERRIDE inDocInterval(), 14) AND NOT skipUrl(d) 
+inDoc = GROUP MAX InDoc d
+    IF dateTime(d) >= subtractDay(currentDateTime(), OVERRIDE inDocInterval(), 14) AND NOT skipUrl(d)
     BY utm(d), url(d);
 
+utmCheckPassed = DATA LOCAL NESTED BOOLEAN ();
+
+beforeGetInDocs ABSTRACT (UTM);
+
 getInDocs 'Получить входящие документы' (UTM u) {
+    utmCheckPassed() <- TRUE;
+    beforeGetInDocs(u);
+    IF NOT utmCheckPassed() THEN RETURN;
+
     LOCAL response = FILE();
     TRY {
         timeoutHttp() <- 60000;
