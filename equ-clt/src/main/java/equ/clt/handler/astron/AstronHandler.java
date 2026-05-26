@@ -2449,7 +2449,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                     "LEFT JOIN CASHIER cashier ON sales.CASHIERID=cashier.CASHIERID " +
                     "LEFT JOIN SALESEXT ext ON sales.SAREAID=ext.SAREAID AND sales.SYSTEMID=ext.SYSTEMID AND sales.SESSID=ext.SESSID AND sales.SALESNUM=ext.SALESNUM AND ext.SALESEXTKEY = 38 " +
                     "LEFT JOIN SALESEXT l ON sales.SAREAID=l.SAREAID AND sales.SYSTEMID=l.SYSTEMID AND sales.SESSID=l.SESSID AND sales.SALESNUM=l.SALESNUM AND l.SALESEXTKEY = 65 " +
-                    "WHERE FUSION_PROCESSED IS NULL AND SALESCANC = 0 ORDER BY SAREAID, SYSTEMID, SESSID, sales.FRECNUM, SALESTAG DESC, sales.SALESNUM")
+                    "WHERE FUSION_PROCESSED IS NULL AND SALESCANC = 0 ORDER BY SAREAID, SYSTEMID, SESSID, sales.FRECNUM, (CASE WHEN SALESTAG = 10 THEN -1 ELSE SALESTAG END) DESC, sales.SALESNUM")
                     :
                     ("SELECT sales.SALESATTRS, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, cashier.CASHIERNAME, " +
                     "sales.SALESTAG, sales.SALESBARC, sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESBONUS, " +
@@ -2458,7 +2458,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                     "LEFT JOIN (SELECT SESSID, SYSTEMID, SAREAID, max(SESSSTART) AS SESSSTART FROM SESS GROUP BY SESSID, SYSTEMID, SAREAID) sess " +
                     "ON sales.SESSID=sess.SESSID AND sales.SYSTEMID=sess.SYSTEMID AND sales.SAREAID=sess.SAREAID " +
                     "LEFT JOIN CASHIER cashier ON sales.CASHIERID=cashier.CASHIERID " +
-                    "WHERE FUSION_PROCESSED IS NULL AND SALESCANC = 0 ORDER BY SAREAID, SYSTEMID, SESSID, sales.FRECNUM, SALESTAG DESC, sales.SALESNUM");
+                    "WHERE FUSION_PROCESSED IS NULL AND SALESCANC = 0 ORDER BY SAREAID, SYSTEMID, SESSID, sales.FRECNUM, (CASE WHEN SALESTAG = 10 THEN -1 ELSE SALESTAG END) DESC, sales.SALESNUM");
             if (params.pgsql && newReadSalesQuery) {
                 //Астрон использует postgresql 9.6 который неадекватно переоценивает Parallel Seq Scan. Выставляем заградительный cost если он включен
                 statement.execute("SET parallel_tuple_cost = 10;");
@@ -2677,6 +2677,24 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                                         salesInfo.detailExtraFields.put("idLot", idLot.split("\u001D",2)[0]); // марки приходят с хвостом
                                     }
                                 }
+                                curSalesInfoList.add(salesInfo);
+                                curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
+                                prologSum = safeSubtract(prologSum, salesSum);
+                                break;
+                            }
+                            case 10: {//продажа подарочного сертификата (БКС)
+                                numberReceipt = uniqueReceiptIdNumberReceiptMap.get(currentUniqueReceiptId);
+                                String idBarcode = trimToNull(salesBarc); //номер сертификата
+                                BigDecimal totalQuantity = salesCount; //salescount всегда = 1
+                                BigDecimal price = safeDivide(salesPrice, 100);
+                                BigDecimal sumReceiptDetail = safeDivide(salesSum, 100);
+                                totalQuantity = isReturn ? safeNegate(totalQuantity) : totalQuantity;
+                                sumReceiptDetail = isReturn ? safeNegate(sumReceiptDetail) : sumReceiptDetail;
+
+                                SalesInfo salesInfo = getSalesInfo(true, isReturn, nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
+                                        idEmployee, nameEmployee, null, sumGiftCardMap, payments, idBarcode, null, null,
+                                        idSaleReceiptReceiptReturnDetail, totalQuantity, price, sumReceiptDetail, null, null,
+                                        null, idDiscountCard, null, salesNum, null, null, false, null, receiptDetailExtraFields, cashRegister);
                                 curSalesInfoList.add(salesInfo);
                                 curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
                                 prologSum = safeSubtract(prologSum, salesSum);
