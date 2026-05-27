@@ -2,6 +2,19 @@ MODULE EGAISQueryFormF2Gestori;
 
 REQUIRE EGAISQueryFormF2, EGAISOutDocGestori, EGAISWayBillGestory;
 
+lastWayBillClient 'Организация последней ТТН' (F2Reg r) =
+    GROUP LAST consignee(WayBillPosition p) ORDER p BY f2Reg(p);
+
+WHEN LOCAL FORMS queryFormF2Params SETCHANGED(f2Reg(QueryFormF2 r)) DO {
+    client(r) <- lastWayBillClient(f2Reg(r));
+}
+
+EXTEND FORM queryFormF2Params
+    EVENTS ON INIT {
+        client(r) <- lastWayBillClient(f2Reg(r)) WHERE f2Reg(r) ;
+    }
+;
+
 numberBaseDocument(QueryFormF2 d) += id(f2Reg(d));
 typeBaseDocument(QueryFormF2 d) += objectClassName(f2Reg(d));
 

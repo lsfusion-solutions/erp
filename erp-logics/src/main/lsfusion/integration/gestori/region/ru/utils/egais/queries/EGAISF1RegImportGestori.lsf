@@ -4,6 +4,19 @@ REQUIRE EGAISF1RegImport, EGAISOutDocGestori, EGAISWayBillGestory;
 
 NAMESPACE EGAIS;
 
+lastWayBillClient 'Организация последней ТТН' (F1Reg r) =
+    GROUP LAST consignee(WayBillPosition p) ORDER p BY f1Reg(p);
+
+WHEN LOCAL FORMS queryForm1Params SETCHANGED(f1Reg(QueryForm1 r)) DO {
+    client(r) <- lastWayBillClient(f1Reg(r));
+}
+
+EXTEND FORM queryForm1Params
+    EVENTS ON INIT {
+        client(r) <- lastWayBillClient(f1Reg(r)) WHERE f1Reg(r) ;
+    }
+;
+
 numberBaseDocument(QueryForm1 d) += id(f1Reg(d));
 typeBaseDocument(QueryForm1 d) += objectClassName(f1Reg(d));
 
