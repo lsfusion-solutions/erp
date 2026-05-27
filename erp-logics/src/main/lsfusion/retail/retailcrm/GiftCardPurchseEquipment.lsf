@@ -1,0 +1,62 @@
+MODULE GiftCardPurchseEquipment;
+
+REQUIRE GiftCardPurchase, CashRegisterPriceTransaction;
+
+NAMESPACE GiftCard;
+
+purchase = GROUP MAX GiftCardPurchase p BY number(p), departmentStore(p);
+purchaseDetail = GROUP MAX GiftCardPurchaseDetail p BY giftCardPurchase(p), priceGiftCard(sku(p));
+
+processZReportExtraFields(STRING json) + {
+    FOR SET (GiftCard g == giftCard(ReceiptGiftCardSaleDetail d)) AND NOT giftCardPurchaseDetail(g) DO {
+        IF NOT purchase('Продажа ' + date(d), departmentStore(d)) THEN {
+            NEW p = GiftCardPurchase {
+                number(p) <- 'Продажа ' + date(d);
+                departmentStore(p) <- departmentStore(d);
+                date(p) <- date(d);
+            }
+        }
+
+        FOR GiftCardPurchase p == purchase('Продажа ' + date(d), departmentStore(d)) DO {
+            IF NOT purchaseDetail(p, price(d)) THEN {
+                NEW pd = GiftCardPurchaseDetail {
+                    giftCardPurchase(pd) <- p;
+                    sku(pd) <- GROUP MAX Item i IF priceGiftCard(i) == price(d);
+                }
+            }
+
+            FOR GiftCardPurchaseDetail pd == purchaseDetail(p, price(d)) DO {
+                giftCardPurchaseDetail(g) <- pd;
+                date(g) <- date(p);
+                expiryDays(g) <- expiryDays(pd);
+            }
+        }
+    }
+
+    FOR SET (GiftCard g == giftCard(PaymentGiftCard d)) AND NOT giftCardPurchaseDetail(g) AND NUMERIC price = NUMERIC(substr(number(g), 3, 3)) DO {
+        IF NOT purchase('Продажа ' + date(d), departmentStore(d)) THEN {
+            NEW p = GiftCardPurchase {
+                number(p) <- 'Продажа ' + date(d);
+                departmentStore(p) <- departmentStore(d);
+                date(p) <- date(d);
+            }
+        }
+
+        FOR GiftCardPurchase p == purchase('Продажа ' + date(d), departmentStore(d)) DO {
+            IF NOT purchaseDetail(p, price) THEN {
+                NEW pd = GiftCardPurchaseDetail {
+                    giftCardPurchase(pd) <- p;
+                    sku(pd) <- GROUP MAX Item i IF priceGiftCard(i) == price;
+                }
+            }
+
+            FOR GiftCardPurchaseDetail pd == purchaseDetail(p, price) DO {
+                giftCardPurchaseDetail(g) <- pd;
+                date(g) <- date(p);
+                expiryDays(g) <- expiryDays(pd);
+            }
+        }
+    }
+}
+//просто нужна точка вклиниться до событий
+executeProcessZReportExtraFields() += TRUE;
