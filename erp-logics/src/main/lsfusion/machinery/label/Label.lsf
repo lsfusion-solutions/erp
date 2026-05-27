@@ -894,20 +894,42 @@ printExistingPrice 'Печатать готовые ценники' = ABSTRACT V
 
 inLabel 'Отм.' = DATA LOCAL BOOLEAN (Sku);
 filterLabel 'Отм.' = DATA LOCAL BOOLEAN (Sku);
+groupWithLabelSku (SkuGroup g) = GROUP SUM 1 IF filterLabel(Sku ss) AND isParent(g, ss);
 ok = DATA LOCAL NESTED BOOLEAN ();  
  
 
 FORM selectLabelSkus 'Выбор товаров'
+    TREE skuGroupTree sk = SkuGroup PARENT parent(sk)
+    PROPERTIES READONLY order(sk), skuGroupName = name(sk)
+    ORDERS order(sk), skuGroupName
+    FILTERGROUP inactiveGroup FILTER 'Активные группы' active(sk) 'F6' DEFAULT
+    FILTERGROUP groupWithSku FILTER 'Группы с товаром' groupWithLabelSku(sk) 'F11' DEFAULT 
+
     OBJECTS s = Sku
     PROPERTIES (s) READONLY inLabel CHANGEABLE, id, idBarcode, name, canonicalNameSkuGroup, nameSkuGroup  
-    FILTERS filterLabel(s)
+    FILTERS filterLabel(s),
+            isParent(sk, s) OR NOT sk
     
     FILTERGROUP inactive FILTER 'Активные' active(s) 'F10' DEFAULT
-    FILTERGROUP select FILTER 'Отм.' inLabel(s) 'F9' 
+    FILTERGROUP select FILTER 'Отм.' inLabel(s) 'F9'
+    
+    EVENTS 
+        ON OK BEFORE {
+            IF NOT (GROUP SUM 1 IF inLabel(Sku sku)) THEN {
+                inLabel(Sku sku) <- TRUE WHERE [FILTER selectLabelSkus.s](sku);
+            }
+        }
 ;
 DESIGN selectLabelSkus{
     BOX {
         size = (1024, 768);
+        NEW selectLabelBox {
+            fill = 1;
+            horizontal = TRUE;
+            MOVE BOX(TREE skuGroupTree) { width = 280; }
+            MOVE BOX(s) { fill = 1; }
+        }
+        MOVE TOOLBARBOX;
     }
 }
 
@@ -1021,9 +1043,6 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
                 departmentChoise()<- stockProp(document);   
                 
                 DIALOG selectLabelSkus OBJECTS s INPUT NOMANAGESESSION DO {
-                    IF NOT (GROUP SUM 1 IF inLabel(###skuProp skuProp)) THEN {
-                        inLabel(s) <- TRUE;
-                    }
                     createLabelTransactionParam(document);             
                     printed(document) <- TRUE WHERE isPosted(document);
                     APPLY;
