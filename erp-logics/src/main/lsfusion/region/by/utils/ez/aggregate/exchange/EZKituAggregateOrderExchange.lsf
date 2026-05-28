@@ -14,6 +14,15 @@ FORM addAggregate
     FILTERS lotOrder(aggregate) == o
 ;
 
+// V3
+FORM addAggregateV3
+    OBJECTS o = LotOrder EXTID 'value'
+
+    OBJECTS aggregate = LotOrderDetail
+    PROPERTIES(aggregate) idAggregateLot EXTID 'value'
+    FILTERS lotOrder(aggregate) == o
+;
+
 GROUP aggrCount EXTID 'count';
 aggrSuccess = DATA LOCAL INTEGER();
 aggrFailed = DATA LOCAL INTEGER();
@@ -24,15 +33,32 @@ FORM importAddAggregate
         aggrSuccess EXTID 'success',
         aggrFailed EXTID 'failed'
 
-    OBJECTS error = INTEGER 
+    OBJECTS error = INTEGER
     PROPERTIES(error) aggrError EXTID 'value'
     FILTERS imported(error)
+;
+
+// V3
+aggrSuccessV3 = DATA LOCAL INTEGER();
+aggrFailedV3 = DATA LOCAL INTEGER();
+aggrIdV3 = DATA LOCAL INTEGER();
+
+FORM importAddAggregateV3
+    PROPERTIES()
+        aggrSuccessV3 EXTID 'success',
+        aggrFailedV3 EXTID 'failed',
+        aggrIdV3 EXTID 'id'
 ;
 
 addAggregateLot 'Добавление собственных кодов агрегации' (LotOrder o) {
     LOCAL result = FILE();
 
-    EXPORT addAggregate OBJECTS o = o JSON;    
+    // V3
+    IF useV3LabelsAddAggregateEZ() THEN {
+        EXPORT addAggregateV3 OBJECTS o = o JSON;
+    } ELSE {
+        EXPORT addAggregate OBJECTS o = o JSON;
+    }
     fileToString(exportFile());
 
     exception(o) <- NULL;
@@ -40,12 +66,21 @@ addAggregateLot 'Добавление собственных кодов агре
 
     TRY {
         insecureSSL() <- TRUE;
-        EXTERNAL HTTP POST urlEZ() + '/v2/labels/addAggregate' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+        EXTERNAL HTTP POST urlEZ() + (IF useV3LabelsAddAggregateEZ() THEN '/v3/labels/addAggregate' ELSE '/v2/labels/addAggregate') HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
         fileToString(result());
-        IMPORT importAddAggregate JSON FROM result();
 
-        error(LotOrderDetail d) <- [GROUP MIN TRUE IF aggrError(INTEGER i) BY getWord(aggrError(i),' ',1)](idAggregateLot(d)) WHERE lotOrder(d) == o;
-        
+        IF useV3LabelsAddAggregateEZ() THEN {
+            // V3
+            IMPORT importAddAggregateV3 JSON FROM result();
+            aggrSuccess() <- aggrSuccessV3();
+            aggrFailed() <- aggrFailedV3();
+        } ELSE {
+            // V2
+            IMPORT importAddAggregate JSON FROM result();
+        }
+
+        error(LotOrderDetail d) <- [GROUP MIN TRUE IF aggrError(INTEGER i) BY getWord(aggrError(i),' ',1)](idAggregateLot(d)) WHERE lotOrder(d) == o AND NOT useV3LabelsAddAggregateEZ();
+
         IF aggrSuccess() > 0 THEN {
             FOR idAggregateLot(LotOrderDetail d) AND lotOrder(d) == o AND NOT error(d) NOINLINE DO NEW l = Lot {
                 aggregateLot(d) <- l;

@@ -36,42 +36,72 @@ maxCountDaysShipList = DATA INTEGER ();
 code = DATA LOCAL INTEGER (INTEGER);
 name = DATA LOCAL STRING (INTEGER);
 
+// V3
+idV3ShipsList = DATA LOCAL INTEGER (INTEGER);
+nameV3ShipsList = DATA LOCAL STRING (INTEGER);
 
 FORM shipsListForm 'Список отгрузок'
-    OBJECTS ships_list = INTEGER 
+    OBJECTS ships_list = INTEGER
     PROPERTIES (ships_list) code, name
+;
+
+FORM shipsListFormV3 'Список отгрузок V3'
+    OBJECTS results = INTEGER
+    PROPERTIES(results) idV3ShipsList EXTID 'id', nameV3ShipsList EXTID 'name'
+    FILTERS imported(results)
 ;
 
 shipsList 'Список отгрузок и вытягивание кода' (DATE fromDate, DATE toDate, STRING sidCountry, INTEGER pageShipList, EInvoice ei) {
     NEWSESSION {
         LOCAL result = FILE ();
 
-        EXPORT JSON FROM date_from = toChar(fromDate, 'YYYY-MM-DD'), date_to = toChar(toDate, 'YYYY-MM-DD'), country = sidCountry, page = pageShipList;
-
-        fileToString(exportFile());
         commonGetToken(customer(ei));
 
         TRY {
             insecureSSL() <- TRUE;
-            EXTERNAL HTTP POST urlEZ() + '/ships/list' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+            IF useV3ShipsTakeEZ() THEN {
+                LOCAL urlV3 = STRING();
+                urlV3() <- urlEZ() + '/v3/ships/list?start_date=' + toChar(fromDate, 'YYYY-MM-DD') +
+                    '&end_date=' + toChar(toDate, 'YYYY-MM-DD') + '&page=' + STRING(pageShipList);
+                IF sidCountry THEN urlV3() <- urlV3() + '&country=' + sidCountry;
+                EXTERNAL HTTP GET urlV3() HEADERS ezHeadersLotOrder TO result;
+            } ELSE {
+                EXPORT JSON FROM date_from = toChar(fromDate, 'YYYY-MM-DD'), date_to = toChar(toDate, 'YYYY-MM-DD'), country = sidCountry, page = pageShipList;
+                fileToString(exportFile());
+                EXTERNAL HTTP POST urlEZ() + '/ships/list' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+            }
         } CATCH {
             LOCAL message = STRING ();
             message() <- CONCAT '. ', 'Ошибка при обращении к ЭЗ /ships/list', 'Электронная накладная - ' + nomerTnToTake(ei);
             handleException(ei, result(), message());
             RETURN;
         }
-
-        IMPORT shipsListForm JSON FROM result();
-        fileToString(result());
-        codeEZ(ei) <- GROUP MIN code(INTEGER i) IF name(i) == nomerTnToTake(ei);
         
+        IF useV3ShipsTakeEZ() THEN {
+            IMPORT shipsListFormV3 JSON FROM result();
+            codeEZ(ei) <- GROUP MIN idV3ShipsList(INTEGER i) IF nameV3ShipsList(i) == nomerTnToTake(ei);
+        } ELSE {
+            IMPORT shipsListForm JSON FROM result();
+            codeEZ(ei) <- GROUP MIN code(INTEGER i) IF name(i) == nomerTnToTake(ei);
+        }
+
         APPLY;
     }
 }
 
+
 FORM shipsTake 'Оприходование кодов'
     OBJECTS ei = EInvoice EXTID 'value'
     PROPERTIES (ei) codeEZ EXTID 'code'
+
+    OBJECTS labels = (eld = EInvoiceLotDetail, lt = LotType)
+    PROPERTIES (eld) id EXTID 'value'
+    FILTERS eld IS EInvoiceLotDetail AND NOT takenEZ(eld) AND eInvoice(eld) = ei AND lotTypeToTake(eld) == lt
+;
+
+FORM shipsTakeV3 'Оприходование кодов V3'
+    OBJECTS ei = EInvoice EXTID 'value'
+    PROPERTIES (ei) codeEZ EXTID 'ship_id'
 
     OBJECTS labels = (eld = EInvoiceLotDetail, lt = LotType)
     PROPERTIES (eld) id EXTID 'value'
@@ -90,21 +120,32 @@ shipsTake (EInvoice ei) {
     LOCAL result = FILE ();
 
     FOR existNotSentLotDetailToTake(ei, LotType lt) AND lt IS LotType DO {
-        EXPORT shipsTake OBJECTS ei = ei, lt = lt JSON ;
-
-        fileToString(exportFile());
         commonGetToken(supplier(ei));
 
         TRY {
             insecureSSL() <- TRUE;
-            EXTERNAL HTTP POST urlEZ() + '/ships/take' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+            IF useV3ShipsTakeEZ() THEN {
+                EXPORT shipsTakeV3 OBJECTS ei = ei, lt = lt JSON;
+                fileToString(exportFile());
+                EXTERNAL HTTP POST urlEZ() + '/v3/ships/take' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+            } ELSE {
+                EXPORT shipsTake OBJECTS ei = ei, lt = lt JSON;
+                fileToString(exportFile());
+                EXTERNAL HTTP POST urlEZ() + '/ships/take' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+            }
         } CATCH {
             LOCAL message = STRING ();
-            message() <- CONCAT '. ', 'Ошибка при обращении к ЭЗ /ships/add', 'Электронная накладная - ' + nomerTnToTake(ei);
+            message() <- CONCAT '. ', 'Ошибка при обращении к ЭЗ /ships/take', 'Электронная накладная - ' + nomerTnToTake(ei);
             handleException(ei, result(), message());
             RETURN;
         }
+                
         fileToString(result());
+        // Документный подход: после успешной приёмки (ships/take) лоты получают статус «Введен в оборот в РБ» (CIRCULATION_RB)
+        FOR EInvoiceLotDetail eld IF eInvoice(eld) == ei AND lotTypeToTake(eld) == lt AND NOT takenEZ(eld) AND lotToTake(eld) DO {
+            status(lotToTake(eld)) <- LotStatus.CIRCULATION_RB;
+            isOwn(lotToTake(eld)) <- TRUE;
+        }
         takenEZ (EInvoiceLotDetail eld) <- TRUE WHERE eInvoice(eld) == ei AND lotTypeToTake(eld) == lt;
     }
 

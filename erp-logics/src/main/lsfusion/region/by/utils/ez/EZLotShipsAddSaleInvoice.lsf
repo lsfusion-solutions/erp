@@ -161,6 +161,12 @@ getCurrencyEZ (LegalEntity company) {
 ship = DATA INTEGER (Invoice, LotType);
 lotType (InvoiceDetail d) = lotType(sku(d));
 
+// V3
+shipIdSaleV3 = DATA LOCAL INTEGER ();
+FORM importShipsSaleV3
+    PROPERTIES() shipIdSaleV3 EXTID 'ship_id'
+;
+
 existLotDetail(Invoice i, LotType lt) = GROUP MIN Lot lot IF quantity(i, lot) AND lt == lotType(sku(lot));
 existNotSentLotDetail(Invoice i, LotType lt) = GROUP MIN Lot lot IF quantity(i, lot) AND lt == lotType(sku(lot)) AND NOT shippedEZ(i, lot);
 existLotDetail(Invoice i) = GROUP MIN existLotDetail(i, LotType lt) IF i IS Invoice AND lt IS LotType;
@@ -178,10 +184,6 @@ invoiceDetail(Invoice i, Sku sku) = GROUP MIN InvoiceDetail d BY invoice(d), sku
 invoicePrice(Invoice i, Sku sku) = invoicePrice(invoiceDetail(i, sku));
 invoicePriceVAT(Invoice i, Sku sku) = invoicePrice(invoiceDetail(i, sku)) - price(invoiceDetail(i,  sku));
 
-trunc = FORMULA INTEGER 'trunc($1)';
-
-rub 'Рубли (цена за базовую единицу до)' (NUMERIC n) = trunc(n);
-kop 'Копейки (цена за базовую единицу до)' (NUMERIC n) = lpad((OVERRIDE STRING[2](round0(abs(rub(n) (-) n) * 100.0)), '' IF n), 2, '0');
 
 product_cost (Invoice i, Sku sku) = CONCAT '.', (OVERRIDE STRING(rub(invoicePrice(i, sku))), '0'), (OVERRIDE STRING(kop(invoicePrice(i, sku))), '00');
 product_tax (Invoice i, Sku sku) = CONCAT '.', (OVERRIDE STRING(rub(invoicePriceVAT(i, sku))), '0'), (OVERRIDE STRING(kop(invoicePriceVAT(i, sku))), '00');
@@ -218,14 +220,22 @@ shipsAddAPIEZ 'Отгрузка марок в ЭЗ' (Invoice i) {
             LOCAL strResult = STRING ();
             fileToString(exportFile());
             strResult() <- replace(replace(STRING(resultString()),'\{',''),'\}','');
-            strResult() <- CONCAT '', '\{', strResult(), ', ' + addInfoShipsAdd(i, lt), '\}';
+            IF useV3ShipsAddEZ() THEN {
+                strResult() <- CONCAT '', '\{', strResult(), ', "group":"' + codeGroup(lt) + '", ' + addInfoShipsAdd(i, lt), '\}';
+            } ELSE {
+                strResult() <- CONCAT '', '\{', strResult(), ', ' + addInfoShipsAdd(i, lt), '\}';
+            }
             stringToFile(strResult());
 
             commonGetToken(supplier(i));
 
             TRY {
                 insecureSSL() <- TRUE;
-                EXTERNAL HTTP PUT urlEZ() + '/ships/add' HEADERS ezHeadersLotOrder PARAMS resultFile() TO result;
+                IF useV3ShipsAddEZ() THEN {
+                    EXTERNAL HTTP POST urlEZ() + '/v3/ships/add' HEADERS ezHeadersLotOrder PARAMS resultFile() TO result;
+                } ELSE {
+                    EXTERNAL HTTP PUT urlEZ() + '/ships/add' HEADERS ezHeadersLotOrder PARAMS resultFile() TO result;
+                }
             } CATCH {
                 fileToString(result());
                 handleException(i, lt, result());
@@ -233,8 +243,19 @@ shipsAddAPIEZ 'Отгрузка марок в ЭЗ' (Invoice i) {
             }
 
             ship() <- NULL;
-            IMPORT JSON FROM result() TO() ship;
+            IF useV3ShipsAddEZ() THEN {
+                IMPORT importShipsSaleV3 JSON FROM result();
+                ship() <- shipIdSaleV3();
+            } ELSE {
+                IMPORT JSON FROM result() TO() ship;
+            }
             ship(i, lt) <- ship();
+            // Документный подход: после успешной отгрузки (ships/add) лоты получают статус «Реализован» (SOLD_RETAIL)
+            IF ship() THEN {
+                FOR Lot lot IF quantity(i, lot) AND lt == lotType(sku(lot)) AND NOT shippedEZ(i, lot) DO {
+                    status(lot) <- LotStatus.SOLD_RETAIL;
+                }
+            }
             shippedEZ (i, Lot lot) <- TRUE WHERE ship(i, lt) AND quantity(i, lot) AND lt == lotType(sku(lot));
 
             APPLY;

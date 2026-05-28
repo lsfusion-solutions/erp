@@ -1,6 +1,6 @@
 MODULE EZLotShipsAddEInvoice;
 
-REQUIRE LotInit, LotTypeBy, EInvoice, EZAuthentication, ConsignmentEInvoice;
+REQUIRE LotInit, LotTypeBy, EInvoice, EZAuthentication, ConsignmentEInvoice, EZLotOrder;
 
 NAMESPACE EZ;
 
@@ -139,11 +139,38 @@ getCurrencyEZ (LegalEntity company) {
     IMPORT currency FROM JSONFILE (result());
 }
 
+// V3
+shippedEZ 'Отгрузка кодов, ЭЗ' = DATA BOOLEAN (EInvoiceLotDetail);
+
+vatRateEInvoiceDetail (EInvoiceDetail ed) = OVERRIDE NUMERIC[10,5](valueVAT(ed)), 0;
+productCostV3EI (EInvoice ei, Sku s) = GROUP MAX NUMERIC[16,2](lineItemPrice(EInvoiceDetail ed) * (100 + vatRateEInvoiceDetail(ed)) / 100)
+    IF eInvoice(ed) == ei AND sku(lineItemBuyerID(ed)) == s;
+productTaxV3EI (EInvoice ei, Sku s) = GROUP MAX NUMERIC[16,2](lineItemPrice(EInvoiceDetail ed) * vatRateEInvoiceDetail(ed) / 100)
+    IF eInvoice(ed) == ei AND sku(lineItemBuyerID(ed)) == s;
+
+addInfoShipsAddEInvV3 (EInvoice ei, Sku s) =
+    '"' + gtin14(s) + '"' + ': \{' +
+    '"product_cost":"' + CONCAT '.', (OVERRIDE STRING(rub(productCostV3EI(ei, s))), '0'), (OVERRIDE STRING(kop(productCostV3EI(ei, s))), '00') + '",' +
+    '"product_tax":"' + CONCAT '.', (OVERRIDE STRING(rub(productTaxV3EI(ei, s))), '0'), (OVERRIDE STRING(kop(productTaxV3EI(ei, s))), '00') + '"' +
+    '\}';
+
+addInfoShipsAddEInvV3 (EInvoice ei, LotType lt) =
+    '"eas_products": \{' +
+        (GROUP CONCAT addInfoShipsAddEInvV3(ei, Sku s)
+            IF lotType(s) == lt AND (GROUP MIN EInvoiceLotDetail eld IF eInvoice(eld) = ei AND sku(lineItemBuyerID(eInvoiceDetail(eld))) == s AND NOT shippedEZ(eld)),
+            ', ' ORDER gtin(s), s) +
+        '\}';
+
 ship = DATA INTEGER (EInvoice, LotType);
 lot (EInvoiceLotDetail eld) = lot(barcodeToId(id(eld)));
+
+shipIdEInvV3 = DATA LOCAL INTEGER ();
+FORM importShipsAddEInvV3
+    PROPERTIES() shipIdEInvV3 EXTID 'ship_id'
+;
 lotType(EInvoiceLotDetail eld) = lotType(sku(lot(eld)));
 
-shippedEZ 'Отгрузка кодов, ЭЗ' = DATA BOOLEAN (EInvoiceLotDetail);
+
 
 existLotDetail(EInvoice ei, LotType lt) = GROUP MIN EInvoiceLotDetail eld IF eInvoice(eld) = ei AND lt == lotType(eld);
 existNotSentLotDetail(EInvoice ei, LotType lt) = GROUP MIN EInvoiceLotDetail eld IF eInvoice(eld) = ei AND lt == lotType(eld) AND NOT shippedEZ(eld);
@@ -173,18 +200,37 @@ shipsAdd (EInvoice ei) {
 
             fileToString(exportFile());
             commonGetToken(supplier(ei));
-            
+
             TRY {
                 insecureSSL() <- TRUE;
-                EXTERNAL HTTP PUT urlEZ() + '/ships/add' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+                IF useV3ShipsAddEZ() THEN {
+                    LOCAL strResultV3 = STRING ();
+                    strResultV3() <- replace(replace(STRING(resultString()), '\{', ''), '\}', '');
+                    strResultV3() <- CONCAT '', '\{', strResultV3(), ', "group":"' + codeGroup(lt) + '", ' + addInfoShipsAddEInvV3(ei, lt), '\}';
+                    stringToFile(strResultV3());
+                    EXTERNAL HTTP POST urlEZ() + '/v3/ships/add' HEADERS ezHeadersLotOrder PARAMS resultFile() TO result;
+                } ELSE {
+                    EXTERNAL HTTP PUT urlEZ() + '/ships/add' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+                }
             } CATCH {
                 handleException(ei, lt, result());
                 RETURN;
             }
 
             ship() <- NULL;
-            IMPORT JSON FROM result() TO() ship;
+            IF useV3ShipsAddEZ() THEN {
+                IMPORT importShipsAddEInvV3 JSON FROM result();
+                ship() <- shipIdEInvV3();
+            } ELSE {
+                IMPORT JSON FROM result() TO() ship;
+            }
             ship(ei, lt) <- ship();
+            // Документный подход: после успешной отгрузки (ships/add) лоты получают статус «Реализован» (SOLD_RETAIL)
+            IF ship() THEN {
+                FOR EInvoiceLotDetail eld IF eInvoice(eld) == ei AND lotType(eld) == lt AND NOT shippedEZ(eld) AND lot(eld) DO {
+                    status(lot(eld)) <- LotStatus.SOLD_RETAIL;
+                }
+            }
             shippedEZ (EInvoiceLotDetail eld) <- TRUE WHERE ship(eInvoice(eld), lotType(eld));
         }
 

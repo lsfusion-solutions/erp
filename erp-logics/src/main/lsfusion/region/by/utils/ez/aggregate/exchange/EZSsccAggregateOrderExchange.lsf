@@ -59,7 +59,7 @@ FORM importAddSscc
 addSsccAggregateLot 'Заказ кодов (SSCC)' (LotOrder o) {
     LOCAL result = FILE();
 
-    EXPORT addSscc OBJECTS o = o JSON;    
+    EXPORT addSscc OBJECTS o = o JSON;
     fileToString(exportFile());
 
     exception(o) <- NULL;
@@ -67,10 +67,22 @@ addSsccAggregateLot 'Заказ кодов (SSCC)' (LotOrder o) {
 
     TRY {
         insecureSSL() <- TRUE;
-        EXTERNAL HTTP POST urlEZ() + '/v2/orders/add' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+        EXTERNAL HTTP POST urlEZ() + (IF useV3OrdersAddEZ() THEN '/v3/orders/add' ELSE '/v2/orders/add') HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
         fileToString(result());
-        
-        IMPORT importAddSscc JSON FROM result();
+
+        IF useV3OrdersAddEZ() THEN {
+            // V3
+            FOR iterate(INTEGER i, 1, jsonAttributeCount(resultString())) DO {
+                IF 'id' == jsonAttributeKey(resultString(), i) THEN {
+                    ssccId() <- replace(STRING(jsonAttributeValue(resultString(), i)), '"', '');
+                } ELSE IF 'created_at' == jsonAttributeKey(resultString(), i) THEN {
+                    ssccCreatedAt() <- toDateTimeFormat(replace(STRING(jsonAttributeValue(resultString(), i)), '"', ''), 'yyyy-MM-ddThh24:mi:ss');
+                }
+            }
+        } ELSE {
+            // V2
+            IMPORT importAddSscc JSON FROM result();
+        }
 
         idOrderEZ(LotOrderDetail d) <- ssccId() WHERE o == lotOrder(d);
         initialDemand(LotOrderDetail d) <- quantity(d) WHERE lotOrder(d) = o AND NOT initialDemand(d);
@@ -94,6 +106,16 @@ GROUP ssccImportUser EXTID 'user' : ssccImportOrder;
 GROUP ssccImportInfo EXTID 'info' : ssccImportUser;
 GROUP ssccImportStatus EXTID 'status' : ssccImportOrder;
 
+// V3
+GROUP ssccImportDetail EXTID 'detail';
+GROUP ssccImportStatusV3 EXTID 'status' : ssccImportDetail;
+GROUP ssccImportFilesV3 EXTID 'files' : ssccImportDetail;
+GROUP ssccImportFilesLabelsV3 EXTID 'labels' : ssccImportFilesV3;
+
+ssccImportCodeV3 = DATA LOCAL INTEGER();
+ssccImportMessageV3 = DATA LOCAL STRING();
+ssccImportFilenameDetailV3 = DATA LOCAL STRING();
+
 ssccImportGtin = DATA LOCAL STRING();
 ssccImportCount = DATA LOCAL INTEGER();
 ssccImportCreatedAt = DATA LOCAL STRING();
@@ -109,6 +131,7 @@ ssccImportLabels = DATA LOCAL STRING(INTEGER);
 ssccImportOrderLabels = DATA LOCAL INTEGER(INTEGER);
 ssccImportCompletedAt = DATA LOCAL STRING();
 ssccImportFilename = DATA LOCAL STRING();
+ssccImportFilenameV3 = DATA LOCAL STRING(); 
 ssccImportDownloads = DATA LOCAL INTEGER();
 ssccImportUpdatedAt = DATA LOCAL STRING();
 ssccImportComment = DATA LOCAL STRING();
@@ -126,14 +149,15 @@ ssccImportMessage = DATA LOCAL STRING();
 
 FORM getInfo
     PROPERTIES() IN ssccImportOrder
-        ssccImportGtin EXTID 'gtin', 
+        ssccImportGtin EXTID 'gtin',
         ssccImportCount EXTID 'count',
-        ssccImportCreatedAt EXTID 'created_at', 
+        ssccImportCreatedAt EXTID 'created_at',
         ssccImportParentOrder EXTID 'parent_order',
-        ssccImportCompletedAt EXTID 'completed_at', 
+        ssccImportCompletedAt EXTID 'completed_at',
         ssccImportUpdatedAt EXTID 'updated_at',
-        ssccImportComment EXTID 'comment', 
-        ssccImportId1 EXTID 'id'
+        ssccImportComment EXTID 'comment',
+        ssccImportId1 EXTID 'id',
+        ssccImportFilenameV3 EXTID 'filename'
     PROPERTIES() IN ssccImportType
         ssccImportMethod EXTID 'method',
         ssccImportIsAutotake EXTID 'is_autotake',
@@ -162,7 +186,15 @@ FORM getInfo
         ssccImportGln EXTID'gln'
     PROPERTIES() IN ssccImportStatus
         ssccImportCode EXTID'code',
-        ssccImportMessage EXTID'message';
+        ssccImportMessage EXTID'message'
+
+    // V3
+    PROPERTIES() IN ssccImportStatusV3
+        ssccImportCodeV3 EXTID 'code',
+        ssccImportMessageV3 EXTID 'message'
+    PROPERTIES() IN ssccImportFilesLabelsV3
+        ssccImportFilenameDetailV3 EXTID 'filename'
+;
 
 fileName  = DATA STRING (LotOrder);
 idOrderEZ(LotOrder o) = GROUP MIN idOrderEZ(LotOrderDetail d) IF lotOrder(d) == o;
@@ -172,8 +204,6 @@ getInfo 'Проверить статус' (LotOrder o) {
     statusMessage() <- '';    
     
     NEWSESSION {
-        EXPORT JSON FROM id = idOrderEZ(o);
-
         LOCAL result = FILE();
 
         exception(o) <- NULL;
@@ -181,7 +211,12 @@ getInfo 'Проверить статус' (LotOrder o) {
 
         TRY {
             insecureSSL() <- TRUE;
-            EXTERNAL HTTP POST urlEZ() + '/v2/orders' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+            IF useV3OrdersListEZ() THEN {
+                EXTERNAL HTTP GET urlEZ() + '/v3/orders/list/' + idOrderEZ(o) HEADERS ezHeadersLotOrder TO result;
+            } ELSE {
+                EXPORT JSON FROM id = idOrderEZ(o);
+                EXTERNAL HTTP POST urlEZ() + '/v2/orders' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+            }
         } CATCH {
             handleException(o, result());
             CANCEL;
@@ -189,33 +224,48 @@ getInfo 'Проверить статус' (LotOrder o) {
         }
 
         fileToString(result());
-        IMPORT getInfo JSON FROM result();        
-        
-        IF ssccImportCode() == 40 THEN {
+        IMPORT getInfo JSON FROM result();
+
+        LOCAL finalStatusCode = INTEGER();
+        LOCAL finalFilename = STRING();
+        IF useV3OrdersListEZ() THEN {
+            // V3
+            finalStatusCode() <- ssccImportCodeV3();
+            finalFilename() <- ssccImportFilenameDetailV3();
+        } ELSE {
+            // V2
+            finalStatusCode() <- ssccImportCode();
+            finalFilename() <- OVERRIDE ssccImportFilenameV3(), ssccImportFilename();
+        }
+
+        IF finalStatusCode() == 40 THEN {
             canceled(o) <- TRUE;
             APPLY;
             RETURN;
         }
 
-        status(LotOrderDetail d) <- statusLotOrder(ssccImportCode()) WHERE lotOrder(d) = o;
+        status(LotOrderDetail d) <- statusLotOrder(finalStatusCode()) WHERE lotOrder(d) = o;
 
-        IF ssccImportCode() == 30 THEN {
+        IF finalStatusCode() == 30 THEN {
             availableCodes(LotOrderDetail d) <- 1 WHERE lotOrder(d) = o;
-            fileName(o) <- ssccImportFilename();
+            // V3
+            fileName(o) <- finalFilename();
         }
-        statusMessage() <- name(statusLotOrder(ssccImportCode()));
+        statusMessage() <- name(statusLotOrder(finalStatusCode()));
 
-        fileToString(result());
         //            MESSAGE resultString();
-        
-        FOR ssccImportLabels(INTEGER i) NOINLINE DO NEW l = Lot {
-            FOR LotOrderDetail d = (GROUP LAST LotOrderDetail dd IF lotOrder(dd) = o AND NOT quantity(dd) ORDER DESC dd) DO {
-                aggregateLot(d) <- l;
-                mixed(l) <- TRUE;
-                aggregated(l) <- TRUE;
-                id(l) <- ssccImportLabels(i);
-                quantity(d, l) <- 1;
-                quantity(d) <- 1;
+
+        // V2
+        IF NOT useV3OrdersListEZ() THEN {
+            FOR ssccImportLabels(INTEGER i) NOINLINE DO NEW l = Lot {
+                FOR LotOrderDetail d = (GROUP LAST LotOrderDetail dd IF lotOrder(dd) = o AND NOT quantity(dd) ORDER DESC dd) DO {
+                    aggregateLot(d) <- l;
+                    mixed(l) <- TRUE;
+                    aggregated(l) <- TRUE;
+                    id(l) <- ssccImportLabels(i);
+                    quantity(d, l) <- 1;
+                    quantity(d) <- 1;
+                }
             }
         }
 

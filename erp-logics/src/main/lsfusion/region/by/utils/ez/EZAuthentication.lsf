@@ -209,3 +209,71 @@ commonGetToken(LegalEntity l) {
 commonGetToken() {
     commonGetToken(defaultEZLegalEntity());
 }
+
+useContourV3EZ 'Использовать Контур V3 (Представление Б)' = DATA BOOLEAN () TABLE authentication;
+
+EXTEND FORM integrationData
+    PROPERTIES() useContourV3EZ
+;
+
+
+// Вспомогательные функции форматирования цены для Представления Б
+trunc = FORMULA INTEGER 'trunc($1)';
+rub 'Рубли (цена за базовую единицу до)' (NUMERIC n) = trunc(n);
+kop 'Копейки (цена за базовую единицу до)' (NUMERIC n) = lpad((OVERRIDE STRING[2](round0(abs(rub(n) (-) n) * 100.0)), '' IF n), 2, '0');
+
+// Индивидуальные настройки V3 по методам (для поэтапного тестирования)
+dataUseV3ShipsAddEZ 'V3: ships/add (отправка отгрузки)' = DATA BOOLEAN () TABLE authentication;
+dataUseV3ShipsTakeEZ 'V3: ships/list + ships/take (приёмка)' = DATA BOOLEAN () TABLE authentication;
+dataUseV3ReportsAddMarkEZ 'V3: reports/addMark (отчёт о маркировке)' = DATA BOOLEAN () TABLE authentication;
+dataUseV3OrdersAddGroupEZ 'V3: orders/addGroupOrder (групповой заказ КМ)' = DATA BOOLEAN () TABLE authentication;
+dataUseV3OrdersListEZ 'V3: orders/list + скачивание КМ' = DATA BOOLEAN () TABLE authentication;
+dataUseV3OrdersAddEZ 'V3: orders/add (заказ SSCC)' = DATA BOOLEAN () TABLE authentication;
+dataUseV3LabelsAddAggregateEZ 'V3: labels/addAggregate (агрегирование кит)' = DATA BOOLEAN () TABLE authentication;
+dataUseV3ReportsAddAggregateEZ 'V3: reports/addAggregate (агрегирование лотов)' = DATA BOOLEAN () TABLE authentication;
+dataUseV3ReportsAggregateDeleteEZ 'V3: reports/aggregateDelete (разагрегирование)' = DATA BOOLEAN () TABLE authentication;
+// dataUseV3LabelsStatusEZ удалён: /v3/labels/ снят с 1 июня 2026, всегда используется /v2/labels/
+dataUseV3ReportsListEZ 'V3: reports/list (статус отчёта)' = DATA BOOLEAN () TABLE authentication;
+
+useV3ShipsAddEZ 'V3: ships/add (отправка отгрузки)' () = OVERRIDE dataUseV3ShipsAddEZ(), useContourV3EZ();
+useV3ShipsTakeEZ 'V3: ships/list + ships/take (приёмка)' () = OVERRIDE dataUseV3ShipsTakeEZ(), useContourV3EZ();
+useV3ReportsAddMarkEZ 'V3: reports/addMark (отчёт о маркировке)' () = OVERRIDE dataUseV3ReportsAddMarkEZ(), useContourV3EZ();
+useV3OrdersAddGroupEZ 'V3: orders/addGroupOrder (групповой заказ КМ)' () = OVERRIDE dataUseV3OrdersAddGroupEZ(), useContourV3EZ();
+useV3OrdersListEZ 'V3: orders/list + скачивание КМ' () = OVERRIDE dataUseV3OrdersListEZ(), useContourV3EZ();
+useV3OrdersAddEZ 'V3: orders/add (заказ SSCC)' () = OVERRIDE dataUseV3OrdersAddEZ(), useContourV3EZ();
+useV3LabelsAddAggregateEZ 'V3: labels/addAggregate (агрегирование кит)' () = OVERRIDE dataUseV3LabelsAddAggregateEZ(), useContourV3EZ();
+useV3ReportsAddAggregateEZ 'V3: reports/addAggregate (агрегирование лотов)' () = OVERRIDE dataUseV3ReportsAddAggregateEZ(), useContourV3EZ();
+useV3ReportsAggregateDeleteEZ 'V3: reports/aggregateDelete (разагрегирование)' () = OVERRIDE dataUseV3ReportsAggregateDeleteEZ(), useContourV3EZ();
+// useV3LabelsStatusEZ удалён: /v3/labels/ снят с 1 июня 2026
+useV3ReportsListEZ 'V3: reports/list (статус отчёта)' () = OVERRIDE dataUseV3ReportsListEZ(), useContourV3EZ();
+
+EXTEND FORM integrationData
+    PROPERTIES()
+        useV3ShipsAddEZ, useV3ShipsTakeEZ,
+        useV3ReportsAddMarkEZ,
+        useV3OrdersAddGroupEZ, useV3OrdersListEZ, useV3OrdersAddEZ,
+        useV3LabelsAddAggregateEZ, useV3ReportsAddAggregateEZ, useV3ReportsAggregateDeleteEZ,
+        useV3ReportsListEZ
+;
+
+DESIGN integrationData {
+    EZ {
+        NEW v3settings {
+            caption = 'V3 (Представление Б)';
+            MOVE PROPERTY(useContourV3EZ());
+            NEW v3methods {
+                caption = 'Методы V3 (поэтапный переход)';
+                MOVE PROPERTY(useV3ShipsAddEZ());
+                MOVE PROPERTY(useV3ShipsTakeEZ());
+                MOVE PROPERTY(useV3ReportsAddMarkEZ());
+                MOVE PROPERTY(useV3OrdersAddGroupEZ());
+                MOVE PROPERTY(useV3OrdersListEZ());
+                MOVE PROPERTY(useV3OrdersAddEZ());
+                MOVE PROPERTY(useV3LabelsAddAggregateEZ());
+                MOVE PROPERTY(useV3ReportsAddAggregateEZ());
+                MOVE PROPERTY(useV3ReportsAggregateDeleteEZ());
+                MOVE PROPERTY(useV3ReportsListEZ());
+            }
+        }
+    }
+}
