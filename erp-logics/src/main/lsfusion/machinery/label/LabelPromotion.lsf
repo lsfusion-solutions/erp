@@ -4,4 +4,24 @@ REQUIRE Label, PriceListPromotion;
 
 NAMESPACE Label;
 
+isPromotion 'Акционный' = DATA BOOLEAN (LabelType);
+
+EXTEND FORM labelType
+    PROPERTIES(l) isPromotion
+;
+
+DESIGN labelType {
+    wor0 {
+        MOVE PROPERTY(isPromotion(l));
+    }
+}
+
+prevPromotionPriceListDetailA (Sku sku, DepartmentStore departmentStore) =
+    prevPromotionPriceListDetailA(sku, departmentStore, OVERRIDE overrideDateTime(), currentDateTime());
+
+skip(LabelType labelType, Sku sku, DepartmentStore departmentStore) +=
+    ((NOT prevPromotionPriceListDetailA(sku, departmentStore) AND isPromotion(labelType))
+     OR (prevPromotionPriceListDetailA(sku, departmentStore) AND NOT isPromotion(labelType)))
+    AND [GROUP MIN LabelType t IF isPromotion(t)]();
+
 overRetailPrice(LabelTransactionDetail d) += promotionPriceBeforeA(sku(d), departmentStore(d), dateTime(d));
