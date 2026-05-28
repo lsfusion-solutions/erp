@@ -1416,6 +1416,20 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                                         String idCashDocument = cashRegister.numberGroup + "/" + numberCashRegister + "/" + numberCashDocument + "/" + shift + "/" + docType;
                                                         cashDocumentList.add(new CashDocument(idCashDocument, String.valueOf(numberCashDocument), dateZReport, timeCashDocument,
                                                                 cashRegister.numberGroup, numberCashRegister, String.valueOf(shift), sumCashDocument, idEmployee, extraFields));
+                                                        sendSalesLogger.info(String.format(logPrefix + "cashDocument for zReport binding: idCashDocument=%s, numberGroup=%s, numberCashRegister=%s, numberZReport=%s, dateZReport=%s (shiftFoundInShiftList=%s), timeCashDocument=%s, sumCashDocument=%s",
+                                                                idCashDocument, cashRegister.numberGroup, numberCashRegister, shift, dateZReport, dateTimeShift != null, timeCashDocument, sumCashDocument));
+                                                        if (dateTimeShift == null) {
+                                                            StringBuilder shiftListDump = new StringBuilder();
+                                                            for (ShiftInfo s : shiftList) {
+                                                                if (shiftListDump.length() > 0) shiftListDump.append("; ");
+                                                                shiftListDump.append(String.format("{numberCashRegister=%s, numberZReport=%s, from=%s, to=%s}",
+                                                                        s.numberCashRegister, s.numberZReport,
+                                                                        s.from != null ? new Timestamp(s.from) : null,
+                                                                        s.to != null ? new Timestamp(s.to) : null));
+                                                            }
+                                                            sendSalesLogger.info(String.format(logPrefix + "  shiftList (lookup failed for numberCashRegister=%s, numberZReport=%s, timeEnd=%s): [%s]",
+                                                                    numberCashRegister, shift, timeEnd != null ? new Timestamp(timeEnd) : null, shiftListDump));
+                                                        }
                                                     }
                                                 }
                                                 count++;
