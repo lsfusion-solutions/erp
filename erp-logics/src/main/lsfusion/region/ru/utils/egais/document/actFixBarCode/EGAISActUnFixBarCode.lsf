@@ -81,7 +81,19 @@ actUnFixBarCodePosition (MarkCode c) =
     WHERE posted(actUnFixBarCodePosition(m)) AND NOT canceled(actUnFixBarCodePosition(m))
     BY markCode(m) MATERIALIZED INDEXED;
 
-skipF2Reg(MarkCode c) += TRUE IF dateTime(actFixBarCodePosition(c)) <= dateTime(actUnFixBarCodePosition(c));
+prevDataF2RegMarkCode = DATA F2Reg (ActUnFixBarCode, MarkCode);
+
+WHEN SET(posted(actUnFixBarCode(actUnFixBarCodePosition(ActUnFixBarCodeMark m))))
+    AND posted(actUnFixBarCode(actUnFixBarCodePosition(m))) DO {
+    prevDataF2RegMarkCode(actUnFixBarCode(actUnFixBarCodePosition(m)), markCode(m)) <- dataF2Reg(markCode(m)) WHERE dataF2Reg(markCode(m));
+    dataF2Reg(markCode(m)) <- NULL;
+}
+
+WHEN (DROPCHANGED(markCode(ActUnFixBarCodeMark m)) OR DROPPED(posted(actUnFixBarCode(actUnFixBarCodePosition(m)))))
+    AND prevDataF2RegMarkCode(actUnFixBarCode(actUnFixBarCodePosition(m)), markCode(m)) DO {
+    dataF2Reg(markCode(m)) <- prevDataF2RegMarkCode(actUnFixBarCode(actUnFixBarCodePosition(m)), markCode(m));
+    prevDataF2RegMarkCode(actUnFixBarCode(actUnFixBarCodePosition(m)), markCode(m)) <- NULL;
+}
 
 countMarkCodes 'Кол-во марок' (ActUnFixBarCodePosition p) = GROUP SUM 1 IF actUnFixBarCodePosition(ActUnFixBarCodeMark m) = p MATERIALIZED;
 

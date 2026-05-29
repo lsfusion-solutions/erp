@@ -74,13 +74,12 @@ idMarkCode 'Код маркировки' (ActFixBarCodeMark m) = id(markCode(m))
 minActChargeOnPosition (ActFixBarCode a) = GROUP MIN ActFixBarCodePosition p BY actFixBarCode(p);
 
 INDEX markCode(ActFixBarCodeMark m), actFixBarCodePosition(m);
+skipF2RegMarkCode = ABSTRACT BOOLEAN (ActFixBarCodeMark);
 actFixBarCodePosition (MarkCode c) = 
         GROUP LAST actFixBarCodePosition(ActFixBarCodeMark m) ORDER m 
-        WHERE posted(actFixBarCodePosition(m)) AND NOT canceled(actFixBarCodePosition(m)) 
+        WHERE posted(actFixBarCodePosition(m)) AND NOT skipF2RegMarkCode(m) AND NOT canceled(actFixBarCodePosition(m)) 
         BY markCode(m) MATERIALIZED INDEXED;
-
-skipF2Reg = ABSTRACT BOOLEAN (MarkCode);
-f2Reg (MarkCode c) += f2Reg(actFixBarCodePosition(c)) IF NOT skipF2Reg(c);
+f2Reg (MarkCode c) += f2Reg(actFixBarCodePosition(c));
 
 countMarkCodes 'Кол-во марок' (ActFixBarCodePosition p) = GROUP SUM 1 IF actFixBarCodePosition(ActFixBarCodeMark m) = p MATERIALIZED;
 

@@ -1,6 +1,6 @@
 MODULE EGAISActFixBarCodeGestori;
 
-REQUIRE EGAISActFixBarCode, EGAISStock, EGAISLotGestori;
+REQUIRE EGAISActFixBarCode, EGAISStock, EGAISLotGestori, EGAISLot;
 
 NAMESPACE EGAIS;
 
@@ -33,6 +33,8 @@ unmarkedQuantity 'Доступно к маркировке' (ActFixBarCodePositi
     currentBalance(f2Reg(p)) (-) countOtherMarkCodes(actFixBarCode(p), f2Reg(p));
 
 processInputIdMarkCode(ActFixBarCode a, ActFixBarCodePosition p, STRING[200] s) {
+    IF NOT s THEN RETURN;
+    
     LOCAL markCode = MarkCode ();
     LOCAL position = ActFixBarCodePosition ();
 
@@ -45,7 +47,29 @@ processInputIdMarkCode(ActFixBarCode a, ActFixBarCodePosition p, STRING[200] s) 
     }
     
     IF NOT markCode() THEN {
-        MESSAGE 'Код маркировки ЕГАИС "' + s + '" не найден' NOWAIT;
+        IF NOT length(s) == 150 THEN {
+            MESSAGE 'Длина код маркировки ЕГАИС должна быть равна 150: "' + s + '"';
+            RETURN;
+        }
+        
+        LOCAL positionItem = Item ();
+        positionItem() <- [GROUP LAST Item item IF in(item, Product product) ORDER item BY product](product(position()));
+        
+        IF positionItem() THEN {
+            NEW l = Lot {
+                id(l) <- s;
+                sku(l) <- positionItem();
+                NEW m = MarkCode {
+                    id(m) <- s;
+                    NEW am = ActFixBarCodeMark {
+                        actFixBarCodePosition(am) <- position();
+                        markCode(am) <- m;
+                    }
+                }
+            }
+        } ELSE {
+            MESSAGE 'Товар продукции не определен, создание кода маркировки ЕГАИС отменено' NOWAIT;
+        }
         RETURN;
     }
     

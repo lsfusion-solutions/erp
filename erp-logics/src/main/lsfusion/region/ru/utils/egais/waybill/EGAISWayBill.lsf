@@ -151,7 +151,10 @@ number 'Номер' (WayBillMark p) = number(wayBillPosition(p));
 date 'Дата' (WayBillMark p) = date(wayBillPosition(p));
 
 INDEX markCode(WayBillMark m), wayBillPosition(m);
-wayBillPosition (MarkCode c) = GROUP LAST wayBillPosition(WayBillMark m) ORDER m WHERE accepted(wayBillPosition(m)) BY markCode(m) MATERIALIZED INDEXED;
+skipF2RegMarkCode = ABSTRACT BOOLEAN (WayBillMark);
+wayBillPosition (MarkCode c) =
+    GROUP LAST wayBillPosition(WayBillMark m) IF NOT skipF2RegMarkCode(m) ORDER m
+    WHERE accepted(wayBillPosition(m)) BY markCode(m) MATERIALIZED INDEXED;
 f2Reg (MarkCode c) += consigneeF2Reg(wayBillPosition(c));
 
 countMarkCodes 'Кол-во марок' (WayBillPosition p) = GROUP SUM 1 IF wayBillPosition(WayBillMark m) = p MATERIALIZED;
