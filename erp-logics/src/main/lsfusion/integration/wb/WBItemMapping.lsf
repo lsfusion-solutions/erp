@@ -9,11 +9,20 @@ CLASS MappingType 'Тип связи' {
 }
 
 mappingType = DATA MappingType (Item);
-nameMappingType 'Тип связи с ERP' (Item i) = staticCaption(mappingType(i));
+nameMappingType 'Тип связи с ERP' (Item i) = caption(mappingType(i));
 
 item = DATA Item.Item (Size);
 nameItem 'Товар ERP' (Size s) = nameAttribute(item(s));
 nameItems 'Товары ERP'  = GROUP CONCAT nameItem(Size s), '; ' ORDER nameItem(s), s BY itemWB(s) CHARWIDTH 40;
+
+urlImageItem 'Url изображения товара ERP' = ABSTRACT STRING (Item.Item);
+
+urlHttpAccessItem 'Ссылка изображения товара ERP' (MediaFile mf) =
+    GROUP MAX urlImageItem(item(Size s)) IF itemWB(s) == item(mf);
+
+fillUrlImage 'Заполнить ссылку из товара ERP' (MediaFile mf) {
+    url(mf) <- urlHttpAccessItem(mf);
+}
 
 EXTEND FORM masterData
     PROPERTIES READONLY nameItems(item)
@@ -42,9 +51,10 @@ changeItem (Size s) {
     }
 }
 
-EXTEND FORM item 
+EXTEND FORM item
     PROPERTIES(i) nameMappingType
     PROPERTIES nameItem(size) BEFORE skus(size) ON CHANGE changeItem(size)
+    PROPERTIES(mf) fillUrlImage
 ;
 
 DESIGN item {

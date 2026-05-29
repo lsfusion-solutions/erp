@@ -168,6 +168,10 @@ WHEN CHANGED(url(MediaFile mf) AND mf IS MediaFile) DO posted(mf) <- NULL;
 postMediaFiles 'Загрузить медиафайлы по ссылкам' (Item item) {
     NEWSESSION {
         IF (GROUP SUM 1 IF NOT posted(MediaFile mf) AND mf IS MediaFile AND item(mf) == item) THEN {
+            IF NOT nmID(item) THEN {
+                MESSAGE 'Не задан «Артикул WB» (nmID) у товара — загрузка медиафайлов невозможна.';
+                RETURN;
+            }
             setHttpHeadersIS();
             LOCAL message = STRING ();
             LOCAL response = FILE();
@@ -1167,7 +1171,7 @@ getItemLimits 'Получить лимиты создания карточек �
 
 allowedCategoriesOnly = DATA LOCAL STRING();
 imtID = DATA LOCAL STRING ();
-withPhoto = DATA LOCAL STRING ();
+withPhoto = DATA LOCAL INTEGER ();
 textSearch = DATA LOCAL STRING();
 brands = DATA LOCAL STRING(INTEGER);
 filterBrands = DATA LOCAL STRING (INTEGER);
@@ -1175,11 +1179,11 @@ tagIDs = DATA LOCAL STRING(INTEGER);
 filterTagIDs = DATA LOCAL STRING (INTEGER);
 objectIDs = DATA LOCAL STRING(INTEGER);
 filterObjectIDs = DATA LOCAL STRING (INTEGER);
-limit = DATA LOCAL STRING ();
+limit = DATA LOCAL INTEGER ();
 nmID = DATA LOCAL INTEGER ();
 updatedAt = DATA LOCAL STRING();
 trashedAt = DATA LOCAL STRING();
-ascending = DATA LOCAL STRING();
+ascending = DATA LOCAL BOOLEAN ();
 
 GROUP cursor;
 GROUP dimensions;
@@ -1221,6 +1225,7 @@ length = DATA LOCAL INTEGER (INTEGER);
 width = DATA LOCAL INTEGER (INTEGER);
 height = DATA LOCAL INTEGER (INTEGER);
 updatedAt1 = DATA LOCAL STRING(INTEGER);
+trashedAt1 = DATA LOCAL STRING(INTEGER);
 
 dataPostItemsLimit = DATA INTEGER ();
 postItemsLimit 'Лимит для получения списка карточек товаров' = OVERRIDE dataPostItemsLimit(), 100;
@@ -1230,7 +1235,7 @@ FORM importItems
 
     OBJECTS cards = INTEGER
 
-    PROPERTIES(cards) needKiz, nmUUID, nmID1 EXTID 'nmID', description, video, title, subjectID, vendorCode, imtID, createdAt, brand, subjectName, updatedAt1 EXTID 'updatedAt'
+    PROPERTIES(cards) needKiz, nmUUID, nmID1 EXTID 'nmID', description, video, title, subjectID, vendorCode, imtID, createdAt, brand, subjectName, updatedAt1 EXTID 'updatedAt', trashedAt1 EXTID 'trashedAt'
 
     OBJECTS characteristics = INTEGER
     FILTERS cardsCharacteristics(characteristics) == cards
@@ -1283,13 +1288,13 @@ GROUP errors;
 
 next = DATA LOCAL BOOLEAN();
 batchUUID = DATA LOCAL STRING();
-batchUUID1 = DATA LOCAL STRING(INTEGER);
-v0121 = DATA LOCAL STRING(INTEGER);
-errorsV0121 = DATA LOCAL INTEGER(INTEGER);
-v8525761 = DATA LOCAL STRING(INTEGER);
-errorsV8525761 = DATA LOCAL INTEGER(INTEGER);
-vendorCodes = DATA LOCAL STRING(INTEGER);
-itemsVendorCodes = DATA LOCAL INTEGER(INTEGER);
+
+// Карта errors { "<артикул>": [ "сообщение", ... ] } импортируется декларативно через EXTKEY
+itemErrors = DATA LOCAL INTEGER (STRING);    // <артикул> -> индекс элемента items (связь с родителем)
+errorMessage = DATA LOCAL STRING (INTEGER);  // индекс сообщения -> текст сообщения
+msgVendor = DATA LOCAL STRING (INTEGER);     // индекс сообщения -> <артикул> (связь с родителем)
+
+errorTextItem (Item it) = GROUP CONCAT errorMessage(INTEGER m) IF imported(m) AND item(msgVendor(m)) == it, '\n' ORDER m;
 
 
 FORM checkErrors
@@ -1298,13 +1303,15 @@ FORM checkErrors
 
     OBJECTS items = INTEGER IN data
     FILTERS imported(items)
-    
-    PROPERTIES(items) batchUUID1 EXTID 'batchUUID'
 
-    OBJECTS vendorCodes = INTEGER
-    PROPERTIES(vendorCodes) vendorCodes EXTID 'value'
-    FILTERS imported(vendorCodes)
-    FILTERS itemsVendorCodes(vendorCodes) == items
+    // errors: { "<артикул>": [...] } — объектная группа-ключ (EXTKEY): объект = артикул
+    OBJECTS errorVendor = STRING EXTID 'errors' EXTKEY
+    FILTERS itemErrors(errorVendor) == items
+
+    // значение ключа — массив строк, оборачивается платформой в { "value": [...] }
+    OBJECTS errorMsg = INTEGER EXTID 'value'
+    PROPERTIES(errorMsg) errorMessage EXTID 'value'
+    FILTERS msgVendor(errorMsg) == errorVendor, imported(errorMsg)
 ;
 
 checkErrors 'Получение ошибок' () {
@@ -1336,24 +1343,8 @@ checkErrors 'Получение ошибок' () {
 
                 IMPORT checkErrors JSON FROM response();
 
-                FOR imported(INTEGER i) AND batchUUID1(i) DO {
-                    LOCAL posI = INTEGER ();
-                    LOCAL substrI = TEXT ();
-                    posI() <- strpos(resultString(), '"batchUUID":"' + batchUUID1(i) + '"');
-                    substrI() <- substrFrom(resultString(), posI());
-                    substrI() <- replace(substrI(), '"batchUUID":"' + batchUUID1(i) + '"', '');
-
-                    FOR [GROUP SUM 1 IF imported(INTEGER j) AND vendorCodes(j) AND itemsVendorCodes(j) == i BY item(vendorCodes(j))](Item item) DO {
-                        error(item) <- TRUE;
-                        LOCAL substrJ = TEXT ();
-                        substrJ() <- substrFrom(substrI(), strpos(substrI(), '"errors":\{"' + id(item) + '":['));
-                        substrJ() <- substr(substrJ(), 0, strpos(substrJ(), ']\}\}'));
-
-                        substrJ() <- replace(substrJ(), '"errors":\{"' + id(item) + '":[', '');
-                        substrJ() <- replace(substrJ(), ']\}\}' + id(item) + '":[', '');
-                        errorText(item) <- CONCAT '\n', errorText(item), substrJ();
-                    }
-                }
+                error(Item it) <- TRUE WHERE errorTextItem(it);
+                errorText(Item it) <- errorTextItem(it) WHERE errorTextItem(it);
 
                 message() <- messageStatusHTTP(STRING(statusHttp()));
             } CATCH {
@@ -1371,6 +1362,16 @@ checkErrors 'Получение ошибок' () {
 
 toUpdateWB = DATA BOOLEAN (Item);
 skipUpdateWB = DATA LOCAL BOOLEAN (Item);
+GROUP settings;
+GROUP cursor2 EXTID 'cursor': settings;
+GROUP sort : settings;
+GROUP filter : settings;
+
+FORM settingInfo
+    PROPERTIES() IN cursor2 limit , trashedAt, nmID
+    PROPERTIES() IN sort ascending
+    PROPERTIES() IN filter withPhoto
+;
 
 postItems 'Получить список карточек товаров' () {
     NEWSESSION {
@@ -1385,13 +1386,12 @@ postItems 'Получить список карточек товаров' () {
         imtID(Item i) <- NULL;
         
         WHILE ((total() AND NOT total() < postItemsLimit()) OR NOT response()) AND NOT messageCaughtException() DO {
-            
-            stringToFile('\{"settings": \{"cursor": \{ "limit": ' + postItemsLimit() +
-                (OVERRIDE (IF updatedAt() THEN ',"updatedAt":"' + updatedAt() + '"'), '') +
-                (OVERRIDE(IF nmID() THEN ',"nmID":' + nmID()), '') + '\},' +
-                '"filter": \{"withPhoto": -1\}\}\}', 'UTF-8', 'json');
-
-            logToFile('WB', 'POST: ' + url(CategoryRequest.content) + '/content/v2/get/cards/list');
+            ascending() <- TRUE;
+            limit() <- postItemsLimit();
+            withPhoto() <- -1; 
+            EXPORT settingInfo JSON TO resultFile;
+            fileToString(resultFile());
+            logToFile('WB', 'POST: ' + url(CategoryRequest.content) + '/content/v2/get/cards/list  \\' + resultString());
 
             TRY {
                 EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v2/get/cards/list' HEADERS httpHeaders PARAMS resultFile() TO response;
@@ -1500,20 +1500,23 @@ postTrashItems 'Получить список карточек товаров в
         LOCAL error = STRING ();
         LOCAL errorText = STRING ();
         LOCAL status = STRING ();
-
+        LOCAL lastTrashedAt = STRING();
+        LOCAL lastNmID = INTEGER(); 
+        LOCAL sameCursorCount = INTEGER();
+        
         WHILE ((total() AND NOT total() < postTrashItemsLimit()) OR NOT response()) AND NOT messageCaughtException() DO {
-
-            stringToFile('\{"settings": \{"cursor": \{ "limit": ' + postTrashItemsLimit() +
-                (OVERRIDE (IF trashedAt() THEN ',"trashedAt":"' + trashedAt() + '"'), '') +
-                (OVERRIDE(IF nmID() THEN ',"nmID":' + nmID()), '') + '\},' +
-                '"filter": \{"withPhoto": -1\}\}\}', 'UTF-8', 'json');
-
-            logToFile('WB', 'POST: ' + url(CategoryRequest.content) + '/content/v2/get/cards/trash');
+            limit() <- postTrashItemsLimit();
+            ascending() <- TRUE;
+            EXPORT settingInfo JSON TO resultFile;
+            fileToString(resultFile());
+            logToFile('WB', 'POST: ' + url(CategoryRequest.content) + '/content/v2/get/cards/trash \\' + resultString());
 
             TRY {
                 EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v2/get/cards/trash' HEADERS httpHeaders PARAMS resultFile() TO response;
                 fileToString(response());
                 logToFile('WB', resultString());
+                lastNmID() <- nmID();
+                lastTrashedAt() <- trashedAt();
                 IMPORT importItems JSON FROM response();
                 FOR INTEGER i = [GROUP MAX INTEGER i1 BY vendorCode(i1)](STRING id) AND NOT item(id) AND itemSubGroup(subjectID(i)) INLINE DO NEW item = Item {
                     id(item) <- id;
@@ -1577,6 +1580,19 @@ postTrashItems 'Получить список карточек товаров в
                             ELSE {
                             value[Item, AttributeString](item, as) <- value(GROUP MAX INTEGER j IF characteristicsValue(j) == ii);
                         }
+                }
+                
+                IF lastNmID() == nmID() AND lastTrashedAt() == trashedAt() THEN {
+                    sameCursorCount() <- sameCursorCount() + 1;
+                    logToFile('WB', 'Внимание: WB вернул тот же курсор. Попытка: ' + sameCursorCount());
+                    
+                    IF sameCursorCount() >= 10 THEN {
+                        logToFile('WB', 'Ошибка: WB 10 раз вернул один и тот же курсор. Выход из цикла.');
+                        message() <- 'Ошибка пагинации WB: сервер 10 раз вернул одинаковый курсор.';
+                        RETURN;
+                    }
+                } ELSE {
+                    sameCursorCount() <- 0;
                 }
                 message() <- messageStatusHTTP(STRING(statusHttp()));
             } CATCH {
@@ -2243,6 +2259,8 @@ moveConnItems 'Объединить карточки товаров' (Item item)
         IF (GROUP SUM 1 IF in(Item i) AND nmID(i) AND imtID(i) AND i!=item) THEN {
             IF (GROUP MAX Item i IF in(i) AND i!=item AND NOT itemSubGroup(i) == itemSubGroup(item)) THEN {
                 MESSAGE 'Для объединения можно выбрать только карточки товаров с одинаковой родительской категорией' NOWAIT;
+            } ELSE IF NOT imtID(item) THEN {
+                MESSAGE 'Не задан «Внутренний код WB» (imtID) у товара — объединение карточек невозможно.' NOWAIT;
             } ELSE {
                     DIALOG moveConnItems OBJECTS item = item DO {
                         setHttpHeadersIS();
