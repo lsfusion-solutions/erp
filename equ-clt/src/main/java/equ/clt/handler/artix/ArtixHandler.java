@@ -251,11 +251,23 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                             }
 
                             //scale items
+                            //очистка весового каталога по заданию полной пригрузки (без полного snapshot, чистит только подчинённые кассе весы)
+                            if (!transaction.snapshot) {
+                                JSONObject transactionInfo = getExtInfo(transaction.info);
+                                if (transactionInfo != null && transactionInfo.optBoolean("clearTmcScale")) {
+                                    writeStringToFile(tmpFile, "{\"command\": \"clearTmcScale\"}\n---\n");
+                                }
+                            }
                             for (CashRegisterItem item : transaction.itemsList) {
                                 if (!skipItem(item, medicineMode) && item.passScalesItem) {
                                     String idBarcode = getIdBarcode(item);
                                     if (idBarcode != null) {
                                         writeStringToFile(tmpFile, getAddTmcScaleJSON(transaction, item, idBarcode) + "\n---\n");
+                                        JSONObject scaleInfoJSON = getExtInfo(item.info);
+                                        String tmcScaleImage = scaleInfoJSON != null ? trimToNull(scaleInfoJSON.optString("tmcscaleimage")) : null;
+                                        if (tmcScaleImage != null) {
+                                            writeStringToFile(tmpFile, getAddTmcScaleImageJSON(item, idBarcode, tmcScaleImage) + "\n---\n");
+                                        }
                                     }
                                 }
                             }
@@ -893,11 +905,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
     private String getAddTmcScaleJSON(TransactionCashRegisterInfo transaction, CashRegisterItem item, String idBarcode) throws JSONException {
         JSONObject rootObject = new JSONObject();
 
+        JSONObject infoJSON = getExtInfo(item.info);
+
         JSONObject tmcScaleObject = new JSONObject();
         rootObject.put("tmcscale", tmcScaleObject);
         tmcScaleObject.put("tmcscalecode", idBarcode); //Штрихкод товара на весах
         tmcScaleObject.put("tmccode", getIdItem(item)); //код товара
-        tmcScaleObject.put("tmcscalegroupcode", 1); //Код ассортиментной группы товаров на весах
+        Integer tmcScaleGroupCode = infoJSON != null && infoJSON.has("tmcscalegroupcode") ? infoJSON.optInt("tmcscalegroupcode") : null;
+        tmcScaleObject.put("tmcscalegroupcode", tmcScaleGroupCode != null ? tmcScaleGroupCode : 1); //Код ассортиментной группы товаров на весах
         tmcScaleObject.put("plu", getPluNumber(item, idBarcode)); //Номер ячейки памяти на весах
 
         tmcScaleObject.put("ingredients", trim(item.description, 1000)); //Состав весового товара
@@ -919,6 +934,22 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
         } catch (Exception e) {
             return 0;
         }
+    }
+
+    private String getAddTmcScaleImageJSON(CashRegisterItem item, String idBarcode, String imageBase64) throws JSONException {
+        JSONObject rootObject = new JSONObject();
+
+        JSONObject tmcScaleImageObject = new JSONObject();
+        rootObject.put("tmcscaleimage", tmcScaleImageObject);
+        tmcScaleImageObject.put("plu", getPluNumber(item, idBarcode)); //Номер ячейки памяти на весах
+        JSONObject infoJSON = getExtInfo(item.info);
+        Integer tmcScaleGroupCode = infoJSON != null && infoJSON.has("tmcscalegroupcode") ? infoJSON.optInt("tmcscalegroupcode") : null;
+        tmcScaleImageObject.put("tmcscalegroupcode", String.valueOf(tmcScaleGroupCode != null ? tmcScaleGroupCode : 1)); //Код ассортиментной группы товаров на весах
+        tmcScaleImageObject.put("image", imageBase64); //Изображение товара в base64 (передаётся через info)
+        tmcScaleImageObject.put("extension", ".jpg"); //Расширение файла изображения (imageArtix формируется в jpg)
+
+        rootObject.put("command", "addTmcScaleImage");
+        return rootObject.toString();
     }
 
     private String getAddMCashUserJSON(CashierInfo cashier, boolean useNamePositionInRankCashier) throws JSONException {
