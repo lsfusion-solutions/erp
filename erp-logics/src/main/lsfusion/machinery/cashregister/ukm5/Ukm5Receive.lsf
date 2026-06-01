@@ -139,6 +139,14 @@ amount16 = DATA LOCAL NUMERIC(INTEGER);
 code11 = DATA LOCAL STRING(INTEGER);
 itemSource = DATA LOCAL STRING(INTEGER);
 cashierName = DATA LOCAL STRING(INTEGER);
+authorizationCode = DATA LOCAL STRING(INTEGER);
+cardNumber1 = DATA LOCAL STRING(INTEGER);
+rrn = DATA LOCAL STRING(INTEGER);
+uuid = DATA LOCAL STRING(INTEGER);
+qrRequisites = DATA LOCAL STRING(INTEGER);
+cardEntryMode = DATA LOCAL STRING(INTEGER);
+slips = DATA LOCAL STRING(INTEGER);
+paymentsSlips = DATA LOCAL INTEGER(INTEGER);
 
 FORM receiveDocs
     OBJECTS elements = INTEGER
@@ -196,10 +204,17 @@ FORM receiveDocs
 
     OBJECTS payments = INTEGER
     FILTERS elementsPayments(payments) == elements
-    PROPERTIES(payments) deviceType, paymentId, name2 EXTID 'name', pType, currencyId
+    PROPERTIES(payments) deviceType, paymentId, name2 EXTID 'name', pType, currencyId,
+        authorizationCode, cardNumber1 EXTID 'cardNumber', rrn, uuid, qrRequisites, cardEntryMode
     PROPERTIES(payments) IN amount3 amount4 EXTID 'amount', code3 EXTID 'code'
     FILTERS imported(payments)
     PROPERTIES(payments) IN amountWithChange amount5 EXTID 'amount', code4 EXTID 'code'
+
+    OBJECTS slips = INTEGER
+    PROPERTIES(slips) slips EXTID 'value'
+    FILTERS imported(slips)
+    FILTERS paymentsSlips(slips) == payments
+
     PROPERTIES(elements) IN dates dateOpen, dateClose
 
     OBJECTS calculated = INTEGER
@@ -269,6 +284,8 @@ idReceipt (INTEGER i) =  storeId(i) + '_' + shiftId(i) + '_' + posId(i) + '_' + 
 idUkm5 '{integration.id}' = DATA STRING[100] (CashRegister) IN id INDEXED CHARWIDTH 10;
 cashRegisterUkm5 (id) = GROUP AGGR CashRegister cashRegister BY idUkm5 (cashRegister);
 idUkm5(INTEGER i) = storeId(i) + '_' + posId(i);
+
+processUkm5PaymentExtra ABSTRACT LIST (Payment, INTEGER);
 
 EXTEND FORM groupCashRegister
     PROPERTIES (c) idUkm5 SHOWIF isUkm5(grc);
@@ -347,6 +364,7 @@ zReportUkm5 (FILE f) {
                 WHEN pType(j) = 'Cash' THEN typePaymentSID('cash')
                 WHEN pType(j) = 'Certificate' THEN typePaymentSID('giftcard')
             ;
+            processUkm5PaymentExtra(p, j);
         }
     }
     APPLY;
