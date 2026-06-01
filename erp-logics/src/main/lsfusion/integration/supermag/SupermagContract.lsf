@@ -193,6 +193,13 @@ importContract 'Импорт из контрактов с поставщикам
         amount(b) <- amount;
     }
 
+    // товар есть в импорте, но количество в упаковке убрали или сделали 1 - удаляем штрихкод упаковки
+    FOR [GROUP SUM 1 BY item(idItem(INTEGER r))](Item i)
+        AND NOT [GROUP MAX (OVERRIDE packSize(INTEGER rr), minQuantity(rr)) BY item(idItem(rr))](i)
+        AND Barcode b = packBarcode(i) AND NOT primary(b) DO {
+        DELETE b;
+    }
+
     APPLY;
 }
 
