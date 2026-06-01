@@ -1,7 +1,7 @@
 MODULE StockDocumentGestori;
 
 REQUIRE StockDocument, AccountDocument, Range, PurchaseInvoiceRu, SaleInvoiceRu, PurchaseReturnInvoiceVATRu,
-        EmployeeGestori, ZReport, Disparity, SaleReportsRu;
+        EmployeeGestori, ZReport, Disparity, SaleReportsRu, ReportFileNameGestori;
 
 NAMESPACE StockDocument;
 
@@ -397,10 +397,14 @@ FORM printStockDocGestoriEmpty 'Отчет (без движений)'
 ;
 
 printStockDocReport 'Отчет' (DATE dtFrom, DATE dtTo, Stock ds) {
-    IF hasMovements(dtFrom, dtTo) THEN
-        PRINT printStockDocGestori OBJECTS dtFrom = dtFrom, dtTo = dtTo, ds = ds XLSX;
-    ELSE
-        PRINT printStockDocGestoriEmpty OBJECTS dtFrom = dtFrom, dtTo = dtTo, ds = ds XLSX;
+    IF hasMovements(dtFrom, dtTo) THEN {
+        PRINT printStockDocGestori OBJECTS dtFrom = dtFrom, dtTo = dtTo, ds = ds XLSX TO printReportFile;
+        buildPrintReportFileName('printStockDocGestori', 'Товарный отчет');
+    } ELSE {
+        PRINT printStockDocGestoriEmpty OBJECTS dtFrom = dtFrom, dtTo = dtTo, ds = ds XLSX TO printReportFile;
+        buildPrintReportFileName('printStockDocGestoriEmpty', 'Товарный отчет (без движений)');
+    }
+    open(printReportFile(), builtPrintReportFileName());
 } IMAGE 'print.png';
 
 EXTEND FORM sumStockDocumentLedger

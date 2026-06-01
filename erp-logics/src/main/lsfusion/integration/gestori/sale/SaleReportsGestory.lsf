@@ -167,7 +167,9 @@ FORM expenseStatementsReport 'Ведомость отгрузок'
 printIncomeStatementsReport 'Ведомость отгрузок' (DATE df, DATE dt) {
     retailSumEnd(SaleLedger l) <- NULL;
     retailSumEnd(SaleLedger l) <- NUMERIC[18,2](prevPriceA(dataPriceListType('retail'), sku(l), stock(l), dateTime(l)) * quantity(l));
-    PRINT expenseStatementsReport OBJECTS df = df, dt = dt XLSX;
+    PRINT expenseStatementsReport OBJECTS df = df, dt = dt XLSX TO printReportFile;
+    buildPrintReportFileName('expenseStatementsReport', 'Ведомость отгрузок');
+    open(printReportFile(), builtPrintReportFileName());
 } IMAGE 'print.png';
 
 EXTEND FORM salesReport
@@ -237,7 +239,9 @@ FORM salesByIntervalsReportPrint 'Продажи по временным инт�
 printSaleReportIntervals 'Печать' (DATE from, DATE to){
     filterFrom() <- from;
     filterTo() <- to;
-    PRINT salesByIntervalsReportPrint XLS ;
+    PRINT salesByIntervalsReportPrint XLS TO printReportFile;
+    buildPrintReportFileName('salesByIntervalsReportPrint', 'Продажи по временным интервалам');
+    open(printReportFile(), builtPrintReportFileName());
 }
 
 filterByDates(DATE d) = (NOT filterFrom() OR d >= filterFrom()) AND
@@ -257,7 +261,9 @@ FORM salesByCashRegsReportPrint 'Продажи товара на кассах'
 printSaleByCashRegsReport 'Печать' (DATE from, DATE to){
     filterFrom() <- from;
     filterTo() <- to;
-    PRINT salesByCashRegsReportPrint XLS ;
+    PRINT salesByCashRegsReportPrint XLS TO printReportFile;
+    buildPrintReportFileName('salesByCashRegsReportPrint', 'Продажи товара на кассах');
+    open(printReportFile(), builtPrintReportFileName());
 }
 
 workWithReceipt 'Время работы с чеком, сек' (ZReport.Receipt r) = secondsBetweenDates(ZReport.dateTimeClosed(r), ZReport.dateTimeOpen(r));
@@ -285,7 +291,9 @@ FORM cashierPerformanceReportPrint 'СКОРОСТЬ РАБОТЫ КАССИРА
 printCashierPerformanceReport 'Печать' (DATE from, DATE to){
     filterFrom() <- from;
     filterTo() <- to;
-    PRINT cashierPerformanceReportPrint XLS ;
+    PRINT cashierPerformanceReportPrint XLS TO printReportFile;
+    buildPrintReportFileName('cashierPerformanceReportPrint', 'СКОРОСТЬ РАБОТЫ КАССИРА (подробно)');
+    open(printReportFile(), builtPrintReportFileName());
 }
 
 receiptsCount 'Кол-во чеков за период' (Employee e, CashRegister c) = GROUP SUM 1 IF ZReport.employee(ZReport.Receipt r) = e AND filterByDates(date(r))
@@ -329,7 +337,9 @@ FORM cashierPerformanceTotalReportPrint 'СКОРОСТЬ РАБОТЫ КАСС�
 printCashierPerformanceTotalReport 'Печать' (DATE from, DATE to){
     filterFrom() <- from;
     filterTo() <- to;
-    PRINT cashierPerformanceTotalReportPrint XLS ;
+    PRINT cashierPerformanceTotalReportPrint XLS TO printReportFile;
+    buildPrintReportFileName('cashierPerformanceTotalReportPrint', 'СКОРОСТЬ РАБОТЫ КАССИРА (итоги)');
+    open(printReportFile(), builtPrintReportFileName());
 }
 
 filterShiftFrom 'Смена от' = DATA LOCAL TIME ();
@@ -384,7 +394,9 @@ FORM itemsWithDiscountReportPrint 'Товары со скидками по ка�
 printItemsWithDiscountReport 'Печать' (DATE from, DATE to){
     filterFrom() <- from;
     filterTo() <- to;
-    PRINT itemsWithDiscountReportPrint XLS ;
+    PRINT itemsWithDiscountReportPrint XLS TO printReportFile;
+    buildPrintReportFileName('itemsWithDiscountReportPrint', 'Товары со скидками по кассам');
+    open(printReportFile(), builtPrintReportFileName());
 }
 
 quantity(Item i, Stock s, DATE d) = GROUP SUM ZReport.signedQuantity(ZReport.ReceiptDetail rd) IF rd IS ZReport.ReceiptSaleDetail
@@ -437,7 +449,9 @@ FORM itemsWithDiscountTotalReportPrint 'Товары со скидками (ит
 printItemsWithDiscountTotalReport 'Печать' (DATE from, DATE to){
     filterFrom() <- from;
     filterTo() <- to;
-    PRINT itemsWithDiscountTotalReportPrint XLS ;
+    PRINT itemsWithDiscountTotalReportPrint XLS TO printReportFile;
+    buildPrintReportFileName('itemsWithDiscountTotalReportPrint', 'Товары со скидками (итого)');
+    open(printReportFile(), builtPrintReportFileName());
 }
 
 filterByDiscountSum(ZReport.ReceiptDetail rd) = (NOT filterDiscountFrom() OR ZReport.discountSum(rd) >= filterDiscountFrom()) AND
@@ -483,7 +497,9 @@ FORM receiptsWithDiscountReportPrint 'Товары со скидками по ч
 printReceiptsWithDiscountReport 'Печать' (DATE from, DATE to){
     filterFrom() <- from;
     filterTo() <- to;
-    PRINT receiptsWithDiscountReportPrint XLS ;
+    PRINT receiptsWithDiscountReportPrint XLS TO printReportFile;
+    buildPrintReportFileName('receiptsWithDiscountReportPrint', 'Товары со скидками по чекам');
+    open(printReportFile(), builtPrintReportFileName());
 }
 
 FORM statisticalReports
@@ -661,7 +677,9 @@ FORM canceledSalesByCashRegsReportPrint 'Аннулированные прода
 printCanceledSalesByCashRegsReportPrint 'Аннулированные продажи' (DATE from, DATE to){
     filterFrom() <- from;
     filterTo() <- to;
-    PRINT canceledSalesByCashRegsReportPrint XLS ;
+    PRINT canceledSalesByCashRegsReportPrint XLS TO printReportFile;
+    buildPrintReportFileName('canceledSalesByCashRegsReportPrint', 'Аннулированные продажи');
+    open(printReportFile(), builtPrintReportFileName());
 }
 
 filterForPerformanceReportSkip(ZReport.Receipt r) = filterByDates(r) AND inSaleReport(ZReport.departmentStore(r))
@@ -691,7 +709,9 @@ FORM cashierCanceledSalesReportPrint 'Аннулированные продаж�
 printCashierCanceledSalesReportPrint 'Аннулированные продажи (по кассирам)' (DATE from, DATE to){
     filterFrom() <- from;
     filterTo() <- to;
-    PRINT cashierCanceledSalesReportPrint XLS ;
+    PRINT cashierCanceledSalesReportPrint XLS TO printReportFile;
+    buildPrintReportFileName('cashierCanceledSalesReportPrint', 'Аннулированные продажи (по кассирам)');
+    open(printReportFile(), builtPrintReportFileName());
 }
 
 FORM canceledSalesByCashRegsTotalReportPrint 'Аннулированные продажи (ИТОГИ)'
@@ -711,7 +731,9 @@ FORM canceledSalesByCashRegsTotalReportPrint 'Аннулированные пр�
 printCanceledSalesByCashRegsTotalReportPrint 'Аннулированные продажи (ИТОГИ)' (DATE from, DATE to){
     filterFrom() <- from;
     filterTo() <- to;
-    PRINT canceledSalesByCashRegsTotalReportPrint XLS ;
+    PRINT canceledSalesByCashRegsTotalReportPrint XLS TO printReportFile;
+    buildPrintReportFileName('canceledSalesByCashRegsTotalReportPrint', 'Аннулированные продажи (ИТОГИ)');
+    open(printReportFile(), builtPrintReportFileName());
 }
 
 skuInReport 'Отм.' = DATA LOCAL BOOLEAN (List);

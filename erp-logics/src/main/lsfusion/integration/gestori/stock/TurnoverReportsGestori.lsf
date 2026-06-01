@@ -1,6 +1,6 @@
 MODULE TurnoverReportsGestori;
 
-REQUIRE SaleLedgerGestori, AccountDocument, ProductionOutput, ProductionConsumption, StockAdjustment, Disparity;
+REQUIRE SaleLedgerGestori, AccountDocument, ProductionOutput, ProductionConsumption, StockAdjustment, Disparity, ReportFileNameGestori;
 
 NAMESPACE StockReports;
 
@@ -218,7 +218,9 @@ fillTurnoverOnlyQuantityGestori 'Только количество' () {
     quantitySale(Sku sk, Stock st) <- GROUP SUM quantitySold(Batch bt, st, dateFrom(), dateTo()) IF sku(bt)=sk AND
         inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
-    PRINT printTurnoverOnlyQuantityGestori XLSX ;
+    PRINT printTurnoverOnlyQuantityGestori XLSX TO printReportFile;
+    buildPrintReportFileName('printTurnoverOnlyQuantityGestori', 'Оборотная ведомость (только количество)');
+    open(printReportFile(), builtPrintReportFileName());
 } IMAGE 'print.png';
 
 /////
@@ -284,7 +286,9 @@ fillTurnoverStandartGestori 'Стандартная' () {
     sumSale(Sku sk, Stock st) <- GROUP SUM quantitySold(Batch bt, st, DATE d) * priceSku(sk,st,d) IF sku(bt)=sk AND d>=dateFrom() AND d<=dateTo() AND
         inReportSupplierFilter(bt) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
-    PRINT printTurnoverStandartGestori XLSX ;
+    PRINT printTurnoverStandartGestori XLSX TO printReportFile;
+    buildPrintReportFileName('printTurnoverStandartGestori', 'Оборотная ведомость (стандарт)');
+    open(printReportFile(), builtPrintReportFileName());
 } IMAGE 'print.png';
 
 /////
@@ -582,7 +586,9 @@ fillTurnoverDetailGestori 'Приходы-расходы подробно' () {
         sumSaleDisparity(s,st) (+) sumSaleAdjustment(s,st) (+) sumSaleNaturalLoss(s,st) (+) sumSaleWriteOff(s,st) (+) sumConsumption(s,st) (+) sumRetailSale(s,st);
     quantityLosses(Sku s, Stock st) <- IF quantityRetailSale(s,st) THEN (quantitySaleWriteOff(s,st) (+) quantitySaleInventory(s,st) (-) quantityPurchaseInventory(s,st)) * 100 / quantityRetailSale(s,st);
 
-    PRINT printTurnoverDetailGestori XLSX ;
+    PRINT printTurnoverDetailGestori XLSX TO printReportFile;
+    buildPrintReportFileName('printTurnoverDetailGestori', 'Оборотная ведомость (подробно)');
+    open(printReportFile(), builtPrintReportFileName());
 } IMAGE 'print.png';
 
 FORM turnoverReportsGestori 'Оборотные ведомости'

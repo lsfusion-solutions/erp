@@ -1,0 +1,59 @@
+MODULE ReportFileNameGestori;
+
+REQUIRE Service;
+
+NAMESPACE Utils;
+
+defaultTemplatePrintReport 'Шаблон имени файла отчёта по умолчанию' () =
+    '%ИмяОтчета%[%ДатаВремяФормирования%]';
+
+templatePrintReportFileName 'Шаблон имени файла печатной формы отчетов' = DATA STRING ();
+
+effectiveTemplatePrintReport () =
+    OVERRIDE templatePrintReportFileName(), defaultTemplatePrintReport();
+
+EXTEND FORM options PROPERTIES() templatePrintReportFileName;
+
+DESIGN options {
+    commons {
+        MOVE PROPERTY(templatePrintReportFileName());
+    }
+}
+
+sanitizeReportFileName 'Очистка имени файла от недопустимых символов' (STRING s) =
+    replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(
+            (OVERRIDE s, ''),
+            '\\', '_'),
+        '/', '_'),
+        ':', '_'),
+        '*', '_'),
+        '?', '_'),
+        '"', '_'),
+        '<', '_'),
+        '>', '_'),
+        '|', '_'),
+        ' ', '_');
+
+builtPrintReportFileName 'Сформированное имя файла отчёта' = DATA LOCAL STRING ();
+
+printReportFile 'Файл печатной формы отчёта' = DATA LOCAL FILE ();
+
+buildPrintReportFileName 'Сформировать имя файла отчёта по шаблону' (STRING systemName, STRING displayName) {
+    builtPrintReportFileName() <- effectiveTemplatePrintReport();
+    builtPrintReportFileName() <- replace(builtPrintReportFileName(),
+        '%СистемноеИмяОтчета%', (OVERRIDE systemName, ''));
+    builtPrintReportFileName() <- replace(builtPrintReportFileName(),
+        '%ИмяОтчета%', (OVERRIDE displayName, ''));
+    builtPrintReportFileName() <- replace(builtPrintReportFileName(),
+        '%ДатаВремяФормирования%',
+        toChar(currentDateTime(), 'YYYYMMDD_HH24MISS'));
+    builtPrintReportFileName() <- sanitizeReportFileName(builtPrintReportFileName());
+}
+
+META definePrintReport(reportVar, reportName)
+    reportVar 'Отчёт' () {
+        PRINT reportVar XLSX TO printReportFile;
+        buildPrintReportFileName(''##reportVar, reportName);
+        open(printReportFile(), builtPrintReportFileName());
+    } IMAGE 'print.png';
+END

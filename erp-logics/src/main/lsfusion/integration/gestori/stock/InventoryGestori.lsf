@@ -1,6 +1,6 @@
 MODULE InventoryGestori;
 
-REQUIRE SaleReportsRu, DateSkuLedger, PurchaseReturnShipment, SaleReturnShipment, RangeSimple, RangeLevel, ItemGestori;
+REQUIRE SaleReportsRu, DateSkuLedger, PurchaseReturnShipment, SaleReturnShipment, RangeSimple, RangeLevel, ItemGestori, ReportFileNameGestori;
 
 NAMESPACE Inventory;
 
@@ -135,7 +135,7 @@ FORM invRegPrint 'Реестр инвентаризаций'
     REPORT 'InventoryRegister.jrxml'
 ;
 
-invRegPrint 'Отчет' () { PRINT invRegPrint XLSX; } IMAGE 'print.png';
+@definePrintReport(invRegPrint, 'Реестр инвентаризаций');
 
 FORM inventoryRegister 'Реестр инвентаризаций'
     PROPERTIES() dateFrom, dateTo
@@ -434,10 +434,11 @@ FORM operationReport 'Отчет по хозяйственной операци�
     EVENTS ON INIT initDates()
 ;
 
-printOperationReport 'Отчет' () { PRINT operationReport XLSX; } IMAGE 'print.png';
+@definePrintReport(operationReport, 'Отчет по хозяйственной операции');
+
 
 EXTEND FORM operationReport
-    PROPERTIES() DISABLEIF NOT dateFrom() OR NOT dateTo() printOperationReport
+    PROPERTIES() DISABLEIF NOT dateFrom() OR NOT dateTo() operationReport
 ;
 
 DESIGN operationReport {
@@ -448,7 +449,7 @@ DESIGN operationReport {
             MOVE PROPERTY(dateFrom());
             MOVE PROPERTY(dateTo());
             MOVE PROPERTY(nameSortType()) { charWidth = 18; valueClass = 'btn-outline-warning'; }
-            MOVE PROPERTY(printOperationReport()) { valueClass = 'btn-primary'; }
+            MOVE PROPERTY(operationReport()) { valueClass = 'btn-primary'; }
         }
         MOVE PROPERTY(nameStockList()) { alignment = STRETCH; }
         MOVE PROPERTY(inSaleReportStocks) { alignment = STRETCH; }
@@ -756,10 +757,10 @@ FORM warehouseReport 'Отчет по складу'
     EVENTS ON INIT wrhInitDates()
 ;
 
-wrhPrintReport 'Отчет' () { PRINT warehouseReport XLSX; } IMAGE 'print.png';
+@definePrintReport(warehouseReport, 'Отчет по складу');
 
 EXTEND FORM warehouseReport
-    PROPERTIES wrhPrintReport()
+    PROPERTIES warehouseReport()
     PROPERTIES(s) READONLY Item.amountPackLayerShown, Item.amountPackPalletShown, Item.top500RankShown
 ;
 
@@ -771,7 +772,7 @@ DESIGN warehouseReport {
             horizontal = TRUE;
             MOVE PROPERTY(wrhReportDate());
             MOVE PROPERTY(wrhDaysBack()) { flex = 0; }
-            MOVE PROPERTY(wrhPrintReport()) { valueClass = 'btn-primary'; }
+            MOVE PROPERTY(warehouseReport()) { valueClass = 'btn-primary'; }
         }
         NEW row2 {
             alignment = STRETCH;
@@ -1320,13 +1321,11 @@ FORM turnoverByCounterpartyGestori 'Грузооборот по контраге
     }
 ;
 
-fillTurnoverGestoriReport 'Выгрузить в XLSX' () {
-    PRINT turnoverByCounterpartyGestori XLSX;
-} IMAGE 'print.png';
+@definePrintReport(turnoverByCounterpartyGestori, 'Грузооборот по контрагентам');
 
 EXTEND FORM turnoverByCounterpartyGestori
     PROPERTIES() DISABLEIF NOT dateFrom() OR NOT dateTo() OR NOT trnStockCount()
-    fillTurnoverGestoriReport
+    turnoverByCounterpartyGestori
 ;
 
 DESIGN turnoverByCounterpartyGestori {
@@ -1339,7 +1338,7 @@ DESIGN turnoverByCounterpartyGestori {
                 MOVE PROPERTY(dateFrom());
                 MOVE PROPERTY(dateTo());
                 MOVE PROPERTY(fillTrnRows());
-                MOVE PROPERTY(fillTurnoverGestoriReport()) { valueClass = 'btn-success'; }
+                MOVE PROPERTY(turnoverByCounterpartyGestori()) { valueClass = 'btn-success'; }
             }
             MOVE PROPERTY(nameTrnStockList()) { alignment = STRETCH; }
             MOVE PROPERTY(trnStockNames()) { alignment = STRETCH; }
@@ -1447,12 +1446,14 @@ FORM collationSheetPrice 'Сличительная ведомость (по ти
     ORDERS csNameSku(o, s)
 ;
 
-printCollationSheetPrice 'Печать в XLSX' (CollationSheet o) {
-    PRINT collationSheetPrice OBJECTS o = o XLSX;
+collationSheetPrice 'Отчёт' (CollationSheet o) {
+    PRINT collationSheetPrice OBJECTS o = o XLSX TO printReportFile;
+    buildPrintReportFileName('collationSheetPrice', 'Сличительная ведомость (по типу цен)');
+    open(printReportFile(), builtPrintReportFileName());
 } IMAGE 'print.png';
 
 EXTEND FORM collationSheetPrice
-    PROPERTIES(o) printCollationSheetPrice
+    PROPERTIES(o) collationSheetPrice
 ;
 
 EXTEND FORM inventory
@@ -1463,7 +1464,7 @@ EXTEND FORM inventory
             csPriceType(csp) <- t;
         }
     }
-    PROPERTIES(csp) printCollationSheetPrice
+    PROPERTIES(csp) collationSheetPrice
     FILTERS inventory(csp) == in
 
     OBJECTS sp = Sku

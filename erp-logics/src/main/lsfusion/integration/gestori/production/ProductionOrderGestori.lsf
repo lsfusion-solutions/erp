@@ -1,7 +1,7 @@
 MODULE ProductionOrderGestori;
 
 REQUIRE ProductionOrder, ProductionOutput, ManufacturingTransferDashboard, ManufacturingTransferDashboardReturn,
-        BOMOperation, BomStock, ProductionConsumption, StockList, PriceListStore;
+        BOMOperation, BomStock, ProductionConsumption, StockList, PriceListStore, ReportFileNameGestori;
 
 NAMESPACE Production;
 
@@ -855,10 +855,10 @@ FORM productionReportPrint 'Отчёт по производству'
     ORDERS name(op), staticCaption(flow), id(st), idSkuGroup3(s), id(s)
 ;
 
-prPrintReport 'Отчёт' () { PRINT productionReportPrint XLSX; } IMAGE 'print.png';
+@definePrintReport(productionReportPrint, 'Отчёт по производству');
 
 EXTEND FORM productionReport
-    PROPERTIES() DISABLEIF NOT prDateFrom() OR NOT prDateTo() OR NOT prAnyStock() prPrintReport
+    PROPERTIES() DISABLEIF NOT prDateFrom() OR NOT prDateTo() OR NOT prAnyStock() productionReportPrint
 ;
 
 DESIGN productionReport {
@@ -870,7 +870,7 @@ DESIGN productionReport {
             MOVE PROPERTY(prDateFrom());
             MOVE PROPERTY(prDateTo());
             MOVE PROPERTY(prIncludeExpense());
-            MOVE PROPERTY(prPrintReport()) { valueClass = 'btn-primary'; }
+            MOVE PROPERTY(productionReportPrint()) { valueClass = 'btn-primary'; }
         }
         MOVE PROPERTY(prNameStockList()) { alignment = STRETCH; }
         MOVE PROPERTY(prStocksCaption) { alignment = STRETCH; }
