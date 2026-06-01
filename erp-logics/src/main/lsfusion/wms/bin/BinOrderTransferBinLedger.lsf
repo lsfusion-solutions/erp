@@ -173,17 +173,16 @@ cancelTransferBinOrderAuto(BinOrder o) = cancelTransferBinOrderAuto(operation(o)
 cancelTransferBinOrderAuto(BinOrderDetail d) = cancelTransferBinOrderAuto(binOrder(d));
 
 quantityOutBinOrderDetail 'Кол-во товара в документе'  =
-    GROUP SUM quantity(BinOrderDetail idetail)
-    BY  sku(idetail), outBin(idetail), binOrder(idetail);
+    GROUP SUM quantity(BinOrderDetail idetail) BY sku(idetail), outBin(idetail), binOrder(idetail) MATERIALIZED;
 
 quantityBinTranferDetail 'Кол-во в перемещениях' =
-    GROUP SUM quantity(BinTransferDetail d) IF NOT notCount(binTransfer(d)) BY sku(d), outBin(d), binOrder(d);
+    GROUP SUM quantity(BinTransferDetail d) IF NOT notCount(binTransfer(d)) BY sku(d), outBin(d), binOrder(d) MATERIALIZED;
 
 diffQuantityOutBinTranferDetail 'Расхождение' = quantityOutBinOrderDetail(Sku sku, Bin b, BinOrder binOrder)
     (-) quantityBinTranferDetail(sku, b, binOrder);
 
-META  binOrderTransferAggregation(prefix, binType)
-    
+META binOrderTransferAggregation(prefix, binType)
+
     CLASS ###prefix###binType##BinOrderTransferAggregation : ReservedBinLedger;
     skip###prefix###binType##BinOrderTransferAggregation = ABSTRACT BOOLEAN ();
     prefix##BinOrderTransferAggregation = AGGR ###prefix###binType##BinOrderTransferAggregation
@@ -192,7 +191,10 @@ META  binOrderTransferAggregation(prefix, binType)
             AND (quantityBinTransfers(binOrder)>0 OR isClosed(binOrder))
             AND diffQuantity###binType##BinTranferDetail(###prefix prefix, Bin bin, binOrder) 
         MATERIALIZED;
-    
+        
+    // ускоряет чтение строк резерва/доступности на формах
+    INDEX binOrder(###prefix###binType##BinOrderTransferAggregation l), ##prefix(l), bin(l);
+
     dateTime(###prefix###binType##BinOrderTransferAggregation ledger) += OVERRIDE [GROUP MAX dateTime(BinTransfer td) BY binOrder(td)](binOrder(ledger)),
         closeDateTime(binOrder(ledger));
     
