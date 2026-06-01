@@ -400,16 +400,18 @@ isRoundingLedger(InventorySkuDetail d) = isRoundingDetail(d) AND splitRoundingBi
 EXTEND CLASS OutInventorySkuDetail : OutFIFOSkuLedger;
 quantity (OutInventorySkuDetail ledger) += quantity(ledger);
 sum (OutInventorySkuDetail ledger) += sum(ledger);
-stockDocumentLedger(OutInventorySkuDetail ledger) += MULTI
-    (outRoundingBinInventorySDLedger(binInventory(ledger)) IF isRoundingLedger(ledger)),
-    (outBinInventorySDLedger(binInventory(ledger)) IF NOT isRoundingLedger(ledger));
+stockDocumentLedger(OutInventorySkuDetail ledger) += MULTI outRoundingBinInventorySDLedger(binInventory(ledger)) IF isRoundingLedger(ledger), 
+                                                           incRoundingBinInventorySDLedger(binInventory(ledger)) IF isRoundingLedger(ledger),
+                                                           outBinInventorySDLedger(binInventory(ledger)) IF NOT isRoundingLedger(ledger), 
+                                                           incBinInventorySDLedger(binInventory(ledger)) IF NOT isRoundingLedger(ledger);
 
 EXTEND CLASS InInventorySkuDetail : InLIFOSkuLedger;
 quantity (InInventorySkuDetail ledger) += quantity(ledger);
 sum (InInventorySkuDetail ledger) += sum(ledger);
-stockDocumentLedger(InInventorySkuDetail ledger) += MULTI
-    (incRoundingBinInventorySDLedger(binInventory(ledger)) IF isRoundingLedger(ledger)),
-    (incBinInventorySDLedger(binInventory(ledger)) IF NOT isRoundingLedger(ledger));
+stockDocumentLedger(InInventorySkuDetail ledger) += MULTI incRoundingBinInventorySDLedger(binInventory(ledger)) IF isRoundingLedger(ledger), 
+                                                          outRoundingBinInventorySDLedger(binInventory(ledger)) IF isRoundingLedger(ledger),
+                                                          incBinInventorySDLedger(binInventory(ledger)) IF NOT isRoundingLedger(ledger), 
+                                                          outBinInventorySDLedger(binInventory(ledger)) IF NOT isRoundingLedger(ledger);
 
 edit(InInventorySkuDetail d) + { DIALOG binInventory OBJECTS i = binInventory(d), cs = sku(d) DOCKED; }
 edit(OutInventorySkuDetail d) + { DIALOG binInventory OBJECTS i = binInventory(d), cs = sku(d) DOCKED; }
