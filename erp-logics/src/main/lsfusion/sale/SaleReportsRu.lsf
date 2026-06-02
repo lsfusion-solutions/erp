@@ -216,6 +216,39 @@ DESIGN dialogStocksSaleReportRu {
     }
 }
 
+totalCompanyStocksSaleReport () = GROUP SUM 1 IF isCompany(Stock s) AND active(s);
+selectedStocksSaleReport () = GROUP SUM 1 IF isCompany(Stock s) AND active(s) AND inSaleReportDialog(s);
+
+totalCompanyStocksInGroupSaleReport (StockGroup sg) =
+    GROUP SUM 1 IF isCompany(Stock s) AND active(s) AND isParent(sg, s);
+selectedStocksInGroupSaleReport (StockGroup sg) =
+    GROUP SUM 1 IF isCompany(Stock s) AND active(s) AND isParent(sg, s) AND inSaleReportDialog(s);
+
+allInSaleReportDialog 'Все' (BPSTRING[3] a) =
+    selectedStocksSaleReport() = totalCompanyStocksSaleReport() AND totalCompanyStocksSaleReport() > 0 IF a IS BPSTRING[3];
+
+inSaleReportDialogGroup 'Отм.' (StockGroup sg) =
+    selectedStocksInGroupSaleReport(sg) = totalCompanyStocksInGroupSaleReport(sg) AND totalCompanyStocksInGroupSaleReport(sg) > 0;
+
+changeAllInSaleReportDialog (BPSTRING[3] a) {
+    IF allInSaleReportDialog(a) THEN
+        inSaleReportDialog(Stock s) <- NULL;
+    ELSE
+        inSaleReportDialog(Stock s) <- TRUE WHERE isCompany(s) AND active(s);
+}
+
+changeInSaleReportDialogGroup (StockGroup sg) {
+    IF inSaleReportDialogGroup(sg) THEN
+        inSaleReportDialog(Stock s) <- NULL WHERE isParent(sg, s);
+    ELSE
+        inSaleReportDialog(Stock s) <- TRUE WHERE isParent(sg, s) AND isCompany(s) AND active(s);
+}
+
+EXTEND FORM dialogStocksSaleReportRu
+    PROPERTIES(a) allInSaleReportDialog ON CHANGE changeAllInSaleReportDialog(a) READONLYIF stockList()
+    PROPERTIES(sg) inSaleReportDialogGroup ON CHANGE changeInSaleReportDialogGroup(sg) READONLYIF stockList()
+;
+
 changeStocksSalesReportRu(GroupType gt, DATE df, DATE dt, DATE dfc, DATE dtc)  {
     DIALOG dialogStocksSaleReportRu DO {
         fillSaleReportFromTo(gt, df, dt);
