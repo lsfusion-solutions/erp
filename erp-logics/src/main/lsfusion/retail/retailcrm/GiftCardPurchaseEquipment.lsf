@@ -4,8 +4,11 @@ REQUIRE GiftCardPurchase, CashRegisterPriceTransaction;
 
 NAMESPACE GiftCard;
 
+sku(NUMERIC price) = GROUP MAX Item i IF priceGiftCard(i) == price;
 purchase = GROUP MAX GiftCardPurchase p BY number(p), departmentStore(p);
 purchaseDetail = GROUP MAX GiftCardPurchaseDetail p BY giftCardPurchase(p), priceGiftCard(sku(p));
+purchaseDetail = GROUP MAX GiftCardPurchaseDetail p BY giftCardPurchase(p), sku(p);
+purchaseDetail = GROUP MAX GiftCardPurchaseDetail p IF  NOT sku(p) BY giftCardPurchase(p);
 
 processZReportExtraFields(STRING json) + {
     FOR SET (GiftCard g == giftCard(ReceiptGiftCardSaleDetail d)) AND NOT giftCardPurchaseDetail(g) DO {
@@ -33,7 +36,7 @@ processZReportExtraFields(STRING json) + {
         }
     }
 
-    FOR SET (GiftCard g == giftCard(PaymentGiftCard d)) AND NOT giftCardPurchaseDetail(g) AND NUMERIC price = NUMERIC(substr(number(g), 3, 3)) DO {
+    FOR SET (GiftCard g == giftCard(PaymentGiftCard d)) AND NOT giftCardPurchaseDetail(g) DO {
         IF NOT purchase('Продажа ' + date(d), departmentStore(d)) THEN {
             NEW p = GiftCardPurchase {
                 number(p) <- 'Продажа ' + date(d);
@@ -43,17 +46,30 @@ processZReportExtraFields(STRING json) + {
         }
 
         FOR GiftCardPurchase p == purchase('Продажа ' + date(d), departmentStore(d)) DO {
-            IF NOT purchaseDetail(p, price) THEN {
-                NEW pd = GiftCardPurchaseDetail {
-                    giftCardPurchase(pd) <- p;
-                    sku(pd) <- GROUP MAX Item i IF priceGiftCard(i) == price;
+            FOR Sku s  == sku(NUMERIC(ceil(sum(d),5))) DO {
+                IF NOT purchaseDetail(p, s) THEN {
+                    NEW pd = GiftCardPurchaseDetail {
+                        giftCardPurchase(pd) <- p;
+                        sku(pd) <- s;
+                    }
                 }
-            }
+                FOR GiftCardPurchaseDetail pd == purchaseDetail(p, s) DO {
+                    giftCardPurchaseDetail(g) <- pd;
+                    date(g) <- date(p);
+                    expiryDays(g) <- expiryDays(pd);
+                }
+            } ELSE {
+                IF NOT purchaseDetail(p) THEN {
+                    NEW pd = GiftCardPurchaseDetail {
+                        giftCardPurchase(pd) <- p;
+                    }
+                }
 
-            FOR GiftCardPurchaseDetail pd == purchaseDetail(p, price) DO {
-                giftCardPurchaseDetail(g) <- pd;
-                date(g) <- date(p);
-                expiryDays(g) <- expiryDays(pd);
+                FOR GiftCardPurchaseDetail pd == purchaseDetail(p) DO {
+                    giftCardPurchaseDetail(g) <- pd;
+                    date(g) <- date(p);
+                    expiryDays(g) <- expiryDays(pd);
+                }
             }
         }
     }
