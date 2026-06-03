@@ -14,10 +14,6 @@ import java.time.LocalDate;
 
 public class DefaultImportDBFAction extends DefaultImportAction {
 
-    public DefaultImportDBFAction(ScriptingLogicsModule LM) {
-        super(LM);
-    }
-
     public DefaultImportDBFAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
     }
@@ -28,10 +24,6 @@ public class DefaultImportDBFAction extends DefaultImportAction {
     
     protected String getDBFFieldValue(DBF importFile, String fieldName, String charset, String defaultValue) throws UnsupportedEncodingException {
         return getDBFFieldValue(importFile, fieldName, charset, false, defaultValue);
-    }
-
-    protected String getDBFFieldValue(DBF importFile, String fieldName, String charset, Boolean zeroIsNull) throws UnsupportedEncodingException {
-       return getDBFFieldValue(importFile, fieldName, charset, zeroIsNull, null); 
     }
     
     protected String getDBFFieldValue(DBF importFile, String fieldName, String charset, Boolean zeroIsNull, String defaultValue) throws UnsupportedEncodingException {
