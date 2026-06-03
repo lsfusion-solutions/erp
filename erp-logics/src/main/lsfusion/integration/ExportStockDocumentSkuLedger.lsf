@@ -5,7 +5,7 @@ REQUIRE StockDocumentSkuLedger, StockTax, Barcode, ZReport;
 NAMESPACE Stock;
 
 operation(StockDocumentLedger ledger) = OVERRIDE StockDocument.operation(ledger),
-    ZReportOperation.zReportSale IF ledger IS ZReportStockDocumentledger;
+    ZReportOperation.zReportSale IF ledger IS ZReportStockDocumentledger, ZReportOperation.zReportDiscounts IF ledger IS ZReportDiscountStockDocumentledger;
 nameOperation(StockDocumentLedger ledger) = IF isReturn(ledger) THEN nameReturn(operation(ledger)) ELSE name(operation(ledger));
 
 
@@ -41,6 +41,7 @@ idLegalEntity = DATA LOCAL STRING[100]();
 FORM exportDocument
     OBJECTS sl = StockDocumentLedger EXTID 'documents'
     PROPERTIES READONLY IN base
+        direction = (IF sl IS IncStockDocumentLedger THEN 'Inc' ELSE 'Out'), 
         type(sl),
         number(sl),
         series(sl),
