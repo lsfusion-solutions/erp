@@ -448,14 +448,13 @@ filterWriteOffStock = DATA LOCAL NESTED Stock();
 nameFilterWriteOffStock 'Склад' = name(filterWriteOffStock());
 filterWriteOffStock (WriteOff w) = stock(w) == filterWriteOffStock() OR NOT filterWriteOffStock();      
 
-EXTEND FORM userWriteOff
+CONSTRAINT filterWriteOffStock() AND NOT isCompany(filterWriteOffStock())
+    CHECKED BY filterWriteOffStock[] MESSAGE 'Для фильтра в списаниях выбран склад, который не принадлежит компании';
 
+EXTEND FORM userWriteOff
     FILTERGROUP filter
         FILTER 'С остатком' prevCurrentBalance(ks, st) 'F10' DEFAULT
         FILTER 'В документе' quantity(ks, w, st) 'F9'
-;
-
-EXTEND FORM userWriteOff
 
     FILTERGROUP filter3
         FILTER 'С остатком' prevCurrentBalance(b, sto) 'F10' DEFAULT
