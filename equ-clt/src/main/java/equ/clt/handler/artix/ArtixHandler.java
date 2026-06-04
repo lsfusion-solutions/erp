@@ -262,8 +262,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                 if (!skipItem(item, medicineMode) && item.passScalesItem) {
                                     String idBarcode = getIdBarcode(item);
                                     if (idBarcode != null) {
-                                        writeStringToFile(tmpFile, getAddTmcScaleJSON(transaction, item, idBarcode) + "\n---\n");
                                         JSONObject scaleInfoJSON = getExtInfo(item.info);
+                                        boolean scaleAttributesMode = scaleInfoJSON != null && scaleInfoJSON.has("tmcscalegroupcode");
+                                        if (scaleAttributesMode && item.pluNumber == null)
+                                            continue; //доработанные атрибуты: товар без plu в весы не выгружаем
+                                        writeStringToFile(tmpFile, getAddTmcScaleJSON(transaction, item, idBarcode) + "\n---\n");
                                         String tmcScaleImage = scaleInfoJSON != null ? trimToNull(scaleInfoJSON.optString("tmcscaleimage")) : null;
                                         if (tmcScaleImage != null) {
                                             writeStringToFile(tmpFile, getAddTmcScaleImageJSON(item, idBarcode, tmcScaleImage) + "\n---\n");
