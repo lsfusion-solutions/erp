@@ -17,14 +17,14 @@ shortNameProducer 'Производитель' (QueryAPv2 q) = shortName(produce
 GROUP parameters EXTID 'qp:Parameters';
 GROUP parameter EXTID 'qp:Parameter' : parameters;
 
-name (INTEGER i) = CASE WHEN i = 0 THEN 'СИО';  
+name (INTEGER i) = CASE WHEN i = 0 THEN 'СИО';
 value (QueryAPv2 r, INTEGER i) = CASE WHEN i = 0 THEN idProducer(r);
 
 FORM queryAPv2 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:QueryAP_v2'
     PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:qp'
-    
-    OBJECTS r = QueryAPv2 PANEL 
-    
+
+    OBJECTS r = QueryAPv2 PANEL
+
     OBJECTS i = INTEGER IN parameters EXTID 'qp:Parameter'
     PROPERTIES name(i) EXTID 'qp:Name', value(r, i) EXTID 'qp:Value'
     FILTERS name(i)
@@ -40,8 +40,9 @@ DESIGN queryAPv2Params {
 }
 
 queryAPv2 (QueryAPv2 r) {
+    IF NOT utm(r) THEN utm(r) <- OVERRIDE utm(client(r)), defaultUtm(), fallbackUtm();
+    IF utm(r) THEN client(r) <- firstClient(utm(r));
     EXPORT queryAPv2 OBJECTS r = r XML;
-    client(r) <- firstClient(utm(r));
     submit(r, exportFile());
 }
 
@@ -51,7 +52,7 @@ queryAPv2 'Запросить справочник алкогольной про
             DIALOG queryAPv2Params OBJECTS r = r NOMANAGESESSION DO {
                 IF r IS QueryAPv2 AND (NOT producer(r) OR NOT utm(r)) THEN {
                     MESSAGE 'Не все параметры заданы';
-                    RETURN; 
+                    RETURN;
                 }
                 
                 queryAPv2(r);
@@ -140,8 +141,9 @@ FORM queryAPv2Code FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:Documen
 ;
 
 queryAPv2Code (QueryAPv2 r) {
+    IF NOT utm(r) THEN utm(r) <- OVERRIDE utm(client(r)), defaultUtm(), fallbackUtm();
+    IF utm(r) THEN client(r) <- firstClient(utm(r));
     EXPORT queryAPv2Code OBJECTS r = r XML;
-    client(r) <- firstClient(utm(r));
     submit(r, exportFile());
 }
 

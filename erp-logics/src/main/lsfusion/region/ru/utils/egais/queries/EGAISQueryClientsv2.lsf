@@ -17,15 +17,15 @@ GROUP parameters EXTID 'qp:Parameters';
 GROUP parameter EXTID 'qp:Parameter' : parameters;
 
 name (QueryClientsv2 r, INTEGER i) = CASE WHEN i = 0 AND id(r) THEN 'СИО'
-                                                      WHEN i = 1 AND INN(r) THEN 'ИНН';  
+                                                      WHEN i = 1 AND INN(r) THEN 'ИНН';
 value (QueryClientsv2 r, INTEGER i) = CASE WHEN i = 0 AND id(r) THEN id(r)
                                                     WHEN i = 1 AND INN(r) THEN INN(r);
 
 FORM queryClientsv2 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:QueryClients_v2'
     PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:qp'
-    
-    OBJECTS r = QueryClientsv2 PANEL 
-    
+
+    OBJECTS r = QueryClientsv2 PANEL
+
     OBJECTS i = INTEGER IN parameters EXTID 'qp:Parameter'
     PROPERTIES name(r, i) EXTID 'qp:Name', value(r, i) EXTID 'qp:Value'
     FILTERS name(r, i)
@@ -41,6 +41,8 @@ DESIGN queryClientsv2Params {
 }
 
 queryClientsv2 (QueryClientsv2 r) {
+    IF NOT utm(r) THEN utm(r) <- OVERRIDE utm(client(r)), defaultUtm(), fallbackUtm();
+    IF utm(r) THEN client(r) <- firstClient(utm(r));
     EXPORT queryClientsv2 OBJECTS r = r XML;
     submit(r, exportFile());
 }

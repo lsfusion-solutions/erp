@@ -75,6 +75,8 @@ error 'Ошибка' = DATA TEXT (OutDoc);
 
 beforeSubmit ABSTRACT (UTM);
 
+fallbackUtm = ABSTRACT UTM ();
+
 EXTEND FORM outDocs
     PROPERTIES(r) READONLY document, error, sign, ver
     PROPERTIES(r) READONLY PANEL pdocument = document, perror = error
@@ -119,9 +121,10 @@ FORM submitOutDocResponse FORMEXTID 'A'
 ;
 
 submit (OutDoc r) {
-    EXPORT submitOutDoc OBJECTS r = r XML;
+    IF NOT utm(r) THEN utm(r) <- OVERRIDE utm(client(r)), defaultUtm(), fallbackUtm();
+    IF utm(r) AND NOT client(r) THEN client(r) <- firstClient(utm(r));
 
-    IF NOT utm(r) THEN utm(r) <- OVERRIDE utm(client(r)), defaultUtm();
+    EXPORT submitOutDoc OBJECTS r = r XML;
 
     beforeSubmit(utm(r));
 
@@ -217,9 +220,10 @@ END
 
 // Чтобы одна ошибка не тормозила весь процесс
 submit (OutDoc r, BOOLEAN skiptTrowException) {
-    EXPORT submitOutDoc OBJECTS r = r XML;
+    IF NOT utm(r) THEN utm(r) <- OVERRIDE utm(client(r)), defaultUtm(), fallbackUtm();
+    IF utm(r) AND NOT client(r) THEN client(r) <- firstClient(utm(r));
 
-    IF NOT utm(r) THEN utm(r) <- OVERRIDE utm(client(r)), defaultUtm();
+    EXPORT submitOutDoc OBJECTS r = r XML;
 
     TRY {
         beforeSubmit(utm(r));
