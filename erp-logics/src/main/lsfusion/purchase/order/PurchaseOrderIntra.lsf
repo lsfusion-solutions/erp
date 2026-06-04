@@ -66,7 +66,8 @@ WHEN SET(isPosted(Sale.UserOrderDetail d)) AND isWarehouseStoreIntra(operation(d
         BY d;
 }
 
-WHEN SETCHANGED(quantity(Sale.UserOrderDetail d)) AND isPosted(d) AND PREV(isPosted(d)) AND isWarehouseStoreIntra(operation(d)) DO {
+disableChangeQuantityToPickInTransaction = DATA LOCAL BOOLEAN ();
+WHEN SETCHANGED(quantity(Sale.UserOrderDetail d)) AND isPosted(d) AND PREV(isPosted(d)) AND isWarehouseStoreIntra(operation(d)) AND NOT disableChangeQuantityToPickInTransaction() DO {
     quantityToPick(Purchase.UserOrderDetail pd, d) <- PARTITION UNGROUP quantity LIMIT quantityToOrder(pd) (+) PREV(quantityToPick(pd, d))
         IF (isOpened[Purchase.Order](userOrder(pd)) OR PREV(quantityToPick(pd, d))) AND
             isPosted(pd) AND isWarehouseStoreIntra(operation(pd))
