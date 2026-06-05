@@ -14,5 +14,8 @@ NAMESPACE PurchaseReturn;
 
 @setDepartmentDetail(invoice, out, ' (из)');
 
-
 outDepartment[Consignment.ConsignmentDetail](PurchaseReturn.InvoiceDetail d) += outDepartment(d);
+
+in = GROUP MAX 1 BY outDepartment(InvoiceDetail d), invoice(d) MATERIALIZED;
+outDepartments 'Отделы' =
+    GROUP CONCAT name(Department dep) IF in(dep, Invoice i), ', ' ORDER order(dep), dep BY i CHARWIDTH 20;
