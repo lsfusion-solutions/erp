@@ -1,6 +1,5 @@
 package lsfusion.erp.integration;
 
-import com.google.common.base.Throwables;
 import lsfusion.base.col.SetFact;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -12,7 +11,6 @@ import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
 import lsfusion.server.logics.classes.data.file.TXTClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.physics.admin.Settings;
 import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.physics.dev.integration.service.*;
 import org.apache.commons.lang3.time.DateUtils;
@@ -151,10 +149,6 @@ public class DefaultIntegrationAction extends InternalAction {
         else return operand1.multiply(operand2);
     }
 
-    protected BigDecimal safeDivide(BigDecimal dividend, int quotient) {
-        return safeDivide(dividend, BigDecimal.valueOf(quotient));
-    }
-
     protected BigDecimal safeDivide(BigDecimal dividend, BigDecimal quotient) {
         return safeDivide(dividend, quotient, 3);
     }
@@ -184,10 +178,6 @@ public class DefaultIntegrationAction extends InternalAction {
     protected String trim(String input, Integer length) {
         return input == null ? null : (length == null || length >= input.trim().length() ? input.trim() : input.trim().substring(0, length));
     }
-
-    protected String nullIfEmpty(String value) {
-        return (value == null || value.isEmpty()) ? null : value;
-    }
     
     protected boolean notNullNorEmpty(String value) {
         return value != null && !value.isEmpty();
@@ -195,36 +185,6 @@ public class DefaultIntegrationAction extends InternalAction {
     
     protected boolean notNullNorEmpty(List value) {
         return value != null && !value.isEmpty();
-    }
-
-    protected void checkFileExistence(String filePath) {
-        if(Settings.get().isSafeCheckFileExistence())
-            safeCheckFileExistence(filePath);
-        else
-            unsafeCheckFileExistence(filePath);
-    }
-
-    private void unsafeCheckFileExistence(String filePath) {
-        if (!(new File(filePath).exists()))
-            throw new RuntimeException("Запрашиваемый файл " + filePath + " не найден");
-    }
-
-    private void safeCheckFileExistence(final String filePath) {
-        try {
-            final Future<Boolean> future = executor.submit((Callable) () -> new File(filePath).exists());
-
-            boolean result = false;
-            try {
-                result = future.get(1000, TimeUnit.MILLISECONDS);
-            } catch (TimeoutException e) {
-                future.cancel(true);
-            }
-
-            if (!result)
-                throw new RuntimeException("Запрашиваемый файл " + filePath + " не найден");
-        } catch (InterruptedException | ExecutionException e) {
-            throw Throwables.propagate(e);
-        }
     }
 
     protected void safeFileDelete(File file) {
