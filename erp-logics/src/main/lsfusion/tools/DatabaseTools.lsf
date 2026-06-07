@@ -366,14 +366,14 @@ smartVacuum 'Smart VACUUM'(BOOLEAN pgOnly) {
 
     EXPORT CSV '|' HEADER
         FROM sid(DatabaseTable t), vacuumOrder(t), skipVacuum(t), dataSize(t), curDataSize(t), dataGrow(t), indexSize(t), curIndexSize(t), indexGrow(t)
-        WHERE (curDataSize(t) AND NOT curDataSize(t) >= dataSize(t)) OR (curIndexSize(t) AND NOT curIndexSize(t) >= indexSize(t)) TO file;
+        WHERE curDataSize(t) < dataSize(t) OR curIndexSize(t) < indexSize(t) TO file;
 
     IF file() THEN {
         logToFile('database-tools', 'Smart VACUUM - new stat for externaly shrinked tables:');
         logToFile('database-tools', file());
         NEWSESSION NESTED LOCAL {
-            dataSize(DatabaseTable t) <- curDataSize(t) WHERE curDataSize(t) AND NOT curDataSize(t) >= dataSize(t);
-            indexSize(DatabaseTable t) <- curIndexSize(t) WHERE curIndexSize(t) AND NOT curIndexSize(t) >= indexSize(t);
+            dataSize(DatabaseTable t) <- curDataSize(t) WHERE curDataSize(t) < dataSize(t);
+            indexSize(DatabaseTable t) <- curIndexSize(t) WHERE curIndexSize(t) < indexSize(t);
             APPLY NESTED LOCAL;
         }
     }
