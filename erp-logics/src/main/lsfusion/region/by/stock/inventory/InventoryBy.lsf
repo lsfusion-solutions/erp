@@ -193,6 +193,8 @@ countIndexBatch 'Количество наименований партий'(Col
 countResponsiblePersonStock = TRUE IF [GROUP SUM 1 IF isOverResponsiblePerson(stock(CollationSheet cs), Employee e1) BY cs](CollationSheet cs);
 resetCollationSheet ABSTRACT LIST();
 
+overOrder = ABSTRACT STRING[255] (CollationSheet, Sku);
+
 FORM printCollationSheet 'Опись'
 
     OBJECTS          cs=CollationSheet PANEL SUBREPORT
@@ -210,11 +212,11 @@ FORM printCollationSheet 'Опись'
 
     OBJECTS          i=Sku
     PROPERTIES(i)     SELECTOR name, idBarcode, id, shortNameUOM
-    PROPERTIES(cs, i) SELECTOR quantityPageInventoryDetail, quantityBalance, quantityShortage
+    PROPERTIES(cs, i) SELECTOR quantityPageInventoryDetail, quantityBalance, quantityShortage, overOrder
     PROPERTIES(cs, i)          pricePageInventoryDetail, priceBalance
     PROPERTIES(cs, i) SELECTOR sumPageInventoryDetail, sumBalance, sumShortage
     FILTERS                    include(cs, i)
-    ORDERS name(i)
+    ORDERS overOrder(cs, i), name(i)
 
     OBJECTS         b=Batch
     PROPERTIES(b)    SELECTOR nameSku, idBarcodeSku, name, id, shortNameUOM
