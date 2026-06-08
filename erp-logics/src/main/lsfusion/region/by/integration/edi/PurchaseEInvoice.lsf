@@ -84,6 +84,10 @@ copyData(EInvoice ei, Invoice i)  {
     date(i) <- deliveryNoteDate(ei);
     time(i) <- 00:00;
     overCopy(ei,i);
+
+    FOR eInvoice(EInvoiceDetail eid) == eInvoice(i) AND NOT sku(eid) DO {
+        sku(eid) <- OVERRIDE sku(lineItemBuyerID(eid)), skuGTIN(lineItemID(eid)), skuGTIN(ltrim(lineItemID(eid), '0')), sku(lineItemID(eid));
+    }
     
     FOR eInvoice(EInvoiceDetail eid) == eInvoice(i) AND NOT ignoreDetail(eid) INLINE NEW id = UserInvoiceDetail DO {
         userInvoice(id) <- i;
