@@ -54,8 +54,6 @@ public class DefaultIntegrationAction extends InternalAction {
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
-    private static ExecutorService executor = Executors.newCachedThreadPool();
-
     static final Locale RU_LOCALE = new Locale("ru");
     static final DateFormatSymbols RU_SYMBOLS = new DateFormatSymbols(RU_LOCALE);
     static final String[] RU_MONTHS = {"января", "февраля", "марта", "апреля", "мая",
