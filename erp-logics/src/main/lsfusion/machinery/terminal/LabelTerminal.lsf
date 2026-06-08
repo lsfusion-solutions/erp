@@ -177,6 +177,63 @@ backgroundTerminalDocumentDetail = ABSTRACT COLOR (TerminalDocumentDetail);
 countSkuTerminalDocumentDetail 'Кол-во SKU к печати' (TerminalDocument td) = 
         GROUP SUM 1 IF quantity(TerminalDocumentDetail d) > 0 BY terminalDocument(d);
                       		
+addBarcodeLabelTerminalDocument (TerminalDocument document, STRING[200] s) {
+    FOR Sku sku == (OVERRIDE skuBarcode(s), sku(s)) DO {
+        FOR TerminalDocumentDetail d == terminalDocumentDetail(document, sku) DO {
+            quantity(d) <- quantity(d) (+) 1.0;
+        } ELSE NEW d = TerminalDocumentDetail {
+            terminalDocument(d) <- document;
+            sku(d) <- sku;
+            barcode(d) <- s;
+            quantity(d) <- 1.0;
+            dateTimeScan(d) <- currentDateTime();
+        }
+    } ELSE
+        MESSAGE 'Товар по штрихкоду не найден: ' + s;
+}
+
+inputBarcodeLabelTerminalDocument 'Ввод штрихкода :' (TerminalDocument document) = DATA LOCAL STRING[200] (TerminalDocument) TOOLBAR CHARWIDTH 13 CHANGEKEY 'F4;editing=all' EVENTID 'SCANNER'
+    ON CHANGE { INPUT s = STRING[200] DO addBarcodeLabelTerminalDocument(document, s); }
+;
+
+FORM labelTerminalDocumentAdd 'Печать ценников — новый документ'
+    OBJECTS td = TerminalDocument PANEL
+    PROPERTIES(td) inputBarcodeLabelTerminalDocument
+
+    OBJECTS st = Stock PANEL
+    PROPERTIES(st) name SELECTOR
+    FILTERS isCompany(st)
+
+    OBJECTS tdd = TerminalDocumentDetail
+    PROPERTIES(tdd) barcode, idSku, name, quantity, NEW, deletetdd = DELETE GRID
+    FILTERS terminalDocument(tdd) == td
+;
+
+DESIGN labelTerminalDocumentAdd {
+    OBJECTS {
+        NEW header {
+            horizontal = TRUE;
+            MOVE PROPERTY(name(st)) { caption = 'Склад'; }
+            MOVE PROPERTY(inputBarcodeLabelTerminalDocument(td));
+        }
+        MOVE BOX(tdd) { fill = 1; }
+    }
+}
+
+@extendFormFilterStockAccess(st, labelTerminalDocumentAdd);
+
+addLabelTerminalDocument 'Добавить' ()  {
+    NEWSESSION {
+        NEW document = TerminalDocument {
+            terminalDocumentType(document) <- labelTerminalDocumentType();
+            DIALOG labelTerminalDocumentAdd OBJECTS td = document, st = stock(currentUser()) INPUT NOMANAGESESSION DO {
+                dataStock(document) <- st;
+                APPLY;
+            }
+        }
+    }
+} TOOLBAR;
+
 FORM labelTerminalDashboard 'Печать ценников ТСД'
     OBJECTS d=DATE PANEL 
     PROPERTIES val = VALUE (d)
@@ -187,7 +244,8 @@ FORM labelTerminalDashboard 'Печать ценников ТСД'
                     countScanned 'Кол-во отсканированных ценников' = countTerminalDocumentDetail,
                     countToPrint 'Ценников к печати (всего)' = quantityTerminalDocumentDetail
 
-    PROPERTIES(td)  NEWSESSION NEW, EDIT, DELETE 
+    PROPERTIES(td)  NEWSESSION EDIT, DELETE 
+    PROPERTIES()    DRAW td addLabelTerminalDocument
     PROPERTIES (td) close SHOWIF isOpened(td), open SHOWIF isClosed(td)
     
     FILTERS terminalDocumentType(td) == labelTerminalDocumentType()
