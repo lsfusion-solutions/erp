@@ -4,10 +4,13 @@ REQUIRE SaleOrderPickingOrderBinLedger, BatchBinLedger, PickingOrderBatchBinLedg
 
 NAMESPACE Sale;
 
+// оптимизации для лучшего отсечения 
+plannedPickingBatch 'Спланировано к комплектации (по заказу)' (Order order) = GROUP SUM plannedPickingQuantity(order, Batch bt) MATERIALIZED;
+diffPlannedPickingBatch 'Расхождение планирования (по заказу)' (Order order) = GROUP SUM diffPlannedPickingQuantity(order, Batch bt) MATERIALIZED;
 namePlannedStatus(Order order) +=
-    (CASE WHEN order IS Order AND (GROUP SUM plannedPickingQuantity(order, Batch bt)) AND (GROUP SUM diffPlannedPickingQuantity(order, Batch bt)) 
+    (CASE WHEN order IS Order AND plannedPickingBatch(order) AND diffPlannedPickingBatch(order) 
             THEN 'Частично спланированы'
-        WHEN order IS Order  AND (GROUP SUM plannedPickingQuantity(order, Batch bt)) AND NOT (GROUP SUM diffPlannedPickingQuantity(order, Batch bt)) 
+        WHEN order IS Order  AND plannedPickingBatch(order) AND NOT diffPlannedPickingBatch(order) 
             THEN 'Cпланированы'
         ELSE 'Не спланированы');
 
