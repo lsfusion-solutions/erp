@@ -21,17 +21,29 @@ processZReportExtraFields(STRING json) + {
         }
 
         FOR GiftCardPurchase p == purchase('Продажа ' + date(d), departmentStore(d)) DO {
-            IF NOT purchaseDetail(p, price(d)) THEN {
-                NEW pd = GiftCardPurchaseDetail {
-                    giftCardPurchase(pd) <- p;
-                    sku(pd) <- GROUP MAX Item i IF priceGiftCard(i) == price(d);
+            FOR Sku s == sku(price(d)) DO {
+                IF NOT purchaseDetail(p, s) THEN {
+                    NEW pd = GiftCardPurchaseDetail {
+                        giftCardPurchase(pd) <- p;
+                        sku(pd) <- s;
+                    }
                 }
-            }
-
-            FOR GiftCardPurchaseDetail pd == purchaseDetail(p, price(d)) DO {
-                giftCardPurchaseDetail(g) <- pd;
-                date(g) <- date(p);
-                expiryDays(g) <- expiryDays(pd);
+                FOR GiftCardPurchaseDetail pd == purchaseDetail(p, s) DO {
+                    giftCardPurchaseDetail(g) <- pd;
+                    date(g) <- date(p);
+                    expiryDays(g) <- expiryDays(pd);
+                }
+            } ELSE {
+                IF NOT purchaseDetail(p) THEN {
+                    NEW pd = GiftCardPurchaseDetail {
+                        giftCardPurchase(pd) <- p;
+                    }
+                }
+                FOR GiftCardPurchaseDetail pd == purchaseDetail(p) DO {
+                    giftCardPurchaseDetail(g) <- pd;
+                    date(g) <- date(p);
+                    expiryDays(g) <- expiryDays(pd);
+                }
             }
         }
     }
