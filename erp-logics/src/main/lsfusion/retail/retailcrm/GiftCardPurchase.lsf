@@ -120,7 +120,9 @@ WHEN CHANGED (sku(GiftCardPurchaseDetail d)) AND giftCardPurchaseDetail(GiftCard
     price(g) <- price(d);
 }
 
-CONSTRAINT SET (GiftCardPurchaseDetail d IS GiftCardPurchaseDetail) AND NOT [GROUP SUM 1 BY giftCardPurchaseDetail(GiftCard g)](d)
+skipCheckGiftCardPurchaseDetail = DATA BOOLEAN () PREREAD;
+
+CONSTRAINT SET (GiftCardPurchaseDetail d IS GiftCardPurchaseDetail) AND NOT [GROUP SUM 1 BY giftCardPurchaseDetail(GiftCard g)](d) AND NOT skipCheckGiftCardPurchaseDetail()
     MESSAGE 'Сгенерируйте номера сертификатов';
 
 numberReport 'Номер' (GiftCard g) = OVERRIDE 
