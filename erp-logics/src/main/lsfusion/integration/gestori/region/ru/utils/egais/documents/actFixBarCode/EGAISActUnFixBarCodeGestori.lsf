@@ -1,6 +1,6 @@
 MODULE EGAISActUnFixBarCodeGestori;
 
-REQUIRE EGAISActUnFixBarCode, EGAISStock, EGAISLotGestori;
+REQUIRE EGAISActUnFixBarCode, EGAISStock, EGAISLotGestori, EGAISSkuLedgerLot;
 
 NAMESPACE EGAIS;
 
@@ -16,8 +16,11 @@ unpost 'Распровести' (ActUnFixBarCode a)  {
 
 in (ActUnFixBarCode a, MarkCode c) = GROUP MIN TRUE BY actUnFixBarCode(actUnFixBarCodePosition(ActUnFixBarCodeMark m)), markCode(m);
 
+countMarkCodeUnpostedActUnFixBarCodeMarkPositions 'Кол-во марок в непроведенных документах фиксации' =
+    GROUP SUM 1 IF NOT posted(ActUnFixBarCodeMark m) BY markCode(m);
+
 countOtherMarkCodes 'Кол-во кодов маркировки вне документа' (ActUnFixBarCode a, F2Reg d) =
-    GROUP SUM 1 IF NOT in(a, MarkCode m) BY f2Reg(m);
+    GROUP SUM 1 IF currentBalance(MarkCode m) >= 0 AND NOT in(a, m) BY f2Reg(m);
 markedQuantity 'Доступно к отмене' (ActUnFixBarCodePosition p) =
     countOtherMarkCodes(actUnFixBarCode(p), f2Reg(p));
 
@@ -40,6 +43,23 @@ processInputIdMarkCode(ActUnFixBarCode a, ActUnFixBarCodePosition p, STRING[200]
         RETURN;
     }
 
+    IF NOT f2Reg(markCode()) THEN {
+        MESSAGE 'Код маркировки ЕГАИС "' + s + '" не находится на балансе организации' NOWAIT;
+        RETURN;
+    }
+
+    IF NOT currentBalance(markCode()) > 0 THEN {
+        MESSAGE 'Код маркировки ЕГАИС "' + s + '" находится не имеет доступного остатка' NOWAIT;
+        RETURN;
+    }
+
+    IF countMarkCodeUnpostedActUnFixBarCodeMarkPositions(markCode()) THEN {
+        IF f2Reg(markCode()) THEN {
+            MESSAGE 'Код маркировки ЕГАИС "' + s + '" уже находится в непроведенном акте отмены фиксации' NOWAIT;
+            RETURN;
+        }
+    }
+    
     IF NOT f2Reg(markCode()) THEN {
         MESSAGE 'Код маркировки ЕГАИС "' + s + '" не находится на балансе организации' NOWAIT;
         RETURN;
@@ -133,6 +153,9 @@ CONSTRAINT product(ActUnFixBarCodePosition p) AND NOT product(f2Reg(p)) == produ
 CONSTRAINT (SETCHANGED(markCode(ActUnFixBarCodeMark m)) OR SETCHANGED(f2Reg(actUnFixBarCodePosition(m))))
     AND NOT f2Reg(markCode(m)) == f2Reg(actUnFixBarCodePosition(m))
     MESSAGE 'Отменяемый код маркировки должен находится на балансе';
+
+CONSTRAINT SETCHANGED(countMarkCodeUnpostedActUnFixBarCodeMarkPositions(MarkCode m)) AND countMarkCodeUnpostedActUnFixBarCodeMarkPositions(m) > 1
+    MESSAGE 'Марка может содержаться только в одном непроведенном документе фиксации штрихкодов ЕГАИС';
 
 WHEN LOCAL FORMS actUnFixBarCode CHANGED(idF2Reg(ActUnFixBarCodePosition p)) AND NOT (product(p)) DO {
     product(p) <- product(f2Reg(p));
