@@ -102,37 +102,17 @@ CONSTRAINT Stock s == dataStock(Employee e) AND NOT accessCompany(e, s) CHECKED 
 
 EXTEND FORM employees PROPERTIES(e) READONLY nameStock, companyStocks;
 
-// todo : Удалить потом
-//-- Поставщик
-dataAccessSupplier 'Доступ разрешен (поставщик)' = DATA BOOLEAN (Employee);
-dataAccessSupplier 'Доступ разрешен (поставщик)' = DATA BOOLEAN (Stock, Employee);
-dataAccessSupplier 'Доступ разрешен (поставщик)' = DATA BOOLEAN (StockGroup, Employee);
-
-//--  Покупатель
-dataAccessCustomer 'Доступ разрешен (покупатель)' = DATA BOOLEAN (Employee);
-dataAccessCustomer 'Доступ разрешен (покупатель)' = DATA BOOLEAN (Stock, Employee);
-dataAccessCustomer 'Доступ разрешен (покупатель)' = DATA BOOLEAN (StockGroup, Employee);
-
 overCopy(Employee e,Employee employee) + { 
     dataAccessCompany(e) <- dataAccessCompany(employee); 
-    dataAccessSupplier(e) <- dataAccessSupplier(employee); 
-    dataAccessCustomer(e) <- dataAccessCustomer(employee); 
     dataStock(e) <- dataStock(employee); 
                
     in(Stock l,e) <- in(l,employee) WHERE in(l,employee);       
        
     dataAccessCompany(Stock l,e) <- dataAccessCompany(l,employee) WHERE dataAccessCompany(l,employee);
     dataAccessCompany(StockGroup lg,e) <- dataAccessCompany(lg,employee) WHERE dataAccessCompany(lg,employee);
-    
-    dataAccessSupplier(Stock l,e) <- dataAccessSupplier(l,employee) WHERE dataAccessSupplier(l,employee);
-    dataAccessSupplier(StockGroup lg,e) <- dataAccessSupplier(lg,employee) WHERE dataAccessSupplier(lg,employee);
-    
-    dataAccessCustomer(Stock l,e) <- dataAccessCustomer(l,employee) WHERE dataAccessCustomer(l,employee);
-    dataAccessCustomer(StockGroup lg,e) <- dataAccessCustomer(lg,employee) WHERE dataAccessCustomer(lg,employee);    
 };
 
 EXTEND FORM employee
-
     PROPERTIES nameStock(e)
 
     TREE stockTree a = BPSTRING[3], sg = StockGroup  PARENT parent(sg)
