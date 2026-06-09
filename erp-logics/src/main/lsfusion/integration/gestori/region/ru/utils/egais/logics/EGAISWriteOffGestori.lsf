@@ -6,21 +6,27 @@ NAMESPACE EGAIS;
 
 minPostedActWriteOff (UserWriteOff w) = GROUP MIN ActWriteOff awo IF posted(actWriteOff(w)) AND actWriteOff(w) == awo;
 
-editQuantity(UserWriteOffDetail d, F2Reg r) += posted(actWriteOff(writeOff(d))) AND r IS F2Reg;
-hideFillQuantity(UserWriteOffDetail d, F2Reg r) += posted(actWriteOff(writeOff(d))) AND r IS F2Reg;
-hideFillQuantity(UserWriteOff w) += posted(actWriteOff(w));
-hideShowLots (UserWriteOffDetail w) += posted(actWriteOff(writeOff(w)));
+postedOrActiveActWriteOff(UserWriteOff w) = posted(actWriteOff(w)) OR activeActWriteOff(w);
+
+editQuantity(UserWriteOffDetail d, F2Reg r) += TRUE IF NOT postedOrActiveActWriteOff(userWriteOff(d)) AND r IS F2Reg;
+hideFillQuantity(UserWriteOffDetail d, F2Reg r) += postedOrActiveActWriteOff(userWriteOff(d)) AND r IS F2Reg;
+hideFillQuantity(UserWriteOff w) += postedOrActiveActWriteOff(w);
 
 overCheckQuantity(UserWriteOffDetail d, F2Reg r, NUMERIC[16,5] n) += 
     IF NOT currentBalance(r) >= n AND r IS F2Reg THEN 'Количество (ЕГАИС) не может быть больше текущего остатка';
 
-skipDataQuantity(ActWriteOffPosition p) += TRUE IF quantity(p);
+skipDataQuantity(ActWriteOffPosition p) += TRUE IF quantity(p) OR lotType(minItem(product(p)));
+
+CONSTRAINT SET(ActWriteOffMark m IS ActWriteOffMark)
+    AND NOT writeOffDetail(actWriteOffPosition(m))
+    AND NOT currentBalance(markCode(m)) > 0
+    MESSAGE 'Код маркировки ЕГАИС отсутствует на балансе';
 
 CONSTRAINT SETCHANGED(quantity(UserWriteOffDetail d, Lot l)) AND availableQuantity(l, stock(d)) < 0
     MESSAGE 'Неверное количество доступного остатка марок';
 
-skipShowEdit(WriteOff w) += forbidEditSendDocument() AND activeActWriteOff(w);
-skipShowDelete(WriteOff w) += forbidEditSendDocument() AND activeActWriteOff(w);
+//skipShowEdit(WriteOff w) += forbidEditSendDocument() AND (activeActWriteOff(w) OR posted(actWriteOff(w)));
+skipShowDelete(WriteOff w) += forbidEditSendDocument() AND (activeActWriteOff(w) OR posted(actWriteOff(w)));
 
 @defineOriginalLastDocumentActWriteOffAttributes(WriteOff);
 @defineOriginalLastDocumentWayBillAttributes(WriteOff, stock);
@@ -29,6 +35,81 @@ editQuantity(UserWriteOffDetail d, F2Reg r) += NOT hideFillQuantity(userWriteOff
 hideFillQuantity(UserWriteOffDetail d, F2Reg r) += hideFillQuantity(userWriteOff(d));
 
 @defineSimpleDocumentEGAISConstraint(activeActWriteOff, , writeOff, 'Списание');
+
+hideFillQuantity(UserWriteOffDetail d, F2Reg r) += lotType(sku(d)) AND r IS F2Reg;
+editQuantity(UserWriteOffDetail d, F2Reg r) += NOT (lotType(sku(d)) OR postedOrActiveActWriteOff(userWriteOff(d)));
+
+WHEN LOCAL FORMS userWriteOff CHANGED(quantity(UserWriteOffDetail d, Lot l)) AND lotType(sku(d)) DO {
+    quantity(d, F2Reg r) <- [GROUP SUM 1 IF quantity(d, Lot ll) BY f2Reg(markCode(id(ll)))](r);
+}
+
+CONSTRAINT CHANGED(quantity(UserWriteOffDetail d, F2Reg r)) AND lotType(sku(d))
+    AND NOT quantity(d, r) == [GROUP SUM 1 IF quantity(UserWriteOffDetail dd, Lot l) BY dd, f2Reg(markCode(id(l)))](d,r)
+    MESSAGE 'Для маркированной продукции количество по справке Б должно соответствовать количеству марок';
+
+totalF2RegQuantity(UserWriteOffDetail d) = GROUP SUM quantity(d, F2Reg r);
+CONSTRAINT SETCHANGED(quantity(UserWriteOffDetail d, F2Reg r))
+    AND totalF2RegQuantity(d) > quantity(d)
+    MESSAGE 'Суммарное количество по справкам Б не может превышать количество по позиции документа';
+
+CONSTRAINT SETCHANGED(quantity(UserWriteOffDetail d, F2Reg r)) AND quantity(d, r) < 0
+    MESSAGE 'Количество по справке Б не может быть отрицательным';
+
+hasEGAISQuantity(UserWriteOff w) = GROUP SUM quantity(UserWriteOffDetail d, F2Reg r) IF userWriteOff(d) = w;
+fillQuantity (UserWriteOff s) + WHEN s IS UserWriteOff AND hasEGAISQuantity(s) THEN {
+    ASK 'Текущее распределение количеств по справкам Б для всех позиций документа будет изменено. Продолжить?' DO {
+        quantity(UserWriteOffDetail d, F2Reg r) <- NULL WHERE userWriteOff(d) = s;
+        quantity(UserWriteOffDetail d, F2Reg r) <- (GROUP SUM quantity(d, Lot l) IF f2Reg(markCode(id(l))) = r) WHERE userWriteOff(d) = s;
+        quantity(UserWriteOffDetail d, F2Reg r) <- calcQuantity(d, r) WHERE userWriteOff(d) = s AND NOT quantityF2Reg(d);
+    }
+}
+
+unlinkLot 'Отвязать от документа' (UserWriteOffDetail d, Lot l) {
+    quantity(d, l) <- NULL;
+    IF lotType(sku(d)) THEN
+        quantity(d, F2Reg r) <- [GROUP SUM 1 IF quantity(d, Lot ll) BY f2Reg(markCode(id(ll)))](r);
+} TOOLBAR;
+
+deleteLotWriteOff 'Удалить из справочника' (Lot l) {
+    ASK 'Марка «' + id(l) + '» будет безвозвратно удалена из справочника системы. Продолжить?' DO {
+        DELETE l;
+    }
+} TOOLBAR;
+
+FORM dialogUserWriteOffDetailLots 'Марки'
+    OBJECTS ed = UserWriteOffDetail PANEL
+
+    OBJECTS led = Lot
+    PROPERTIES(led) READONLY id BACKGROUND backgroundLot(led), count
+    PROPERTIES(ed, led) unlinkLot SHOWIF NOT postedOrActiveActWriteOff(userWriteOff(ed))
+    PROPERTIES(led) deleteLotWriteOff SHOWIF NOT postedOrActiveActWriteOff(userWriteOff(ed))
+    FILTERS quantity(ed, led)
+;
+
+showLinkedLots 'Марки' (UserWriteOffDetail d) {
+    SHOW dialogUserWriteOffDetailLots OBJECTS ed = d;
+}
+
+hideShowLots(UserWriteOffDetail w) += w IS UserWriteOffDetail;
+
+EXTEND FORM userWriteOff
+    PROPERTIES(d) showLinkedLots TOOLBAR
+;
+
+nameSkuWriteOffDetail 'Наименование товара' (ActWriteOffPosition p) = nameSku(writeOffDetail(p));
+
+EXTEND FORM actWriteOff
+    PROPERTIES(p) READONLY nameSkuWriteOffDetail BEFORE idF2Reg(p)
+;
+
+wrangF2RegQuantity(ActWriteOffPosition p) = writeOffDetail(p) AND NOT quantity(p)
+    AND overQuantity(p) AND quantity(writeOffDetail(p), f2Reg(p))
+    AND NOT overQuantity(p) == quantity(writeOffDetail(p), f2Reg(p));
+
+wrangF2RegQuantity(ActWriteOff w) = GROUP MIN ActWriteOffPosition p BY actWriteOff(p) IF wrangF2RegQuantity(p);
+
+checkConditions(ActWriteOff w) += 'Количество по справке Б в акте не соответствует количеству в документе списания'
+    IF wrangF2RegQuantity(w);
 
 DESIGN userWriteOff {
     PROPERTY(addDetailDialogTerminalUserWriteOffDetail(w)) { showIf = disableEGAISDocumentConstraints() OR NOT activeActWriteOff(w); }

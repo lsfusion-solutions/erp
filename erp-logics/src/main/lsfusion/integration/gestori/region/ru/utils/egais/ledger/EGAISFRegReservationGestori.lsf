@@ -1,0 +1,37 @@
+MODULE EGAISFRegReservationGestori;
+
+REQUIRE EGAISActWriteOffExchangeGestori;
+
+NAMESPACE EGAIS;
+
+//Суммарный резерв по справке Б (все активные акты списания) ---
+reservedF2Reg 'Зарезервировано по справке Б' (F2Reg r) = GROUP SUM overQuantity(ActWriteOffPosition p)
+    IF f2Reg(p) = r
+    AND NOT canceled(actWriteOff(p))
+    AND NOT posted(actWriteOff(p));
+
+//Доступное количество = остаток ЕГАИС − зарезервированное 
+availableF2Reg 'Доступно по справке Б' (F2Reg r) = currentBalance(r) (-) reservedF2Reg(r);
+
+//Отображение в таблице марок формы actWriteOff
+availableF2Reg 'Доступно по справке Б' (ActWriteOffMark m) =
+    availableF2Reg(f2Reg(actWriteOffPosition(m)));
+
+EXTEND FORM actWriteOff
+    PROPERTIES(m) READONLY availableF2Reg BEFORE idMarkCode(m)
+;
+
+CONSTRAINT (SETCHANGED(overQuantity(ActWriteOffPosition p)) OR SETCHANGED(f2Reg(p)))
+    AND NOT canceled(actWriteOff(p)) AND NOT posted(actWriteOff(p))
+    AND reservedF2Reg(f2Reg(p)) > currentBalance(f2Reg(p))
+    AND NOT disableEGAISDocumentConstraints()
+    MESSAGE 'Превышен доступный остаток по справке Б в документах системы. ';
+
+activeDocCountByMark(MarkCode mc) = GROUP SUM 1
+    BY markCode(ActWriteOffMark m)
+    IF NOT canceled(actWriteOff(actWriteOffPosition(m)))
+    AND NOT posted(actWriteOff(actWriteOffPosition(m)));
+
+CONSTRAINT (SET(ActWriteOffMark m IS ActWriteOffMark) OR SETCHANGED(markCode(m)))
+    AND activeDocCountByMark(markCode(m)) > 1
+    MESSAGE 'Код маркировки уже присутствует в другом активном акте списания с баланса';

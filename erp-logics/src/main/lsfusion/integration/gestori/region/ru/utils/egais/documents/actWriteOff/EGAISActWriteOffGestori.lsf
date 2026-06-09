@@ -1,6 +1,6 @@
 MODULE EGAISActWriteOffGestori;
 
-REQUIRE EGAISActWriteOff, EGAISActWriteOffTypeGestori, EGAISStock, EGAISItem, LotType;
+REQUIRE EGAISActWriteOff, EGAISActWriteOffTypeGestori, EGAISStock, EGAISItem, LotType, EGAISSkuLedgerLot;
 
 NAMESPACE EGAIS;
 
@@ -52,7 +52,7 @@ unpost 'Распровести' (ActWriteOff o)  {
     NEWSESSION { posted(o) <- NULL; apply(); }
 } TOOLBAR CONFIRM;
 
-edit 'Редактировать (адм.доступ)' (ActWriteOff o)  {
+editAdmin 'Редактировать (адм.доступ)' (ActWriteOff o)  {
     NEWSESSION {
         SHOW actWriteOff OBJECTS w = o DOCKED;
     }
@@ -95,6 +95,11 @@ processInputIdMarkCode(ActWriteOff w, ActWriteOffPosition p, STRING[200] s) {
     
     IF NOT markCode() THEN {
         MESSAGE 'Код маркировки ЕГАИС "' + s + '" не найден' NOWAIT;
+        RETURN;
+    }
+
+    IF NOT currentBalance(markCode()) THEN {
+        MESSAGE 'Код маркировки ЕГАИС "' + s + '" отсутствует на балансе' NOWAIT;
         RETURN;
     }
 
@@ -155,7 +160,7 @@ EXTEND FORM actWriteOffs
     PROPERTIES (dFrom, dTo) createActWriteOff
     PROPERTIES (d) post SHOWIF NOT posted(d), unpost SHOWIF posted(d)
 
-    PROPERTIES (d) edit SHOWIF showToShow(d) AND NOT hideEdit(d), copy
+    PROPERTIES (d) editAdmin SHOWIF showToShow(d) AND hideEdit(d), copy
     PROPERTIES (d) READONLY dataSaleDate AFTER dateTime(d), stockClientName AFTER shortNameClient(d)
     
     PROPERTIES (p) READONLY idEgais
@@ -217,7 +222,9 @@ WHEN LOCAL FORMS actWriteOff CHANGED ( idF2Reg(ActWriteOffPosition d)) AND NOT (
 EXTEND FORM actWriteOff
     PROPERTIES (w) DRAW m  addMarkCodeInputIdMarkCode SHOWIF NOT minActWriteOffPosition(w)
     PROPERTIES (p) DRAW m  addMarkCodeInputIdMarkCode SHOWIF minActWriteOffPosition(w)
-    PROPERTIES (m) DELETE GRID
+    PROPERTIES(m) READONLY idF2Reg BEFORE idMarkCode(m)
+    PROPERTIES(m) READONLY currentBalanceF2Reg BEFORE idMarkCode(m)
+    PROPERTIES (m) DELETE GRID SHOWIF NOT posted(w)
 ;
 
 DESIGN actWriteOff {
@@ -239,8 +246,14 @@ CONSTRAINT CHANGED(lotType(minItem(product(ActWriteOffPosition p)))) AND lotType
 CONSTRAINT SET(ActWriteOffPosition p IS ActWriteOffPosition) AND lotType(actWriteOff(p)) AND notLotType(actWriteOff(p))
     MESSAGE 'Запрещено добавлять в спецификацию документа маркированную и немаркированную продукцию';
 
+CONSTRAINT SETCHANGED(dataQuantity(ActWriteOffPosition p)) AND dataQuantity(p) < 0
+    MESSAGE 'Количество по позиции акта списания не может быть отрицательным';
+
 CONSTRAINT (SETCHANGED(overQuantity(ActWriteOffPosition d)) OR SETCHANGED(f2Reg(d))) AND overQuantity(d) AND currentBalance(f2Reg(d)) < overQuantity(d)
     MESSAGE 'Количество не должно превышать остаток по справке Б';
+
+CONSTRAINT CHANGED(quantity(ActWriteOffPosition p)) AND quantity(p) AND NOT overQuantity(p) == quantity(p)
+    MESSAGE 'Количество кодов маркировки не соответствует количеству по позиции акта';
 
 CONSTRAINT (SETCHANGED(posted(ActWriteOff d)) OR SETCHANGED(canceled(d))) AND posted(d) AND canceled(d)
     MESSAGE 'Документ не может быть проведен и отклонен одновременно';

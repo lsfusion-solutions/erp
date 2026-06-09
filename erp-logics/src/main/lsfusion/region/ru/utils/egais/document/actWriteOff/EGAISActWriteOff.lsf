@@ -98,6 +98,15 @@ minActWriteOffPosition (ActWriteOff w) = GROUP MIN ActWriteOffPosition p BY actW
 
 readonlyDescriptionClient = ABSTRACT BOOLEAN ();
 
+hideAddPosition = ABSTRACT BOOLEAN (ActWriteOff);
+hideDeletePosition = ABSTRACT BOOLEAN (ActWriteOffPosition);
+
+addPosition 'Добавить' (ActWriteOff a)  {
+    NEW p = ActWriteOffPosition {
+        actWriteOff(p) <- a;
+    }
+} IMAGE 'add.png' TOOLBAR;
+
 delete 'Удалить' (ActWriteOffPosition p)  {
     DELETE ActWriteOffMark m WHERE p == actWriteOffPosition(m);
     DELETE p;
@@ -111,8 +120,10 @@ FORM actWriteOff 'Акт о списании с баланса ЕГАИС'
 
     OBJECTS p = ActWriteOffPosition
     PROPERTIES(p) idProduct, fullNameProduct, idF2Reg, overQuantity ON CHANGE changeOverQuantity(p) READONLYIF skipDataQuantity(p), sumSale,
-        NEW, delete LAST 
+        delete SHOWIF NOT hideDeletePosition(p) LAST
     FILTERS actWriteOff(p) = w
+
+    PROPERTIES(w) addPosition DRAW p BEFORE delete(p) SHOWIF NOT hideAddPosition(w)
 
     OBJECTS m = ActWriteOffMark
     PROPERTIES(m) idMarkCode

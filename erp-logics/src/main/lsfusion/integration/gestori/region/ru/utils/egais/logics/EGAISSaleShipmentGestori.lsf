@@ -1,14 +1,19 @@
 MODULE EGAISSaleShipmentGestori;
 
-REQUIRE EGAISSaleShipment, SkuLedgerLotGestori, EGAISWayBillGestory, SaleInvoiceTerminal;
+REQUIRE EGAISSaleShipment, SkuLedgerLotGestori, EGAISWayBillGestory, SaleInvoiceTerminal, EGAISSkuLedgerLot;
 
 PRIORITY Sale;
 
 NAMESPACE EGAISSale;
 
-CONSTRAINT CHANGED(quantity(UserShipmentDetail d, Lot l)) AND d IS UserShipmentDetail AND l IS Lot AND 
+CONSTRAINT CHANGED(quantity(UserShipmentDetail d, Lot l)) AND d IS UserShipmentDetail AND l IS Lot AND
     availableQuantity(l, supplierStock(d)) < 0
     MESSAGE 'Неверное количество доступного остатка марок';
+
+//Проверка баланса ЕГАИС: запрет добавления в накладную марки, отсутствующей на балансе ЕГАИС
+CONSTRAINT SETCHANGED(quantity(UserShipmentDetail d, Lot l)) AND lotType(sku(d))
+    AND markCode(id(l)) AND NOT currentBalance(markCode(id(l))) > 0
+    MESSAGE 'Код маркировки ЕГАИС отсутствует на балансе';
 
 @defineOriginalLastDocumentWayBillAttributes(Sale, Invoice);
 @defineOriginalLastDocumentWayBillAttributes(Sale, Invoice, supplierStock);
