@@ -36,20 +36,35 @@ FORM actFixBarCodeOutDoc FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:A
 
 @defineDocumentOutProcess(actFixBarCode, tabbedPane);
 
+overShowProcess (ActFixBarCode a) += TRUE IF errorPost(a);
+
+overProcess(ActFixBarCode t) + {
+    canceled(t) <- NULL;
+    errorPost(t) <- NULL;
+    hasRequestPosted(t) <- TRUE;
+}
+
 // ticket
 
 @defineOutDocTicket(actFixBarCode, d, tabbedPane);
 
 processActFixBarCodeTicket ABSTRACT (Client, TEXT);
+afterProcessActFixBarCodeTicketAccepted ABSTRACT LIST (Ticket);
 process (Ticket t) + {
     IF docType(t) = 'ActFixBarCode' THEN {
         IF operationName(t) = 'Confirm' AND operationResult(t) = 'Accepted' THEN {
+            regId(actFixBarCode(outDoc(t))) <- regId(t);
             posted(actFixBarCode(outDoc(t))) <- TRUE;
+            errorPost(actFixBarCode(outDoc(t))) <- NULL;
+            hasRequestPosted(actFixBarCode(outDoc(t))) <- NULL;
         }
         IF operationName(t) = 'Confirm' AND operationResult(t) = 'Rejected' THEN {
-            IF utm(outDoc(t)) = utm(inDoc(t)) THEN
+            IF utm(outDoc(t)) = utm(inDoc(t)) THEN {
                 canceled(actFixBarCode(outDoc(t))) <- TRUE;
-            ELSE { // кто-то списал марки
+                errorPost(actFixBarCode(outDoc(t))) <- TRUE;
+                hasRequestPosted(actFixBarCode(outDoc(t))) <- NULL;
+                afterProcessActFixBarCodeTicketAccepted(t);
+            } ELSE { // кто-то списал марки
                 processActFixBarCodeTicket(firstClient(utm(inDoc(t))), operationComment(t));
             }
         }

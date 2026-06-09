@@ -1,0 +1,39 @@
+MODULE EGAISActFixBarCodeStatus;
+
+REQUIRE EGAISActFixBarCode;
+
+NAMESPACE EGAIS;
+
+// status
+CLASS ActFixBarCodeStatus 'Статус акта фиксации штрихкодов ЕГАИС' {
+    posted 'Проведен',
+    canceled 'Отменен',
+    requestPosted 'Запрос на проведение',
+    errorRequest 'Ошибка проведения'
+}
+name 'Наименование' (ActFixBarCodeStatus s) = staticCaption(s) CHARWIDTH 15;
+
+FORM dialogActFixBarCodeStatus 'Статус акта фиксации штрихкодов ЕГАИС'
+    OBJECTS s = ActFixBarCodeStatus
+    PROPERTIES(s) READONLY name
+
+    LIST ActFixBarCodeStatus OBJECT s
+;
+
+status = ABSTRACT CASE ActFixBarCodeStatus (ActFixBarCode) MATERIALIZED INDEXED;
+nameStatus 'Статус' (ActFixBarCode a) = name(status(a));
+
+EXTEND FORM actFixBarCodes
+    PROPERTIES(d) READONLY nameStatus FIRST
+
+    FILTERGROUP status
+        FILTER 'Проведен' status(d) = ActFixBarCodeStatus.posted
+        FILTER 'Отменен' status(d) = ActFixBarCodeStatus.canceled
+        FILTER 'Запрос на проведение' status(d) = ActFixBarCodeStatus.requestPosted
+        FILTER 'Ошибка проведения' status(d) = ActFixBarCodeStatus.errorRequest
+;
+
+status(ActFixBarCode a) += WHEN posted(a) THEN ActFixBarCodeStatus.posted;
+status(ActFixBarCode a) += WHEN canceled(a) THEN ActFixBarCodeStatus.canceled;
+status(ActFixBarCode a) += WHEN hasRequestPosted(a) THEN ActFixBarCodeStatus.requestPosted;
+status(ActFixBarCode a) += WHEN errorPost(a) THEN ActFixBarCodeStatus.errorRequest;

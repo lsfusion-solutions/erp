@@ -1,0 +1,32 @@
+MODULE EGAISActFixBarCodeLotInitGestori;
+
+REQUIRE EGAISActFixBarCodeExchangeGestori, EGAISLotInitGestori, EGAISItem;
+
+NAMESPACE EGAIS;
+
+countLotInits (ActFixBarCode a) = GROUP SUM 1 IF actFixBarCode(LotInit l) BY actFixBarCode(l);
+
+overCreateActFixBarCodeLotInit ABSTRACT LIST (ActFixBarCode, LotInit);
+afterProcessActFixBarCodeTicketAccepted(Ticket t) + {
+    IF NOT countLotInits(actFixBarCode(outDoc(t))) THEN FOR ActFixBarCode a = actFixBarCode(outDoc(t)) NEW l = LotInit DO {
+        actFixBarCode(l) <- a;
+        isPosted(l) <- TRUE;
+        number(l) <- STRING[48](number(a));
+        date(l) <- date(a);
+        time(l) <- time(a);
+        type(l) <- LotType.alcohol;
+        stock(l) <- stock(client(a));
+        note(l) <- STRING[500](note(a));
+
+        overCreateActFixBarCodeLotInit(a, l);
+        
+        FOR actFixBarCode(ActFixBarCodePosition p) == a NEW d = LotInitDetail DO {
+            sku(d) <- minItem(product(p));
+            quantity(d) <- countMarkCodes(p);
+            FOR actFixBarCodePosition(ActFixBarCodeMark m) == p AND lot(markCode(m)) DO {
+                quantity(d, lot(markCode(m))) <- 1;
+                f2Reg(d, lot(markCode(m))) <- f2Reg(p);
+            }
+        }
+    }
+}

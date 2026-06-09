@@ -1,0 +1,28 @@
+MODULE EGAISActUnFixBarCodeLotInitGestori;
+
+REQUIRE EGAISActUnFixBarCodeExchangeGestori, EGAISLotInitGestori, EGAISItem;
+
+NAMESPACE EGAIS;
+
+overCreateActUnFixBarCodeLotInit ABSTRACT LIST (ActUnFixBarCode, LotInit);
+afterProcessActUnFixBarCodeTicketAccepted(Ticket t) + {
+    FOR ActUnFixBarCode a = actUnFixBarCode(outDoc(t)) NEW l = LotInit DO {
+        isPosted(l) <- TRUE;
+        number(l) <- STRING[48](number(a));
+        date(l) <- date(a);
+        time(l) <- time(a);
+        type(l) <- LotType.alcohol;
+        stock(l) <- stock(client(a));
+        note(l) <- STRING[500](note(a));
+
+        overCreateActUnFixBarCodeLotInit(a, l);
+        
+        FOR actUnFixBarCode(ActUnFixBarCodePosition p) == a NEW d = LotInitDetail DO {
+            sku(d) <- minItem(product(p));
+            quantity(d) <- countMarkCodes(p);
+            FOR actUnFixBarCodePosition(ActUnFixBarCodeMark m) == p AND lot(markCode(m)) DO {
+                quantity(d, lot(markCode(m))) <- -1;
+            }
+        }
+    }
+}

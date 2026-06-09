@@ -5,8 +5,9 @@ REQUIRE EGAISClient, EGAISFReg, EGAISMarkCode;
 CLASS ActFixBarCode 'Акт фиксации штрихкодов на балансе ЕГАИС';
 
 posted 'Проведен' = DATA BOOLEAN (ActFixBarCode);
-
 canceled 'Отменен' = DATA BOOLEAN (ActFixBarCode);
+errorPost 'Ошибка при проведении' = DATA BOOLEAN (ActFixBarCode);
+hasRequestPosted 'Запрос на проведение' = DATA BOOLEAN (ActFixBarCode);
 
 number 'Номер' = DATA STRING (ActFixBarCode) IN id;
 number(ActFixBarCode a) <- STRING(a) WHEN SET(a IS ActFixBarCode);
@@ -15,7 +16,7 @@ dateTime 'Дата и время' = DATA DATETIME (ActFixBarCode) IN id;
 dateTime(ActFixBarCode a) <- currentDateTime() WHEN SET(a IS ActFixBarCode);
 
 date 'Дата' (ActFixBarCode a) = DATE(dateTime(a));
-
+time 'Время' (ActFixBarCode a) = TIME(dateTime(a));
 numberDate (ActFixBarCode w) = CONCAT ' от ', number(w), toDateDDMMYY(dateTime(w));
 
 // transport
@@ -25,6 +26,8 @@ shortNameClient 'Организация' (ActFixBarCode w) = shortName(client(w)
 descriptionClient 'Описание организации' (ActFixBarCode w) = description(client(w)) IN id;
 
 note 'Примечание' = DATA STRING (ActFixBarCode);
+
+regId 'Рег. номер' = DATA STRING (ActFixBarCode);
 
 // position
 
@@ -89,8 +92,8 @@ readonlyDescriptionClientActFixBarCode = ABSTRACT BOOLEAN ();
 
 FORM actFixBarCode 'Акт фиксации штрихкодов на балансе ЕГАИС'
     OBJECTS w = ActFixBarCode PANEL
-    PROPERTIES(w) posted, canceled, number, dateTime,
-                  shortNameClient, descriptionClient READONLYIF readonlyDescriptionClientActFixBarCode(), note
+    PROPERTIES(w) posted, canceled, errorPost, number, dateTime, regId,
+        shortNameClient, descriptionClient READONLYIF readonlyDescriptionClientActFixBarCode(), note
 
     OBJECTS p = ActFixBarCodePosition
     PROPERTIES(p) idProduct, fullNameProduct, idF2Reg, countMarkCodes,
@@ -120,7 +123,7 @@ hideDelete = ABSTRACT VALUE BOOLEAN (ActFixBarCode);
 
 FORM actFixBarCodes 'Фиксация штрихкодов на баланс'
     OBJECTS d = ActFixBarCode
-    PROPERTIES(d) READONLY posted, canceled, number, dateTime,
+    PROPERTIES(d) READONLY posted, canceled, errorPost, number, dateTime, regId,    
                            shortNameClient, descriptionClient, note
     PROPERTIES(d) NEWSESSION NEW, EDIT SHOWIF NOT hideEdit(d),
         DELETE SHOWIF NOT hideDelete(d)

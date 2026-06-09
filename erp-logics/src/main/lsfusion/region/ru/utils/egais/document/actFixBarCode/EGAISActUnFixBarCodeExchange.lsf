@@ -36,19 +36,34 @@ FORM actUnFixBarCodeOutDoc FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01
 
 @defineDocumentOutProcess(actUnFixBarCode, tabbedPane);
 
+overShowProcess (ActUnFixBarCode a) += TRUE IF errorPost(a);
+
+overProcess(ActUnFixBarCode t) + {
+    canceled(t) <- NULL;
+    errorPost(t) <- NULL;
+    hasRequestPosted(t) <- TRUE;
+}
+
 // ticket
 
 @defineOutDocTicket(actUnFixBarCode, d, tabbedPane);
 
 processActUnFixBarCodeTicket ABSTRACT (Client, TEXT);
+afterProcessActUnFixBarCodeTicketAccepted ABSTRACT LIST (Ticket);
 process (Ticket t) + {
     IF docType(t) = 'ActUnFixBarCode' THEN {
         IF operationName(t) = 'Confirm' AND operationResult(t) = 'Accepted' THEN {
+            regId(actUnFixBarCode(outDoc(t))) <- regId(t);
             posted(actUnFixBarCode(outDoc(t))) <- TRUE;
+            errorPost(actUnFixBarCode(outDoc(t))) <- NULL;
+            hasRequestPosted(actUnFixBarCode(outDoc(t))) <- NULL;
+            afterProcessActUnFixBarCodeTicketAccepted(t);
         }
         IF operationName(t) = 'Confirm' AND operationResult(t) = 'Rejected' THEN {
             IF utm(outDoc(t)) = utm(inDoc(t)) THEN {
                 canceled(actUnFixBarCode(outDoc(t))) <- TRUE;
+                errorPost(actUnFixBarCode(outDoc(t))) <- TRUE;
+                hasRequestPosted(actUnFixBarCode(outDoc(t))) <- NULL;
             }
         }
         processed() <- TRUE;
