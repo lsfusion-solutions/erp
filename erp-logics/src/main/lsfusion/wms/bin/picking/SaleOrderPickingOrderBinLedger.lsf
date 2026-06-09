@@ -18,14 +18,6 @@ diffPickingQuantity(Order order, Batch batch, Bin bin) = orderedQuantity(order, 
 
 diffPickingQuantity(Order order, Batch batch) = GROUP SUM diffPickingQuantity(order, batch, Bin bin);
 
-namePlannedStatus 'Статус планирования комплектаций' = ABSTRACT VALUE OVERRIDE FIRST STRING (Order) CHARWIDTH 20;
-namePlannedStatus(Order order) +=
-    (CASE WHEN order IS Order AND (GROUP SUM plannedPickingQuantity(order, Sku sku)) AND (GROUP SUM diffPlannedPickingQuantity(order, Sku sku)) 
-            THEN 'Частично спланированы'
-         WHEN order IS Order AND (GROUP SUM plannedPickingQuantity(order, Sku sku)) AND NOT (GROUP SUM diffPlannedPickingQuantity(order, Sku sku)) 
-            THEN 'Cпланированы'
-    ELSE 'Не спланированы');
-
 EXTEND FORM orders
     PROPERTIES(o) READONLY PANEL namePerformer, startDateTime, finishDateTime, packQuantity
     PROPERTIES(o) READONLY BEFORE countOrderDetail(o) namePlannedStatus, nameStatusPicking BACKGROUND backgroundStatusPicking(o),

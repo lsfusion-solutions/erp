@@ -4,13 +4,6 @@ REQUIRE SaleOrderPickingOrderBinLedger, BatchBinLedger, PickingOrderBatchBinLedg
 
 NAMESPACE Sale;
 
-namePlannedStatus(Order order) +=
-    (CASE WHEN order IS Order AND (GROUP SUM plannedPickingQuantity(order, Batch bt)) AND (GROUP SUM diffPlannedPickingQuantity(order, Batch bt)) 
-            THEN 'Частично спланированы'
-        WHEN order IS Order  AND (GROUP SUM plannedPickingQuantity(order, Batch bt)) AND NOT (GROUP SUM diffPlannedPickingQuantity(order, Batch bt)) 
-            THEN 'Cпланированы'
-        ELSE 'Не спланированы');
-
 plannedPickingQuantity 'Планируемое к комплектации кол-во' = DATA LOCAL NUMERIC[16,5] (Order, Batch, Bin);
 plannedPickingQuantityBatch 'Планируемое к комплектации кол-во' = GROUP SUM plannedPickingQuantity(Order order, Batch batch, Bin bin) BY order, idPickingGroup(sku(batch));
 orderPlannedPickingQuantity (Order order, Batch batch, Bin bin) = PARTITION SUM 1 IF plannedPickingQuantity(order, batch, bin) ORDER order(bin), bin, batch BY order, idPickingGroup(sku(batch));

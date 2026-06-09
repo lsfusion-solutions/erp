@@ -127,3 +127,25 @@ DESIGN options {
 overCopy(Item item,Item i) + {
     pickingGroup(i) <- pickingGroup(item);
 }
+
+namePlannedStatus 'Статус планирования комплектаций' = ABSTRACT VALUE OVERRIDE FIRST STRING (Order) CHARWIDTH 20;
+
+//по товару
+plannedPickingSku 'Спланировано к комплектации (по заказу)' (Order.Order order) = GROUP SUM plannedPickingQuantity(order, Sku sku) MATERIALIZED;
+diffPlannedPickingSku 'Расхождение планирования (по заказу)' (Order.Order order) = GROUP SUM diffPlannedPickingQuantity(order, Sku sku) MATERIALIZED;
+namePlannedStatus(Order order) +=
+    (CASE WHEN order IS Order AND plannedPickingSku(order) AND diffPlannedPickingSku(order)
+            THEN 'Частично спланированы'
+        WHEN order IS Order AND plannedPickingSku(order) AND NOT diffPlannedPickingSku(order)
+            THEN 'Cпланированы'
+    ELSE 'Не спланированы');
+
+//по партиям
+plannedPickingBatch 'Спланировано к комплектации (по заказу)' (Order.Order order) = GROUP SUM plannedPickingQuantity(order, Batch bt) MATERIALIZED;
+diffPlannedPickingBatch 'Расхождение планирования (по заказу)' (Order.Order order) = GROUP SUM diffPlannedPickingQuantity(order, Batch bt) MATERIALIZED;
+namePlannedStatus(Order order) +=
+    (CASE WHEN order IS Order AND plannedPickingBatch(order) AND diffPlannedPickingBatch(order)
+            THEN 'Частично спланированы'
+        WHEN order IS Order  AND plannedPickingBatch(order) AND NOT diffPlannedPickingBatch(order)
+            THEN 'Cпланированы'
+    ELSE 'Не спланированы');
