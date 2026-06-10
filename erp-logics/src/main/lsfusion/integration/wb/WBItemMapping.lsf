@@ -13,6 +13,12 @@ nameMappingType 'Тип связи с ERP' (Item i) = caption(mappingType(i));
 
 item = DATA Item.Item (Size);
 nameItem 'Товар ERP' (Size s) = nameAttribute(item(s));
+
+// После импорта карточек WB пробуем сматчить размеры с товарами ERP по их штрихкодам.
+onAfterPostItems () + {
+    FOR Size s == size(Barcode b) AND id(b) AND NOT item(s) AND skuBarcode(STRING[15](id(b))) DO
+        item(s) <- skuBarcode(STRING[15](id(b)));
+}
 nameItems 'Товары ERP'  = GROUP CONCAT nameItem(Size s), '; ' ORDER nameItem(s), s BY itemWB(s) CHARWIDTH 40;
 
 urlImageItem 'Url изображения товара ERP' = ABSTRACT STRING (Item.Item);
