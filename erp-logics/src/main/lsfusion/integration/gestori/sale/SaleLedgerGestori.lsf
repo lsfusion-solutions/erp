@@ -1168,12 +1168,12 @@ cMargin 'Маржинальный доход' (Sku s, Stock st) = cSalesSum(s, s
 cProfitability 'Рентабельность %' (Sku s, Stock st) =
     NUMERIC[18,2](round2(cMargin(s, st) * 100.0 / cSalesSum(s, st))) IF cSalesSum(s, st) != 0;
 
-cTurnoverBaseSales (Sku s, Stock st) = CASE
+cTurnoverBaseSales 'База продаж (оборачиваемость)' (Sku s, Stock st) = CASE
     WHEN cmpCriterionRunDefault() = CmpTurnoverCriterion.quantity THEN cSalesQty(s, st)
     WHEN cmpCriterionRunDefault() = CmpTurnoverCriterion.account THEN cSalesCost(s, st)
     WHEN cmpCriterionRunDefault() = CmpTurnoverCriterion.retail THEN cSalesSum(s, st);
 
-cTurnoverBaseRest (Sku s, Stock st) = CASE
+cTurnoverBaseRest 'База остатков (оборачиваемость)' (Sku s, Stock st) = CASE
     WHEN cmpCriterionRunDefault() = CmpTurnoverCriterion.quantity THEN cAvgRestQty(s, st)
     WHEN cmpCriterionRunDefault() = CmpTurnoverCriterion.account THEN cAvgStockSum(s, st)
     WHEN cmpCriterionRunDefault() = CmpTurnoverCriterion.retail THEN cAvgRestRetail(s, st);
@@ -1220,12 +1220,12 @@ pMargin 'Маржинальный доход пред.' (Sku s, Stock st) = pSal
 pProfitability 'Рентабельность пред. %' (Sku s, Stock st) =
     NUMERIC[18,2](round2(pMargin(s, st) * 100.0 / pSalesSum(s, st))) IF pSalesSum(s, st) != 0;
 
-pTurnoverBaseSales (Sku s, Stock st) = CASE
+pTurnoverBaseSales 'База продаж пред. (оборачиваемость)' (Sku s, Stock st) = CASE
     WHEN cmpCriterionRunDefault() = CmpTurnoverCriterion.quantity THEN pSalesQty(s, st)
     WHEN cmpCriterionRunDefault() = CmpTurnoverCriterion.account THEN pSalesCost(s, st)
     WHEN cmpCriterionRunDefault() = CmpTurnoverCriterion.retail THEN pSalesSum(s, st);
 
-pTurnoverBaseRest (Sku s, Stock st) = CASE
+pTurnoverBaseRest 'База остатков пред. (оборачиваемость)' (Sku s, Stock st) = CASE
     WHEN cmpCriterionRunDefault() = CmpTurnoverCriterion.quantity THEN pAvgRestQty(s, st)
     WHEN cmpCriterionRunDefault() = CmpTurnoverCriterion.account THEN pAvgStockSum(s, st)
     WHEN cmpCriterionRunDefault() = CmpTurnoverCriterion.retail THEN pAvgRestRetail(s, st);
@@ -1245,7 +1245,7 @@ diffSalesSum 'Продажи (прод.ц.) %' (Sku s, Stock st) = cmpDiffPercen
 diffSalesCost 'Продажи (учет.ц.) %' (Sku s, Stock st) = cmpDiffPercent(cSalesCost(s, st), pSalesCost(s, st));
 diffAvgStock 'Сред. остаток %' (Sku s, Stock st) = cmpDiffPercent(cAvgStockSum(s, st), pAvgStockSum(s, st));
 diffMargin 'Марж. доход %' (Sku s, Stock st) = cmpDiffPercent(cMargin(s, st), pMargin(s, st));
-diffProfitability 'Рентабельность (+/- %)' (Sku s, Stock st) = cProfitability(s, st) (-) pProfitability(s, st);
+diffProfitability 'Рентабельность %' (Sku s, Stock st) = cmpDiffPercent(cProfitability(s, st), pProfitability(s, st));
 
 cmpHasData(Sku s, Stock st) = cmpRowFilter(s, st) AND (
     cSalesSum(s, st) OR cSalesCost(s, st) OR cSalesQty(s, st) OR
@@ -1299,6 +1299,9 @@ FORM comparativeTurnoverReport 'Сравнительный анализ обор
 
     PROPERTIES(s, st) READONLY BACKGROUND RGB(245, 255, 245)
     diffTurnover, diffSalesSum, diffSalesCost, diffAvgStock, diffMargin, diffProfitability
+
+    PROPERTIES(s, st) READONLY SHOWIF NULL
+    cTurnoverBaseRest, cTurnoverBaseSales, pTurnoverBaseRest, pTurnoverBaseSales
 
     FILTERS cmpHasData(s, st)
     ORDERS name(st), idSkuGroup2(s), idSkuGroup3(s), idSkuGroup4(s), name(s)
