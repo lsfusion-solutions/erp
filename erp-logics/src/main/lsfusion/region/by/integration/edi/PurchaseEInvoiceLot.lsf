@@ -4,22 +4,49 @@ REQUIRE PurchaseEInvoice, PurchaseShipmentLot, LotAggregate;
 
 NAMESPACE Purchase;
 
+skipOverCopyBeforeDetail  = DATA BOOLEAN () PREREAD; // Если что-то пойдет не так, чтобы можно было быстро вернуть
+
+overCopyBeforeDetail (Purchase.UserInvoice i) + {
+    IF NOT skipOverCopyBeforeDetail() THEN {
+        FOR EInvoice ei == eInvoice(i) DO {
+            FOR EInvoiceDetail eid == [GROUP MAX eInvoiceDetail(EInvoiceLotDetail dd) IF NOT ignoreDetail(eInvoiceDetail(dd))
+                BY eInvoice(eInvoiceDetail(dd)), idParent(dd)](ei, STRING[200] str) AND NOT (OVERRIDE lot(barcodeToId(str)), lot(str)) NEW l = Lot DO {
+                    id(l) <- barcodeToId(str);
+                    tail(l) <- barcodeToTail(str);
+                    sku(l) <- sku(eid);
+                    aggregated(l) <- TRUE;
+            }
+            FOR EInvoiceDetail eid == [GROUP MAX eInvoiceDetail(EInvoiceLotDetail dd) IF NOT ignoreDetail(eInvoiceDetail(dd))
+                BY eInvoice(eInvoiceDetail(dd)), id(dd)](ei, STRING[200] str) AND NOT (OVERRIDE lot(barcodeToId(str)), lot(str)) NEW l = Lot DO {
+                    id(l) <- barcodeToId(str);
+                    tail(l) <- barcodeToTail(str);
+                    sku(l) <- sku(eid);
+            }
+
+            FOR eInvoice(eInvoiceDetail(EInvoiceLotDetail dd)) == ei AND NOT ignoreDetail(eInvoiceDetail(dd)) AND idParent(dd) AND Lot l == (OVERRIDE lot(barcodeToId(id(dd))), lot(id(dd))) DO {
+                parent(l) <- OVERRIDE lot(barcodeToId(idParent(dd))), lot(idParent(dd));
+            }
+        }
+    }
+}
+
 overCopy(EInvoiceDetail eid, UserInvoiceDetail id) + {
-    FOR [GROUP SUM 1 BY eInvoiceDetail(EInvoiceLotDetail dd), idParent(dd)](eid, STRING[200] str) AND NOT lot(str) NEW l = Lot DO {
-        id(l) <- str;
-        sku(l) <- sku(id);
-        aggregated(l) <- TRUE;
-    }
-    
-    FOR EInvoiceLotDetail el == [GROUP MAX EInvoiceLotDetail dd BY eInvoiceDetail(dd), id(dd)](eid, STRING[200] str) AND NOT lot(barcodeToId(str)) AND NOT lot(str) NEW l = Lot DO {
-        id(l) <- barcodeToId(str);
-        tail(l) <- barcodeToTail(str);
-        sku(l) <- sku(id);
-    }
-    
-    FOR eInvoiceDetail(EInvoiceLotDetail dd) == eid AND idParent(dd) AND Lot l == OVERRIDE lot(id(dd)), lot(barcodeToId(id(dd))) DO {
-        parent(l) <- lot(idParent(dd));
-    }  
-    
+    IF skipOverCopyBeforeDetail() THEN {
+        FOR [GROUP SUM 1 BY eInvoiceDetail(EInvoiceLotDetail dd), idParent(dd)](eid, STRING[200] str) AND NOT lot(str) NEW l = Lot DO {
+            id(l) <- str;
+            sku(l) <- sku(id);
+            aggregated(l) <- TRUE;
+        }
+
+        FOR EInvoiceLotDetail el == [GROUP MAX EInvoiceLotDetail dd BY eInvoiceDetail(dd), id(dd)](eid, STRING[200] str) AND NOT lot(barcodeToId(str)) AND NOT lot(str) NEW l = Lot DO {
+            id(l) <- barcodeToId(str);
+            tail(l) <- barcodeToTail(str);
+            sku(l) <- sku(id);
+        }
+
+        FOR eInvoiceDetail(EInvoiceLotDetail dd) == eid AND idParent(dd) AND Lot l == OVERRIDE lot(id(dd)), lot(barcodeToId(id(dd))) DO {
+            parent(l) <- lot(idParent(dd));
+        }
+    }    
     quantity(id, Lot l) <- (GROUP SUM 1 IF eInvoiceDetail(EInvoiceLotDetail dd) == eid AND id(l) == barcodeToId(id(dd)) AND NOT aggregated(l));
 }

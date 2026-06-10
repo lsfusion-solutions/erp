@@ -68,6 +68,7 @@ DESIGN selectEInvoice {
 }
 
 overCopy ABSTRACT LIST ( EInvoice, UserInvoice);
+overCopyBeforeDetail ABSTRACT LIST (UserInvoice);
 overCopy  ABSTRACT LIST ( EInvoiceDetail, UserInvoiceDetail);
 ignoreDetail = ABSTRACT BOOLEAN (EInvoiceDetail);
 afterCopy ABSTRACT LIST ( EInvoice, UserInvoice);
@@ -88,7 +89,7 @@ copyData(EInvoice ei, Invoice i)  {
     FOR eInvoice(EInvoiceDetail eid) == eInvoice(i) AND NOT sku(eid) DO {
         sku(eid) <- OVERRIDE sku(lineItemBuyerID(eid)), skuGTIN(lineItemID(eid)), skuGTIN(ltrim(lineItemID(eid), '0')), sku(lineItemID(eid));
     }
-    
+    overCopyBeforeDetail(i);
     FOR eInvoice(EInvoiceDetail eid) == eInvoice(i) AND NOT ignoreDetail(eid) INLINE NEW id = UserInvoiceDetail DO {
         userInvoice(id) <- i;
         sku(id) <- sku(eid);
