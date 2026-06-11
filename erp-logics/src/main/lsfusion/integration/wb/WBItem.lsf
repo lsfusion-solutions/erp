@@ -14,6 +14,14 @@ imtID 'Внутренний код WB' = DATA INTEGER (Item);
 name 'Наименование' = DATA STRING (Item) NONULL IN id;
 description 'Описание' = DATA STRING (Item);
 unitName 'Ед.измерения' = DATA STRING (Item);
+
+// Чистка значений для выгрузки в WB:
+// 1) убираем запрещённые символы (эмодзи и пиктограммы из BMP-диапазонов U+2600..U+27BF, U+2B00..U+2BFF,
+//    селекторы вариаций U+FE00..U+FE0F, ZWJ U+200D и весь SMP-диапазон пиктограмм U+1F000..U+1FFFF)
+// 2) обрезаем длину наименования до 60 символов (WB режет по категориям; 60 — безопасный минимум)
+removeForbiddenCharsWB = FORMULA STRING 'regexp_replace($1, E\'[\\u2600-\\u27BF\\u2B00-\\u2BFF\\uFE00-\\uFE0F\\u200D\\U0001F000-\\U0001FFFF]\', \'\', \'g\')';
+nameForWB 'Наименование (для WB)' (Item i) = left(name(i), 60);
+descriptionForWB 'Описание (для WB)' (Item i) = removeForbiddenCharsWB(description(i));
 itemSubGroup = DATA ItemSubGroup (Item) NONULL DELETE;
 nameItemSubGroup 'Предмет' (Item i) = name(itemSubGroup(i));
 nameItemGroup 'Категория' (Item i) = name(itemGroup(itemSubGroup(i)));
@@ -21,6 +29,18 @@ idItemGroup 'Код категории' (Item i) = id(itemGroup(itemSubGroup(i))
 freeItemLimits 'Бесплатный лимит' = DATA STRING ();
 paidItemLimits 'Платный лимит' = DATA STRING ();
 isTrash 'В корзине' = DATA BOOLEAN (Item);
+isDeleted 'Удалён в ERP' = DATA BOOLEAN (Item);
+
+deleteItem 'Удалить товар из ERP' (Item item) {
+    isDeleted(item) <- TRUE;
+    APPLY;
+}
+
+restoreItem 'Восстановить' (Item item) {
+    isDeleted(item) <- NULL;
+    APPLY;
+}
+
 error 'Ошибка при запросе' = DATA BOOLEAN (Item);
 errorText 'Текст ошибки' = DATA TEXT (Item);
 connected 'Объединенная' (Item i) = [GROUP SUM 1 BY imtID(Item item)](imtID(i)) > 1;
@@ -1368,7 +1388,7 @@ GROUP sort : settings;
 GROUP filter : settings;
 
 FORM settingInfo
-    PROPERTIES() IN cursor2 limit , trashedAt, nmID
+    PROPERTIES() IN cursor2 limit, trashedAt, nmID, updatedAt
     PROPERTIES() IN sort ascending
     PROPERTIES() IN filter withPhoto
 ;
@@ -1779,15 +1799,15 @@ EXTEND FORM masterData
     PROPERTIES(item) READONLYIF isReadonly() connected, id, name
     PROPERTIES(item) READONLY nmID, imtID
     PROPERTIES(item) READONLYIF isReadonly() nameItemGroup, nameItemSubGroup
-    PROPERTIES(item) NEWSESSION newItem 'Добавить товар в ERP' = NEW, editItem 'Редактировать товар в ERP'= EDIT,
-        deleteItem 'Удалить товар из ERP' = DELETE
+    PROPERTIES(item) NEWSESSION newItem 'Добавить товар в ERP' = NEW, editItem 'Редактировать товар в ERP'= EDIT
+    PROPERTIES(item) DRAW item TOOLBAR deleteItem SHOWIF NOT isDeleted(item), restoreItem SHOWIF isDeleted(item)
     ORDERS name(item)
     FILTERS isParent(g, item) OR (item IS Item AND g IS Group AND NOT itemSubGroup(item)) OR (item IS Item AND NOT g)
-        
+
     FILTERGROUP filterItems
-        FILTER 'Товары в корзине' isTrash(item)
-        FILTER 'Товары не в корзине' NOT isTrash(item)
-        FILTER 'Все товары' isTrash(item) OR NOT isTrash(item)
+        FILTER 'Активные' NOT isTrash(item) AND NOT isDeleted(item) DEFAULT
+        FILTER 'В корзине WB' isTrash(item) AND NOT isDeleted(item)
+        FILTER 'Удалённые в ERP' isDeleted(item)
 
     OBJECTS i = Item
     PROPERTIES(i) READONLYIF isReadonly() isTrash
@@ -1795,7 +1815,8 @@ EXTEND FORM masterData
     PROPERTIES(i) READONLY nmID, imtID
     PROPERTIES(i) READONLYIF isReadonly() nameItemGroup, nameItemSubGroup
     FILTERS imtID(item) == imtID(i),
-        i != item
+        i != item,
+        NOT isDeleted(i)
 
     OBJECTS attr = Attribute
     PROPERTIES(attr) READONLY id, name, nameClass
@@ -1883,9 +1904,9 @@ FORM uploadItems
     FILTERS in(item), itemSubGroup(item) == g
     
     OBJECTS i = Item EXTID 'variants'
-    PROPERTIES(i) id EXTID 'vendorCode', 
-                  name EXTID 'title',
-                  description EXTID 'description'
+    PROPERTIES(i) id EXTID 'vendorCode',
+                  nameForWB EXTID 'title',
+                  descriptionForWB EXTID 'description'
     PROPERTIES nameBrand = idValue(i, GROUP MAX Attribute a IF a IS AttributeBrand) EXTID 'brand'
     PROPERTIES(i) IN dimensions1 length EXTID 'length',
                                  width EXTID 'width',
@@ -1920,7 +1941,7 @@ uploadItems 'Создание новых карточек' () {
         LOCAL errorText = STRING ();
         LOCAL status = STRING ();
         LOCAL isNew = BOOLEAN (Item);
-        isNew(Item item) <- TRUE WHERE id(item) AND NOT (nmID(item) OR imtID(item));
+        isNew(Item item) <- TRUE WHERE id(item) AND NOT (nmID(item) OR imtID(item)) AND NOT isDeleted(item);
 
         IF (GROUP SUM 1 IF isNew(Item item)) THEN {
             logToFile('WB', 'POST: ' +url(CategoryRequest.content) + '/content/v2/cards/upload');
@@ -1931,8 +1952,15 @@ uploadItems 'Создание новых карточек' () {
             LOCAL exported = INTEGER ();
             exported() <- 0;
 
+            // WB rate-limit: /cards/upload ~10 req/min. 7s паузы держит нас внутри окна.
+            // На не-200 батч не сдвигаем (повтор через WHILE), счётчик ограничивает зацикливание на постоянной 400.
+            LOCAL retries = INTEGER ();
+            retries() <- 0;
+            LOCAL anySuccess = BOOLEAN ();
+
             WHILE exported() < (GROUP MAX index(Item i)) DO {
-                
+                sleep(7000);
+
                 in(Item i) <- TRUE WHERE index(i) > exported() AND index(i) <= exported() + uploadItemsLimit();
                 EXPORT uploadItems FILTERS index(i) > exported() AND index(i) <= exported() + uploadItemsLimit() JSON;
                 in(Item i) <- NULL;
@@ -1963,12 +1991,23 @@ uploadItems 'Создание новых карточек' () {
                     status200() <- TRUE IF statusHttp() == 200;
                     APPLY NESTED LOCAL;
                     IF status200() THEN {
-                        checkErrors();
-                        postItems();
+                        anySuccess() <- TRUE;
+                        exported() <- exported() + uploadItemsLimit();
+                        retries() <- 0;
+                    } ELSE {
+                        retries() <- retries() + 1;
+                        IF retries() >= 3 THEN {
+                            exported() <- exported() + uploadItemsLimit();
+                            retries() <- 0;
+                        }
                     }
                     status200() <- NULL;
                 }
-                exported() <- exported() + uploadItemsLimit();
+            }
+
+            IF anySuccess() THEN {
+                checkErrors();
+                postItems();
             }
         } ELSE {
             MESSAGE 'Все карточки товаров уже созданы, нечего выгружать';
@@ -1986,7 +2025,7 @@ uploadItem 'Создание новой карточки' (Item item) {
         LOCAL errorText = STRING ();
         LOCAL status = STRING ();
         LOCAL isNew = BOOLEAN (Item);
-        isNew(item) <- TRUE WHERE id(item) AND NOT (nmID(item) OR imtID(item));
+        isNew(item) <- TRUE WHERE id(item) AND NOT (nmID(item) OR imtID(item)) AND NOT isDeleted(item);
 
         IF isNew(item) THEN {
             logToFile('WB', 'POST: ' +url(CategoryRequest.content) + '/content/v2/cards/upload');
@@ -2029,7 +2068,7 @@ uploadItem 'Создание новой карточки' (Item item) {
     }
 }
 
-EXTEND FORM masterData 
+EXTEND FORM masterData
     PROPERTIES uploadItems()
     PROPERTIES uploadItem(item) SHOWIF id(item) AND NOT (nmID(item) OR imtID(item))
 ;
@@ -2054,8 +2093,8 @@ FORM updateItem
         id EXTID 'vendorCode'
     PROPERTIES nameBrand = idValue(i, GROUP MAX Attribute a IF a IS AttributeBrand) EXTID 'brand'
     PROPERTIES(i)
-        name EXTID 'title',
-        description EXTID 'description'
+        nameForWB EXTID 'title',
+        descriptionForWB EXTID 'description'
     PROPERTIES(i) IN dimensions1 length EXTID 'length',
         width EXTID 'width',
         height EXTID 'height',
