@@ -55,6 +55,14 @@ overCreateAuto (UserOrder o) + {
             userOrder(UserOrderDetail dd) <- oo WHERE userOrder(dd) == o AND supplierStockInner(sku(dd), customerStock(dd)) == st;
 
             logToFile('autoOrder', (CONCAT ' ', 'Автозаказ (внутр.):', currentDate(), name(st), nameCustomerStock(o), 'количество строк - ' + STRING[10]([GROUP SUM 1 BY order(Purchase.OrderDetail d)](oo))));
+            NEWSESSION NESTED LOCAL{
+                typeProcess(scheduleOrderDetail(oo)) <- TypeProcess.createOrder;
+                noteProcess(scheduleOrderDetail(oo)) <- (CONCAT '\n',
+                    noteProcess(scheduleOrderDetail(oo)),
+                    (CONCAT ' ', currentDateTime(), 'Количество строк -',countUserOrderDetail(oo)),
+                    (CONCAT ' ', currentDateTime(), 'Номер заказа -' , seriesNumber(oo)));
+                APPLY NESTED LOCAL;
+            }
         }
     }
 }
