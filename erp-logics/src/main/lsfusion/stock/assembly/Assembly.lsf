@@ -231,7 +231,7 @@ show 'Просмотреть' (Assembly a)  {
 	NEWSESSION {
 	    SHOW assembly OBJECTS a = a DOCKED READONLY;
 	}
-}
+} TOOLBAR;
 
 show 'Просмотреть' (AssemblyDetail d)  { 
 	NEWSESSION {
@@ -246,8 +246,17 @@ show 'Просмотреть' (AssemblyDetail d)  {
 @defineDocumentBatchStockPriceListTypeSystemLedger(assembly, );
 @extendFormDocumentBatchStock(assembly, assembly, a, stock, );
 
-skipShowEdit= ABSTRACT VALUE BOOLEAN (Assembly);
-showEdit (Assembly a) = isOpened(a) AND NOT skipShowEdit(a);
+overShowEdit = ABSTRACT VALUE BOOLEAN (Assembly);
+skipShowEdit = ABSTRACT VALUE BOOLEAN (Assembly);
+
+skipOpen = ABSTRACT CASE BOOLEAN (Assembly);
+showClose (Assembly o) = isOpened(o) AND NOT skipClose(o);
+showOpen (Assembly o) = isClosed(o) AND NOT skipOpen(o);
+showToShow (Assembly o) = is(o) AND NOT overShowEdit(o);
+
+@defineOperationRoleDocument(assembly, Assembly);
+
+overShowEdit (Assembly i) += showEditDeleteUser(i) AND isOpened(i) AND NOT skipShowEdit(i);
 
 filterAssemblyDateFrom 'Дата с' = DATA LOCAL NESTED DATE ();
 filterDateFrom (Assembly a) = date(a) >= filterAssemblyDateFrom() OR NOT filterAssemblyDateFrom();
@@ -273,8 +282,8 @@ FORM assemblies 'Сборки товаров'
     PROPERTIES(a) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                  postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES(a) NEWSESSION NEW, EDIT SHOWIF showEdit(a), DELETE SHOWIF isOpened(a) 
-    PROPERTIES(a) close SHOWIF isOpened(a), open SHOWIF isClosed(a)
+    PROPERTIES(a) NEWSESSION NEW, EDIT SHOWIF overShowEdit(a), DELETE SHOWIF overShowEdit(a) 
+    PROPERTIES(a) show SHOWIF showToShow(a), close SHOWIF showClose(a), open SHOWIF showOpen(a)
     FILTERS filterDateFrom(a), filterDateTo(a), filterStock(a)
 
     OBJECTS d = AssemblyDetail

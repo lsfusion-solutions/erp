@@ -238,7 +238,7 @@ show 'Просмотреть' (Disassembly a)  {
 	NEWSESSION {
 	    SHOW disassembly OBJECTS a = a DOCKED READONLY;
 	}
-}
+} TOOLBAR;
 
 show 'Просмотреть' (DisassemblyDetail d)  { 
 	NEWSESSION {
@@ -249,6 +249,18 @@ show 'Просмотреть' (DisassemblyDetail d)  {
 @addEventGenerateNumberOnForm(disassembly, a, disassembly);
 
 @extendFormDocumentSkuStock(disassembly, disassembly, a, stock, );
+
+overShowEdit = ABSTRACT VALUE BOOLEAN (Disassembly);
+skipShowEdit = ABSTRACT VALUE BOOLEAN (Disassembly);
+
+skipOpen = ABSTRACT CASE BOOLEAN (Disassembly);
+showClose (Disassembly o) = isOpened(o) AND NOT skipClose(o);
+showOpen (Disassembly o) = isClosed(o) AND NOT skipOpen(o);
+showToShow (Disassembly o) = is(o) AND NOT overShowEdit(o);
+
+@defineOperationRoleDocument(disassembly, Disassembly);
+
+overShowEdit (Disassembly i) += showEditDeleteUser(i) AND isOpened(i) AND NOT skipShowEdit(i);
 
 filterDisassemblyDateFrom 'Дата с' = DATA LOCAL NESTED DATE ();
 filterDateFrom (Disassembly a) = date(a) >= filterDisassemblyDateFrom() OR NOT filterDisassemblyDateFrom();
@@ -277,8 +289,8 @@ FORM disassemblies 'Разборки товаров'
     PROPERTIES(a) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                  postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES(a) NEWSESSION NEW, EDIT SHOWIF isOpened(a), DELETE SHOWIF isOpened(a) 
-    PROPERTIES(a) close SHOWIF isOpened(a), open SHOWIF isClosed(a)     
+    PROPERTIES(a) NEWSESSION NEW, EDIT SHOWIF overShowEdit(a), DELETE SHOWIF overShowEdit(a)
+    PROPERTIES(a) show SHOWIF showToShow(a), close SHOWIF showClose(a), open SHOWIF showOpen(a)
     FILTERS filterDateFrom(a), filterDateTo(a), filterStock(a)
     
     OBJECTS d = DisassemblyDetail
