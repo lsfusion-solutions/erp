@@ -1,4 +1,5 @@
-MODULE KonturCustomerEOrder;
+MODULE KonturCustomerEOrder; // Получение и отправка сообщений Контур.EDI
+// Является основным модулем Контур.EDI и включает в себя настройки и справочники организаций и сообщений
 
 REQUIRE Bank, Item, EDI, LegalEntityRu, EOrder, CustomerEOrderEDI, KonturEDIOrganization,
         PurchaseShipment, PurchaseReturnInvoice, PurchaseOrderStatusEOrder, KonturEDIMessage;
@@ -534,6 +535,7 @@ FORM desadvKontur FORMEXTID 'eDIMessage'
 ;
 
 overReceiveMessageDesadv ABSTRACT (Message);
+overReceiveMessageDesadv ABSTRACT (EOrderDespatchAdvice);
 canceledReceiveMessageDesadv ABSTRACT (Message);
 
 overReceiveMessages() + {
@@ -563,6 +565,7 @@ overReceiveMessages() + {
                             eOrder(a) <- eOrder(desadvOrderNumber());
                             customerStock(a) <- customerStock(eOrder(desadvOrderNumber()));
                             deliveryDateTime(a) <- desadvDeliveryDateTimeFirst();
+                            overReceiveMessageDesadv(a);
                             FOR desadvGTIN(INTEGER l) AND EOrderDespatchAdviceDetail d == eOrderDespatchAdviceDetail(desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber() + '/' + l) DO {
                                 sku(d) <- OVERRIDE (GROUP MAX sku(EOrderDetail dd) IF GTINBarcode(dd) == desadvGTIN(l) AND order(dd) == eOrder(a)), skuGTIN(desadvGTIN(l));
                                 dataGTIN(d) <- desadvGTIN(l);

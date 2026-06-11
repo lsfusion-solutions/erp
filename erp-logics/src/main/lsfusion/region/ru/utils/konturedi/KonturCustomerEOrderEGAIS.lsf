@@ -1,0 +1,29 @@
+MODULE KonturCustomerEOrderEGAIS; // Привязка формируемых документов от Контур.EDI к документам ЕГАИС
+// Используется когда в логике подключен Контур.EDI и ЕГАИС ТТН
+
+REQUIRE KonturCustomerEOrder, EGAISPurchaseInvoiceGestori, PurchaseInvoiceEOrder;
+
+NAMESPACE KonturEDI;
+
+numberWayBill 'Номер ЕГАИС ТТН' = DATA STRING[48] (EOrderDespatchAdvice);
+
+EXTEND FORM eOrderDespatchAdvices
+    PROPERTIES(o) READONLY numberWayBill AFTER numberEOrder(o)
+;
+
+overCreateUserInvoice(Purchase.UserInvoice i, EOrderDespatchAdvice a) + {
+    wayBill(i) <- [GROUP LAST WayBill w ORDER w BY number(w)](numberWayBill(a)) WHERE numberWayBill(a);
+}
+
+GROUP egaisRegistrationIdentificator EXTID 'egaisRegistrationIdentificator' : despatchAdvice;
+
+desadvEgaisNumber = DATA LOCAL STRING[48]();
+
+EXTEND FORM desadvKontur
+    PROPERTIES() IN egaisRegistrationIdentificator
+    desadvEgaisNumber EXTID 'number' ATTR
+;
+
+overReceiveMessageDesadv(EOrderDespatchAdvice a) + {
+    numberWayBill(a) <- desadvEgaisNumber();
+}
