@@ -5,3 +5,18 @@ REQUIRE PurchaseOrder, OrderVATRu;
 NAMESPACE Purchase;
 
 @defineWithVATOrder(supplier);
+
+notNullQuantityOrders 'Запретить в заказах (Закупка) строки с пустым количеством' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES() notNullQuantityPurchaseOrders = notNullQuantityOrders
+;
+
+DESIGN options {
+    optionsContainer {
+        MOVE PROPERTY(notNullQuantityPurchaseOrders);
+    }
+}
+
+CONSTRAINT CHANGED(sku(OrderDetail d)) AND sku(d) AND notNullQuantityOrders() AND NOT quantity(d)
+    MESSAGE 'Количество в строке заказа должно быть заполнено';
