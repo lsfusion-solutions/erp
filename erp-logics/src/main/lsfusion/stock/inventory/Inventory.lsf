@@ -2122,7 +2122,16 @@ sumShortage 'Сумма недостачи / излишка' (Inventory in) = GR
 
 showMovementSku 'Показать движение по складу' (Sku ks, CollationSheet cs)  { showMovementSku(ks, stock(cs)); }
 
+filterInventoryDateFrom 'Дата с' = DATA LOCAL NESTED DATE ();
+filterDateFrom (Inventory i) = date(i) >= filterInventoryDateFrom() OR (i IS Inventory AND NOT filterInventoryDateFrom());
+
+filterInventoryDateTo 'Дата по' = DATA LOCAL NESTED DATE ();
+filterDateTo (Inventory i) = date(i) <= filterInventoryDateTo() OR (i IS Inventory AND NOT filterInventoryDateTo());
+
+
 FORM inventories 'Инвентаризации'
+    PROPERTIES () filterInventoryDateFrom, filterInventoryDateTo
+    
     OBJECTS in=Inventory LAST
     PROPERTIES(in) READONLYIF isReadonly() isClosed
     PROPERTIES(in) READONLY isPosted , isBatch,  number, series, date, time,
@@ -2199,11 +2208,18 @@ FORM inventories 'Инвентаризации'
             quantityPageInventoryDetail(cs,bt) OR quantityBalance(cs,bt) OR sumBalance(cs, bt)            
             
     FILTERS accessCompanyStockCurrentUser(in) OR NOT countStocks(in)
+    FILTERS filterDateFrom(in), filterDateTo(in)
 ;
 
 DESIGN inventories {
     NEW topContainer{
         fill = 1;
+        NEW topFilters {
+            caption = 'Фильтры';
+            horizontal = TRUE;
+            MOVE PROPERTY(filterInventoryDateFrom());
+            MOVE PROPERTY(filterInventoryDateTo());
+        }
 
         MOVE BOX(in);
 
@@ -2495,3 +2511,5 @@ CONSTRAINT noFractQuantity() AND (CHANGED (sku(PageInventoryDetail d)) OR CHANGE
     AND noDivisibleUOM(UOM(sku(d))) AND INTEGER(quantity(d)) != quantity(d)
     MESSAGE 'Количество должно быть целым';
     
+EXTEND FORM inventories
+;
