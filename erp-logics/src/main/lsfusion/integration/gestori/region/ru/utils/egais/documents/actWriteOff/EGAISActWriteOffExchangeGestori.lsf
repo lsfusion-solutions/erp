@@ -27,16 +27,16 @@ wrangQuantity (ActWriteOff w) = GROUP MIN ActWriteOffPosition p BY actWriteOff(p
 checkConditions(ActWriteOff w) += 'Количество кодов маркировки не соответствует количеству по позиции акта'
     IF wrangQuantity(w);
 
-hideEdit(ActWriteOff a) += TRUE IF forbidEditSendDocument() AND notRejected(actWriteOffOutDoc(a));
-hideDelete(ActWriteOff a) += TRUE IF forbidEditSendDocument() AND notRejected(actWriteOffOutDoc(a));
+hideEdit(ActWriteOff a) += TRUE IF forbidEditSendDocument() AND notRejected(actWriteOffOutDoc(a)) AND id(actWriteOffOutDoc(a));
+hideDelete(ActWriteOff a) += TRUE IF forbidEditSendDocument() AND notRejected(actWriteOffOutDoc(a)) AND id(actWriteOffOutDoc(a));
 
 CONSTRAINT DROPPED(ActWriteOff a IS ActWriteOff) AND NOT disableEGAISDocumentConstraints()
-    AND notRejected(actWriteOffOutDoc(a)) AND NOT disableEGAISDocumentConstraints()
+    AND notRejected(actWriteOffOutDoc(a)) AND PREV(id(actWriteOffOutDoc(a)))
     MESSAGE 'Запрещено удалять акт списания с баланса после отправки в ЕГАИС';
 
 CONSTRAINT (DROPCHANGED(number(ActWriteOff a)) OR DROPCHANGED(dateTime(a)) OR DROPCHANGED(regId(a))
     OR CHANGED(type(a)) OR DROPCHANGED(dataSaleDateTime(a)) OR DROPCHANGED(client(a)))
-    AND notRejected(actWriteOffOutDoc(a)) AND NOT disableEGAISDocumentConstraints()
+    AND notRejected(actWriteOffOutDoc(a)) AND PREV(id(actWriteOffOutDoc(a))) AND NOT disableEGAISDocumentConstraints()
     MESSAGE 'Запрещено изменять атрибуты акта списания с баланса после отправки в ЕГАИС';
 
 notRejectedActWriteOff(ActWriteOffPosition p) = notRejected(actWriteOffOutDoc(actWriteOff(p)));
@@ -44,7 +44,7 @@ notRejectedActWriteOff(ActWriteOffPosition p) = notRejected(actWriteOffOutDoc(ac
 CONSTRAINT (SETCHANGED(product(ActWriteOffPosition p)) OR SETCHANGED(f2Reg(p)) OR SETCHANGED(overQuantity(p))
     OR SETCHANGED(sumSale(p)) OR DROPPED(product(p)) OR DROPPED(f2Reg(p)) OR DROPPED(overQuantity(p))
     OR DROPPED(sumSale(p)))
-    AND notRejected(actWriteOffOutDoc(actWriteOff(p))) AND NOT disableEGAISDocumentConstraints()
+    AND notRejectedActWriteOff(p) AND PREV(id(actWriteOffOutDoc(actWriteOff(p)))) AND NOT disableEGAISDocumentConstraints()
     MESSAGE 'Запрещено изменять атрибуты строки акта списания с баланса после отправки в ЕГАИС';
 
 CONSTRAINT DROPPED(p IS ActWriteOffPosition)
@@ -52,20 +52,20 @@ CONSTRAINT DROPPED(p IS ActWriteOffPosition)
     MESSAGE 'Запрещено удалять строки акта списания с баланса после отправки в ЕГАИС';
 
 CONSTRAINT SET(p IS ActWriteOffPosition)
-    AND notRejectedActWriteOff(p) AND NOT disableEGAISDocumentConstraints()
+    AND notRejectedActWriteOff(p) AND PREV(id(actWriteOffOutDoc(actWriteOff[ActWriteOffPosition](p)))) AND NOT disableEGAISDocumentConstraints()
     MESSAGE 'Запрещено добавлять строки в акт списания с баланса после отправки в ЕГАИС';
 
 CONSTRAINT (SETDROPPED(ActWriteOffMark m IS ActWriteOffMark) OR DROPCHANGED(markCode(m)))
-    AND notRejected(actWriteOffOutDoc(actWriteOff(actWriteOffPosition(m))))
+    AND notRejected(actWriteOffOutDoc(actWriteOff(actWriteOffPosition(m)))) AND PREV(id(actWriteOffOutDoc(actWriteOff(actWriteOffPosition(m)))))
     AND NOT disableEGAISDocumentConstraints()
     MESSAGE 'Запрещено изменять марки акта списания с баланса после отправки в ЕГАИС';
 
-hideAddPosition(ActWriteOff w) += (notRejected(actWriteOffOutDoc(w)) OR posted(w)) AND NOT disableEGAISDocumentConstraints();
-hideDeletePosition(ActWriteOffPosition p) += (notRejected(actWriteOffOutDoc(actWriteOff(p))) OR posted(actWriteOff(p))) AND NOT disableEGAISDocumentConstraints();
+hideAddPosition(ActWriteOff w) += ((notRejected(actWriteOffOutDoc(w)) AND id(actWriteOffOutDoc(w))) OR posted(w)) AND NOT disableEGAISDocumentConstraints();
+hideDeletePosition(ActWriteOffPosition p) += ((notRejected(actWriteOffOutDoc(actWriteOff(p))) AND id(actWriteOffOutDoc(actWriteOff(p)))) OR posted(actWriteOff(p))) AND NOT disableEGAISDocumentConstraints();
 
 // Блокировка редактирования проведённого или отправленного акта списания
-hideEdit(ActWriteOff a) += (notRejected(actWriteOffOutDoc(a)) OR posted(a)) AND NOT disableEGAISDocumentConstraints();
-hideDelete(ActWriteOff a) += (notRejected(actWriteOffOutDoc(a)) OR posted(a)) AND NOT disableEGAISDocumentConstraints();
+hideEdit(ActWriteOff a) += ((notRejected(actWriteOffOutDoc(a)) AND id(actWriteOffOutDoc(a))) OR posted(a)) AND NOT disableEGAISDocumentConstraints();
+hideDelete(ActWriteOff a) += ((notRejected(actWriteOffOutDoc(a)) AND id(actWriteOffOutDoc(a))) OR posted(a)) AND NOT disableEGAISDocumentConstraints();
 
 CONSTRAINT DROPPED(ActWriteOff a IS ActWriteOff) AND PREV(posted(a)) AND NOT disableEGAISDocumentConstraints()
     MESSAGE 'Запрещено удалять проведённый акт списания с баланса';
@@ -94,7 +94,7 @@ CONSTRAINT (SETDROPPED(ActWriteOffMark m IS ActWriteOffMark) OR DROPCHANGED(mark
     AND NOT disableEGAISDocumentConstraints()
     MESSAGE 'Запрещено изменять марки проведённого акта списания с баланса';
 
-blockedActWriteOff(ActWriteOff w) = posted(w) OR notRejected(actWriteOffOutDoc(w));
+blockedActWriteOff(ActWriteOff w) = posted(w) OR (notRejected(actWriteOffOutDoc(w)) AND id(actWriteOffOutDoc(w)));
 
 edit(ActWriteOff o) + {
     IF blockedActWriteOff(o) THEN
@@ -106,9 +106,9 @@ edit(ActWriteOff o) + {
 
 DESIGN actWriteOff {
     PROPERTY(addMarkCodeInputIdMarkCode(w)) {
-        showIf = NOT minActWriteOffPosition(w) AND NOT posted(w) AND NOT notRejected(actWriteOffOutDoc(w));
+        showIf = NOT minActWriteOffPosition(w) AND NOT posted(w) AND NOT (notRejected(actWriteOffOutDoc(w)) AND id(actWriteOffOutDoc(w)));
     }
     PROPERTY(addMarkCodeInputIdMarkCode(p)) {
-        showIf = minActWriteOffPosition(w) AND NOT posted(w) AND NOT notRejected(actWriteOffOutDoc(w));
+        showIf = minActWriteOffPosition(w) AND NOT posted(w) AND NOT (notRejected(actWriteOffOutDoc(w)) AND id(actWriteOffOutDoc(w)));
     }
 }
