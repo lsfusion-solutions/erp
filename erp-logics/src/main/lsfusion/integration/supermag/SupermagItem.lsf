@@ -333,6 +333,7 @@ importItem 'Импорт товаров' () {
     LOCAL idClass = INTEGER (INTEGER);
     LOCAL country = TEXT (INTEGER);
     LOCAL accepted = INTEGER (INTEGER);
+    LOCAL datatype = INTEGER (INTEGER);
     LOCAL scale = STRING[1] (INTEGER);
     LOCAL width = NUMERIC[14,3] (INTEGER);
     LOCAL length = NUMERIC[14,3] (INTEGER);
@@ -344,11 +345,11 @@ importItem 'Импорт товаров' () {
     LOCAL energy, fats, carbohydrates, proteins = NUMERIC[8,2] (INTEGER);
 
     EXTERNAL SQL connectionString()
-        EXEC 'SELECT card.ARTICLE, NAME, SHORTNAME, IDMEASUREMENT, IDCLASS, COUNTRY, ACCEPTED, SCALELOAD, WIDTH, LENGTH, HEIGHT, PROTEINS, FATS, CARBS, CALORIES FROM Supermag.SMCARD card' TO file;
+        EXEC 'SELECT card.ARTICLE, NAME, SHORTNAME, IDMEASUREMENT, IDCLASS, COUNTRY, ACCEPTED, SCALELOAD, WIDTH, LENGTH, HEIGHT, PROTEINS, FATS, CARBS, CALORIES, DATATYPE FROM Supermag.SMCARD card' TO file;
 
     //    logToFile('importSupermag', 'importItem_1');
 
-    IMPORT TABLE FROM file() TO id, name, shortName, idMeasurement, idClass, country, accepted, scale, width, length, height, proteins, fats, carbohydrates, energy;
+    IMPORT TABLE FROM file() TO id, name, shortName, idMeasurement, idClass, country, accepted, scale, width, length, height, proteins, fats, carbohydrates, energy, datatype;
 
     EXTERNAL SQL connectionString()
         EXEC 'SELECT cardtax.article, taxrate.TAXPERCENT AS VAT, taxgr.TAXGROUPID FROM SUPERMAG.SMCARDTAX cardtax, SUPERMAG.SMTAXGROUP taxgr, SUPERMAG.SMTAXRATE taxrate, SUPERMAG.SMTAXES tax WHERE taxgr.TAXGROUPID = cardtax.TAXGROUPID AND taxrate.RATEID = taxgr.RATEID AND taxrate.TAXID = taxgr.TAXID AND tax.TAXID = taxgr.TAXID AND tax.TAXNAME = \'НДС\' AND cardtax.datefrom = (SELECT MAX(crdtax.datefrom) FROM SUPERMAG.SMCARDTAX crdtax WHERE crdtax.article = cardtax.article)' TO file;
@@ -399,6 +400,10 @@ importItem 'Импорт товаров' () {
     FOR Item s = item(id(INTEGER i)) AND imported(s) DO {
         VAT(s, Country c) <- OVERRIDE (GROUP MIN Tax.Range r IF number (r) == taxGgroup(id(i)) AND c = defaultCountry())
         ,(GROUP MIN Tax.Range r IF valueRate(r) == taxItem(id(i)) AND c = defaultCountry());
+    }
+
+    FOR Item s = item(id(INTEGER i)) AND datatype(i) == 3 AND NOT skuType(s) == SkuType.skuTypeContainer DO {
+        skuType(s) <- SkuType.skuTypeContainer;
     }
 
     logToFile('importSupermag', 'importItem_6');
