@@ -48,12 +48,6 @@ weight 'Вес недостачи / излишка' (InventorySkuDetail inventor
 weightShortage 'Вес недостачи / излишка' (CollationSheet cs)= GROUP SUM weightShortage(cs, Sku sk) MATERIALIZED;
 weightShortage 'Вес недостачи / излишка' (Inventory in) = GROUP SUM weightShortage(CollationSheet cs) BY inventory(cs);
 
-filterDateFrom 'Дата с' = DATA LOCAL DATE();
-filterDateFrom(Inventory in) = date(in) >= filterDateFrom() OR NOT filterDateFrom();
-
-filterDateTo 'Дата по' = DATA LOCAL DATE();
-filterDateTo(Inventory in) = date(in) <= filterDateTo() OR NOT filterDateTo();
-
 filterStock = DATA LOCAL Stock();
 nameFilterStock 'Склад' () = name(filterStock());
 filterStock(Inventory in) = include(filterStock(), in) OR NOT filterStock();
@@ -67,7 +61,7 @@ CONSTRAINT stock(filterCycle()) != filterStock()
     MESSAGE 'Цикл должен быть только выбранного склада';
 
 EXTEND FORM inventories
-    PROPERTIES() filterDateFrom, filterDateTo, nameFilterStock, fullDescriptionFilterCycle
+    PROPERTIES() nameFilterStock, fullDescriptionFilterCycle
     PROPERTIES (in) READONLY descriptionCycle, weightShortage AFTER sumShortage(in) SHOWIF isSecond(in)
 
     PROPERTIES(il) READONLY SHOWIF (isSku(in) AND isSecond(in)) weight AFTER sum(il)
@@ -80,11 +74,9 @@ EXTEND FORM inventories
 ;
 
 DESIGN inventories {
-    NEW filters BEFORE topContainer {
+    topFilters {
         horizontal = TRUE;
         caption = 'Фильтры';
-        MOVE PROPERTY(filterDateFrom());
-        MOVE PROPERTY(filterDateTo());
         MOVE PROPERTY(nameFilterStock());
         MOVE PROPERTY(fullDescriptionFilterCycle());
     }
