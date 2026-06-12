@@ -1,7 +1,7 @@
 MODULE SaleReportsGestory;
 
 REQUIRE SaleReportsRu, Item, SaleShipment, PurchaseShipment, AccountDocument,
-        ZReportReceiptTime, SaleReports, SkuList, ReceiptDetailReport, InventoryGestori;
+        ZReportReceiptTime, SaleReports, SkuList, ReceiptDetailReport, InventoryGestori, SalePurchaseInvoice;
 
 NAMESPACE SaleReports;
 
@@ -129,12 +129,11 @@ selectedSkus = GROUP CONCAT STRING(name(Sku s)) IF in(s), ',' ORDER s CHARWIDTH 
 priceSku(Sku s, Stock st, DATE d) += OVERRIDE accountPrice(s, st, d), accountPriceB(s, st, dateTimeToDateTime(d, 23:59));
 costPriceSku(Sku s, Stock st, DATE d) += OVERRIDE costPrice(s, st, d), NUMERIC[17,5](round5(priceSku(s, st, d) * 100 / (100 + valueVAT(s))));
 
-batch = ABSTRACT Batch (SaleLedger) MATERIALIZED;
-nameBatch 'Партия' = name(batch(SaleLedger l));
-dateBatch 'Дата прихода' = date(batch(SaleLedger l));
-batch(Sale.InvoiceDetail l) += Sale.batch(l);
-batch(SaleReturn.InvoiceDetail l) += SaleReturn.batch(l);
-numberInvoiceBatch 'Номер приходной накладной' (SaleLedger l) = number(Purchase.invoice(invoiceDetail(batch(l))));
+linkedPurchaseInvoice = ABSTRACT Purchase.Invoice (SaleLedger);
+linkedPurchaseInvoice(Sale.InvoiceDetail l) += purchaseInvoice(Sale.invoice(l));
+
+numberLinkedPurchaseInvoice 'Номер приходной накладной' (SaleLedger l) = number(linkedPurchaseInvoice(l));
+dateLinkedPurchaseInvoice 'Дата приходной накладной' (SaleLedger l) = date(linkedPurchaseInvoice(l));
 
 retailPriceSku 'Розничная цена' (SaleLedger l) =
     NUMERIC[16,4](prevPriceB(retailPriceListType(stock(l)), sku(l), stock(l), dateTime(l)));
@@ -160,6 +159,7 @@ passesShipmentSkuFilter (SaleLedger l) = (NOT anySkuList() AND NOT anySkuGroup()
 
 shipmentIsOwnTransfer (SaleLedger l) = isCompany(customer(l));
 shipmentTransferKind 'Тип расхода' (SaleLedger l) = IF shipmentIsOwnTransfer(l) THEN 'Перемещение / своё подр.' ELSE 'Сторонний покупатель';
+shipmentOwnStockSuffix 'Склад покупателя (для своих)' (SaleLedger l) = IF shipmentIsOwnTransfer(l) THEN CONCAT ' - ', id(customerStock(l)), nameCustomerStock(l);
 
 FORM shipmentStatementGestori 'Ведомость отгрузок'
     PROPERTIES() shipmentDateFrom, shipmentDateTo
@@ -172,12 +172,14 @@ FORM shipmentStatementGestori 'Ведомость отгрузок'
     PROPERTIES shipmentSkus 'Товары' = inSkus() ON CHANGE selectSkus() READONLYIF anySkuList() OR anySkuGroup()
 
     OBJECTS l = SaleLedger
-    PROPERTIES(l) READONLY nameOperation, shipmentTransferKind, numberDocument, date,
-        idStock, nameStock,
-        numberInvoiceBatch, dateBatch,
-        nameCustomer, idSku, nameSku, quantity, sumRetail
+    PROPERTIES(l) READONLY idStock, nameStock,
+        date, numberDocument, nameOperation, shipmentTransferKind,
+        nameCustomer,
+        numberLinkedPurchaseInvoice, dateLinkedPurchaseInvoice,
+        idSku, nameSku, quantity, sumRetail
 
     PROPERTIES READONLY idCustomer 'Код покупателя' = id(customer(l)),
+        ownStockSuffix 'Склад покупателя (для своих)' = shipmentOwnStockSuffix(l),
         manufacturerSku 'Производитель' = nameManufacturer(sku(l)),
         volume 'Объём' = volume(sku(l)) * quantity(l),
         weight 'Вес' = netWeight(sku(l)) * quantity(l),
@@ -224,8 +226,8 @@ DESIGN shipmentStatementGestori {
 }
 
 NAVIGATOR {
-    purchaseNavigator {
-        purchasesReports {
+    saleNavigator {
+        salesReports {
             NEW shipmentStatementGestori;
         }
     }
