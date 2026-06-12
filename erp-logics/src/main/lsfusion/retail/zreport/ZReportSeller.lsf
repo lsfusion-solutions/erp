@@ -1,0 +1,18 @@
+MODULE ZReportSeller; // Добавление продавца в строки чека Z-отчета
+
+REQUIRE ZReport;
+
+seller = DATA Employee (ReceiptDetail) INDEXED;
+nameSeller 'Продавец' (ReceiptDetail d) = name(seller(d));
+
+EXTEND FORM zReports
+    PROPERTIES READONLY nameSeller(d)
+;
+
+EXTEND FORM zReport
+    PROPERTIES nameSeller(d)
+;
+
+skipConstraintDeleteSellerEmployees 'Разрешить удаление сотрудников, используемых в строках чеков' = DATA BOOLEAN ();
+CONSTRAINT DROPPED(Employee e IS Employee) AND PREV([GROUP MIN ReceiptDetail d BY seller(d)](e)) AND NOT skipConstraintDeleteSellerEmployees()
+    MESSAGE 'Запрещено удалять сотрудника, используемого в качестве продавца в строках чеков';

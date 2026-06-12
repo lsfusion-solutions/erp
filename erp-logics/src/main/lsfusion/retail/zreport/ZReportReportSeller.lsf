@@ -1,0 +1,143 @@
+MODULE ZReportReportSeller; // Добавление отчетов по продавцу к отчетам по магазину
+// Используется для расширения отчета по магазинам если подключен модуль ZReportSeller
+
+REQUIRE ZReportReport, ZReportSeller;
+
+NAMESPACE ZReport;
+
+nameReceiptDetailSumSeller (Stock stock)= name(stock) + ' (сумма)';
+nameReceiptDetailQuantitySeller (Stock stock)= name(stock) + ' (кол-во)';
+
+overSellerFilter = ABSTRACT BOOLEAN (ReceiptDetail);
+sellerFilter 'Отбор строк чека по продавцам' (ReceiptDetail d) = OVERRIDE overSellerFilter(d), isPosted(d) AND seller(d);
+
+overSellerQuantity = ABSTRACT NUMERIC[16,5] (ReceiptDetail);
+sellerQuantity 'Количество (по продавцам)' (ReceiptDetail d) =
+    (OVERRIDE overSellerQuantity(d), signedQuantity(d)) IF sellerFilter(d);
+
+overSellerSum = ABSTRACT NUMERIC[18,4] (ReceiptDetail);
+sellerSum 'Сумма (по продавцам)' (ReceiptDetail d) =
+    (OVERRIDE overSellerSum(d), signedSum(d)) IF sellerFilter(d);
+
+// в разрезе дня
+sumReceiptDetailSeller 'Сумма' (date, DATE dateFrom, DATE dateTo)=
+    GROUP SUM sellerSum(ReceiptDetail d) IF date(d) >= dateFrom AND date(d) <= dateTo AND inReport(departmentStore(d)) BY date(d);
+sumSeller 'Сумма' (stock, date)=
+    GROUP SUM sellerSum(ReceiptDetail d) BY departmentStore(d), date(d);
+quantitySeller 'Количество' (stock, date)=
+    GROUP SUM sellerQuantity(ReceiptDetail d) BY departmentStore(d), date(d);
+
+// в разрезе дня, итоги
+sumSeller 'Сумма' (DATE dt) = GROUP SUM sumSeller(DepartmentStore st, dt) IF inReport(st);
+quantitySeller 'Количество' (DATE dt) = GROUP SUM quantitySeller(DepartmentStore st,dt) IF inReport(st);
+
+// в разрезе недели
+sumReceiptDetailSeller 'Сумма' (number, year, DATE dateFrom, DATE dateTo) =
+    GROUP SUM sellerSum(ReceiptDetail d) IF date(d) >= (dateFrom AS DATE) AND date(d) <= (dateTo AS DATE) AND inReport(departmentStore(d))
+    BY extractWeekZeroBased(date(d)), extractYear(date(d));
+sumSeller 'Сумма' (stock, number, year, DATE dateFrom, DATE dateTo)=
+    GROUP SUM sellerSum(ReceiptDetail d) IF date(d) >= (dateFrom AS DATE) AND date(d) <= (dateTo AS DATE)
+    BY departmentStore(d), extractWeekZeroBased(date(d)), extractYear(date(d));
+quantitySeller 'Количество'  (stock, number, year, DATE dateFrom, DATE dateTo)=
+    GROUP SUM sellerQuantity(ReceiptDetail d) IF date(d) >= (dateFrom AS DATE) AND date(d) <= (dateTo AS DATE)
+    BY departmentStore(d), extractWeekZeroBased(date(d)), extractYear(date(d));
+
+// в разрезе недели, итоги
+sumSeller 'Сумма' =
+    GROUP SUM sumSeller(DepartmentStore st,DATE dt) IF dt >= (DATE dateFrom AS DATE) AND dt <= (DATE dateTo AS DATE) AND inReport(st)
+    BY extractWeekZeroBased(dt), extractYear(dt), dateFrom, dateTo;
+quantitySeller 'Количество' =
+    GROUP SUM quantitySeller(DepartmentStore st,DATE dt) IF dt >= (DATE dateFrom AS DATE) AND dt <= (DATE dateTo AS DATE) AND inReport(st)
+    BY extractWeekZeroBased(dt), extractYear(dt), dateFrom, dateTo;
+
+// по магазинам
+sumSeller 'Сумма' (stock, DATE dateFrom, DATE dateTo)=
+    GROUP SUM sellerSum(ReceiptDetail d) IF date(d) >= (dateFrom AS DATE) AND date(d) <= (dateTo AS DATE)
+    BY departmentStore(d);
+quantitySeller 'Количество' (stock, DATE dateFrom, DATE dateTo)=
+    GROUP SUM sellerQuantity(ReceiptDetail d) IF date(d) >= (dateFrom AS DATE) AND date(d) <= (dateTo AS DATE)
+    BY departmentStore(d);
+
+// по продавцам и магазинам
+sumSeller 'Сумма' (Employee seller, DepartmentStore ds, DATE dateFrom, DATE dateTo)=
+    GROUP SUM sellerSum(ReceiptDetail d) IF date(d) >= (dateFrom AS DATE) AND date(d) <= (dateTo AS DATE) AND inReport(departmentStore(d))
+    BY seller(d), departmentStore(d);
+
+quantitySeller 'Количество' (Employee seller, DepartmentStore ds, DATE dateFrom, DATE dateTo)=
+    GROUP SUM sellerQuantity(ReceiptDetail d) IF date(d) >= (dateFrom AS DATE) AND date(d) <= (dateTo AS DATE) AND inReport(departmentStore(d))
+    BY seller(d), departmentStore(d);
+
+EXTEND FORM saleZreportStock
+    OBJECTS dsl = DATE GRID
+    PROPERTIES READONLY VALUE(dsl)
+    PROPERTIES(dsl) READONLY extractMonthName, extractDOWName
+    FILTERS sumReceiptDetailSeller(dsl,dFrom,dTo)
+
+    OBJECTS stsl = DepartmentStore GRID
+    FILTERS isCompany(stsl),
+        inReport(stsl)
+
+    OBJECTS stslw = DepartmentStore GRID
+    FILTERS isCompany(stslw),
+        inReport(stslw)
+
+    OBJECTS stslt = DepartmentStore GRID
+    FILTERS isCompany(stslt),
+        inReport(stslt)
+
+    // в разрезе дня
+    PROPERTIES READONLY SHOWIF showProperty(stsl) sumSeller(stsl,dsl) COLUMNS (stsl) HEADER nameReceiptDetailSumSeller(stsl)
+    PROPERTIES READONLY SHOWIF showProperty(stsl) quantitySeller(stsl,dsl) COLUMNS (stsl) HEADER nameReceiptDetailQuantitySeller(stsl)
+
+    // в разрезе дня, итоги
+    PROPERTIES READONLY SHOWIF allStocks() sumSeller(dsl)
+    PROPERTIES READONLY SHOWIF allStocks() quantitySeller(dsl)
+
+    OBJECTS nysl = (nsl = INTEGER, ysl = INTEGER) GRID
+    PROPERTIES READONLY nsl = VALUE(nsl) HEADER 'Номер недели'
+    PROPERTIES READONLY ysl = VALUE(ysl) HEADER 'Год'
+    FILTERS sumReceiptDetailSeller(nsl,ysl,dFrom,dTo)
+    ORDERS ysl, nsl
+
+    // в разрезе недели
+    PROPERTIES READONLY SHOWIF showProperty(stslw) sumSeller(stslw,nsl,ysl,dFrom,dTo) COLUMNS (stslw) HEADER nameReceiptDetailSumSeller(stslw)
+    PROPERTIES READONLY SHOWIF showProperty(stslw) quantitySeller(stslw,nsl,ysl,dFrom,dTo) COLUMNS (stslw) HEADER nameReceiptDetailQuantitySeller(stslw)
+
+    // в разрезе недели, итоги
+    PROPERTIES READONLY SHOWIF allStocks() sumSeller(nsl,ysl,dFrom,dTo)
+    PROPERTIES READONLY SHOWIF allStocks() quantitySeller(nsl,ysl,dFrom,dTo)
+
+    // по магазинам
+    PROPERTIES READONLY name(stslt), tradingSquare(stslt), sumSeller(stslt,dFrom,dTo), quantitySeller(stslt,dFrom,dTo)
+
+    // по продавцам
+    OBJECTS sds = (seller = Employee, ds = DepartmentStore)
+    PROPERTIES READONLY shortName(seller), name(ds), sumSeller(seller, ds, dFrom, dTo), quantitySeller(seller, ds, dFrom, dTo)
+    FILTERS sumSeller(seller, ds, dFrom, dTo)
+;
+
+DESIGN saleZreportStock {
+    detail {
+        tab {
+            NEW seller {
+                fill = 1;
+                tabbed = TRUE;
+                caption = 'Продавцы';
+
+                MOVE BOX(dsl) {
+                    caption = 'По дням';
+                }
+                MOVE BOX(nysl) {
+                    caption = 'По неделям';
+                }
+                MOVE BOX(stslt) {
+                    caption = 'По магазинам';
+                }
+                MOVE BOX(sds) {
+                    caption = 'По продавцам';
+                    PROPERTY (name(ds)) { caption = 'Магазин'; }
+                }
+            }
+        }
+    }
+}
