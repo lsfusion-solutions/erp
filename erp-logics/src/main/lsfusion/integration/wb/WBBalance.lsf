@@ -120,7 +120,7 @@ deleteBalanceItems 'Удалить остатки товаров на WB' (Wareh
                 exported() <- 0;
 
                 WHILE exported() < (GROUP MAX index(Size s)) DO {
-                    stringToFile('\{"chrtIds":[' +  (GROUP CONCAT STRING(chrtID(Size s)) IF 
+                    stringToFile('\{"chrtIds":[' +  (GROUP CONCAT STRING(chrtID(Size s)) IF
                         index(s) > exported() AND index(s) <= exported() + postItemsBalanceLimit(), ',' ORDER s) + ']\}', 'UTF-8', 'json');
 
                     TRY {
@@ -174,7 +174,7 @@ deleteBalanceItem 'Удалить остатки товара на WB' (Warehous
                 logToFile('WB', 'DELETE: ' + url(CategoryRequest.marketplace) + '/api/v3/stocks');
                 stringToFile('\{"chrtIds":[' +  (GROUP CONCAT STRING(chrtID(Size s)) IF
                     itemWB(s) == i AND chrtID(s) AND imtID(itemWB(s)), ',' ORDER s) + ']\}', 'UTF-8', 'json');
-    
+
                 TRY {
                     EXTERNAL HTTP DELETE url(CategoryRequest.marketplace) + '/api/v3/stocks/' + id(w) HEADERS httpHeaders PARAMS resultFile() TO response;
                     fileToString(response());
@@ -309,13 +309,9 @@ FORM WBPricesBalances 'Цены и остатки'
         FILTER 'С остатком на складе компании' currentBalanceItem(i, w)
 
     OBJECTS s = Size
-    PROPERTIES(s) READONLY chrtID, techSize, wbSize, skus, barcodePrimary, nameItem
+    PROPERTIES(s) READONLY chrtID, techSize, wbSize, barcodePrimary, nameItem
     PROPERTIES READONLY currentBalanceSize(s,w), currentBalanceSizeWB(s, w)
     FILTERS itemWB(s) == i
-
-    OBJECTS b = Barcode
-    PROPERTIES id(b) READONLY, primary(b) ON CHANGE changePrimary(b, s)
-    FILTERS size(b) == s
 ;
 
 DESIGN WBPricesBalances {
@@ -357,7 +353,6 @@ DESIGN WBPricesBalances {
                     horizontal = TRUE;
                     align = STRETCH;
                     MOVE BOX(s){ fill = 3; };
-                    MOVE BOX(b){ fill = 1; };
                 }
             }
         }

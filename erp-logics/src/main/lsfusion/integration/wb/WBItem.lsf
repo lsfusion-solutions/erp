@@ -1,10 +1,13 @@
 MODULE WBItem;
 
-REQUIRE WBMasterData, System;
+REQUIRE WBMasterData, System, Item;
 
 NAMESPACE WB;
 
 CLASS Item 'Товар';
+
+hasItemByIdBarcode 'Существует Item с таким штрихкодом в ERP' (STRING id) =
+    GROUP SUM 1 IF Item.Item it AND idBarcode(it) == id;
 
 id 'Артикул продавца(vendorCode)' = DATA STRING (Item) NONULL IN id;
 item (id) = GROUP AGGR Item i BY id(i);
@@ -84,7 +87,7 @@ changePrimary(Barcode barcode, Size s)  {
             dataBarcode(s) <- barcode;
 }
 
-barcodePrimary 'Основной баркод' (Size s) = GROUP MAX id(Barcode b) IF size(b) == s AND primary(b);
+barcodePrimary 'Штрихкод' (Size s) = GROUP MAX id(Barcode b) IF size(b) == s AND primary(b);
 
 CLASS ABSTRACT Attribute 'Атрибут';
 TABLE attribute (Attribute) FULL;
@@ -300,15 +303,10 @@ FORM item 'Товар'
     FILTERS in(itemSubGroup(i), attr)
     
     OBJECTS size = Size
-    PROPERTIES(size) chrtID READONLY, techSize, wbSize, skus READONLY, barcodePrimary
+    PROPERTIES(size) chrtID READONLY, techSize, wbSize, barcodePrimary READONLY
     PROPERTIES DRAW size TOOLBAR addSize(i), deleteSize(i, size)
     FILTERS itemWB(size) == i
-    
-    OBJECTS b = Barcode
-    PROPERTIES READONLY id(b), primary(b) ON CHANGE changePrimary(b, size)
-    PROPERTIES DRAW b TOOLBAR addBarcode(size), deleteBarcode(b)
-    FILTERS size(b) == size
-    
+
     OBJECTS mf = MediaFile
     PROPERTIES(mf) in, posted, index
     PROPERTIES(mf) url
@@ -373,7 +371,6 @@ DESIGN item {
             }
             MOVE BOX(size) {
                 caption = 'Размеры';
-                MOVE BOX(b);
             }
             MOVE BOX(mf){
                 caption = 'Медиафайлы по ссылкам';
@@ -1406,7 +1403,7 @@ postItems 'Получить список карточек товаров' () {
 
         nmID(Item i) <- NULL;
         imtID(Item i) <- NULL;
-        
+
         WHILE ((total() AND NOT total() < postItemsLimit()) OR NOT response()) AND NOT messageCaughtException() DO {
             ascending() <- TRUE;
             limit() <- postItemsLimit();
@@ -1451,7 +1448,7 @@ postItems 'Получить список карточек товаров' () {
                         techSize(s) <- techSize(ii);
                         wbSize(s) <- wbSize(ii);
                         FOR INTEGER jj = [GROUP MAX INTEGER j IF imported(j) AND sizesSkus(j) == ii AND
-                            NOT barcode(skus(j)) BY skus(j)](STRING barcode) INLINE DO NEW b = Barcode {
+                            NOT barcode(skus(j)) AND hasItemByIdBarcode(skus(j)) BY skus(j)](STRING barcode) INLINE DO NEW b = Barcode {
                             size(b) <- s;
                             id(b) <- barcode;
                         }
@@ -1525,9 +1522,9 @@ postTrashItems 'Получить список карточек товаров в
         LOCAL errorText = STRING ();
         LOCAL status = STRING ();
         LOCAL lastTrashedAt = STRING();
-        LOCAL lastNmID = INTEGER(); 
+        LOCAL lastNmID = INTEGER();
         LOCAL sameCursorCount = INTEGER();
-        
+
         WHILE ((total() AND NOT total() < postTrashItemsLimit()) OR NOT response()) AND NOT messageCaughtException() DO {
             limit() <- postTrashItemsLimit();
             ascending() <- TRUE;
@@ -1566,7 +1563,7 @@ postTrashItems 'Получить список карточек товаров в
                         techSize(s) <- techSize(ii);
                         wbSize(s) <- wbSize(ii);
                         FOR INTEGER jj = [GROUP MAX INTEGER j IF imported(j) AND sizesSkus(j) == ii AND
-                            NOT barcode(skus(j)) BY skus(j)](STRING barcode) INLINE DO NEW b = Barcode {
+                            NOT barcode(skus(j)) AND hasItemByIdBarcode(skus(j)) BY skus(j)](STRING barcode) INLINE DO NEW b = Barcode {
                             size(b) <- s;
                             id(b) <- barcode;
                         }
