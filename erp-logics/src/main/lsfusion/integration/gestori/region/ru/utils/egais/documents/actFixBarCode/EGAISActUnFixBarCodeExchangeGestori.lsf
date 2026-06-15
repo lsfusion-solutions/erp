@@ -1,6 +1,6 @@
 MODULE EGAISActUnFixBarCodeExchangeGestori;
 
-REQUIRE EGAISActUnFixBarCodeExchange, EGAISActUnFixBarCodeGestori, EGAISTicketGestori, EGAISDocGestori;
+REQUIRE EGAISActUnFixBarCodeExchange, EGAISActUnFixBarCodeStatus, EGAISActUnFixBarCodeGestori, EGAISTicketGestori, EGAISDocGestori;
 
 NAMESPACE EGAIS;
 
@@ -14,23 +14,33 @@ NAVIGATOR {
     actUnFixBarCodes 'Акты отмены фиксации штрихкодов';
 }
 
-hideEdit(ActUnFixBarCode a) += TRUE IF forbidEditSendDocument() AND notRejected(actUnFixBarCodeOutDoc(a)) AND NOT canceled(a);
-hideDelete(ActUnFixBarCode a) += TRUE IF forbidEditSendDocument() AND notRejected(actUnFixBarCodeOutDoc(a)) AND NOT canceled(a);
+hideEdit(ActUnFixBarCode a) += TRUE IF forbidEditSendDocument() AND notRejected(actUnFixBarCodeOutDoc(a)) AND id(actUnFixBarCodeOutDoc(a)) AND NOT canceled(a);
+hideDelete(ActUnFixBarCode a) += TRUE IF forbidEditSendDocument() AND notRejected(actUnFixBarCodeOutDoc(a)) AND id(actUnFixBarCodeOutDoc(a)) AND NOT canceled(a);
 
 CONSTRAINT DROPPED(ActUnFixBarCode a IS ActUnFixBarCode) AND NOT disableEGAISDocumentConstraints()
-    AND notRejected(actUnFixBarCodeOutDoc(a)) AND NOT canceled(a)
+    AND notRejected(actUnFixBarCodeOutDoc(a)) AND id(actUnFixBarCodeOutDoc(a)) AND NOT canceled(a)
     MESSAGE 'Запрещено удалять акт отмены фиксации штрихкодов на балансе после отправки в ЕГАИС';
 
 CONSTRAINT (DROPCHANGED(number(ActUnFixBarCode a)) OR DROPCHANGED(dateTime(a)) OR DROPCHANGED(client(a)))
-    AND notRejected(actUnFixBarCodeOutDoc(a)) AND NOT canceled(a) AND NOT disableEGAISDocumentConstraints()
+    AND notRejected(actUnFixBarCodeOutDoc(a)) AND id(actUnFixBarCodeOutDoc(a)) AND NOT canceled(a) AND NOT disableEGAISDocumentConstraints()
     MESSAGE 'Запрещено изменять атрибуты акта отмены фиксации штрихкодов на балансе после отправки в ЕГАИС';
 
 CONSTRAINT (SETCHANGED(product(ActUnFixBarCodePosition p)) OR SETCHANGED(f2Reg(p))
     OR DROPPED(product(p)) OR DROPPED(f2Reg(p)) OR DROPPED(p IS ActUnFixBarCodePosition))
-    AND notRejected(actUnFixBarCodeOutDoc(actUnFixBarCode(p))) AND NOT canceled(p) AND NOT disableEGAISDocumentConstraints()
+    AND notRejected(actUnFixBarCodeOutDoc(actUnFixBarCode(p))) AND id(actUnFixBarCodeOutDoc(actUnFixBarCode(p))) AND NOT canceled(p) AND NOT disableEGAISDocumentConstraints()
     MESSAGE 'Запрещено изменять атрибуты строки акта отмены фиксации штрихкодов на балансе после отправки в ЕГАИС';
 
 CONSTRAINT (SETDROPPED(ActUnFixBarCodeMark m IS ActUnFixBarCodeMark) OR DROPCHANGED(markCode(m)))
-    AND notRejected(actUnFixBarCodeOutDoc(actUnFixBarCode(actUnFixBarCodePosition(m))))
+    AND notRejected(actUnFixBarCodeOutDoc(actUnFixBarCode(actUnFixBarCodePosition(m)))) AND id(actUnFixBarCodeOutDoc(actUnFixBarCode(actUnFixBarCodePosition(m))))
     AND NOT canceled(m) AND NOT disableEGAISDocumentConstraints()
     MESSAGE 'Запрещено изменять марки акта отмены фиксации штрихкодов на балансе после отправки в ЕГАИС';
+
+EXTEND CLASS ActUnFixBarCodeStatus { noTransportPackage 'Не подтверждён УТМ' }
+
+status (ActUnFixBarCode a) += WHEN actUnFixBarCodeOutDoc(a) AND NOT id(actUnFixBarCodeOutDoc(a))
+    THEN ActUnFixBarCodeStatus.noTransportPackage;
+
+EXTEND FORM actUnFixBarCodes
+    EXTEND FILTERGROUP status
+        FILTER 'Не подтверждён УТМ' status(d) = ActUnFixBarCodeStatus.noTransportPackage
+;

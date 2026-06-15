@@ -1,6 +1,6 @@
 MODULE EGAISActChargeOnStatus;
 
-REQUIRE EGAISActChargeOn;
+REQUIRE EGAISActChargeOn, EGAISActChargeOnExchange;
 
 NAMESPACE EGAIS;
 
@@ -29,12 +29,15 @@ EXTEND FORM actChargeOns
     PROPERTIES(d) READONLY nameStatus FIRST
 
     FILTERGROUP status
-        FILTER 'Принята' status(d) = ActChargeOnStatus.posted
-        FILTER 'Отменена' status(d) = ActChargeOnStatus.canceled
+        FILTER 'Не отправлен' NOT status(d)
+        FILTER 'Запрос на проведение' status(d) = ActChargeOnStatus.requestPosted
+        FILTER 'Ожидание уведомления о постановке на баланс' status(d) = ActChargeOnStatus.waitActInventoryInform
+        FILTER 'Проведен' status(d) = ActChargeOnStatus.posted
+        FILTER 'Ошибка проведения' status(d) = ActChargeOnStatus.errorRequest
 ;
 
 status (ActChargeOn w) += WHEN posted(w) THEN ActChargeOnStatus.posted;
 status (ActChargeOn w) += WHEN canceled(w) THEN ActChargeOnStatus.canceled;
-status (ActChargeOn w) += WHEN hasRequestPosted(w) THEN ActChargeOnStatus.requestPosted;
-status (ActChargeOn w) += WHEN errorPost(w) THEN ActChargeOnStatus.errorRequest;
+status (ActChargeOn w) += WHEN hasRequestPosted(w) AND NOT waitActInventoryInform(w) THEN ActChargeOnStatus.requestPosted;
+status (ActChargeOn w) += WHEN errorPost(w) AND NOT hasRequestPosted(w) THEN ActChargeOnStatus.errorRequest;
 status (ActChargeOn w) += WHEN waitActInventoryInform(w) THEN ActChargeOnStatus.waitActInventoryInform;

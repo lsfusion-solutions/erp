@@ -6,7 +6,8 @@ NAMESPACE EGAIS;
 
 @defineDocumentOutDoc(actWriteOff, ActWriteOff_v3, 'Акт о списании с баланса (версия 3)');
 
-activeActWriteOffOutDoc (ActWriteOff a) = notRejected(actWriteOffOutDoc(a)) AND NOT errorPost(a);
+activeActWriteOffOutDoc = ABSTRACT CASE BOOLEAN (ActWriteOff);
+activeActWriteOffOutDoc (ActWriteOff a) += WHEN a IS ActWriteOff THEN notRejected(actWriteOffOutDoc(a)) AND NOT errorPost(a);
 
 GROUP header EXTID 'awr:Header';
 GROUP content EXTID 'awr:Content';
@@ -84,6 +85,8 @@ overProcess (ActWriteOff t) + {
     canceled() <- NULL;
     hasRequestPosted(t) <- TRUE;
 }
+
+overShowProcess (ActWriteOff a) += TRUE IF actWriteOffOutDoc(a) AND NOT id(actWriteOffOutDoc(a)) AND (hasRequestPosted(a) OR keepOutDocOnError(actWriteOffOutDoc(a)));
 
 EXTEND FORM actWriteOffs
     PROPERTIES(odd) DELETE

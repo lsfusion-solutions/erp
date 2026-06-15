@@ -1,6 +1,6 @@
 MODULE EGAISActWriteOffStatus;
 
-REQUIRE EGAISActWriteOff;
+REQUIRE EGAISActWriteOff, EGAISActWriteOffExchange;
 
 NAMESPACE EGAIS;
 
@@ -28,11 +28,13 @@ EXTEND FORM actWriteOffs
     PROPERTIES(d) READONLY nameStatus FIRST
 
     FILTERGROUP status
-        FILTER 'Принята' status(d) = ActWriteOffStatus.posted
-        FILTER 'Отменена' status(d) = ActWriteOffStatus.canceled
+        FILTER 'Не отправлен' NOT status(d)
+        FILTER 'Запрос на проведение' status(d) = ActWriteOffStatus.requestPosted
+        FILTER 'Проведен' status(d) = ActWriteOffStatus.posted
+        FILTER 'Ошибка проведения' status(d) = ActWriteOffStatus.errorRequest
 ;
 
 status (ActWriteOff w) += WHEN posted(w) THEN ActWriteOffStatus.posted;
 status (ActWriteOff w) += WHEN canceled(w) THEN ActWriteOffStatus.canceled;
 status (ActWriteOff w) += WHEN hasRequestPosted(w) THEN ActWriteOffStatus.requestPosted;
-status (ActWriteOff w) += WHEN errorPost(w) THEN ActWriteOffStatus.errorRequest;
+status (ActWriteOff w) += WHEN errorPost(w) AND NOT hasRequestPosted(w) THEN ActWriteOffStatus.errorRequest;

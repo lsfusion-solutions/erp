@@ -1,6 +1,6 @@
 MODULE EGAISActWriteOffExchangeGestori;
 
-REQUIRE EGAISActWriteOffExchange, EGAISActWriteOffGestori, EGAISTicketGestori, EGAISDocGestori;
+REQUIRE EGAISActWriteOffExchange, EGAISActWriteOffStatus, EGAISActWriteOffGestori, EGAISTicketGestori, EGAISDocGestori;
 
 NAMESPACE EGAIS;
 
@@ -112,3 +112,16 @@ DESIGN actWriteOff {
         showIf = minActWriteOffPosition(w) AND NOT posted(w) AND NOT (notRejected(actWriteOffOutDoc(w)) AND id(actWriteOffOutDoc(w)));
     }
 }
+
+EXTEND CLASS ActWriteOffStatus { noTransportPackage 'Не подтверждён УТМ' }
+
+status (ActWriteOff w) += WHEN actWriteOffOutDoc(w) AND NOT id(actWriteOffOutDoc(w))
+    THEN ActWriteOffStatus.noTransportPackage;
+
+activeActWriteOffOutDoc (ActWriteOff a) += WHEN a IS ActWriteOff
+    THEN notRejected(actWriteOffOutDoc(a)) AND NOT errorPost(a) AND id(actWriteOffOutDoc(a));
+
+EXTEND FORM actWriteOffs
+    EXTEND FILTERGROUP status
+        FILTER 'Не подтверждён УТМ' status(d) = ActWriteOffStatus.noTransportPackage
+;

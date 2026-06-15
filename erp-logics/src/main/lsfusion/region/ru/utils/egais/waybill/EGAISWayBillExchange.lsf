@@ -15,7 +15,7 @@ docType(WayBillOutDoc r) += DocType.WayBill_v4 IF r IS WayBillOutDoc;
 wayBillOutDoc = GROUP LAST WayBillOutDoc a ORDER a WHERE a IS WayBillOutDoc BY wayBill(a);
 commentsWayBillOutDoc 'Комментарий отправки' (WayBill t) = comments(wayBillOutDoc(t));
 
-activeWayBillOutDoc (WayBill w) = notRejected(wayBillOutDoc(w)) AND NOT canceled(w);
+activeWayBillOutDoc (WayBill w) = notRejected(wayBillOutDoc(w)) AND NOT canceled(w) AND id(wayBillOutDoc(w));
 
 wbType = ABSTRACT CASE STRING (WayBill);
 
@@ -90,7 +90,11 @@ submitWayBill (WayBill w) {
     NEW wd = WayBillOutDoc {
         client(wd) <- shipper(w);
         wayBill(wd) <- w;
-        submitWayBill(wd);
+        TRY {
+            submitWayBill(wd);
+        } CATCH {
+            IF NOT keepOutDocOnError(wd) THEN throwException(messageCaughtException());
+        }
     }
 }
 

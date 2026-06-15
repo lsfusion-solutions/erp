@@ -73,6 +73,11 @@ ver 'Версия' = DATA STRING (OutDoc);
 document 'Документ' = DATA TEXT (OutDoc);
 error 'Ошибка' = DATA TEXT (OutDoc);
 
+// Сохранять исходящий документ, даже если отправка завершилась ошибкой или УТМ не вернул номер транспортного пакета
+keepOutDocOnError = ABSTRACT VALUE BOOLEAN (OutDoc);
+
+overAfterSubmit ABSTRACT (OutDoc);
+
 beforeSubmit ABSTRACT (UTM);
 
 fallbackUtm = ABSTRACT UTM ();
@@ -147,7 +152,7 @@ submit (OutDoc r) {
     }
     
     IMPORT submitOutDocResponse XML FROM response();
-    
+
     id(r) <- id();
     sign(r) <- sign();
     ver(r) <- ver();
@@ -156,7 +161,7 @@ submit (OutDoc r) {
 submit (OutDoc r, FILE f) {
     fileToString(f);
     document(r) <- rtrim(ltrim(replace(resultString(), '<?xml version="1.0" encoding="UTF-8"?>', ''), '\n'), '\n');
-    
+
     submit(r);
 }
 
@@ -189,12 +194,17 @@ META defineDocumentOutProcess(doc, container)
             doc(r) <- t;
 
             EXPORT doc##OutDoc OBJECTS r = r XML;
-            submit(r, exportFile());
-            overProcess(t);
+            TRY {
+                submit(r, exportFile());
+                overProcess(t);
+            } CATCH {
+                IF NOT keepOutDocOnError(r) THEN throwException(messageCaughtException());
+            }
             APPLY;
+            overAfterSubmit(r);
         }
     }
-    
+
     EXTEND FORM doc##s
         PROPERTIES(d) READONLY comments###doc##OutDoc PANEL
         PROPERTIES(d) NEWSESSION process SHOWIF NOT notRejected(doc##OutDoc(d)) OR overShowProcess(d) TOOLBAR

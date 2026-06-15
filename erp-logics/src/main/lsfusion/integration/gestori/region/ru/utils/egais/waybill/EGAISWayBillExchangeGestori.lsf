@@ -1,6 +1,6 @@
 MODULE EGAISWayBillExchangeGestori;
 
-REQUIRE EGAISWayBillExchange, EGAISTicketGestori, EGAISWayBillGestory;
+REQUIRE EGAISWayBillExchange, EGAISWayBillStatus, EGAISTicketGestori, EGAISWayBillGestory;
 
 NAMESPACE EGAIS;
 
@@ -18,4 +18,15 @@ overProcess(InDoc d,WayBill w) +{
 EXTEND FORM inDocs
     EXTEND FILTERGROUP filterDocType
         FILTER 'ТТН' docType(d) == DocType.WayBill_v3 OR docType(d) == DocType.WayBill_v4
+;
+
+// noTransportPackage
+EXTEND CLASS WayBillStatus { noTransportPackage 'Не подтверждён УТМ' }
+
+status (WayBill w) += WHEN wayBillOutDoc(w) AND NOT id(wayBillOutDoc(w))
+    THEN WayBillStatus.noTransportPackage;
+
+EXTEND FORM wayBills
+    EXTEND FILTERGROUP status
+        FILTER 'Не подтверждён УТМ' status(w) = WayBillStatus.noTransportPackage
 ;

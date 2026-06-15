@@ -1,6 +1,6 @@
 MODULE EGAISActChargeOnExchange;
 
-REQUIRE EGAISActChargeOn, EGAISTicket, EGAISProductImport;
+REQUIRE EGAISActChargeOn, EGAISTicket, EGAISProductImport, EGAISF1RegImport;
 
 NAMESPACE EGAIS;
 
@@ -71,16 +71,16 @@ process (Ticket t) + {
     IF docType(t) = 'ActChargeOn' OR docType(t) = 'ActChargeOn_v2' THEN {
         IF operationName(t) = 'Confirm' AND operationResult(t) = 'Accepted' THEN {
             waitActInventoryInform(actChargeOn(outDoc(t))) <- TRUE;
-            canceled(actChargeOn(outDoc(t))) <- NULL;
+            errorPost(actChargeOn(outDoc(t))) <- NULL;
             regId(actChargeOn(outDoc(t))) <- regId(t);
             hasRequestPosted(actChargeOn(outDoc(t))) <- NULL;
         }
         IF ((operationName(t) = 'Confirm' AND operationResult(t) = 'Rejected') OR conclusion(t)=='Rejected') THEN {
-            canceled(actChargeOn(outDoc(t))) <- TRUE;
+            errorPost(actChargeOn(outDoc(t))) <- TRUE;
             hasRequestPosted(actChargeOn(outDoc(t))) <- NULL;
         }
         IF (conclusion(t)=='Accepted') THEN {
-            canceled(actChargeOn(outDoc(t))) <- NULL;
+            errorPost(actChargeOn(outDoc(t))) <- NULL;
             hasRequestPosted(actChargeOn(outDoc(t))) <- TRUE;
         }
         processed() <- TRUE;
@@ -91,7 +91,8 @@ process 'Отправить в ЕГАИС' (ActChargeOn t, BOOLEAN skiptTrowExce
     NEW r = ActChargeOnOutDoc {
         client(r) <- client(t);
         actChargeOn(r) <- t;
-        canceled() <- NULL;
+        canceled(t) <- NULL;
+        errorPost(t) <- NULL;
         hasRequestPosted(t) <- TRUE;
 
         EXPORT actChargeOnOutDoc OBJECTS r = r XML;
@@ -101,9 +102,12 @@ process 'Отправить в ЕГАИС' (ActChargeOn t, BOOLEAN skiptTrowExce
 }
 
 overProcess (ActChargeOn t) + {
-    canceled() <- NULL;
+    canceled(t) <- NULL;
+    errorPost(t) <- NULL;
     hasRequestPosted(t) <- TRUE;
 }
+
+overShowProcess (ActChargeOn a) += TRUE IF errorPost(a) OR (actChargeOnOutDoc(a) AND NOT id(actChargeOnOutDoc(a)));
 
 EXTEND FORM actChargeOns
     PROPERTIES(odd) DELETE
@@ -175,7 +179,7 @@ process (InDoc d) + {
             
             NEW a = ActInventoryInform {
                 inDoc(a) <- d;
-                outDoc(a) <- outDoc(d);
+                outDoc(a) <- OVERRIDE outDoc(d), actChargeOnOutDoc(actChargeOn(actRegId()));
                 regId(a) <- actRegId();
                 regNumber(a) <- number();
 
@@ -197,9 +201,24 @@ process (InDoc d) + {
                 waitActInventoryInform(actChargeOn[ActChargeOnOutDoc](outDoc(a))) <- NULL;
                 posted(actChargeOn[ActChargeOnOutDoc](outDoc(a))) <- TRUE;
             }
-            
+
             processed(d) <- TRUE;
             APPLY;
+        }
+    }
+}
+
+EXTEND FORM actChargeOns
+    OBJECTS aii = ActInventoryInform
+    PROPERTIES(aii) READONLY regId, regNumber, docType
+    FILTERS actChargeOn[ActChargeOnOutDoc](outDoc(aii)) = d
+;
+
+DESIGN actChargeOns {
+    tabbedPane {
+        NEW actInventoryInformTab {
+            caption = 'Уведомление о постановке на баланс';
+            MOVE BOX(aii);
         }
     }
 }

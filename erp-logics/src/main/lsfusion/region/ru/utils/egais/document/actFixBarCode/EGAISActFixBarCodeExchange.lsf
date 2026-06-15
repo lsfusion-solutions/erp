@@ -6,7 +6,8 @@ NAMESPACE EGAIS;
 
 @defineDocumentOutDoc(actFixBarCode, ActFixBarCode, 'Акт фиксации штрихкодов на балансе');
 
-activeActFixBarCodeOutDoc (ActFixBarCode a) = notRejected(actFixBarCodeOutDoc(a)) AND NOT canceled(a);
+activeActFixBarCodeOutDoc = ABSTRACT CASE BOOLEAN (ActFixBarCode);
+activeActFixBarCodeOutDoc (ActFixBarCode a) += WHEN a IS ActFixBarCode THEN notRejected(actFixBarCodeOutDoc(a)) AND NOT canceled(a);
 
 GROUP header EXTID 'awr:Header';
 GROUP content EXTID 'awr:Content';
@@ -36,13 +37,13 @@ FORM actFixBarCodeOutDoc FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:A
 
 @defineDocumentOutProcess(actFixBarCode, tabbedPane);
 
-overShowProcess (ActFixBarCode a) += TRUE IF errorPost(a);
-
 overProcess(ActFixBarCode t) + {
     canceled(t) <- NULL;
     errorPost(t) <- NULL;
     hasRequestPosted(t) <- TRUE;
 }
+
+overShowProcess (ActFixBarCode a) += TRUE IF errorPost(a) OR (actFixBarCodeOutDoc(a) AND NOT id(actFixBarCodeOutDoc(a)) AND (hasRequestPosted(a) OR keepOutDocOnError(actFixBarCodeOutDoc(a))));
 
 // ticket
 

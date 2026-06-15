@@ -1,6 +1,6 @@
 MODULE EGAISActUnFixBarCodeStatus;
 
-REQUIRE EGAISActUnFixBarCode;
+REQUIRE EGAISActUnFixBarCode, EGAISActUnFixBarCodeExchange;
 
 NAMESPACE EGAIS;
 
@@ -27,13 +27,13 @@ EXTEND FORM actUnFixBarCodes
     PROPERTIES(d) READONLY nameStatus FIRST
 
     FILTERGROUP status
-        FILTER 'Проведен' status(d) = ActUnFixBarCodeStatus.posted
-        FILTER 'Отменен' status(d) = ActUnFixBarCodeStatus.canceled
+        FILTER 'Не отправлен' NOT status(d)
         FILTER 'Запрос на проведение' status(d) = ActUnFixBarCodeStatus.requestPosted
+        FILTER 'Проведен' status(d) = ActUnFixBarCodeStatus.posted
         FILTER 'Ошибка проведения' status(d) = ActUnFixBarCodeStatus.errorRequest
 ;
 
 status(ActUnFixBarCode a) += WHEN posted(a) THEN ActUnFixBarCodeStatus.posted;
 status(ActUnFixBarCode a) += WHEN canceled(a) THEN ActUnFixBarCodeStatus.canceled;
 status(ActUnFixBarCode a) += WHEN hasRequestPosted(a) THEN ActUnFixBarCodeStatus.requestPosted;
-status(ActUnFixBarCode a) += WHEN errorPost(a) THEN ActUnFixBarCodeStatus.errorRequest;
+status(ActUnFixBarCode a) += WHEN errorPost(a) AND NOT hasRequestPosted(a) THEN ActUnFixBarCodeStatus.errorRequest;
