@@ -55,6 +55,8 @@ fullAddress = DATA LOCAL STRING(INTEGER);
 salePrice = DATA LOCAL NUMERIC(INTEGER);
 requiredMeta = DATA LOCAL STRING(INTEGER);
 ordersRequiredMeta = DATA LOCAL INTEGER(INTEGER);
+optionalMeta = DATA LOCAL STRING(INTEGER);
+ordersOptionalMeta = DATA LOCAL INTEGER(INTEGER);
 scanPrice = DATA LOCAL STRING(INTEGER);
 article = DATA LOCAL STRING(INTEGER);
 convertedPrice = DATA LOCAL NUMERIC(INTEGER);
@@ -64,6 +66,7 @@ comment = DATA LOCAL STRING(INTEGER);
 colorCode = DATA LOCAL STRING(INTEGER);
 //chrtId = DATA LOCAL STRING (INTEGER);
 currencyCode = DATA LOCAL BPSTRING[3](INTEGER);
+groupId = DATA LOCAL STRING(INTEGER);
 
 FORM importNewOrdersFBS
 
@@ -71,7 +74,7 @@ FORM importNewOrdersFBS
 
     PROPERTIES(orders) cargoType, nmId, rid, createdAt, isZeroOrder, officeId, price, convertedCurrencyCode, id, ddate,
         salePrice, scanPrice, article, convertedPrice, orderUid, warehouseId, comment, colorCode, chrtId,
-        currencyCode
+        currencyCode, groupId
 
     OBJECTS skus = INTEGER
     PROPERTIES(skus) skus EXTID 'value'
@@ -89,10 +92,61 @@ FORM importNewOrdersFBS
     OBJECTS requiredMeta = INTEGER
     PROPERTIES(requiredMeta) requiredMeta EXTID 'value'
     FILTERS imported(requiredMeta)
-    FILTERS ordersRequiredMeta(requiredMeta) == orders;
+    FILTERS ordersRequiredMeta(requiredMeta) == orders
+
+    OBJECTS optionalMeta = INTEGER
+    PROPERTIES(optionalMeta) optionalMeta EXTID 'value'
+    FILTERS imported(optionalMeta)
+    FILTERS ordersOptionalMeta(optionalMeta) == orders;
 
 dataGetOrdersLimit = DATA INTEGER ();
 getOrdersLimit 'Лимит запросов для сборочных заданий' = OVERRIDE dataGetOrdersLimit(), 1000;
+
+dataGetOrdersMetaLimit = DATA INTEGER ();
+getOrdersMetaLimit 'Лимит заказов в запросе статусов метаданных' = OVERRIDE dataGetOrdersMetaLimit(), 100;
+
+CLASS OrderMeta 'Тип метаданных' {
+    imei 'IMEI',
+    uin 'УИН',
+    gtin 'GTIN',
+    sgtin 'Код маркировки',
+    expiration 'Срок годности',
+    customsDeclaration 'Номер ГТД'
+}
+
+orderMetaByName 'Тип меты по имени' (STRING str) = GROUP MAX OrderMeta m IF staticName(m) == 'WB_OrderMeta.' + str;
+
+requiredMeta 'Обязательная мета' = DATA BOOLEAN (InternetOrderDetail, OrderMeta);
+optionalMeta 'Опциональная мета' = DATA BOOLEAN (InternetOrderDetail, OrderMeta);
+valueMeta 'Значение меты' = ABSTRACT CASE STRING (InternetOrderDetail, OrderMeta);
+wbValueMeta 'Значение меты (WB)' = DATA STRING (InternetOrderDetail, OrderMeta);
+valueMeta(InternetOrderDetail d, OrderMeta m) += WHEN wbValueMeta(d, m) THEN wbValueMeta(d, m);
+
+CLASS OrderMetaStatus 'Статус метаданных';
+TABLE orderMetaStatus (OrderMetaStatus);
+
+id 'ID' = DATA STRING (OrderMetaStatus);
+name 'Название' = DATA STRING (OrderMetaStatus);
+validated 'Валидация пройдена' = DATA BOOLEAN (OrderMetaStatus);
+orderMeta 'Тип меты' = DATA OrderMeta (OrderMetaStatus);
+nameOrderMeta 'Тип меты' (OrderMetaStatus s) = staticCaption(orderMeta(s));
+
+orderMetaStatusById (OrderMeta m, STRING idStr) =
+    GROUP MAX OrderMetaStatus s IF id(s) == idStr AND orderMeta(s) == m;
+
+orderMetaStatus 'Статус меты' = DATA OrderMetaStatus (InternetOrderDetail, OrderMeta);
+nameOrderMetaStatus 'Статус меты' (InternetOrderDetail d, OrderMeta m) = name(orderMetaStatus(d, m));
+validatedMeta 'Валидация пройдена' (InternetOrderDetail d, OrderMeta m) = validated(orderMetaStatus(d, m));
+
+hasUnvalidatedRequiredMeta 'Есть невалидированная обязательная мета' (InternetOrder o) =
+    GROUP SUM 1 IF requiredMeta(InternetOrderDetail d, OrderMeta m)
+        AND internetOrder(d) == o
+        AND NOT validated(orderMetaStatus(d, m));
+
+hasUnvalidatedRequiredMetaPicking 'Есть невалидированная обязательная мета по сборке' (Picking p) =
+    GROUP SUM 1 IF requiredMeta(InternetOrderDetail d, OrderMeta m)
+        AND picking(d) == p
+        AND NOT validated(orderMetaStatus(d, m));
 
 // https://marketplace-api.wildberries.ru/api/v3/orders/new
 getOrdersFBSNew 'Получить список новых сборочных заданий (FBS)' () {
@@ -106,48 +160,66 @@ getOrdersFBSNew 'Получить список новых сборочных з�
 
         logToFile('WB', 'GET: ' + url(CategoryRequest.marketplace) + '/api/v3/orders/new');
 
-        LOCAL limit = INTEGER ();
-        limit() <- getOrdersLimit();
-
         TRY {
             EXTERNAL HTTP GET url(CategoryRequest.marketplace) + '/api/v3/orders/new' HEADERS httpHeaders TO response;
             fileToString(response());
             logToFile('WB', resultString());
             IMPORT importNewOrdersFBS JSON FROM response();
-
-            FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING number) AND NOT (GROUP MAX InternetOrder o IF number(o) == number AND carrier(o) == carrier('WB'))
-                AND Warehouse w == warehouse(warehouseId(i)) AND id(distributionCenter(w)) == officeId(i) INLINE DO NEW order = InternetOrder {
+            
+            FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING number)
+                AND NOT (GROUP MAX InternetOrder o IF number(o) == number AND carrier(o) == carrier('WB'))
+                AND NOT (GROUP MAX InternetOrder o IF orderRidID(o) == rid(i) AND carrier(o) == carrier('WB'))
+                INLINE DO NEW order = InternetOrder {
                 number(order) <- number;
                 orderRidID(order) <- rid(i);
                 orderUID(order) <- orderUid(i);
+                groupId(order) <- groupId(i); 
                 date(order) <- currentDate();
                 isWBOrder(order) <- TRUE;
                 carrier(order) <- carrier('WB');
                 status(order) <- StatusInternetOrder.new;
-                //                supplierStock(order) <- stock(w); отключил, т.к. теперь связь к множеству собственных складов
+                
+                IF NOT warehouse(warehouseId(i)) THEN
+                    messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + 'В справочнике системы не найден warehouseId: ' + warehouseId(i);
+
                 addressInternetCustomer(order) <- fullAddress(i);
                 deliveryDate(order) <- ddate(i);
                 note(order) <- comment(i);
-                //currency(order) <- GROUP MAX Currency c IF sid(c) == currencyCode(i);
-
-                FOR INTEGER ii = [GROUP MAX INTEGER j BY chrtId(j)](INTEGER chrtID) AND Size size == size(chrtID)
-                    AND Item item == itemNM(nmId(ii)) AND itemWB(size) == item INLINE DO NEW detail = InternetOrderDetail {
+                
+                currency(order) <- GROUP MAX Currency c IF sid(c) == currencyCode(i);
+                
+                FOR INTEGER ii = [GROUP MAX INTEGER j BY rid(j)](STRING rid)
+                    AND Size size == size(chrtId(ii))
+                    AND Item item == itemNM(nmId(ii))
+                    AND itemWB(size) == item
+                    AND orderRidID(order) == rid
+                    INLINE DO NEW detail = InternetOrderDetail {
                     internetOrder(detail) <- order;
                     sku(detail) <- item(size);
                     price(detail) <- salePrice(ii) / 100.0;
                 }
+
+                FOR INTEGER rm AND ordersRequiredMeta(rm) == i AND OrderMeta meta == orderMetaByName(requiredMeta(rm)) DO {
+                    FOR InternetOrderDetail detail AND internetOrder(detail) == order DO {
+                        requiredMeta(detail, meta) <- TRUE;
+                    }
+                }
+                FOR INTEGER om AND ordersOptionalMeta(om) == i AND OrderMeta meta == orderMetaByName(optionalMeta(om)) DO {
+                    FOR InternetOrderDetail detail AND internetOrder(detail) == order DO {
+                        optionalMeta(detail, meta) <- TRUE;
+                    }
+                }
             }
-            messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+            messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + messageStatusHTTP(STRING(statusHttp()));
         } CATCH {
             logToFile('WB', messageCaughtException());
             IF statusHttp() == 403 THEN {
                 IMPORT importError JSON FROM response();
-                extraDescriptionStatusHTTP() <- 'Список новых сборочных заданий не получен: ' + message();
+                extraDescriptionStatusHTTP() <- 'Список новых сборочных заданий (FBS) не получен: ' + message();
             }
             messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
         } FINALLY {
             afterSendRequestIS();
-            MESSAGE '<h3>Получение списка новых сборочных заданий (FBS)</h3>' NOWAIT;
             MESSAGE messageOrder() NOWAIT;
             APPLY;
         }
@@ -179,7 +251,7 @@ FORM importOrdersFBS
 ;
 
 // https://marketplace-api.wildberries.ru/api/v3/orders
-getOrdersFBS 'Получить информацию о сборочных заданиях (FBS)' () {
+getOrdersFBS 'Получить информацию о сборочных заданиях (FBS)' (DATE from, DATE to) {
     NEWSESSION {
         setHttpHeadersIS();
         LOCAL messageOrder = STRING ();
@@ -190,38 +262,81 @@ getOrdersFBS 'Получить информацию о сборочных зад
 
         LOCAL limit = INTEGER ();
         limit() <- getOrdersLimit();
+        IF limit() > 1000 THEN limit() <- 1000;
 
         LOCAL NESTED nextWB = INTEGER ();
         nextWB() <- 0;
 
+        LOCAL dFrom = LONG ();
+        LOCAL dTo = LONG ();
+        
+        IF to THEN
+            dTo() <- LONG(getSeconds(toZDateTime(to)));
+        ELSE
+            dTo() <- LONG(getSeconds(currentZDateTime()));
+
+        IF from THEN
+            dFrom() <- LONG(getSeconds(toZDateTime(from)));
+        ELSE
+            dFrom() <- dTo() - 2592000L;
+        
         LOCAL stop = BOOLEAN ();
 
         logToFile('WB', 'GET: ' + url(CategoryRequest.marketplace) + '/api/v3/orders');
-
-        WHILE NOT stop() AND NOT nextWB() < 0 DO {
+        
+        WHILE NOT stop() AND nextWB() >= 0 DO {
             TRY {
-                EXTERNAL HTTP GET url(CategoryRequest.marketplace) + '/api/v3/orders' HEADERS httpHeaders PARAMS 'limit=' + limit() + '&next=' + nextWB() TO response;
+                EXTERNAL HTTP GET url(CategoryRequest.marketplace) + '/api/v3/orders?limit=$1&next=$2&dateFrom=$3&dateTo=$4'
+                    HEADERS httpHeaders
+                    PARAMS
+                    limit(),
+                    nextWB(),
+                    dFrom(),
+                    dTo()
+                    TO response;
+
                 fileToString(response());
                 logToFile('WB', resultString());
                 IMPORT importOrdersFBS JSON FROM response();
-
+                
+                LOCAL currentNext = INTEGER();
+                currentNext() <- nextIndex();
+                
                 FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING number)
-                    AND InternetOrder order == (GROUP MAX InternetOrder o IF number(o) == number AND carrier(o) == carrier('WB'))
-                    AND Warehouse w == warehouse(warehouseId(i)) AND id(distributionCenter(w)) == officeId(i) INLINE DO {
-                    //status(order) <- StatusInternetOrder.new;
+                    AND InternetOrder order == (GROUP MAX InternetOrder o IF (number(o) == number OR orderRidID(o) == rid(i)) AND carrier(o) == carrier('WB'))
+                    INLINE DO {
+                    
+                    IF NOT warehouse(warehouseId(i)) THEN
+                        messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + 'В справочнике системы не найден warehouseId: ' + warehouseId(i);
+                    
                     addressInternetCustomer(order) <- fullAddress(i);
                     deliveryDate(order) <- ddate(i);
-                    //currency(order) <- GROUP MAX Currency c IF sid(c) == currencyCode(i);
-
-                    FOR INTEGER ii = [GROUP MAX INTEGER j BY chrtId(j)](INTEGER chrtID) AND Size size == size(chrtID)
-                        AND Item item == itemNM(nmId(ii)) AND itemWB(size) == item INLINE DO NEW detail = InternetOrderDetail {
-                        internetOrder(detail) <- order;
-                        sku(detail) <- item(size);
-                        price(detail) <- salePrice(ii) / 100.0;
+                    note(order) <- comment(i);
+                    
+                    currency(order) <- GROUP MAX Currency c IF sid(c) == currencyCode(i);
+                    
+                    FOR INTEGER ii = [GROUP MAX INTEGER j BY rid(j)](STRING rid)
+                        AND Size size == size(chrtId(ii))
+                        AND Item item == itemNM(nmId(ii))
+                        AND itemWB(size) == item
+                        AND orderRidID(order) == rid
+                        INLINE DO {
+                        IF NOT (GROUP MAX InternetOrderDetail d IF internetOrder(d) == order AND sku(d) == item(size)) THEN NEW detail = InternetOrderDetail {
+                            internetOrder(detail) <- order;
+                            sku(detail) <- item(size);
+                            price(detail) <- salePrice(ii) / 100.0;
+                        }
                     }
-                    nextWB() <- nextIndex();
                 }
-                messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+                
+                IF currentNext() > 0 AND currentNext() != nextWB() THEN {
+                    nextWB() <- currentNext();
+                } ELSE {
+                    stop() <- TRUE;
+                }
+
+                messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + messageStatusHTTP(STRING(statusHttp()));
+
             } CATCH {
                 logToFile('WB', messageCaughtException());
                 IF statusHttp() == 400 OR statusHttp() == 403 THEN {
@@ -232,18 +347,20 @@ getOrdersFBS 'Получить информацию о сборочных зад
                 stop() <- TRUE;
             } FINALLY {
                 afterSendRequestIS();
-                MESSAGE '<h3>Получение списка сборочных заданий (FBS)</h3>' NOWAIT;
                 MESSAGE messageOrder() NOWAIT;
-                IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
-                    limit() <- limit() + getOrdersLimit();
-                } ELSE {
+                
+                IF NOT (statusHttp() >= 200 AND statusHttp() < 300) THEN {
                     stop() <- TRUE;
                 }
                 APPLY NESTED LOCAL;
+                IF NOT stop() THEN sleep(100);
             }
         }
-        sleep(100);
     }
+}
+
+getOrdersFBS 'Получить информацию о сборочных заданиях (FBS)' () {
+    getOrdersFBS(NULL, NULL);
 }
 
 CLASS WbStatus{
@@ -253,19 +370,23 @@ CLASS WbStatus{
     receive 'Получено покупателем',
     reject 'Отказ покупателя при получении',
     cancel 'Отменено продавцом',
-    cancel_missed_call 'Отмена по причине недозвона'
+    cancel_missed_call 'Отмена по причине недозвона',
+    complete 'В доставке (complete)',
+    cancel_carrier 'Отменено перевозчиком'
 }
 
 wbStatus (STRING str) = GROUP MAX WbStatus s IF staticName(s) == 'WB_WbStatus.' + str;
 customStatusIntenetOrder = ABSTRACT CASE StatusInternetOrder (WbStatus);
 statusInternetOrder(WbStatus ws) =
     CASE WHEN ws = WbStatus.new AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.new
-         WHEN ws = WbStatus.confirm AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.agreed
-         WHEN ws = WbStatus.deliver AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.delivery
-         WHEN ws = WbStatus.receive AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.delivered
-         WHEN ws = WbStatus.reject AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.closed
-         WHEN ws = WbStatus.cancel AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.cancel
-         WHEN ws = WbStatus.cancel_missed_call AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.cancel
+        WHEN ws = WbStatus.confirm AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.agreed
+        WHEN ws = WbStatus.deliver AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.delivery
+        WHEN ws = WbStatus.receive AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.delivered
+        WHEN ws = WbStatus.reject AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.closed
+        WHEN ws = WbStatus.cancel AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.cancel
+        WHEN ws = WbStatus.cancel_missed_call AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.cancel
+        WHEN ws = WbStatus.complete AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.delivery
+        WHEN ws = WbStatus.cancel_carrier AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.cancel
 ;
 
 CLASS WbSystemStatus {
@@ -276,7 +397,11 @@ CLASS WbSystemStatus {
     declined_by_client 'Отменен покупателем в первый час',
     defect 'Брак',
     ready_for_pickup 'Прибыл на ПВЗ',
-    canceled_by_missed_call 'Отмена (недозвон)'
+    canceled_by_missed_call 'Отмена (недозвон)',
+    sorted 'Отсортировано',
+    accepted_by_carrier 'Передан в службу доставки',
+    sent_to_carrier 'Отправлен на склад службы доставки',
+    canceled_by_carrier 'Отменен перевозчиком'
 }
 
 wbSystemStatus = DATA WbSystemStatus (InternetOrder);
@@ -340,8 +465,19 @@ getWbFbsStatuses 'Получить статусы заказов FBS' () {
             messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
             IF statusHttp() == 200 THEN {
                 IMPORT statusInfoResponse JSON FROM response();
-                FOR id(INTEGER i) DO {
-                    wbStatus(orderByNumber(id(i))) <- GROUP MAX WbStatus ws IF getWord(name(ws), '.', 2) = supplierStatus(i);
+                FOR id(INTEGER i) AND InternetOrder o == orderByNumber(id(i))
+                    AND WbStatus ws = wbStatus(supplierStatus(i)) AND WbSystemStatus wss = wbSystemStatus(wbStatus(i)) DO {
+                    IF wss = WbSystemStatus.declined_by_client AND status(o) = StatusInternetOrder.new AND subtractSeconds(currentDateTime(), dateTime(o)) <= 3600 THEN {
+                        IF customCancelOrder() THEN {
+                            overCancelOrder(o);
+                        } ELSE {
+                            status(o) <- OVERRIDE customCancelOrderStatus(), StatusInternetOrder.closed;
+                        }
+                    } ELSE {
+                        status(o) <- statusInternetOrder(ws);
+                    }
+                    wbStatus(o) <- ws;
+                    wbSystemStatus(o) <- wss;
                 }
                 APPLY NESTED LOCAL ;
             }
@@ -441,7 +577,10 @@ wbSupplyId = DATA STRING[100](Picking);
 
 createSupply(Picking picking){
     NEWSESSION NESTED LOCAL {
-
+        IF NOT number(picking) THEN {
+            MESSAGE 'Отсутствует номер поставки.';
+            RETURN;
+        }
         setHttpHeadersIS();
         LOCAL messageOrder = STRING ();
         LOCAL response = FILE();
@@ -470,11 +609,12 @@ createSupply(Picking picking){
             logToFile('WB', messageCaughtException());
             IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
                 IMPORT importError JSON FROM response();
-                extraDescriptionStatusHTTP() <- 'Поставка не создана: ' + message();
+                extraDescriptionStatusHTTP() <- 'Поставка не создана: ' + messageCaughtException();
             }
             messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
         } FINALLY {
             afterSendRequestIS();
+            MESSAGE '<h3>Создание поставки</h3>' NOWAIT;
             MESSAGE messageOrder() NOWAIT;
         }
     }
@@ -488,23 +628,27 @@ FORM inputSupplyName 'Введите название сборки'
 addOrdersToSupply 'Добавить сборочные задания к поставке' (Picking p) {
     NEWSESSION NESTED LOCAL {
 
+        IF hasUnvalidatedRequiredMetaPicking(p) THEN {
+            MESSAGE 'Не все обязательные метаданные валидированы. Перевод заказа в статус «Собран» запрещён.';
+            RETURN;
+        }
+
         setHttpHeadersIS();
         LOCAL messageOrder = STRING ();
         LOCAL response = FILE();
         LOCAL error = STRING ();
         LOCAL statusText = STRING ();
         LOCAL status = STRING ();
-
-        createSupply(p);
+        
+        IF NOT wbSupplyId(p) THEN createSupply(p);
 
         LOCAL patchUrl = STRING ();
-
         patchUrl() <- '/api/marketplace/v3/supplies/' + wbSupplyId(p) + '/orders';
 
         logToFile('WB', 'PATCH: ' + url(CategoryRequest.marketplace) + patchUrl());
+        isSelected(InternetOrder order) <- TRUE WHERE (GROUP SUM 1 IF internetOrder(InternetOrderDetail detail) = order AND picking(detail) = p);
 
-        //EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrder(order) AND carrier(order) == carrier('WB');
-        EXPORT JSON FROM 'value' = INTEGER(number(internetOrder(InternetOrderDetail detail))) WHERE picking(detail) = p;
+        EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order);
         fileToString(exportFile(), 'UTF-8');
         stringToFile('\{"orders":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
         fileToString(resultFile(), 'UTF-8');
@@ -530,6 +674,7 @@ addOrdersToSupply 'Добавить сборочные задания к пос�
             messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
         } FINALLY {
             afterSendRequestIS();
+            MESSAGE '<h3>Добавление заказов к поставке</h3>' NOWAIT;
             MESSAGE messageOrder() NOWAIT;
         }
     }
@@ -547,6 +692,11 @@ orderNumber(InternetOrderDetail d) = number(internetOrder(d));
 //https://marketplace-api.wildberries.ru/api/v3/supplies/{supplyId}/deliver
 sendSupplyToDeliver 'Передать поставку в доставку'(Picking p){
     NEWSESSION NESTED LOCAL {
+
+        IF NOT wbSupplyId(p) THEN {
+            MESSAGE 'У поставки отсутствует wbSupplyId.';
+            RETURN;
+        }
 
         setHttpHeadersIS();
         LOCAL messageOrder = STRING ();
@@ -579,6 +729,7 @@ sendSupplyToDeliver 'Передать поставку в доставку'(Pick
             messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
         } FINALLY {
             afterSendRequestIS();
+            MESSAGE '<h3>Передать поставку в доставку</h3>' NOWAIT;
             MESSAGE messageOrder() NOWAIT;
         }
     }
@@ -606,6 +757,11 @@ wbDestinationOfficeId = DATA INTEGER (Picking);
 //https://marketplace-api.wildberries.ru/api/v3/supplies/{supplyId}/deliver
 getSupplyInfo 'Получить информацию о поставке'(Picking p){
     NEWSESSION NESTED LOCAL {
+
+        IF NOT wbSupplyId(p) THEN {
+            MESSAGE 'У поставки отсутствует wbSupplyId.';
+            RETURN;
+        }
 
         setHttpHeadersIS();
         LOCAL messageOrder = STRING ();
@@ -652,6 +808,230 @@ getSupplyInfo 'Получить информацию о поставке'(Pickin
     }
 }
 
+//----Метаданные сборочных заданий-----//
+
+apiMetaPath (OrderMeta m) =
+    CASE WHEN m = OrderMeta.imei THEN 'imei'
+         WHEN m = OrderMeta.uin THEN 'uin'
+         WHEN m = OrderMeta.gtin THEN 'gtin'
+         WHEN m = OrderMeta.sgtin THEN 'sgtin'
+         WHEN m = OrderMeta.expiration THEN 'expiration'
+         WHEN m = OrderMeta.customsDeclaration THEN 'customs-declaration';
+
+apiMetaBodyKey (OrderMeta m) =
+    CASE WHEN m = OrderMeta.imei THEN 'imei'
+         WHEN m = OrderMeta.uin THEN 'uin'
+         WHEN m = OrderMeta.gtin THEN 'gtin'
+         WHEN m = OrderMeta.sgtin THEN 'sgtins'
+         WHEN m = OrderMeta.expiration THEN 'expiration'
+         WHEN m = OrderMeta.customsDeclaration THEN 'number';
+
+// Локальные данные для импорта ответа /api/marketplace/v3/orders/meta
+metaOrderId = DATA LOCAL STRING(INTEGER);
+ordersMetaDetails = DATA LOCAL INTEGER(INTEGER);
+metaDetailKey = DATA LOCAL STRING(INTEGER);
+metaDetailValue = DATA LOCAL STRING(INTEGER);
+metaDetailDecision = DATA LOCAL STRING(INTEGER);
+
+FORM ordersMetaResponse
+    OBJECTS orders = INTEGER
+    PROPERTIES(orders) metaOrderId EXTID 'id'
+    FILTERS imported(orders)
+
+    OBJECTS metaDetails = INTEGER
+    FILTERS ordersMetaDetails(metaDetails) == orders
+    PROPERTIES(metaDetails) metaDetailKey EXTID 'key',
+                            metaDetailValue EXTID 'value',
+                            metaDetailDecision EXTID 'decision'
+    FILTERS imported(metaDetails)
+;
+
+// "Хорошие" статусы decision — позволяют переводить поставку в доставку
+validatedDecision 'Валидный статус проверки' (STRING d) = CASE
+    WHEN d == 'filled' THEN TRUE
+    WHEN d == 'optional' THEN TRUE
+    WHEN d == 'deadlineExceeded' THEN TRUE
+    WHEN d == 'imeiMaySell' THEN TRUE
+    WHEN d == 'imeiSoldB2B' THEN TRUE
+    WHEN d == 'uinMaySell' THEN TRUE
+    WHEN d == 'sgtinIntroduced' THEN TRUE
+    WHEN d == 'sgtinSoldB2B' THEN TRUE;
+
+// POST https://marketplace-api.wildberries.ru/api/marketplace/v3/orders/meta
+actualizeOrdersMeta 'Актуализировать статусы метаданных' () {
+    NEWSESSION NESTED LOCAL {
+        IF NOT (GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrder(order) AND carrier(order) == carrier('WB')) THEN {
+            MESSAGE 'Заказ FBS не выбран.';
+            RETURN;
+        }
+
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING ();
+        LOCAL response = FILE();
+
+        LOCAL isSelectedOrder = BOOLEAN (InternetOrder);
+        isSelectedOrder(InternetOrder o) <- TRUE WHERE isSelected(o) AND isWBOrder(o) AND carrier(o) == carrier('WB');
+
+        LOCAL index = INTEGER (InternetOrder);
+        index(InternetOrder o) <- PARTITION SUM 1 IF isSelectedOrder(o) ORDER o;
+
+        LOCAL exported = INTEGER ();
+        exported() <- 0;
+
+        WHILE exported() < (GROUP MAX index(InternetOrder i)) DO {
+            LOCAL bodyIds = STRING ();
+            bodyIds() <- (GROUP CONCAT number(InternetOrder o), ',' ORDER o
+                WHERE index(o) > exported() AND index(o) <= exported() + getOrdersMetaLimit());
+
+            stringToFile('\{"orders":[' + bodyIds() + ']\}', 'UTF-8', 'json');
+            fileToString(resultFile(), 'UTF-8');
+            logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/marketplace/v3/orders/meta body: ' + resultString());
+
+            TRY {
+                EXTERNAL HTTP POST url(CategoryRequest.marketplace) + '/api/marketplace/v3/orders/meta'
+                    HEADERS httpHeaders PARAMS resultFile() TO response;
+                fileToString(response());
+                logToFile('WB', resultString());
+
+                IF statusHttp() == 200 THEN {
+                    IMPORT ordersMetaResponse JSON FROM response();
+
+                    FOR INTEGER d AND imported(d)
+                        AND OrderMeta meta == orderMetaByName(metaDetailKey(d))
+                        AND InternetOrder ord == orderByNumber(metaOrderId(ordersMetaDetails(d)))
+                        DO {
+
+                        LOCAL status = OrderMetaStatus ();
+                        status() <- orderMetaStatusById(meta, metaDetailDecision(d));
+                        IF NOT status() THEN NEW s = OrderMetaStatus {
+                            id(s) <- metaDetailDecision(d);
+                            orderMeta(s) <- meta;
+                            status() <- s;
+                        }
+                        name(status()) <- metaDetailDecision(d);
+                        validated(status()) <- validatedDecision(metaDetailDecision(d));
+
+                        FOR InternetOrderDetail detail AND internetOrder(detail) == ord DO {
+                            orderMetaStatus(detail, meta) <- status();
+                            wbValueMeta(detail, meta) <- metaDetailValue(d);
+                        }
+                    }
+                }
+                messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+                IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                    IMPORT importError JSON FROM response();
+                    extraDescriptionStatusHTTP() <- 'Статусы метаданных не получены: ' + message();
+                }
+                messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            } FINALLY {
+                afterSendRequestIS();
+                APPLY NESTED LOCAL ;
+            }
+
+            exported() <- exported() + getOrdersMetaLimit();
+        }
+
+        MESSAGE messageOrder() NOWAIT;
+    }
+}
+
+// DELETE https://marketplace-api.wildberries.ru/api/v3/orders/{orderId}/meta?key=...
+deleteOrderMeta 'Удалить метаданные сборочного задания' (InternetOrder o, OrderMeta m) {
+    NEWSESSION NESTED LOCAL {
+        IF NOT number(o) THEN {
+            MESSAGE 'У заказа отсутствует номер.';
+            RETURN;
+        }
+        IF NOT apiMetaPath(m) THEN {
+            MESSAGE 'Неизвестный тип метаданных.';
+            RETURN;
+        }
+
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING ();
+        LOCAL response = FILE();
+
+        LOCAL deleteUrl = STRING ();
+        deleteUrl() <- '/api/v3/orders/' + number(o) + '/meta?key=' + apiMetaPath(m);
+
+        logToFile('WB', 'DELETE: ' + url(CategoryRequest.marketplace) + deleteUrl());
+
+        TRY {
+            EXTERNAL HTTP DELETE url(CategoryRequest.marketplace) + deleteUrl() HEADERS httpHeaders TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+
+            IF statusHttp() == 204 THEN {
+                FOR InternetOrderDetail d AND internetOrder(d) == o DO {
+                    orderMetaStatus(d, m) <- NULL;
+                }
+                APPLY NESTED LOCAL ;
+            }
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                IMPORT importError JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Метаданные не удалены: ' + message();
+            }
+            messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE messageOrder() NOWAIT;
+        }
+    }
+}
+
+// PUT https://marketplace-api.wildberries.ru/api/v3/orders/{orderId}/meta/{key}
+// (для customsDeclaration используется /api/marketplace/v3/orders/{orderId}/meta/customs-declaration)
+sendOrderMeta 'Передать метаданные сборочного задания' (InternetOrder o, OrderMeta m) {
+    NEWSESSION NESTED LOCAL {
+        IF NOT number(o) THEN {
+            MESSAGE 'У заказа отсутствует номер.';
+            RETURN;
+        }
+        IF NOT apiMetaPath(m) THEN {
+            MESSAGE 'Неизвестный тип метаданных.';
+            RETURN;
+        }
+
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING ();
+        LOCAL response = FILE();
+
+        LOCAL putUrl = STRING ();
+        putUrl() <- (CASE WHEN m == OrderMeta.customsDeclaration THEN '/api/marketplace/v3/orders/' ELSE '/api/v3/orders/')
+                    + number(o) + '/meta/' + apiMetaPath(m);
+
+        EXPORT JSON FROM 'value' = valueMeta(InternetOrderDetail d, m)
+            WHERE internetOrder(d) == o AND valueMeta(d, m);
+        fileToString(exportFile(), 'UTF-8');
+        stringToFile('\{"' + apiMetaBodyKey(m) + '":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
+        fileToString(resultFile(), 'UTF-8');
+
+        logToFile('WB', 'PUT: ' + url(CategoryRequest.marketplace) + putUrl() + ' body: ' + resultString());
+
+        TRY {
+            EXTERNAL HTTP PUT url(CategoryRequest.marketplace) + putUrl() HEADERS httpHeaders PARAMS resultFile() TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                IMPORT importError JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Метаданные не переданы: ' + message();
+            }
+            messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE messageOrder() NOWAIT;
+        }
+    }
+}
+
 FORM wbInternetDetailsDialog 'WB заказы'
     OBJECTS d = InternetOrderDetail
     PROPERTIES (d) addToPicking, orderNumber, nameSku
@@ -671,7 +1051,15 @@ EXTEND FORM internetOrders
     PROPERTIES(o) READONLY isWBOrder AFTER isClosed(o)
     PROPERTIES(o) READONLY SHOWIF isWBOrder(o) orderRidID, orderUID
     PROPERTIES (o) getWbFbsStatus
-    PROPERTIES() getOrdersFBSNew, getOrdersFBS
+    PROPERTIES() getOrdersFBSNew, getOrdersFBS, actualizeOrdersMeta
+
+    OBJECTS dm = InternetOrderDetail, mm = OrderMeta
+    PROPERTIES (dm) READONLY idSku, nameSku
+    PROPERTIES nameMetaType = staticCaption(mm)
+    PROPERTIES (dm, mm) READONLY requiredMeta, optionalMeta, valueMeta, nameOrderMetaStatus, validatedMeta
+    PROPERTIES  wbValueMeta(dm, mm), sendOrderMeta(o, mm)
+    FILTERS internetOrder(dm) == o,
+            requiredMeta(dm, mm) OR optionalMeta(dm, mm)
 ;
 
 EXTEND FORM picking
@@ -693,6 +1081,13 @@ DESIGN internetOrders {
             NEW ordersFBSActions {
                 caption = 'Действия по заданиям FBS';
                 MOVE PROPERTY (getWbFbsStatus(o));
+                MOVE PROPERTY (actualizeOrdersMeta());
+            }
+            NEW ordersMeta {
+                caption = 'Метаданные заказа';
+                fill = 1;
+                MOVE BOX(dm);
+                MOVE BOX(mm);
             }
         }
     }
