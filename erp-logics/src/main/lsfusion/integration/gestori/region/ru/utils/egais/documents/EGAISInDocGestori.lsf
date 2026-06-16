@@ -21,12 +21,19 @@ overTypeBaseDocument(InDoc d) += name(docType(d));
 
 skipUrl(InDoc d) += dateTime(d) < utmDBDateTime(utm(d));
 
+maxDocumentLength 'Порог отображения ответа для входящего документа, символов' = DATA INTEGER ();
+largeDocument (InDoc d) = length(document(d)) > maxDocumentLength();
+showFullDocument = DATA LOCAL BOOLEAN (InDoc);
+documentToShow 'Ответ' (InDoc d) = document(d) IF (NOT largeDocument(d) OR showFullDocument(d));
+showDocument 'Показать XML' (InDoc d) { showFullDocument(d) <- TRUE; }
+
 EXTEND FORM inDocs
     PROPERTIES(d) READONLY AFTER idOutDoc(d) typeBaseDocumentOutDoc, numberBaseDocumentOutDoc, dateBaseDocumentOutDoc,
         typeOriginalDocumentOutDoc, numberOriginalDocumentOutDoc, dateOriginalDocumentOutDoc
 
-    PROPERTIES(d) READONLY PANEL hldocument = document CUSTOM 'xmlHighlight'
-    
+    PROPERTIES(d) READONLY PANEL hldocument = documentToShow CUSTOM 'xmlHighlight'
+    PROPERTIES(d) showDocument SHOWIF largeDocument(d) AND NOT showFullDocument(d)
+
     FILTERGROUP filterProcessed
         FILTER 'Необработанные' toProcess(d)
         FILTER 'Обработанные' processed(d)
@@ -39,6 +46,7 @@ DESIGN inDocs {
 
     response {
         REMOVE PROPERTY(document(d));
+        MOVE PROPERTY(showDocument(d));
         MOVE PROPERTY(hldocument) { caption = ''; autoSize = TRUE; panelCaptionVertical = TRUE; }
     }
 }
@@ -52,6 +60,16 @@ END;
 
 DESIGN outDocs {
     BOX(i) { caption = CONCAT '', 'Входящие документы', ' (' + countInDocs(r) +  ')'; }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() maxDocumentLength
+;
+
+DESIGN integrationData {
+    EGAISParams {
+        MOVE PROPERTY(maxDocumentLength());
+    }
 }
 
 NAVIGATOR {
