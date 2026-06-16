@@ -71,7 +71,7 @@ product 'Продукция' = DATA Product (WayBillPosition) NONULL INDEXED;
 idProduct 'Код продукции' (WayBillPosition p) = id(product(p)) IN id;
 fullNameProduct 'Продукция' (WayBillPosition p) = fullName(product(p));
 
-identity 'Код' = DATA STRING (WayBillPosition) IN id;
+identity 'Номер строки' = DATA STRING (WayBillPosition) IN id;
 wayBillPosition = GROUP MAX WayBillPosition p BY wayBill(p), identity(p);
 
 INDEX wayBill(WayBillPosition p), identity(p); 
@@ -398,8 +398,9 @@ META defineDocumentInWayBill (doc, quantityProp, supplierStock, customerStock, p
     isExport (WayBillPosition p) = isExport(wayBill(p));
 
     check###doc##Conditions = ABSTRACT VALUE STRING (WayBill);
+    seekWayBill = ABSTRACT WayBill (###doc);
     changeNumberDateWayBill (###doc d) {
-        DIALOG dialogWayBills OBJECTS w = wayBill(d) NULL INPUT FILTERS toAccept(w) AND matches(d, w) DO {
+        DIALOG dialogWayBills OBJECTS w = OVERRIDE wayBill(d), seekWayBill(d) NULL INPUT FILTERS toAccept(w) AND matches(d, w) DO {
             IF check###doc##Conditions(w) THEN {
                 MESSAGE check###doc##Conditions(w);
                 RETURN;
