@@ -150,7 +150,11 @@ META defineOrderInvoicePickingOrder (sign)
                         executeLocalEvents('Sale.userInvoice');
                         FOR inCreatePickingUserInvoicePosted(Order.Order o) DO {
                             afterCreatePickingUserInvoicePosted(i, o);
-                        }    
+                        }
+                        //генерируем номер до применения транзации, что бы не было лока параллельных транзакций в ожидании номера
+                        //проблема проявляется когда паралельно работают несколько операторов
+                        //выпашие номера не являются проблемой, т.к. всё равно присваиваются номера бланков ТТН
+                        generateNumber(i); 
                         IF showPickingUserInvoicePosted() THEN {
                             SHOW userInvoice OBJECTS i = i DOCKED NOCANCEL;
                         }
@@ -166,6 +170,10 @@ META defineOrderInvoicePickingOrder (sign)
                     include(order,i) <- TRUE;
                     executeLocalEvents('Sale.userInvoice');
                     afterCreatePickingUserInvoicePosted(i, order);
+                    //генерируем номер до применения транзации, что бы не было лока параллельных транзакций в ожидании номера
+                    //проблема проявляется когда паралельно работают несколько операторов
+                    //выпашие номера не являются проблемой, т.к. всё равно присваиваются номера бланков ТТН
+                    generateNumber(i);
                     IF showPickingUserInvoicePosted() THEN {
                         SHOW userInvoice OBJECTS i = i DOCKED NOCANCEL;
                     }
