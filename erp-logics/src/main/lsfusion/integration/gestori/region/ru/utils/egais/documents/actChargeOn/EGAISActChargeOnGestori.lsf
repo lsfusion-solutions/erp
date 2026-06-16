@@ -127,10 +127,14 @@ addMarkCodeInputIdMarkCode 'Ввод кода маркировки :' (ActCharge
 addMarkCodeInputIdMarkCode 'Ввод кода маркировки :' (ActChargeOn w) = DATA LOCAL STRING[200] (ActChargeOn) TOOLBAR CHARWIDTH 50 CHANGEKEY 'F4;editing=all' EVENTID 'SCANNER'
     ON CHANGE { changeAddMarkCodeInputIdMarkCode(w); }
 
+idEgais 'Код ЕГАИС' (ActChargeOnPosition p) = STRING(p) IF p IS ActChargeOnPosition;
+
 EXTEND FORM actChargeOns
     PROPERTIES (d) post SHOWIF NOT posted(d) AND NOT canceled(d), unpost SHOWIF posted(d)
     PROPERTIES (d) edit SHOWIF showToShow(d), copy
     PROPERTIES (d) READONLY dataSaleReturnDate AFTER dateTime(d), stockClientName AFTER shortNameClient(d)
+
+    PROPERTIES (p) READONLY idEgais
 ;
 
 DESIGN actChargeOns {
@@ -157,6 +161,8 @@ EXTEND FORM actChargeOn
     PROPERTIES (p) DRAW m  addMarkCodeInputIdMarkCode SHOWIF minActChargeOnPosition(a)
     PROPERTIES idF2Reg 'Справка Б' = idF2Reg(p) AFTER fullNameProduct(p) NOSELECT 
     PROPERTIES (m) DELETE GRID
+
+    PROPERTIES (p) READONLY idEgais
 ;
 
 DESIGN actChargeOn {

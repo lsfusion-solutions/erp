@@ -170,19 +170,36 @@ processActInventoryInform ABSTRACT LIST(InDoc);
 
 actChargeOnPosition(LONG id) = GROUP MIN ActChargeOnPosition p IF p IS ActChargeOnPosition AND LONG(p) == id;
 
+errorProcessReason 'Причина ошибки обработки' = DATA STRING[1000] (InDoc);
+
 process (InDoc d) + {
     IF docType(d) = DocType.ActInventoryInformF2Reg THEN {
         NEWSESSION {
             stringToFile(document(d));
             IMPORT actInventoryInform XML FROM resultFile();
-
             
+            IF NOT actChargeOn(actRegId()) THEN {
+                errorProcessReason(d) <- 'Не найден акт постановки на баланс по рег. номеру ' + actRegId();
+                MESSAGE errorProcessReason(d) NOWAIT;
+                APPLY;
+                RETURN;
+            }
+            
+            IF [GROUP SUM 1 IF imported(INTEGER i) AND identityF1Inform(i) AND NOT actChargeOnPosition(LONG(identityF1Inform(i)))]() THEN {
+                errorProcessReason(d) <- 'Не сопоставлены позиции уведомления с актом ' + actRegId() + ' по полю Identity';
+                MESSAGE errorProcessReason(d) NOWAIT;
+                APPLY;
+                RETURN;
+            }
+
+            errorProcessReason(d) <- NULL;
+
             NEW a = ActInventoryInform {
                 inDoc(a) <- d;
                 outDoc(a) <- OVERRIDE outDoc(d), actChargeOnOutDoc(actChargeOn(actRegId()));
                 regId(a) <- actRegId();
                 regNumber(a) <- number();
-
+                
                 FOR INTEGER j = [GROUP MIN INTEGER i BY informF1RegIdInform(i)](STRING idF1) AND NOT f1Reg(idF1) DO NEW r = F1Reg {
                     id(r) <- idF1;
                     product(r) <- product(actChargeOnPosition(LONG(identityF1Inform(j))));
@@ -194,10 +211,10 @@ process (InDoc d) + {
                     client(r) <- OVERRIDE client(FSRARIDInform()), (GROUP MAX Client c IF utm(c) == utm(d) AND own(c));
                 }
 
-                FOR INTEGER j = [GROUP MIN INTEGER i BY identityF2Inform(i)](STRING id) DO {
+                FOR INTEGER j = [GROUP MIN INTEGER i BY identityF1Inform(i)](STRING id) DO {
                     f2Reg(actChargeOnPosition(LONG(id))) <- f2Reg(f2RegId(j));
                 }
-                
+
                 waitActInventoryInform(actChargeOn[ActChargeOnOutDoc](outDoc(a))) <- NULL;
                 posted(actChargeOn[ActChargeOnOutDoc](outDoc(a))) <- TRUE;
             }
@@ -207,6 +224,10 @@ process (InDoc d) + {
         }
     }
 }
+
+EXTEND FORM inDocs
+    PROPERTIES(d) READONLY errorProcessReason
+;
 
 EXTEND FORM actChargeOns
     OBJECTS aii = ActInventoryInform
