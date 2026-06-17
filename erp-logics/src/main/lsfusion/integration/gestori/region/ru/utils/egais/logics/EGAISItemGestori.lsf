@@ -41,11 +41,23 @@ EXTEND FORM products
 
 existProduct 'Связан с продуктами' (Item i) = GROUP MIN in(i, Product p);
 
-seekSkuBarcode()  {
+seekBarcodeId 'Поиск по Коду/Штрихкоду' = DATA LOCAL STRING[15] ();
+seekBarcodeId()  {
     INPUT s = STRING[15] DO {
-        seek(skuBarcode(s, currentDate()));
-        IF NOT skuBarcode(s, currentDate()) THEN
-            MESSAGE 'Штрихкод не найден';
+        LOCAL sku = Sku();
+        
+        IF sku(s) THEN {
+            sku() <- sku(s);
+        } ELSE {
+            sku() <- skuBarcode(s, currentDate());
+        }
+        
+        IF NOT sku() THEN {
+            MESSAGE 'Товар не найден';
+            RETURN;
+        }
+        
+        seek(sku());
     }
 }
 
@@ -59,16 +71,22 @@ FORM alcoholtem 'Товары'
     ORDERS order(g), name(g)
     FILTERGROUP inactive1 FILTER 'Активные' active(g) 'F6' DEFAULT
 
+    PROPERTIES seekBarcodeId() ON CHANGE seekBarcodeId()
     OBJECTS i=Item
-    PROPERTIES(i) READONLY name, volume, valueAlcohol, nameManufacturer, idProductType, nameProductType, existProduct
-    
+    PROPERTIES(i) READONLY id, idBarcode, name, volume, valueAlcohol, nameManufacturer, idProductType, nameProductType, existProduct
+
     FILTERGROUP groupFilters
-    FILTER 'С группами' isParent(g, i) 'F9' DEFAULT
-    FILTER 'Без групп' gt IS GroupType AND NOT group(gt,i) 'F8'
+        FILTER 'С группами' isParent(g, i) 'F9' DEFAULT
+        FILTER 'Без групп' gt IS GroupType AND NOT group(gt,i) 'F8'
+
+    OBJECTS b=Barcode
+    PROPERTIES(b) READONLY id, date, caption, shortNameUOM, amount, active, primary
+    FILTERS sku(b) == i
 ;
 
 DESIGN alcoholtem {
-    size = (-1, -1);
+//    size = (-1, -1);
+    size = (1024, 768);
     NEW root {
         horizontal = TRUE;
         fill = 1;
@@ -85,12 +103,15 @@ DESIGN alcoholtem {
         NEW pane {
             fill = 5;
             width = 400;
+            horizontal = FALSE;
+            MOVE PROPERTY (seekBarcodeId());
             MOVE BOX(i) {
-                fill = 5;
+                fill = 3;
                 GRID(i) {
                     defaultComponent = TRUE;
                 }
             }
+            MOVE BOX(b);
         }
     }
     MOVE TOOLBARBOX;
