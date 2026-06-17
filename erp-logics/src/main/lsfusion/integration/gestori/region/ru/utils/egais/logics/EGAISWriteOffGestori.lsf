@@ -43,7 +43,7 @@ hideFillQuantity(UserWriteOffDetail d, F2Reg r) += hideFillQuantity(userWriteOff
 hideFillQuantity(UserWriteOffDetail d, F2Reg r) += lotType(sku(d)) AND r IS F2Reg;
 editQuantity(UserWriteOffDetail d, F2Reg r) += NOT (lotType(sku(d)) OR postedOrActiveActWriteOff(userWriteOff(d)));
 
-WHEN LOCAL FORMS userWriteOff CHANGED(quantity(UserWriteOffDetail d, Lot l)) AND lotType(sku(d)) DO {
+WHEN CHANGED(quantityLot(UserWriteOffDetail d)) AND lotType(sku(d)) AND NOT postedOrActiveActWriteOff(userWriteOff(d)) DO {
     quantity(d, F2Reg r) <- [GROUP SUM 1 IF quantity(d, Lot ll) BY f2Reg(markCode(id(ll)))](r);
 }
 
@@ -56,8 +56,23 @@ CONSTRAINT SETCHANGED(quantity(UserWriteOffDetail d, F2Reg r))
     AND totalF2RegQuantity(d) > quantity(d)
     MESSAGE 'Суммарное количество по справкам Б не может превышать количество по позиции документа';
 
+CONSTRAINT (SET(isPosted(UserWriteOffDetail d)) OR SET(incorrectQuantityF2Reg(d)))
+    AND isPosted(d) AND incorrectQuantityF2Reg(d)
+    AND minProduct(sku(d)) AND NOT disableEGAISDocumentConstraints()
+    MESSAGE 'Суммарное количество по справкам Б должно соответствовать количеству по позиции акта списания';
+
 CONSTRAINT SETCHANGED(quantity(UserWriteOffDetail d, F2Reg r)) AND quantity(d, r) < 0
     MESSAGE 'Количество по справке Б не может быть отрицательным';
+
+notMatchQuantityLot (UserWriteOffDetail d) = d IS UserWriteOffDetail AND NOT (OVERRIDE quantity(d), 0.0) == (OVERRIDE quantityLot(d), 0.0);
+
+CONSTRAINT (SET(isPosted(UserWriteOffDetail d)) OR SET(notMatchQuantityLot(d)))
+    AND isPosted(d) AND notMatchQuantityLot(d)
+    AND lotType(sku(d)) AND NOT disableEGAISDocumentConstraints()
+    MESSAGE 'Для маркированной продукции количество по позиции должно соответствовать количеству марок';
+
+CONSTRAINT SETCHANGED(quantity(WriteOffDetail d)) AND quantity(d) < 0
+    MESSAGE 'Количество в строке документа списания не может быть отрицательным';
 
 hasEGAISQuantity(UserWriteOff w) = GROUP SUM quantity(UserWriteOffDetail d, F2Reg r) IF userWriteOff(d) = w;
 fillQuantity (UserWriteOff s) + WHEN s IS UserWriteOff AND hasEGAISQuantity(s) THEN {
