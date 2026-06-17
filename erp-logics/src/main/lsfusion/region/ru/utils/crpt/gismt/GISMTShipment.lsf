@@ -2,6 +2,8 @@ MODULE GISMTShipment;
 
 REQUIRE EDIGLN, EDIGLNWarehouse, EDIGLNStore, LotAggregate;
 
+GROUP mod;
+
 META defineDocumentGISMTIn (senderProp, receiverProp)
     needDocument = ABSTRACT VALUE BOOLEAN (Invoice);
     needDocument(Invoice i) += supplier(i) != customer(i);
@@ -147,14 +149,18 @@ META defineDocumentGISMTOut (senderProp, receiverProp)
     gismtType(Invoice i) += WHEN actionReceipt(operation(i)) THEN 'LK_RECEIPT';
     
     productCost = ABSTRACT VALUE NUMERIC[16,4] (InvoiceDetail);
+    modKpp = ABSTRACT STRING[9] (Invoice);
+    modFiasId = ABSTRACT STRING[50] (Invoice);
     FORM exportInvoiceReceipt
         OBJECTS i = Invoice, t = LotType PANEL
         
         PROPERTIES action = actionReceipt(operation(i)), action_date = toDateISO(date(i)), 
                    document_date = (toDateISO(date(i)) IF documentType(operation(i))), document_number = (seriesNumber(i) IF documentType(operation(i))),
                    document_type = documentType(operation(i)), primary_document_custom_name = primaryDocumentCustomName(operation(i)),
-                   inn = inn(senderProp(i))
-        
+                   inn = inn(senderProp(i)),
+                   kpp = modKpp(i) IN mod,
+                   fias_id = modFiasId(i) IN mod
+
         OBJECTS products = (d = InvoiceDetail, l = Lot)
         PROPERTIES cis = id(l), product_cost = productCost(d)
         FILTERS invoice(d) = i, quantity(d, l), NOT skipExport(d), lotType(sku(d)) = t
