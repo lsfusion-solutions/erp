@@ -6,7 +6,8 @@ NAMESPACE EGAIS;
 
 EXTEND CLASS OutDocStatus {
     rejected 'Отклонен',
-    complete 'Завершен'
+    complete 'Завершен',
+    replyReceived 'Получен ответ'
 }
 
 overOutDocStatus(OutDoc o) += WHEN rejected(o) THEN OutDocStatus.rejected;
@@ -15,6 +16,10 @@ lastConclusionTicket (OutDoc o) = GROUP LAST Ticket t ORDER t WHERE conclusion(t
 
 overOutDocStatus(OutDoc o) += WHEN lastConclusionTicket(o) AND lastOperationTicket(o) AND notRejected(o)
     THEN OutDocStatus.complete;
+
+isReplyDocType 'Ответ на запрос ЕГАИС' = ABSTRACT VALUE BOOLEAN (DocType);
+hasReply (OutDoc o) = GROUP MAX InDoc i IF isReplyDocType(docType(i)) BY outDoc(i);
+overOutDocStatus (OutDoc o) += WHEN hasReply(o) THEN OutDocStatus.replyReceived;
 
 EXTEND FORM outDocs
     EXTEND FILTERGROUP docStatusFilter
