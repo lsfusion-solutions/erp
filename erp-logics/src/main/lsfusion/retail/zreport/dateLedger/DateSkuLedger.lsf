@@ -4,18 +4,21 @@ REQUIRE ZReport, SkuLedger;
 
 NAMESPACE ZReport;
 
+overDate = ABSTRACT DATE (ReceiptDetail);
+ledgerDate (ReceiptDetail z) = OVERRIDE overDate(z), date(z);
+
 //---------------------- Продажа ----------------//
 CLASS DateSaleSkuLedger 'Продажа за день (общ.)' : OutFIFOSkuLedger, SaleLedger; //-- агрегированный объект
 TABLE DateSaleSkuLedger (DateSaleSkuLedger);
 
 quantityReceiptSaleDetail 'Кол-во' (department, sku, date) = GROUP SUM quantity(ReceiptDetail d) IF isPosted(d) AND NOT skip(receipt(d)) AND d IS ReceiptSaleDetail
-    BY departmentStore(d), sku(d), date(d);
+    BY departmentStore(d), sku(d), ledgerDate(d);
 sumReceiptSaleDetail 'Сумма' (department, sku, date) = GROUP SUM sum(ReceiptDetail d) IF isPosted(d) AND NOT skip(receipt(d)) AND d IS ReceiptSaleDetail
-    BY departmentStore(d), sku(d), date(d);
+    BY departmentStore(d), sku(d), ledgerDate(d);
 discountSumReceiptSaleDetail 'Сумма скидки' (department, sku, date) = GROUP SUM discountSum(ReceiptDetail d) IF isPosted(d) AND NOT skip(receipt(d)) AND d IS ReceiptSaleDetail
-    BY departmentStore(d), sku(d), date(d);
+    BY departmentStore(d), sku(d), ledgerDate(d);
 countReceiptSaleDetail (department, sku, date) = GROUP SUM 1 IF isPosted(ReceiptDetail d) AND NOT skip(receipt(d)) AND d IS ReceiptSaleDetail
-    BY departmentStore(d), sku(d), date(d);
+    BY departmentStore(d), sku(d), ledgerDate(d);
 
 dateSaleSkuLedger = AGGR DateSaleSkuLedger WHERE countReceiptSaleDetail(DepartmentStore departmentStore, Sku sku, DATE date);// MATERIALIZED;
 INDEX departmentStore(DateSaleSkuLedger o);
@@ -80,13 +83,13 @@ CLASS DateReturnSkuLedger 'Возврат за день (общ.)' : InLIFOSkuLe
 TABLE DateReturnSkuLedger (DateReturnSkuLedger);
 
 quantityReceiptReturnDetail 'Кол-во' (department, sku, date) = GROUP SUM quantity(ReceiptReturnDetail d) IF isPosted(d) AND NOT skip(receipt(d))
-    BY departmentStore(d), sku(d), date(d);
+    BY departmentStore(d), sku(d), ledgerDate(d);
 sumReceiptReturnDetail 'Сумма' (department, sku, date) = GROUP SUM sum(ReceiptReturnDetail d) IF isPosted(d) AND NOT skip(receipt(d))
-    BY departmentStore(d), sku(d), date(d);
+    BY departmentStore(d), sku(d), ledgerDate(d);
 discountSumReceiptReturnDetail 'Сумма скидки' (department, sku, date) = GROUP SUM discountSum(ReceiptReturnDetail d) IF isPosted(d) AND NOT skip(receipt(d))
-    BY departmentStore(d), sku(d), date(d);
+    BY departmentStore(d), sku(d), ledgerDate(d);
 countReceiptReturnDetail  (department, sku, date) = GROUP SUM 1 IF isPosted(ReceiptReturnDetail d) AND NOT skip(receipt(d))
-    BY departmentStore(d), sku(d), date(d);
+    BY departmentStore(d), sku(d), ledgerDate(d);
 
 dateReturnSkuLedger = AGGR DateReturnSkuLedger WHERE countReceiptReturnDetail(DepartmentStore departmentStore, Sku sku, DATE date);// MATERIALIZED;
 INDEX sku(DateReturnSkuLedger o), departmentStore(o);
