@@ -1,0 +1,284 @@
+MODULE WBOrders;
+
+REQUIRE WBStockMapping, WBItemMapping, SaleInternetOrder, WBPriceTransaction, SaleInternetPicking;
+
+NAMESPACE WB;
+
+// --------------------------------------Общая часть сборочных заданий WB (FBS + DBS)----------------------------------------------
+
+// ---------------------- Общие данные на InternetOrder ----------------------
+isWBOrder 'WB' = ABSTRACT CASE BOOLEAN (InternetOrder);
+warehouseId = DATA INTEGER (InternetOrder) INDEXED;
+orderUID 'Группировочный номер товара по заказам (в корзине)' = DATA STRING (InternetOrder);
+groupId 'ID транзакции заказа' = DATA STRING (InternetOrder);
+orderRidID 'ID сборочного задания WB' = DATA STRING (InternetOrder);
+
+supplierStockWB 'Склад поставщика' = ABSTRACT CASE Stock.Stock (InternetOrder);
+customSupplierStock = ABSTRACT BOOLEAN ();
+
+supplierStockWB (InternetOrder o) += WHEN o IS InternetOrder AND NOT customSupplierStock() THEN
+    GROUP MAX Stock.Stock st IF active(st) AND in(warehouse(warehouseId(o)), st);
+
+isSelected 'Отм.' = DATA LOCAL NESTED BOOLEAN (InternetOrder);
+
+// ---------------------- Общие GROUP и LOCAL-поля форм импорта ----------------------
+
+GROUP options;
+GROUP address;
+
+ordersSkus = DATA LOCAL INTEGER(INTEGER);
+nmId = DATA LOCAL INTEGER (INTEGER);
+rid = DATA LOCAL STRING(INTEGER); // ID сборочного задания в системе Wildberries
+isZeroOrder = DATA LOCAL STRING(INTEGER);
+isB2b = DATA LOCAL STRING(INTEGER);
+convertedCurrencyCode = DATA LOCAL NUMERIC(INTEGER);
+fullAddress = DATA LOCAL STRING(INTEGER);
+salePrice = DATA LOCAL NUMERIC(INTEGER);
+requiredMeta = DATA LOCAL STRING(INTEGER);
+ordersRequiredMeta = DATA LOCAL INTEGER(INTEGER);
+article = DATA LOCAL STRING(INTEGER);
+convertedPrice = DATA LOCAL NUMERIC(INTEGER);
+orderUid = DATA LOCAL STRING(INTEGER); // ID транзакции для группировки сборочных заданий
+warehouseId = DATA LOCAL NUMERIC(INTEGER);
+comment = DATA LOCAL STRING(INTEGER);
+colorCode = DATA LOCAL STRING(INTEGER);
+currencyCode = DATA LOCAL BPSTRING[3](INTEGER);
+groupId = DATA LOCAL STRING(INTEGER);
+
+// ---------------------- Классы статусов WB ----------------------
+
+CLASS WbStatus {
+    new 'Новое сборочное задание',
+    confirm 'На сборке',
+    deliver 'В доставке',
+    receive 'Получено покупателем',
+    reject 'Отказ покупателя при получении',
+    cancel 'Отменено продавцом',
+    cancel_missed_call 'Отмена по причине недозвона',
+    complete 'В доставке (complete)',
+    cancel_carrier 'Отменено перевозчиком'
+}
+
+wbStatus (STRING str) = GROUP MAX WbStatus s IF staticName(s) == 'WB_WbStatus.' + str;
+customStatusIntenetOrder = ABSTRACT CASE StatusInternetOrder (WbStatus);
+statusInternetOrder(WbStatus ws) =
+    CASE WHEN ws = WbStatus.new AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.new
+        WHEN ws = WbStatus.confirm AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.isPicking
+        WHEN ws = WbStatus.deliver AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.delivery
+        WHEN ws = WbStatus.receive AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.delivered
+        WHEN ws = WbStatus.reject AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.closed
+        WHEN ws = WbStatus.cancel AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.cancel
+        WHEN ws = WbStatus.cancel_missed_call AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.cancel
+        WHEN ws = WbStatus.complete AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.delivery
+        WHEN ws = WbStatus.cancel_carrier AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.cancel
+;
+
+CLASS WbSystemStatus {
+    waiting 'В работе',
+    sold 'Получен покупателем',
+    canceled 'Отменено',
+    canceled_by_client 'Отменен покупателем при получении',
+    declined_by_client 'Отменен покупателем в первый час',
+    defect 'Брак',
+    ready_for_pickup 'Прибыл на ПВЗ',
+    canceled_by_missed_call 'Отмена (недозвон)',
+    sorted 'Отсортировано',
+    accepted_by_carrier 'Передан в службу доставки',
+    sent_to_carrier 'Отправлен на склад службы доставки',
+    canceled_by_carrier 'Отменен перевозчиком'
+}
+
+wbSystemStatus (STRING str) = GROUP MAX WbSystemStatus s IF staticName(s) == 'WB_WbSystemStatus.' + str;
+
+wbStatus = DATA WbStatus(InternetOrder);
+nameWbStatus 'Статус WB' (InternetOrder o) = staticCaption(wbStatus(o));
+
+wbSystemStatus = DATA WbSystemStatus (InternetOrder);
+nameWbSystemStatus 'Системный статус WB' (InternetOrder o) = caption(wbSystemStatus(o));
+
+// ---------------------- Хуки отмены ----------------------
+
+customCancelOrder = ABSTRACT BOOLEAN ();
+overCancelOrder ABSTRACT LIST (InternetOrder);
+customCancelOrderStatus = ABSTRACT CASE StatusInternetOrder();
+
+// ---------------------- Хелпер ----------------------
+
+orderByNumber(STRING number) = GROUP MAX InternetOrder o IF number(o) = number;
+
+EXTEND FORM internetOrders
+    PROPERTIES(o) READONLY nameWbStatus, nameWbSystemStatus
+;
+
+// ---------------------- LOCAL-поля для разбора ответов status/info ----------------------
+
+orderId = DATA LOCAL STRING (INTEGER);
+supplierStatus = DATA LOCAL STRING(INTEGER);
+wbStatus = DATA LOCAL STRING(INTEGER);
+ordersErrors = DATA LOCAL INTEGER(INTEGER);
+
+// ---------------------- Стикеры ----------------------
+
+sticker = DATA RAWFILE(InternetOrder);
+
+file = DATA LOCAL STRING(INTEGER);
+partA = DATA LOCAL STRING(INTEGER);
+partB = DATA LOCAL STRING(INTEGER);
+barcode = DATA LOCAL STRING(INTEGER);
+
+FORM stickersResponse
+
+    OBJECTS stickers = INTEGER
+    PROPERTIES(stickers) file, orderId, partA, partB, barcode
+    FILTERS imported(stickers);
+
+// ---------------------- Метаданные сборочных заданий ----------------------
+
+dataGetOrdersMetaLimit = DATA INTEGER ();
+getOrdersMetaLimit 'Лимит заказов в запросе статусов метаданных' = OVERRIDE dataGetOrdersMetaLimit(), 100;
+
+CLASS OrderMeta 'Тип метаданных' {
+    imei 'IMEI',
+    uin 'УИН',
+    gtin 'GTIN',
+    sgtin 'Код маркировки',
+    expiration 'Срок годности',
+    customsDeclaration 'Номер ГТД'
+}
+
+orderMetaByName 'Тип меты по имени' (STRING str) = GROUP MAX OrderMeta m IF staticName(m) == 'WB_OrderMeta.' + str;
+
+requiredMeta 'Обязательная мета' = DATA BOOLEAN (InternetOrderDetail, OrderMeta);
+optionalMeta 'Опциональная мета' = DATA BOOLEAN (InternetOrderDetail, OrderMeta);
+valueMeta 'Значение меты' = ABSTRACT CASE STRING (InternetOrderDetail, OrderMeta);
+wbValueMeta 'Значение меты (WB)' = DATA STRING (InternetOrderDetail, OrderMeta);
+valueMeta(InternetOrderDetail d, OrderMeta m) += WHEN wbValueMeta(d, m) THEN wbValueMeta(d, m);
+
+CLASS OrderMetaStatus 'Статус метаданных';
+TABLE orderMetaStatus (OrderMetaStatus);
+
+id 'ID' = DATA STRING (OrderMetaStatus);
+name 'Название' = DATA STRING (OrderMetaStatus);
+validated 'Валидация пройдена' = DATA BOOLEAN (OrderMetaStatus);
+orderMeta 'Тип меты' = DATA OrderMeta (OrderMetaStatus);
+nameOrderMeta 'Тип меты' (OrderMetaStatus s) = staticCaption(orderMeta(s));
+
+orderMetaStatusById (OrderMeta m, STRING idStr) =
+    GROUP MAX OrderMetaStatus s IF id(s) == idStr AND orderMeta(s) == m;
+
+orderMetaStatus 'Статус меты' = DATA OrderMetaStatus (InternetOrderDetail, OrderMeta);
+nameOrderMetaStatus 'Статус меты' (InternetOrderDetail d, OrderMeta m) = name(orderMetaStatus(d, m));
+validatedMeta 'Валидация пройдена' (InternetOrderDetail d, OrderMeta m) = validated(orderMetaStatus(d, m));
+
+hasUnvalidatedRequiredMeta 'Есть невалидированная обязательная мета' (InternetOrder o) =
+    GROUP SUM 1 IF requiredMeta(InternetOrderDetail d, OrderMeta m)
+        AND internetOrder(d) == o
+        AND NOT validated(orderMetaStatus(d, m));
+
+hasUnvalidatedRequiredMetaPicking 'Есть невалидированная обязательная мета по сборке' (Picking p) =
+    GROUP SUM 1 IF requiredMeta(InternetOrderDetail d, OrderMeta m)
+        AND picking(d) == p
+        AND NOT validated(orderMetaStatus(d, m));
+
+apiMetaPath (OrderMeta m) =
+    CASE WHEN m = OrderMeta.imei THEN 'imei'
+        WHEN m = OrderMeta.uin THEN 'uin'
+        WHEN m = OrderMeta.gtin THEN 'gtin'
+        WHEN m = OrderMeta.sgtin THEN 'sgtin'
+        WHEN m = OrderMeta.expiration THEN 'expiration'
+        WHEN m = OrderMeta.customsDeclaration THEN 'customs-declaration';
+
+apiMetaBodyKey (OrderMeta m) =
+    CASE WHEN m = OrderMeta.imei THEN 'imei'
+        WHEN m = OrderMeta.uin THEN 'uin'
+        WHEN m = OrderMeta.gtin THEN 'gtin'
+        WHEN m = OrderMeta.sgtin THEN 'sgtins'
+        WHEN m = OrderMeta.expiration THEN 'expiration'
+        WHEN m = OrderMeta.customsDeclaration THEN 'number';
+
+// Имя поля в теле батч-эндпоинта POST /api/marketplace/v3/(dbs/)orders/meta/{key}
+// (массив строк, кроме customs-declaration — там одиночная строка customsDeclaration).
+// expiration в DBS-API недоступен (только FBS), поэтому в этом справочнике отсутствует.
+apiMetaBatchKey (OrderMeta m) =
+    CASE WHEN m = OrderMeta.imei THEN 'imeis'
+        WHEN m = OrderMeta.uin THEN 'uins'
+        WHEN m = OrderMeta.gtin THEN 'gtins'
+        WHEN m = OrderMeta.sgtin THEN 'sgtins'
+        WHEN m = OrderMeta.customsDeclaration THEN 'customsDeclaration';
+
+// Локальные данные для импорта ответа .../orders/meta
+metaOrderId = DATA LOCAL STRING(INTEGER);
+ordersMetaDetails = DATA LOCAL INTEGER(INTEGER);
+metaDetailKey = DATA LOCAL STRING(INTEGER);
+metaDetailValue = DATA LOCAL STRING(INTEGER);
+metaDetailDecision = DATA LOCAL STRING(INTEGER);
+
+FORM ordersMetaResponse
+    OBJECTS orders = INTEGER
+    PROPERTIES(orders) metaOrderId EXTID 'id'
+    FILTERS imported(orders)
+
+    OBJECTS metaDetails = INTEGER
+    FILTERS ordersMetaDetails(metaDetails) == orders
+    PROPERTIES(metaDetails) metaDetailKey EXTID 'key',
+        metaDetailValue EXTID 'value',
+        metaDetailDecision EXTID 'decision'
+    FILTERS imported(metaDetails)
+;
+
+// "Хорошие" статусы decision — позволяют переводить поставку в доставку
+validatedDecision 'Валидный статус проверки' (STRING d) = CASE
+    WHEN d == 'filled' THEN TRUE
+    WHEN d == 'optional' THEN TRUE
+    WHEN d == 'deadlineExceeded' THEN TRUE
+    WHEN d == 'imeiMaySell' THEN TRUE
+    WHEN d == 'imeiSoldB2B' THEN TRUE
+    WHEN d == 'uinMaySell' THEN TRUE
+    WHEN d == 'sgtinIntroduced' THEN TRUE
+    WHEN d == 'sgtinSoldB2B' THEN TRUE;
+
+// Передача/удаление/актуализация метаданных реализованы отдельно для FBS и DBS
+// (см. WBOrdersFBS / WBOrdersDBS), т.к. эндпоинты и поведение различаются.
+
+EXTEND FORM internetOrder
+    OBJECTS mm = OrderMeta
+    PROPERTIES nameMetaType = staticCaption(mm)
+    PROPERTIES (d, mm) READONLY requiredMeta, optionalMeta, valueMeta, nameOrderMetaStatus, validatedMeta
+    PROPERTIES wbValueMeta(d, mm)
+    //FILTERS requiredMeta(d, mm) OR optionalMeta(d, mm)
+;
+
+DESIGN internetOrders {
+    documentDetail {
+        NEW wbContainer {
+            caption = 'WB';
+            horizontal = TRUE;
+        }
+    }
+}
+
+DESIGN internetOrder {
+    specificationBox {
+        NEW metaContainer {
+            showIf = isWBOrder(o);
+            caption = 'Метаданные WB';
+            horizontal = TRUE;
+            fill = 1;
+            MOVE BOX(mm);
+        }
+    }
+}
+
+autoAggreed 'Авто согласование' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES autoAggreed()
+;
+
+DESIGN options {
+    pane {
+        WB {
+            MOVE PROPERTY (autoAggreed());
+        }
+    }
+}

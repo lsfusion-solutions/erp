@@ -1,6 +1,6 @@
 MODULE WBOrdersDBS;
 
-REQUIRE WBStockMapping, WBItemMapping, SaleInternetOrder, WBPriceTransaction, WBOrdersFBS;
+REQUIRE WBStockMapping, WBItemMapping, SaleInternetOrder, WBPriceTransaction, WBOrders;
 
 NAMESPACE WB;
 
@@ -10,10 +10,25 @@ NAMESPACE WB;
 //- Wildberries предоставляет платформу для продаж, но логистика полностью на стороне поставщика.
 //- Подходит для поставщиков, которые хотят контролировать весь процесс доставки.
 
+dbsCarrier = ABSTRACT CASE Carrier();
+customDbsCarrier = ABSTRACT BOOLEAN ();
+dbsCarrier () += WHEN carrier('ownWB') AND NOT customDbsCarrier() THEN carrier('ownWB');
+
+onStarted() + {
+    IF NOT customDbsCarrier() THEN {
+        IF NOT carrier('ownWB') THEN NEW c = Carrier{
+            id(c) <- 'ownWB';
+            name(c) <- 'DBS(WB)';
+        }
+    }
+}
+
 isWBOrderDBS 'DBS' = DATA BOOLEAN (InternetOrder);
+isWBOrder(InternetOrder o) += WHEN o IS InternetOrder AND isWBOrderDBS(o) THEN isWBOrderDBS(o) ;
 
 finalPrice = DATA LOCAL NUMERIC(INTEGER);
 convertedFinalPrice = DATA LOCAL NUMERIC(INTEGER);
+afterGetOrdersDBSNew ABSTRACT LIST;
 
 FORM importWBOrders
 
@@ -54,22 +69,22 @@ getOrdersDBSNew 'Получить список новых сборочных з�
             logToFile('WB', resultString());
             IMPORT importWBOrders JSON FROM response();
 
-            FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING number) AND NOT (GROUP MAX InternetOrder o IF number(o) == number AND carrier(o) == carrier('Own'))
-                AND NOT (GROUP MAX InternetOrder o IF orderRidID(o) == rid(i) AND carrier(o) == carrier('Own')) INLINE DO NEW order = InternetOrder {
+            FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING number) AND NOT (GROUP MAX InternetOrder o IF number(o) == number AND isWBOrderDBS(o))
+                AND NOT (GROUP MAX InternetOrder o IF orderRidID(o) == rid(i) AND isWBOrderDBS(o)) INLINE DO NEW order = InternetOrder {
                 number(order) <- number;
                 orderRidID(order) <- rid(i);
+                status(order) <- IF autoAggreed() THEN StatusInternetOrder.agreed ELSE StatusInternetOrder.new;
                 orderUID(order) <- orderUid(i);
                 groupId(order) <- groupId(i);
                 date(order) <- currentDate();
                 isWBOrderDBS(order) <- TRUE;
-                carrier(order) <- carrier('Own');
-                status(order) <- StatusInternetOrder.new;
-
-                IF NOT warehouse(warehouseId(i)) THEN messageOrder() <- 'В справочнике системы не найден warehouseId: ' + warehouseId(i);
-
+                carrier(order) <- dbsCarrier();
+                warehouseId(order) <- warehouseId(i);
                 supplierStock(order) <- supplierStockWB(order);
                 addressInternetCustomer(order) <- fullAddress(i);
                 currency(order) <- GROUP MAX Currency c IF sid(c) == currencyCode(i);
+                wbStatus(order) <- WbStatus.new;
+                wbSystemStatus(order) <- WbSystemStatus.waiting;
 
                 FOR INTEGER ii = [GROUP MAX INTEGER j BY rid(j)](STRING rid) AND Size size == size(chrtId(ii))
                     AND Item item == itemNM(nmId(ii)) AND itemWB(size) == item AND orderRidID(order) == rid INLINE DO NEW detail = InternetOrderDetail {
@@ -78,7 +93,14 @@ getOrdersDBSNew 'Получить список новых сборочных з�
                     price(detail) <- finalPrice(ii) / 100.0;
                 }
 
+                FOR INTEGER rm AND ordersRequiredMeta(rm) == i AND OrderMeta meta == orderMetaByName(requiredMeta(rm)) DO {
+                    FOR InternetOrderDetail detail AND internetOrder(detail) == order DO {
+                        requiredMeta(detail, meta) <- TRUE;
+                    }
+                }
+
             }
+            afterGetOrdersDBSNew();
             messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + messageStatusHTTP(STRING(statusHttp()));
         } CATCH {
             logToFile('WB', messageCaughtException());
@@ -88,6 +110,7 @@ getOrdersDBSNew 'Получить список новых сборочных з�
             }
             messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
         } FINALLY {
+            isSelected(InternetOrder o) <- NULL;
             afterSendRequestIS();
             MESSAGE messageOrder() NOWAIT;
             APPLY;
@@ -116,52 +139,56 @@ FORM importInfCustomer
 
 // https://marketplace-api.wildberries.ru/api/v3/dbs/orders/client
 postInfCustomer 'Получить информацию о клиенте сборочных заданий' () {
-    NEWSESSION {
-        IF NOT (GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrderDBS(order) AND carrier(order) == carrier('Own')) THEN {
+    NEWSESSION NESTED LOCAL {
+        IF NOT (GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrderDBS(order)) THEN {
             MESSAGE 'Заказ DBS не выбран.';
-            RETURN ;
+            RETURN;
         }
-        IF (GROUP SUM 1 IF isWBOrderDBS(InternetOrder order) AND order IS InternetOrder AND carrier(order) == carrier('Own')) THEN {
-            setHttpHeadersIS();
-            LOCAL messageOrder = STRING ();
-            LOCAL response = FILE();
-            LOCAL error = STRING ();
-            LOCAL statusText = STRING ();
-            LOCAL status = STRING ();
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING ();
+        LOCAL response = FILE();
+        LOCAL error = STRING ();
+        LOCAL statusText = STRING ();
+        LOCAL status = STRING ();
 
-            logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/v3/dbs/orders/client');
+        logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/v3/dbs/orders/client');
 
-            EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrderDBS(order) AND carrier(order) == carrier('Own');
-            fileToString(exportFile(), 'UTF-8');
-            stringToFile('\{"orders":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
-            TRY {
-                EXTERNAL HTTP POST url(CategoryRequest.marketplace) + '/api/v3/dbs/orders/client' HEADERS httpHeaders PARAMS resultFile() TO response;
-                fileToString(response());
-                logToFile('WB', resultString());
-                IMPORT importInfCustomer JSON FROM response();
+        EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrderDBS(order);
+        fileToString(exportFile(), 'UTF-8');
+        stringToFile('\{"orders":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
+        TRY {
+            EXTERNAL HTTP POST url(CategoryRequest.marketplace) + '/api/v3/dbs/orders/client' HEADERS httpHeaders PARAMS resultFile() TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            IMPORT importInfCustomer JSON FROM response();
 
-                FOR INTEGER i = [GROUP MAX INTEGER i1 BY orderID(i1)](STRING number) AND InternetOrder order = (GROUP MAX InternetOrder o IF number(o) == number
-                    AND carrier(o) == carrier('Own')) INLINE DO {
-                    nameInternetCustomer(order) <- fullName(i);
-                    phoneInternetCustomer(order) <- phone(i);
-                }
-                messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
-            } CATCH {
-                logToFile('WB', messageCaughtException());
-                IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 THEN {
-                    IMPORT importError JSON FROM response();
-                    extraDescriptionStatusHTTP() <- 'Информация о клиентах сборочных заданий не получена: ' + message();
-                }
-                messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
-            } FINALLY {
-                afterSendRequestIS();
-                MESSAGE messageOrder() NOWAIT;
-                APPLY;
+            FOR INTEGER i = [GROUP MAX INTEGER i1 BY orderID(i1)](STRING number) AND InternetOrder order = (GROUP MAX InternetOrder o IF number(o) == number
+                AND isWBOrderDBS(o)) INLINE DO {
+                nameInternetCustomer(order) <- fullName(i);
+                phoneInternetCustomer(order) <- phone(i);
             }
-        } ELSE {
-            MESSAGE 'В списке нет сборочных заданий WB';
+            messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 THEN {
+                IMPORT importError JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Информация о клиентах сборочных заданий не получена: ' + message();
+            }
+            messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE messageOrder() NOWAIT;
+            APPLY NESTED LOCAL;
         }
     }
+}
+
+postInfCustomerOrder 'Получить информацию о клиенте' (InternetOrder order) {
+    IF NOT GROUP SUM 1 IF isSelected(InternetOrder order1) THEN {
+        isSelected(order) <- TRUE ;
+    }
+    postInfCustomer();
+    isSelected(InternetOrder o) <- NULL;
 }
 
 FORM statusInfoResponseDBS
@@ -176,7 +203,7 @@ FORM statusInfoResponseDBS
 // https://marketplace-api.wildberries.ru/api/marketplace/v3/dbs/orders/status/info
 getWbStatuses 'Получить статусы заказов' () {
     NEWSESSION NESTED LOCAL {
-        IF NOT (GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrderDBS(order) AND carrier(order) == carrier('Own')) THEN {
+        IF NOT (GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrderDBS(order)) THEN {
             MESSAGE 'Заказ DBS не выбран.';
             RETURN ;
         }
@@ -190,7 +217,7 @@ getWbStatuses 'Получить статусы заказов' () {
 
         logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/marketplace/v3/dbs/orders/status/info');
 
-        EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrderDBS(order) AND carrier(order) == carrier('Own');
+        EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrderDBS(order);
         fileToString(exportFile(), 'UTF-8');
         stringToFile('\{"ordersIds":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
         fileToString(resultFile(), 'UTF-8');
@@ -206,7 +233,7 @@ getWbStatuses 'Получить статусы заказов' () {
 
                 FOR orderId(INTEGER i) AND InternetOrder o == orderByNumber(orderId(i))
                     AND WbStatus ws = wbStatus(supplierStatus(i)) AND WbSystemStatus wss = wbSystemStatus(wbStatus(i)) DO {
-                    IF wss = WbSystemStatus.declined_by_client AND status(o) = StatusInternetOrder.new AND subtractSeconds(dateTime(o), currentDateTime()) <= 3600 THEN {
+                    IF wss = WbSystemStatus.declined_by_client AND PREV(status(o)) = StatusInternetOrder.new AND subtractSeconds(dateTime(o), currentDateTime()) <= 3600 THEN {
                         IF customCancelOrder() THEN {
                             overCancelOrder(o);
                         } ELSE {
@@ -215,7 +242,7 @@ getWbStatuses 'Получить статусы заказов' () {
                     }
                     wbStatus(o) <- ws;
                     wbSystemStatus(o) <- wss;
-                    status(o) <- statusInternetOrder(ws);
+                    //status(o) <- statusInternetOrder(ws);
                 }
                 APPLY NESTED LOCAL ;
             }
@@ -233,11 +260,12 @@ getWbStatuses 'Получить статусы заказов' () {
     }
 }
 
-getWbStatus 'Получить статус заказа' (InternetOrder order) {
+getWbStatus 'Получить статусы заказов' (InternetOrder order) {
     IF NOT GROUP SUM 1 IF isSelected(InternetOrder order1) THEN {
         isSelected(order) <- TRUE ;
     }
     getWbStatuses();
+    isSelected(InternetOrder o) <- NULL;
 }
 
 requestId = DATA LOCAL STRING();
@@ -266,20 +294,20 @@ WHEN SET(isWBOrderDBS(InternetOrder o) AND isWBOrderDBS(o)) DO {
 
 requestBody = DATA LOCAL NESTED FILE();
 
-composeRequestBody(StatusInternetOrder status){
-    IF status == StatusInternetOrder.cancel OR status == StatusInternetOrder.agreed OR status == StatusInternetOrder.delivery THEN
+composeRequestBody(WbStatus wbStatus){
+    IF wbStatus == WbStatus.confirm OR wbStatus == WbStatus.cancel OR wbStatus == WbStatus.deliver THEN
         {
-            EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrderDBS(order) AND carrier(order) == carrier('Own') AND NOT status(order) == status;
+            EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrderDBS(order) AND NOT wbStatus(order) == wbStatus;
             fileToString(exportFile(), 'UTF-8');
             stringToFile('\{"ordersIds":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
             fileToString(resultFile(), 'UTF-8');
             logToFile('WB', 'ordersIds: ' + resultString());
             requestBody() <- resultFile();
         }
-    ELSE IF status == StatusInternetOrder.delivered OR status == StatusInternetOrder.closed THEN
+    ELSE IF wbStatus == WbStatus.receive OR wbStatus == WbStatus.reject THEN
         {
 
-            EXPORT JSON FROM 'orders' = JSON FROM 'orderId' = INTEGER(number(InternetOrder order)), 'code' = wbCode(order) WHERE isSelected(order) AND isWBOrderDBS(order) AND carrier(order) == carrier('Own') AND NOT status(order) == status;
+            EXPORT JSON FROM 'orders' = JSON FROM 'orderId' = INTEGER(number(InternetOrder order)), 'code' = wbCode(order) WHERE isSelected(order) AND isWBOrderDBS(order) AND NOT wbStatus(order) == wbStatus;
             fileToString(exportFile(), 'UTF-8');
             logToFile('WB', 'body: ' + resultString());
             requestBody() <- exportFile();
@@ -287,16 +315,16 @@ composeRequestBody(StatusInternetOrder status){
         }
 }
 customFilterChangeOrdersDBSStatus = ABSTRACT BOOLEAN (WbStatus, InternetOrder);
-changeOrdersDBSStatusCondition (WbStatus ws, InternetOrder o) = 
+afterChangeOrdersDBSStatus ABSTRACT LIST (WbStatus);
+changeOrdersDBSStatusCondition (WbStatus ws, InternetOrder o) =
     CASE WHEN ws = WbStatus.confirm AND wbStatus(o) = WbStatus.new AND NOT customFilterChangeOrdersDBSStatus(ws, o) THEN TRUE
-         WHEN ws = WbStatus.deliver AND wbStatus(o) = WbStatus.confirm AND NOT customFilterChangeOrdersDBSStatus(ws, o) THEN TRUE
-         WHEN ws = WbStatus.receive AND wbStatus(o) = WbStatus.deliver AND NOT customFilterChangeOrdersDBSStatus(ws, o) THEN TRUE
-         WHEN ws = WbStatus.reject AND wbStatus(o) = WbStatus.deliver AND NOT customFilterChangeOrdersDBSStatus(ws, o) THEN TRUE
-         WHEN ws = WbStatus.cancel AND (wbStatus(o) = WbStatus.new OR wbStatus(o) = WbStatus.confirm) AND NOT customFilterChangeOrdersDBSStatus(ws, o) THEN TRUE
+        WHEN ws = WbStatus.deliver AND wbStatus(o) = WbStatus.confirm AND NOT customFilterChangeOrdersDBSStatus(ws, o) THEN TRUE
+        WHEN ws = WbStatus.receive AND wbStatus(o) = WbStatus.deliver AND NOT customFilterChangeOrdersDBSStatus(ws, o) THEN TRUE
+        WHEN ws = WbStatus.reject AND wbStatus(o) = WbStatus.deliver AND NOT customFilterChangeOrdersDBSStatus(ws, o) THEN TRUE
+        WHEN ws = WbStatus.cancel AND (wbStatus(o) = WbStatus.new OR wbStatus(o) = WbStatus.confirm) AND NOT customFilterChangeOrdersDBSStatus(ws, o) THEN TRUE
 ;
 
 changeOrdersDBSStatus (WbStatus wbStatus) {
-    getWbStatuses();
     NEWSESSION NESTED LOCAL {
         LOCAL status = StatusInternetOrder ();
         LOCAL statusName = STRING ();
@@ -304,13 +332,13 @@ changeOrdersDBSStatus (WbStatus wbStatus) {
         status() <- statusInternetOrder(wbStatus);
         statusName() <- getWord(name(wbStatus), '.', 2);
         statusCaption() <- caption(wbStatus);
-        
-        IF NOT (GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrderDBS(order) AND carrier(order) == carrier('Own')) THEN {
+
+        IF NOT (GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrderDBS(order)) THEN {
             MESSAGE 'Заказ DBS не выбран.';
             RETURN;
         }
 
-        IF GROUP SUM 1 IF isSelected(InternetOrder order) AND status(order) == status() THEN {
+        IF GROUP SUM 1 IF isSelected(InternetOrder order) AND wbStatus(order) == wbStatus THEN {
             MESSAGE 'Один из выбранных заказов уже в статусе ' + statusCaption();
             RETURN;
         }
@@ -319,14 +347,13 @@ changeOrdersDBSStatus (WbStatus wbStatus) {
             MESSAGE 'Для одного из выбранных заказов не соблюдены условия перевода.';
             RETURN;
         }
-        
+
         setHttpHeadersIS();
         LOCAL messageOrder = STRING ();
         LOCAL response = FILE();
 
-        logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/marketplace/v3/dbs/orders/status/' + statusName());
-
-        composeRequestBody(status());
+        composeRequestBody(wbStatus);
+        logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/marketplace/v3/dbs/orders/status/' + statusName() + '\n' + requestBody());
 
         TRY {
             EXTERNAL HTTP POST url(CategoryRequest.marketplace) + '/api/marketplace/v3/dbs/orders/status/' + statusName() HEADERS httpHeaders PARAMS requestBody() TO response;
@@ -337,9 +364,8 @@ changeOrdersDBSStatus (WbStatus wbStatus) {
                 IMPORT changeStatusResponse JSON FROM response();
                 FOR InternetOrder o = orderByNumber(orderId(INTEGER i)) DO{
                     IF NOT isError(i) THEN {
-                        status(o) <- status();
-                    wbStatus(o) <- wbStatus;
-                } ELSE {
+                        wbStatus(o) <- wbStatus;
+                    } ELSE {
                         MESSAGE CONCAT ' ', 'Ошибка при обновлении статуса заказа', orderId(i), ':', detail(0);
                         messageOrder() <- messageStatusHTTP(STRING(code(0)));
                     }
@@ -358,6 +384,8 @@ changeOrdersDBSStatus (WbStatus wbStatus) {
             MESSAGE messageOrder() NOWAIT;
         }
     }
+    getWbStatuses();
+    afterChangeOrdersDBSStatus(wbStatus);
 }
 
 // https://marketplace-api.wildberries.ru/api/marketplace/v3/dbs/orders/status/confirm
@@ -365,11 +393,12 @@ confirmOrdersDBS 'Перевести сборочные задания на сб
     changeOrdersDBSStatus(WbStatus.confirm);
 }
 
-confirmOrderDBS 'Перевести сборочное задание на сборку' (InternetOrder order) {
+confirmOrderDBS 'Перевести сборочные задания на сборку' (InternetOrder order) {
     IF NOT GROUP SUM 1 IF isSelected(InternetOrder order1) THEN {
         isSelected(order) <- TRUE ;
     }
     confirmOrdersDBS();
+    isSelected(InternetOrder o) <- NULL;
 }
 
 // https://marketplace-api.wildberries.ru/api/marketplace/v3/dbs/orders/status/cancel
@@ -377,11 +406,12 @@ cancelOrdersDBS 'Отменить сборочные задания' () {
     changeOrdersDBSStatus(WbStatus.cancel);
 }
 
-cancelOrderDBS 'Отменить сборочное задание' (InternetOrder order) {
+cancelOrderDBS 'Отменить сборочные задания' (InternetOrder order) {
     IF NOT GROUP SUM 1 IF isSelected(InternetOrder order1) THEN {
         isSelected(order) <- TRUE ;
     }
     cancelOrdersDBS();
+    isSelected(InternetOrder o) <- NULL;
 }
 
 // https://marketplace-api.wildberries.ru/api/marketplace/v3/dbs/orders/status/deliver
@@ -389,11 +419,12 @@ deliverOrdersDBS 'Перевести сборочные задания в дос
     changeOrdersDBSStatus(WbStatus.deliver);
 }
 
-deliverOrderDBS 'Перевести сборочное задание в доставку' (InternetOrder order) {
+deliverOrderDBS 'Перевести сборочные задания в доставку' (InternetOrder order) {
     IF NOT GROUP SUM 1 IF isSelected(InternetOrder order1) THEN {
         isSelected(order) <- TRUE ;
     }
     deliverOrdersDBS();
+    isSelected(InternetOrder o) <- NULL;
 }
 
 // https://marketplace-api.wildberries.ru/api/marketplace/v3/dbs/orders/status/receive
@@ -401,11 +432,12 @@ receiveOrdersDBS 'Сообщить о получении заказов' () {
     changeOrdersDBSStatus(WbStatus.receive);
 }
 
-receiveOrderDBS 'Сообщить о получении заказа' (InternetOrder order) {
+receiveOrderDBS 'Сообщить о получении заказов' (InternetOrder order) {
     IF NOT GROUP SUM 1 IF isSelected(InternetOrder order1) THEN {
         isSelected(order) <- TRUE ;
     }
     receiveOrdersDBS();
+    isSelected(InternetOrder o) <- NULL;
 }
 
 // https://marketplace-api.wildberries.ru/api/marketplace/v3/dbs/orders/status/reject
@@ -413,11 +445,12 @@ rejectOrdersDBS 'Сообщить об отказе от заказов' () {
     changeOrdersDBSStatus(WbStatus.reject);
 }
 
-rejectOrderDBS 'Сообщить об отказе от заказа' (InternetOrder order) {
+rejectOrderDBS 'Сообщить об отказе от заказов' (InternetOrder order) {
     IF NOT GROUP SUM 1 IF isSelected(InternetOrder order1) THEN {
         isSelected(order) <- TRUE ;
     }
     rejectOrdersDBS();
+    isSelected(InternetOrder o) <- NULL;
 }
 
 //----Stickers-----//
@@ -425,7 +458,7 @@ rejectOrderDBS 'Сообщить об отказе от заказа' (InternetO
 // https://marketplace-api.wildberries.ru/api/marketplace/v3/dbs/orders/stickers
 getStickersDBS 'Получить стикеры' () {
     NEWSESSION NESTED LOCAL {
-        IF NOT (GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrderDBS(order) AND carrier(order) == carrier('Own')) THEN {
+        IF NOT (GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrderDBS(order)) THEN {
             MESSAGE 'Заказ DBS не выбран.';
             RETURN ;
         }
@@ -439,7 +472,7 @@ getStickersDBS 'Получить стикеры' () {
 
         logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/marketplace/v3/dbs/orders/stickers');
 
-        EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrderDBS(order) AND carrier(order) == carrier('Own');
+        EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrderDBS(order);
         fileToString(exportFile(), 'UTF-8');
         stringToFile('\{"orders":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
         fileToString(resultFile(), 'UTF-8');
@@ -453,7 +486,7 @@ getStickersDBS 'Получить стикеры' () {
             IF statusHttp() == 200 THEN {
                 IMPORT stickersResponse JSON FROM response();
                 FOR orderId(INTEGER i) DO {
-                    sticker(orderByNumber(orderId(i))) <- RAWFILE(file(decode(file(i), 'base64'), 'pdf'));; 
+                    sticker(orderByNumber(orderId(i))) <- RAWFILE(file(decode(file(i), 'base64'), 'pdf'));;
                 }
                 APPLY NESTED LOCAL ;
             }
@@ -476,29 +509,303 @@ getStickerDBS 'Получить стикер' (InternetOrder order) {
         isSelected(order) <- TRUE ;
     }
     getStickersDBS();
+    isSelected(InternetOrder o) <- NULL;
 }
 
+//----Метаданные сборочных заданий DBS-----//
+
+// POST /api/marketplace/v3/dbs/orders/meta/{key}
+// Тело:  {"orders":[{"orderId":N,"<plural>":["v1",...]},...]}  для imei/uin/gtin/sgtin
+//        {"orders":[{"orderId":N,"customsDeclaration":"..."},...]}  для customs-declaration
+// Лимит: до 1000 заказов в одном запросе.
+// expiration в DBS-API отсутствует (см. WBOrdersFBS для FBS-варианта).
+sendOrdersMetaDBS 'Передать метаданные сборочных заданий (DBS, пакет)' (OrderMeta m) {
+    NEWSESSION NESTED LOCAL {
+        IF NOT (GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrderDBS(order) AND number(order)) THEN {
+            MESSAGE 'Заказ DBS не выбран.';
+            RETURN;
+        }
+        IF m == OrderMeta.expiration THEN {
+            MESSAGE 'Срок годности (expiration) недоступен в DBS-API.';
+            RETURN;
+        }
+        IF NOT apiMetaBatchKey(m) THEN {
+            MESSAGE 'Неизвестный тип метаданных.';
+            RETURN;
+        }
+
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING ();
+        LOCAL response = FILE();
+
+        LOCAL postUrl = STRING ();
+        postUrl() <- '/api/marketplace/v3/dbs/orders/meta/' + apiMetaPath(m);
+
+        LOCAL index = INTEGER (InternetOrder);
+        LOCAL exported = INTEGER ();
+        LOCAL total = INTEGER ();
+        index(InternetOrder o) <- PARTITION SUM 1 IF isSelected(o) AND isWBOrderDBS(o) AND number(o) ORDER o;
+        exported() <- 0;
+        total() <- GROUP MAX index(InternetOrder i);
+
+        LOCAL orderEntry = STRING ();
+        LOCAL ordersJson = STRING ();
+        LOCAL valueJson = STRING ();
+        LOCAL customsValue = STRING ();
+
+        WHILE exported() < total() DO {
+            ordersJson() <- NULL;
+            FOR isSelected(InternetOrder o) AND isWBOrderDBS(o) AND number(o)
+                AND index(o) > exported() AND index(o) <= exported() + getOrdersMetaLimit()
+                ORDER o DO {
+
+                orderEntry() <- NULL;
+                customsValue() <- NULL;
+                valueJson() <- NULL;
+
+                IF m == OrderMeta.customsDeclaration THEN {
+                    customsValue() <- GROUP MAX valueMeta(InternetOrderDetail d, OrderMeta.customsDeclaration)
+                        IF internetOrder(d) == o AND valueMeta(d, OrderMeta.customsDeclaration);
+                    IF customsValue() THEN {
+                        // Формат ФТС РФ (цифры и слэши) — JSON-эскейпинг не требуется.
+                        orderEntry() <- '\{"orderId":' + number(o) + ',"customsDeclaration":"' + customsValue() + '"\}';
+                    }
+                } ELSE {
+                    EXPORT JSON FROM 'value' = valueMeta(InternetOrderDetail d, m)
+                        WHERE internetOrder(d) == o AND valueMeta(d, m);
+                    fileToString(exportFile(), 'UTF-8');
+                    valueJson() <- replace(resultString(), '\n', '');
+                    IF valueJson() AND valueJson() != '[]' THEN {
+                        orderEntry() <- '\{"orderId":' + number(o) + ',"' + apiMetaBatchKey(m) + '":' + valueJson() + '\}';
+                    }
+                }
+
+                IF orderEntry() THEN {
+                    ordersJson() <- CONCAT ',', ordersJson(), orderEntry();
+                }
+            }
+
+            IF ordersJson() THEN {
+                stringToFile('\{"orders":[' + ordersJson() + ']\}', 'UTF-8', 'json');
+                fileToString(resultFile(), 'UTF-8');
+                logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + postUrl() + ' body: ' + resultString());
+
+                TRY {
+                    EXTERNAL HTTP POST url(CategoryRequest.marketplace) + postUrl()
+                        HEADERS httpHeaders PARAMS resultFile() TO response;
+                    fileToString(response());
+                    logToFile('WB', resultString());
+                    messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+                } CATCH {
+                    logToFile('WB', messageCaughtException());
+                    IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                        IMPORT importError JSON FROM response();
+                        extraDescriptionStatusHTTP() <- 'Метаданные не переданы: ' + message();
+                    }
+                    messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                } FINALLY {
+                    afterSendRequestIS();
+                }
+            }
+
+            exported() <- exported() + getOrdersMetaLimit();
+        }
+
+        MESSAGE messageOrder() NOWAIT;
+    }
+}
+
+// После успешного перевода в «собран» отправляем все обязательные меты для выбранных заказов.
+afterChangeOrdersDBSStatus (WbStatus wbStatus) + {
+    IF wbStatus == WbStatus.confirm THEN {
+        FOR OrderMeta m AND apiMetaBatchKey(m)
+            AND (GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrderDBS(order)
+                AND wbStatus(order) == WbStatus.confirm
+                AND requiredMeta(InternetOrderDetail d, m) AND internetOrder(d) == order) DO {
+            sendOrdersMetaDBS(m);
+        }
+    }
+}
+
+// После успешного перевода в «собран» подтягиваем информацию о клиенте одним батчем.
+afterChangeOrdersDBSStatus (WbStatus wbStatus) + {
+    IF wbStatus == WbStatus.confirm THEN {
+        postInfCustomer();
+    }
+}
+
+// Совместимость со старой кнопкой «по одному заказу» — батч из одного.
+sendOrderMetaDBS 'Передать метаданные сборочного задания' (InternetOrder o, OrderMeta m) {
+    NEWSESSION NESTED LOCAL {
+        IF NOT number(o) THEN {
+            MESSAGE 'У заказа отсутствует номер.';
+            RETURN;
+        }
+        isSelected(InternetOrder ord) <- (ord == o);
+        sendOrdersMetaDBS(m);
+    }
+}
+
+// DELETE /api/v3/dbs/orders/{orderId}/meta?key=... (поддерживаются imei/uin/gtin/sgtin)
+deleteOrderMetaDBS 'Удалить метаданные сборочного задания' (InternetOrder o, OrderMeta m) {
+    NEWSESSION NESTED LOCAL {
+        IF NOT number(o) THEN {
+            MESSAGE 'У заказа отсутствует номер.';
+            RETURN;
+        }
+        IF NOT apiMetaPath(m) THEN {
+            MESSAGE 'Неизвестный тип метаданных.';
+            RETURN;
+        }
+
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING ();
+        LOCAL response = FILE();
+
+        LOCAL deleteUrl = STRING ();
+        deleteUrl() <- '/api/v3/dbs/orders/' + number(o) + '/meta?key=' + apiMetaPath(m);
+
+        logToFile('WB', 'DELETE: ' + url(CategoryRequest.marketplace) + deleteUrl());
+
+        TRY {
+            EXTERNAL HTTP DELETE url(CategoryRequest.marketplace) + deleteUrl() HEADERS httpHeaders TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+
+            IF statusHttp() == 204 THEN {
+                FOR InternetOrderDetail d AND internetOrder(d) == o DO {
+                    orderMetaStatus(d, m) <- NULL;
+                }
+                APPLY NESTED LOCAL ;
+            }
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                IMPORT importError JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Метаданные не удалены: ' + message();
+            }
+            messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE messageOrder() NOWAIT;
+        }
+    }
+}
+
+// POST /api/marketplace/v3/dbs/orders/meta/details body: {"orders":[<номера заказов>]}
+actualizeOrdersMetaDBS 'Актуализировать статусы метаданных (DBS)' () {
+    NEWSESSION NESTED LOCAL {
+        IF NOT (GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrderDBS(order)) THEN {
+            MESSAGE 'Заказ DBS не выбран.';
+            RETURN;
+        }
+
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING ();
+        LOCAL response = FILE();
+        LOCAL index = INTEGER (InternetOrder);
+        LOCAL exported = INTEGER ();
+        LOCAL bodyIds = STRING ();
+
+        index(InternetOrder o) <- PARTITION SUM 1 IF isSelected(o) AND isWBOrderDBS(o) ORDER o;
+        exported() <- 0;
+
+        WHILE exported() < (GROUP MAX index(InternetOrder i)) DO {
+            bodyIds() <- (GROUP CONCAT number(InternetOrder o), ',' ORDER o
+            WHERE index(o) > exported() AND index(o) <= exported() + getOrdersMetaLimit());
+
+            stringToFile('\{"ordersIds":[' + bodyIds() + ']\}', 'UTF-8', 'json');
+            fileToString(resultFile(), 'UTF-8');
+            logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/marketplace/v3/dbs/orders/meta/details body: ' + resultString());
+
+            TRY {
+                EXTERNAL HTTP POST url(CategoryRequest.marketplace) + '/api/marketplace/v3/dbs/orders/meta/details'
+                    HEADERS httpHeaders PARAMS resultFile() TO response;
+                fileToString(response());
+                logToFile('WB', resultString());
+
+                IF statusHttp() == 200 THEN {
+                    IMPORT ordersMetaResponse JSON FROM response();
+
+                    FOR INTEGER d AND imported(d)
+                        AND OrderMeta meta == orderMetaByName(metaDetailKey(d))
+                        AND InternetOrder ord == orderByNumber(metaOrderId(ordersMetaDetails(d)))
+                        DO {
+
+                        LOCAL status = OrderMetaStatus ();
+                        status() <- orderMetaStatusById(meta, metaDetailDecision(d));
+                        IF NOT status() THEN NEW s = OrderMetaStatus {
+                            id(s) <- metaDetailDecision(d);
+                            orderMeta(s) <- meta;
+                            status() <- s;
+                        }
+                        name(status()) <- metaDetailDecision(d);
+                        validated(status()) <- validatedDecision(metaDetailDecision(d));
+
+                        FOR InternetOrderDetail detail AND internetOrder(detail) == ord DO {
+                            orderMetaStatus(detail, meta) <- status();
+                            wbValueMeta(detail, meta) <- metaDetailValue(d);
+                        }
+                    }
+                }
+                messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+                IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                    IMPORT importError JSON FROM response();
+                    extraDescriptionStatusHTTP() <- 'Статусы метаданных не получены: ' + message();
+                }
+                messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            } FINALLY {
+                afterSendRequestIS();
+                APPLY NESTED LOCAL ;
+            }
+
+            exported() <- exported() + getOrdersMetaLimit();
+        }
+
+        MESSAGE messageOrder() NOWAIT;
+    }
+}
+
+EXTEND FORM internetOrder
+    PROPERTIES sendOrderMetaDBS(o, mm) SHOWIF isWBOrderDBS(o)
+;
+
 EXTEND FORM internetOrders
-    PROPERTIES(o) READONLY isWBOrderDBS AFTER isWBOrder(o)
-    PROPERTIES(o) isSelected FIRST, confirmOrderDBS, deliverOrderDBS, receiveOrderDBS, cancelOrderDBS, rejectOrderDBS, getWbStatus
-    PROPERTIES() getOrdersDBSNew, postInfCustomer
+    PROPERTIES(o) READONLY isWBOrderDBS BEFORE isPosted(o)
+    PROPERTIES(o) isSelected FIRST, getWbStatus, postInfCustomerOrder, getStickerDBS,
+        confirmOrderDBS SHOWIF changeOrdersDBSStatusCondition(WbStatus.confirm, o),
+        deliverOrderDBS SHOWIF changeOrdersDBSStatusCondition(WbStatus.deliver, o),
+        receiveOrderDBS SHOWIF changeOrdersDBSStatusCondition(WbStatus.receive, o),
+        rejectOrderDBS SHOWIF changeOrdersDBSStatusCondition(WbStatus.reject, o),
+        cancelOrderDBS SHOWIF changeOrdersDBSStatusCondition(WbStatus.cancel, o)
+    PROPERTIES() getOrdersDBSNew, actualizeOrdersMetaDBS,
+        confirmOrdersDBS, deliverOrdersDBS, receiveOrdersDBS, rejectOrdersDBS, cancelOrdersDBS
 ;
 
 DESIGN internetOrders {
     wbContainer {
-        NEW ordersDBS {
-            caption = 'Сборочные задания DBS';
+        NEW DBS {
+            caption = 'DBS';
             MOVE PROPERTY (getOrdersDBSNew());
-            MOVE PROPERTY (postInfCustomer());
-        }
-        NEW ordersActions {
-            caption = 'Действия по заданиям';
-            MOVE PROPERTY (confirmOrderDBS(o));
-            MOVE PROPERTY (cancelOrderDBS(o));
-            MOVE PROPERTY (deliverOrderDBS(o));
-            MOVE PROPERTY (receiveOrderDBS(o));
-            MOVE PROPERTY (rejectOrderDBS(o));
             MOVE PROPERTY (getWbStatus(o));
+            MOVE PROPERTY (postInfCustomerOrder(o));
+            MOVE PROPERTY (getStickerDBS(o));
+            MOVE PROPERTY (actualizeOrdersMetaDBS());
+            MOVE PROPERTY (confirmOrdersDBS());
+            MOVE PROPERTY (deliverOrdersDBS());
+            MOVE PROPERTY (receiveOrdersDBS());
+            MOVE PROPERTY (rejectOrdersDBS());
+            MOVE PROPERTY (cancelOrdersDBS());
         }
+    }
+}
+
+WHEN SETCHANGED(status(InternetOrder o)) AND statusInternetOrder(WbStatus ws) = status(o) AND changeOrdersDBSStatusCondition(ws, o) AND isWBOrderDBS(o) DO {
+    NEWSESSION {
+        isSelected(o) <- TRUE;
+        changeOrdersDBSStatus(ws);
     }
 }

@@ -6,7 +6,13 @@ NAMESPACE WB;
 
 TABLE warehouseStock(Warehouse, Stock.Stock);
 
-in 'Вкл.' = DATA BOOLEAN (Warehouse, Stock.Stock) INDEXED;
+dataStock = DATA Stock.Stock (Warehouse);
+nameDataStock 'Склад ERP' (Warehouse w)= name(dataStock(w));
+
+in 'Вкл.' = ABSTRACT CASE BOOLEAN (Warehouse, Stock.Stock);
+customStocks = ABSTRACT BOOLEAN ();
+in (Warehouse w, Stock.Stock s) += WHEN w IS Warehouse AND s IS Stock.Stock AND NOT customStocks() THEN dataStock(w) = s;
+
 nameStocks 'Склады (компании)' (Warehouse w) = GROUP CONCAT name(Stock.Stock st) IF in(w, st), ', ' ORDER name(st), st CHARWIDTH 40;
 
 warehouse = GROUP MAX Warehouse w IF in(w, Stock.Stock st) BY st MATERIALIZED INDEXED;
@@ -19,7 +25,7 @@ WHEN LOCAL SET(in(Warehouse w, Stock.Stock st)) AND (GROUP SUM 1 IF in(Warehouse
 
 EXTEND FORM warehouse
     OBJECTS st=Stock.Stock
-    PROPERTIES in(w, st), name(st) READONLY, nameWarehouse(st) READONLY 
+    PROPERTIES in(w, st), name(st) READONLY, nameWarehouse(st) READONLY, nameDataStock(w)
     ORDERS name(st)
     FILTERS isCompany(st),
         st IS Stock.Stock AND NOT warehouse(st) OR in(w, st) AND warehouse(st)

@@ -1,0 +1,12 @@
+MODULE WBOrderLot;
+
+REQUIRE WBOrders, SaleInternetOrderLot;
+
+NAMESPACE WB;
+
+// Для sgtin (кодов маркировки) значение меты берём из марок строки заказа.
+sgtinValueMeta 'Значение меты sgtin' (InternetOrderDetail d) =
+    GROUP CONCAT id(InternetOrderDetailLot l), ',' ORDER id(l) BY internetOrderDetail(l);
+
+valueMeta(InternetOrderDetail d, OrderMeta m) +=
+    WHEN m = OrderMeta.sgtin AND d IS InternetOrderDetail THEN sgtinValueMeta(d);
