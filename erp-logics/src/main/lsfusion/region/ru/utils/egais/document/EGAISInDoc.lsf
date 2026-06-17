@@ -213,9 +213,10 @@ process 'Обработать' ABSTRACT LIST (InDoc);
 
 processed 'Обработана' = DATA BOOLEAN (InDoc);
 toProcess 'Требуется обработка' (InDoc d) = d IS InDoc AND NOT processed(d) MATERIALIZED INDEXED; 
+skipProcessInDocs = ABSTRACT BOOLEAN (UTM);
 
 processInDocs 'Обмен с ЕГАИС' () {
-    FOR url(UTM u) DO
+    FOR url(UTM u) AND NOT skipProcessInDocs(u) DO
         getInDocs(u);
     
     FOR toProcess(InDoc d) ORDER d DO {
