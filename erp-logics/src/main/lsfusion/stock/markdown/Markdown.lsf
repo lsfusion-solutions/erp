@@ -697,7 +697,7 @@ TABLE stickerBarcode(StickerBarcode);
 sticker = DATA Sticker (StickerBarcode);
 idSticker 'Номинал' (StickerBarcode sb) = id(sticker(sb));
 
-id 'Штрихкод' = DATA STRING[21] (StickerBarcode) IN id CHARWIDTH 21;
+id 'Штрихкод' = DATA STRING[25] (StickerBarcode) IN id CHARWIDTH 25;
 stickerBarcode = GROUP AGGR StickerBarcode sb BY id(sb);
 
 markdownDetail 'Строка уценки' = DATA MarkdownDetail (StickerBarcode);
@@ -794,7 +794,9 @@ CONSTRAINT (SETCHANGED(sticker(MarkdownDetail md)) OR SETCHANGED(sku(md))) AND n
 CONSTRAINT  countStickerBarcodes(MarkdownDetail md) != quantityStickers(md)
     MESSAGE 'Несовпадение кол-в штрихкодов стикеров для строки уценки';
 
-activateStickerBarcodes 'Сгенерировать QR-коды' (Markdown m) {
+activateStickerBarcodes 'Сгенерировать QR-коды' ABSTRACT CASE (Markdown);
+
+activateStickerBarcodes (Markdown m)+ WHEN m IS Markdown THEN {
     NEWSESSION {
         FOR markdown(MarkdownDetail md) = m AND NOT countStickerBarcodes(md) DO {
             FOR [GROUP SUM 1 IF inactive(StickerBarcode sb1) BY sticker(sb1)](sticker(md)) >= quantityStickers(md) AND iterate(INTEGER i, 1, quantityStickers(md)) DO {
