@@ -140,7 +140,8 @@ copyOperation(UserPriceList priceList, UserPriceList userPriceList)  {
 }
 copyAbstractData(UserPriceList priceList, UserPriceList userPriceList) + {  copyOperation(priceList, userPriceList); }
 
-CONSTRAINT operation(UserPriceList priceList) AND company(priceList) AND NOT in(company(priceList), operation(priceList))
+CONSTRAINT (SETCHANGED(operation(UserPriceList priceList)) OR SETCHANGED(company(priceList))) 
+    AND operation(priceList) AND company(priceList) AND NOT in(company(priceList), operation(priceList))
     CHECKED BY company[UserPriceList] MESSAGE 'Компания прайса должна соответствовать ограничениям операции';
 
 groupType(UserPriceList priceList) <- IF operation(priceList) THEN groupType(operation(priceList))
@@ -167,7 +168,8 @@ WHEN LOCAL CHANGED(operation(UserPriceList priceList)) AND NOT doNotSetStocksUse
     dataIn(priceList, Stock stock) <- dataIn(stock, operation(priceList));
 } 
 
-CONSTRAINT operation(UserPriceList priceList) AND NOT in(Stock stock, operation(priceList)) AND in(priceList, stock)
+CONSTRAINT (SETCHANGED(operation(UserPriceList priceList)) OR SETCHANGED(in(priceList, Stock stock)))
+    AND operation(priceList) AND in(priceList, stock) AND NOT in(stock, operation(priceList))
     CHECKED BY in[PriceList,Stock] MESSAGE 'Склады прайса должны соответствовать ограничениям операции';
 
 
