@@ -17,16 +17,19 @@ ordersOffices = DATA LOCAL INTEGER(INTEGER);
 ddate = DATA LOCAL DATE(INTEGER); // планируемая дата доставки
 optionalMeta = DATA LOCAL STRING(INTEGER);
 ordersOptionalMeta = DATA LOCAL INTEGER(INTEGER);
-scanPrice = DATA LOCAL STRING(INTEGER);
 //chrtId = DATA LOCAL STRING (INTEGER);
+
+// Точка расширения: вызывается после загрузки и применения новых FBS-заказов
+// в getOrdersFBSNew. Симметрично afterGetOrdersDBSNew в WBOrdersDBS.lsf.
+afterGetOrdersFBSNew ABSTRACT LIST;
 
 FORM importNewOrdersFBS
 
     OBJECTS orders = INTEGER
 
     PROPERTIES(orders) cargoType, nmId, rid, createdAt, isZeroOrder, officeId, price, convertedCurrencyCode, id, ddate,
-        salePrice, scanPrice, article, convertedPrice, orderUid, warehouseId, comment, colorCode, chrtId,
-        currencyCode, groupId
+        salePrice, article, convertedPrice, orderUid, warehouseId, comment, colorCode, chrtId,
+        currencyCode
 
     OBJECTS skus = INTEGER
     PROPERTIES(skus) skus EXTID 'value'
@@ -60,9 +63,6 @@ getOrdersFBSNew 'Получить список новых сборочных з�
         setHttpHeadersIS();
         LOCAL messageOrder = STRING ();
         LOCAL response = FILE();
-        LOCAL error = STRING ();
-        LOCAL statusText = STRING ();
-        LOCAL status = STRING ();
 
         logToFile('WB', 'GET: ' + url(CategoryRequest.marketplace) + '/api/v3/orders/new');
 
@@ -73,21 +73,20 @@ getOrdersFBSNew 'Получить список новых сборочных з�
             IMPORT importNewOrdersFBS JSON FROM response();
 
             FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING number)
-                AND NOT (GROUP MAX InternetOrder o IF number(o) == number AND carrier(o) == carrier('WB'))
-                AND NOT (GROUP MAX InternetOrder o IF orderRidID(o) == rid(i) AND carrier(o) == carrier('WB'))
+                AND NOT (GROUP MAX InternetOrder o IF number(o) == number AND isWBOrderFBS(o))
+                AND NOT (GROUP MAX InternetOrder o IF orderRidID(o) == rid(i) AND isWBOrderFBS(o))
                 INLINE DO NEW order = InternetOrder {
                 number(order) <- number;
                 orderRidID(order) <- rid(i);
                 orderUID(order) <- orderUid(i);
-                groupId(order) <- groupId(i);
                 date(order) <- currentDate();
                 isWBOrderFBS(order) <- TRUE;
                 carrier(order) <- carrier('WB');
-                status(order) <- StatusInternetOrder.new;
-
-                IF NOT warehouse(warehouseId(i)) THEN
-                    messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + 'В справочнике системы не найден warehouseId: ' + warehouseId(i);
-
+                status(order) <- IF autoAggreed() THEN StatusInternetOrder.agreed ELSE StatusInternetOrder.new;
+                warehouseId(order) <- warehouseId(i);
+                supplierStock(order) <- supplierStockWB(order);
+                wbStatus(order) <- WbStatus.new;
+                wbSystemStatus(order) <- WbSystemStatus.waiting;
                 addressInternetCustomer(order) <- fullAddress(i);
                 deliveryDate(order) <- ddate(i);
                 note(order) <- comment(i);
@@ -116,6 +115,7 @@ getOrdersFBSNew 'Получить список новых сборочных з�
                     }
                 }
             }
+            afterGetOrdersFBSNew();
             messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + messageStatusHTTP(STRING(statusHttp()));
         } CATCH {
             logToFile('WB', messageCaughtException());
@@ -142,16 +142,19 @@ FORM importOrdersFBS
 
     OBJECTS orders = INTEGER
 
-    PROPERTIES(orders) cargoType, nmId, scanPrice, rid, article, createdAt, convertedPrice, orderUid, isZeroOrder,
+    PROPERTIES(orders) cargoType, nmId, rid, article, createdAt, convertedPrice, orderUid, isZeroOrder,
         warehouseId, officeId, supplyId, price, colorCode, convertedCurrencyCode, comment, id, chrtId, currencyCode
+    FILTERS imported(orders)
     PROPERTIES(orders) IN address latitude, fullAddress, longitude
 
     OBJECTS skus = INTEGER
     PROPERTIES(skus) skus EXTID 'value'
+    FILTERS imported(skus)
     FILTERS ordersSkus(skus) == orders
 
     OBJECTS offices = INTEGER
     PROPERTIES(offices) offices EXTID 'value'
+    FILTERS imported(offices)
     FILTERS ordersOffices(offices) == orders
     PROPERTIES(orders) IN options isB2b
 ;
@@ -162,9 +165,6 @@ getOrdersFBS 'Получить информацию о сборочных зад
         setHttpHeadersIS();
         LOCAL messageOrder = STRING ();
         LOCAL response = FILE();
-        LOCAL error = STRING ();
-        LOCAL statusText = STRING ();
-        LOCAL status = STRING ();
 
         LOCAL limit = INTEGER ();
         limit() <- getOrdersLimit();
@@ -209,14 +209,13 @@ getOrdersFBS 'Получить информацию о сборочных зад
                 currentNext() <- nextIndex();
 
                 FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING number)
-                    AND InternetOrder order == (GROUP MAX InternetOrder o IF (number(o) == number OR orderRidID(o) == rid(i)) AND carrier(o) == carrier('WB'))
+                    AND InternetOrder order == (GROUP MAX InternetOrder o IF (number(o) == number OR orderRidID(o) == rid(i)) AND isWBOrderFBS(o))
                     INLINE DO {
 
                     IF NOT warehouse(warehouseId(i)) THEN
                         messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + 'В справочнике системы не найден warehouseId: ' + warehouseId(i);
 
                     addressInternetCustomer(order) <- fullAddress(i);
-                    deliveryDate(order) <- ddate(i);
                     note(order) <- comment(i);
 
                     currency(order) <- GROUP MAX Currency c IF sid(c) == currencyCode(i);
@@ -230,7 +229,7 @@ getOrdersFBS 'Получить информацию о сборочных зад
                         IF NOT (GROUP MAX InternetOrderDetail d IF internetOrder(d) == order AND sku(d) == item(size)) THEN NEW detail = InternetOrderDetail {
                             internetOrder(detail) <- order;
                             sku(detail) <- item(size);
-                            price(detail) <- salePrice(ii) / 100.0;
+                            price(detail) <- price(ii) / 100.0;
                         }
                     }
                 }
@@ -245,7 +244,7 @@ getOrdersFBS 'Получить информацию о сборочных зад
 
             } CATCH {
                 logToFile('WB', messageCaughtException());
-                IF statusHttp() == 400 OR statusHttp() == 403 THEN {
+                IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
                     IMPORT importError JSON FROM response();
                     extraDescriptionStatusHTTP() <- 'Список сборочных заданий не получен: ' + message();
                 }
@@ -259,7 +258,7 @@ getOrdersFBS 'Получить информацию о сборочных зад
                     stop() <- TRUE;
                 }
                 APPLY NESTED LOCAL;
-                IF NOT stop() THEN sleep(100);
+                IF NOT stop() THEN sleep(200);
             }
         }
     }
@@ -278,10 +277,15 @@ FORM statusInfoResponse
     PROPERTIES(errors) errors EXTID 'value'
     FILTERS ordersErrors(errors) == orders;
 
+// По умолчанию после синка статусов от WB локальный status(InternetOrder) автоматически
+// обновляется по WB-маппингу. Если проект ведёт переходы вручную и не хочет
+// перетирания — пусть переопределит customSetFbsStatus в TRUE.
+customSetFbsStatus = ABSTRACT BOOLEAN ();
+
 //https://marketplace-api-sandbox.wildberries.ru/api/v3/orders/status
 getWbFbsStatuses 'Получить статусы заказов FBS' () {
     NEWSESSION NESTED LOCAL {
-        IF NOT (GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrderFBS(order) AND carrier(order) == carrier('WB')) THEN {
+        IF NOT (GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrderFBS(order)) THEN {
             MESSAGE 'Заказ FBS не выбран.';
             RETURN ;
         }
@@ -289,13 +293,10 @@ getWbFbsStatuses 'Получить статусы заказов FBS' () {
         setHttpHeadersIS();
         LOCAL messageOrder = STRING ();
         LOCAL response = FILE();
-        LOCAL error = STRING ();
-        LOCAL statusText = STRING ();
-        LOCAL status = STRING ();
 
         logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/v3/orders/status');
 
-        EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrderFBS(order) AND carrier(order) == carrier('WB');
+        EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrderFBS(order);
         fileToString(exportFile(), 'UTF-8');
         stringToFile('\{"orders":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
         fileToString(resultFile(), 'UTF-8');
@@ -316,7 +317,7 @@ getWbFbsStatuses 'Получить статусы заказов FBS' () {
                         } ELSE {
                             status(o) <- OVERRIDE customCancelOrderStatus(), StatusInternetOrder.closed;
                         }
-                    } ELSE {
+                    } ELSE IF NOT customSetFbsStatus() THEN {
                         status(o) <- statusInternetOrder(ws);
                     }
                     wbStatus(o) <- ws;
@@ -347,10 +348,11 @@ getWbFbsStatus 'Получить статус заказа FBS' (InternetOrder o
 
 //----Stickers-----//
 
-// https://marketplace-api.wildberries.ru/api/marketplace/v3/dbs/orders/stickers
+// POST /api/v3/orders/stickers?type=svg&width=58&height=40
+// Стикеры доступны только для заказов в статусах confirm и complete. Макс. 100 за запрос.
 getStickers 'Получить стикеры' () {
     NEWSESSION NESTED LOCAL {
-        IF NOT (GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrderFBS(order) AND carrier(order) == carrier('WB')) THEN {
+        IF NOT (GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrderFBS(order)) THEN {
             MESSAGE 'Заказ FBS не выбран.';
             RETURN ;
         }
@@ -358,27 +360,27 @@ getStickers 'Получить стикеры' () {
         setHttpHeadersIS();
         LOCAL messageOrder = STRING ();
         LOCAL response = FILE();
-        LOCAL error = STRING ();
-        LOCAL statusText = STRING ();
-        LOCAL status = STRING ();
 
-        logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/v3/orders/stickers');
+        LOCAL postUrl = STRING ();
+        postUrl() <- '/api/v3/orders/stickers?type=svg&width=58&height=40';
 
-        EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrderFBS(order) AND carrier(order) == carrier('WB');
+        logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + postUrl());
+
+        EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrderFBS(order);
         fileToString(exportFile(), 'UTF-8');
         stringToFile('\{"orders":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
         fileToString(resultFile(), 'UTF-8');
         logToFile('WB', 'orders: ' + resultString());
 
         TRY {
-            EXTERNAL HTTP POST url(CategoryRequest.marketplace) + '/api/v3/orders/stickers' HEADERS httpHeaders PARAMS resultFile() TO response;
+            EXTERNAL HTTP POST url(CategoryRequest.marketplace) + postUrl() HEADERS httpHeaders PARAMS resultFile() TO response;
             fileToString(response());
             logToFile('WB', resultString());
             messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
             IF statusHttp() == 200 THEN {
                 IMPORT stickersResponse JSON FROM response();
                 FOR orderId(INTEGER i) DO {
-                    sticker(orderByNumber(orderId(i))) <- RAWFILE(file(decode(file(i), 'base64'), 'pdf'));;
+                    sticker(orderByNumber(orderId(i))) <- RAWFILE(file(decode(file(i), 'base64'), 'svg'));
                 }
                 APPLY NESTED LOCAL ;
             }
@@ -386,7 +388,7 @@ getStickers 'Получить стикеры' () {
             logToFile('WB', messageCaughtException());
             IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
                 IMPORT importError JSON FROM response();
-                extraDescriptionStatusHTTP() <- 'Статус сборочного задания не получен: ' + message();
+                extraDescriptionStatusHTTP() <- 'Стикеры не получены: ' + message();
             }
             messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
         } FINALLY {
@@ -403,6 +405,74 @@ getSticker 'Получить стикер' (InternetOrder order) {
     getStickers();
 }
 
+//----Отмена сборочных заданий-----//
+
+// PATCH /api/v3/orders/{orderId}/cancel
+// Доступно только до передачи в доставку (wbStatus = new/confirm). WB отвечает 204 без тела.
+// Если проект ведёт локальный StatusInternetOrder вручную и не хочет перетирания —
+// пусть переопределит customSetFbsCancelStatus в TRUE.
+customSetFbsCancelStatus = ABSTRACT BOOLEAN ();
+afterCancelOrderFBS ABSTRACT LIST (InternetOrder);
+
+cancelOrderFBS 'Отменить сборочное задание (FBS)' (InternetOrder o) {
+    NEWSESSION NESTED LOCAL {
+        IF NOT number(o) THEN {
+            MESSAGE 'У заказа отсутствует номер.';
+            RETURN;
+        }
+        IF NOT isWBOrderFBS(o) THEN {
+            MESSAGE 'Заказ не является FBS-заказом WB.';
+            RETURN;
+        }
+
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING ();
+        LOCAL response = FILE();
+
+        LOCAL patchUrl = STRING ();
+        patchUrl() <- '/api/v3/orders/' + number(o) + '/cancel';
+
+        logToFile('WB', 'PATCH: ' + url(CategoryRequest.marketplace) + patchUrl());
+
+        TRY {
+            EXTERNAL HTTP PATCH url(CategoryRequest.marketplace) + patchUrl() HEADERS httpHeaders TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+            IF statusHttp() == 204 THEN {
+                wbStatus(o) <- WbStatus.cancel;
+                wbSystemStatus(o) <- WbSystemStatus.canceled;
+                IF NOT customSetFbsCancelStatus() THEN {
+                    status(o) <- OVERRIDE customCancelOrderStatus(), StatusInternetOrder.cancel;
+                }
+                afterCancelOrderFBS(o);
+                APPLY NESTED LOCAL ;
+            }
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                IMPORT importError JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Заказ не отменён: ' + message();
+            }
+            messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE '<h3>Отмена сборочного задания</h3>' NOWAIT;
+            MESSAGE messageOrder() NOWAIT;
+        }
+    }
+}
+
+cancelOrdersFBS 'Отменить выбранные сборочные задания (FBS)' () {
+    IF NOT (GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrderFBS(order)) THEN {
+        MESSAGE 'Заказ FBS не выбран.';
+        RETURN;
+    }
+    FOR isSelected(InternetOrder o) AND isWBOrderFBS(o) DO {
+        cancelOrderFBS(o);
+    }
+}
+
 wbSupplyId = DATA STRING[100](Picking);
 
 createSupply(Picking picking){
@@ -414,9 +484,6 @@ createSupply(Picking picking){
         setHttpHeadersIS();
         LOCAL messageOrder = STRING ();
         LOCAL response = FILE();
-        LOCAL error = STRING ();
-        LOCAL statusText = STRING ();
-        LOCAL status = STRING ();
         LOCAL supplyId = STRING[100] ();
 
         logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/v3/supplies');
@@ -466,9 +533,6 @@ addOrdersToSupply 'Добавить сборочные задания к пос�
         setHttpHeadersIS();
         LOCAL messageOrder = STRING ();
         LOCAL response = FILE();
-        LOCAL error = STRING ();
-        LOCAL statusText = STRING ();
-        LOCAL status = STRING ();
 
         IF NOT wbSupplyId(p) THEN createSupply(p);
 
@@ -489,17 +553,11 @@ addOrdersToSupply 'Добавить сборочные задания к пос�
             fileToString(response());
             logToFile('WB', resultString());
             messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
-            IF statusHttp() == 204 THEN {
-                //FOR isSelected(InternetOrder order) AND isWBOrder(order) AND carrier(order) == carrier('WB') DO {
-                //supply(order) <- supply(supplyId());
-                //}
-                //APPLY NESTED LOCAL ;
-            }
         } CATCH {
             logToFile('WB', messageCaughtException());
             IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
                 IMPORT importError JSON FROM response();
-                extraDescriptionStatusHTTP() <- 'Статус сборочного задания не получен: ' + message();
+                extraDescriptionStatusHTTP() <- 'Сборочные задания не добавлены в поставку: ' + message();
             }
             messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
         } FINALLY {
@@ -531,9 +589,6 @@ sendSupplyToDeliver 'Передать поставку в доставку'(Pick
         setHttpHeadersIS();
         LOCAL messageOrder = STRING ();
         LOCAL response = FILE();
-        LOCAL error = STRING ();
-        LOCAL statusText = STRING ();
-        LOCAL status = STRING ();
 
         LOCAL patchUrl = STRING ();
 
@@ -569,22 +624,29 @@ cargoType = DATA LOCAL NUMERIC();
 createdAt = DATA LOCAL DATETIME ();
 closedAt = DATA LOCAL DATETIME ();
 scanDt = DATA LOCAL DATETIME ();
-isB2b = DATA LOCAL STRING();
+isB2b = DATA LOCAL BOOLEAN();
 
 destinationOfficeId = DATA LOCAL NUMERIC();
 crossBorderType = DATA LOCAL NUMERIC();
 supplyId = DATA LOCAL STRING();
 done = DATA LOCAL BOOLEAN ();
+isPickupPointShipmentAllowed = DATA LOCAL BOOLEAN();
+recommendedWhId = DATA LOCAL INTEGER();
 
 FORM supplyInfoResponse
-    PROPERTIES() cargoType, createdAt, scanDt, isB2b, name, destinationOfficeId, crossBorderType, supplyId EXTID 'id', closedAt, done;
+    PROPERTIES() cargoType, createdAt, scanDt, isB2b, name, destinationOfficeId, crossBorderType, supplyId EXTID 'id', closedAt, done,
+        isPickupPointShipmentAllowed, recommendedWhId;
 
 wbCreatedAt = DATA DATETIME(Picking);
 wbClosedAt = DATA DATETIME(Picking);
 wbScanDt = DATA DATETIME(Picking);
 wbDestinationOfficeId = DATA INTEGER (Picking);
+wbIsB2b 'WB: B2B' = DATA BOOLEAN (Picking);
+wbIsPickupPointShipmentAllowed 'WB: можно отгрузить на ПВЗ' = DATA BOOLEAN (Picking);
+wbCrossBorderType 'WB: тип поставки' = DATA INTEGER (Picking); // 0 — внутр., 1 — трансгран.
+wbRecommendedWhId 'WB: рекомендуемый склад приёмки' = DATA INTEGER (Picking);
 
-//https://marketplace-api.wildberries.ru/api/v3/supplies/{supplyId}/deliver
+//https://marketplace-api.wildberries.ru/api/v3/supplies/{supplyId}
 getSupplyInfo 'Получить информацию о поставке'(Picking p){
     NEWSESSION NESTED LOCAL {
 
@@ -596,9 +658,6 @@ getSupplyInfo 'Получить информацию о поставке'(Pickin
         setHttpHeadersIS();
         LOCAL messageOrder = STRING ();
         LOCAL response = FILE();
-        LOCAL error = STRING ();
-        LOCAL statusText = STRING ();
-        LOCAL status = STRING ();
 
         LOCAL patchUrl = STRING ();
 
@@ -619,6 +678,10 @@ getSupplyInfo 'Получить информацию о поставке'(Pickin
                 wbClosedAt(p) <- closedAt();
                 wbScanDt(p) <- scanDt();
                 wbDestinationOfficeId(p) <- destinationOfficeId();
+                wbIsB2b(p) <- isB2b();
+                wbIsPickupPointShipmentAllowed(p) <- isPickupPointShipmentAllowed();
+                wbCrossBorderType(p) <- crossBorderType();
+                wbRecommendedWhId(p) <- recommendedWhId();
 
                 IF done() THEN status(p) <- StatusPicking.closed;
 
@@ -628,7 +691,740 @@ getSupplyInfo 'Получить информацию о поставке'(Pickin
             logToFile('WB', messageCaughtException());
             IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
                 IMPORT importError JSON FROM response();
-                extraDescriptionStatusHTTP() <- 'Статус поставки не изменен: ' + message();
+                extraDescriptionStatusHTTP() <- 'Информация о поставке не получена: ' + message();
+            }
+            messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE messageOrder() NOWAIT;
+        }
+    }
+}
+
+//----QR-код поставки-----//
+
+wbSupplyBarcode 'Штрихкод поставки WB' = DATA STRING (Picking);
+wbSupplyBarcodeFile 'QR поставки WB' = DATA RAWFILE (Picking);
+
+// Локальные поля для импорта ответа /barcode (избегаем конфликта с
+// barcode = DATA LOCAL STRING(INTEGER) из WBOrders.lsf).
+supplyBarcodeStr = DATA LOCAL STRING();
+supplyBarcodeImgFile = DATA LOCAL STRING();
+
+FORM supplyBarcodeResponse
+    PROPERTIES() supplyBarcodeStr EXTID 'barcode', supplyBarcodeImgFile EXTID 'file'
+;
+
+// GET /api/v3/supplies/{supplyId}/barcode?type={svg|png|zplv|zplh}
+// Ответ 200: {"barcode":"WB-GI-...", "file":"<base64>"}.
+// Доступно только после передачи поставки в доставку (sendSupplyToDeliver) —
+// до этого WB вернёт 400. Используем svg.
+getSupplyBarcode 'Получить QR поставки' (Picking p) {
+    NEWSESSION NESTED LOCAL {
+        IF NOT wbSupplyId(p) THEN {
+            MESSAGE 'У поставки отсутствует wbSupplyId.';
+            RETURN;
+        }
+
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING ();
+        LOCAL response = FILE();
+
+        LOCAL getUrl = STRING ();
+        getUrl() <- '/api/v3/supplies/' + wbSupplyId(p) + '/barcode?type=svg';
+
+        logToFile('WB', 'GET: ' + url(CategoryRequest.marketplace) + getUrl());
+
+        TRY {
+            EXTERNAL HTTP GET url(CategoryRequest.marketplace) + getUrl() HEADERS httpHeaders TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+
+            IF statusHttp() == 200 THEN {
+                IMPORT supplyBarcodeResponse JSON FROM response();
+                wbSupplyBarcode(p) <- supplyBarcodeStr();
+                wbSupplyBarcodeFile(p) <- RAWFILE(file(decode(supplyBarcodeImgFile(), 'base64'), 'svg'));
+                APPLY NESTED LOCAL ;
+            }
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                IMPORT importError JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'QR поставки не получен: ' + message();
+            }
+            messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE '<h3>Получение QR поставки</h3>' NOWAIT;
+            MESSAGE messageOrder() NOWAIT;
+        }
+    }
+}
+
+//----Грузоместа (короба) поставки-----//
+
+CLASS WbBox 'Короб FBS';
+TABLE wbBox (WbBox);
+
+wbBoxId 'ID грузоместа' = DATA STRING (WbBox) INDEXED;
+wbBoxByCode = GROUP AGGR WbBox b BY wbBoxId(b);
+picking 'Поставка' = DATA Picking (WbBox) INDEXED NONULL;
+numberPicking 'Поставка' (WbBox b) = number(picking(b));
+boxSticker 'Стикер короба' = DATA RAWFILE (WbBox);
+
+// Локальный маппинг «заказ → короб». На стороне WB такой связи нет — короба
+// привязаны только к поставке, — но в ЕРП мы держим её для планирования
+// раскладки и для просмотра «какие заказы в каком коробе».
+wbBox 'Короб' = DATA WbBox (InternetOrder);
+nameWbBox 'ID короба' (InternetOrder o) = wbBoxId(wbBox(o));
+
+isSelectedBox 'Отм.' = DATA LOCAL NESTED BOOLEAN (WbBox);
+
+// Локальные поля для импорта /trbx (GET): {"trbxes":[{"id":"WB-TRBX-..."}]}.
+trbxId = DATA LOCAL STRING(INTEGER);
+
+FORM importSupplyTrbx
+    OBJECTS trbxes = INTEGER
+    PROPERTIES(trbxes) trbxId EXTID 'id'
+    FILTERS imported(trbxes)
+;
+
+// Локальные поля для импорта /trbx (POST): {"trbxIds":["WB-TRBX-..."]}.
+addedTrbxId = DATA LOCAL STRING(INTEGER);
+
+FORM importAddedTrbx
+    OBJECTS trbxIds = INTEGER
+    PROPERTIES(trbxIds) addedTrbxId EXTID 'value'
+    FILTERS imported(trbxIds)
+;
+
+// GET /api/v3/supplies/{supplyId}/trbx
+// Ответ: {"trbxes":[{"id":"WB-TRBX-..."}]}. Поле в trbx-объекте — только id.
+// Синхронизирует локальные WbBox: создаёт недостающие, удаляет отсутствующие на WB.
+getSupplyBoxes 'Подтянуть короба поставки' (Picking p) {
+    NEWSESSION NESTED LOCAL {
+        IF NOT wbSupplyId(p) THEN {
+            MESSAGE 'У поставки отсутствует wbSupplyId.';
+            RETURN;
+        }
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING();
+        LOCAL response = FILE();
+
+        LOCAL getUrl = STRING();
+        getUrl() <- '/api/v3/supplies/' + wbSupplyId(p) + '/trbx';
+        logToFile('WB', 'GET: ' + url(CategoryRequest.marketplace) + getUrl());
+
+        TRY {
+            EXTERNAL HTTP GET url(CategoryRequest.marketplace) + getUrl() HEADERS httpHeaders TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            IF statusHttp() == 200 THEN {
+                IMPORT importSupplyTrbx JSON FROM response();
+
+                FOR INTEGER i AND trbxId(i) AND NOT wbBoxByCode(trbxId(i)) INLINE DO NEW b = WbBox {
+                    wbBoxId(b) <- trbxId(i);
+                    picking(b) <- p;
+                }
+                FOR INTEGER i AND trbxId(i) AND WbBox b == wbBoxByCode(trbxId(i)) DO {
+                    picking(b) <- p;
+                }
+
+                LOCAL hasOnWb = BOOLEAN (WbBox);
+                hasOnWb(WbBox b) <- TRUE WHERE picking(b) == p
+                    AND (GROUP MAX INTEGER i IF trbxId(i) == wbBoxId(b));
+                DELETE WbBox b WHERE picking(b) == p AND NOT hasOnWb(b);
+
+                APPLY NESTED LOCAL;
+            }
+            messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 THEN {
+                IMPORT importError JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Короба не получены: ' + message();
+            }
+            messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE messageOrder() NOWAIT;
+        }
+    }
+}
+
+// POST /api/v3/supplies/{supplyId}/trbx body: {"amount":N}
+// Ответ: {"trbxIds":["WB-TRBX-...", ...]}. Макс 1000 за запрос; поставка должна быть на сборке.
+addSupplyBoxes 'Добавить короба в поставку' (Picking p, INTEGER amount) {
+    NEWSESSION NESTED LOCAL {
+        IF NOT wbSupplyId(p) THEN {
+            MESSAGE 'У поставки отсутствует wbSupplyId.';
+            RETURN;
+        }
+        IF NOT (amount > 0) THEN {
+            MESSAGE 'Укажите положительное количество коробов.';
+            RETURN;
+        }
+        IF amount > 1000 THEN {
+            MESSAGE 'Максимум 1000 коробов за запрос.';
+            RETURN;
+        }
+
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING();
+        LOCAL response = FILE();
+
+        LOCAL postUrl = STRING();
+        postUrl() <- '/api/v3/supplies/' + wbSupplyId(p) + '/trbx';
+
+        stringToFile('\{"amount":' + amount + '\}', 'UTF-8', 'json');
+        fileToString(resultFile(), 'UTF-8');
+        logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + postUrl() + ' body: ' + resultString());
+
+        TRY {
+            EXTERNAL HTTP POST url(CategoryRequest.marketplace) + postUrl() HEADERS httpHeaders PARAMS resultFile() TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+            IF statusHttp() == 201 OR statusHttp() == 200 THEN {
+                IMPORT importAddedTrbx JSON FROM response();
+                FOR INTEGER i AND addedTrbxId(i) INLINE DO NEW b = WbBox {
+                    wbBoxId(b) <- addedTrbxId(i);
+                    picking(b) <- p;
+                }
+                APPLY NESTED LOCAL;
+            }
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                IMPORT importError JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Короба не добавлены: ' + message();
+            }
+            messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE '<h3>Добавление коробов</h3>' NOWAIT;
+            MESSAGE messageOrder() NOWAIT;
+        }
+    }
+}
+
+FORM inputBoxAmount 'Количество коробов'
+    OBJECTS n = INTEGER PANEL
+    PROPERTIES 'Количество' = VALUE(n)
+;
+
+addSupplyBoxesDialog 'Добавить короба' (Picking p) {
+    DIALOG inputBoxAmount OBJECTS n INPUT DO {
+        addSupplyBoxes(p, n);
+    }
+}
+
+// DELETE /api/v3/supplies/{supplyId}/trbx body: {"trbxIds":["WB-TRBX-..."]}
+// Удаляет отмеченные короба; заказы, которые в них были, на стороне WB
+// автоматически выходят из коробов (но остаются в поставке).
+deleteSupplyBoxes 'Удалить отмеченные короба' (Picking p) {
+    NEWSESSION NESTED LOCAL {
+        IF NOT wbSupplyId(p) THEN {
+            MESSAGE 'У поставки отсутствует wbSupplyId.';
+            RETURN;
+        }
+        IF NOT (GROUP SUM 1 IF isSelectedBox(WbBox b) AND picking(b) == p) THEN {
+            MESSAGE 'Нет отмеченных коробов.';
+            RETURN;
+        }
+
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING();
+        LOCAL response = FILE();
+
+        LOCAL deleteUrl = STRING();
+        deleteUrl() <- '/api/v3/supplies/' + wbSupplyId(p) + '/trbx';
+
+        EXPORT JSON FROM 'value' = wbBoxId(WbBox b) WHERE isSelectedBox(b) AND picking(b) == p;
+        fileToString(exportFile(), 'UTF-8');
+        stringToFile('\{"trbxIds":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
+        fileToString(resultFile(), 'UTF-8');
+        logToFile('WB', 'DELETE: ' + url(CategoryRequest.marketplace) + deleteUrl() + ' body: ' + resultString());
+
+        TRY {
+            EXTERNAL HTTP DELETE url(CategoryRequest.marketplace) + deleteUrl() HEADERS httpHeaders PARAMS resultFile() TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+            IF statusHttp() == 204 THEN {
+                DELETE WbBox b WHERE isSelectedBox(b) AND picking(b) == p;
+                APPLY NESTED LOCAL;
+            }
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                IMPORT importError JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Короба не удалены: ' + message();
+            }
+            messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE messageOrder() NOWAIT;
+        }
+    }
+}
+
+// POST /api/v3/supplies/{supplyId}/trbx/stickers?type={svg|zplv|zplh|png} body: {"trbxIds":[...]}
+// Ответ: {"stickers":[{...}]}. Поля стикера не задокументированы в кратком Swagger;
+// взяты по аналогии со stickersResponse заказов: file (base64), trbxId.
+// TODO: подправить EXTID после первого живого вызова, если имена полей отличаются.
+boxStickerFile = DATA LOCAL STRING(INTEGER);
+boxStickerTrbxId = DATA LOCAL STRING(INTEGER);
+
+FORM boxStickersResponse
+    OBJECTS stickers = INTEGER
+    PROPERTIES(stickers) boxStickerFile EXTID 'file', boxStickerTrbxId EXTID 'trbxId'
+    FILTERS imported(stickers)
+;
+
+getSupplyBoxStickers 'Получить стикеры коробов' (Picking p) {
+    NEWSESSION NESTED LOCAL {
+        IF NOT wbSupplyId(p) THEN {
+            MESSAGE 'У поставки отсутствует wbSupplyId.';
+            RETURN;
+        }
+        IF NOT (GROUP SUM 1 IF picking(WbBox b) == p) THEN {
+            MESSAGE 'В поставке нет коробов.';
+            RETURN;
+        }
+
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING();
+        LOCAL response = FILE();
+
+        LOCAL postUrl = STRING();
+        postUrl() <- '/api/v3/supplies/' + wbSupplyId(p) + '/trbx/stickers?type=svg';
+
+        EXPORT JSON FROM 'value' = wbBoxId(WbBox b) WHERE picking(b) == p AND wbBoxId(b);
+        fileToString(exportFile(), 'UTF-8');
+        stringToFile('\{"trbxIds":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
+        fileToString(resultFile(), 'UTF-8');
+        logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + postUrl() + ' body: ' + resultString());
+
+        TRY {
+            EXTERNAL HTTP POST url(CategoryRequest.marketplace) + postUrl() HEADERS httpHeaders PARAMS resultFile() TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+            IF statusHttp() == 200 THEN {
+                IMPORT boxStickersResponse JSON FROM response();
+                FOR INTEGER i AND boxStickerTrbxId(i) AND WbBox b == wbBoxByCode(boxStickerTrbxId(i)) DO {
+                    boxSticker(b) <- RAWFILE(file(decode(boxStickerFile(i), 'base64'), 'svg'));
+                }
+                APPLY NESTED LOCAL;
+            }
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                IMPORT importError JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Стикеры коробов не получены: ' + message();
+            }
+            messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE messageOrder() NOWAIT;
+        }
+    }
+}
+
+FORM wbSupplyBoxes 'Короба поставки'
+    OBJECTS p = Picking PANEL
+    PROPERTIES (p) READONLY number, wbSupplyId
+    PROPERTIES (p) addSupplyBoxesDialog, getSupplyBoxes, getSupplyBoxStickers, deleteSupplyBoxes
+
+    OBJECTS b = WbBox
+    PROPERTIES (b) isSelectedBox, wbBoxId READONLY, boxSticker READONLY
+    FILTERS picking(b) == p
+    ORDERS wbBoxId(b)
+;
+
+manageSupplyBoxes 'Короба поставки' (Picking p) {
+    SHOW wbSupplyBoxes OBJECTS p = p;
+}
+
+//----Локальное распределение заказов по коробам-----//
+// Только в ЕРП: WB этой связи не знает. Используется для планирования и
+// печати на стикере короба списка заказов внутри.
+
+FORM wbBoxTargetDialog 'Выбор короба'
+    OBJECTS b = WbBox
+    PROPERTIES (b) READONLY wbBoxId, numberPicking
+    LIST WbBox OBJECT b
+;
+
+setWbBox 'Положить в короб' (InternetOrder o) {
+    LOCAL targetP = Picking();
+    targetP() <- GROUP MAX Picking pic IF (GROUP MAX InternetOrderDetail d IF internetOrder(d) == o AND picking(d) == pic);
+    IF NOT targetP() THEN {
+        MESSAGE 'Заказ не привязан к поставке.';
+        RETURN;
+    }
+    DIALOG wbBoxTargetDialog OBJECTS b INPUT FILTERS picking(b) == targetP() DO {
+        wbBox(o) <- b;
+        APPLY;
+    }
+}
+
+clearWbBox 'Убрать из короба' (InternetOrder o) {
+    wbBox(o) <- NULL;
+    APPLY;
+}
+
+//----Список поставок-----//
+
+// Локальные поля для импорта /api/v3/supplies (имена с префиксом supplies*,
+// чтобы не конфликтовать с одноимёнными LOCAL'ами getSupplyInfo).
+suppliesId = DATA LOCAL STRING(INTEGER);
+suppliesDone = DATA LOCAL BOOLEAN(INTEGER);
+suppliesCreatedAt = DATA LOCAL DATETIME(INTEGER);
+suppliesClosedAt = DATA LOCAL DATETIME(INTEGER);
+suppliesScanDt = DATA LOCAL DATETIME(INTEGER);
+suppliesName = DATA LOCAL STRING(INTEGER);
+suppliesCargoType = DATA LOCAL INTEGER(INTEGER);
+suppliesDestinationOfficeId = DATA LOCAL INTEGER(INTEGER);
+suppliesIsB2b = DATA LOCAL BOOLEAN(INTEGER);
+suppliesIsPickupPointShipmentAllowed = DATA LOCAL BOOLEAN(INTEGER);
+suppliesCrossBorderType = DATA LOCAL INTEGER(INTEGER);
+suppliesRecommendedWhId = DATA LOCAL INTEGER(INTEGER);
+nextSuppliesIndex = DATA LOCAL INTEGER();
+
+FORM importSuppliesList
+    PROPERTIES() nextSuppliesIndex EXTID 'next'
+
+    OBJECTS supplies = INTEGER
+    PROPERTIES(supplies)
+        suppliesId EXTID 'id',
+        suppliesDone EXTID 'done',
+        suppliesCreatedAt EXTID 'createdAt',
+        suppliesClosedAt EXTID 'closedAt',
+        suppliesScanDt EXTID 'scanDt',
+        suppliesName EXTID 'name',
+        suppliesCargoType EXTID 'cargoType',
+        suppliesDestinationOfficeId EXTID 'destinationOfficeId',
+        suppliesIsB2b EXTID 'isB2b',
+        suppliesIsPickupPointShipmentAllowed EXTID 'isPickupPointShipmentAllowed',
+        suppliesCrossBorderType EXTID 'crossBorderType',
+        suppliesRecommendedWhId EXTID 'recommendedWhId'
+    FILTERS imported(supplies)
+;
+
+dataGetSuppliesLimit = DATA INTEGER();
+getSuppliesLimit 'Лимит запросов списка поставок' = OVERRIDE dataGetSuppliesLimit(), 1000;
+
+// GET /api/v3/supplies?limit&next
+// Список поставок продавца с пагинацией. Синхронизирует wbCreatedAt/wbClosedAt/wbScanDt/
+// wbDestinationOfficeId на существующих Picking по wbSupplyId; завершённые помечает StatusPicking.closed.
+// Поставки без локального Picking сообщаются как «orphan» (созданы вне ERP).
+listSuppliesFBS 'Синхронизировать список поставок (FBS)' () {
+    NEWSESSION NESTED LOCAL {
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING();
+        LOCAL response = FILE();
+
+        LOCAL limit = INTEGER();
+        limit() <- getSuppliesLimit();
+        IF limit() > 1000 THEN limit() <- 1000;
+
+        LOCAL NESTED nextWB = INTEGER();
+        nextWB() <- 0;
+
+        LOCAL stop = BOOLEAN();
+        LOCAL orphanCount = INTEGER();
+        orphanCount() <- 0;
+        LOCAL pickingFor = Picking (INTEGER);
+        LOCAL pageOrphans = INTEGER();
+
+        WHILE NOT stop() AND nextWB() >= 0 DO {
+            logToFile('WB', 'GET: ' + url(CategoryRequest.marketplace) + '/api/v3/supplies?limit=' + limit() + '&next=' + nextWB());
+
+            TRY {
+                EXTERNAL HTTP GET url(CategoryRequest.marketplace) + '/api/v3/supplies?limit=$1&next=$2'
+                    HEADERS httpHeaders PARAMS limit(), nextWB() TO response;
+                fileToString(response());
+                logToFile('WB', resultString());
+                IMPORT importSuppliesList JSON FROM response();
+
+                pickingFor(INTEGER i) <- GROUP MAX Picking p1 IF imported(i) AND suppliesId(i) AND wbSupplyId(p1) == suppliesId(i);
+
+                FOR INTEGER i AND suppliesId(i) AND Picking p == pickingFor(i) DO {
+                    wbCreatedAt(p) <- suppliesCreatedAt(i);
+                    wbClosedAt(p) <- suppliesClosedAt(i);
+                    wbScanDt(p) <- suppliesScanDt(i);
+                    wbDestinationOfficeId(p) <- suppliesDestinationOfficeId(i);
+                    wbIsB2b(p) <- suppliesIsB2b(i);
+                    wbIsPickupPointShipmentAllowed(p) <- suppliesIsPickupPointShipmentAllowed(i);
+                    wbCrossBorderType(p) <- suppliesCrossBorderType(i);
+                    wbRecommendedWhId(p) <- suppliesRecommendedWhId(i);
+                    IF suppliesDone(i) THEN status(p) <- StatusPicking.closed;
+                }
+
+                pageOrphans() <- GROUP SUM 1 IF imported(INTEGER i) AND suppliesId(i) AND NOT pickingFor(i);
+                IF pageOrphans() THEN orphanCount() <- orphanCount() + pageOrphans();
+
+                LOCAL currentNext = INTEGER();
+                currentNext() <- nextSuppliesIndex();
+                IF currentNext() > 0 AND currentNext() != nextWB() THEN {
+                    nextWB() <- currentNext();
+                } ELSE {
+                    stop() <- TRUE;
+                }
+                messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + messageStatusHTTP(STRING(statusHttp()));
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+                IF statusHttp() == 400 OR statusHttp() == 401 OR statusHttp() == 403 THEN {
+                    IMPORT importError JSON FROM response();
+                    extraDescriptionStatusHTTP() <- 'Список поставок не получен: ' + message();
+                }
+                messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                stop() <- TRUE;
+            } FINALLY {
+                afterSendRequestIS();
+                IF NOT (statusHttp() >= 200 AND statusHttp() < 300) THEN stop() <- TRUE;
+                APPLY NESTED LOCAL;
+                IF NOT stop() THEN sleep(200);
+            }
+        }
+
+        IF orphanCount() > 0 THEN
+            messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + 'Поставок на WB без локального Picking: ' + STRING(orphanCount());
+        MESSAGE messageOrder() NOWAIT;
+    }
+}
+
+//----Заказы в поставке-----//
+
+// GET /api/v3/supplies/{supplyId}/orders
+// Возвращает заказы указанной поставки. Используется для восстановления связи
+// InternetOrderDetail.picking, если заказы попали в поставку вне ERP или связь потеряна.
+// Локальные поля переиспользуем из FORM importOrdersFBS — обёртка ответа {"orders":[...]} совместима.
+getOrdersInSupply 'Подтянуть заказы поставки' (Picking p) {
+    NEWSESSION NESTED LOCAL {
+        IF NOT wbSupplyId(p) THEN {
+            MESSAGE 'У поставки отсутствует wbSupplyId.';
+            RETURN;
+        }
+
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING();
+        LOCAL response = FILE();
+
+        LOCAL getUrl = STRING();
+        getUrl() <- '/api/v3/supplies/' + wbSupplyId(p) + '/orders';
+
+        logToFile('WB', 'GET: ' + url(CategoryRequest.marketplace) + getUrl());
+
+        TRY {
+            EXTERNAL HTTP GET url(CategoryRequest.marketplace) + getUrl() HEADERS httpHeaders TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            IF statusHttp() == 200 THEN {
+                IMPORT importOrdersFBS JSON FROM response();
+
+                FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING number)
+                    AND InternetOrder o == orderByNumber(number)
+                    AND isWBOrderFBS(o) INLINE DO {
+                    FOR InternetOrderDetail d AND internetOrder(d) == o AND NOT picking(d) DO {
+                        picking(d) <- p;
+                    }
+                }
+                APPLY NESTED LOCAL;
+            }
+            messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 THEN {
+                IMPORT importError JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Заказы поставки не получены: ' + message();
+            }
+            messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE messageOrder() NOWAIT;
+        }
+    }
+}
+
+//----Удаление поставки-----//
+
+// DELETE /api/v3/supplies/{supplyId}
+// Удаляет пустую поставку (без заказов, не переданную в доставку).
+deleteSupplyFBS 'Удалить поставку WB' (Picking p) {
+    NEWSESSION NESTED LOCAL {
+        IF NOT wbSupplyId(p) THEN {
+            MESSAGE 'У поставки отсутствует wbSupplyId.';
+            RETURN;
+        }
+        ASK 'Удалить поставку ' + wbSupplyId(p) + ' на WB? Должна быть пустой и не переданной в доставку.' DO {
+            setHttpHeadersIS();
+            LOCAL messageOrder = STRING();
+            LOCAL response = FILE();
+
+            LOCAL deleteUrl = STRING();
+            deleteUrl() <- '/api/v3/supplies/' + wbSupplyId(p);
+
+            logToFile('WB', 'DELETE: ' + url(CategoryRequest.marketplace) + deleteUrl());
+
+            TRY {
+                EXTERNAL HTTP DELETE url(CategoryRequest.marketplace) + deleteUrl() HEADERS httpHeaders TO response;
+                fileToString(response());
+                logToFile('WB', resultString());
+                messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+                IF statusHttp() == 204 THEN {
+                    wbSupplyId(p) <- NULL;
+                    APPLY NESTED LOCAL;
+                }
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+                IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                    IMPORT importError JSON FROM response();
+                    extraDescriptionStatusHTTP() <- 'Поставка не удалена: ' + message();
+                }
+                messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            } FINALLY {
+                afterSendRequestIS();
+                MESSAGE '<h3>Удаление поставки</h3>' NOWAIT;
+                MESSAGE messageOrder() NOWAIT;
+            }
+        }
+    }
+}
+
+//----Перенос заказа между поставками-----//
+
+// PATCH /api/v3/supplies/{supplyId}/orders/{orderId}
+// В WB FBS-API нет отдельного DELETE для удаления заказа из поставки — перенос
+// делается тем же PATCH с другим supplyId, заказ автоматически уходит из старой.
+// Используется и для «убрать из поставки» (создать пустую и перенести), и для перекомпоновки.
+moveOrderToSupplyFBS 'Переместить заказ в поставку' (InternetOrder o, Picking targetP) {
+    NEWSESSION NESTED LOCAL {
+        IF NOT isWBOrderFBS(o) THEN {
+            MESSAGE 'Заказ не является FBS-заказом WB.';
+            RETURN;
+        }
+        IF NOT number(o) THEN {
+            MESSAGE 'У заказа отсутствует номер.';
+            RETURN;
+        }
+        IF NOT wbSupplyId(targetP) THEN createSupply(targetP);
+        IF NOT wbSupplyId(targetP) THEN {
+            MESSAGE 'Не удалось получить wbSupplyId для целевой поставки.';
+            RETURN;
+        }
+
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING();
+        LOCAL response = FILE();
+
+        LOCAL patchUrl = STRING();
+        patchUrl() <- '/api/v3/supplies/' + wbSupplyId(targetP) + '/orders/' + number(o);
+
+        logToFile('WB', 'PATCH: ' + url(CategoryRequest.marketplace) + patchUrl());
+
+        TRY {
+            EXTERNAL HTTP PATCH url(CategoryRequest.marketplace) + patchUrl() HEADERS httpHeaders TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+            IF statusHttp() == 204 THEN {
+                FOR InternetOrderDetail d AND internetOrder(d) == o DO {
+                    picking(d) <- targetP;
+                }
+                APPLY NESTED LOCAL;
+            }
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                IMPORT importError JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Заказ не перенесён: ' + message();
+            }
+            messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE '<h3>Перенос заказа в поставку</h3>' NOWAIT;
+            MESSAGE messageOrder() NOWAIT;
+        }
+    }
+}
+
+FORM pickingTargetDialog 'Выбор целевой поставки'
+    OBJECTS p = Picking
+    PROPERTIES (p) READONLY number, status
+    FILTERS NOT (status(p) == StatusPicking.deliver OR status(p) == StatusPicking.closed)
+    LIST Picking OBJECT p
+;
+
+moveOrderFBSDialog 'Перенести в другую поставку' (InternetOrder o) {
+    DIALOG pickingTargetDialog OBJECTS p INPUT DO {
+        moveOrderToSupplyFBS(o, p);
+    }
+}
+
+//----Коэффициенты приёмки-----//
+
+// Локальные поля для импорта /api/v1/acceptance/coefficients (supplies-api).
+acceptanceDate 'Дата' = DATA LOCAL DATETIME(INTEGER);
+acceptanceCoefficient 'Коэффициент' = DATA LOCAL NUMERIC(INTEGER);
+acceptanceWarehouseID 'ID склада' = DATA LOCAL INTEGER(INTEGER);
+acceptanceWarehouseName 'Склад' = DATA LOCAL STRING(INTEGER);
+acceptanceAllowUnload 'Приёмка доступна' = DATA LOCAL BOOLEAN(INTEGER);
+acceptanceBoxTypeName 'Тип упаковки' = DATA LOCAL STRING(INTEGER);
+acceptanceBoxTypeID 'ID типа упаковки' = DATA LOCAL INTEGER(INTEGER);
+acceptanceIsSortingCenter 'Сорт. центр' = DATA LOCAL BOOLEAN(INTEGER);
+
+FORM importAcceptanceCoefficients
+    OBJECTS value = INTEGER
+    PROPERTIES(value)
+        acceptanceDate EXTID 'date',
+        acceptanceCoefficient EXTID 'coefficient',
+        acceptanceWarehouseID EXTID 'warehouseID',
+        acceptanceWarehouseName EXTID 'warehouseName',
+        acceptanceAllowUnload EXTID 'allowUnload',
+        acceptanceBoxTypeName EXTID 'boxTypeName',
+        acceptanceBoxTypeID EXTID 'boxTypeID',
+        acceptanceIsSortingCenter EXTID 'isSortingCenter'
+    FILTERS imported(value)
+;
+
+FORM wbAcceptanceCoefficients 'Коэффициенты приёмки WB'
+    OBJECTS v = INTEGER
+    PROPERTIES(v) READONLY
+        acceptanceWarehouseName, acceptanceWarehouseID, acceptanceDate, acceptanceCoefficient,
+        acceptanceAllowUnload, acceptanceBoxTypeName, acceptanceIsSortingCenter
+    FILTERS imported(v)
+    ORDERS acceptanceWarehouseName(v), acceptanceDate(v)
+;
+
+// GET https://supplies-api.wildberries.ru/api/v1/acceptance/coefficients
+// Коэффициенты приёмки на ближайшие 14 дней по складам WB. Лимит 6 запросов/мин.
+// Категория токена: «Поставки» (CategoryRequest.shipment). Ответ — массив без обёртки.
+getAcceptanceCoefficients 'Получить коэффициенты приёмки' () {
+    NEWSESSION NESTED LOCAL {
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING();
+        LOCAL response = FILE();
+
+        logToFile('WB', 'GET: ' + url(CategoryRequest.shipment) + '/api/v1/acceptance/coefficients');
+
+        TRY {
+            EXTERNAL HTTP GET url(CategoryRequest.shipment) + '/api/v1/acceptance/coefficients' HEADERS httpHeaders TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+            IF statusHttp() == 200 THEN {
+                IMPORT importAcceptanceCoefficients JSON FROM response();
+                SHOW wbAcceptanceCoefficients;
+            }
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 400 OR statusHttp() == 401 OR statusHttp() == 403 OR statusHttp() == 429 THEN {
+                IMPORT importError JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Коэффициенты приёмки не получены: ' + message();
             }
             messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
         } FINALLY {
@@ -828,20 +1624,52 @@ addDetailsFromWbOrder 'Добавить заказы WB' (Picking p){
     }
     APPLY ;
     addOrdersToSupply(p);
+    IF wbSupplyId(p) THEN getSupplyInfo(p);
 }
+
+//----Модель доставки поставки-----//
+// На стороне WB короба (TRBX) формируются только при доставке поставки на ПВЗ;
+// для прямой доставки на склад/курьерской модели короба не нужны. Признак
+// делаем абстрактным — проект может подставить свою логику (например, по
+// wbDestinationOfficeId или флагу склада). Дефолтная реализация — ручная
+// отметка dataPvzDelivery на форме комплектации.
+isPvzDelivery 'Доставка на ПВЗ' = ABSTRACT CASE BOOLEAN (Picking);
+dataPvzDelivery 'Доставка на ПВЗ' = DATA BOOLEAN (Picking);
+isPvzDelivery(Picking p) += WHEN p IS Picking AND wbIsPickupPointShipmentAllowed(p) THEN dataPvzDelivery(p);
+
+// Заказ «идёт на ПВЗ», если хотя бы одна его строка лежит в Picking с isPvzDelivery=TRUE.
+// Используется для SHOWIF box-actions на форме заказа.
+isPvzDeliveryOrder 'Доставка на ПВЗ' (InternetOrder o) =
+    GROUP MAX isPvzDelivery(picking(InternetOrderDetail d)) IF internetOrder(d) == o;
+
+// Поставка «FBS-комплектация», если хотя бы одна её строка — заказ WB FBS.
+// По этому признаку гейтятся FBS-действия на форме комплектации и дашборде.
+isWBOrderPicking 'Содержит заказы FBS WB' (Picking p) =
+    GROUP MAX isWBOrderFBS(internetOrder(InternetOrderDetail d)) IF picking(d) == p;
+
+EXTEND FORM picking
+    PROPERTIES (p) SHOWIF isWBOrderPicking(p) addDetailsFromWbOrder DRAW d TOOLBAR
+    PROPERTIES (p) SHOWIF isWBOrderPicking(p) dataPvzDelivery READONLYIF NOT wbIsPickupPointShipmentAllowed(p)
+;
 
 EXTEND FORM internetOrders
     PROPERTIES(o) READONLY isWBOrderFBS AFTER isClosed(o)
-    PROPERTIES(o) READONLY SHOWIF isWBOrderFBS(o) orderRidID, orderUID
-    PROPERTIES (o) getWbFbsStatus
-    PROPERTIES() getOrdersFBSNew, getOrdersFBS, actualizeOrdersMeta
+    PROPERTIES(o) READONLY SHOWIF isWBOrderFBS(o) orderRidID, orderUID, nameWbBox
+    PROPERTIES (o) getWbFbsStatus,
+        cancelOrderFBS SHOWIF isWBOrderFBS(o) AND (wbStatus(o) == WbStatus.new OR wbStatus(o) == WbStatus.confirm),
+        moveOrderFBSDialog SHOWIF isWBOrderFBS(o) AND (wbStatus(o) == WbStatus.new OR wbStatus(o) == WbStatus.confirm),
+        setWbBox SHOWIF isWBOrderFBS(o) AND isPvzDeliveryOrder(o),
+        clearWbBox SHOWIF isWBOrderFBS(o) AND wbBox(o)
+    PROPERTIES() getOrdersFBSNew, getOrdersFBS, actualizeOrdersMeta, cancelOrdersFBS,
+        listSuppliesFBS, getAcceptanceCoefficients
 ;
 
-EXTEND FORM picking
-    PROPERTIES (p) addDetailsFromWbOrder DRAW d TOOLBAR ;
-
 EXTEND FORM pickingDashboard
-    PROPERTIES (p) TOOLBAR sendSupplyToDeliver, getSupplyInfo;
+    PROPERTIES (p) TOOLBAR SHOWIF isWBOrderPicking(p) AND wbSupplyId(p) sendSupplyToDeliver, getSupplyInfo, getOrdersInSupply, deleteSupplyFBS,
+        manageSupplyBoxes SHOWIF isWBOrderPicking(p) AND wbSupplyId(p) AND isPvzDelivery(p),
+        getSupplyBarcode SHOWIF isWBOrderPicking(p) AND wbSupplyId(p) AND (status(p) == StatusPicking.deliver OR status(p) == StatusPicking.closed)
+    PROPERTIES (p) READONLY SHOWIF isWBOrderPicking(p) AND wbSupplyId(p) wbSupplyBarcode, wbSupplyBarcodeFile
+;
 
 DESIGN internetOrders {
     documentDetail {
@@ -853,8 +1681,28 @@ DESIGN internetOrders {
                 MOVE PROPERTY (getOrdersFBS());
                 MOVE PROPERTY (getWbFbsStatus(o));
                 MOVE PROPERTY (actualizeOrdersMeta());
+                MOVE PROPERTY (cancelOrdersFBS());
+                MOVE PROPERTY (listSuppliesFBS());
+                MOVE PROPERTY (getAcceptanceCoefficients());
             }
         }
+    }
+}
+
+// Автотрансляция отмены в ERP → cancel на WB. FBS-API не имеет аналогов
+// confirm/deliver/receive — эти переходы идут через добавление в поставку
+// (addOrdersToSupply) и её отправку в доставку (sendSupplyToDeliver), —
+// поэтому здесь синкается только отмена в new/confirm.
+customAutoCancelOrderFBS = ABSTRACT BOOLEAN ();
+
+WHEN SETCHANGED(status(InternetOrder o))
+    AND status(o) == StatusInternetOrder.cancel
+    AND isWBOrderFBS(o)
+    AND (wbStatus(o) == WbStatus.new OR wbStatus(o) == WbStatus.confirm)
+    AND NOT customAutoCancelOrderFBS()
+DO {
+    NEWSESSION {
+        cancelOrderFBS(o);
     }
 }
 

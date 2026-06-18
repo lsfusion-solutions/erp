@@ -455,7 +455,7 @@ rejectOrderDBS 'Сообщить об отказе от заказов' (Interne
 
 //----Stickers-----//
 
-// https://marketplace-api.wildberries.ru/api/marketplace/v3/dbs/orders/stickers
+// POST /api/marketplace/v3/dbs/orders/stickers?type=svg&width=58&height=40
 getStickersDBS 'Получить стикеры' () {
     NEWSESSION NESTED LOCAL {
         IF NOT (GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrderDBS(order)) THEN {
@@ -466,11 +466,11 @@ getStickersDBS 'Получить стикеры' () {
         setHttpHeadersIS();
         LOCAL messageOrder = STRING ();
         LOCAL response = FILE();
-        LOCAL error = STRING ();
-        LOCAL statusText = STRING ();
-        LOCAL status = STRING ();
 
-        logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/marketplace/v3/dbs/orders/stickers');
+        LOCAL postUrl = STRING ();
+        postUrl() <- '/api/marketplace/v3/dbs/orders/stickers?type=svg&width=58&height=40';
+
+        logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + postUrl());
 
         EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrderDBS(order);
         fileToString(exportFile(), 'UTF-8');
@@ -479,14 +479,14 @@ getStickersDBS 'Получить стикеры' () {
         logToFile('WB', 'orders: ' + resultString());
 
         TRY {
-            EXTERNAL HTTP POST url(CategoryRequest.marketplace) + '/api/marketplace/v3/dbs/orders/stickers' HEADERS httpHeaders PARAMS resultFile() TO response;
+            EXTERNAL HTTP POST url(CategoryRequest.marketplace) + postUrl() HEADERS httpHeaders PARAMS resultFile() TO response;
             fileToString(response());
             logToFile('WB', resultString());
             messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
             IF statusHttp() == 200 THEN {
                 IMPORT stickersResponse JSON FROM response();
                 FOR orderId(INTEGER i) DO {
-                    sticker(orderByNumber(orderId(i))) <- RAWFILE(file(decode(file(i), 'base64'), 'pdf'));;
+                    sticker(orderByNumber(orderId(i))) <- RAWFILE(file(decode(file(i), 'base64'), 'svg'));
                 }
                 APPLY NESTED LOCAL ;
             }
@@ -494,7 +494,7 @@ getStickersDBS 'Получить стикеры' () {
             logToFile('WB', messageCaughtException());
             IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
                 IMPORT importError JSON FROM response();
-                extraDescriptionStatusHTTP() <- 'Статус сборочного задания не получен: ' + message();
+                extraDescriptionStatusHTTP() <- 'Стикеры не получены: ' + message();
             }
             messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
         } FINALLY {
@@ -781,8 +781,7 @@ EXTEND FORM internetOrders
         receiveOrderDBS SHOWIF changeOrdersDBSStatusCondition(WbStatus.receive, o),
         rejectOrderDBS SHOWIF changeOrdersDBSStatusCondition(WbStatus.reject, o),
         cancelOrderDBS SHOWIF changeOrdersDBSStatusCondition(WbStatus.cancel, o)
-    PROPERTIES() getOrdersDBSNew, actualizeOrdersMetaDBS,
-        confirmOrdersDBS, deliverOrdersDBS, receiveOrdersDBS, rejectOrdersDBS, cancelOrdersDBS
+    PROPERTIES() getOrdersDBSNew, actualizeOrdersMetaDBS
 ;
 
 DESIGN internetOrders {
@@ -794,11 +793,11 @@ DESIGN internetOrders {
             MOVE PROPERTY (postInfCustomerOrder(o));
             MOVE PROPERTY (getStickerDBS(o));
             MOVE PROPERTY (actualizeOrdersMetaDBS());
-            MOVE PROPERTY (confirmOrdersDBS());
-            MOVE PROPERTY (deliverOrdersDBS());
-            MOVE PROPERTY (receiveOrdersDBS());
-            MOVE PROPERTY (rejectOrdersDBS());
-            MOVE PROPERTY (cancelOrdersDBS());
+            MOVE PROPERTY (confirmOrderDBS(o));
+            MOVE PROPERTY (deliverOrderDBS(o));
+            MOVE PROPERTY (receiveOrderDBS(o));
+            MOVE PROPERTY (rejectOrderDBS(o));
+            MOVE PROPERTY (cancelOrderDBS(o));
         }
     }
 }
