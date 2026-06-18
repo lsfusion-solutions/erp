@@ -190,7 +190,9 @@ WHEN CHANGED(url(MediaFile mf) AND mf IS MediaFile) DO posted(mf) <- NULL;
 //https://content-api.wildberries.ru/content/v3/media/save
 postMediaFiles 'Загрузить медиафайлы по ссылкам' (Item item) {
     NEWSESSION {
-        IF (GROUP SUM 1 IF NOT posted(MediaFile mf) AND mf IS MediaFile AND item(mf) == item) THEN {
+        LOCAL needExport = BOOLEAN (MediaFile);
+        needExport(MediaFile mf) <- TRUE WHERE NOT posted(mf) AND item(mf) == item AND url(mf);
+        IF NOT (GROUP SUM 1 IF needExport(MediaFile mf)) THEN {
             IF NOT nmID(item) THEN {
                 MESSAGE 'Не задан «Артикул WB» (nmID) у товара — загрузка медиафайлов невозможна.';
                 RETURN;
@@ -198,9 +200,7 @@ postMediaFiles 'Загрузить медиафайлы по ссылкам' (It
             setHttpHeadersIS();
             LOCAL message = STRING ();
             LOCAL response = FILE();
-            LOCAL needExport = BOOLEAN (MediaFile);
 
-            needExport(MediaFile mf) <- TRUE WHERE NOT posted(mf) AND item(mf) == item;
             EXPORT JSON FROM 'value' = url(MediaFile mf) WHERE needExport(mf) ORDER index(mf), mf;
             fileToString(exportFile(), 'UTF-8');
             stringToFile('\{"nmId": ' + nmID(item) + ', "data":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
