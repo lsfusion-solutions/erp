@@ -41,8 +41,12 @@ noticeMessageReplace(UserInvoice i) = GROUP CONCAT noticeMessageReplace(i, Sku s
 noticeMessageReplace(EInvoiceDetail ed) = IF ed IS EInvoiceDetail AND NOT sku(ed) THEN CONCAT ' ', 'неизвестный товар',  lineItemID(ed);
 noticeMessageReplace(EInvoice ei) = GROUP CONCAT noticeMessageReplace(EInvoiceDetail ed), '; ' ORDER ed BY eInvoice(ed);
 
+customePrice 'Цена' = ABSTRACT CASE NUMERIC[16,4] (InvoiceDetail);
+
+overPrice(InvoiceDetail d) = OVERRIDE customePrice(d), price(d);
+
 confirmReplace 'Подтвердить замену' (Purchase.Invoice i, EInvoice ei, BOOLEAN dialog) {
-    quantityInvoice(i, Sku s, NUMERIC[16,4] p) <- GROUP SUM shipmentQuantity(InvoiceDetail d) IF invoice(d) == i AND sku(d) == s AND price(d) == p;
+    quantityInvoice(i, Sku s, NUMERIC[16,4] p) <- GROUP SUM shipmentQuantity(InvoiceDetail d) IF invoice(d) == i AND sku(d) == s AND overPrice(d) == p;
     quantityReplace(i, Sku s, NUMERIC[16,4] p) <- GROUP SUM quantityDespatched(EInvoiceDetail ed) IF eInvoice(ed) == ei AND sku(ed) == s AND lineItemPrice(ed) == p;
     overNoticeMessage() <- CONCAT '; ', noticeMessageReplace(i), noticeMessageReplace(ei);
 
