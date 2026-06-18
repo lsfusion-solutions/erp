@@ -1,0 +1,127 @@
+MODULE Set10PriceTransactionGiftCardItem;
+
+REQUIRE Set10PriceTransaction, GiftCardItem;
+
+NAMESPACE Set10;
+
+webExportGiftCardsSku 'Выгрузка номиналов WEB'  = DATA BOOLEAN ();
+exportGiftCardSkuDirectorySET10 'Директория экспорта номиналов XML (SET10)' = DATA STRING[255]();
+exportGiftCardsSkuFileName 'Имя XML файла, для номиналов' = DATA STRING ();
+
+GROUP price_entryGC EXTID 'price-entry';
+GROUP departmentGC EXTID 'department' : price_entryGC;
+GROUP measure_typeGC EXTID 'measure-type';
+GROUP barcodeGC EXTID 'bar-code';
+GROUP value_vatGC EXTID 'vat';
+GROUP plugin1 EXTID 'plugin-property';
+GROUP plugin2 EXTID 'plugin-property';
+GROUP groupGC EXTID 'group';
+
+FORM exportGiftCardsXML FORMEXTID 'goods-catalog'
+
+    OBJECTS good = Sku
+    PROPERTIES =overSet10Id(good,defaultStock()) IF good IS Sku EXTID 'marking-of-the-good' ATTR,
+        =name(good) IF good IS Sku EXTID 'name'//, 
+
+    PROPERTIES IN barcodeGC idBarcode(good) EXTID 'code' ATTR,
+        =TRUE IF good IS Sku EXTID 'default-code'
+
+    PROPERTIES = 'ProductGiftCardEntity' IF good IS Sku  EXTID 'product-type'
+
+    PROPERTIES IN price_entryGC priceGiftCard(good) EXTID 'price' ATTR,
+        =toChar(2001_01_01, 'YYYY-MM-DDT00:00:00.000+04:00') IF good IS Sku EXTID 'begin-date',
+        =toChar(2061_01_01, 'YYYY-MM-DDT00:00:00.000+04:00') IF good IS Sku EXTID 'end-date',
+        ='1' IF good IS Sku EXTID 'number'
+
+    PROPERTIES =(OVERRIDE valueVAT(good),0.0) IF good IS Sku EXTID 'vat'
+
+    PROPERTIES IN departmentGC ='1' IF good IS Sku EXTID 'number' ATTR
+
+    PROPERTIES IN measure_typeGC ='Шт' IF good IS Sku EXTID 'name',
+        ='Шт' IF good IS Sku EXTID 'id' ATTR
+
+    PROPERTIES IN groupGC idItemGroup(good) EXTID 'id' ATTR,
+        =name(itemGroup(good)) EXTID 'name'
+
+    PROPERTIES IN plugin1 ='99999' IF good IS Sku EXTID 'value'ATTR,
+        ='card-number' IF good IS Sku EXTID 'key' ATTR
+    PROPERTIES IN plugin2 ='1' IF good IS Sku EXTID 'value' ATTR,
+        ='face-value' IF good IS Sku EXTID 'key' ATTR
+
+    FILTERS (skuType(good) == SkuType.skuTypeGiftCard)//, id(good) = '2140001124003'
+;
+
+exportGiftGardSkus 'Экспорт номиналов (файл)'()  {
+    IF exportGiftCardSkuDirectorySET10() + exportGiftCardsSkuFileName() THEN {
+        EXPORT exportGiftCardsXML XML TO exportFile;
+        WRITE exportFile() TO exportGiftCardSkuDirectorySET10() + exportGiftCardsSkuFileName();
+    } ELSE MESSAGE 'Не заданы директория-имя файла для номиналов' NOWAIT;
+}
+
+///веб экспорт номиналов
+
+sendRequsetGiftGardSkus 'Экспорт номиналов  (set10) (web)' (){
+    IF urlServerSet10() THEN {
+        EXPORT exportGiftCardsXML XML TO exportFile;
+        fileToString(exportFile());
+        encodeBase64(resultString());
+        goodsCatalogXML() <- encodedBase64();
+        LOCAL headersSet = STRING (STRING);
+        headersSet('Content-Type') <- 'application/xml';
+        generateUUID();
+        TI() <- generatedUUID();
+        LOCAL answer = FILE();
+        LOCAL req = FILE();
+        EXPORT requestItem XML TO req;
+        //WRITE exportFile() TO 'c:\\leko\\eeeeGippo';
+        //WRITE req() TO 'c:\\leko\\eeeeGippo1';
+        TRY{
+            EXTERNAL HTTP POST urlServerSet10() + 'SET-ERPIntegration/SET/WSGoodsCatalogImport' HEADERS headersSet PARAMS req() TO answer;
+            IMPORT answer XML FROM answer();
+            IF return() = 'true' THEN MESSAGE 'Импортировано в SET10';
+        }
+            CATCH {
+            fileToString(answer());
+            MESSAGE resultString() NOWAIT;
+        }
+    } ELSE
+        MESSAGE 'Не задан адрес:порт сервера SET10' NOWAIT;
+}
+
+
+overCreateMachineryPriceTransaction () ABSTRACT;
+
+createMachineryPriceTransaction 'Загрузить в оборудование номиналы'()  {
+    NEWSESSION {
+        overCreateMachineryPriceTransaction();
+        APPLY;
+    }
+};
+overCreateMachineryPriceTransaction() + {
+    IF webExportGiftCardsSku() THEN {
+        sendRequsetGiftGardSkus();
+    }   ELSE {
+        IF exportGiftCardSkuDirectorySET10() + exportGiftCardsSkuFileName() THEN {
+            exportGiftGardSkus();
+        }
+    }
+}
+
+
+EXTEND FORM integrationData
+    PROPERTIES() webExportGiftCardsSku, createMachineryPriceTransaction
+    PROPERTIES() SHOWIF NOT webExportGiftCardsSku() exportGiftCardSkuDirectorySET10, exportGiftCardsSkuFileName
+;
+
+DESIGN integrationData {
+    set10 {
+        NEW exportSET10Sku {
+            caption = 'Номиналы ПС';
+            lines = 3;
+            MOVE PROPERTY(webExportGiftCardsSku());
+            MOVE PROPERTY(exportGiftCardSkuDirectorySET10());
+            MOVE PROPERTY(exportGiftCardsSkuFileName());
+            MOVE PROPERTY(createMachineryPriceTransaction());
+        }
+    }
+}
