@@ -71,8 +71,10 @@ resolution(INTEGER g, INTEGER i) = CASE
 soundId(INTEGER g, INTEGER i) = CASE
     WHEN i == 1 AND g IS INTEGER THEN 1
     WHEN i == 2 AND g IS INTEGER THEN 2;
+overGroupId = ABSTRACT STRING[10] (CustomGroup);
+groupCode (CustomGroup g, DepartmentStore ds) = OVERRIDE overGroupId(g), STRING[10](extraId(g, ds));
 extraId (INTEGER g, DepartmentStore ds) = CASE
-    WHEN g >  9 (+) overStep(ds) AND customGroupExtraId(g,ds) THEN STRING[10](g)
+    WHEN g >  9 (+) overStep(ds) AND customGroupExtraId(g,ds) THEN groupCode(customGroupExtraId(g,ds), ds)
     WHEN g == 9 (+) overStep(ds) AND ds IS DepartmentStore THEN 'Favorites'
     WHEN g <  9 (+) overStep(ds) AND g > 1 AND ds IS DepartmentStore THEN STRING[10](g)
     WHEN g == 1 (+) overStep(ds) AND ds IS DepartmentStore THEN '1';
@@ -86,9 +88,9 @@ LCID (INTEGER g, INTEGER i) = CASE
     WHEN i == 2 AND g IS INTEGER THEN '0409'
     WHEN i == 3 AND g IS INTEGER THEN '0422';
 Description (CustomGroup g, INTEGER i) = CASE
-    WHEN i == 1 AND g IS CustomGroup THEN STRING[20](name(g))
-    WHEN i == 2 AND g IS CustomGroup THEN STRING[20](extraNameEng(g))//nameEng(g)
-    WHEN i == 3 AND g IS CustomGroup THEN STRING[20](extraNameBlr(g))//nameBlr(g)
+    WHEN i == 1 AND g IS CustomGroup THEN STRING[50](name(g))
+    WHEN i == 2 AND g IS CustomGroup THEN STRING[50](extraNameEng(g))//nameEng(g)
+    WHEN i == 3 AND g IS CustomGroup THEN STRING[50](extraNameBlr(g))//nameBlr(g)
 ;
 DescriptionFavorites (INTEGER i) = CASE
     WHEN i == 1 THEN 'Популярные'
@@ -114,7 +116,7 @@ Description (Item s, INTEGER i) = CASE
     WHEN i == 2 AND s IS Item THEN extraNameEng(s)//nameEng(s)
     WHEN i == 3 AND s IS Item THEN extraNameBlr(s)//nameBlr(s);
 ;
-SubCategories (DepartmentStore ds, Item s, INTEGER i) = extraId(customGroup(customGroupType(ds),s), ds) IF i IS INTEGER;
+SubCategories (DepartmentStore ds, Item s, INTEGER i) = groupCode(customGroup(customGroupType(ds),s), ds) IF i IS INTEGER;
 
 departmentItem (DepartmentStore ds) = right(id(ds),3);
 isQuantityItem (Item i) = IF (passScales(i) AND (shortNameUOM(i) == 'кг.' OR id(UOM(i)) == '166' OR id(UOM(i)) == 'Г')) OR split(i) THEN 'False' ELSE 'True';
@@ -123,7 +125,8 @@ activeItem (Item i) = IF active(i) THEN 'True' ELSE 'False';
 filterCSOCustom = ABSTRACT CASE OVERRIDE FIRST BOOLEAN(DepartmentStore,Item);
 filterCSOCustom(DepartmentStore ds, Item i) += WHEN ds IS DepartmentStore AND i IS Item AND (passScales(i) OR split(i)) AND currentBalance(i,ds) > 0 THEN TRUE; 
 
-idPickList (Item i) = IF useIdPickList() THEN id(i) ELSE idBarcode(i);
+overIdPickList = ABSTRACT CASE STRING[15] (Item);
+idPickList (Item i) = OVERRIDE overIdPickList(i), (IF useIdPickList() THEN id(i) ELSE idBarcode(i));
 
 FORM exportPickList FORMEXTID 'PickList'
     PROPERTIES IN Parameters PickListSize = '20', DefaultLanguage = '0419', Languages = '0409,0419,0422', Resolution = '800,1024', Group = '', NumberOfPickListItems = '-1'
