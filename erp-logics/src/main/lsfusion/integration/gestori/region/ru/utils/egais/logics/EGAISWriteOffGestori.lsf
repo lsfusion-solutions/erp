@@ -29,8 +29,17 @@ CONSTRAINT SET(ActWriteOffMark m IS ActWriteOffMark)
 CONSTRAINT SETCHANGED(quantity(UserWriteOffDetail d, Lot l)) AND availableQuantity(l, stock(d)) < 0
     MESSAGE 'Неверное количество доступного остатка марок';
 
-//skipShowEdit(WriteOff w) += forbidEditSendDocument() AND (activeActWriteOff(w) OR posted(actWriteOff(w)));
-skipShowDelete(WriteOff w) += forbidEditSendDocument() AND (activeActWriteOff(w) OR posted(actWriteOff(w)));
+blockedEditWriteOff (WriteOff w) = activeActWriteOff(w) OR posted(actWriteOff(w));
+
+skipShowEdit(WriteOff w) += blockedEditWriteOff(w);
+skipShowDelete(WriteOff w) += blockedEditWriteOff(w);
+
+edit(UserWriteOff o) + {
+    IF blockedEditWriteOff(o) THEN
+        SHOW userWriteOff OBJECTS w = o DOCKED READONLY;
+    ELSE
+        SHOW userWriteOff OBJECTS w = o DOCKED;
+}
 
 @defineOriginalLastDocumentActWriteOffAttributes(WriteOff);
 @defineOriginalLastDocumentWayBillAttributes(WriteOff, stock);
