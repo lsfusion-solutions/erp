@@ -335,13 +335,29 @@ changeGoodsAccepted(Consignment consignment)  {
     IF useGoodsAccepted(consignment) THEN {
         DIALOG dialogEmployees OBJECTS e = dataGoodsAccepted(consignment) INPUT NULL DO {
             dataGoodsAccepted(consignment) <- e;
+            goodsAccepted(consignment) <- NULL;
         }
     } ELSE {
         INPUT s = goodsAccepted(consignment) DO {
             goodsAccepted(consignment) <- s;
+            dataGoodsAccepted(consignment) <- NULL;
         }                   
     }        
-}   
+}
+
+pickGoodsAccepted 'Выбрать грузополучателя из справочника' (Consignment consignment)  {
+    DIALOG dialogEmployees OBJECTS e = dataGoodsAccepted(consignment) INPUT NULL DO {
+        dataGoodsAccepted(consignment) <- e;
+        goodsAccepted(consignment) <- NULL;
+    }
+} ASON CONTEXTMENU overGoodsAccepted[Consignment];
+
+editGoodsAccepted 'Ввести грузополучателя' (Consignment consignment)  {
+    DIALOG dialogString OBJECTS s = goodsAccepted(consignment) INPUT NULL DO {
+        goodsAccepted(consignment) <- s;
+        dataGoodsAccepted(consignment) <- NULL;
+    }
+} ASON CONTEXTMENU overGoodsAccepted[Consignment];
 
 sealNumberSupplier 'Номер пломбы грузоотправителя' = ABSTRACT STRING[50] (Consignment) IN issuanceConsignment CHARWIDTH 15;
 sealNumberCustomer 'Номер пломбы грузополучателя' = ABSTRACT STRING[50] (Consignment) IN issuanceConsignment CHARWIDTH 15;
@@ -968,6 +984,28 @@ changeAddressCustomerStock(Consignment c)  {
     }
 }
 
+customSelectWarrant = ABSTRACT BOOLEAN (Consignment);
+overSelectWarrant ABSTRACT (Consignment);
+overSelectWarrantHolder ABSTRACT (Consignment);
+
+changeWarrant(Consignment consignment)  {
+    IF customSelectWarrant(consignment) THEN
+        overSelectWarrant(consignment);
+    ELSE
+        INPUT s = warrant(consignment) DO {
+            warrant(consignment) <- s;
+        }    
+}
+
+changeWarrantHolder(Consignment consignment)  {
+    IF customSelectWarrant(consignment) THEN
+        overSelectWarrantHolder(consignment);
+    ELSE
+        INPUT s = warrantHolder(consignment) DO {
+            warrantHolder(consignment) <- s;
+        }
+}
+
 readonlyVAT = ABSTRACT BOOLEAN(Consignment);
 readonlySumVAT = ABSTRACT BOOLEAN(Consignment);
 readonlySumInvoice = ABSTRACT BOOLEAN(Consignment);
@@ -988,7 +1026,7 @@ EXTEND FORM consignment
                    trailer ON CHANGE changeTrailer(c), 
                    nameDriver ON CHANGE changeDriver(c), overWaybill ON CHANGE changeWaybill(c),
                    addressSupplierStock ON CHANGE changeAddressSupplierStock(c), addressCustomerStock ON CHANGE changeAddressCustomerStock(c), readdressing,
-                   warrant, warrantHolder, overNameLoadingExecuter, nameWayOfLoading, codeLoading,
+                   warrant ON CHANGE changeWarrant(c), warrantHolder ON CHANGE changeWarrantHolder(c), overNameLoadingExecuter, nameWayOfLoading, codeLoading,
                    overNameUnloadingExecuter, nameWayOfUnloading,
                    arrivalTime, downtime, departureTime READONLY, raceQuantity
     PROPERTIES(c)  quantityConsignmentDetail, overPackQuantityConsignmentDetail, grossWeightConsignmentDetail,
