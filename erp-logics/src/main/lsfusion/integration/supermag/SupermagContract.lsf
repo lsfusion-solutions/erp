@@ -110,6 +110,7 @@ importContract 'Импорт из контрактов с поставщикам
     // обновляем ПСЦ
     dateFromConstraintContractUserPriceList() <- currentDate();
     FOR UserPriceList doc == userPriceList(idDoc(INTEGER i))  DO {
+        skipSetStocks(doc) <- TRUE; // склады берём только из локаций контракта (ниже), не из складов операции
         contractTypeInSuperMag(doc) <- contractType(i);
         operation(doc) <- IF contractType(i) == 2 THEN PriceList.operation('supplierPromotion') ELSE PriceList.operation('supplier');
         number(doc) <- ISTRING[28] (docNumber(i));
@@ -138,7 +139,7 @@ importContract 'Импорт из контрактов с поставщикам
      
      // указываем какие магазины входят в ПСЦ            
     EXTERNAL SQL connectionString() 
-        EXEC CONCAT '', 'SELECT cc.ID, cc.DOCTYPE, cl.locationid FROM  Supermag.SVDocumentsCO cc, Supermag.SvDocNoPriceCQ q, Supermag.SMContractLocations cl WHERE cc.doctype=\'CO\' AND q.docco = cc.id AND cl.id = q.id', ' AND ' + filterSql() TO file;
+        EXEC CONCAT '', 'SELECT cc.ID, cc.DOCTYPE, cl.locationid FROM  Supermag.SVDocumentsCO cc, Supermag.SvDocNoPriceCQ q, Supermag.SMContractLocations cl WHERE cc.doctype=\'CO\' AND q.docco = cc.id AND cl.id = q.id AND q.DOCSTATE > 0', ' AND ' + filterSql() TO file;
 
     IMPORT TABLE FROM file() TO docNumber, docType, location;
 
@@ -327,7 +328,7 @@ importScheduleOrder 'Импорт графиков заказов' () {
 //    }
 
     EXTERNAL SQL connectionString() 
-        EXEC 'SELECT qd.id, q.ID AS DOCID, cl.locationid FROM Supermag.SVDocumentsCO cc, Supermag.SvDocNoPriceCQ q, Supermag.SMContractLocations cl, Supermag.scautoorderdoc qd WHERE q.docco = cc.id AND q.id = cl.id AND qd.DOCTID = q.ID AND ' + filterSql() TO file;
+        EXEC 'SELECT qd.id, q.ID AS DOCID, cl.locationid FROM Supermag.SVDocumentsCO cc, Supermag.SvDocNoPriceCQ q, Supermag.SMContractLocations cl, Supermag.scautoorderdoc qd WHERE q.docco = cc.id AND q.id = cl.id AND qd.DOCTID = q.ID AND q.DOCSTATE > 0 AND ' + filterSql() TO file;
 
     IMPORT TABLE FROM file() TO id, docId, idStock;
 
