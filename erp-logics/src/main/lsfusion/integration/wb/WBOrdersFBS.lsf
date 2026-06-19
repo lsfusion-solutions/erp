@@ -4,23 +4,31 @@ REQUIRE WBOrders;
 
 NAMESPACE WB;
 
+fbsCarrier = ABSTRACT CASE Carrier();
+customFbsCarrier = ABSTRACT BOOLEAN ();
+fbsCarrier () += WHEN carrier('WB') AND NOT customFbsCarrier() THEN carrier('WB');
+
+onStarted() + {
+    IF NOT customFbsCarrier() THEN {
+        IF NOT carrier('WB') THEN NEW c = Carrier{
+            id(c) <- 'WB';
+            name(c) <- 'FBS(WB)';
+        }
+    }
+}
+
 isWBOrderFBS 'FBS' = DATA BOOLEAN (InternetOrder);
 isWBOrder(InternetOrder o) += WHEN o IS InternetOrder AND isWBOrderFBS(o) THEN isWBOrderFBS(o);
-// --------------------------------------Cборочные заказы FBS----------------------------------------------
-//FBS (Fulfillment by Seller):
-//- Товары хранятся на собственных складах поставщика.
-//- Поставщик упаковывает и маркирует заказы, а затем доставляет их на склад или пункт выдачи Wildberries.
-//- Подходит для товаров с низким спросом или специфических категорий.
+
+wbIsCancellable 'WB: доступна отмена' = DATA BOOLEAN (InternetOrder);
 
 offices = DATA LOCAL STRING(INTEGER);
 ordersOffices = DATA LOCAL INTEGER(INTEGER);
 ddate = DATA LOCAL DATE(INTEGER); // планируемая дата доставки
 optionalMeta = DATA LOCAL STRING(INTEGER);
 ordersOptionalMeta = DATA LOCAL INTEGER(INTEGER);
-//chrtId = DATA LOCAL STRING (INTEGER);
 
-// Точка расширения: вызывается после загрузки и применения новых FBS-заказов
-// в getOrdersFBSNew. Симметрично afterGetOrdersDBSNew в WBOrdersDBS.lsf.
+// Симметрично afterGetOrdersDBSNew в WBOrdersDBS.lsf.
 afterGetOrdersFBSNew ABSTRACT LIST;
 
 FORM importNewOrdersFBS
@@ -81,12 +89,14 @@ getOrdersFBSNew 'Получить список новых сборочных з�
                 orderUID(order) <- orderUid(i);
                 date(order) <- currentDate();
                 isWBOrderFBS(order) <- TRUE;
-                carrier(order) <- carrier('WB');
+                carrier(order) <- fbsCarrier();
                 status(order) <- IF autoAggreed() THEN StatusInternetOrder.agreed ELSE StatusInternetOrder.new;
+                isPosted(order) <- TRUE WHERE autoAggreed();
                 warehouseId(order) <- warehouseId(i);
                 supplierStock(order) <- supplierStockWB(order);
                 wbStatus(order) <- WbStatus.new;
                 wbSystemStatus(order) <- WbSystemStatus.waiting;
+                wbIsCancellable(order) <- TRUE;
                 addressInternetCustomer(order) <- fullAddress(i);
                 deliveryDate(order) <- ddate(i);
                 note(order) <- comment(i);
@@ -101,7 +111,11 @@ getOrdersFBSNew 'Получить список новых сборочных з�
                     INLINE DO NEW detail = InternetOrderDetail {
                     internetOrder(detail) <- order;
                     sku(detail) <- item(size);
+                    quantity(detail) <- 1;
                     price(detail) <- salePrice(ii) / 100.0;
+                    discountPrice(detail) <- salePrice(ii) / 100.0;
+                    sum(detail) <- salePrice(ii) / 100.0;
+                    discountSum(detail) <- salePrice(ii) / 100.0;
                 }
 
                 FOR INTEGER rm AND ordersRequiredMeta(rm) == i AND OrderMeta meta == orderMetaByName(requiredMeta(rm)) DO {
@@ -132,8 +146,7 @@ getOrdersFBSNew 'Получить список новых сборочных з�
     }
 }
 
-//next = DATA LOCAL INTEGER ();
-supplyId = DATA LOCAL STRING(INTEGER); // id поставки, возвращается, если заказ закреплен за поставкой
+supplyId = DATA LOCAL STRING(INTEGER);
 
 nextIndex = DATA LOCAL INTEGER ();
 
@@ -266,16 +279,20 @@ getOrdersFBS 'Получить информацию о сборочных зад
 
 getOrdersFBS 'Получить информацию о сборочных заданиях (FBS)' () {
     getOrdersFBS(NULL, NULL);
+    isSelected(InternetOrder o) <- NULL;
 }
 
+// POST /api/v3/orders/status — ответ:
+// {"orders":[{"id":..., "isCancellable":..., "supplierStatus":..., "wbStatus":...}]}
+// supplierStatus ∈ {new, confirm, complete, cancel, cancel_carrier} — действие продавца;
+// wbStatus — статус системы Wildberries.
+// В ответе НЕТ errors-блока (в отличие от DBS /status/info), его в форме нет.
+isCancellable = DATA LOCAL BOOLEAN(INTEGER);
+
 FORM statusInfoResponse
-
     OBJECTS orders = INTEGER
-    PROPERTIES(orders) id, supplierStatus, wbStatus
-
-    OBJECTS errors = INTEGER
-    PROPERTIES(errors) errors EXTID 'value'
-    FILTERS ordersErrors(errors) == orders;
+    PROPERTIES(orders) id, isCancellable, supplierStatus, wbStatus
+;
 
 // По умолчанию после синка статусов от WB локальный status(InternetOrder) автоматически
 // обновляется по WB-маппингу. Если проект ведёт переходы вручную и не хочет
@@ -322,6 +339,7 @@ getWbFbsStatuses 'Получить статусы заказов FBS' () {
                     }
                     wbStatus(o) <- ws;
                     wbSystemStatus(o) <- wss;
+                    wbIsCancellable(o) <- isCancellable(i);
                 }
                 APPLY NESTED LOCAL ;
             }
@@ -344,9 +362,8 @@ getWbFbsStatus 'Получить статус заказа FBS' (InternetOrder o
         isSelected(order) <- TRUE ;
     }
     getWbFbsStatuses();
+    isSelected(InternetOrder o) <- NULL;
 }
-
-//----Stickers-----//
 
 // POST /api/v3/orders/stickers?type=svg&width=58&height=40
 // Стикеры доступны только для заказов в статусах confirm и complete. Макс. 100 за запрос.
@@ -403,15 +420,12 @@ getSticker 'Получить стикер' (InternetOrder order) {
         isSelected(order) <- TRUE ;
     }
     getStickers();
+    isSelected(InternetOrder o) <- NULL;
 }
-
-//----Отмена сборочных заданий-----//
 
 // PATCH /api/v3/orders/{orderId}/cancel
 // Доступно только до передачи в доставку (wbStatus = new/confirm). WB отвечает 204 без тела.
-// Если проект ведёт локальный StatusInternetOrder вручную и не хочет перетирания —
-// пусть переопределит customSetFbsCancelStatus в TRUE.
-customSetFbsCancelStatus = ABSTRACT BOOLEAN ();
+// Опт-аут авто-отмены — через customFilterChangeOrdersFBSStatus(WbStatus.cancel, o).
 afterCancelOrderFBS ABSTRACT LIST (InternetOrder);
 
 cancelOrderFBS 'Отменить сборочное задание (FBS)' (InternetOrder o) {
@@ -442,9 +456,7 @@ cancelOrderFBS 'Отменить сборочное задание (FBS)' (Inter
             IF statusHttp() == 204 THEN {
                 wbStatus(o) <- WbStatus.cancel;
                 wbSystemStatus(o) <- WbSystemStatus.canceled;
-                IF NOT customSetFbsCancelStatus() THEN {
-                    status(o) <- OVERRIDE customCancelOrderStatus(), StatusInternetOrder.cancel;
-                }
+                status(o) <- OVERRIDE customCancelOrderStatus(), StatusInternetOrder.cancel;
                 afterCancelOrderFBS(o);
                 APPLY NESTED LOCAL ;
             }
@@ -471,6 +483,29 @@ cancelOrdersFBS 'Отменить выбранные сборочные зада
     FOR isSelected(InternetOrder o) AND isWBOrderFBS(o) DO {
         cancelOrderFBS(o);
     }
+}
+
+// Аналог DBS-ветки (changeOrdersDBSStatusCondition/changeOrdersDBSStatus).
+// FBS-API не имеет единого endpoint смены статуса: confirm/deliver/receive идут
+// через поставку (addOrdersToSupply → sendSupplyToDeliver), а cancel — отдельный
+// PATCH /orders/{id}/cancel. Поэтому changeOrdersFBSStatus — диспетчер по wbStatus.
+customFilterChangeOrdersFBSStatus = ABSTRACT BOOLEAN (WbStatus, InternetOrder);
+afterChangeOrdersFBSStatus ABSTRACT LIST (WbStatus);
+changeOrdersFBSStatusCondition (WbStatus ws, InternetOrder o) =
+    CASE WHEN ws = WbStatus.cancel AND wbIsCancellable(o) AND NOT customFilterChangeOrdersFBSStatus(ws, o) THEN TRUE
+;
+
+changeOrdersFBSStatus (WbStatus wbStatus) {
+    IF NOT (GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrderFBS(order)) THEN {
+        MESSAGE 'Заказ FBS не выбран.';
+        RETURN;
+    }
+    IF GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrderFBS(order) AND NOT changeOrdersFBSStatusCondition(wbStatus, order) THEN {
+        MESSAGE 'Для одного из выбранных заказов не соблюдены условия перевода.';
+        RETURN;
+    }
+    IF wbStatus = WbStatus.cancel THEN cancelOrdersFBS();
+    afterChangeOrdersFBSStatus(wbStatus);
 }
 
 wbSupplyId = DATA STRING[100](Picking);
@@ -522,19 +557,26 @@ FORM inputSupplyName 'Введите название сборки'
     PROPERTIES 'Название' = VALUE(n)
 ;
 
+afterAddOrdersToSupply ABSTRACT LIST (Picking);
+
 addOrdersToSupply 'Добавить сборочные задания к поставке' (Picking p) {
+    IF hasUnvalidatedRequiredMetaPicking(p) THEN {
+        MESSAGE 'Не все обязательные метаданные валидированы. Перевод заказа в статус «Собран» запрещён.';
+        RETURN;
+    }
+    // createSupply открывает свою NEWSESSION NESTED LOCAL с HTTP-вызовом.
+    // Вкладывать её в другую NEWSESSION NESTED LOCAL нельзя — после выхода
+    // из внутренней HTTP-state наружной портится ("connectionString not specified"
+    // при последующем PATCH).
+    IF NOT wbSupplyId(p) THEN createSupply(p);
+    IF NOT wbSupplyId(p) THEN {
+        MESSAGE 'Не удалось создать поставку на WB.';
+        RETURN;
+    }
     NEWSESSION NESTED LOCAL {
-
-        IF hasUnvalidatedRequiredMetaPicking(p) THEN {
-            MESSAGE 'Не все обязательные метаданные валидированы. Перевод заказа в статус «Собран» запрещён.';
-            RETURN;
-        }
-
         setHttpHeadersIS();
         LOCAL messageOrder = STRING ();
         LOCAL response = FILE();
-
-        IF NOT wbSupplyId(p) THEN createSupply(p);
 
         LOCAL patchUrl = STRING ();
         patchUrl() <- '/api/marketplace/v3/supplies/' + wbSupplyId(p) + '/orders';
@@ -553,6 +595,12 @@ addOrdersToSupply 'Добавить сборочные задания к пос�
             fileToString(response());
             logToFile('WB', resultString());
             messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+            IF statusHttp() == 204 THEN {
+                // На WB заказы переходят new → confirm. isSelected уже выставлен выше,
+                // переиспользуем его и сразу подтягиваем актуальные wbStatus/wbIsCancellable.
+                getWbFbsStatuses();
+                afterAddOrdersToSupply(p);
+            }
         } CATCH {
             logToFile('WB', messageCaughtException());
             IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
@@ -564,6 +612,7 @@ addOrdersToSupply 'Добавить сборочные задания к пос�
             afterSendRequestIS();
             MESSAGE '<h3>Добавление заказов к поставке</h3>' NOWAIT;
             MESSAGE messageOrder() NOWAIT;
+            isSelected(InternetOrder o) <- NULL;
         }
     }
 }
@@ -604,6 +653,10 @@ sendSupplyToDeliver 'Передать поставку в доставку'(Pick
             IF statusHttp() == 204 THEN {
                 status(p) <- StatusPicking.deliver;
                 APPLY NESTED LOCAL ;
+                // На WB заказы поставки переходят confirm → complete. Подтягиваем
+                // актуальные wbStatus/wbIsCancellable по заказам этой комплектации.
+                isSelected(InternetOrder order) <- TRUE WHERE (GROUP SUM 1 IF internetOrder(InternetOrderDetail detail) = order AND picking(detail) = p);
+                getWbFbsStatuses();
             }
         } CATCH {
             logToFile('WB', messageCaughtException());
@@ -616,6 +669,7 @@ sendSupplyToDeliver 'Передать поставку в доставку'(Pick
             afterSendRequestIS();
             MESSAGE '<h3>Передать поставку в доставку</h3>' NOWAIT;
             MESSAGE messageOrder() NOWAIT;
+            isSelected(InternetOrder o) <- NULL;
         }
     }
 }
@@ -700,8 +754,9 @@ getSupplyInfo 'Получить информацию о поставке'(Pickin
         }
     }
 }
-
-//----QR-код поставки-----//
+afterAddOrdersToSupply(Picking p) + {
+    IF wbSupplyId(p) THEN getSupplyInfo(p);
+}
 
 wbSupplyBarcode 'Штрихкод поставки WB' = DATA STRING (Picking);
 wbSupplyBarcodeFile 'QR поставки WB' = DATA RAWFILE (Picking);
@@ -761,8 +816,6 @@ getSupplyBarcode 'Получить QR поставки' (Picking p) {
         }
     }
 }
-
-//----Грузоместа (короба) поставки-----//
 
 CLASS WbBox 'Короб FBS';
 TABLE wbBox (WbBox);
@@ -971,9 +1024,6 @@ deleteSupplyBoxes 'Удалить отмеченные короба' (Picking p)
 }
 
 // POST /api/v3/supplies/{supplyId}/trbx/stickers?type={svg|zplv|zplh|png} body: {"trbxIds":[...]}
-// Ответ: {"stickers":[{...}]}. Поля стикера не задокументированы в кратком Swagger;
-// взяты по аналогии со stickersResponse заказов: file (base64), trbxId.
-// TODO: подправить EXTID после первого живого вызова, если имена полей отличаются.
 boxStickerFile = DATA LOCAL STRING(INTEGER);
 boxStickerTrbxId = DATA LOCAL STRING(INTEGER);
 
@@ -1048,10 +1098,8 @@ manageSupplyBoxes 'Короба поставки' (Picking p) {
     SHOW wbSupplyBoxes OBJECTS p = p;
 }
 
-//----Локальное распределение заказов по коробам-----//
 // Только в ЕРП: WB этой связи не знает. Используется для планирования и
 // печати на стикере короба списка заказов внутри.
-
 FORM wbBoxTargetDialog 'Выбор короба'
     OBJECTS b = WbBox
     PROPERTIES (b) READONLY wbBoxId, numberPicking
@@ -1076,10 +1124,15 @@ clearWbBox 'Убрать из короба' (InternetOrder o) {
     APPLY;
 }
 
-//----Список поставок-----//
+setWbBox 'Положить в короб' (InternetOrderDetail d) {
+    setWbBox(internetOrder(d));
+}
 
-// Локальные поля для импорта /api/v3/supplies (имена с префиксом supplies*,
-// чтобы не конфликтовать с одноимёнными LOCAL'ами getSupplyInfo).
+clearWbBox 'Убрать из короба' (InternetOrderDetail d) {
+    clearWbBox(internetOrder(d));
+}
+
+// Префикс supplies* — чтобы не конфликтовать с одноимёнными LOCAL'ами getSupplyInfo.
 suppliesId = DATA LOCAL STRING(INTEGER);
 suppliesDone = DATA LOCAL BOOLEAN(INTEGER);
 suppliesCreatedAt = DATA LOCAL DATETIME(INTEGER);
@@ -1099,7 +1152,7 @@ FORM importSuppliesList
 
     OBJECTS supplies = INTEGER
     PROPERTIES(supplies)
-        suppliesId EXTID 'id',
+    suppliesId EXTID 'id',
         suppliesDone EXTID 'done',
         suppliesCreatedAt EXTID 'createdAt',
         suppliesClosedAt EXTID 'closedAt',
@@ -1197,8 +1250,6 @@ listSuppliesFBS 'Синхронизировать список поставок 
     }
 }
 
-//----Заказы в поставке-----//
-
 // GET /api/v3/supplies/{supplyId}/orders
 // Возвращает заказы указанной поставки. Используется для восстановления связи
 // InternetOrderDetail.picking, если заказы попали в поставку вне ERP или связь потеряна.
@@ -1250,52 +1301,73 @@ getOrdersInSupply 'Подтянуть заказы поставки' (Picking p)
     }
 }
 
-//----Удаление поставки-----//
-
 // DELETE /api/v3/supplies/{supplyId}
 // Удаляет пустую поставку (без заказов, не переданную в доставку).
-deleteSupplyFBS 'Удалить поставку WB' (Picking p) {
+deleteSupplyOnWBOk = DATA LOCAL NESTED BOOLEAN ();
+
+deleteSupplyOnWB (STRING supplyId) {
     NEWSESSION NESTED LOCAL {
-        IF NOT wbSupplyId(p) THEN {
-            MESSAGE 'У поставки отсутствует wbSupplyId.';
-            RETURN;
-        }
-        ASK 'Удалить поставку ' + wbSupplyId(p) + ' на WB? Должна быть пустой и не переданной в доставку.' DO {
-            setHttpHeadersIS();
-            LOCAL messageOrder = STRING();
-            LOCAL response = FILE();
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING();
+        LOCAL response = FILE();
 
-            LOCAL deleteUrl = STRING();
-            deleteUrl() <- '/api/v3/supplies/' + wbSupplyId(p);
+        LOCAL deleteUrl = STRING();
+        deleteUrl() <- '/api/v3/supplies/' + supplyId;
 
-            logToFile('WB', 'DELETE: ' + url(CategoryRequest.marketplace) + deleteUrl());
+        logToFile('WB', 'DELETE: ' + url(CategoryRequest.marketplace) + deleteUrl());
 
-            TRY {
-                EXTERNAL HTTP DELETE url(CategoryRequest.marketplace) + deleteUrl() HEADERS httpHeaders TO response;
-                fileToString(response());
-                logToFile('WB', resultString());
-                messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
-                IF statusHttp() == 204 THEN {
-                    wbSupplyId(p) <- NULL;
-                    APPLY NESTED LOCAL;
-                }
-            } CATCH {
-                logToFile('WB', messageCaughtException());
-                IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
-                    IMPORT importError JSON FROM response();
-                    extraDescriptionStatusHTTP() <- 'Поставка не удалена: ' + message();
-                }
-                messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
-            } FINALLY {
-                afterSendRequestIS();
-                MESSAGE '<h3>Удаление поставки</h3>' NOWAIT;
-                MESSAGE messageOrder() NOWAIT;
+        TRY {
+            EXTERNAL HTTP DELETE url(CategoryRequest.marketplace) + deleteUrl() HEADERS httpHeaders TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+            IF statusHttp() == 204 THEN deleteSupplyOnWBOk() <- TRUE;
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                IMPORT importError JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Поставка не удалена: ' + message();
             }
+            messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE '<h3>Удаление поставки</h3>' NOWAIT;
+            MESSAGE messageOrder() NOWAIT;
         }
     }
 }
 
-//----Перенос заказа между поставками-----//
+deleteSupplyFBS 'Удалить поставку WB' (Picking p) {
+    IF NOT wbSupplyId(p) THEN {
+        MESSAGE 'У поставки отсутствует wbSupplyId.';
+        RETURN;
+    }
+    ASK 'Удалить поставку ' + wbSupplyId(p) + ' на WB? Должна быть пустой и не переданной в доставку.' DO {
+        deleteSupplyOnWBOk() <- NULL;
+        deleteSupplyOnWB(wbSupplyId(p));
+        IF deleteSupplyOnWBOk() THEN {
+            wbSupplyId(p) <- NULL;
+            APPLY;
+        }
+    }
+}
+
+// При удалении локального Picking сначала пытаемся снести поставку на WB.
+// Если в комплектации остались строки — на WB поставка точно непуста (DELETE
+// вернёт 409 SupplyHasOrders), HTTP лишний раз не дёргаем, сразу CANCEL.
+// Иначе пробуем DELETE на WB; любая ошибка → тоже CANCEL, чтобы не оставлять
+// orphan-поставку. Чтобы Picking удалить, разгребите заказы заранее:
+// cancelOrderFBS / moveOrderFBSDialog.
+WHEN DROPPED(Picking p IS Picking) AND PREV(wbSupplyId(p)) DO {
+    IF PREV(countInternetOrderDetail(p)) THEN {
+        MESSAGE 'Нельзя удалить FBS-комплектацию: остались заказы. Сначала отмените их или перенесите в другую поставку.' NOWAIT;
+        CANCEL;
+    } ELSE {
+        deleteSupplyOnWBOk() <- NULL;
+        deleteSupplyOnWB(PREV(wbSupplyId(p)));
+        IF NOT deleteSupplyOnWBOk() THEN CANCEL;
+    }
+}
 
 // PATCH /api/v3/supplies/{supplyId}/orders/{orderId}
 // В WB FBS-API нет отдельного DELETE для удаления заказа из поставки — перенос
@@ -1365,9 +1437,10 @@ moveOrderFBSDialog 'Перенести в другую поставку' (Intern
     }
 }
 
-//----Коэффициенты приёмки-----//
+moveOrderFBSDialog 'Перенести в другую поставку' (InternetOrderDetail d) {
+    moveOrderFBSDialog(internetOrder(d));
+}
 
-// Локальные поля для импорта /api/v1/acceptance/coefficients (supplies-api).
 acceptanceDate 'Дата' = DATA LOCAL DATETIME(INTEGER);
 acceptanceCoefficient 'Коэффициент' = DATA LOCAL NUMERIC(INTEGER);
 acceptanceWarehouseID 'ID склада' = DATA LOCAL INTEGER(INTEGER);
@@ -1380,7 +1453,7 @@ acceptanceIsSortingCenter 'Сорт. центр' = DATA LOCAL BOOLEAN(INTEGER);
 FORM importAcceptanceCoefficients
     OBJECTS value = INTEGER
     PROPERTIES(value)
-        acceptanceDate EXTID 'date',
+    acceptanceDate EXTID 'date',
         acceptanceCoefficient EXTID 'coefficient',
         acceptanceWarehouseID EXTID 'warehouseID',
         acceptanceWarehouseName EXTID 'warehouseName',
@@ -1394,7 +1467,7 @@ FORM importAcceptanceCoefficients
 FORM wbAcceptanceCoefficients 'Коэффициенты приёмки WB'
     OBJECTS v = INTEGER
     PROPERTIES(v) READONLY
-        acceptanceWarehouseName, acceptanceWarehouseID, acceptanceDate, acceptanceCoefficient,
+    acceptanceWarehouseName, acceptanceWarehouseID, acceptanceDate, acceptanceCoefficient,
         acceptanceAllowUnload, acceptanceBoxTypeName, acceptanceIsSortingCenter
     FILTERS imported(v)
     ORDERS acceptanceWarehouseName(v), acceptanceDate(v)
@@ -1433,8 +1506,6 @@ getAcceptanceCoefficients 'Получить коэффициенты приём�
         }
     }
 }
-
-//----Метаданные сборочных заданий FBS-----//
 
 // PUT /api/v3/orders/{orderId}/meta/{key}
 // PUT /api/marketplace/v3/orders/{orderId}/meta/customs-declaration
@@ -1551,7 +1622,7 @@ actualizeOrdersMeta 'Актуализировать статусы метада�
 
         WHILE exported() < (GROUP MAX index(InternetOrder i)) DO {
             bodyIds() <- (GROUP CONCAT number(InternetOrder o), ',' ORDER o
-                WHERE index(o) > exported() AND index(o) <= exported() + getOrdersMetaLimit());
+            WHERE index(o) > exported() AND index(o) <= exported() + getOrdersMetaLimit());
 
             stringToFile('\{"orders":[' + bodyIds() + ']\}', 'UTF-8', 'json');
             fileToString(resultFile(), 'UTF-8');
@@ -1614,20 +1685,23 @@ EXTEND FORM internetOrder
 FORM wbInternetDetailsDialog 'WB заказы'
     OBJECTS d = InternetOrderDetail
     PROPERTIES (d) addToPicking, orderNumber, nameSku
-    FILTERS isWBOrderFBS(internetOrder(d));
+    // В поставку можно добавить только заказы в supplierStatus=new (ещё не приписаны
+    // ни к какой поставке); после addOrdersToSupply WB переводит их в confirm.
+    FILTERS isWBOrderFBS(internetOrder(d)) AND wbStatus(internetOrder(d)) == WbStatus.new;
 
 addDetailsFromWbOrder 'Добавить заказы WB' (Picking p){
+    LOCAL added = BOOLEAN();
     DIALOG wbInternetDetailsDialog OBJECTS d INPUT DO {
         FOR addToPicking(InternetOrderDetail dd) DO {
             picking(dd) <- p;
+            added() <- TRUE;
         }
     }
+    IF NOT added() THEN RETURN;
     APPLY ;
     addOrdersToSupply(p);
-    IF wbSupplyId(p) THEN getSupplyInfo(p);
 }
 
-//----Модель доставки поставки-----//
 // На стороне WB короба (TRBX) формируются только при доставке поставки на ПВЗ;
 // для прямой доставки на склад/курьерской модели короба не нужны. Признак
 // делаем абстрактным — проект может подставить свою логику (например, по
@@ -1650,17 +1724,17 @@ isWBOrderPicking 'Содержит заказы FBS WB' (Picking p) =
 EXTEND FORM picking
     PROPERTIES (p) SHOWIF isWBOrderPicking(p) addDetailsFromWbOrder DRAW d TOOLBAR
     PROPERTIES (p) SHOWIF isWBOrderPicking(p) dataPvzDelivery READONLYIF NOT wbIsPickupPointShipmentAllowed(p)
+    PROPERTIES (d) SHOWIF isWBOrderPicking(p) moveOrderFBSDialog,
+        setWbBox SHOWIF isWBOrderFBS(internetOrder(d)) AND isPvzDeliveryOrder(internetOrder(d)),
+        clearWbBox SHOWIF isWBOrderFBS(internetOrder(d)) AND wbBox(internetOrder(d))
 ;
 
 EXTEND FORM internetOrders
     PROPERTIES(o) READONLY isWBOrderFBS AFTER isClosed(o)
     PROPERTIES(o) READONLY SHOWIF isWBOrderFBS(o) orderRidID, orderUID, nameWbBox
     PROPERTIES (o) getWbFbsStatus,
-        cancelOrderFBS SHOWIF isWBOrderFBS(o) AND (wbStatus(o) == WbStatus.new OR wbStatus(o) == WbStatus.confirm),
-        moveOrderFBSDialog SHOWIF isWBOrderFBS(o) AND (wbStatus(o) == WbStatus.new OR wbStatus(o) == WbStatus.confirm),
-        setWbBox SHOWIF isWBOrderFBS(o) AND isPvzDeliveryOrder(o),
-        clearWbBox SHOWIF isWBOrderFBS(o) AND wbBox(o)
-    PROPERTIES() getOrdersFBSNew, getOrdersFBS, actualizeOrdersMeta, cancelOrdersFBS,
+        cancelOrderFBS SHOWIF isWBOrderFBS(o) AND wbIsCancellable(o)
+    PROPERTIES() getOrdersFBSNew, getOrdersFBS, actualizeOrdersMeta,
         listSuppliesFBS, getAcceptanceCoefficients
 ;
 
@@ -1681,28 +1755,85 @@ DESIGN internetOrders {
                 MOVE PROPERTY (getOrdersFBS());
                 MOVE PROPERTY (getWbFbsStatus(o));
                 MOVE PROPERTY (actualizeOrdersMeta());
-                MOVE PROPERTY (cancelOrdersFBS());
+                MOVE PROPERTY (cancelOrderFBS(o));
                 MOVE PROPERTY (listSuppliesFBS());
                 MOVE PROPERTY (getAcceptanceCoefficients());
+
             }
         }
     }
 }
 
-// Автотрансляция отмены в ERP → cancel на WB. FBS-API не имеет аналогов
-// confirm/deliver/receive — эти переходы идут через добавление в поставку
-// (addOrdersToSupply) и её отправку в доставку (sendSupplyToDeliver), —
-// поэтому здесь синкается только отмена в new/confirm.
-customAutoCancelOrderFBS = ABSTRACT BOOLEAN ();
-
-WHEN SETCHANGED(status(InternetOrder o))
-    AND status(o) == StatusInternetOrder.cancel
-    AND isWBOrderFBS(o)
-    AND (wbStatus(o) == WbStatus.new OR wbStatus(o) == WbStatus.confirm)
-    AND NOT customAutoCancelOrderFBS()
-DO {
+// Автотрансляция изменения локального статуса InternetOrder → соответствующий
+// статус на WB. По аналогии с DBS-веткой: маппинг ws через statusInternetOrder и
+// проверка перехода в changeOrdersFBSStatusCondition. Текущая реализация
+// changeOrdersFBSStatus покрывает только cancel — этого достаточно, потому что
+// confirm/deliver/receive на FBS идут через поставку (addOrdersToSupply →
+// sendSupplyToDeliver), а не через смену статуса заказа. Перехват кастомных
+// правил — через customFilterChangeOrdersFBSStatus.
+WHEN SETCHANGED(status(InternetOrder o)) AND statusInternetOrder(WbStatus ws) = status(o) AND changeOrdersFBSStatusCondition(ws, o) AND isWBOrderFBS(o) DO {
     NEWSESSION {
-        cancelOrderFBS(o);
+        isSelected(o) <- TRUE;
+        changeOrdersFBSStatus(ws);
     }
 }
 
+// customCreatePicking полностью повторяет дефолтную DIALOG-ветку createPicking
+// (см. SaleInternetPicking.lsf): select/filterDashboard, группировка по
+// (stock, carrier), per-detail batch-блок, DIALOG, итоговый status(o) <- isPicking.
+// Это нужно потому, что useCustomCreatePicking() += TRUE здесь форсится, и без
+// полного дубля дефолта не-FBS заказы остались бы без обработки в проектах,
+// где customCreatePicking не переопределён иначе (например, mothercare).
+// Для пикингов с FBS-заказами (isWBOrderPicking(p)) после успешного DIALOG'а
+// дополнительно: проставляем number(p) по первому FBS-заказу (иначе createSupply
+// упадёт в 'Отсутствует номер поставки') и вызываем addOrdersToSupply(p).
+// WHEN-триггер на SET(isWBOrderPicking) пробовали — HTTP проходит, но
+// APPLY NESTED LOCAL из createSupply не коммитит wbSupplyId в apply-event сессию,
+// поставки плодились пустыми.
+useCustomCreatePicking() += TRUE;
+customCreatePicking(InternetOrder o) + {
+    IF NOT countInternetOrders() THEN {
+        select(o) <- TRUE;
+    }
+    IF countInternetOrders() THEN {
+        LOCAL NESTED ok = BOOLEAN ();
+        ok() <- NULL;
+        FOR [GROUP SUM 1 IF select(internetOrder(InternetOrderDetail d)) AND NOT picking(d) AND filterDashboard(d) BY Sale.supplierStock[InternetOrderDetail](d), carrier(internetOrder(d))](Stock.Stock stock, Carrier carrier) DO {
+            NEWSESSION {
+                NEW p = Picking{
+                    stock(p) <- stock;
+                    carrier(p) <- carrier;
+                    FOR Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail) == stock AND carrier(internetOrder(detail)) == carrier AND filterDashboard(detail) DO {
+                        picking(detail) <- p;
+                        IF isItem(sku(detail)) AND NOT batch(detail) THEN {
+                            batch(detail) <- prevFirstOrderBatchBalance(sku(detail), stock, quantity(detail));
+                            overFillBatchPicking(detail);
+                        }
+                    }
+                    DIALOG picking OBJECTS p = p DOCKED NOCANCEL DO {
+                        ok() <- TRUE;
+                    }
+                    IF ok() AND isWBOrderPicking(p) THEN {
+                        IF NOT number(p) THEN {
+                            FOR isWBOrderFBS(InternetOrder ord)
+                                AND (GROUP SUM 1 IF internetOrder(InternetOrderDetail dd) = ord AND picking(dd) = p)
+                                AND NOT number(p) DO {
+                                number(p) <- CONCAT '_', number(ord), GROUP SUM 1 IF relation(Picking pp, ord) + 1;
+                            }
+                        }
+                        APPLY;
+                        addOrdersToSupply(p);
+                    }
+                }
+            }
+        }
+        IF ok() THEN {
+            status(InternetOrder ord) <- StatusInternetOrder.isPicking WHERE select(ord);
+            apply();
+        }
+        select(InternetOrder ord) <- NULL;
+        ok() <- NULL;
+    } ELSE {
+        MESSAGE 'Вначале необходимо отметить интернет заказы.';
+    }
+}
