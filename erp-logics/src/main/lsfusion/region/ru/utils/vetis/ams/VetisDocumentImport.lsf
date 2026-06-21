@@ -12,6 +12,9 @@ uuid = DATA LOCAL STRING();
 issueDate = DATA LOCAL STRING();
 vetDType = DATA LOCAL STRING();
 vetDStatus = DATA LOCAL STRING();
+lastUpdateDate = DATA LOCAL STRING();
+
+updateDate 'Дата изменения ВСД' = DATA DATE (VetDocument);
 
 GROUP certifiedConsignment EXTID 'vd:certifiedConsignment';
 GROUP certifiedConsignor EXTID 'vd:consignor' : certifiedConsignment;
@@ -90,7 +93,8 @@ issueKey (INTEGER i) = CONCAT ';', issueSeries(i), issueNumber(i), issueDate(i),
 
 FORM importVetDocument FORMEXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:vetDocument'
     PROPERTIES() uuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid',
-                 issueDate EXTID 'vd:issueDate', vetDType EXTID 'vd:vetDType', vetDStatus EXTID 'vd:vetDStatus'
+                 issueDate EXTID 'vd:issueDate', vetDType EXTID 'vd:vetDType', vetDStatus EXTID 'vd:vetDStatus',
+                 lastUpdateDate EXTID 'vd:lastUpdateDate'
                  
     PROPERTIES() EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
                  consignorBusinessEntityGuid IN certifiedConsignorBusinessEntity, consignorEnterpriseGuid IN certifiedConsignorEnterprise,
@@ -202,7 +206,8 @@ importVetDocument(TEXT xml) {
         
         FOR uuid(VetDocument d) = uuid() DO {
             issueDate(d) <- toDateFormat(issueDate(), 'YYYY-MM-DD');
-            
+            updateDate(d) <- toDateFormat(lastUpdateDate(), 'YYYY-MM-DD');
+
             type(d) <- vetDocumentType(vetDType());
             status(d) <- vetDocumentStatus(vetDStatus());
             

@@ -1,0 +1,195 @@
+MODULE VetisDocumentGestori;
+
+REQUIRE VetisDocument, VetisStock, VetisStockEntry, VetisIncomingConsignment,
+        VetisProcessIncomingConsignment, VetisWithdrawVetDocument, VetisItem,
+        VetisDocumentImport, VetisPurchaseShipment;
+
+NAMESPACE Vetis;
+
+// ---- Дополнительные свойства VetDocument ----
+
+waybillDate 'Дата накладной' (VetDocument d) = issueDate(waybill(d));
+
+codeProductItem 'Артикул продукции' (VetDocument d) = code(productItem(d));
+
+idItemGestori 'Код товара' (VetDocument d) = idItem(productItem(d));
+
+actualVolumeGestori 'Фактический объем' (VetDocument d) = NUMERIC[17,6](GROUP SUM volume(StockEntry s) IF in(s, d));
+
+volumeGestori 'Объем продукции (6 зн.)' (VetDocument d) = NUMERIC[17,6](volume(d));
+
+// ---- Вспомогательные признаки для вычисления состояния ВСД ----
+
+pendingWithdrawGestori (VetDocument d) = GROUP MAX WithdrawVetDocumentRequest r
+    IF vetDocument(r) = d AND NOT processed(r);
+
+pendingProcessGestori (VetDocument d) = GROUP MAX ProcessIncomingConsignmentRequest r
+    IF vetDocument(incomingConsignment(r)) = d AND NOT processed(r);
+
+processedProcessGestori (VetDocument d) = GROUP MAX ProcessIncomingConsignmentRequest r
+    IF vetDocument(incomingConsignment(r)) = d AND processed(r);
+
+hasIncomingConsignmentGestori (VetDocument d) = GROUP MAX IncomingConsignment c IF vetDocument(c) = d;
+
+hasItemGestori (VetDocument d) = GROUP SUM 1 IF in(Item i, productItem(d));
+
+stateGestori 'Состояние' (VetDocument d) = CASE
+    WHEN status(d) = VetDocumentStatus.WITHDRAWN THEN 'Получен ответ об аннуляции'
+    WHEN status(d) = VetDocumentStatus.UTILIZED  THEN 'Получен ответ о гашении'
+    WHEN pendingWithdrawGestori(d)               THEN 'Запрос на аннуляцию отправлен'
+    WHEN pendingProcessGestori(d)                THEN 'Запрос на гашение отправлен'
+    WHEN processedProcessGestori(d)              THEN 'Сверка проведена'
+    WHEN hasIncomingConsignmentGestori(d)        THEN 'Связан с документом'
+    WHEN hasItemGestori(d)                       THEN 'Связан с товаром системы'
+    ELSE 'Получен'
+CHARWIDTH 32;
+
+expiredBackgroundGestori (VetDocument d) = IF expiryDate(d) AND expiryDate(d) < currentDate() THEN RGB(255, 200, 200);
+
+expiryDateGestori 'Дата окончания срока годности продукции' (VetDocument d) = expiryDate(d);
+
+// ---- Фильтр по складу ----
+
+filterStockGestori = DATA LOCAL Stock ();
+nameFilterStockGestori 'Склад' () = name(filterStockGestori()) CHARWIDTH 30;
+changeFilterStockGestori () { DIALOG companysStock OBJECTS s = filterStockGestori() CHANGE; }
+
+// ---- Связь с документами системы ----
+
+seriesNumberInvoiceIC 'Номер накладной' (IncomingConsignment c) =
+    seriesNumber(invoice(Shipment.invoiceDetail(VetisPurchase.shipmentDetail(
+        c AS VetisPurchase.ShipmentIncomingConsignment))));
+
+dateInvoiceIC 'Дата накладной' (IncomingConsignment c) =
+    date(invoice(Shipment.invoiceDetail(VetisPurchase.shipmentDetail(
+        c AS VetisPurchase.ShipmentIncomingConsignment))));
+
+// ---- Запросить ВСД по UUID из API Меркурий ----
+
+CLASS GetVetDocumentByUuidRequest 'Запрос ВСД по UUID' : ApplicationRequest;
+
+uuidToFetch 'UUID ВСД' = DATA STRING (GetVetDocumentByUuidRequest);
+
+localTransactionId (GetVetDocumentByUuidRequest r) = LONG(r AS GetVetDocumentByUuidRequest);
+
+FORM getVetDocumentByUuidRequestForm
+    FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:getVetDocumentByUuidRequest'
+    OBJECTS r = GetVetDocumentByUuidRequest PANEL
+    PROPERTIES(r) localTransactionId EXTID 'merc:localTransactionId'
+    PROPERTIES(r) IN initiator loginMercury EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:login'
+    PROPERTIES(r) uuidToFetch EXTID 'merc:uuid'
+;
+
+submitGetVetDocumentByUuidRequest (GetVetDocumentByUuidRequest r) {
+    EXPORT getVetDocumentByUuidRequestForm OBJECTS r = r XML;
+    submit(r, exportFile());
+}
+
+FORM getVetDocumentByUuidResponse
+    FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:getVetDocumentByUuidResponse'
+    PROPERTIES() vetDocument EXTID 'merc:vetDocument'
+;
+
+process (GetVetDocumentByUuidRequest r) + {
+    NEWSESSION {
+        stringToFile(response(r));
+        IMPORT getVetDocumentByUuidResponse XML FROM resultFile();
+        IF vetDocument() THEN
+            importVetDocument(vetDocument());
+        processed(r) <- TRUE;
+        APPLY;
+    }
+}
+
+uuidInputGestori = DATA LOCAL STRING ();
+businessEntityForUuidGestori = DATA LOCAL BusinessEntity ();
+nameBusinessEntityForUuidGestori 'Хозяйствующий субъект' () = name(businessEntityForUuidGestori());
+
+FORM fetchVetDocumentByUuidDialog 'Запросить ВСД по UUID'
+    PROPERTIES() uuidInputGestori, nameBusinessEntityForUuidGestori
+;
+
+DESIGN fetchVetDocumentByUuidDialog {
+    PROPERTY(uuidInputGestori()) { caption = 'UUID ВСД'; charWidth = 40; }
+    PROPERTY(nameBusinessEntityForUuidGestori()) { notNull = TRUE; }
+}
+
+getVetDocumentByUUIDGestori 'Запросить ВСД по UUID' () {
+    businessEntityForUuidGestori() <- GROUP MAX BusinessEntity be IF own(be);
+    DIALOG fetchVetDocumentByUuidDialog DO {
+        IF uuidInputGestori() AND businessEntityForUuidGestori() THEN
+            NEWSESSION {
+                NEW r = GetVetDocumentByUuidRequest {
+                    businessEntity(r) <- businessEntityForUuidGestori();
+                    uuidToFetch(r) <- uuidInputGestori();
+                    submitGetVetDocumentByUuidRequest(r);
+                    APPLY;
+                }
+                MESSAGE 'Запрос отправлен. Обработайте через "Обмен с Ветис" в форме Заявок.';
+            }
+    }
+}
+
+// ---- Список ВСД ----
+
+EXTEND FORM vetDocuments
+    PROPERTIES() nameFilterStockGestori ON CHANGE changeFilterStockGestori()
+
+    FILTERGROUP directionGestori
+        FILTER 'Входящие'         type(o) = VetDocumentType.INCOMING
+        FILTER 'Исходящие'        type(o) = VetDocumentType.OUTGOING
+        FILTER 'Производственные' type(o) = VetDocumentType.PRODUCTIVE
+
+    FILTERS NOT filterStockGestori() OR
+            in(filterStockGestori(), consigneeEnterprise(o)) OR
+            in(filterStockGestori(), consignorEnterprise(o))
+
+    PROPERTIES(o) READONLY AFTER issueSeriesNumberWaybill(o) waybillDate
+    PROPERTIES(o) READONLY AFTER nameProductItem(o)          codeProductItem, idItemGestori
+    PROPERTIES(o) READONLY AFTER volume(o)                   actualVolumeGestori
+    PROPERTIES(o) READONLY updateDate, stateGestori
+    PROPERTIES(o) READONLY packageList
+    PROPERTIES(o) READONLY BEFORE expiryDateHour(o) expiryDateGestori BACKGROUND expiredBackgroundGestori(o)
+
+    PROPERTIES() getVetDocumentByUUIDGestori DRAW o TOOLBAR
+
+    OBJECTS rd = VetReferenceDocument
+    PROPERTIES(rd) READONLY issueSeries, issueNumber, issueDate, type, relationshipType
+    FILTERS vetDocument(rd) = o
+
+    OBJECTS ic = IncomingConsignment
+    PROPERTIES(ic) READONLY objectClassName, deliveryDate, seriesNumberInvoiceIC, dateInvoiceIC
+    FILTERS vetDocument(ic) = o
+;
+
+DESIGN vetDocuments {
+    OBJECTS {
+        NEW filtersGestori BEFORE BOX(o) {
+            horizontal = TRUE;
+            caption = 'Фильтры';
+            MOVE PROPERTY(nameFilterStockGestori());
+        }
+        NEW docsTabbed AFTER BOX(o) {
+            tabbed = TRUE;
+            fill = 0.4;
+            MOVE BOX(rd) { caption = 'Связанные документы ВСД'; }
+            MOVE BOX(ic) { caption = 'Связь с документами системы'; }
+        }
+    }
+    PROPERTY(expiryDate(o)) { hide = TRUE; }
+}
+
+// ---- Просмотр ВСД ----
+
+EXTEND FORM vetDocument
+    PROPERTIES(o) READONLY stateGestori, volumeGestori
+;
+
+DESIGN vetDocument {
+    commons {
+        MOVE PROPERTY(stateGestori(o));
+    }
+    volume {
+        MOVE PROPERTY(volumeGestori(o));
+    }
+}
