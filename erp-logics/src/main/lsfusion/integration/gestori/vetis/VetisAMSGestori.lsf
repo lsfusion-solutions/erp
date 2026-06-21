@@ -1,0 +1,149 @@
+MODULE VetisAMSGestori;
+
+REQUIRE VetisAMSReceiveResponse, VetisGetVDList, VetisGetSEList, VetisStock,
+        VetisProcessIncomingConsignment, VetisPurchaseShipment;
+
+NAMESPACE Vetis;
+
+// --- Фильтр заявок по доступным пользователю складам ---
+
+accessApplicationRequest (Employee employee, ApplicationRequest r) =
+    accessCompany(employee, enterprise(r AS VetDocumentListRequest)) OR
+    accessCompany(employee, enterprise(r AS StockEntryListRequest)) OR
+    (NOT (r AS VetDocumentListRequest) AND NOT (r AS StockEntryListRequest));
+
+EXTEND FORM applicationRequests
+    FILTERS accessApplicationRequest(currentUser(), r) OR NOT limitAccess(currentUser())
+;
+
+// --- Фильтр по площадке ---
+
+filterEnterprise = DATA LOCAL Enterprise();
+nameFilterEnterprise 'Площадка' () = name(filterEnterprise());
+
+EXTEND FORM applicationRequests
+    PROPERTIES() nameFilterEnterprise PANEL 
+    FILTERS NOT filterEnterprise()
+        OR enterprise(r AS VetDocumentListRequest) = filterEnterprise()
+        OR enterprise(r AS StockEntryListRequest) = filterEnterprise()
+;
+
+// --- Дополнительные фильтры ---
+
+EXTEND FORM applicationRequests
+    EXTEND FILTERGROUP status
+        FILTER 'Отклонена' status(r) = ApplicationRequestStatus.REJECTED
+;
+
+// --- Переместить вкладку "Ответ" после "Запрос" ---
+
+DESIGN applicationRequests {
+    tabbedPane {
+        MOVE response AFTER prequest;
+    }
+}
+
+// --- Переименование кнопок ---
+
+DESIGN applicationRequests {
+    actions {
+        PROPERTY(getVetDocumentListRequest()) { caption = 'Получить ВСД'; }
+        PROPERTY(getStockEntryListRequest()) { caption = 'Получить записи складского журнала'; }
+    }
+}
+
+// --- UUID ВСД и ссылка на документ в списке заявок ---
+
+uuidVetDocumentRequest 'UUID ВСД' (ApplicationRequest r) =
+    uuid(vetDocument(incomingConsignment(r AS ProcessIncomingConsignmentRequest)));
+
+seriesNumberInvoiceRequest 'Номер накладной' (ApplicationRequest r) =
+    seriesNumber(invoice(Shipment.invoiceDetail(VetisPurchase.shipmentDetail(
+        incomingConsignment(r AS ProcessIncomingConsignmentRequest) AS VetisPurchase.ShipmentIncomingConsignment))));
+
+dateInvoiceRequest 'Дата накладной' (ApplicationRequest r) =
+    date(invoice(Shipment.invoiceDetail(VetisPurchase.shipmentDetail(
+        incomingConsignment(r AS ProcessIncomingConsignmentRequest) AS VetisPurchase.ShipmentIncomingConsignment))));
+
+objectClassNameRequest 'Операция' (ApplicationRequest r) =
+    objectClassName(incomingConsignment(r AS ProcessIncomingConsignmentRequest));
+
+EXTEND FORM applicationRequests
+    PROPERTIES(r) READONLY uuidVetDocumentRequest, seriesNumberInvoiceRequest, dateInvoiceRequest, objectClassNameRequest
+;
+
+// --- Запрос изменившихся ВСД: только площадки складов компаний ---
+// --- с настройкой периода и информативным сообщением ---
+
+beginDateChangesVD 'Дата/время с' = DATA LOCAL DATETIME ();
+endDateChangesVD 'Дата/время по' = DATA LOCAL DATETIME ();
+
+FORM getVetDocumentChangesListRequestParams 'Параметры запроса изменившихся ВСД'
+    PROPERTIES() beginDateChangesVD, endDateChangesVD
+;
+
+getVetDocumentChangesListRequestGestori 'Получить ВСД (изменившиеся)' () {
+    beginDateChangesVD() <- subtractSeconds(currentDateTime(), (OVERRIDE getVDListInterval(), 72) * 3600);
+    endDateChangesVD() <- currentDateTime();
+    DIALOG getVetDocumentChangesListRequestParams DO {
+        LOCAL cnt = INTEGER();
+        cnt() <- 0;
+        FOR Enterprise e AND own(owner(e)) AND
+            (GROUP SUM 1 IF enterprise(Stock st) = e AND isCompany(legalEntity(st)))
+        DO {
+            NEWSESSION {
+                NEW r = VetDocumentListRequest {
+                    businessEntity(r) <- owner(e);
+                    changes(r) <- TRUE;
+                    offset(r) <- 0;
+                    count(r) <- 1000;
+                    beginDate(r) <- beginDateChangesVD();
+                    endDate(r) <- endDateChangesVD();
+                    enterprise(r) <- e;
+                    getVetDocumentListRequest(r);
+                    APPLY;
+                }
+            }
+            cnt() <- cnt() + 1;
+        }
+        MESSAGE 'Отправлено ' + cnt() + ' запросов';
+    }
+}
+
+EXTEND FORM applicationRequests
+    PROPERTIES() getVetDocumentChangesListRequestGestori
+;
+
+DESIGN applicationRequests {
+    actions {
+        PROPERTY(getVetDocumentChangesListRequest()) { hide = TRUE; }
+        MOVE PROPERTY(getVetDocumentChangesListRequestGestori()) BEFORE PROPERTY(getVetDocumentListRequest());
+    }
+}
+
+// --- Запрос ВСД: вспомогательные поля дата+время ---
+
+beginDateOnlyVD 'Дата с' = DATA LOCAL DATE ();
+endDateOnlyVD 'Дата по' = DATA LOCAL DATE ();
+
+WHEN LOCAL SETCHANGED(beginDateOnlyVD()) DO
+    beginDate(VetDocumentListRequest r) <- DATETIME(beginDateOnlyVD()) WHERE r IS VetDocumentListRequest;
+
+WHEN LOCAL SETCHANGED(endDateOnlyVD()) DO
+    endDate(VetDocumentListRequest r) <- subtractSeconds(DATETIME(sum(endDateOnlyVD(), 1)), 1) WHERE r IS VetDocumentListRequest;
+
+EXTEND FORM getVetDocumentListRequestParams
+    PROPERTIES() beginDateOnlyVD, endDateOnlyVD
+;
+
+
+// --- Запрет повторного создания заявки если есть незавершённая с теми же параметрами ---
+
+hasPendingVDRequest (Enterprise e, DATETIME bd, DATETIME ed) =
+    GROUP MAX VetDocumentListRequest r
+    IF enterprise(r) = e AND beginDate(r) = bd AND endDate(r) = ed AND notCompleted(r);
+
+CONSTRAINT SET(VetDocumentListRequest r IS VetDocumentListRequest) AND
+    hasPendingVDRequest(enterprise(r), beginDate(r), endDate(r)) AND NOT r =
+    (GROUP MAX VetDocumentListRequest rr IF enterprise(rr) = enterprise(r) AND beginDate(rr) = beginDate(r) AND endDate(rr) = endDate(r))
+    MESSAGE 'Заявка с такими же параметрами уже создана и ожидает обмена с Ветис';
