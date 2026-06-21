@@ -1,0 +1,99 @@
+MODULE VetisStockEntryGestori;
+
+REQUIRE VetisStockEntry, VetisStock, VetisGetSEList, VetisOutgoingConsignment,
+        VetisItem, VetisIncomingConsignment, VetisPurchaseShipment;
+
+NAMESPACE Vetis;
+
+// --- Склад по площадке ---
+
+stockGestori (StockEntry s) = GROUP LAST Stock st IF enterprise(st) = enterprise(s) ORDER st;
+idStockGestori 'Код склада' (StockEntry s) = id(stockGestori(s));
+nameStockGestori 'Склад' (StockEntry s) = name(stockGestori(s));
+
+// --- Товар по записи журнала ---
+
+skuGestori (StockEntry s) = GROUP MIN Item i IF in(i, GROUP MIN ProductItem pi IF in(s, pi));
+idBarcodeSkuGestori 'Код товара' (StockEntry s) = idBarcode(skuGestori(s));
+nameSkuGestori 'Наименование товара' (StockEntry s) = name(skuGestori(s));
+
+// --- Вес единицы товара ---
+
+factorGestori 'Вес единицы товара' (StockEntry s) = factor(skuGestori(s), unit(s));
+
+// --- ВСД ---
+
+lastVetDocGestori (StockEntry s) = GROUP LAST VetDocument d ORDER d WHERE in(s, d);
+
+issueDateVSD 'Дата ВСД' (StockEntry s) = issueDate(lastVetDocGestori(s));
+volumeVSD 'Вес по ВСД' (StockEntry s) = volume(lastVetDocGestori(s));
+
+guidConsignorEnterpriseVSD 'GUID площадки отправителя ВСД' (StockEntry s) = guid(consignorEnterprise(lastVetDocGestori(s)));
+nameConsignorEnterpriseVSD 'Площадка отправителя ВСД' (StockEntry s) = name(consignorEnterprise(lastVetDocGestori(s)));
+
+// --- Накладная-основание (через входящую партию) ---
+
+nameTypeIncomingConsignment 'Тип накладной' (StockEntry s) = objectClassName(incomingConsignment(s));
+
+seriesNumberIncomingConsignment 'Номер накладной' (StockEntry s) =
+    seriesNumber(invoice(Shipment.invoiceDetail(VetisPurchase.shipmentDetail(incomingConsignment(s) AS VetisPurchase.ShipmentIncomingConsignment))));
+
+// --- Подсветка истёкшего срока годности ---
+
+backgroundExpiryGestori (StockEntry s) =
+    IF expiryDate(s) AND expiryDate(s) < currentDate() THEN RGB(255, 180, 180);
+
+// --- Запрос записи журнала по GUID ---
+
+getStockEntryByGuid 'Запросить запись журнала по GUID' () {
+    INPUT g = STRING[36] DO {
+        FOR StockEntry s = stockEntry(g) DO
+            MESSAGE 'Запись журнала найдена: ' + number(s) NOWAIT;
+        IF NOT stockEntry(g) THEN
+            MESSAGE 'Запись журнала с GUID ' + g + ' не найдена в базе. Выполните запрос в Меркурии.' NOWAIT;
+    }
+}
+
+// --- Движение по записи журнала ---
+
+FORM stockEntryMovements 'Движение по записи складского журнала'
+    OBJECTS s = StockEntry PANEL
+    PROPERTIES(s) READONLY guid, number, nameEnterprise, nameProductItem, volume, nameUnit
+
+    OBJECTS oc = OutgoingConsignment
+    PROPERTIES(oc) READONLY
+        stockName = nameConsignorEnterprise,
+        docType = objectClassName,
+        docNumber = waybillNumber,
+        docDate = waybillDate,
+        volume,
+        nameStatusVetDocument,
+        uuidVetDocument
+    FILTERS stockEntry(oc) = s
+    ORDERS docDate
+;
+
+showStockEntryMovements 'Движение' (StockEntry s) {
+    SHOW stockEntryMovements OBJECTS s = s;
+};
+
+// --- Расширение формы stockEntries ---
+
+EXTEND FORM stockEntries
+    PROPERTIES(s) READONLY BACKGROUND backgroundExpiryGestori(s)
+        idStockGestori BEFORE active(s),
+        idBarcodeSkuGestori AFTER nameProductItem(s),
+        nameSkuGestori AFTER nameProductItem(s),
+        factorGestori AFTER nameUnit(s),
+        volumeVSD AFTER volume(s),
+        guidConsignorEnterpriseVSD AFTER nameEnterprise(s),
+        nameConsignorEnterpriseVSD AFTER nameEnterprise(s),
+        seriesNumberIncomingConsignment AFTER uuidVetDocument(s),
+        nameTypeIncomingConsignment AFTER uuidVetDocument(s),
+        issueDateVSD AFTER expiryDate(s)
+
+    PROPERTIES() DRAW s TOOLBAR getStockEntryByGuid
+    PROPERTIES(s) DRAW s TOOLBAR showStockEntryMovements
+
+    FILTERS (GROUP SUM 1 IF enterprise(Stock st) = enterprise(s) AND accessCompany(currentUser(), st)) OR NOT limitAccess(currentUser())
+;
