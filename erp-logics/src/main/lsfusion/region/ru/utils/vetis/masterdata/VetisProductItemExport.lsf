@@ -108,8 +108,10 @@ EXTEND FORM productItems
     PROPERTIES(o) TOOLBAR createModifyProducerStockList SHOWIF NOT uuid(o), updateModifyProducerStockList SHOWIF uuid(o) DRAW o
 ;
 
-CONSTRAINT producer(ProductItem o) AND NOT own(producer(o)) CHECKED BY producer[ProductItem] MESSAGE 'Можно выбрать только собственный ХС';
-CONSTRAINT owner(ProductItem o) AND NOT own(owner(o)) CHECKED BY owner[ProductItem] MESSAGE 'Можно выбрать только собственный ХС';
+skipOwnConstraint 'Пропустить проверку собственного ХС' = DATA LOCAL BOOLEAN ();
+
+CONSTRAINT producer(ProductItem o) AND NOT own(producer(o)) AND NOT skipOwnConstraint() CHECKED BY producer[ProductItem] MESSAGE 'Можно выбрать только собственный ХС';
+CONSTRAINT owner(ProductItem o) AND NOT own(owner(o)) AND NOT skipOwnConstraint() CHECKED BY owner[ProductItem] MESSAGE 'Можно выбрать только собственный ХС';
     
 GROUP productItemListR EXTID 'merc:productItemList';
 GROUP productItemR EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:productItem' : productItemListR;

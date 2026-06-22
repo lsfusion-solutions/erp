@@ -1,0 +1,83 @@
+MODULE VetisSubProductGestori;
+
+REQUIRE VetisProductItem, VetisProductItemImport, VetisProductItemExport;
+
+NAMESPACE Vetis;
+
+// --- Тип продукции на виде продукции ---
+
+nameProductTypeGestori 'Тип продукции' (SubProduct s) = name(productType(product(s)));
+
+// --- Групповая отметка ---
+
+inGestori 'Отм.' = DATA LOCAL BOOLEAN (SubProduct);
+
+// --- Расширение существующей SOAP-формы getProductItemListRequest ---
+
+GROUP getProductItemListRequestSubProduct EXTID 'dt:subProduct' : getProductItemListRequest;
+
+EXTEND FORM getProductItemListRequest
+    OBJECTS sp = SubProduct PANEL
+    PROPERTIES(sp) guid EXTID 'bs:guid' IN getProductItemListRequestSubProduct
+;
+
+// --- Диалог параметров ---
+
+FORM loadProductItemsBySpParams 'Параметры загрузки номенклатуры'
+    PROPERTIES() offset, count
+;
+
+// --- Импорт номенклатуры по одному виду продукции ---
+
+importProductItemsBySubProductGestori (SubProduct sp) {
+    EXPORT getProductItemListRequest OBJECTS sp = sp XML;
+    LOCAL response = FILE();
+    TRY {
+        EXTERNAL HTTP urlProduct() HEADERS httpHeaders PARAMS exportFile() TO response;
+    } CATCH {
+        fileToString(response());
+        MESSAGE CONCAT ' ', 'Ошибка при запросе к службе: ', resultString();
+        RETURN;
+    }
+    IMPORT getProductItemListResponse XML FROM response();
+    FOR [GROUP SUM 1 BY producerGuid(INTEGER i)](STRING id) AND NOT businessEntity(id) DO NEW e = BusinessEntity {
+        guid(e) <- id;
+    }
+    FOR guid(INTEGER i) AND NOT productItem(guid(i)) DO NEW p = ProductItem {
+        guid(p) <- guid(i);
+    }
+    skipOwnConstraint() <- TRUE;
+    FOR guid(INTEGER i) = guid(ProductItem p) DO {
+        name(p) <- name(i);
+        globalID(p) <- globalID(i);
+        code(p) <- code(i);
+        subProduct(p) <- subProduct(subProductGuid(i));
+        producer(p) <- businessEntity(producerGuid(i));
+        inactive(p) <- NOT active(i);
+    }
+}
+
+// --- Загрузка номенклатуры по отмеченным видам продукции ---
+
+loadProductItemsByMarkedGestori 'Загрузить номенклатуру' () {
+    NEWSESSION NESTED LOCAL {
+        offset() <- 0;
+        count() <- 1000;
+        DIALOG loadProductItemsBySpParams NOMANAGESESSION DO {
+            FOR inGestori(SubProduct sp) DO
+                importProductItemsBySubProductGestori(sp);
+            APPLY;
+        }
+    }
+}
+
+// --- Расширение справочника Виды продукции ---
+
+EXTEND FORM subProducts
+    PROPERTIES(o) inGestori BEFORE guid(o)
+    PROPERTIES(o) READONLY nameProductTypeGestori AFTER nameProduct(o)
+    PROPERTIES() loadProductItemsByMarkedGestori DRAW o TOOLBAR
+;
+
+CONSTRAINT DROPPED(SubProduct s IS SubProduct) AND PREV(s IS SubProduct)
+    MESSAGE 'Удаление видов продукции не допускается. Справочник загружается только из Ветис.';
