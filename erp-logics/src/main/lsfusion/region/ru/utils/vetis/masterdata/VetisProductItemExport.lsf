@@ -70,12 +70,13 @@ createModifyProducerStockList 'Создание наменклатуры' (Produ
 
             EXPORT modifyProducerStockList OBJECTS r=r XML;
             submit(r, exportFile());
+            IF error(r) THEN status(r) <- ApplicationRequestStatus.REJECTED;
         }
         APPLY;
     }
 }
 
-updateModifyProducerStockList 'Изменение наменклатуры' (ProductItem p) {
+updateModifyProducerStockList 'Изменение номенклатуры' (ProductItem p) {
     NEWSESSION {
         NEW r = ProductItemRequest {
             businessEntity(r) <- producer(p);
@@ -107,6 +108,8 @@ readonlyProductItem(ProductItem i) += isExported(i) AND own(producer(i)) OR NOT 
 EXTEND FORM productItems
     PROPERTIES(o) TOOLBAR createModifyProducerStockList SHOWIF NOT uuid(o), updateModifyProducerStockList SHOWIF uuid(o) DRAW o
 ;
+
+operationType = DATA STRING (ProductItemRequest);
 
 skipOwnConstraint 'Пропустить проверку собственного ХС' = DATA LOCAL BOOLEAN ();
 
@@ -161,7 +164,11 @@ FORM modifyProducerStockListResponse FORMEXTID 'merc=http://api.vetrf.ru/schema/
     PROPERTIES(producing) IN location uuidR5 EXTID 'bs:uuid', guidR5 EXTID 'bs:guid';
 
 process (ProductItemRequest r) + {
-    NEWSESSION {
+    IF operationType(r) = 'DELETE' THEN NEWSESSION {
+        DELETE productItem(r);
+        processed(r) <- TRUE;
+        APPLY;
+    } ELSE NEWSESSION {
         stringToFile(response(r));
         IMPORT modifyProducerStockListResponse XML FROM resultFile();
         isExported(productItem(r))<-NULL;

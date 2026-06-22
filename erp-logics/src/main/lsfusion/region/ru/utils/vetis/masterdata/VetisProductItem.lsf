@@ -164,13 +164,17 @@ changeEnterprises(ProductItem o)  {
 }
 
 readonlyProductItem = ABSTRACT BOOLEAN (ProductItem);
+hideNewProductItem = ABSTRACT BOOLEAN ();
+
+changeSubProduct ABSTRACT (ProductItem);
 
 FORM productItem 'Номенклатура'
     OBJECTS o = ProductItem PANEL
     PROPERTIES(o) READONLY isExported, guid, uuid
-    PROPERTIES(o) READONLYIF readonlyProductItem(o) name, globalID, code, nameSubProduct, nameProducer, nameOwner, inactive,
+    PROPERTIES(o) READONLYIF readonlyProductItem(o) name, globalID, code,
+        nameSubProduct ON CHANGE changeSubProduct(o), nameProducer, nameOwner, inactive,
         nameEnterprises ON CHANGE changeEnterprises(o)
-    
+
     EDIT ProductItem OBJECT o
 ;
 
@@ -188,7 +192,7 @@ FORM productItems 'Номенклатура'
 
     OBJECTS o = ProductItem
     PROPERTIES(o) READONLY isExported, guid, uuid, name, globalID, code, nameSubProduct, nameProducer, nameOwner, nameEnterprises, inactive
-    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+    PROPERTIES(o) NEWSESSION NEW SHOWIF NOT hideNewProductItem(), EDIT, DELETE
 
     FILTERGROUP active
         FILTER 'Активная' NOT inactive(o) DEFAULT

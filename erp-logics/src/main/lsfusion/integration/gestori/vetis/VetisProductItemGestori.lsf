@@ -1,0 +1,150 @@
+MODULE VetisProductItemGestori;
+
+REQUIRE VetisProductItem, VetisProductItemImport, VetisProductItemExport, VetisStockEntry;
+
+NAMESPACE Vetis;
+
+// --- Блок 1: UI ---
+
+ownProductGestori 'Собственная продукция' (ProductItem o) = own(producer(o));
+nameProductTypeGestori 'Тип продукции' (ProductItem o) = name(productType(product(subProduct(o))));
+nameProductGestori 'Продукция' (ProductItem o) = name(product(subProduct(o)));
+
+EXTEND FORM productItems
+    PROPERTIES(o) READONLY nameProductTypeGestori BEFORE nameSubProduct(o)
+    PROPERTIES(o) READONLY nameProductGestori BEFORE nameSubProduct(o)
+    PROPERTIES(o) READONLY ownProductGestori AFTER nameProducer(o)
+
+    FILTERGROUP own
+        FILTER 'Собственная' ownProductGestori(o) DEFAULT
+;
+
+hideNewProductItem() += TRUE;
+
+DESIGN productItems {
+    PROPERTY(guid(o)) { caption = 'GUID номенклатуры'; }
+    PROPERTY(uuid(o)) { caption = 'UUID номенклатуры'; }
+}
+
+// --- Блок 2: Ограничения и автоматизация ---
+
+hasVetDocument 'Есть ВСД' (ProductItem p) = GROUP SUM 1 IF productItem(VetDocument d) = p;
+hasStockEntry 'Есть записи журнала' (ProductItem p) = GROUP SUM 1 IF in(StockEntry s, p);
+
+CONSTRAINT DROPPED(ProductItem p IS ProductItem) AND PREV(hasVetDocument(p))
+    MESSAGE 'Нельзя удалять номенклатуру: связана с ВСД';
+
+CONSTRAINT DROPPED(ProductItem p IS ProductItem) AND PREV(hasStockEntry(p))
+    MESSAGE 'Нельзя удалять номенклатуру: связана с записями складского журнала';
+
+CONSTRAINT DROPPED(ProductItem p IS ProductItem) AND PREV(uuid(p)) AND PREV(ownProductGestori(p))
+    MESSAGE 'Для удаления собственной номенклатуры используйте кнопку "Удалить номенклатуру"';
+
+deleteModifyProducerStockList 'Удалить номенклатуру' (ProductItem p) {
+    NEWSESSION {
+        NEW r = ProductItemRequest {
+            businessEntity(r) <- producer(p);
+            productItem(r) <- p;
+            operationType(r) <- 'DELETE';
+            isExported(p) <- TRUE;
+            type(r) <- 'DELETE';
+            uuid(r) <- uuid(p);
+            guid(r) <- guid(p);
+            EXPORT modifyProducerStockList OBJECTS r=r XML;
+            submit(r, exportFile());
+        }
+        APPLY;
+    }
+}
+
+EXTEND FORM productItems
+    PROPERTIES(o) TOOLBAR deleteModifyProducerStockList SHOWIF uuid(o) AND ownProductGestori(o) DRAW o
+;
+
+// --- Блок 3: Форма редактирования ---
+
+// Item 16: Диалог выбора вида продукции с деревом классификатора Ветис
+FORM selectSubProduct 'Выбор вида продукции'
+    TREE tree pt = ProductType, p = Product
+    PROPERTIES READONLY name(pt), name(p)
+    FILTERS productType(p) = pt
+
+    OBJECTS o = SubProduct
+    PROPERTIES(o) READONLY name, nameProduct
+    FILTERS (product(o) = p OR NOT p) AND NOT inactive(o)
+
+    LIST SubProduct OBJECT o
+;
+
+changeSubProduct(ProductItem pi) + {
+    DIALOG selectSubProduct OBJECTS o = subProduct(pi) INPUT DO
+        subProduct(pi) <- o;
+}
+
+// Item 14: Обязательные поля для собственной продукции
+// producer: требуем при создании (ownProductGestori зависит от producer, поэтому нельзя проверять через ownProductGestori)
+CONSTRAINT SET(ProductItem p IS ProductItem) AND NOT producer(p) AND NOT skipOwnConstraint()
+    MESSAGE 'Укажите Производителя';
+
+CONSTRAINT ownProductGestori(ProductItem p) AND NOT owner(p) AND NOT skipOwnConstraint()
+    CHECKED BY owner[ProductItem] MESSAGE 'Для собственной продукции обязательно укажите Владельца';
+
+CONSTRAINT ownProductGestori(ProductItem p) AND NOT (GROUP SUM 1 IF in(p, Enterprise e)) AND NOT skipOwnConstraint()
+    MESSAGE 'Для собственной продукции обязательно укажите хотя бы одну Площадку';
+
+// Item 16 (авто-заполнение): кнопка создания с предустановленным видом продукции по выбранному узлу дерева
+createProductItemGestori 'Добавить' (SubProduct sp) {
+    NEWSESSION {
+        NEW p = ProductItem {
+            subProduct(p) <- sp;
+            SHOW productItem OBJECTS o = p WAIT;
+        }
+        APPLY;
+    }
+}
+
+EXTEND FORM productItems
+    PROPERTIES DRAW o TOOLBAR createProductItemGestori(sp)
+;
+
+// --- Блок 4: Действия в справочнике (пп. 17-19) ---
+
+// п.18: ХС — только собственные; если площадка выбрана — только её ХС-владелец
+FORM dialogGetProductItemBE 'Хозяйствующий субъект'
+    OBJECTS o = BusinessEntity
+    PROPERTIES(o) READONLY guid, name
+    FILTERS own(o) AND (NOT enterprise() OR owner(enterprise()) = o)
+    LIST BusinessEntity OBJECT o
+;
+
+// п.17: площадки — только с собственным владельцем; если ХС выбран — только его площадки
+FORM dialogGetProductItemEnterprise 'Площадка'
+    OBJECTS o = Enterprise
+    PROPERTIES(o) READONLY guid, name, nameOwner
+    FILTERS own(owner(o)) AND (NOT businessEntity() OR owner(o) = businessEntity())
+    LIST Enterprise OBJECT o
+;
+
+changeGetProductItemListBE() + {
+    DIALOG dialogGetProductItemBE OBJECTS o = businessEntity() INPUT DO {
+        businessEntity() <- o;
+        IF enterprise() AND owner(enterprise()) != businessEntity() THEN
+            enterprise() <- NULL;
+    }
+}
+
+changeGetProductItemListEnterprise() + {
+    DIALOG dialogGetProductItemEnterprise OBJECTS o = enterprise() INPUT DO {
+        enterprise() <- o;
+        IF NOT businessEntity() AND enterprise() THEN
+            businessEntity() <- owner(enterprise());
+    }
+}
+
+WHEN SET(ProductItem p IS ProductItem) AND ownProductGestori(p) AND NOT skipOwnConstraint() DO
+    createModifyProducerStockList(p);
+
+WHEN (CHANGED(name(ProductItem p)) OR CHANGED(globalID(p)) OR CHANGED(code(p)) OR
+      CHANGED(subProduct(p)) OR CHANGED(producer(p)) OR CHANGED(owner(p)) OR
+      CHANGED(inactive(p))) AND ownProductGestori(p) AND uuid(p) AND NOT skipOwnConstraint() DO
+    updateModifyProducerStockList(p);
