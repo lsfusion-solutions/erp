@@ -1,0 +1,360 @@
+MODULE VetisImportGestori;
+
+REQUIRE ImportGestoriKirovsky, VetisBusinessEntity, VetisBusinessEntityOwn, VetisEnterprise,
+        VetisProductItem, VetisProductItemExport, VetisStockEntry, VetisDocument, VetisStock,
+        VetisItem;
+
+NAMESPACE Vetis;
+
+// --- Строка подключения (переиспользуем Gestori) ---
+
+vetisDbUrl() =
+    'jdbc:datadirect:openedge://' + ImportGestori.host() + ':' + ImportGestori.port() +
+    ';DatabaseName=' + ImportGestori.base() +
+    ';user=' + ImportGestori.login() +
+    ';password=' + ImportGestori.password();
+
+// --- Локальные переменные для MercFirm ---
+
+firmLocalGuid = DATA LOCAL STRING(INTEGER);
+firmLocalName = DATA LOCAL STRING(INTEGER);
+firmLocalInn = DATA LOCAL STRING(INTEGER);
+
+// --- Локальные переменные для MercArea ---
+
+areaLocalGuidFirm = DATA LOCAL STRING(INTEGER);
+areaLocalGuid = DATA LOCAL STRING(INTEGER);
+areaLocalName = DATA LOCAL STRING(INTEGER);
+areaLocalCodFirm = DATA LOCAL STRING(INTEGER);
+
+// --- Локальные переменные для MercItemProd ---
+
+itemLocalGuidSubProd = DATA LOCAL STRING(INTEGER);
+itemLocalGuidItemProd = DATA LOCAL STRING(INTEGER);
+itemLocalUuidItemProd = DATA LOCAL STRING(INTEGER);
+itemLocalGuidFirmProducer = DATA LOCAL STRING(INTEGER);
+itemLocalGuidFirmOwner = DATA LOCAL STRING(INTEGER);
+itemLocalName = DATA LOCAL STRING(INTEGER);
+itemLocalCode = DATA LOCAL STRING(INTEGER);
+itemLocalGtin = DATA LOCAL STRING(INTEGER);
+itemLocalCodGood = DATA LOCAL NUMERIC[13,0](INTEGER);
+
+// --- Локальные переменные для MercRestShop ---
+
+seLocalGuidShop = DATA LOCAL STRING(INTEGER);
+seLocalGuid = DATA LOCAL STRING(INTEGER);
+seLocalNumber = DATA LOCAL STRING(INTEGER);
+seLocalVolume = DATA LOCAL NUMERIC[16,5](INTEGER);
+seLocalCodGood = DATA LOCAL NUMERIC[13,0](INTEGER);
+
+// --- Локальные переменные для MercVetDoc ---
+
+vetLocalUuid = DATA LOCAL STRING(INTEGER);
+vetLocalIssueDate = DATA LOCAL DATE(INTEGER);
+vetLocalStatus = DATA LOCAL STRING(INTEGER);
+vetLocalType = DATA LOCAL STRING(INTEGER);
+vetLocalGuidConsignorFirm = DATA LOCAL STRING(INTEGER);
+vetLocalGuidConsignorArea = DATA LOCAL STRING(INTEGER);
+vetLocalGuidConsigneeFirm = DATA LOCAL STRING(INTEGER);
+vetLocalGuidConsigneeArea = DATA LOCAL STRING(INTEGER);
+vetLocalGuidItemProd = DATA LOCAL STRING(INTEGER);
+vetLocalVolume = DATA LOCAL NUMERIC[16,5](INTEGER);
+vetLocalGuidStockEntry = DATA LOCAL STRING(INTEGER);
+vetLocalDocSeries = DATA LOCAL STRING(INTEGER);
+vetLocalDocNumber = DATA LOCAL STRING(INTEGER);
+
+// --- Локальные переменные для MercObject ---
+
+objLocalGuid = DATA LOCAL STRING(INTEGER);
+objLocalApiKey = DATA LOCAL STRING(INTEGER);
+objLocalSoapUser = DATA LOCAL STRING(INTEGER);
+objLocalSoapPswd = DATA LOCAL STRING(INTEGER);
+
+// --- Локальные переменные для MercUser / MercUserShop ---
+
+userLocalLogin = DATA LOCAL STRING(INTEGER);
+userLocalCodShop = DATA LOCAL STRING(INTEGER);
+
+// --- Блок 4: Хозяйствующие субъекты из MercFirm ---
+
+importFirmGestori 'Импорт ХС Ветис' () {
+    LOCAL file = FILE();
+
+    EXTERNAL SQL vetisDbUrl()
+        EXEC 'SELECT GuidFirm, NameFirm, InnFirm ' +
+             'FROM Pub.MercFirm'
+        TO file;
+
+    IMPORT TABLE FROM file() TO firmLocalGuid, firmLocalName, firmLocalInn;
+
+    FOR firmLocalGuid(INTEGER i) AND NOT businessEntity(firmLocalGuid(i)) DO NEW e = BusinessEntity {
+        guid(e) <- firmLocalGuid(i);
+    }
+    FOR BusinessEntity e = businessEntity(firmLocalGuid(INTEGER i)) DO {
+        name(e) <- ISTRING(firmLocalName(i));
+        inn(e) <- firmLocalInn(i);
+    }
+
+    APPLY;
+}
+
+// --- Блоки 5–6: Площадки и связи склад↔площадка из MercArea ---
+
+importAreaGestori 'Импорт площадок Ветис' () {
+    LOCAL file = FILE();
+
+    EXTERNAL SQL vetisDbUrl()
+        EXEC 'SELECT GuidFirm, GuidArea, NameArea, CAST(cod_firm AS CHAR(20)) ' +
+             'FROM Pub.MercArea'
+        TO file;
+
+    IMPORT TABLE FROM file() TO areaLocalGuidFirm, areaLocalGuid, areaLocalName, areaLocalCodFirm;
+
+    FOR areaLocalGuid(INTEGER i) AND NOT enterprise(areaLocalGuid(i)) DO NEW e = Enterprise {
+        guid(e) <- areaLocalGuid(i);
+    }
+    FOR Enterprise e = enterprise(areaLocalGuid(INTEGER i)) DO {
+        name(e) <- ISTRING(areaLocalName(i));
+        owner(e) <- businessEntity(areaLocalGuidFirm(i));
+    }
+
+    // Блок 6: привязать Stock к Enterprise по extId магазина
+    FOR areaLocalGuid(INTEGER i) AND areaLocalCodFirm(i) AND
+        Stock st = stockExtId(areaLocalCodFirm(i)) AND Enterprise e = enterprise(areaLocalGuid(i))
+    DO
+        enterprise(st) <- e;
+
+    APPLY;
+}
+
+// --- Блоки 2–3: Номенклатура и связи с товарами из MercItemProd ---
+
+importProductItemsGestori 'Импорт номенклатуры Ветис' () {
+    LOCAL file = FILE();
+
+    EXTERNAL SQL vetisDbUrl()
+        EXEC 'SELECT GuidSubProd, GuidItemProd, UuidItemProd, GuidFirmProducer, GuidFirmOwner, ' +
+             'NameItemProd, CodeItemProd, GtinItemProd, cod_good ' +
+             'FROM Pub.MercItemProd'
+        TO file;
+
+    IMPORT TABLE FROM file() TO
+        itemLocalGuidSubProd, itemLocalGuidItemProd, itemLocalUuidItemProd,
+        itemLocalGuidFirmProducer, itemLocalGuidFirmOwner,
+        itemLocalName, itemLocalCode, itemLocalGtin, itemLocalCodGood;
+
+    FOR itemLocalGuidItemProd(INTEGER i) AND NOT productItem(itemLocalGuidItemProd(i)) DO NEW p = ProductItem {
+        guid(p) <- itemLocalGuidItemProd(i);
+    }
+
+    skipOwnConstraint() <- TRUE;
+
+    FOR ProductItem p = productItem(itemLocalGuidItemProd(INTEGER i)) DO {
+        uuid(p) <- itemLocalUuidItemProd(i);
+        name(p) <- ISTRING[100](itemLocalName(i));
+        code(p) <- itemLocalCode(i);
+        globalID(p) <- itemLocalGtin(i);
+        subProduct(p) <- subProduct(itemLocalGuidSubProd(i));
+        producer(p) <- businessEntity(itemLocalGuidFirmProducer(i));
+        owner(p) <- businessEntity(itemLocalGuidFirmOwner(i));
+    }
+
+    // Блок 3: связать товар (Item) с номенклатурой по cod_good
+    FOR ProductItem p = productItem(itemLocalGuidItemProd(INTEGER i)) AND
+        itemLocalCodGood(i) AND Item it = item(TEXT(itemLocalCodGood(i)))
+    DO
+        in(it, p) <- TRUE;
+
+    APPLY;
+}
+
+// --- Блок 7: Записи складского журнала из MercRestShop ---
+
+importStockEntriesGestori 'Импорт записей журнала Ветис' () {
+    LOCAL file = FILE();
+
+    EXTERNAL SQL vetisDbUrl()
+        EXEC 'SELECT GuidShop, GuidStockEntry, NumStockEntry, Volume, cod_good ' +
+             'FROM Pub.MercRestShop'
+        TO file;
+
+    IMPORT TABLE FROM file() TO seLocalGuidShop, seLocalGuid, seLocalNumber, seLocalVolume, seLocalCodGood;
+
+    FOR seLocalGuid(INTEGER i) AND NOT stockEntry(seLocalGuid(i)) DO NEW s = StockEntry {
+        guid(s) <- seLocalGuid(i);
+    }
+    FOR StockEntry s = stockEntry(seLocalGuid(INTEGER i)) DO {
+        number(s) <- seLocalNumber(i);
+        volume(s) <- seLocalVolume(i);
+        enterprise(s) <- enterprise(seLocalGuidShop(i));
+        active(s) <- TRUE;
+    }
+
+    // Связать запись журнала с номенклатурой через cod_good → Item → ProductItem
+    FOR StockEntry s = stockEntry(seLocalGuid(INTEGER i)) AND seLocalCodGood(i) AND
+        ProductItem p = (GROUP MIN ProductItem pi IF in(item(TEXT(seLocalCodGood(i))), pi))
+    DO
+        in(s, p) <- TRUE;
+
+    APPLY;
+}
+
+// --- Блок 8: ВСД из MercVetDoc ---
+// Внимание: имена столбцов (GuidConsignorFirm и т.д.) — предположения,
+// уточните по фактической схеме Pub.MercVetDoc.
+
+importVetDocumentsGestori 'Импорт ВСД Ветис' () {
+    LOCAL file = FILE();
+
+    EXTERNAL SQL vetisDbUrl()
+        EXEC 'SELECT UuidDoc, DocIssueDate, DocStatus, DocType, ' +
+             'GuidConsignorFirm, GuidConsignorArea, GuidConsigneeFirm, GuidConsigneeArea, ' +
+             'GuidItemProd, Volume, GuidStockEntry, DocSeries, DocNumber ' +
+             'FROM Pub.MercVetDoc'
+        TO file;
+
+    IMPORT TABLE FROM file() TO
+        vetLocalUuid, vetLocalIssueDate, vetLocalStatus, vetLocalType,
+        vetLocalGuidConsignorFirm, vetLocalGuidConsignorArea,
+        vetLocalGuidConsigneeFirm, vetLocalGuidConsigneeArea,
+        vetLocalGuidItemProd, vetLocalVolume, vetLocalGuidStockEntry,
+        vetLocalDocSeries, vetLocalDocNumber;
+
+    FOR vetLocalUuid(INTEGER i) AND NOT vetDocument(vetLocalUuid(i)) DO NEW d = VetDocument {
+        uuid(d) <- vetLocalUuid(i);
+    }
+    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) DO {
+        issueDate(d) <- vetLocalIssueDate(i);
+        status(d) <- vetDocumentStatus(vetLocalStatus(i));
+        type(d) <- vetDocumentType(vetLocalType(i));
+        consignorBusinessEntity(d) <- businessEntity(vetLocalGuidConsignorFirm(i));
+        consignorEnterprise(d) <- enterprise(vetLocalGuidConsignorArea(i));
+        consigneeBusinessEntity(d) <- businessEntity(vetLocalGuidConsigneeFirm(i));
+        consigneeEnterprise(d) <- enterprise(vetLocalGuidConsigneeArea(i));
+        productItem(d) <- productItem(vetLocalGuidItemProd(i));
+        volume(d) <- vetLocalVolume(i);
+    }
+
+    // Связь ВСД с записью складского журнала
+    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) AND
+        vetLocalGuidStockEntry(i) AND StockEntry s = stockEntry(vetLocalGuidStockEntry(i))
+    DO
+        in(s, d) <- TRUE;
+
+    // Связанный документ — накладная (relationshipType=1)
+    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) AND
+        (vetLocalDocSeries(i) OR vetLocalDocNumber(i)) AND
+        NOT vetReferenceDocument(d, CONCAT ';', vetLocalDocSeries(i), vetLocalDocNumber(i), vetLocalIssueDate(i), 1, 1)
+    DO NEW rd = VetReferenceDocument {
+        vetDocument(rd) <- d;
+        issueSeries(rd) <- vetLocalDocSeries(i);
+        issueNumber(rd) <- vetLocalDocNumber(i);
+        issueDate(rd) <- vetLocalIssueDate(i);
+        type(rd) <- 1;
+        relationshipType(rd) <- 1;
+    }
+
+    APPLY;
+}
+
+// --- Блок 9: Настройки обмена из MercObject ---
+
+importObjectSettingsGestori 'Импорт настроек ХС Ветис' () {
+    LOCAL file = FILE();
+
+    EXTERNAL SQL vetisDbUrl()
+        EXEC 'SELECT GuidObject, ApiKey, SoapUser, SoapPswd ' +
+             'FROM Pub.MercObject'
+        TO file;
+
+    IMPORT TABLE FROM file() TO objLocalGuid, objLocalApiKey, objLocalSoapUser, objLocalSoapPswd;
+
+    FOR BusinessEntity be = businessEntity(objLocalGuid(INTEGER i)) DO {
+        apiKey(be) <- objLocalApiKey(i);
+        login(be) <- objLocalSoapUser(i);
+        password(be) <- objLocalSoapPswd(i);
+    }
+
+    APPLY;
+}
+
+// --- Блок 10: Пользователи Ветис из MercUser ---
+
+importUsersGestori 'Импорт пользователей Ветис' () {
+    LOCAL file = FILE();
+
+    EXTERNAL SQL vetisDbUrl()
+        EXEC 'SELECT UserLogin ' +
+             'FROM Pub.MercUser'
+        TO file;
+
+    IMPORT TABLE FROM file() TO userLocalLogin;
+
+    // Установить loginMercury для пользователей, найденных по системному логину
+    FOR userLocalLogin(INTEGER i) AND CustomUser u = [GROUP MAX CustomUser cu BY login(cu)](userLocalLogin(i)) DO
+        loginMercury(u) <- userLocalLogin(i);
+
+    APPLY;
+}
+
+// --- Блок 11: Привязка пользователей к складам из MercUserShop ---
+
+importUserShopsGestori 'Импорт привязок пользователей к складам Ветис' () {
+    LOCAL file = FILE();
+
+    EXTERNAL SQL vetisDbUrl()
+        EXEC 'SELECT mu.UserLogin, CAST(mus.cod_shop AS CHAR(20)) ' +
+             'FROM Pub.MercUserShop mus ' +
+             'JOIN Pub.MercUser mu ON mus.UuidUser = mu.UuidUser'
+        TO file;
+
+    IMPORT TABLE FROM file() TO userLocalLogin, userLocalCodShop;
+
+    // Установить логин Меркурий по умолчанию для ХС склада (если ещё не задан)
+    FOR userLocalLogin(INTEGER i) AND userLocalCodShop(i) AND
+        Stock st = stockExtId(userLocalCodShop(i)) AND
+        Enterprise e = enterprise(st) AND BusinessEntity be = owner(e) AND
+        NOT defaultLoginMercury(be)
+    DO
+        defaultLoginMercury(be) <- userLocalLogin(i);
+
+    APPLY;
+}
+
+// --- Мастер-действие ---
+
+importAllVetisGestori 'Импорт начальных данных Ветис' () {
+    importFirmGestori();
+    importAreaGestori();
+    importProductItemsGestori();
+    importStockEntriesGestori();
+    importVetDocumentsGestori();
+    importObjectSettingsGestori();
+    importUsersGestori();
+    importUserShopsGestori();
+    MESSAGE 'Импорт начальных данных Ветис завершён';
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() importAllVetisGestori,
+                 importFirmGestori, importAreaGestori, importProductItemsGestori,
+                 importStockEntriesGestori, importVetDocumentsGestori,
+                 importObjectSettingsGestori, importUsersGestori, importUserShopsGestori
+;
+
+DESIGN integrationData {
+    gestori {
+        NEW vetisInitImport {
+            caption = 'Начальный импорт ВЕТИС';
+            MOVE PROPERTY(importAllVetisGestori());
+            MOVE PROPERTY(importFirmGestori());
+            MOVE PROPERTY(importAreaGestori());
+            MOVE PROPERTY(importProductItemsGestori());
+            MOVE PROPERTY(importStockEntriesGestori());
+            MOVE PROPERTY(importVetDocumentsGestori());
+            MOVE PROPERTY(importObjectSettingsGestori());
+            MOVE PROPERTY(importUsersGestori());
+            MOVE PROPERTY(importUserShopsGestori());
+        }
+    }
+}

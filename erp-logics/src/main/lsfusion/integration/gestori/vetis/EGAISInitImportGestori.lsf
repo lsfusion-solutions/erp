@@ -1,0 +1,362 @@
+MODULE EGAISInitImportGestori;
+
+REQUIRE EGAIS, EGAISFReg, EGAISFRegLedger, EGAISMarkCode, EGAISProduct, EGAISClient, EGAISStock, EGAISItem, Store,
+        EGAISF1RegImport, EGAISQueryFormF2, ImportGestoriKirovsky;
+
+NAMESPACE EGAIS;
+
+// --- Начальный остаток регистра 1 ---
+
+CLASS FRegLedgerInit 'Начальный остаток регистра 1 ЕГАИС' : FRegLedger;
+TABLE fRegLedgerInit(FRegLedgerInit);
+
+dataDate 'Дата' = DATA DATE (FRegLedgerInit);
+dataF2Reg 'Справка Б' = DATA F2Reg (FRegLedgerInit) INDEXED;
+dataQuantity 'Кол-во' = DATA NUMERIC[16,5] (FRegLedgerInit);
+dataNumber 'Номер' = DATA STRING (FRegLedgerInit);
+
+posted(FRegLedgerInit l) += TRUE IF l IS FRegLedgerInit;
+date(FRegLedgerInit l) += dataDate(l);
+number(FRegLedgerInit l) += dataNumber(l);
+f2Reg(FRegLedgerInit l) += dataF2Reg(l);
+quantity(FRegLedgerInit l) += dataQuantity(l);
+
+// --- Строка подключения (переиспользуем Gestori) ---
+
+egaisDbUrl() =
+    'jdbc:datadirect:openedge://' + ImportGestori.host() + ':' + ImportGestori.port() +
+    ';DatabaseName=' + ImportGestori.base() +
+    ';user=' + ImportGestori.login() +
+    ';password=' + ImportGestori.password();
+
+// --- Локальные переменные для импорта ---
+
+utmLocalId = DATA LOCAL INTEGER(INTEGER);
+utmLocalName = DATA LOCAL ISTRING[200](INTEGER);
+utmLocalAddr = DATA LOCAL STRING[300](INTEGER);
+utmLocalCodShop = DATA LOCAL INTEGER(INTEGER);
+
+firmLocalId = DATA LOCAL STRING[100](INTEGER);
+firmLocalShortName = DATA LOCAL ISTRING[200](INTEGER);
+firmLocalFullName = DATA LOCAL ISTRING[300](INTEGER);
+firmLocalInn = DATA LOCAL STRING[12](INTEGER);
+firmLocalKpp = DATA LOCAL STRING[9](INTEGER);
+firmLocalRegion = DATA LOCAL STRING[10](INTEGER);
+firmLocalAddress = DATA LOCAL ISTRING[300](INTEGER);
+firmLocalWBver = DATA LOCAL STRING[10](INTEGER);
+firmLocalCodFirm = DATA LOCAL STRING[20](INTEGER);
+firmLocalTypeOrg = DATA LOCAL STRING[5](INTEGER);
+
+goodLocalId = DATA LOCAL STRING[100](INTEGER);
+goodLocalName = DATA LOCAL ISTRING[300](INTEGER);
+goodLocalVol = DATA LOCAL NUMERIC[16,5](INTEGER);
+goodLocalAlcProc = DATA LOCAL NUMERIC[10,3](INTEGER);
+goodLocalIdProd = DATA LOCAL STRING[100](INTEGER);
+goodLocalCodGood = DATA LOCAL STRING[20](INTEGER);
+
+noteLocalType = DATA LOCAL INTEGER(INTEGER);
+noteLocalIdEgais = DATA LOCAL STRING[100](INTEGER);
+noteLocalIdGood = DATA LOCAL STRING[100](INTEGER);
+noteLocalIdShip = DATA LOCAL STRING[100](INTEGER);
+noteLocalIdCons = DATA LOCAL STRING[100](INTEGER);
+noteLocalIdNoteBPr = DATA LOCAL STRING[100](INTEGER);
+noteLocalIdNoteA = DATA LOCAL STRING[100](INTEGER);
+noteLocalDateBottl = DATA LOCAL DATE(INTEGER);
+noteLocalNumTtn = DATA LOCAL STRING(INTEGER);
+noteLocalDateTtn = DATA LOCAL DATE(INTEGER);
+noteLocalNumConfirm = DATA LOCAL STRING(INTEGER);
+noteLocalDateConfirm = DATA LOCAL DATE(INTEGER);
+noteLocalQuan = DATA LOCAL NUMERIC[16,5](INTEGER);
+noteLocalDateShip = DATA LOCAL DATE(INTEGER);
+
+balLocalCodShop = DATA LOCAL INTEGER(INTEGER);
+balLocalQuan = DATA LOCAL NUMERIC[16,5](INTEGER);
+balLocalIdNoteBPr = DATA LOCAL STRING[100](INTEGER);
+
+markLocalBarCod = DATA LOCAL STRING[200](INTEGER);
+markLocalIdNoteBPr = DATA LOCAL STRING[100](INTEGER);
+
+// --- 1. Импорт справочника УТМ ---
+
+importEgaisUtm 'Импорт УТМ ЕГАИС' () {
+    LOCAL file = FILE();
+
+    EXTERNAL SQL egaisDbUrl()
+        EXEC 'SELECT u.IdUtm, u.UtmName, u.UtmNetAddr, s.cod_shop ' +
+             'FROM Pub.Utm u LEFT JOIN Pub.UtmShop s ON u.IdUtm = s.IdUtm'
+        TO file;
+
+    IMPORT TABLE FROM file() TO utmLocalId, utmLocalName, utmLocalAddr, utmLocalCodShop;
+
+    FOR [GROUP MIN INTEGER i BY utmLocalId(i)](INTEGER uid) AND
+        [GROUP MAX departmentStore(TEXT(utmLocalCodShop(INTEGER i))) BY utmLocalId(i)](utmLocalId(uid))
+    DO {
+        IF NOT [GROUP MIN UTM u BY name(u)](utmLocalName(uid)) THEN NEW u = UTM {
+            name(u) <- utmLocalName(uid);
+            url(u) <- utmLocalAddr(uid);
+        }
+        FOR UTM u = [GROUP MIN UTM uu BY name(uu)](utmLocalName(uid)) DO
+            url(u) <- utmLocalAddr(uid);
+    }
+
+    FOR utmLocalCodShop(INTEGER i) AND
+        DepartmentStore ds = departmentStore(TEXT(utmLocalCodShop(i))) AND
+        UTM u = [GROUP MIN UTM uu BY name(uu)](utmLocalName(i)) AND
+        Client c = client(ds AS Stock)
+    DO
+        utm(c) <- u;
+
+    APPLY;
+}
+
+// --- 2. Импорт справочника организаций ---
+
+importEgaisClients 'Импорт организаций ЕГАИС' () {
+    LOCAL file = FILE();
+
+    EXTERNAL SQL egaisDbUrl()
+        EXEC 'SELECT IdFirmEgais, ShortName, Name, inn, Kpp, ' +
+             'CAST(AddrRegion AS CHAR(10)), Address, CAST(OrgWBver AS CHAR(10)), CAST(cod_firm AS CHAR(20)), CAST(OrgType AS CHAR(5)) ' +
+             'FROM Pub.EgaisFirm'
+        TO file;
+
+    IMPORT TABLE FROM file() TO
+        firmLocalId, firmLocalShortName, firmLocalFullName,
+        firmLocalInn, firmLocalKpp, firmLocalRegion, firmLocalAddress, firmLocalWBver, firmLocalCodFirm,
+        firmLocalTypeOrg;
+
+    FOR firmLocalId(INTEGER i) AND departmentStore(firmLocalCodFirm(i)) AND
+        NOT client(firmLocalId(i))
+    DO NEW c = Client {
+        id(c) <- firmLocalId(i);
+    }
+    FOR firmLocalId(INTEGER i) AND departmentStore(firmLocalCodFirm(i)) AND
+        Client c = client(firmLocalId(i))
+    DO {
+        shortName(c) <- firmLocalShortName(i);
+        fullName(c) <- firmLocalFullName(i);
+        INN(c) <- firmLocalInn(i);
+        KPP(c) <- firmLocalKpp(i);
+        regionCode(c) <- firmLocalRegion(i);
+        description(c) <- firmLocalAddress(i);
+        versionWB(c) <- firmLocalWBver(i);
+        type(c) <- type(firmLocalTypeOrg(i)) WHERE firmLocalTypeOrg(i);
+    }
+
+    // Привязка склада к организации ЕГАИС по cod_firm = id(DepartmentStore)
+    FOR firmLocalId(INTEGER i) AND Client c = client(firmLocalId(i)) AND
+        firmLocalCodFirm(i) AND DepartmentStore ds = departmentStore(firmLocalCodFirm(i))
+    DO
+        client(ds AS Stock) <- c;
+
+    APPLY;
+}
+
+// --- 3. Импорт справочника алкогольной продукции ---
+
+importEgaisProducts 'Импорт алкогольной продукции ЕГАИС' () {
+    LOCAL file = FILE();
+
+    EXTERNAL SQL egaisDbUrl()
+        EXEC 'SELECT DISTINCT eg.IdGoodEgais, SUBSTR(eg.Name, 1, 300), eg.Vol, eg.AlcProc, eg.IdProdEgais, CAST(eg.cod_good AS CHAR(20)) ' +
+             'FROM Pub.EgaisGood eg ' +
+             'JOIN Pub.Parts p ON p.IdGoodEgais = eg.IdGoodEgais ' +
+             'JOIN Pub.PartsShop ps ON ps.CodeParts = p.CodeParts ' +
+             'WHERE ps.QuanRest > 0'
+        TO file;
+
+    IMPORT TABLE FROM file() TO goodLocalId, goodLocalName, goodLocalVol, goodLocalAlcProc, goodLocalIdProd, goodLocalCodGood;
+
+    FOR goodLocalId(INTEGER i) AND NOT product(goodLocalId(i)) DO NEW p = Product {
+        id(p) <- goodLocalId(i);
+    }
+    FOR goodLocalId(INTEGER i) AND Product p = product(goodLocalId(i)) DO {
+        fullName(p) <- goodLocalName(i);
+        capacity(p) <- goodLocalVol(i);
+        alcVolume(p) <- goodLocalAlcProc(i);
+        producer(p) <- client(goodLocalIdProd(i));
+    }
+
+    // Связь с товаром справочника по cod_good = id(Item)
+    FOR goodLocalId(INTEGER i) AND Product p = product(goodLocalId(i)) AND
+        goodLocalCodGood(i) AND Item it = item(goodLocalCodGood(i))
+    DO
+        in(it, p) <- TRUE;
+
+    APPLY;
+}
+
+// --- 4. Импорт справок А (F1Reg) ---
+
+importEgaisF1 'Импорт справок А ЕГАИС' () {
+    LOCAL file = FILE();
+
+    // Запрос 1: создание F1Reg из Parts
+    EXTERNAL SQL egaisDbUrl()
+        EXEC 'SELECT p.IdNoteA, p.IdGoodEgais, ps.CodeParts ' +
+             'FROM Pub.PartsShop ps ' +
+             'JOIN Pub.Parts p ON ps.CodeParts = p.CodeParts'
+        TO file;
+
+    IMPORT TABLE FROM file() TO noteLocalIdEgais, noteLocalIdGood;
+
+    FOR INTEGER i = [GROUP MAX INTEGER r BY noteLocalIdEgais(r)](STRING str) AND product(noteLocalIdGood(i)) AND
+        NOT f1Reg(str)
+        DO NEW r = F1Reg {
+        id(r) <- str;
+        product(r) <- product(noteLocalIdGood(i));
+    }
+
+    // Запрос 2: доимпорт данных из EgaisNote
+    EXTERNAL SQL egaisDbUrl()
+        EXEC 'SELECT n.IdNoteEgais, n.IdShipEgais, ' +
+             'SUBSTR(n.NumTtn, 1, 500), n.DateTtn, SUBSTR(n.NumConfirm, 1, 500), n.DateConfirm, n.DateBottl, n.Quan ' +
+             'FROM Pub.EgaisNote n ' +
+             'WHERE n.NoteType = 1'
+        TO file;
+
+    IMPORT TABLE FROM file() TO
+        noteLocalIdEgais, noteLocalIdShip,
+        noteLocalNumTtn, noteLocalDateTtn, noteLocalNumConfirm, noteLocalDateConfirm, noteLocalDateBottl,
+        noteLocalQuan;
+
+    FOR noteLocalIdEgais(INTEGER i) AND F1Reg r = f1Reg(noteLocalIdEgais(i)) DO {
+        originalClient(r) <- client(noteLocalIdShip(i));
+        originalDocNumber(r) <- noteLocalNumTtn(i);
+        originalDocDate(r) <- noteLocalDateTtn(i);
+        egaisFixNumber(r) <- noteLocalNumConfirm(i);
+        egaisFixDate(r) <- noteLocalDateConfirm(i);
+        bottlingDate(r) <- noteLocalDateBottl(i);
+        quantityBatch(r) <- noteLocalQuan(i);
+    }
+
+    APPLY;
+}
+
+// --- 5. Импорт справок Б (F2Reg) ---
+
+importEgaisF2 'Импорт справок Б ЕГАИС' () {
+    LOCAL file = FILE();
+
+    EXTERNAL SQL egaisDbUrl()
+        EXEC 'SELECT p.IdNoteBPr, p.IdNoteA, ef.IdFirmEgais ' +
+             'FROM Pub.PartsShop ps ' +
+             'JOIN Pub.Parts p ON ps.CodeParts = p.CodeParts ' +
+             'JOIN Pub.EgaisFirm ef ON ef.cod_firm = ps.cod_shop'
+        TO file;
+
+    IMPORT TABLE FROM file() TO noteLocalIdEgais, noteLocalIdNoteA, noteLocalIdShip;
+
+    FOR INTEGER i = [GROUP MAX INTEGER r BY noteLocalIdEgais(r)](STRING str) AND client(noteLocalIdShip(i)) AND
+        NOT f2Reg(str)
+    DO NEW r = F2Reg {
+        id(r) <- str;
+        f1Reg(r) <- f1Reg(noteLocalIdNoteA(i));
+        client(r) <- client(noteLocalIdShip(i));
+    }
+
+    // Запрос 2: доимпорт данных из EgaisNote
+    EXTERNAL SQL egaisDbUrl()
+        EXEC 'SELECT n.IdNoteEgais, n.IdShipEgais, n.IdConsEgais, n.IdGoodEgais, ' +
+             'SUBSTR(n.NumTtn, 1, 500), n.DateTtn, n.DateShip, n.Quan ' +
+             'FROM Pub.EgaisNote n ' +
+             'WHERE n.NoteType = 1'
+        TO file;
+
+    IMPORT TABLE FROM file() TO
+        noteLocalIdEgais, noteLocalIdShip, noteLocalIdCons, noteLocalIdGood,
+        noteLocalNumTtn, noteLocalDateTtn, noteLocalDateShip, noteLocalQuan;
+
+    FOR noteLocalIdEgais(INTEGER i) AND F2Reg r = f2Reg(noteLocalIdEgais(i)) DO {
+        replyShipper(r) <- client(noteLocalIdShip(i));
+        replyConsignee(r) <- client(noteLocalIdCons(i));
+        replyProduct(r) <- product(noteLocalIdGood(i));
+        replyTTNNumber(r) <- noteLocalNumTtn(i);
+        replyTTNDate(r) <- noteLocalDateTtn(i);
+        replyShippingDate(r) <- noteLocalDateShip(i);
+        replyQuantity(r) <- noteLocalQuan(i);
+    }
+
+    APPLY;
+}
+
+// --- 6. Импорт начальных остатков регистра 1 ---
+
+importEgaisBalances 'Импорт начальных остатков ЕГАИС' () {
+    LOCAL file = FILE();
+
+    EXTERNAL SQL egaisDbUrl()
+        EXEC 'SELECT ps.cod_shop, ps.QuanRest, p.IdNoteBPr ' +
+             'FROM Pub.PartsShop ps JOIN Pub.Parts p ON ps.CodeParts = p.CodeParts'
+        TO file;
+
+    IMPORT TABLE FROM file() TO balLocalCodShop, balLocalQuan, balLocalIdNoteBPr;
+
+    FOR FRegLedgerInit l IS FRegLedgerInit DO DELETE l;
+
+    FOR balLocalIdNoteBPr(INTEGER i) AND f2Reg(balLocalIdNoteBPr(i)) DO NEW l = FRegLedgerInit {
+        dataF2Reg(l) <- f2Reg(balLocalIdNoteBPr(i));
+        dataQuantity(l) <- balLocalQuan(i);
+        dataDate(l) <- currentDate();
+        dataNumber(l) <- 'НАЧ-' + TEXT(balLocalCodShop(i));
+    }
+
+    APPLY;
+}
+
+// --- 7. Импорт кодов маркировки ---
+
+importEgaisMarkCodes 'Импорт кодов маркировки ЕГАИС' () {
+    LOCAL file = FILE();
+
+    EXTERNAL SQL egaisDbUrl()
+        EXEC 'SELECT em.bar_cod, p.IdNoteBPr ' +
+             'FROM Pub.EgaisMarkItem em JOIN Pub.Parts p ON em.CodeParts = p.CodeParts ' +
+             'WHERE LEN(em.bar_cod) = 150'
+        TO file;
+
+    IMPORT TABLE FROM file() TO markLocalBarCod, markLocalIdNoteBPr;
+
+    FOR markLocalBarCod(INTEGER i) AND NOT markCode(markLocalBarCod(i)) DO NEW m = MarkCode {
+        id(m) <- markLocalBarCod(i);
+    }
+    FOR markLocalBarCod(INTEGER i) AND MarkCode m = markCode(markLocalBarCod(i)) DO
+        dataF2Reg(m) <- f2Reg(markLocalIdNoteBPr(i));
+
+    APPLY;
+}
+
+// --- Мастер-действие ---
+
+importEgaisAll 'Импорт начальных данных ЕГАИС' () {
+    importEgaisClients();
+    importEgaisUtm();
+    importEgaisProducts();
+    importEgaisF1();
+    importEgaisF2();
+    importEgaisBalances();
+    importEgaisMarkCodes();
+    MESSAGE 'Импорт начальных данных ЕГАИС завершён';
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() importEgaisAll,
+                 importEgaisUtm, importEgaisClients, importEgaisProducts,
+                 importEgaisF1, importEgaisF2, importEgaisBalances, importEgaisMarkCodes
+;
+
+DESIGN integrationData {
+    gestori {
+        NEW egaisInitImport {
+            caption = 'Начальный импорт ЕГАИС';
+            MOVE PROPERTY(importEgaisAll());
+            MOVE PROPERTY(importEgaisUtm());
+            MOVE PROPERTY(importEgaisClients());
+            MOVE PROPERTY(importEgaisProducts());
+            MOVE PROPERTY(importEgaisF1());
+            MOVE PROPERTY(importEgaisF2());
+            MOVE PROPERTY(importEgaisBalances());
+            MOVE PROPERTY(importEgaisMarkCodes());
+        }
+    }
+}
