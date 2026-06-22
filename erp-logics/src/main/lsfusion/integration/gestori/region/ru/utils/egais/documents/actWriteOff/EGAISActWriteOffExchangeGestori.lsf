@@ -72,13 +72,13 @@ CONSTRAINT DROPPED(ActWriteOff a IS ActWriteOff) AND PREV(posted(a)) AND NOT dis
 
 CONSTRAINT (DROPCHANGED(number(ActWriteOff a)) OR DROPCHANGED(dateTime(a)) OR DROPCHANGED(regId(a))
     OR CHANGED(type(a)) OR DROPCHANGED(dataSaleDateTime(a)) OR DROPCHANGED(client(a)))
-    AND posted(a) AND NOT disableEGAISDocumentConstraints()
+    AND PREV(posted(a)) AND NOT disableEGAISDocumentConstraints()
     MESSAGE 'Запрещено изменять атрибуты проведённого акта списания с баланса';
 
 CONSTRAINT (SETCHANGED(product(ActWriteOffPosition p)) OR SETCHANGED(f2Reg(p)) OR SETCHANGED(overQuantity(p))
     OR SETCHANGED(sumSale(p)) OR DROPPED(product(p)) OR DROPPED(f2Reg(p)) OR DROPPED(overQuantity(p))
     OR DROPPED(sumSale(p)))
-    AND posted(actWriteOff(p)) AND NOT disableEGAISDocumentConstraints()
+    AND PREV(posted(actWriteOff(p))) AND NOT disableEGAISDocumentConstraints()
     MESSAGE 'Запрещено изменять атрибуты строки проведённого акта списания с баланса';
 
 CONSTRAINT DROPPED(p IS ActWriteOffPosition)
@@ -86,11 +86,11 @@ CONSTRAINT DROPPED(p IS ActWriteOffPosition)
     MESSAGE 'Запрещено удалять строки проведённого акта списания с баланса';
 
 CONSTRAINT SET(p IS ActWriteOffPosition)
-    AND posted(actWriteOff[ActWriteOffPosition](p)) AND NOT disableEGAISDocumentConstraints()
+    AND PREV(posted(actWriteOff[ActWriteOffPosition](p))) AND NOT disableEGAISDocumentConstraints()
     MESSAGE 'Запрещено добавлять строки в проведённый акт списания с баланса';
 
 CONSTRAINT (SETDROPPED(ActWriteOffMark m IS ActWriteOffMark) OR DROPCHANGED(markCode(m)))
-    AND posted(actWriteOff(actWriteOffPosition(m)))
+    AND PREV(posted(actWriteOff(actWriteOffPosition(m))))
     AND NOT disableEGAISDocumentConstraints()
     MESSAGE 'Запрещено изменять марки проведённого акта списания с баланса';
 
