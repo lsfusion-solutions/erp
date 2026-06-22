@@ -393,10 +393,11 @@ FORM ordrspKontur FORMEXTID 'eDIMessage'
 
 indexEOrderResponseDetail (INTEGER i) = PARTITION SUM 1 ORDER i BY ordrspGTIN(i),ordrspOrderNumber();
 
-overReceiveMessageOrdrsp ABSTRACT (Message);
-canceledReceiveMessageOrdrsp ABSTRACT (Message);
+overReceiveMessageOrdrsp ABSTRACT LIST (Message);
+afterReceiveMessageOrdrspCreateEOrderResponse ABSTRACT LIST (Message, EOrderResponse);
+canceledReceiveMessageOrdrsp ABSTRACT LIST (Message);
 
-overImportOrdrsp ABSTRACT (EOrderResponse);
+overImportOrdrsp ABSTRACT LIST (EOrderResponse);
 
 overReceiveMessages () + {
     FOR nameFile(Message m) AND NOT dateTimeProcessed(m) AND NOT denyReceiveMessage(m) DO {
@@ -409,6 +410,7 @@ overReceiveMessages () + {
                     NEWSESSION NESTED LOCAL {
                         IF NOT eOrderResponse(ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber()) THEN NEW r = EOrderResponse {
                             id(r) <- STRING[100](ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber());
+                            afterReceiveMessageOrdrspCreateEOrderResponse(m, r);
                         }
                         LOCAL idDetail = STRING[100] (INTEGER);
                         idDetail(INTEGER l) <- CONCAT '/', ordrspSupplierGLN(), ordrspDocumentNumber(), ordrspOrderNumber(), ordrspGTIN(l), (indexEOrderResponseDetail(l) IF indexEOrderResponseDetail(l) > 1) WHERE ordrspGTIN(l);
@@ -534,9 +536,10 @@ FORM desadvKontur FORMEXTID 'eDIMessage'
         desadvLineItemAmountCharges EXTID 'vATAmount'
 ;
 
-overReceiveMessageDesadv ABSTRACT (Message);
-overReceiveMessageDesadv ABSTRACT (EOrderDespatchAdvice);
-canceledReceiveMessageDesadv ABSTRACT (Message);
+overReceiveMessageDesadv ABSTRACT LIST (Message);
+overReceiveMessageDesadv ABSTRACT LIST (EOrderDespatchAdvice);
+afterReceiveMessageDesadvCreateEOrderDespatchAdvice ABSTRACT LIST (Message, EOrderDespatchAdvice);
+canceledReceiveMessageDesadv ABSTRACT LIST (Message);
 
 overReceiveMessages() + {
     FOR nameFile(Message m) AND NOT dateTimeProcessed(m) AND NOT denyReceiveMessage(m) DO {
@@ -549,6 +552,7 @@ overReceiveMessages() + {
                     NEWSESSION NESTED LOCAL {
                         IF NOT eOrderDespatchAdvice(desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber()) THEN NEW a = EOrderDespatchAdvice {
                             id(a) <- STRING[100](desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber());
+                            afterReceiveMessageDesadvCreateEOrderDespatchAdvice(m, a);
                         }
                         FOR desadvGTIN(INTEGER l) AND NOT eOrderDespatchAdviceDetail(desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber() + '/' + l) DO NEW d = EOrderDespatchAdviceDetail {
                             orderDespatchAdvice(d) <- eOrderDespatchAdvice(desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber());
@@ -760,7 +764,6 @@ GROUP lineItemsRetann EXTID 'lineItems': announcementForReturns;
 GROUP returnQuantity;
 GROUP contractIdentificator;
 GROUP despatchIdentificator;
-GROUP deliveryNoteIdentificator;
 
 senderRetann = DATA LOCAL STRING();
 recipientRetann = DATA LOCAL STRING();
