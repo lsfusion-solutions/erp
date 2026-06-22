@@ -35,15 +35,8 @@ public class ScannerDaemonAction extends InternalAction {
         Integer comPort = (Integer) context.getKeyValue(comPortInterface).getValue();
         if(comPort != null) {
             boolean singleRead = context.getKeyValue(singleReadInterface).getValue() != null;
-
             String comLibrary = trim((String) context.getKeyValue(comLibraryInterface).getValue());
-            boolean useJssc = comLibrary != null && comLibrary.equals("ScannerDaemon_ComLibrary.jssc");
-            boolean usePureJavaComm = comLibrary != null && comLibrary.equals("ScannerDaemon_ComLibrary.pureJavaComm");
-            if (usePureJavaComm) {
-                throw new RuntimeException("Pure Java Comm not supported for Scanner Daemon");
-            }
-
-            result = (String) context.requestUserInteraction(new ScannerDaemonClientAction(comPort, singleRead, useJssc));
+            result = (String) context.requestUserInteraction(new ScannerDaemonClientAction(comPort, singleRead, comLibrary));
         }
         try {
             findProperty("scannerDaemonError[]").change(trimToNull(result), context);

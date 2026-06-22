@@ -7,7 +7,9 @@ import lsfusion.interop.action.ClientActionDispatcher;
 import lsfusion.server.physics.dev.integration.external.to.equ.com.SerialPortHandler;
 import lsfusion.server.physics.dev.integration.external.to.equ.com.SerialPortHandler2;
 import org.apache.commons.lang.StringUtils;
+import purejavacomm.SerialPortEvent;
 
+import java.io.InputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -19,12 +21,12 @@ import static com.fazecast.jSerialComm.SerialPort.LISTENING_EVENT_DATA_AVAILABLE
 public class ScannerDaemonClientAction implements ClientAction {
     private Integer comPort;
     private boolean singleRead;
-    private boolean useJssc;
+    private String comLibrary;
 
-    public ScannerDaemonClientAction(Integer comPort, boolean singleRead, boolean useJssc) {
+    public ScannerDaemonClientAction(Integer comPort, boolean singleRead, String comLibrary) {
         this.comPort = comPort;
         this.singleRead = singleRead;
-        this.useJssc = useJssc;
+        this.comLibrary = comLibrary;
     }
 
     @Override
@@ -73,6 +75,9 @@ public class ScannerDaemonClientAction implements ClientAction {
                 boolean isUnix = (OS.contains("nix") || OS.contains("nux") || OS.contains("aix"));
                 String portName = (isUnix ? "/dev/tty" : "COM") + currentCom;
 
+                boolean useJssc = "ScannerDaemon_ComLibrary.jssc".equals(comLibrary);
+                boolean usePureJavaComm = "ScannerDaemon_ComLibrary.pureJavaComm".equals(comLibrary);
+
                 if(useJssc) {
                     SerialPortHandler.addSerialPort(dispatcher, portName, 9600, (event, serialPort) -> {
                         if (event.isRXCHAR()) {
@@ -112,6 +117,40 @@ public class ScannerDaemonClientAction implements ClientAction {
                             barcodeMap.put(event.getPortName(), barcode);
                         }
                     }, SerialPort.MASK_RXCHAR | SerialPort.MASK_CTS | SerialPort.MASK_DSR);
+                } else if (usePureJavaComm) {
+                    SerialPortHandler3.addSerialPort(dispatcher, portName, 9600, (event, serialPort) -> {
+                        if (event.getEventType() == SerialPortEvent.DATA_AVAILABLE) {
+                            String barcode = barcodeMap.get(portName);
+                            try {
+                                InputStream in = serialPort.getInputStream();
+                                if (singleRead) {
+                                    Thread.sleep(50);
+                                    byte[] portBytes = new byte[in.available()];
+                                    int read = in.read(portBytes);
+
+                                    barcode = "";
+                                    for (int i = 0; i < read; i++) {
+                                        byte portByte = portBytes[i];
+                                        if (((char) portByte) != '\n' && ((char) portByte) != '\r')
+                                            barcode += (char) portByte;
+                                    }
+                                    if (!barcode.isEmpty())
+                                        eventBus.fireValueChanged(SCANNER_SID, barcode.trim());
+                                } else if (in.available() > 0) {
+                                    char ch = (char) in.read();
+                                    if (ch >= '0' && ch <= '9')
+                                        barcode += ch;
+                                    if (in.available() == 0) {
+                                        eventBus.fireValueChanged(SCANNER_SID, barcode);
+                                        barcode = "";
+                                    }
+                                }
+                                barcodeMap.put(portName, barcode);
+                            } catch (Exception ex) {
+                                throw new RuntimeException(ex);
+                            }
+                        }
+                    });
                 } else {
                     SerialPortHandler2.addSerialPort(dispatcher, portName, 9600, (event, serialPort) -> {
                         if (event.getEventType() == LISTENING_EVENT_DATA_AVAILABLE) {
