@@ -32,6 +32,9 @@ lotInfo(STRING s) = GROUP CONCAT lotInfo(s, INTEGER o), '' ORDER o;
 
 lotType(Barcode barcode) = idLotType(sku(barcode));
 
+lotExpiryDate(Barcode barcode) = GROUP MIN expiryDate(Lot l) IF l IS Lot AND currentBalance(l) AND idBarcodeSku(l) = id(barcode);
+lotExpiryDate(Barcode b, Stock s) = OVERRIDE (GROUP MIN expiryDate(Lot l) IF l IS Lot AND currentBalance(l) AND idBarcodeSku(l) = id(b)), lastExpiryDate(sku(b), s);
+
 //
 sendAllLots 'Загружать в терминал все марки' = DATA BOOLEAN () PREREAD;
 EXTEND FORM options
