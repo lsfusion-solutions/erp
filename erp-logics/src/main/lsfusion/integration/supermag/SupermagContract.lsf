@@ -37,6 +37,9 @@ imported = DATA LOCAL BOOLEAN (UserContractSku);
 overImportSupplierPrice ABSTRACT LIST ();
 overImportSupplierPrice2 ABSTRACT LIST ();
 
+// строка ПСЦ, которую при синхронизации спецификации нельзя ни удалять, ни закрывать (напр. слой истории цены)
+skipSyncSupplierDetail = ABSTRACT BOOLEAN (UserPriceListDetail);
+
 skipCreateContract 'Не создавать договоры для каждого контракта' = DATA BOOLEAN () TABLE settings;
 
 customContractFilter 'Фильтр для контрактов' = DATA STRING () TABLE settings;
@@ -179,8 +182,11 @@ importContract 'Импорт из контрактов с поставщикам
         MOQ(sku(det)) <- minQuantity(i) WHERE minQuantity(i) AND packSize(i) ;
     }
     
-    FOR id(UserPriceListDetail d) AND (GROUP SUM 1 IF id(userPriceList(d)) == idDoc(INTEGER i)) AND NOT (GROUP SUM 1 IF id(d) == idDet(INTEGER i)) DO {
-        DELETE d;
+    // выпавшая из текущей спецификации строка: не удаляем, а закрываем период текущей датой (один раз); слои истории не трогаем
+    FOR id(UserPriceListDetail d) AND (GROUP SUM 1 IF id(userPriceList(d)) == idDoc(INTEGER i)) AND NOT (GROUP SUM 1 IF id(d) == idDet(INTEGER i))
+        AND NOT skipSyncSupplierDetail(d) AND NOT toDataDate(d) DO {
+        toDataDate(d) <- currentDate();
+        toDataTime(d) <- currentTime();
     }
     
     //
