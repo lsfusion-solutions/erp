@@ -17,12 +17,14 @@ END;
 
 readonlyDescriptionClientActFixBarCode() += TRUE;
 
+afterPostActFixBarCode ABSTRACT LIST (ActFixBarCode);
 post 'Провести' (ActFixBarCode a)  {
-    NEWSESSION { posted(a) <- TRUE; apply(); }
+    NEWSESSION { posted(a) <- TRUE; afterPostActFixBarCode(a); apply(); }
 } TOOLBAR CONFIRM;
 
+afterUnpostActFixBarCode ABSTRACT LIST (ActFixBarCode);
 unpost 'Распровести' (ActFixBarCode a)  {
-    NEWSESSION { posted(a) <- NULL; apply(); }
+    NEWSESSION { posted(a) <- NULL; afterUnpostActFixBarCode(a); apply(); }
 } TOOLBAR CONFIRM;
 
 in (ActFixBarCode a, MarkCode c) = GROUP MIN TRUE BY actFixBarCode(actFixBarCodePosition(ActFixBarCodeMark m)), markCode(m);
@@ -78,10 +80,8 @@ processInputIdMarkCode(ActFixBarCode a, ActFixBarCodePosition p, STRING[200] s) 
             RETURN;
         }
         IF countMarkCodeUnpostedActFixBarCodeMarkPositions(markCode()) THEN {
-            IF f2Reg(markCode()) THEN {
-                MESSAGE 'Код маркировки ЕГАИС "' + s + '" уже находится в непроведенном акте фиксации' NOWAIT;
-                RETURN;
-            }
+            MESSAGE 'Код маркировки ЕГАИС "' + s + '" уже находится в непроведенном акте фиксации' NOWAIT;
+            RETURN;
         }
     }
 
