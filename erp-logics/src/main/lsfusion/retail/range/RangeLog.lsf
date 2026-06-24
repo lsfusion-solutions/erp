@@ -62,6 +62,7 @@ note 'Примечание' = DATA STRING[500] (RangeLog) CHARWIDTH 20;
 //                                       ORDER dateTime(rev), rev
 //                                       WHERE date(rev)
 //                                       BY range(rev)COMPLEX;
+overAddLog ABSTRACT (RangeLog, Range, Sku);
 
 WHEN (SETCHANGED (level(rangeRev(Range r), Sku s))) AND NOT PREV(level(rangeRev(r),s))  AND NOT disableRangeLog()  DO { 
     NEW d = RangeLog {
@@ -77,6 +78,9 @@ WHEN (SETCHANGED (level(rangeRev(Range r), Sku s))) AND NOT PREV(level(rangeRev(
         dateTimeSession(d) <- currentDateTime();             
     }
 }
+
+overChangeLog ABSTRACT (RangeLog, Range, Sku);
+
 WHEN (SETCHANGED (level(rangeRev(Range r), Sku s))) AND PREV(level(rangeRev(r),s))  AND NOT disableRangeLog()  DO { 
     NEW d = RangeLog {
         range(d) <- r;
