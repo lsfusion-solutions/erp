@@ -92,6 +92,9 @@ WHEN (SETCHANGED (level(rangeRev(Range r), Sku s))) AND PREV(level(rangeRev(r),s
         dateTimeSession(d) <- currentDateTime();             
     }
 }
+
+overDropLog ABSTRACT (RangeLog, Range, Sku);
+
 WHEN (DROPPED (level(rangeRev(Range r), Sku s) AS RangeLevel) )  AND NOT disableRangeLog()  DO { 
     NEW d = RangeLog {
         range(d) <- r;
@@ -102,7 +105,8 @@ WHEN (DROPPED (level(rangeRev(Range r), Sku s) AS RangeLevel) )  AND NOT disable
         hostnameComputer(d) <- hostnameCurrentComputer();
         userLogin(d) <- login(currentUser()); 
         nameContact(d) <- STRING[100](name(currentUser()));
-        dateTimeSession(d) <- currentDateTime();             
+        dateTimeSession(d) <- currentDateTime();
+        overDropLog(d, r, s);
     }
 }
                                                                                                              
