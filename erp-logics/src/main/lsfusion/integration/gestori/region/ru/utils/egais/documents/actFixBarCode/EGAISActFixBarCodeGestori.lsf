@@ -31,7 +31,7 @@ countMarkCodeUnpostedActFixBarCodeMarkPositions 'Кол-во марок в не�
     GROUP SUM 1 IF NOT posted(ActFixBarCodeMark m) BY markCode(m);
 
 unmarkedQuantity 'Доступно к маркировке' (ActFixBarCodePosition p) =
-    currentBalance(f2Reg(p)) (-) currentBalanceMarkCode(f2Reg(p));
+    currentBalance(f2Reg(p)) (-) countMarkCodes(f2Reg(p));
 
 createdBy 'Создан актом' = DATA ActFixBarCode (MarkCode);
 
@@ -48,63 +48,44 @@ processInputIdMarkCode(ActFixBarCode a, ActFixBarCodePosition p, STRING[200] s) 
         MESSAGE 'По выбранной справке нет доступного к маркировке количества' NOWAIT;
         RETURN;
     }
+
+    IF NOT position() IS ActFixBarCodePosition THEN NEW pos = ActFixBarCodePosition {
+        actFixBarCode(pos) <- a;
+        position() <- pos;
+    }
     
     IF NOT markCode() THEN {
         IF NOT length(s) == 150 THEN {
             MESSAGE 'Длина код маркировки ЕГАИС должна быть равна 150: "' + s + '"';
             RETURN;
         }
-        
-        LOCAL positionItem = Item ();
-        positionItem() <- [GROUP LAST Item item IF in(item, Product product) ORDER item BY product](product(position()));
-
         NEW l = Lot {
             id(l) <- s;
-            sku(l) <- positionItem() WHERE positionItem();
+            sku(l) <- minItem(product(position()));
             NEW m = MarkCode {
                 id(m) <- s;
                 createdBy(m) <- a;
-                NEW am = ActFixBarCodeMark {
-                    actFixBarCodePosition(am) <- position();
-                    markCode(am) <- m;
-                }
+                markCode() <- m;
             }
         }
-        RETURN;
-    }
-    
-    IF f2Reg(markCode()) THEN {
-        MESSAGE 'Код маркировки ЕГАИС "' + s + '" уже находится на балансе организации' NOWAIT;
-        RETURN;
-    }
-
-    IF in(a, markCode()) THEN {
-        MESSAGE 'Код маркировки ЕГАИС "' + s + '" уже присутствует в этом документе' NOWAIT;
-        RETURN;
-    }
-
-    IF countMarkCodeUnpostedActFixBarCodeMarkPositions(markCode()) THEN {
+    } ELSE {
         IF f2Reg(markCode()) THEN {
-            MESSAGE 'Код маркировки ЕГАИС "' + s + '" уже находится в непроведенном акте фиксации' NOWAIT;
+            MESSAGE 'Код маркировки ЕГАИС "' + s + '" уже находится на балансе организации' NOWAIT;
             RETURN;
         }
-    }
-
-    IF NOT f2Reg(position()) == f2Reg(markCode()) THEN {
-        position() <- GROUP MIN ActFixBarCodePosition ap IF f2Reg(ap) == f2Reg(markCode()) AND actFixBarCode(ap) == a;
-    }
-
-    IF NOT position() IS ActFixBarCodePosition THEN {
-        NEW pos = ActFixBarCodePosition {
-            actFixBarCode(pos) <- a;
-            f2Reg(pos) <- f2Reg(markCode()) WHERE NOT createdBy(markCode()) == a;
-            product(pos) <- product(markCode()) WHERE NOT createdBy(markCode()) == a;
-
-            position() <- pos;
+        IF in(a, markCode()) THEN {
+            MESSAGE 'Код маркировки ЕГАИС "' + s + '" уже присутствует в этом документе' NOWAIT;
+            RETURN;
+        }
+        IF countMarkCodeUnpostedActFixBarCodeMarkPositions(markCode()) THEN {
+            IF f2Reg(markCode()) THEN {
+                MESSAGE 'Код маркировки ЕГАИС "' + s + '" уже находится в непроведенном акте фиксации' NOWAIT;
+                RETURN;
+            }
         }
     }
 
-    NEW m = ActFixBarCodeMark {
+    IF position() AND markCode() THEN NEW m = ActFixBarCodeMark {
         actFixBarCodePosition(m) <- position();
         markCode(m) <- markCode();
     }
@@ -112,20 +93,35 @@ processInputIdMarkCode(ActFixBarCode a, ActFixBarCodePosition p, STRING[200] s) 
     seek(position());
 }
 
-WHEN LOCAL FORMS actFixBarCode DROPCHANGED(markCode(ActFixBarCodeMark m))
+WHEN LOCAL FORMS actFixBarCode (SETCHANGED(f2Reg(actFixBarCodePosition(ActFixBarCodeMark m)))
+    OR SETCHANGED(product(actFixBarCodePosition(m))) OR SETCHANGED(markCode(m)))
+    AND minItem(product(actFixBarCodePosition(m))) AND lot(markCode(m)) DO {
+    sku(lot(markCode(m))) <- minItem(product(actFixBarCodePosition(m)));
+}
+
+WHEN (SETCHANGED(f2Reg(actFixBarCodePosition(ActFixBarCodeMark m)))
+    OR SETCHANGED(product(actFixBarCodePosition(m))) OR SETCHANGED(markCode(m)))
+    AND minItem(product(actFixBarCodePosition(m))) AND lot(markCode(m)) DO {
+    sku(lot(markCode(m))) <- minItem(product(actFixBarCodePosition(m)));
+}
+
+WHEN LOCAL FORMS actFixBarCode CHANGED(markCode(ActFixBarCodeMark m))
     AND createdBy(PREV(markCode(m))) == actFixBarCode(actFixBarCodePosition(m))
     AND NOT countMarkCodeUnpostedActFixBarCodeMarkPositions(PREV(markCode(m))) DO {
-    sku(Lot l) <- NULL WHERE id(l) == id(PREV(markCode(m)));
+    DELETE Lot l WHERE id(l) == id(PREV(markCode(m)));
+    DELETE MarkCode mc WHERE mc = PREV(markCode(m));
 }
 
-WHEN LOCAL FORMS actFixBarCode SETCHANGED(markCode(ActFixBarCodeMark m))
+WHEN LOCAL FORMS actFixBarCode (DROPPED(markCode(ActFixBarCodeMark m)) OR DROPPED(actFixBarCodePosition(m)))
     AND createdBy(markCode(m)) == actFixBarCode(actFixBarCodePosition(m))
-    AND Lot l = [GROUP MIN Lot lot BY id(lot)](id(markCode(m))) DO {
-    sku(l) <- [GROUP LAST Item item IF in(item, Product product) ORDER item BY product](product(actFixBarCodePosition(m))) WHERE id(l) == id(markCode(m)) AND NOT sku(l);
+    AND NOT countMarkCodeUnpostedActFixBarCodeMarkPositions(markCode(m)) DO {
+    DELETE Lot l WHERE id(l) == id(markCode(m));
+    DELETE MarkCode mc WHERE mc = markCode(m);
 }
 
-WHEN DROPPED(markCode(ActFixBarCodeMark m)) AND createdBy(markCode(m)) == actFixBarCode(actFixBarCodePosition(m))
-    AND NOT countMarkCodeUnpostedActFixBarCodeMarkPositions(markCode(m)) AND NOT currentBalance(markCode(m)) DO {
+WHEN (DROPPED(markCode(ActFixBarCodeMark m)) OR DROPPED(actFixBarCodePosition(m)))
+    AND createdBy(markCode(m)) == actFixBarCode(actFixBarCodePosition(m))
+    AND NOT countMarkCodeUnpostedActFixBarCodeMarkPositions(markCode(m)) DO {
     DELETE Lot l WHERE id(l) == id(markCode(m));
     DELETE MarkCode mc WHERE mc = markCode(m);
 }
