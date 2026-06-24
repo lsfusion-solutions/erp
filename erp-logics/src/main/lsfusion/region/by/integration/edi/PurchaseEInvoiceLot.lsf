@@ -10,21 +10,20 @@ overCopyBeforeDetail (Purchase.UserInvoice i) + {
     IF NOT skipOverCopyBeforeDetail() THEN {
         FOR EInvoice ei == eInvoice(i) DO {
             FOR EInvoiceDetail eid == [GROUP MAX eInvoiceDetail(EInvoiceLotDetail dd) IF NOT ignoreDetail(eInvoiceDetail(dd))
-                BY eInvoice(eInvoiceDetail(dd)), idParent(dd)](ei, STRING[200] str) AND NOT (OVERRIDE lot(barcodeToId(str)), lot(str)) NEW l = Lot DO {
-                    id(l) <- barcodeToId(str);
-                    tail(l) <- barcodeToTail(str);
+                BY eInvoice(eInvoiceDetail(dd)), idParent(dd)](ei, STRING[200] str) AND NOT lot(str) NEW l = Lot DO {
+                    id(l) <- str;
                     sku(l) <- sku(eid);
                     aggregated(l) <- TRUE;
             }
             FOR EInvoiceDetail eid == [GROUP MAX eInvoiceDetail(EInvoiceLotDetail dd) IF NOT ignoreDetail(eInvoiceDetail(dd))
-                BY eInvoice(eInvoiceDetail(dd)), id(dd)](ei, STRING[200] str) AND NOT (OVERRIDE lot(barcodeToId(str)), lot(str)) NEW l = Lot DO {
-                    id(l) <- barcodeToId(str);
+                BY eInvoice(eInvoiceDetail(dd)), id(dd)](ei, STRING[200] str) AND STRING[200] bc == barcodeToId(str) AND NOT lot(bc) AND NOT lot(str) NEW l = Lot DO {
+                    id(l) <- bc;
                     tail(l) <- barcodeToTail(str);
                     sku(l) <- sku(eid);
             }
 
             FOR eInvoice(eInvoiceDetail(EInvoiceLotDetail dd)) == ei AND NOT ignoreDetail(eInvoiceDetail(dd)) AND idParent(dd) AND Lot l == (OVERRIDE lot(barcodeToId(id(dd))), lot(id(dd))) DO {
-                parent(l) <- OVERRIDE lot(barcodeToId(idParent(dd))), lot(idParent(dd));
+                parent(l) <- lot(idParent(dd));
             }
         }
     }
@@ -38,8 +37,8 @@ overCopy(EInvoiceDetail eid, UserInvoiceDetail id) + {
             aggregated(l) <- TRUE;
         }
 
-        FOR EInvoiceLotDetail el == [GROUP MAX EInvoiceLotDetail dd BY eInvoiceDetail(dd), id(dd)](eid, STRING[200] str) AND NOT lot(barcodeToId(str)) AND NOT lot(str) NEW l = Lot DO {
-            id(l) <- barcodeToId(str);
+        FOR EInvoiceLotDetail el == [GROUP MAX EInvoiceLotDetail dd BY eInvoiceDetail(dd), id(dd)](eid, STRING[200] str) AND STRING[200] bc == barcodeToId(str) AND NOT lot(bc) AND NOT lot(str) NEW l = Lot DO {
+            id(l) <- bc;
             tail(l) <- barcodeToTail(str);
             sku(l) <- sku(id);
         }
