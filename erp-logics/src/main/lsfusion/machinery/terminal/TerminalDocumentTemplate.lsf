@@ -258,7 +258,7 @@ FORM terminalTemplates 'Шаблоны документов ТСД'
     
     OBJECTS t = TerminalTemplate
     PROPERTIES() getTerminalTemplateDetails TOOLBAR
-    PROPERTIES(t) READONLY active, id, dateTime, nameType, nameCompany, nameSupplier, number, note, 
+    PROPERTIES(t) READONLY active, id, dateTime, number, nameType, nameCompany, nameSupplier, note, 
         countTerminalTemplateDetail, quantityTerminalTemplateDetail,
         createdNameUser
     PROPERTIES(t) NEWSESSION NEW, EDIT, DELETE 
@@ -270,7 +270,7 @@ FORM terminalTemplates 'Шаблоны документов ТСД'
         filterSupplier(t),
         terminalTemplate(d) == t
 
-    FILTERGROUP inactive FILTER 'Активные' active(t) 'F6' DEFAULT    
+    FILTERGROUP inactive FILTER 'Активные' active(t) 'F6' DEFAULT
     
 //    EVENTS ON INIT {
 //        notUsedFilter()<- TRUE;
@@ -322,13 +322,14 @@ dateTime 'Дата' = DATA LOCAL DATETIME();
 number 'Номер' = DATA LOCAL STRING();
 idType 'Тип' = DATA LOCAL STRING();
 idSupplier 'Поставщик' = DATA LOCAL STRING();
+userLogin 'Пользователь' = DATA LOCAL STRING();
 note 'Примечание' = DATA LOCAL STRING();
 idBarcode 'Штрихкод' = DATA LOCAL STRING(INTEGER);
 quantity 'Количество' = DATA NUMERIC(INTEGER);
 note 'Примечание' = DATA LOCAL STRING(INTEGER);
 
 FORM importTemplate
-    PROPERTIES() id, dateTime EXTID 'date', number, idType, note, idSupplier
+    PROPERTIES() id, dateTime EXTID 'date', number, idType, note, idSupplier, userLogin
     OBJECTS details = INTEGER
     PROPERTIES(details) quantity, idBarcode
 ;
@@ -348,8 +349,8 @@ saveDocumentTemplate(FILE file) {
         number(t) <- number();
         supplier(t) <- legalEntity(idSupplier());
         note(t) <- note();
-        createdUser(t) <- currentUser();
-        company(t) <- legalEntity(currentUser());
+        createdUser(t) <- customUserLogin(userLogin());
+        company(t) <- legalEntity(stock(customUserLogin(userLogin())));
 
         FOR idBarcode(INTEGER r) NEW td = TerminalTemplateDetail DO {
             terminalTemplate(td) <- t;
