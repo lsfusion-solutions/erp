@@ -43,6 +43,8 @@ createLabelTransaction 'Распечатать ценники'(TerminalDocument 
             priceTransactionDocument(t) <- terminalDocument;
             labelType(t) <- labelType;
 
+            overCreateLabelTransaction(t);
+
             FOR PriceList.PriceListType pt == overPriceListType(t) NOINLINE DO
                 FOR terminalDocument(TerminalDocumentDetail dd) == terminalDocument AND
                     quantity(dd) > 0 AND select(sku(dd), labelType, stock(terminalDocument)) 
@@ -56,10 +58,12 @@ createLabelTransaction 'Распечатать ценники'(TerminalDocument 
     
                     quantity(d) <- INTEGER(quantity(dd));
     
-                    price(d) <- calcPrice(pt, d);
+                    price(d) <- OVERRIDE documentPrice(d), calcPrice(pt, d);
                     retailPrice(d) <- overRetailPrice(d);
                     createAttribute(dd, d);
                 }
+            overCreateDocumentLabelTransaction(t);
+
             DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
 
             IF notCheckEqualRetailPrice() THEN
@@ -88,6 +92,8 @@ createSnapshotTerminalDocumentLabel(TerminalDocument terminalDocument, LabelType
         departmentStore(t) <- stock(terminalDocument);
         priceTransactionDocument(t) <- terminalDocument;
         labelType(t) <- type;
+
+        overCreateLabelTransaction(t);
 
         FOR PriceList.PriceListType pt == overPriceListType(t) NOINLINE DO
             FOR terminalDocument(TerminalDocumentDetail dd) == terminalDocument AND quantity(dd) > 0
@@ -176,29 +182,12 @@ backgroundTerminalDocumentDetail = ABSTRACT COLOR (TerminalDocumentDetail);
 
 countSkuTerminalDocumentDetail 'Кол-во SKU к печати' (TerminalDocument td) = 
         GROUP SUM 1 IF quantity(TerminalDocumentDetail d) > 0 BY terminalDocument(d);
-                      		
-addBarcodeLabelTerminalDocument (TerminalDocument document, STRING[200] s) {
-    FOR Sku sku == (OVERRIDE skuBarcode(s), sku(s)) DO {
-        FOR TerminalDocumentDetail d == terminalDocumentDetail(document, sku) DO {
-            quantity(d) <- quantity(d) (+) 1.0;
-        } ELSE NEW d = TerminalDocumentDetail {
-            terminalDocument(d) <- document;
-            sku(d) <- sku;
-            barcode(d) <- s;
-            quantity(d) <- 1.0;
-            dateTimeScan(d) <- currentDateTime();
-        }
-    } ELSE
-        MESSAGE 'Товар по штрихкоду не найден: ' + s;
-}
 
-inputBarcodeLabelTerminalDocument 'Ввод штрихкода :' (TerminalDocument document) = DATA LOCAL STRING[200] (TerminalDocument) TOOLBAR CHARWIDTH 13 CHANGEKEY 'F4;editing=all' EVENTID 'SCANNER'
-    ON CHANGE { INPUT s = STRING[200] DO addBarcodeLabelTerminalDocument(document, s); }
-;
+@defineAddDetailDialogBarcodeCustomInner(terminalDocument, terminalDocumentDetail, TerminalDocumentDetail, sku);
 
 FORM labelTerminalDocumentAdd 'Печать ценников — новый документ'
     OBJECTS td = TerminalDocument PANEL
-    PROPERTIES(td) inputBarcodeLabelTerminalDocument
+    PROPERTIES(td) addDetailInputBarcodeTerminalDocumentDetail
 
     OBJECTS st = Stock PANEL
     PROPERTIES(st) name SELECTOR
@@ -214,7 +203,7 @@ DESIGN labelTerminalDocumentAdd {
         NEW header {
             horizontal = TRUE;
             MOVE PROPERTY(name(st)) { caption = 'Склад'; }
-            MOVE PROPERTY(inputBarcodeLabelTerminalDocument(td));
+            MOVE PROPERTY(addDetailInputBarcodeTerminalDocumentDetail(td));
         }
         MOVE BOX(tdd) { fill = 1; }
     }
