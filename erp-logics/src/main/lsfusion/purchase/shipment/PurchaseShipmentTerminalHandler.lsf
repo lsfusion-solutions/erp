@@ -12,17 +12,20 @@ fillInvoice 'Заполнить приходную накладную' (Terminal
         lock(i);
         IF lockResult() THEN {
             TRY {
-                LOCAL quantity = NUMERIC[16,5] (Sku, Purchase.UserInvoice);
-                quantity(Sku sku, i) <- [GROUP SUM quantity(TerminalDocumentDetail tdd) IF terminalDocument(tdd) = t BY sku(tdd)](sku);
-
-                FOR invoice(Purchase.UserInvoiceDetail o) == i DO {
-                    shipmentQuantity(o) <- OVERRIDE (PARTITION UNGROUP quantity LIMIT STRICT quantity(o) IF invoice(o) == i ORDER index(o), o BY sku(o), invoice(o)), 0.0;
-                }
-
-                overFillInvoiceTerminal(i, t);
-                
-                used(t) <- TRUE;
                 APPLY;
+                NEWSESSION FORMS userInvoice {
+                    LOCAL quantity = NUMERIC[16,5] (Sku, Purchase.UserInvoice);
+                    quantity(Sku sku, i) <- [GROUP SUM quantity(TerminalDocumentDetail tdd) IF terminalDocument(tdd) = t BY sku(tdd)](sku);
+    
+                    FOR invoice(Purchase.UserInvoiceDetail o) == i DO {
+                        shipmentQuantity(o) <- OVERRIDE (PARTITION UNGROUP quantity LIMIT STRICT quantity(o) IF invoice(o) == i ORDER index(o), o BY sku(o), invoice(o)), 0.0;
+                    }
+    
+                    overFillInvoiceTerminal(i, t);
+                    
+                    used(t) <- TRUE;
+                    APPLY;
+                }
             } FINALLY {
                 unlock(i);
             }
