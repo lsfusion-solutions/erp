@@ -13,8 +13,8 @@ insuranceReserve  (Sku sk, UserOrder o) += NUMERIC[16,5](zScore(sk) *
 recQuantity 'Кол-во к заказу' (Sku s, UserOrder o) =  plan(s, o) * coeffSeason(s) (+)
     (MAX insuranceReserve(s, o) * coeffSeason(s),
         totalReserve(customerStock(o), s, date(o))) (-)
-    (prevCurrentBalance(s, customerStock(o)) IF prevCurrentBalance(s, customerStock(o)) > 0) (-)
-    prevCurrentReserve(s, customerStock(o)) (+) extraReserve(s, customerStock(o));
+        (OVERRIDE (prevCurrentBalance(s, customerStock(o))(-) prevCurrentReserve(s, customerStock(o))) IF (prevCurrentBalance(s, customerStock(o))(-) prevCurrentReserve(s, customerStock(o))) > 0, 0) 
+        (+) extraReserve(s, customerStock(o));
 
 // Формула 2 и 12
 planGestori 'Планируемые продажи' (Sku s, UserOrder o) = (GROUP SUM averageSold(s, customerStock(o)) *
@@ -23,9 +23,8 @@ planGestori 'Планируемые продажи' (Sku s, UserOrder o) = (GROU
     (OVERRIDE extraCoeff(s, customerStock(o)) IF extraCoeff(s, customerStock(o)) > 0, 1.0);
 
 recQuantityGestoriGross 'Кол-во к заказу' (Sku s, UserOrder o) =  planGestori(s, o)
-    (-) (OVERRIDE currentBalance(s, customerStock(o)) IF currentBalance(s, customerStock(o)) > 0,0.0)
-    (+) stockReserve(customerStock(o), s, date(o))
-    (-) prevCurrentReserve(s, customerStock(o));
+    (-) (OVERRIDE (currentBalance(s, customerStock(o))(-) prevCurrentReserve(s, customerStock(o))) IF (currentBalance(s, customerStock(o))(-) prevCurrentReserve(s, customerStock(o))) > 0,0.0)
+    (+) stockReserve(customerStock(o), s, date(o));
 
 recQuantityGestoriMax (Sku s, UserOrder o) = IF recQuantityGestoriGross(s, o) > 0 THEN IF recQuantityGestoriGross(s, o) > dataMaxQuantityOrder(s, customerStock(o)) THEN dataMaxQuantityOrder(s, customerStock(o)) ELSE recQuantityGestoriGross(s, o);
 recQuantityGestoriMin (Sku s, UserOrder o) = IF recQuantityGestoriMax(s, o) > 0 THEN IF recQuantityGestoriMax(s, o) < dataMinQuantityOrder(s, customerStock(o)) THEN dataMinQuantityOrder(s, customerStock(o)) ELSE recQuantityGestoriMax(s, o);
