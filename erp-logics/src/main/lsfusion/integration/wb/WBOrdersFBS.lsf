@@ -760,7 +760,9 @@ afterAddOrdersToSupply(Picking p) + {
 
 wbSupplyBarcode 'Штрихкод поставки WB' = DATA STRING (Picking);
 wbSupplyBarcodeFile 'QR поставки WB' = DATA RAWFILE (Picking);
-
+openWBSupplyBarcodeFile 'QR поставки WB' (Picking p){
+    open(wbSupplyBarcodeFile(p), (OVERRIDE wbSupplyId(p), 'qr') + '.svg');
+}
 // Локальные поля для импорта ответа /barcode (избегаем конфликта с
 // barcode = DATA LOCAL STRING(INTEGER) из WBOrders.lsf).
 supplyBarcodeStr = DATA LOCAL STRING();
@@ -1741,7 +1743,9 @@ EXTEND FORM internetOrders
 EXTEND FORM pickingDashboard
     PROPERTIES (p) TOOLBAR SHOWIF isWBOrderPicking(p) AND wbSupplyId(p) sendSupplyToDeliver, getSupplyInfo, getOrdersInSupply, deleteSupplyFBS,
         manageSupplyBoxes SHOWIF isWBOrderPicking(p) AND wbSupplyId(p) AND isPvzDelivery(p),
-        getSupplyBarcode SHOWIF isWBOrderPicking(p) AND wbSupplyId(p) AND (status(p) == StatusPicking.deliver OR status(p) == StatusPicking.closed)
+        getSupplyBarcode SHOWIF isWBOrderPicking(p) AND wbSupplyId(p) AND (status(p) == StatusPicking.deliver OR 
+            status(p) == StatusPicking.closed) AND NOT wbSupplyBarcodeFile(p),
+        openWBSupplyBarcodeFile SHOWIF wbSupplyBarcodeFile(p)
     PROPERTIES (p) READONLY SHOWIF isWBOrderPicking(p) AND wbSupplyId(p) wbSupplyBarcode, wbSupplyBarcodeFile
 ;
 
