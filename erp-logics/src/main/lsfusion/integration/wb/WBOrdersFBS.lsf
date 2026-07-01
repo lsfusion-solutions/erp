@@ -1,6 +1,6 @@
 MODULE WBOrdersFBS;
 
-REQUIRE WBOrders;
+REQUIRE WBOrders, SaleInternetOrderLot, LotAggregate, SaleShipmentLot;
 
 NAMESPACE WB;
 
@@ -1850,3 +1850,64 @@ customCreatePicking(InternetOrder o) + {
         MESSAGE 'Вначале необходимо отметить интернет заказы.';
     }
 }
+
+saleOperationWB = DATA Sale.Operation();
+nameSaleOperationWB 'Операция для накладных по комплектациям' () = name(saleOperationWB());
+saleCustomerWB = DATA LegalEntity ();
+nameSaleCustomerWB 'Контрагент для накладных по комплектациям' () = name(saleCustomerWB());
+
+EXTEND FORM options
+    PROPERTIES nameSaleOperationWB(), nameSaleCustomerWB()
+;
+
+DESIGN options {
+    WB {
+        internetOrders {
+            MOVE PROPERTY (nameSaleOperationWB());
+            MOVE PROPERTY (nameSaleCustomerWB());
+        }
+    }
+}
+
+createInvoice 'Создать накладную продажа' (Picking p) {
+    IF saleOperationWB() AND saleCustomerWB() THEN NEWSESSION NEW si = Sale.UserInvoice {
+        date(si) <- currentDate();
+        time(si) <- currentTime();
+
+        supplierStock(si) <- stock(p);
+        supplier(si) <- legalEntity(supplierStock(si));
+        customer(si) <- saleCustomerWB();
+        customerStock(si) <- GROUP MAX Stock.Stock st IF active(st) AND legalEntity(st) == customer(si);
+        
+        operation(si) <- saleOperationWB();
+        // isPosted(si) <- TRUE;
+
+        FOR picking(InternetOrderDetail d) == p AND pickingQuantity(d) > 0 DO NEW sd = Sale.UserInvoiceDetail {
+            userInvoice(sd) <- si;
+            sku(sd) <- sku(d);
+            batch(sd) <- batch(d);
+            quantity(sd) <- pickingQuantity(d);
+            price(sd) <- price(d);
+            shipmentPrice(sd) <- price(d);
+
+            FOR InternetOrderDetailLot ld == [GROUP MAX InternetOrderDetailLot ll IF internetOrderDetail(ll) = d BY id(ll)](STRING  str)
+                AND id(ld) == str AND NOT lot(str) DO NEW l = Lot {
+                id(l) <- id(ld);
+                tail(l) <- tail(ld);
+                sku(l) <- sku(d);
+                dataCount(l) <- quantity(ld) IF quantity(ld) != 1;
+            }
+            quantity(sd, Lot l) <- GROUP SUM 1 IF l = lot(id(InternetOrderDetailLot ld)) AND internetOrderDetail(ld) = d;
+        }
+
+        executeLocalEvents('Sale.userInvoice');
+        
+        SHOW Sale.userInvoice OBJECTS i = si DOCKED;
+    } ELSE {
+        MESSAGE 'Необходимо заполнить операцию и контрагента WB';
+    }
+}
+
+EXTEND FORM pickingDashboard
+    PROPERTIES(p) SHOWIF isWBOrderPicking(p) createInvoice DRAW p TOOLBAR 
+;
