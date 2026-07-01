@@ -718,6 +718,10 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                                 }
                                 case "anorbankqr.payment.plugin": {
                                     payments.add(new Payment("anorbankqr", sum));
+                                    break;
+                                }
+                                case "priorbank.customer.qr.payment.plugin": {
+                                    payments.add(new Payment("qr", sum));
                                 }
                             }
                         }
