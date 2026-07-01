@@ -121,6 +121,48 @@ ordersErrors = DATA LOCAL INTEGER(INTEGER);
 
 sticker = DATA RAWFILE(InternetOrder);
 
+CLASS StickerType 'Тип стикера' {
+    svg 'SVG',
+    zplv 'ZPLV',
+    zplh 'ZPLH',
+    png 'PNG'
+}
+
+dataStickerType = DATA StickerType ();
+stickerType () = OVERRIDE dataStickerType(), StickerType.svg;
+nameStickerType 'Тип стикера' () = staticCaption(stickerType());
+
+CLASS StickerSize 'Размер стикера' {
+    s58x40 '580x400',
+    s40x30 '400x300'
+}
+
+dataStickerSize = DATA StickerSize ();
+stickerSize 'Размер стикера' () = OVERRIDE dataStickerSize(), StickerSize.s58x40;
+nameStickerSize 'Размер стикера' () = staticCaption(stickerSize());
+
+EXTEND FORM options
+    PROPERTIES nameStickerType(), nameStickerSize()
+;
+
+DESIGN options {
+    WB {
+        NEW internetOrders {
+            caption = 'Интернет-заказы';
+            NEW stickers {
+                caption = 'Стикеры';
+                MOVE PROPERTY (nameStickerType());
+                MOVE PROPERTY (nameStickerSize());
+            }
+        }
+    }
+}
+
+stickerParams () = CONCAT '&', 'type=' + lower(nameStickerType()), 
+    (CASE
+        WHEN stickerSize() == StickerSize.s58x40 THEN 'width=58&height=40'
+        WHEN stickerSize() == StickerSize.s40x30 THEN 'width=40&height=30');
+
 file = DATA LOCAL STRING(INTEGER);
 partA = DATA LOCAL STRING(INTEGER);
 partB = DATA LOCAL STRING(INTEGER);

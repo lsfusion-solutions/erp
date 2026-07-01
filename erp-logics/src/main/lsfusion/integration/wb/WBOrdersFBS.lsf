@@ -379,7 +379,7 @@ getStickers 'Получить стикеры' () {
         LOCAL response = FILE();
 
         LOCAL postUrl = STRING ();
-        postUrl() <- '/api/v3/orders/stickers?type=svg&width=58&height=40';
+        postUrl() <- '/api/v3/orders/stickers?' + stickerParams();
 
         logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + postUrl());
 
@@ -1723,6 +1723,8 @@ isPvzDeliveryOrder 'Доставка на ПВЗ' (InternetOrder o) =
 isWBOrderPicking 'Содержит заказы FBS WB' (Picking p) =
     GROUP MAX isWBOrderFBS(internetOrder(InternetOrderDetail d)) IF picking(d) == p;
 
+openSticker 'Печать стикеров WB' (InternetOrder o) { open(sticker(o)); } IMAGE 'print.png' IN print;
+
 EXTEND FORM picking
     PROPERTIES (p) SHOWIF isWBOrderPicking(p) addDetailsFromWbOrder DRAW d TOOLBAR
     PROPERTIES (p) SHOWIF isWBOrderPicking(p) dataPvzDelivery READONLYIF NOT wbIsPickupPointShipmentAllowed(p)
@@ -1733,6 +1735,7 @@ EXTEND FORM picking
 
 EXTEND FORM internetOrders
     PROPERTIES(o) READONLY isWBOrderFBS AFTER isClosed(o)
+    PROPERTIES(o) SHOWIF isWBOrderFBS(o) openSticker
     PROPERTIES(o) READONLY SHOWIF isWBOrderFBS(o) orderRidID, orderUID, nameWbBox, getSticker
     PROPERTIES (o) getWbFbsStatus,
         cancelOrderFBS SHOWIF isWBOrderFBS(o) AND wbIsCancellable(o)
@@ -1747,6 +1750,8 @@ EXTEND FORM pickingDashboard
             status(p) == StatusPicking.closed) AND NOT wbSupplyBarcodeFile(p),
         openWBSupplyBarcodeFile SHOWIF wbSupplyBarcodeFile(p)
     PROPERTIES (p) READONLY SHOWIF isWBOrderPicking(p) AND wbSupplyId(p) wbSupplyBarcode, wbSupplyBarcodeFile
+
+    PROPERTIES(o) SHOWIF isWBOrderFBS(o) openSticker DRAW o TOOLBAR
 ;
 
 DESIGN internetOrders {
@@ -1765,6 +1770,9 @@ DESIGN internetOrders {
                 MOVE PROPERTY (getAcceptanceCoefficients());
 
             }
+        }
+        printContainer {
+            MOVE PROPERTY(openSticker(o));
         }
     }
 }
