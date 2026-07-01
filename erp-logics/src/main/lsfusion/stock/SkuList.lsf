@@ -74,6 +74,10 @@ access 'Доступ разрешен' (List list, UserRole role) = OVERRIDE
     dataAccess(role, list),
     list IS List AND role IS UserRole AND NOT limitAccessRole(list);
 
+edit 'Разрешено редактировать' = DATA BOOLEAN (UserRole, List);
+countEditRoles 'Разрешено редактировать' (List l) = GROUP SUM 1 IF edit(UserRole r, l) MATERIALIZED COMPLEX;
+edit(CustomUser u, List l) = GROUP SUM 1 IF has(u, UserRole r) AND edit(r,l);
+
 in 'Вкл.' (List l, Sku s) = TRUE IF [GROUP SUM 1 BY list(ListDetail d),  sku(d)](l, s);
 
 changeIn (List l, Sku s) {
@@ -115,7 +119,7 @@ FORM list 'Список SKU'
     PROPERTIES(l,s) access
     
     OBJECTS r = UserRole
-    PROPERTIES access(l, r), name(r) READONLY
+    PROPERTIES access(l, r), edit(r,l), name(r) READONLY
     ORDERS name(r)
     
     TREE skuTree skg = SkuGroup PARENT parent(skg)
@@ -167,12 +171,20 @@ DESIGN list {
         }
     }
 }
+skipShowEdit = ABSTRACT VALUE BOOLEAN (List);
+skipShowDelete = ABSTRACT VALUE BOOLEAN (List);
+
+showEdit (List l) = l IS List AND NOT skipShowEdit(l);
+showDelete (List l) = l IS List AND NOT skipShowDelete(l);
+
+skipShowEdit (List l) += countEditRoles(l) AND NOT edit(currentUser(),l);
+skipShowDelete (List l) += countEditRoles(l) AND NOT edit(currentUser(),l);
 
 FORM lists 'Списки SKU'
     
     OBJECTS o = List
     PROPERTIES (o) READONLY canonicalName
-    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+    PROPERTIES(o) NEWSESSION NEW , EDIT SHOWIF showEdit(o), DELETE SHOWIF showDelete(o)
     ORDERS canonicalName(o)
     
     OBJECTS d = ListDetail

@@ -58,6 +58,9 @@ inBackSheetStocks 'Склады' () =
 
 overFillReportBackSheetFromTo  ABSTRACT ( GroupType, DATE, DATE);
 
+skipBackSheet = ABSTRACT VALUE BOOLEAN (Sku);
+inBackSheet(Sku s, Stock st) = inBackSheet(st) AND s IS Sku AND NOT skipBackSheet(s);
+
 fillReportBackSheetFromTo 'Сформировать'(GroupType gt, DATE df, DATE dt)  { 
 
     balanceB(Sku sk) <- NULL;           
@@ -78,17 +81,17 @@ fillReportBackSheetFromTo 'Сформировать'(GroupType gt, DATE df, DATE
     sumOut(Group g) <- NULL;  
     sumA(Group g) <- NULL;  
 
-    balanceA(Sku sk) <- NUMERIC[16,5]((GROUP SUM balanceA(sk, Stock st, dt) IF inBackSheet(st)));           
-    sumA(Sku sk) <- NUMERIC[18,4]((GROUP SUM sumA(sk, Stock st, dt) IF inBackSheet(st)));  
+    balanceA(Sku sk) <- NUMERIC[16,5]((GROUP SUM balanceA(sk, Stock st, dt) IF inBackSheet(sk,st)));           
+    sumA(Sku sk) <- NUMERIC[18,4]((GROUP SUM sumA(sk, Stock st, dt) IF inBackSheet(sk,st)));  
 
-    quantityIn(Sku sk) <- NUMERIC[16,5]((GROUP SUM quantitySumIn(sk, Stock st, df, dt) IF inBackSheet(st)));           
-    sumIn(Sku sk) <- NUMERIC[18,4]((GROUP SUM sumIn(sk, Stock st, df, dt) IF inBackSheet(st)));  
+    quantityIn(Sku sk) <- NUMERIC[16,5]((GROUP SUM quantitySumIn(sk, Stock st, df, dt) IF inBackSheet(sk,st)));           
+    sumIn(Sku sk) <- NUMERIC[18,4]((GROUP SUM sumIn(sk, Stock st, df, dt) IF inBackSheet(sk,st)));  
 
-    quantityOut(Sku sk) <- NUMERIC[16,5]((GROUP SUM quantitySumOut(sk, Stock st, df, dt) IF inBackSheet(st)));           
-    sumOut(Sku sk) <- NUMERIC[18,4]((GROUP SUM sumOut(sk, Stock st, df, dt) IF inBackSheet(st)));  
+    quantityOut(Sku sk) <- NUMERIC[16,5]((GROUP SUM quantitySumOut(sk, Stock st, df, dt) IF inBackSheet(sk,st)));           
+    sumOut(Sku sk) <- NUMERIC[18,4]((GROUP SUM sumOut(sk, Stock st, df, dt) IF inBackSheet(sk,st)));  
 
-    balanceB(Sku sk) <- NUMERIC[16,5]((GROUP SUM balanceB(sk, Stock st, df) IF inBackSheet(st)));           
-    sumB(Sku sk) <- NUMERIC[18,4]((GROUP SUM sumB(sk, Stock st, df) IF inBackSheet(st)));  
+    balanceB(Sku sk) <- NUMERIC[16,5]((GROUP SUM balanceB(sk, Stock st, df) IF inBackSheet(sk,st)));           
+    sumB(Sku sk) <- NUMERIC[18,4]((GROUP SUM sumB(sk, Stock st, df) IF inBackSheet(sk,st)));  
 
     balanceA(Group g) <- [GROUP SUM balanceA(Sku sk) BY group(GroupType ggt, sk)](g) IF  groupType(g) == gt;           
     sumA(Group g) <- [GROUP SUM sumA(Sku sk) BY group(GroupType ggt, sk)](g) IF  groupType(g) == gt;   
@@ -130,8 +133,8 @@ fillReportBalanceData 'Рассчитать'(GroupType gt, DATETIME dt)  {
     IF (GROUP SUM 1 IF inBackSheet(Stock st)) == 1 THEN
     {
         FOR Stock st = (GROUP MIN Stock sst IF inBackSheet(sst)) NOINLINE DO {
-            balanceB(Sku sk) <- balanceB(sk, st, dt) IF inGroup(gt,sk);
-            sumB(Sku sk) <- sumB(sk, st, dt) IF inGroup(gt,sk);
+            balanceB(Sku sk) <- balanceB(sk, st, dt) IF inGroup(gt,sk) AND inBackSheet(sk,st);
+            sumB(Sku sk) <- sumB(sk, st, dt) IF inGroup(gt,sk)  AND inBackSheet(sk,st);
             IF fillBatch() THEN {
                 balanceB(Batch batch) <- balanceB(batch, st, dt) IF inGroup(gt,sku(batch));
             }
@@ -139,11 +142,11 @@ fillReportBalanceData 'Рассчитать'(GroupType gt, DATETIME dt)  {
     }  
     ELSE
     {
-        balanceB(Sku sk) <- NUMERIC[16,5]((GROUP SUM balanceB(sk, Stock st, dt) IF inBackSheet(st)) IF inGroup(gt,sk));
-        sumB(Sku sk) <- NUMERIC[18,4]((GROUP SUM sumB(sk, Stock st, dt) IF inBackSheet(st)) IF inGroup(gt,sk)); 
+        balanceB(Sku sk) <- NUMERIC[16,5]((GROUP SUM balanceB(sk, Stock st, dt) IF inBackSheet(sk,st)) IF inGroup(gt,sk));
+        sumB(Sku sk) <- NUMERIC[18,4]((GROUP SUM sumB(sk, Stock st, dt) IF inBackSheet(sk,st)) IF inGroup(gt,sk)); 
         
         IF fillBatch() THEN {
-            balanceB(Batch batch) <- NUMERIC[16,5]((GROUP SUM balanceB(batch, Stock st, dt) IF inBackSheet(st))) IF inGroup(gt,sku(batch));
+            balanceB(Batch batch) <- NUMERIC[16,5]((GROUP SUM balanceB(batch, Stock st, dt) IF inBackSheet(sku(batch),st))) IF inGroup(gt,sku(batch));
         }
     }   
     
@@ -317,28 +320,28 @@ changeFillBalance(GroupType gt, DATETIME dt)  {
 }
 
 showMovementSkuBackSheet 'Показать движение товара по складу' (Sku sku)  { 
-    NEWSESSION NESTED(inBackSheet) 
+    NEWSESSION NESTED(inBackSheet[Stock]) 
         SHOW movementSkuStock OBJECTS s = sku, st = (GROUP MIN Stock st IF inBackSheet(st)) ; 
 }
 
 showMovementPriceSkuBackSheet 'Показать изменение цены товара по складу' (Sku sku)  { 
-    NEWSESSION NESTED(inBackSheet) 
+    NEWSESSION NESTED(inBackSheet[Stock]) 
         SHOW movementPriceSkuStock OBJECTS s = sku, st = (GROUP MIN Stock st IF inBackSheet(st)) ; 
 }
 
 showReserveSkuBackSheet 'Показать резерв товара по складу' (Sku sku)  { 
-    NEWSESSION NESTED(inBackSheet) 
+    NEWSESSION NESTED(inBackSheet[Stock]) 
         SHOW orderSkuLedgerNotDate OBJECTS sk = sku, st = (GROUP MIN Stock st IF inBackSheet(st)) ;
 }
 
 showMovementBatchBackSheet 'Показать движение по партии и складу' (Batch batch)  { 
-    NEWSESSION NESTED(inBackSheet)
+    NEWSESSION NESTED(inBackSheet[Stock])
         SHOW movementBatchStock OBJECTS bt = batch, st = (GROUP MIN Stock st IF inBackSheet(st)) ; 
 }
 
 showMovementSkuBackSheet 'Показать движение товара по складу' (Batch batch)  { 
     FOR s == sku(batch) DO
-        NEWSESSION NESTED(inBackSheet)
+        NEWSESSION NESTED(inBackSheet[Stock])
             SHOW movementSkuStock OBJECTS s = s, st = (GROUP MIN Stock st IF inBackSheet(st)) ;
 }
 
