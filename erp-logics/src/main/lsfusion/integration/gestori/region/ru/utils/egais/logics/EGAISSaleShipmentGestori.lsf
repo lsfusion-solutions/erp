@@ -32,12 +32,20 @@ DESIGN userInvoice {
     PROPERTY(addDetailDialogTerminalUserInvoiceDetail(i)) { showIf = disableEGAISDocumentConstraints() OR NOT activeWayBillAct(wayBill(invoice(d))); }
 }
 
-overCheckProcess(Shipment s) += 'Количество в позиции документа должно соответствовать количеству привязанных марок' 
-    IF [GROUP SUM 1 IF minProduct(sku(ShipmentDetail d)) AND lotType(sku(d)) AND NOT quantity(d) = quantityLot(d) BY shipment(d)](s);
+overCheckProcess(Shipment s) += 'Количество в позиции документа должно соответствовать количеству привязанных марок'
+    IF s IS UserShipment AND [GROUP SUM 1 IF minProduct(sku(ShipmentDetail d)) AND lotType(sku(d)) AND NOT quantity(d) = quantityLot(d) BY shipment(d)](s);
+
+overCheckProcess(Shipment s) += 'Количество в позиции документа должно соответствовать количеству привязанных марок'
+    IF NOT s IS UserShipment AND [GROUP SUM 1 IF minProduct(sku(ShipmentDetail d)) AND lotType(sku(d)) AND NOT quantity(d) = quantityLot(invoiceDetail(d)) BY shipment(d)](s);
 
 notCorrect(ShipmentDetail d, F2Reg r) = minProduct(sku(d)) AND quantity(d, r) AND lotType(sku(d)) AND NOT quantity(d, r) == [GROUP SUM quantity(d, Lot l) BY f2Reg(markCode(id(l)))](r);
+notCorrectInvoice(ShipmentDetail d, F2Reg r) = minProduct(sku(d)) AND quantity(d, r) AND lotType(sku(d)) AND NOT quantity(d, r) == [GROUP SUM quantity(invoiceDetail(d), Lot l) BY f2Reg(markCode(id(l)))](r);
+
 overCheckProcess(Shipment s) += 'Количество в позиции по справке Б должно соответствовать количеству привязанных марок'
-    IF [GROUP SUM 1 IF notCorrect(ShipmentDetail d, F2Reg r) BY shipment(d)](s);
+    IF s IS UserShipment AND [GROUP SUM 1 IF notCorrect(ShipmentDetail d, F2Reg r) BY shipment(d)](s);
+
+overCheckProcess(Shipment s) += 'Количество в позиции по справке Б должно соответствовать количеству привязанных марок'
+    IF NOT s IS UserShipment AND [GROUP SUM 1 IF notCorrectInvoice(ShipmentDetail d, F2Reg r) BY shipment(d)](s);
 
 overCheckProcess(Shipment s) += 'Срок годности товара истек'
     IF [GROUP SUM 1 IF expiryDate(ShipmentDetail d) < currentDate() BY shipment(d)](s);

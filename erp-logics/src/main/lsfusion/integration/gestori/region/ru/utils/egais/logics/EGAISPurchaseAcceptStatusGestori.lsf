@@ -1,0 +1,28 @@
+MODULE EGAISPurchaseAcceptStatusGestori;
+
+REQUIRE EGAISPurchaseInvoiceGestori, EGAISWayBillActExchange, EGAISWayBillStatus;
+
+PRIORITY Purchase;
+
+NAMESPACE EGAISPurchase;
+
+EXTEND CLASS WayBillStatus {
+    linked 'Связана с приходом',
+    checkedOk 'Сверка выполнена без расхождений',
+    checkedDiff 'Сверка выполнена с расхождениями',
+    checkedError 'Сверка выполнена с ошибками',
+    checkedReject 'Сверка выполнена с отказом от приёмки',
+    actSentAccept 'Акт подтверждения отправлен, ожидание ответа',
+    actSentDiff 'Акт расхождения отправлен, ожидание ответа',
+    actSentReject 'Акт отказа отправлен, ожидание ответа',
+    actRegAccept 'Акт подтверждения зарегистрирован',
+    actRegDiff 'Акт расхождения зарегистрирован',
+    actRegReject 'Акт отказа зарегистрирован'
+}
+
+dataManualStatus 'Статус ЕГАИС (ручной)' = DATA WayBillStatus (UserInvoice);
+dataManualStatusName 'Статус ЕГАИС (ручной)' (UserInvoice i) = name(dataManualStatus(i));
+
+EXTEND FORM userInvoice
+    PROPERTIES(i) dataManualStatusName // ручная установка статуса, право настраивается на свойство
+;

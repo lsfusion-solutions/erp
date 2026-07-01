@@ -1,0 +1,152 @@
+MODULE EGAISPurchaseInvoiceMatchGestori;
+
+REQUIRE EGAISPurchaseInvoiceGestori, EGAISPurchaseInvoice;
+
+PRIORITY Purchase;
+
+NAMESPACE EGAISPurchase;
+
+quantityDistr (UserInvoiceDetail d) = OVERRIDE shipmentQuantity(d), quantity(d);
+match (UserInvoiceDetail d, WayBillPosition p) = in(sku(d), product(p)) AND wayBill(p) = wayBill(userInvoice(d));
+
+boundLine (UserInvoiceDetail d) = GROUP SUM quantity(d, WayBillPosition p) MATERIALIZED;
+unboundLine (UserInvoiceDetail d) = quantityDistr(d) (-) boundLine(d);
+boundPos (WayBillPosition p) = GROUP SUM quantity(UserInvoiceDetail d, p) MATERIALIZED;
+unboundPos (WayBillPosition p) = quantity(p) (-) boundPos(p);
+
+// Проход A: товар + цена + количество. Точные пары 1:1
+candA (UserInvoiceDetail d, WayBillPosition p) =
+    match(d, p) AND quantityDistr(d) > 0 AND invoicePrice(d) = price(p) AND quantity(d) = quantity(p);
+posA  = GROUP MIN WayBillPosition p IF candA(UserInvoiceDetail d, p) BY d;
+lineA = GROUP MIN UserInvoiceDetail d IF candA(d, WayBillPosition p) AND posA(d) = p BY p;
+passA (UserInvoiceDetail d, WayBillPosition p) = quantityDistr(d) IF posA(d) = p AND lineA(p) = d;
+
+// Проход B товар + цена
+candB (UserInvoiceDetail d, WayBillPosition p) =
+    match(d, p) AND invoicePrice(d) = price(p) AND unboundPos(p) > 0 AND unboundLine(d) > 0;
+sumRemB (WayBillPosition p) = GROUP SUM unboundLine(UserInvoiceDetail d) IF candB(d, p);
+shareB (UserInvoiceDetail d, WayBillPosition p) =
+    unboundPos(p) * unboundLine(d) / sumRemB(p) IF candB(d, p) AND sumRemB(p) > 0;
+passB (UserInvoiceDetail d, WayBillPosition p) =
+    PARTITION UNGROUP unboundLine LIMIT shareB(d, p) IF candB(d, p) ORDER p BY d;
+
+// Проход C товар
+candC (UserInvoiceDetail d, WayBillPosition p) =
+    match(d, p) AND unboundPos(p) > 0 AND unboundLine(d) > 0;
+sumRemC (WayBillPosition p) = GROUP SUM unboundLine(UserInvoiceDetail d) IF candC(d, p);
+shareC (UserInvoiceDetail d, WayBillPosition p) =
+    unboundPos(p) * unboundLine(d) / sumRemC(p) IF candC(d, p) AND sumRemC(p) > 0;
+passC (UserInvoiceDetail d, WayBillPosition p) =
+    PARTITION UNGROUP unboundLine LIMIT shareC(d, p) IF candC(d, p) ORDER p BY d;
+
+applyMatch (UserInvoice i) {
+    // сброс немаркированных привязок с нуля, чтобы проходы считали остаток корректно
+    quantity(UserInvoiceDetail d, WayBillPosition p) <- NULL
+        WHERE userInvoice(d) = i AND NOT countMarkCodes(p);
+    quantity(UserInvoiceDetail d, WayBillPosition p) <- passA(d, p)
+        WHERE userInvoice(d) = i AND NOT countMarkCodes(p);
+    quantity(UserInvoiceDetail d, WayBillPosition p) <- OVERRIDE quantity(d, p), passB(d, p)
+        WHERE userInvoice(d) = i AND NOT countMarkCodes(p);
+    quantity(UserInvoiceDetail d, WayBillPosition p) <- OVERRIDE quantity(d, p), passC(d, p)
+        WHERE userInvoice(d) = i AND NOT countMarkCodes(p);
+}
+
+// Лог расхождений: остаток после связывания (от сохранённой привязки)
+matchLogLine = GROUP CONCAT
+    ('Накладная, не связано: ' + name(sku(UserInvoiceDetail d)) + ' = ' + STRING(round2(unboundLine(d))))
+    IF unboundLine(d) > 0.0001, '\n' ORDER d BY userInvoice(d);
+matchLogPos = GROUP CONCAT
+    ('ЕГАИС ТТН, не связано: ' + fullNameProduct(WayBillPosition p) + ' = ' + STRING(round2(unboundPos(p))))
+    IF unboundPos(p) > 0.0001, '\n' ORDER p BY userInvoice(wayBill(p));
+matchLog (UserInvoice i) = CONCAT '\n', matchLogLine(i), matchLogPos(i);
+
+dataMatchLog 'Лог связывания с ЕГАИС ТТН' = DATA TEXT (UserInvoice);
+
+fillMatch 'Заполнить' (UserInvoice i) {
+    applyMatch(i);
+    dataMatchLog(i) <- matchLog(i);
+    IF matchLog(i) THEN
+        MESSAGE 'Расхождения при связывании с ЕГАИС ТТН:\n' + matchLog(i);
+}
+
+EXTEND FORM userInvoice
+    PROPERTIES(i) DRAW ed TOOLBAR fillMatch SHOWIF NOT hideFillQuantity(i)
+;
+
+DESIGN userInvoice {
+    PROPERTY(fillQuantity(i)) { hide = TRUE; } // скрываем базовую кнопку "Заполнить"
+}
+
+EXTEND FORM userInvoice
+    PROPERTIES(i) READONLY dataMatchLog
+;
+
+DESIGN userInvoice {
+    EGAIS {
+        MOVE PROPERTY(dataMatchLog(i)) { panelCaptionVertical = TRUE; fill = 0.25; }
+    }
+}
+
+WHEN CHANGED(shipmentQuantity(UserInvoiceDetail d)) AND wayBill(userInvoice(d)) DO
+    applyMatch(userInvoice(d));
+
+statusEGAIS 'Статус ЕГАИС' (Invoice i) = status(wayBill(i));
+nameStatusEGAIS 'Статус ЕГАИС' (Invoice i) = name(statusEGAIS(i));
+
+EXTEND FORM invoices
+    PROPERTIES(i) READONLY nameStatusEGAIS
+    PROPERTIES(w) READONLY regId
+;
+
+DESIGN dialogWayBills {
+    PROPERTY(descriptionShipper(w)) { caption = 'Адрес отправителя'; }
+    PROPERTY(descriptionConsignee(w)) { caption = 'Адрес получателя'; }
+}
+
+operationFromTTN 'Операция накладной (закупка) из ЕГАИС ТТН' = DATA Operation ();
+operationFromTTNName 'Операция накладной (закупка) из ЕГАИС ТТН' () = name(operationFromTTN());
+skipAddMissingTTN 'Не добавлять позиции из ЕГАИС ТТН в накладную' = DATA BOOLEAN ();
+deleteMissingTTN 'Удалять позиции накладной, которых нет в ЕГАИС ТТН' = DATA BOOLEAN ();
+
+EXTEND FORM integrationData
+    PROPERTIES() operationFromTTNName, skipAddMissingTTN, deleteMissingTTN
+;
+DESIGN integrationData {
+    EGAISParams {
+        MOVE PROPERTY(operationFromTTNName());
+        MOVE PROPERTY(skipAddMissingTTN());
+        MOVE PROPERTY(deleteMissingTTN());
+    }
+}
+
+hasTTNMatch (UserInvoiceDetail d) = GROUP SUM 1 IF match(d, WayBillPosition p);
+notInTTN (UserInvoiceDetail d) = wayBill(userInvoice(d)) AND NOT hasTTNMatch(d) AND NOT shipmentQuantity(d);
+
+syncTTN 'Синхронизировать с ТТН' (UserInvoice i) {
+    IF NOT wayBill(i) THEN {
+        MESSAGE 'Для накладной не выбрана ЕГАИС ТТН';
+        RETURN;
+    }
+    
+    applyMatch(i);
+    
+    // добавить позиции ЕГАИС ТТН, которых нет в накладной
+    IF NOT skipAddMissingTTN() THEN 
+        createDetail(i);
+    
+    applyMatch(i);
+    
+    // удалить позиции накладной без соответствия в ТТН
+    IF deleteMissingTTN() THEN 
+        DELETE UserInvoiceDetail d WHERE userInvoice(d) = i AND notInTTN(d);
+    
+    // лог расхождений
+    dataMatchLog(i) <- matchLog(i);
+    
+    IF matchLog(i) THEN
+        MESSAGE 'Расхождения при синхронизации с ЕГАИС ТТН:\n' + matchLog(i);
+}
+
+EXTEND FORM userInvoice
+    PROPERTIES(i) DRAW ed TOOLBAR syncTTN SHOWIF NOT hideFillQuantity(i)
+;

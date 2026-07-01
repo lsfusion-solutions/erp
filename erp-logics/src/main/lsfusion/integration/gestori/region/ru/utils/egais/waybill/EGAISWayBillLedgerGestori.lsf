@@ -1,6 +1,6 @@
 MODULE EGAISWayBillLedgerGestori;
 
-REQUIRE EGAISWayBillLedger, EGAISWayBillGestory, EGAISFRegLedgerGestori;
+REQUIRE EGAISWayBillLedger, EGAISWayBillGestory, EGAISFRegLedgerGestori, EGAISWayBillAct;
 
 NAMESPACE EGAIS;
 
@@ -23,8 +23,33 @@ numberOriginalDocument(WayBillInLedger l) += numberOriginalDocument(position(l))
 dateOriginalDocument(WayBillInLedger l) += dateOriginalDocument(position(l));
 supplierStockOriginalDocument(WayBillInLedger l) += supplierStockOriginalDocument(position(l));
 
-originF2Reg(F2Reg r) += 
-    GROUP LAST f2Reg(WayBillPosition p) 
+originF2Reg(F2Reg r) +=
+    GROUP LAST f2Reg(WayBillPosition p)
         IF accepted(p) AND NOT canceled(p) AND NOT own(shipper(wayBill(p)))
             AND f1Reg(p) == f1Reg(r) AND consignee(wayBill(p)) == replyConsignee(r)
         ORDER date(wayBill(p)), p;
+
+CLASS WayBillReturnLedger 'Возврат непринятого (акт расхождений)' : FRegLedger;
+
+returnQuantity (WayBillPosition p) = quantity(p) (-) (OVERRIDE realQuantity(p), 0.0);
+
+wayBillReturnLedger = AGGR WayBillReturnLedger WHERE returnQuantity(WayBillPosition position)
+    IF own(shipper(position)) AND NOT skipOutLedger(position) AND NOT canceled(position)
+        AND NOT accepted(position)                              
+        AND differences(wayBillAct(wayBill(position)))        
+        AND accepted(wayBill(regId(wayBill(position))))             
+    MATERIALIZED INDEXED;
+
+posted(WayBillReturnLedger l) += l IS WayBillReturnLedger;
+
+date(WayBillReturnLedger l) += date(position(l));
+number(WayBillReturnLedger l) += number(position(l));
+f2Reg(WayBillReturnLedger l) += f2Reg(position(l));
+quantity(WayBillReturnLedger l) += returnQuantity(position(l));
+stock(WayBillReturnLedger l) += stockOriginalDocument(position(l));
+sku(WayBillReturnLedger l) += skuPositionOriginalDocument(position(l));
+price(WayBillReturnLedger l) += pricePositionOriginalDocument(position(l));
+typeOriginalDocument(WayBillReturnLedger l) += typeOriginalDocument(position(l));
+numberOriginalDocument(WayBillReturnLedger l) += numberOriginalDocument(position(l));
+dateOriginalDocument(WayBillReturnLedger l) += dateOriginalDocument(position(l));
+supplierStockOriginalDocument(WayBillReturnLedger l) += supplierStockOriginalDocument(position(l));

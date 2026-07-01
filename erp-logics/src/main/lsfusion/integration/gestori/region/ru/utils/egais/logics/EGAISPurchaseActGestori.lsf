@@ -1,0 +1,41 @@
+MODULE EGAISPurchaseActGestori;
+
+REQUIRE EGAISPurchaseCheckGestori;
+
+PRIORITY Purchase;
+
+NAMESPACE EGAISPurchase;
+
+// тип акта по содержимому ТТН (как в базовом process)
+egaisActType (Invoice i) = isAccept(wayBill(i));
+
+actSentStatus (Invoice i) =
+    CASE
+        WHEN egaisActType(i) = 'Accepted'    THEN WayBillStatus.actSentAccept
+        WHEN egaisActType(i) = 'Differences' THEN WayBillStatus.actSentDiff
+        WHEN egaisActType(i) = 'Rejected'    THEN WayBillStatus.actSentReject
+    ;
+actRegStatus (Invoice i) =
+    CASE
+        WHEN egaisActType(i) = 'Accepted'    THEN WayBillStatus.actRegAccept
+        WHEN egaisActType(i) = 'Differences' THEN WayBillStatus.actRegDiff
+        WHEN egaisActType(i) = 'Rejected'    THEN WayBillStatus.actRegReject
+    ;
+
+status (WayBill w) += WHEN userInvoice(w) THEN
+    OVERRIDE dataManualStatus(userInvoice(w)),
+             (actRegStatus(userInvoice(w)) IF accepted(w) OR canceled(w)),
+             (actSentStatus(userInvoice(w)) IF notRejected(wayBillActOutDoc(wayBillAct(w)))),
+             checkResultStatus(userInvoice(w)),
+             WayBillStatus.linked;
+
+overCheckProcess (Invoice i) += 'Для отправки в ЕГАИС сначала выполните сверку с ТТН (Сверить с ТТН)' IF NOT checked(i);
+
+EXTEND FORM userInvoice
+    PROPERTIES(i) DRAW ed TOOLBAR processEGAISUserInvoice = process
+        SHOWIF isPosted(i) AND wayBill(i) AND NOT activeWayBillAct(wayBill(i)) AND NOT hideProcess(i)
+;
+
+DESIGN userInvoice {
+    PROPERTY(processEGAISUserInvoice) { caption = captionProcess(wayBill(i)); }
+}

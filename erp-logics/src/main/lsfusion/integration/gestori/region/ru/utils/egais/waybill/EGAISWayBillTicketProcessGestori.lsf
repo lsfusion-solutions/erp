@@ -1,0 +1,25 @@
+MODULE EGAISWayBillTicketProcessGestori;
+
+REQUIRE EGAISWayBillTicket, EGAISWayBillConfirmTicketGestori, EGAISRequestRepealWBGestori;
+
+NAMESPACE EGAIS;
+
+// признак того, что подтверждение поставщика по ТТН уже получено
+hasWayBillTicket (WayBill b) =
+    GROUP MAX InDoc d IF wayBill(d) = b AND docType(d) = DocType.WayBillTicket;
+
+process (Ticket t) + {
+    IF (docType(t) = 'WAYBILL' OR docType(t) = 'WayBill_v3' OR docType(t) = 'WayBill_v4')
+        AND operationName(t) = 'Confirm' AND operationResult(t) = 'Accepted' THEN {
+        FOR WayBill b = wayBill(regId(t)) AND isAccept(b) = 'Differences' AND NOT hasWayBillTicket(b) DO {
+            accepted(b) <- NULL;
+        }
+    }
+}
+
+process (Ticket t) + {
+    IF docType(t) = 'RequestRepealWB' AND NOT processed() AND wayBill(regId(t)) THEN {
+        wayBill(inDoc(t)) <- wayBill(regId(t));
+        processed() <- TRUE;
+    }
+}

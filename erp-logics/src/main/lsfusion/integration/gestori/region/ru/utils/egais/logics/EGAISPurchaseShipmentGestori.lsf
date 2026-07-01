@@ -2,6 +2,8 @@ MODULE EGAISPurchaseShipmentGestori;
 
 REQUIRE EGAISPurchaseShipment, EGAISWayBillGestory;
 
+PRIORITY Purchase;
+
 NAMESPACE EGAISPurchase;
 
 @defineOriginalLastDocumentWayBillAttributes(Purchase, Shipment);
@@ -12,10 +14,34 @@ NAMESPACE EGAISPurchase;
 canCreateLot (UserInvoice i) =
     GROUP MAX TRUE IF quantity(UserInvoiceDetail d, wayBillPosition(WayBillMark m)) AND wayBill(wayBillPosition(m)) = wayBill(i);
 
+hasNotCreatedLot (UserInvoice i) =
+    GROUP MAX TRUE IF quantity(UserInvoiceDetail d, wayBillPosition(WayBillMark m)) AND wayBill(wayBillPosition(m)) = wayBill(i) AND NOT lot(markCode(m));
+
 overCreateDetail(UserInvoice i) +{
     IF canCreateLot(i) THEN
         createLots(i);
 }
 
-hideCreateLots(UserInvoice i) += (NOT canCreateLot (i) AND i IS UserInvoice)
+hideCreateLots(UserInvoice i) += (NOT hasNotCreatedLot (i) AND i IS UserInvoice)
     OR (TRUE IF NOT disableEGAISDocumentConstraints() AND activeWayBillAct(wayBill(i)));
+
+skipShowDelete(Shipment i) += NOT forbidEditSendDocument() AND NOT disableEGAISDocumentConstraints()
+    AND activeWayBillAct(wayBill(i));
+
+CONSTRAINT DROPPED(Shipment i IS Shipment) AND NOT disableEGAISDocumentConstraints()
+    AND activeWayBillAct(wayBill(i))
+    MESSAGE 'Запрещено удалять документ Поставка (закупка) после отправки в ЕГАИС';
+
+CONSTRAINT (SETCHANGED(sku(ShipmentDetail d)) OR SETCHANGED(quantity(d)) OR DROPPED(sku(d))
+    OR DROPPED(quantity(d)) OR DROPPED(d IS ShipmentDetail))
+    AND NOT disableEGAISDocumentConstraints() AND activeWayBillAct(wayBill(shipment(d)))
+    MESSAGE 'Запрещено изменять строки документа Поставка (закупка) после отправки в ЕГАИС';
+
+CONSTRAINT (SETCHANGED(quantity(ShipmentDetail d, Lot l)) OR DROPPED(quantity(d, l)))
+    AND NOT disableEGAISDocumentConstraints() AND activeWayBillAct(wayBill(shipment(d)))
+    MESSAGE 'Запрещено изменять марки строки документа Поставка (закупка) после отправки в ЕГАИС';
+
+CONSTRAINT (DROPCHANGED(supplier(Shipment i)) OR DROPCHANGED(customer(i)) OR DROPCHANGED(supplierStock(i)) OR DROPCHANGED(customerStock(i))
+    OR DROPCHANGED(number(i)) OR DROPCHANGED(series(i)) OR DROPCHANGED(date(i)))
+    AND NOT disableEGAISDocumentConstraints() AND activeWayBillAct(wayBill(i))
+    MESSAGE 'Запрещено изменять атрибуты документа Поставка (закупка) после отправки в ЕГАИС';

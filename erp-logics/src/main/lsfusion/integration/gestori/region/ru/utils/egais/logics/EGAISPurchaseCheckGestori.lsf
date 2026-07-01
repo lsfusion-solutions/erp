@@ -1,0 +1,67 @@
+MODULE EGAISPurchaseCheckGestori;
+
+REQUIRE EGAISPurchaseAcceptStatusGestori, EGAISPurchaseInvoiceMatchGestori;
+
+PRIORITY Purchase;
+
+NAMESPACE EGAISPurchase;
+
+// результат сверки
+dataCheckResultStatus = DATA WayBillStatus (UserInvoice);
+checkResultStatus = ABSTRACT WayBillStatus (Invoice);
+checkResultStatus (UserInvoice i) += dataCheckResultStatus(i);
+checked 'Сверка выполнена' (Invoice i) = TRUE IF checkResultStatus(i);
+
+dataCheckLog 'Лог сверки с ЕГАИС ТТН' = DATA TEXT (UserInvoice);
+
+// признаки результата сверки по накладной
+checkErrorCnt (UserInvoice i) =
+    GROUP SUM 1 IF userInvoice(UserInvoiceDetail d) = i AND shipmentQuantity(d) > 0 AND unboundLine(d) > 0.0001; // факт не уместился в ТТН (превышение / нет товара в ТТН)
+checkAcceptedCnt (UserInvoice i) =
+    GROUP SUM 1 IF userInvoice(UserInvoiceDetail d) = i AND shipmentQuantity(d) > 0; // что-то принято
+checkUnboundTTNCnt(UserInvoice i) =
+    GROUP SUM 1 IF userInvoice(wayBill(WayBillPosition p)) = i AND unboundPos(p) > 0.0001; // недопринято по ТТН
+
+computedCheckResult (UserInvoice i) =
+    CASE
+        WHEN checkErrorCnt(i) THEN WayBillStatus.checkedError
+        WHEN NOT checkAcceptedCnt(i) THEN WayBillStatus.checkedReject
+        WHEN checkUnboundTTNCnt(i) THEN WayBillStatus.checkedDiff
+        ELSE WayBillStatus.checkedOk
+    ;
+
+checkTTN 'Сверить с ТТН' (UserInvoice i) {
+    IF NOT wayBill(i) THEN {
+        MESSAGE 'Для накладной не выбрана ЕГАИС ТТН';
+        RETURN;
+    }
+    dataCheckResultStatus(i) <- computedCheckResult(i);
+    dataCheckLog(i) <- matchLog(i);
+    IF matchLog(i) THEN
+        MESSAGE 'Сверка: ' + name(dataCheckResultStatus(i)) + '\n' + matchLog(i);
+    ELSE
+        MESSAGE 'Сверка: ' + name(dataCheckResultStatus(i));
+}
+
+resetCheck 'Сбросить сверку' (UserInvoice i) {
+    dataCheckResultStatus(i) <- NULL;
+    dataCheckLog(i) <- NULL;
+}
+
+CONSTRAINT CHANGED(shipmentQuantity(UserInvoiceDetail d)) AND checked(userInvoice(d))
+    AND NOT disableEGAISDocumentConstraints()
+    MESSAGE 'После сверки с ЕГАИС ТТН изменять накладную нельзя. Сначала сбросьте сверку.';
+
+CONSTRAINT isPosted(Invoice i) AND checkResultStatus(i) = WayBillStatus.checkedError
+    MESSAGE 'Накладная со сверкой "с ошибками" не проводится. Исправьте расхождения.';
+
+EXTEND FORM userInvoice
+    PROPERTIES(i) DRAW ed TOOLBAR checkTTN, resetCheck
+    PROPERTIES(i) READONLY dataCheckLog
+;
+
+DESIGN userInvoice {
+    EGAIS {
+        MOVE PROPERTY(dataCheckLog(i)) { panelCaptionVertical = TRUE; fill = 0.25; }
+    }
+}

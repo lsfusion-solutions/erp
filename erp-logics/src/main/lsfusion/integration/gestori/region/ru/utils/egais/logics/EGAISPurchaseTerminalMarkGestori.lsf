@@ -1,0 +1,14 @@
+MODULE EGAISPurchaseTerminalMarkGestori;
+
+REQUIRE PurchaseShipmentInvoiceTerminalLot, EGAISPurchaseInvoice;
+
+NAMESPACE Purchase;
+
+expectedTTNMarkLot (UserInvoiceDetail d, Lot l) =
+    GROUP SUM 1 IF EGAISPurchase.quantity(d, EGAIS.wayBillPosition(EGAIS.WayBillMark m)) > 0
+                AND EGAIS.idMarkCode(m) = id(l);
+
+overAddDialogTerminalToUserInvoice (UserInvoice i, TerminalDocument t) + {
+    quantity(UserInvoiceDetail d, Lot l) <- 0.0
+        WHERE userInvoice(d) = i AND expectedTTNMarkLot(d, l) AND NOT quantity(d, l);
+}

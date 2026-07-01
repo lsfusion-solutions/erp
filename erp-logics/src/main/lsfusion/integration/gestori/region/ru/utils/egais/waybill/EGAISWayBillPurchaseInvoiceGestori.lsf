@@ -1,0 +1,55 @@
+MODULE EGAISWayBillPurchaseInvoiceGestori;
+
+REQUIRE EGAISPurchaseInvoiceMatchGestori, EGAISStock, EGAISItem, EGAISWayBillActExchange;
+
+PRIORITY Purchase;
+
+NAMESPACE EGAISPurchase;
+
+createPurchaseFromTTN 'Создать накладную (закупка) из ТТН' (WayBill w) {
+    IF userInvoice(w) THEN {
+        MESSAGE 'По этой ЕГАИС ТТН уже создана накладная (закупка)';
+        RETURN;
+    }
+    IF canceled(w) THEN {
+        MESSAGE 'ЕГАИС ТТН отменена - создание накладной невозможно';
+        RETURN;
+    }
+    IF NOT operationFromTTN() THEN {
+        MESSAGE 'Не задана операция накладной (закупка) из ЕГАИС ТТН (раздел "Опции")';
+        RETURN;
+    }
+    IF NOT stock(consignee(w)) THEN {
+        MESSAGE 'Не найден склад-получатель по организации ЕГАИС получателя ТТН';
+        RETURN;
+    }
+    NEWSESSION FORMS userInvoice NEW i = UserInvoice {
+        wayBill(i) <- w;
+        operation(i) <- operationFromTTN();
+        date(i) <- OVERRIDE shippingDate(w), date(w);
+        number(i) <- number(w);
+
+        customerStock(i) <- stock(consignee(w));
+        customer(i) <- legalEntity(customerStock(i));
+        supplierStock(i) <- stock(shipper(w));
+        supplier(i) <- legalEntity(supplierStock(i));
+        currency(i) <- currency(supplier(i));
+
+        FOR wayBill(WayBillPosition p) = w ORDER p DO NEW d = UserInvoiceDetail {
+            userInvoice(d) <- i;
+            sku(d) <- minItem(product(p));
+            quantity(d) <- quantity(p);
+            invoicePrice(d) <- price(p);
+            price(d) <- round2(price(p) * 100 / (100 + valueVAT(minItem(product(p)))));
+            shipmentQuantity(d) <- quantity(p) IF NOT countMarkCodes(p);
+            quantity(d, p) <- quantity(p) IF NOT countMarkCodes(p);
+            in(sku(d), product(p)) <- TRUE;
+        }
+
+        SHOW userInvoice OBJECTS i = i;
+    }
+}
+
+EXTEND FORM wayBills
+    PROPERTIES(w) createPurchaseFromTTN SHOWIF own(consignee(w)) AND toAccept(w) AND NOT userInvoice(w) TOOLBAR
+;
