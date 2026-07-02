@@ -397,7 +397,7 @@ getStickers 'Получить стикеры' () {
             IF statusHttp() == 200 THEN {
                 IMPORT stickersResponse JSON FROM response();
                 FOR orderId(INTEGER i) DO {
-                    sticker(orderByNumber(orderId(i))) <- RAWFILE(file(decode(file(i), 'base64'), 'svg'));
+                    sticker(orderByNumber(orderId(i))) <- RAWFILE(file(decode(file(i), 'base64'), lower(nameStickerType())));
                 }
                 APPLY NESTED LOCAL ;
             }
@@ -1724,13 +1724,14 @@ isWBOrderPicking 'Содержит заказы FBS WB' (Picking p) =
     GROUP MAX isWBOrderFBS(internetOrder(InternetOrderDetail d)) IF picking(d) == p;
 
 openSticker 'Печать стикеров WB' (InternetOrder o) { open(sticker(o)); } IMAGE 'print.png' IN print;
+openSticker 'Печать стикеров WB' (InternetOrderDetail d) { open(sticker(internetOrder(d))); } IMAGE 'print.png' IN print;
 
 EXTEND FORM picking
     PROPERTIES (p) SHOWIF isWBOrderPicking(p) addDetailsFromWbOrder DRAW d TOOLBAR
     PROPERTIES (p) SHOWIF isWBOrderPicking(p) dataPvzDelivery READONLYIF NOT wbIsPickupPointShipmentAllowed(p)
     PROPERTIES (d) SHOWIF isWBOrderPicking(p) moveOrderFBSDialog,
         setWbBox SHOWIF isWBOrderFBS(internetOrder(d)) AND isPvzDeliveryOrder(internetOrder(d)),
-        clearWbBox SHOWIF isWBOrderFBS(internetOrder(d)) AND wbBox(internetOrder(d))
+        clearWbBox SHOWIF isWBOrderFBS(internetOrder(d)) AND wbBox(internetOrder(d)), openSticker GRID 
 ;
 
 EXTEND FORM internetOrders
