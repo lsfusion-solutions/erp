@@ -4,6 +4,10 @@ REQUIRE CustomerEOrderTopByApi, TopBy;
 
 NAMESPACE EDI;
 
+exportAddressTopBy 'Выгружать адреса (для обновления от 05.07.2026)' = DATA BOOLEAN (LegalEntity);
+EXTEND FORM integrationData
+    PROPERTIES(let) exportAddressTopBy AFTER portTopBy(let)
+;
 
 DESIGN integrationData {
     col1TopBy {
@@ -26,6 +30,7 @@ sendPurchaseOrderTopBy (EOrder o) {
     checkIsServer();
     IF isServer() THEN {
         newNS() <- TRUE;
+        exportAddressOrder() <- exportAddressTopBy(customer(o));
         sendPurchaseOrder(o, loginTopBy(customer(o)), passwordTopBy(customer(o)), ('http://' +  hostTopBy(customer(o)) + ':' + portTopBy(customer(o)) + '/DmcService'), outputDirTopBy(), 'TopBy');
     }
 }

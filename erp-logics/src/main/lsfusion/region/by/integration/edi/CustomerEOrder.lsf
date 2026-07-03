@@ -7,6 +7,8 @@ NAMESPACE EDI;
 /////////------------------- ORDERS
 noteExtra = ABSTRACT STRING (EOrder);
 
+exportAddressOrder = DATA LOCAL BOOLEAN ();
+
 FORM purchaseOrder FORMEXTID 'ORDERS'
     OBJECTS o = EOrder PANEL
     PROPERTIES READONLY number(o) EXTID 'documentNumber',
@@ -15,11 +17,15 @@ FORM purchaseOrder FORMEXTID 'ORDERS'
         documentNameCode = (IF isReturn(o) THEN '70E' ELSE '220') EXTID 'documentNameCode',
         GLNCustomer(o) EXTID 'buyerGLN',
         nameCustomer(o) EXTID 'buyerName',
+        buyerAddress = (address(customer(o)) IF exportAddressOrder()) EXTID 'buyerAddress',
         GLNCustomerStock(o) EXTID 'destinationGLN',
         nameCustomerStock(o) EXTID 'destinationName',
+        destinationAddress = (address(customerStock(o)) IF exportAddressOrder()) EXTID 'destinationAddress',
         GLNSupplierStock(o) EXTID 'supplierGLN',
         nameSupplier(o) EXTID 'supplierName',
+        supplierAddress = (address(supplier(o)) IF exportAddressOrder()) EXTID 'supplierAddress',
         GLNSupplierStock1(o) EXTID 'stGLN',
+        stAddress = (address(supplierStock(o)) IF exportAddressOrder()) EXTID 'stAddress',
         contractNumber(o) EXTID 'contractNumber',
         deliveryDateTimeFirst = toChar(shipmentDateTime(o),'yyyy-MM-ddThh24:mi:ss') EXTID 'deliveryDateTimeFirst',
         lineQuantity = (GROUP SUM 1 IF overQuantity(EOrderDetail od) > 0 AND GTINBarcode(od) AND order(od) == o) EXTID 'lineQuantity',
