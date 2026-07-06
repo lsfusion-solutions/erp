@@ -1877,6 +1877,8 @@ DESIGN options {
     }
 }
 
+saleInvoiceWB = DATA Sale.UserInvoice (Picking);
+
 createInvoice 'Создать накладную продажа' (Picking p) {
     IF saleOperationWB() AND saleCustomerWB() THEN NEWSESSION NEW si = Sale.UserInvoice {
         date(si) <- currentDate();
@@ -1889,6 +1891,7 @@ createInvoice 'Создать накладную продажа' (Picking p) {
         
         operation(si) <- saleOperationWB();
         // isPosted(si) <- TRUE;
+        saleInvoiceWB(p) <- si;
 
         FOR picking(InternetOrderDetail d) == p AND pickingQuantity(d) > 0 DO NEW sd = Sale.UserInvoiceDetail {
             userInvoice(sd) <- si;
@@ -1916,6 +1919,8 @@ createInvoice 'Создать накладную продажа' (Picking p) {
     }
 }
 
+showCreateInvoice (Picking p) = isWBOrderPicking(p) AND pickingQuantityInternetOrderDetail(p) AND NOT saleInvoiceWB(p);
+
 EXTEND FORM pickingDashboard
-    PROPERTIES(p) SHOWIF isWBOrderPicking(p) createInvoice DRAW p TOOLBAR 
+    PROPERTIES(p) SHOWIF showCreateInvoice(p) createInvoice DRAW p TOOLBAR 
 ;
