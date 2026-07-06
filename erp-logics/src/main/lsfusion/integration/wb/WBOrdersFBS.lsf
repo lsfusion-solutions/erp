@@ -398,6 +398,7 @@ getStickers 'Получить стикеры' () {
                 IMPORT stickersResponse JSON FROM response();
                 FOR orderId(INTEGER i) DO {
                     sticker(orderByNumber(orderId(i))) <- RAWFILE(file(decode(file(i), 'base64'), lower(nameStickerType())));
+                    stickerExtension(orderByNumber(orderId(i))) <- lower(nameStickerType());
                 }
                 APPLY NESTED LOCAL ;
             }
@@ -1723,8 +1724,14 @@ isPvzDeliveryOrder 'Доставка на ПВЗ' (InternetOrder o) =
 isWBOrderPicking 'Содержит заказы FBS WB' (Picking p) =
     GROUP MAX isWBOrderFBS(internetOrder(InternetOrderDetail d)) IF picking(d) == p;
 
-openSticker 'Печать стикеров WB' (InternetOrder o) { open(sticker(o)); } IMAGE 'print.png' IN print;
-openSticker 'Печать стикеров WB' (InternetOrderDetail d) { open(sticker(internetOrder(d))); } IMAGE 'print.png' IN print;
+//internetOrder(d)
+
+openSticker 'Печать стикеров WB' (InternetOrder o) { 
+    open((file(sticker(o), (OVERRIDE stickerExtension(o), lower(nameStickerType()))))); 
+} IMAGE 'print.png' IN print;
+openSticker 'Печать стикеров WB' (InternetOrderDetail d) { 
+    open((file(sticker(internetOrder(d)), (OVERRIDE stickerExtension(internetOrder(d)), lower(nameStickerType()))))); 
+} IMAGE 'print.png' IN print;
 
 EXTEND FORM picking
     PROPERTIES (p) SHOWIF isWBOrderPicking(p) addDetailsFromWbOrder DRAW d TOOLBAR
