@@ -1,0 +1,56 @@
+MODULE EGAISZReportReceiptGestori;
+
+REQUIRE EGAISZReportLotGestori, EGAISZReportNotLotAlcoholGestori,
+        EGAISZReportLotChargeOnGestori, EGAISZReportNotLotAlcoholChargeOnGestori;
+
+NAMESPACE EGAIS;
+
+receiptSale 'Продажи (списание)' = DATA BOOLEAN ();
+receiptReturn 'Возвраты (постановка)' = DATA BOOLEAN ();
+receiptLot 'Крепкий алкоголь' = DATA BOOLEAN ();
+receiptNotLot 'Пиво' = DATA BOOLEAN ();
+
+actClient = DATA Client () NONULL ;
+actClientName 'Организация ЕГАИС' = shortName(actClient());
+
+CONSTRAINT NOT own(actClient()) AND actClient() IS Client
+    CHECKED BY actClient[]
+    MESSAGE 'Для списаний/постановок ЕГАИС по кассам доступны только собственные организации';
+
+createByReceipt 'Создать по кассовым отчётам' (DATE dFrom, DATE dTo) {
+    IF receiptSale() AND receiptLot() THEN createActWriteOff(actClient(), dFrom, dTo, writeOffType('Розничная продажа')); // списание крепкого
+    IF receiptSale() AND receiptNotLot() THEN createActWriteOff(actClient(), dFrom, dTo, writeOffType('Реализация')); // списание пива
+    IF receiptReturn() AND receiptLot() THEN createActChargeOn(actClient(), dFrom, dTo, actChargeOnType('Выравнивание остатков')); // постановка крепкого
+    IF receiptReturn() AND receiptNotLot() THEN createActChargeOn(actClient(), dFrom, dTo, actChargeOnType('Излишки')); // постановка пива
+}
+
+META defineReceiptActionsForm(form)
+    EXTEND FORM form
+        OBJECTS datesReceipt = (dFromReceipt = DATE, dToReceipt = DATE) PANEL
+        PROPERTIES fromReceipt 'Дата с' = VALUE(dFromReceipt), toReceipt 'Дата по' = VALUE(dToReceipt)
+        PROPERTIES () actClientName, receiptSale, receiptReturn, receiptLot, receiptNotLot
+        PROPERTIES (dFromReceipt, dToReceipt) createByReceipt
+    ;
+
+    DESIGN form {
+        tabbedPane {
+            actions {
+                NEW receiptBox {
+                    caption = 'Создать списания/постановки по кассовым отчётам';
+                    MOVE BOX(datesReceipt) { caption = ''; horizontal = TRUE; }
+                    MOVE PROPERTY(actClientName());
+                    NEW flags { horizontal = TRUE;
+                        MOVE PROPERTY(receiptSale());
+                        MOVE PROPERTY(receiptReturn());
+                        MOVE PROPERTY(receiptLot());
+                        MOVE PROPERTY(receiptNotLot());
+                    }
+                    MOVE PROPERTY(createByReceipt(dFromReceipt, dToReceipt));
+                }
+            }
+        }
+    }
+END
+
+@defineReceiptActionsForm(actWriteOffs);
+@defineReceiptActionsForm(actChargeOns);

@@ -1,0 +1,54 @@
+MODULE EGAISZReportNotLotAlcoholChargeOnGestori;
+
+REQUIRE EGAISZReportLotChargeOnGestori, EGAISZReportNotLotAlcohol;
+
+NAMESPACE EGAIS;
+
+notLotChargeOn 'Без марок' = DATA BOOLEAN (ActChargeOn);
+chargeOnReceiptNotLot = GROUP MAX ActChargeOn a IF byReceiptChargeOn(a) AND notLotChargeOn(a) BY client(a), date(a), type(a);
+
+createActChargeOnNotLot 'Создать постановку на основе реализации (без марок)' (Client c, DATE d) {
+    NEWSESSION {
+        createActWriteOffNotLotOver(c, d);
+
+        LOCAL q = NUMERIC[16,5](Sku);
+        q(Sku s) <- (0.0 (-) soldQNotLot(c, s, d)) IF soldQNotLot(c, s, d) < 0; // возвраты сверх продаж
+        LOCAL price = NUMERIC[16,4](Sku);
+        price(Sku s) <- round0(NUMERIC[16,4](soldSNotLot(c,s,d) / soldQNotLot(c,s,d))) WHERE q(s); // средняя цена (оба отрицательны → +)
+
+        IF (GROUP SUM 1 IF q(Sku s)) THEN NEW a = ActChargeOn {
+            posted(a) <- NULL;
+            byReceiptChargeOn(a) <- TRUE;
+            notLotChargeOn(a) <- TRUE;
+
+            client(a) <- c;
+            dateTime(a) <- dateTimeToDateTime(d, 23:59);
+            dataType(a) <- actChargeOnType('Излишки');
+            note(a) <- 'Постановка на основе возвратов реализации';
+
+            FOR q(Sku s) INLINE NEW ps = ActChargeOnPosition DO {
+                actChargeOn(ps) <- a;
+                product(ps) <- minProduct(s);
+                quantity(ps) <- q(s);
+                sumSale(ps) <- round0(NUMERIC[18,4](price(s) * q(s)));
+            }
+            APPLY;
+        }
+    }
+}
+
+createActChargeOn (Client c, DATE dFrom, DATE dTo, ActChargeOnType t) + {
+    IF t == actChargeOnType('Излишки') THEN {
+        FOR iterate(DATE d, dFrom, dTo) DO {
+            IF own(c) AND NOT chargeOnReceiptNotLot(c, d, t) THEN createActChargeOnNotLot(c, d);
+        }
+    }
+}
+
+notPostReceiptBeer 'Списания пива из касс создавать непроведёнными' = DATA BOOLEAN () PREREAD;
+EXTEND FORM integrationData PROPERTIES() notPostReceiptBeer;
+DESIGN integrationData { EGAISParams { MOVE PROPERTY(notPostReceiptBeer()); } }
+
+overFillActWriteOffNotLot (ActWriteOff a) + {
+    IF notPostReceiptBeer() THEN posted(a) <- NULL;
+}

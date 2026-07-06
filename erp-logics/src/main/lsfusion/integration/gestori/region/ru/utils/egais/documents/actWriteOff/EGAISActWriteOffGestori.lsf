@@ -34,16 +34,6 @@ END;
 
 createActWriteOff 'Создать списание ЕГАИС на основе реализации' ABSTRACT LIST (Client, DATE, DATE, WriteOffType);
 
-actWriteOffClient = DATA Client () NONULL ;
-actWriteOffClientName 'Организация ЕГАИС' = shortName(actWriteOffClient());
-
-actWriteOffType = DATA WriteOffType () NONULL ;
-actWriteOffTypeName 'Тип списания ЕГАИС' = id(actWriteOffType());
-
-createActWriteOff 'Создать списание ЕГАИС по кассовым отчетам' (DATE dFrom, DATE dTo) {
-    createActWriteOff(actWriteOffClient(), dFrom, dTo, actWriteOffType());
-}
-
 post 'Провести' (ActWriteOff o)  {
     NEWSESSION { posted(o) <- TRUE; apply(); }
 } TOOLBAR CONFIRM;
@@ -153,11 +143,6 @@ addMarkCodeInputIdMarkCode 'Ввод кода маркировки :' (ActWriteO
 idEgais 'Номер строки' (ActWriteOffPosition p) = STRING(p) IF p IS ActWriteOffPosition; 
 
 EXTEND FORM actWriteOffs
-    OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL 
-    PROPERTIES valFrom 'Дата с' = VALUE(dFrom), valTo 'Дата по' = VALUE(dTo)
-
-    PROPERTIES () actWriteOffClientName, actWriteOffTypeName
-    PROPERTIES (dFrom, dTo) createActWriteOff
     PROPERTIES (d) post SHOWIF NOT posted(d) AND NOT canceled(d), unpost SHOWIF posted(d)
 
     PROPERTIES (d) editAdmin SHOWIF showToShow(d) AND hideEdit(d), copy
@@ -173,17 +158,6 @@ DESIGN actWriteOffs {
         tabbedPane {
             NEW actions {
                 caption = 'Действия';
-                NEW createActWriteOff {
-                    caption = 'Списание ЕГАИС по кассовым отчетам';
-
-                    MOVE BOX(dates) {
-                        caption = '';
-                        horizontal = TRUE;
-                    }
-                    MOVE PROPERTY(actWriteOffClientName());
-                    MOVE PROPERTY(actWriteOffTypeName());
-                    MOVE PROPERTY(createActWriteOff(dFrom, dTo));
-                }
             }
         }
     }
@@ -193,14 +167,6 @@ EXTEND FORM actWriteOff
     PROPERTIES (w) READONLY dataSaleDate
     PROPERTIES (p) READONLY idEgais
 ;
-
-CONSTRAINT NOT own(actWriteOffClient())
-    CHECKED BY actWriteOffClient[]
-    MESSAGE 'Только собственные организации ЕГАИС';
-
-CONSTRAINT actWriteOffType() AND (NOT actWriteOffType() == writeOffType('Розничная продажа') AND NOT  actWriteOffType() == writeOffType('Реализация'))
-    CHECKED BY actWriteOffType[]
-    MESSAGE 'Ограничение по типам списания ЕГАИС';
 
 CONSTRAINT client(ActWriteOff a) AND NOT isCompany(stock(client(a)))
     CHECKED BY client[ActWriteOff]

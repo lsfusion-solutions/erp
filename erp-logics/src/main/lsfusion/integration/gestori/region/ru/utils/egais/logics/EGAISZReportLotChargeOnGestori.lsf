@@ -1,0 +1,54 @@
+MODULE EGAISZReportLotChargeOnGestori;
+
+REQUIRE EGAISZReportLot, EGAISActChargeOnExchange, EGAISActChargeOnGestori;
+
+NAMESPACE EGAIS;
+
+byReceiptChargeOn 'На основе реализации' = DATA BOOLEAN (ActChargeOn);
+
+chargeOnReceipt = GROUP MAX ActChargeOn a IF a IS ActChargeOn AND byReceiptChargeOn(a) BY client(a), date(a), type(a);
+
+createActChargeOnOver ABSTRACT CASE (Client, DATE);
+
+createActChargeOnOver(Client c, DATE d) + WHEN c IS Client AND d IS DATE THEN {
+    quantity(Lot l) <- NULL;
+    quantity(Lot l) <- (0.0 (-) sold(c, l, d)) IF sold(c, l, d) < 0 AND f2Reg(markCode(id(l)));
+}
+
+createActChargeOn 'Создать постановку на основе реализации' (Client c, DATE d) {
+    NEWSESSION {
+        createActChargeOnOver(c, d);
+
+        IF (GROUP SUM 1 IF quantity(Lot l)) THEN NEW a = ActChargeOn {
+            posted(a) <- TRUE;
+            byReceiptChargeOn(a) <- TRUE;
+
+            client(a) <- c;
+            dateTime(a) <- dateTimeToDateTime(d, 23:59);
+            dataType(a) <- actChargeOnType('Выравнивание остатков');
+            note(a) <- 'Постановка на основе возвратов реализации';
+
+            FOR [GROUP SUM 1 IF quantity(Lot l) BY f2Reg(markCode(id(l)))](F2Reg f) INLINE NEW ps = ActChargeOnPosition DO {
+                actChargeOn(ps) <- a;
+
+                product(ps) <- product(f);
+                f2Reg(ps) <- f;
+
+                FOR [GROUP SUM 1 IF quantity(Lot l) BY markCode(id(l))](MarkCode mc) AND f2Reg(mc) = f INLINE NEW m = ActChargeOnMark DO {
+                    actChargeOnPosition(m) <- ps;
+                    markCode(m) <- mc;
+                }
+            }
+
+            APPLY;
+        }
+    }
+}
+
+createActChargeOn (Client c, DATE dFrom, DATE dTo, ActChargeOnType t) + {
+    IF t == actChargeOnType('Выравнивание остатков') THEN {
+        FOR iterate(DATE d, dFrom, dTo) DO {
+            IF own(c) AND NOT chargeOnReceipt(c, d, t) THEN createActChargeOn(c, d);
+        }
+    }
+}
