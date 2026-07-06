@@ -1526,7 +1526,7 @@ FORM importEvents
 ;
 
 importComment ABSTRACT LIST (Entity);
-
+overGetNewEvents ABSTRACT (Message);
 getNewEvents 'Получить новые сообщения' (User u, Box box) {
     NEWSESSION {
         getToken(u);
@@ -1574,6 +1574,7 @@ getNewEvents 'Получить новые сообщения' (User u, Box box) 
                 isReusable(m) <- isReusable(i);
                 message(boxEvent(eventId(i))) <- m;
                 eventTimestampTicks(i) <- timestampTicks(i);
+                overGetNewEvents(m);
             }
             //todo : бывает ситуации когда один и тот же entity содержится в разных message (например черновики), тогда падает ошибка на дублирующие объекты
             //или переделать ссылки между entity и message (сейчас 1 к 1), или создавать только 1 объект entity и привязывать к 1 message, остальные будут без документов
@@ -2338,7 +2339,7 @@ FORM importMessage
 createdMessage = DATA LOCAL Message();
 //созданный документ
 createdDocument = DATA LOCAL Document();
-
+overPostMessage ABSTRACT LIST(Message);
 postMessage 'Отправить сообщение' (User u) {
     getToken(u);
     
@@ -2377,6 +2378,7 @@ postMessage 'Отправить сообщение' (User u) {
         messageType(m) <- messageType(messageTypeM());
         isReusable(m) <- isReusableM();
         createdMessage() <- m;
+        overPostMessage(m);
     }
     FOR [GROUP SUM 1 BY entityIdM(INTEGER i)](STRING str) AND NOT entity(str) NEW e = Entity DO {
         entityId(e) <- str;
