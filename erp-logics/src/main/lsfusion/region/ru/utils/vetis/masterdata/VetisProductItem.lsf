@@ -164,7 +164,10 @@ changeEnterprises(ProductItem o)  {
 }
 
 readonlyProductItem = ABSTRACT BOOLEAN (ProductItem);
+readonlyProductItemOwner = ABSTRACT BOOLEAN (ProductItem);
 hideNewProductItem = ABSTRACT BOOLEAN ();
+hideEditProductItem = ABSTRACT BOOLEAN (ProductItem);
+hideDeleteProductItem = ABSTRACT BOOLEAN (ProductItem);
 
 changeSubProduct ABSTRACT (ProductItem);
 
@@ -179,20 +182,20 @@ FORM productItem 'Номенклатура'
 ;
 
 FORM productItems 'Номенклатура'
-    
+
     TREE tree a = BPSTRING[3], pt = ProductType, p = Product, sp = SubProduct
     PROPERTIES READONLY VALUE(a), name(pt), name(p), name(sp)
-    
+
     FILTERS a = 'Все',
             productType(p) = pt,
             product(sp) = p
-    
+
     FILTERGROUP activeTree
         FILTER 'Активные' NOT inactive(p) AND NOT inactive(sp) DEFAULT
 
     OBJECTS o = ProductItem
     PROPERTIES(o) READONLY isExported, guid, uuid, name, globalID, code, nameSubProduct, nameProducer, nameOwner, nameEnterprises, inactive
-    PROPERTIES(o) NEWSESSION NEW SHOWIF NOT hideNewProductItem(), EDIT, DELETE
+    PROPERTIES(o) NEWSESSION NEW SHOWIF NOT hideNewProductItem(), EDIT SHOWIF NOT hideEditProductItem(o), DELETE SHOWIF NOT hideDeleteProductItem(o)
 
     FILTERGROUP active
         FILTER 'Активная' NOT inactive(o) DEFAULT

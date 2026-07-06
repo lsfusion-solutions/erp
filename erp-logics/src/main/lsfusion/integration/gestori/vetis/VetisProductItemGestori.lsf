@@ -38,7 +38,7 @@ CONSTRAINT DROPPED(ProductItem p IS ProductItem) AND PREV(hasStockEntry(p))
     MESSAGE 'Нельзя удалять номенклатуру: связана с записями складского журнала';
 
 CONSTRAINT DROPPED(ProductItem p IS ProductItem) AND PREV(uuid(p)) AND PREV(ownProductGestori(p))
-    MESSAGE 'Для удаления собственной номенклатуры используйте кнопку "Удалить номенклатуру"';
+    MESSAGE 'Для удаления собственной номенклатуры используйте кнопку "Удалить"';
 
 deleteModifyProducerStockList 'Удалить номенклатуру' (ProductItem p) {
     NEWSESSION {
@@ -56,10 +56,6 @@ deleteModifyProducerStockList 'Удалить номенклатуру' (Product
         APPLY;
     }
 }
-
-EXTEND FORM productItems
-    PROPERTIES(o) TOOLBAR deleteModifyProducerStockList SHOWIF uuid(o) AND ownProductGestori(o) DRAW o
-;
 
 // --- Блок 3: Форма редактирования ---
 
@@ -148,3 +144,45 @@ WHEN (CHANGED(name(ProductItem p)) OR CHANGED(globalID(p)) OR CHANGED(code(p)) O
       CHANGED(subProduct(p)) OR CHANGED(producer(p)) OR CHANGED(owner(p)) OR
       CHANGED(inactive(p))) AND ownProductGestori(p) AND uuid(p) AND NOT skipOwnConstraint() DO
     updateModifyProducerStockList(p);
+
+
+// Скрыть кнопки ручного запроса в Ветис — запросы выполняются автоматически
+hideManualProducerStockList() += TRUE;
+
+// Редактировать — только для собственной номенклатуры без необработанного запроса
+hideEditProductItem(ProductItem o) += TRUE IF NOT ownProductGestori(o) OR isExported(o);
+// Стандартная кнопка DELETE скрыта везде — вместо неё используется deleteProductItemGestori
+hideDeleteProductItem(ProductItem o) += TRUE IF o IS ProductItem;
+
+// Производитель и Владелец становятся только для чтения после регистрации в Ветис (uuid заполнен)
+readonlyProductItemOwner(ProductItem i) += TRUE IF uuid(i) AND ownProductGestori(i);
+
+// Открыть карточку номенклатуры в режиме просмотра
+viewProductItem 'Просмотр' (ProductItem p) {
+    SHOW productItem OBJECTS o = p;
+}
+
+// Удаление: собственная с uuid — отправить запрос на удаление в Ветис; иначе — удалить напрямую
+deleteProductItemGestori 'Удалить' (ProductItem p) {
+    IF ownProductGestori(p) AND uuid(p) THEN
+        deleteModifyProducerStockList(p);
+    ELSE NEWSESSION {
+        DELETE p;
+        APPLY;
+    }
+}
+
+EXTEND FORM productItems
+    PROPERTIES(o) TOOLBAR viewProductItem DRAW o
+    PROPERTIES(o) TOOLBAR deleteProductItemGestori SHOWIF NOT isExported(o) DRAW o
+;
+
+guidPI 'GUID номенклатуры (фильтр)' = DATA LOCAL STRING[50]();
+
+EXTEND FORM getProductItemListRequest
+    PROPERTIES() IN getProductItemListRequest guidPI EXTID 'bs:guid'
+;
+
+EXTEND FORM getProductItemListRequestParams
+    PROPERTIES() guidPI
+;

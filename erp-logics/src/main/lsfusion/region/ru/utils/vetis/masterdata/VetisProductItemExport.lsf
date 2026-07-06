@@ -103,15 +103,16 @@ updateModifyProducerStockList 'Изменение номенклатуры' (Pro
     }
 }
 
-readonlyProductItem(ProductItem i) += isExported(i) AND own(producer(i)) OR NOT own(producer(i));
-
-EXTEND FORM productItems
-    PROPERTIES(o) TOOLBAR createModifyProducerStockList SHOWIF NOT uuid(o), updateModifyProducerStockList SHOWIF uuid(o) DRAW o
-;
+readonlyProductItem(ProductItem i) += (isExported(i) AND own(producer(i)) OR NOT own(producer(i))) OR readonlyProductItemOwner(i);
 
 operationType = DATA STRING (ProductItemRequest);
 
 skipOwnConstraint 'Пропустить проверку собственного ХС' = DATA LOCAL BOOLEAN ();
+hideManualProducerStockList = ABSTRACT BOOLEAN ();
+
+EXTEND FORM productItems
+    PROPERTIES(o) TOOLBAR createModifyProducerStockList SHOWIF NOT uuid(o) AND NOT hideManualProducerStockList(), updateModifyProducerStockList SHOWIF uuid(o) AND NOT hideManualProducerStockList() DRAW o
+;
 
 CONSTRAINT producer(ProductItem o) AND NOT own(producer(o)) AND NOT skipOwnConstraint() CHECKED BY producer[ProductItem] MESSAGE 'Можно выбрать только собственный ХС';
 CONSTRAINT owner(ProductItem o) AND NOT own(owner(o)) AND NOT skipOwnConstraint() CHECKED BY owner[ProductItem] MESSAGE 'Можно выбрать только собственный ХС';
