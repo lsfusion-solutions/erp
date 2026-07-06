@@ -160,12 +160,14 @@ prevRangeRev 'Предыдущая версия' (RangeRev v) = PARTITION PREV v
 dateTimePrevRangeRev 'Предыдущая версия' (RangeRev v) = dateTime(prevRangeRev(v));
 datePrevRangeRev 'Предыдущая версия' (RangeRev v) = DATE(dateTimePrevRangeRev(v));
 
+skip = ABSTRACT BOOLEAN (RangeRev);
+
 rangeRev 'Версия' = GROUP LAST RangeRev rev
                                        ORDER date(rev), rev
-                                       WHERE date(rev) <= (DATE date AS DATE)
+                                       WHERE date(rev) <= (DATE date AS DATE) AND NOT skip(rev)
                                        BY range(rev), date COMPLEX;
 
-rangeRev (Range r) = GROUP LAST RangeRev rev ORDER dateTime(rev), rev BY range(rev) MATERIALIZED;
+rangeRev (Range r) = GROUP LAST RangeRev rev ORDER dateTime(rev), rev WHERE NOT skip(rev) BY range(rev) MATERIALIZED;
 isLast (RangeRev v) = rangeRev(range(v)) = v MATERIALIZED;
                            
 filterSupplier = DATA LOCAL LegalEntity();
