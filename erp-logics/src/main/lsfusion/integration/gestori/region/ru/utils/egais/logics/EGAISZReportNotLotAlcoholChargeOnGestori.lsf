@@ -45,10 +45,20 @@ createActChargeOn (Client c, DATE dFrom, DATE dTo, ActChargeOnType t) + {
     }
 }
 
-notPostReceiptBeer 'Списания пива из касс создавать непроведёнными' = DATA BOOLEAN () PREREAD;
-EXTEND FORM integrationData PROPERTIES() notPostReceiptBeer;
-DESIGN integrationData { EGAISParams { MOVE PROPERTY(notPostReceiptBeer()); } }
+sendReceiptEGAIS 'Отправить в ЕГАИС' () {
+    LOCAL NESTED toW = BOOLEAN (ActWriteOff);
+    toW (ActWriteOff a) <- TRUE WHERE NOT posted(a) AND notLot(a)
+        AND date(a) >= sum(currentDate(), (OVERRIDE -actWriteOffDays(), -1)) AND date(a) <= currentDate()
+        AND NOT notRejected(actWriteOffOutDoc(a));
+    FOR toW (ActWriteOff a) ORDER dateTime(a), a DO process(a);
+
+    LOCAL NESTED toC = BOOLEAN (ActChargeOn);
+    toC (ActChargeOn a) <- TRUE WHERE NOT posted(a) AND notLotChargeOn(a)
+        AND date(a) >= sum(currentDate(), (OVERRIDE -actWriteOffDays(), -1)) AND date(a) <= currentDate()
+        AND NOT notRejected(actChargeOnOutDoc(a));
+    FOR toC (ActChargeOn a) ORDER dateTime(a), a DO process(a, TRUE);
+}
 
 overFillActWriteOffNotLot (ActWriteOff a) + {
-    IF notPostReceiptBeer() THEN posted(a) <- NULL;
+    posted(a) <- NULL;
 }
