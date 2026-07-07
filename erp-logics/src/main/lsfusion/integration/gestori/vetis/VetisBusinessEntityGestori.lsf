@@ -1,0 +1,153 @@
+MODULE VetisBusinessEntityGestori;
+
+REQUIRE VetisBusinessEntityImport;
+
+NAMESPACE Vetis;
+
+// --- Поиск в Ветис через GetBusinessEntityList ---
+
+searchGuid 'GUID (поиск)' = DATA LOCAL STRING ();
+searchInn 'ИНН (поиск)' = DATA LOCAL STRING ();
+searchKpp 'КПП (поиск)' = DATA LOCAL STRING ();
+searchOgrn 'ОГРН/ОГРНИП (поиск)' = DATA LOCAL STRING ();
+
+FORM getBusinessEntityListSearchRequest FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() header EXTID 'soapenv:Header'
+    PROPERTIES() IN getBusinessEntityListRequestListOptions count EXTID 'base:count', offset EXTID 'base:offset'
+    PROPERTIES() IN getBusinessEntityListRequestBusinessEntity
+        searchGuid EXTID 'base=http://api.vetrf.ru/schema/cdm/base:guid',
+        searchInn EXTID 'dt:inn',
+        searchKpp EXTID 'dt:kpp',
+        searchOgrn EXTID 'dt:ogrn'
+;
+
+typeL = DATA LOCAL STRING(INTEGER);
+fioL = DATA LOCAL STRING(INTEGER);
+kppL = DATA LOCAL STRING(INTEGER);
+ogrnL = DATA LOCAL STRING(INTEGER);
+addressViewL = DATA LOCAL STRING(INTEGER);
+
+FORM getBusinessEntityListExtResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() IN getBusinessEntityListResponseList total EXTID 'dt:total' ATTR
+    OBJECTS businessEntity = INTEGER EXTID 'dt:businessEntity' IN getBusinessEntityListResponseList
+    PROPERTIES(businessEntity) guid EXTID 'base=http://api.vetrf.ru/schema/cdm/base:guid', fullName EXTID 'dt:fullName', inn EXTID 'dt:inn',
+                               typeL EXTID 'dt:type', fioL EXTID 'dt:fio', kppL EXTID 'dt:kpp', ogrnL EXTID 'dt:ogrn'
+    PROPERTIES(businessEntity) IN juridicalAddress addressViewL EXTID 'ikar=http://api.vetrf.ru/schema/cdm/ikar:addressView'
+;
+
+// --- GetBusinessEntityByGuid: запрос ---
+
+GROUP getBusinessEntityByGuidRequest EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getBusinessEntityByGuidRequest' : body;
+
+FORM getBusinessEntityByGuidRequest FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    OBJECTS b = BusinessEntity PANEL
+    PROPERTIES(b) IN getBusinessEntityByGuidRequest guid EXTID 'base=http://api.vetrf.ru/schema/cdm/base:guid'
+;
+
+// --- GetBusinessEntityByGuid: ответ ---
+
+GROUP getBusinessEntityByGuidResponse EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getBusinessEntityByGuidResponse' : body;
+GROUP getBusinessEntityByGuidResponseEntity EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:businessEntity' : getBusinessEntityByGuidResponse;
+GROUP getBusinessEntityByGuidResponseJuridicalAddress EXTID 'dt:juridicalAddress' : getBusinessEntityByGuidResponseEntity;
+
+beType = DATA LOCAL STRING();
+beName = DATA LOCAL ISTRING();
+beFio = DATA LOCAL ISTRING();
+beInn = DATA LOCAL STRING();
+beKpp = DATA LOCAL STRING();
+beOgrn = DATA LOCAL STRING();
+beAddressView = DATA LOCAL ISTRING();
+
+FORM getBusinessEntityByGuidResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() IN getBusinessEntityByGuidResponseEntity
+        beName EXTID 'dt:fullName',
+        beType EXTID 'dt:type',
+        beFio EXTID 'dt:fio',
+        beInn EXTID 'dt:inn',
+        beKpp EXTID 'dt:kpp',
+        beOgrn EXTID 'dt:ogrn'
+    PROPERTIES() IN getBusinessEntityByGuidResponseJuridicalAddress
+        beAddressView EXTID 'ikar=http://api.vetrf.ru/schema/cdm/ikar:addressView'
+;
+
+// --- Действия ---
+
+getBusinessEntityByGUID 'Загрузить реквизиты' (BusinessEntity b) {
+    NEWSESSION {
+        EXPORT getBusinessEntityByGuidRequest OBJECTS b = b XML;
+
+        LOCAL response = FILE();
+        TRY {
+            EXTERNAL HTTP urlCerberus() HEADERS httpHeaders PARAMS exportFile() TO response;
+        } CATCH {
+            fileToString(response());
+            MESSAGE CONCAT ' ', 'Ошибка при запросе к службе:', resultString();
+            RETURN;
+        }
+
+        IMPORT getBusinessEntityByGuidResponse XML FROM response();
+
+        IF beType() THEN type(b) <- beType();
+        IF beName() THEN name(b) <- beName();
+        IF beFio() THEN fio(b) <- beFio();
+        IF beInn() THEN inn(b) <- STRING[12](beInn());
+        IF beKpp() THEN kpp(b) <- STRING[9](beKpp());
+        IF beOgrn() THEN ogrn(b) <- STRING[15](beOgrn());
+        IF beAddressView() THEN addressView(b) <- beAddressView();
+
+        APPLY;
+    }
+}
+
+findBusinessEntities 'Найти в Ветис' () {
+    IF NOT (searchGuid() OR searchInn() OR searchKpp() OR searchOgrn()) THEN {
+        MESSAGE 'Укажите хотя бы один параметр поиска: GUID, ИНН, КПП или ОГРН';
+        RETURN;
+    }
+    NEWSESSION NESTED LOCAL {
+        offset() <- 0;
+        count() <- 1000;
+        EXPORT getBusinessEntityListSearchRequest XML;
+        LOCAL response = FILE();
+        TRY {
+            EXTERNAL HTTP urlCerberus() HEADERS httpHeaders PARAMS exportFile() TO response;
+        } CATCH {
+            fileToString(response());
+            MESSAGE CONCAT ' ', 'Ошибка при запросе к службе:', resultString();
+            RETURN;
+        }
+        IMPORT getBusinessEntityListExtResponse XML FROM response();
+        FOR guid(INTEGER i) AND NOT businessEntity(guid(i)) NEW b = BusinessEntity DO {
+            guid(b) <- guid(i);
+        }
+        FOR BusinessEntity b = businessEntity(guid(INTEGER i)) DO {
+            name(b) <- ISTRING(fullName(i));
+            IF inn(i) THEN inn(b) <- STRING[12](inn(i));
+        }
+        APPLY;
+    }
+    MESSAGE 'Найдено: ' + (GROUP SUM 1 IF guid(INTEGER i)) + ' хозяйствующих субъектов';
+}
+
+EXTEND FORM businessEntity
+    PROPERTIES(o) getBusinessEntityByGUID DRAW o TOOLBAR
+;
+
+EXTEND FORM businessEntities
+    PROPERTIES() searchGuid, searchInn, searchKpp, searchOgrn, findBusinessEntities DRAW o TOOLBAR
+    PROPERTIES(o) getBusinessEntityByGUID GRID
+;
+
+DESIGN businessEntities {
+    TOOLBARBOX {
+        NEW searchBox {
+            horizontal = TRUE;
+            caption = 'Поиск в Ветис';
+            MOVE PROPERTY(searchGuid());
+            MOVE PROPERTY(searchInn());
+            MOVE PROPERTY(searchKpp());
+            MOVE PROPERTY(searchOgrn());
+            MOVE PROPERTY(findBusinessEntities());
+        }
+    }
+}
