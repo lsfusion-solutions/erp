@@ -144,7 +144,7 @@ getToken_v1() {
 
 
 getToken_v2() {
-    LOCAL result = XMLFILE ();
+    LOCAL result = JSONFILE ();
     EXPORT JSON FROM login = username(), password = password();
     TRY {
         EXTERNAL HTTP POST url()+'/auth/login' PARAMS exportFile() TO result;
@@ -250,10 +250,10 @@ getFunctionalnameByGTINCustom_v1 'Проверить ePass' (Item i) {
         APPLY NESTED LOCAL;
     }      
 }
-headersEPass(STRING id) = IF id == 'AUTHTOKEN' THEN sessiontoken();
+headersEPass(STRING id) = IF id == 'Authorization' THEN 'Bearer ' + sessiontoken();
 
 getFunctionalnameByGTINCustom_v2 'Проверить ePass' (Item i) {
-    LOCAL result = XMLFILE ();
+    LOCAL result = JSONFILE ();
     EXPORT JSON FROM gtin = gtin();
     LOCAL mce = STRING ();
 
@@ -399,7 +399,7 @@ getFunctionalnameByGTIN 'Проверить ePass' (Item i) {
 
 logout_v2() {
     TRY {
-        EXTERNAL HTTP POST url() + '/auth/logout' HEADERS headersEPass PARAMS exportFile();
+        EXTERNAL HTTP POST url() + '/auth/logout' HEADERS headersEPass;
     }
 }
 
