@@ -6,7 +6,7 @@ NAMESPACE EGAIS;
 
 byReceiptChargeOn 'На основе реализации' = DATA BOOLEAN (ActChargeOn);
 
-chargeOnReceipt = GROUP MAX ActChargeOn a IF a IS ActChargeOn AND byReceiptChargeOn(a) BY client(a), date(a), type(a);
+chargeOnReceipt = GROUP MAX ActChargeOn a IF a IS ActChargeOn AND byReceiptChargeOn(a) AND lotType(a) BY client(a), date(a);
 
 createActChargeOnOver ABSTRACT CASE (Client, DATE);
 
@@ -25,7 +25,8 @@ createActChargeOn 'Создать постановку на основе реа�
 
             client(a) <- c;
             dateTime(a) <- dateTimeToDateTime(d, 23:59);
-            dataType(a) <- actChargeOnType('Выравнивание остатков');
+            dataSaleReturnDateTime(a) <- dateTime(a);
+            dataType(a) <- actChargeOnType('Излишки');
             note(a) <- 'Постановка на основе возвратов реализации';
 
             FOR [GROUP SUM 1 IF quantity(Lot l) BY f2Reg(markCode(id(l)))](F2Reg f) INLINE NEW ps = ActChargeOnPosition DO {
@@ -48,7 +49,7 @@ createActChargeOn 'Создать постановку на основе реа�
 createActChargeOn (Client c, DATE dFrom, DATE dTo, ActChargeOnType t) + {
     IF t == actChargeOnType('Выравнивание остатков') THEN {
         FOR iterate(DATE d, dFrom, dTo) DO {
-            IF own(c) AND NOT chargeOnReceipt(c, d, t) THEN createActChargeOn(c, d);
+            IF own(c) AND NOT chargeOnReceipt(c, d) THEN createActChargeOn(c, d);
         }
     }
 }

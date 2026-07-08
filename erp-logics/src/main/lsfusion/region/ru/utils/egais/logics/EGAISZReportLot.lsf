@@ -19,6 +19,8 @@ createActWriteOffOver(Client c, DATE d) + WHEN c IS Client AND d IS DATE  THEN {
     quantity(Lot l) <- NULL;
     quantity(Lot l) <- sold(c, l, d) IF sold(c, l, d) > 0 AND f2Reg(markCode(id(l)));
 }
+
+overFillActWriteOff ABSTRACT LIST (ActWriteOff);
 createActWriteOff 'Создать списание на основе реализации' (Client c, DATE d) {
     NEWSESSION {        
         createActWriteOffOver(c,d);
@@ -31,6 +33,8 @@ createActWriteOff 'Создать списание на основе реали�
             dateTime(a) <- dateTimeToDateTime(d, 23:59);
             type(a) <- writeOffType('Розничная продажа');
             note(a) <- 'Списание на основе реализации';
+
+            overFillActWriteOff(a);
 
             FOR [GROUP SUM 1 IF quantity(Lot l) BY f2Reg(markCode(id(l)))](F2Reg f) INLINE NEW ps = ActWriteOffPosition DO {
                 actWriteOff(ps) <- a;
