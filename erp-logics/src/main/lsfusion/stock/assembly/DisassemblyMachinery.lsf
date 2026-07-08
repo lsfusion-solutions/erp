@@ -1,0 +1,31 @@
+MODULE DisassemblyMachinery;
+
+REQUIRE MachineryPriceTransaction, Disassembly;
+
+NAMESPACE Disassembly;
+
+// ------------------------------------- Загрузка в оборудование ------------------------------ //
+DESIGN disassemblies {
+    tabbedPane {
+        NEW actionContainer {
+            caption = 'Действия';
+            horizontal = TRUE;
+            NEW machineryContainer {
+                caption = 'Загрузка';
+                NEW label {
+                    caption = 'Ценники' ;
+                }
+            }
+        }
+    }
+}
+
+@defineDocumentHeaderSkuQuantity(disassembly, sku);
+
+@Machinery.implementPriceTransactionDocumentStock(Disassembly, stock, legalEntityStock);
+@implementPriceTransactionDocumentDetail(disassembly);
+
+@defineDocumentMachineryPriceTransaction(disassembly, sku, stock);
+@extendFormDocumentMachineryPriceTransaction(disassemblies, a, disassembly, note, machineryContainer);
+
+@extendFormDocumentMachineryPriceTransactionError(disassemblies, a, disassembly, tabbedPane);
