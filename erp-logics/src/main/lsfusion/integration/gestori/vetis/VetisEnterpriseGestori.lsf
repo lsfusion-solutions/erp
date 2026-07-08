@@ -69,18 +69,13 @@ FORM importEnterpriseDetails FORMEXTID 'dt=http://api.vetrf.ru/schema/cdm/dictio
 ;
 
 afterImportEnterprise(Enterprise e, TEXT xml) + {
-    
-    NEWSESSION {
-        stringToFile('<dt:enterprise xmlns:dt="http://api.vetrf.ru/schema/cdm/dictionary/v2" xmlns:bs="http://api.vetrf.ru/schema/cdm/base">' +
-                      xml +
-                      '</dt:enterprise>');
-        open(resultFile());
-        IMPORT importEnterpriseDetails XML FROM resultFile();
-        IF eType() THEN type(e) <- eType();
-        IF eKpp() THEN kpp(e) <- STRING[9](eKpp());
-        IF eAddressView() THEN addressView(e) <- ISTRING(eAddressView());
-        APPLY;
-    }
+    stringToFile('<dt:enterprise xmlns:dt="http://api.vetrf.ru/schema/cdm/dictionary/v2" xmlns:bs="http://api.vetrf.ru/schema/cdm/base">' +
+                  xml +
+                  '</dt:enterprise>');
+    IMPORT importEnterpriseDetails XML FROM resultFile();
+    IF eType() THEN type(e) <- eType();
+    IF eKpp() THEN kpp(e) <- STRING[9](eKpp());
+    IF eAddressView() THEN addressView(e) <- ISTRING(eAddressView());
 }
 
 // --- GetEnterpriseByGuid: загрузка type / kpp / addressView вручную ---
@@ -282,4 +277,14 @@ DESIGN enterprises {
     PROPERTY(getEnterpriseList()) { caption = 'Обновить данные'; }
     PROPERTY(getEnterpriseList(o)) { caption = 'Обновить данные'; }
     PROPERTY(guid(o)) { caption = 'GUID площадки'; }
+}
+
+EXTEND FORM businessEntity
+    PROPERTIES(e) READONLY kpp
+;
+
+DESIGN businessEntity {
+    tabEnterprises {
+        MOVE BOX(e);
+    }
 }

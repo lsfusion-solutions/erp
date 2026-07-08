@@ -36,17 +36,22 @@ FORM getBusinessEntityListResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org
 ;
 
 
+afterGetBusinessEntityList ABSTRACT (BusinessEntity, FILE);
+
 getBusinessEntityList 'Загрузить данные' (BusinessEntity b) {
     NEWSESSION {
-        EXPORT getBusinessEntityListRequest OBJECTS b = b XML;
-        
+        LOCAL requestFile = FILE();
+        EXPORT getBusinessEntityListRequest OBJECTS b = b XML TO requestFile;
+
         LOCAL response = FILE();
-        EXTERNAL HTTP urlCerberus() HEADERS httpHeaders PARAMS exportFile() TO response;
-        
+        EXTERNAL HTTP urlCerberus() HEADERS httpHeaders PARAMS requestFile() TO response;
+
         IMPORT getBusinessEntityListResponse XML FROM response();
-        
+
         name(b) <- fullName(0);
         inn(b) <- STRING[12](inn(0));
+
+        afterGetBusinessEntityList(b, response());
 
         APPLY;
     }

@@ -1,10 +1,78 @@
 MODULE VetisBusinessEntityGestori;
 
-REQUIRE VetisBusinessEntityImport;
+REQUIRE VetisBusinessEntityImport, VetisLegalEntity;
 
 NAMESPACE Vetis;
 
-// --- Поиск в Ветис через GetBusinessEntityList ---
+// --- Новые свойства ХС ---
+
+fullName 'Наименование полное' = DATA ISTRING (BusinessEntity) CHARWIDTH 100;
+status 'Статус Ветис' = DATA STRING[5] (BusinessEntity) CHARWIDTH 5;
+
+// --- GetBusinessEntityByGuid ---
+
+GROUP getBusinessEntityByGuidRequest EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getBusinessEntityByGuidRequest' : body;
+
+FORM getBusinessEntityByGuidRequest FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    OBJECTS b = BusinessEntity PANEL
+    PROPERTIES(b) IN getBusinessEntityByGuidRequest guid EXTID 'base=http://api.vetrf.ru/schema/cdm/base:guid'
+;
+
+GROUP getBusinessEntityByGuidResponse EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getBusinessEntityByGuidResponse' : body;
+GROUP getBusinessEntityByGuidResponseEntity EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:businessEntity' : getBusinessEntityByGuidResponse;
+GROUP getBusinessEntityByGuidResponseJuridicalAddress EXTID 'dt:juridicalAddress' : getBusinessEntityByGuidResponseEntity;
+
+beStatus = DATA LOCAL STRING();
+beType = DATA LOCAL STRING();
+beName = DATA LOCAL ISTRING();
+beFullName = DATA LOCAL ISTRING();
+beFio = DATA LOCAL ISTRING();
+beInn = DATA LOCAL STRING();
+beKpp = DATA LOCAL STRING();
+beOgrn = DATA LOCAL STRING();
+beAddressView = DATA LOCAL ISTRING();
+
+FORM getBusinessEntityByGuidResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() IN getBusinessEntityByGuidResponseEntity
+        beStatus EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:status',
+        beType EXTID 'dt:type',
+        beName EXTID 'dt:name',
+        beFullName EXTID 'dt:fullName',
+        beFio EXTID 'dt:fio',
+        beInn EXTID 'dt:inn',
+        beKpp EXTID 'dt:kpp',
+        beOgrn EXTID 'dt:ogrn'
+    PROPERTIES() IN getBusinessEntityByGuidResponseJuridicalAddress
+        beAddressView EXTID 'ikar=http://api.vetrf.ru/schema/cdm/ikar:addressView'
+;
+
+getBusinessEntityByGUID 'Обновить ХС' (BusinessEntity b) {
+    NEWSESSION {
+        LOCAL requestFile = FILE();
+        EXPORT getBusinessEntityByGuidRequest OBJECTS b = b XML TO requestFile;
+        LOCAL response = FILE();
+        TRY {
+            EXTERNAL HTTP urlCerberus() HEADERS httpHeaders PARAMS requestFile() TO response;
+        } CATCH {
+            fileToString(response());
+            MESSAGE CONCAT ' ', 'Ошибка при запросе к службе:', resultString();
+            RETURN;
+        }
+        IMPORT getBusinessEntityByGuidResponse XML FROM response();
+        IF beStatus() THEN status(b) <- beStatus();
+        IF beType() THEN type(b) <- beType();
+        IF beName() THEN name(b) <- beName();
+        IF beFullName() THEN fullName(b) <- beFullName();
+        IF beFio() THEN fio(b) <- beFio();
+        IF beInn() THEN inn(b) <- STRING[12](beInn());
+        IF beKpp() THEN kpp(b) <- STRING[9](beKpp());
+        IF beOgrn() THEN ogrn(b) <- STRING[15](beOgrn());
+        IF beAddressView() THEN addressView(b) <- beAddressView();
+        APPLY;
+    }
+}
+
+// --- Загрузить ХС (поиск по параметрам) ---
 
 searchGuid 'GUID (поиск)' = DATA LOCAL STRING ();
 searchInn 'ИНН (поиск)' = DATA LOCAL STRING ();
@@ -22,6 +90,8 @@ FORM getBusinessEntityListSearchRequest FORMEXTID 'soapenv=http://schemas.xmlsoa
 ;
 
 typeL = DATA LOCAL STRING(INTEGER);
+nameL = DATA LOCAL STRING(INTEGER);
+statusL = DATA LOCAL STRING(INTEGER);
 fioL = DATA LOCAL STRING(INTEGER);
 kppL = DATA LOCAL STRING(INTEGER);
 ogrnL = DATA LOCAL STRING(INTEGER);
@@ -30,124 +100,163 @@ addressViewL = DATA LOCAL STRING(INTEGER);
 FORM getBusinessEntityListExtResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
     PROPERTIES() IN getBusinessEntityListResponseList total EXTID 'dt:total' ATTR
     OBJECTS businessEntity = INTEGER EXTID 'dt:businessEntity' IN getBusinessEntityListResponseList
-    PROPERTIES(businessEntity) guid EXTID 'base=http://api.vetrf.ru/schema/cdm/base:guid', fullName EXTID 'dt:fullName', inn EXTID 'dt:inn',
-                               typeL EXTID 'dt:type', fioL EXTID 'dt:fio', kppL EXTID 'dt:kpp', ogrnL EXTID 'dt:ogrn'
+    PROPERTIES(businessEntity) guid EXTID 'base=http://api.vetrf.ru/schema/cdm/base:guid',
+                               statusL EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:status',
+                               fullName EXTID 'dt:fullName',
+                               nameL EXTID 'dt:name',
+                               inn EXTID 'dt:inn',
+                               typeL EXTID 'dt:type',
+                               fioL EXTID 'dt:fio',
+                               kppL EXTID 'dt:kpp',
+                               ogrnL EXTID 'dt:ogrn'
     PROPERTIES(businessEntity) IN juridicalAddress addressViewL EXTID 'ikar=http://api.vetrf.ru/schema/cdm/ikar:addressView'
 ;
 
-// --- GetBusinessEntityByGuid: запрос ---
+afterGetBusinessEntityList(BusinessEntity b, FILE response) + {
+    IMPORT getBusinessEntityListExtResponse XML FROM response;
+    IF statusL(0) THEN status(b) <- statusL(0);
+    IF nameL(0) THEN name(b) <- ISTRING(nameL(0));
+    IF fullName(0) THEN Vetis.fullName(b) <- ISTRING(fullName(0));
+    IF typeL(0) THEN type(b) <- typeL(0);
+    IF fioL(0) THEN fio(b) <- ISTRING(fioL(0));
+    IF kppL(0) THEN kpp(b) <- STRING[9](kppL(0));
+    IF ogrnL(0) THEN ogrn(b) <- STRING[15](ogrnL(0));
+    IF addressViewL(0) THEN addressView(b) <- ISTRING(addressViewL(0));
+}
 
-GROUP getBusinessEntityByGuidRequest EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getBusinessEntityByGuidRequest' : body;
-
-FORM getBusinessEntityByGuidRequest FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
-    OBJECTS b = BusinessEntity PANEL
-    PROPERTIES(b) IN getBusinessEntityByGuidRequest guid EXTID 'base=http://api.vetrf.ru/schema/cdm/base:guid'
+FORM loadBusinessEntitiesDialog 'Загрузить ХС'
+    PROPERTIES() searchGuid, searchInn, searchKpp, searchOgrn
+    PROPERTIES() count, offset
 ;
 
-// --- GetBusinessEntityByGuid: ответ ---
-
-GROUP getBusinessEntityByGuidResponse EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getBusinessEntityByGuidResponse' : body;
-GROUP getBusinessEntityByGuidResponseEntity EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:businessEntity' : getBusinessEntityByGuidResponse;
-GROUP getBusinessEntityByGuidResponseJuridicalAddress EXTID 'dt:juridicalAddress' : getBusinessEntityByGuidResponseEntity;
-
-beType = DATA LOCAL STRING();
-beName = DATA LOCAL ISTRING();
-beFio = DATA LOCAL ISTRING();
-beInn = DATA LOCAL STRING();
-beKpp = DATA LOCAL STRING();
-beOgrn = DATA LOCAL STRING();
-beAddressView = DATA LOCAL ISTRING();
-
-FORM getBusinessEntityByGuidResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
-    PROPERTIES() IN getBusinessEntityByGuidResponseEntity
-        beName EXTID 'dt:fullName',
-        beType EXTID 'dt:type',
-        beFio EXTID 'dt:fio',
-        beInn EXTID 'dt:inn',
-        beKpp EXTID 'dt:kpp',
-        beOgrn EXTID 'dt:ogrn'
-    PROPERTIES() IN getBusinessEntityByGuidResponseJuridicalAddress
-        beAddressView EXTID 'ikar=http://api.vetrf.ru/schema/cdm/ikar:addressView'
-;
-
-// --- Действия ---
-
-getBusinessEntityByGUID 'Загрузить реквизиты' (BusinessEntity b) {
-    NEWSESSION {
-        EXPORT getBusinessEntityByGuidRequest OBJECTS b = b XML;
-
-        LOCAL response = FILE();
-        TRY {
-            EXTERNAL HTTP urlCerberus() HEADERS httpHeaders PARAMS exportFile() TO response;
-        } CATCH {
-            fileToString(response());
-            MESSAGE CONCAT ' ', 'Ошибка при запросе к службе:', resultString();
+loadBusinessEntities 'Загрузить ХС' () {
+    DIALOG loadBusinessEntitiesDialog DO {
+        IF NOT (searchGuid() OR searchInn() OR searchKpp() OR searchOgrn()) THEN {
+            MESSAGE 'Укажите хотя бы один параметр поиска: GUID, ИНН, КПП или ОГРН';
             RETURN;
         }
-
-        IMPORT getBusinessEntityByGuidResponse XML FROM response();
-
-        IF beType() THEN type(b) <- beType();
-        IF beName() THEN name(b) <- beName();
-        IF beFio() THEN fio(b) <- beFio();
-        IF beInn() THEN inn(b) <- STRING[12](beInn());
-        IF beKpp() THEN kpp(b) <- STRING[9](beKpp());
-        IF beOgrn() THEN ogrn(b) <- STRING[15](beOgrn());
-        IF beAddressView() THEN addressView(b) <- beAddressView();
-
-        APPLY;
+        NEWSESSION NESTED LOCAL {
+            LOCAL requestFile = FILE();
+            EXPORT getBusinessEntityListSearchRequest XML TO requestFile;
+            LOCAL response = FILE();
+            TRY {
+                EXTERNAL HTTP urlCerberus() HEADERS httpHeaders PARAMS requestFile() TO response;
+            } CATCH {
+                fileToString(response());
+                MESSAGE CONCAT ' ', 'Ошибка при запросе к службе:', resultString();
+                RETURN;
+            }
+            IMPORT getBusinessEntityListExtResponse XML FROM response();
+            FOR guid(INTEGER i) AND NOT businessEntity(guid(i)) NEW b = BusinessEntity DO {
+                guid(b) <- guid(i);
+            }
+            FOR BusinessEntity b = businessEntity(guid(INTEGER i)) DO {
+                IF nameL(i) THEN name(b) <- ISTRING(nameL(i));
+                IF fullName(i) THEN Vetis.fullName(b) <- ISTRING(fullName(i));
+                IF inn(i) THEN Vetis.inn(b) <- STRING[12](inn(i));
+                IF typeL(i) THEN type(b) <- typeL(i);
+                IF fioL(i) THEN fio(b) <- ISTRING(fioL(i));
+                IF kppL(i) THEN kpp(b) <- STRING[9](kppL(i));
+                IF ogrnL(i) THEN ogrn(b) <- STRING[15](ogrnL(i));
+                IF addressViewL(i) THEN addressView(b) <- ISTRING(addressViewL(i));
+            }
+            APPLY;
+        }
+        MESSAGE 'Найдено: ' + (GROUP SUM 1 IF guid(INTEGER i)) + ' хозяйствующих субъектов';
     }
 }
 
-findBusinessEntities 'Найти в Ветис' () {
-    IF NOT (searchGuid() OR searchInn() OR searchKpp() OR searchOgrn()) THEN {
-        MESSAGE 'Укажите хотя бы один параметр поиска: GUID, ИНН, КПП или ОГРН';
-        RETURN;
+// --- Загрузить ХС по GLN ---
+
+searchGlnBusinessEntity 'GLN (поиск)' = DATA LOCAL STRING();
+
+GROUP beGLNRequest EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getBusinessMemberByGLNRequest' : body;
+
+FORM getBeByGLNRequest FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() header EXTID 'soapenv:Header'
+    PROPERTIES() IN beGLNRequest
+        searchGlnBusinessEntity EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:globalID'
+;
+
+GROUP beGLNResponse EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getBusinessMemberByGLNResponse' : body;
+GROUP beGLNResponseMember EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:businessMember' : beGLNResponse;
+GROUP beGLNResponseEnt EXTID 'dt:enterprise' : beGLNResponseMember;
+GROUP beGLNResponseEntOwner EXTID 'dt:owner' : beGLNResponseEnt;
+
+beOwnerGuid = DATA LOCAL STRING();
+
+FORM getBeByGLNResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() IN beGLNResponseEntOwner beOwnerGuid EXTID 'base=http://api.vetrf.ru/schema/cdm/base:guid'
+;
+
+FORM inputGlnBusinessEntity 'Загрузить ХС по GLN'
+    PROPERTIES() searchGlnBusinessEntity
+;
+
+loadBusinessEntityByGLN 'Загрузить ХС по GLN' () {
+    DIALOG inputGlnBusinessEntity DO {
+        NEWSESSION NESTED LOCAL {
+            LOCAL requestFile = FILE();
+            EXPORT getBeByGLNRequest XML TO requestFile;
+            LOCAL response = FILE();
+            TRY {
+                EXTERNAL HTTP urlCerberus() HEADERS httpHeaders PARAMS requestFile() TO response;
+            } CATCH {
+                fileToString(response());
+                MESSAGE CONCAT ' ', 'Ошибка при запросе к службе:', resultString();
+                RETURN;
+            }
+            IMPORT getBeByGLNResponse XML FROM response();
+            IF beOwnerGuid() AND NOT businessEntity(beOwnerGuid()) THEN NEW b = BusinessEntity {
+                guid(b) <- beOwnerGuid();
+            }
+            APPLY;
+        }
+        IF beOwnerGuid() THEN
+            getBusinessEntityByGUID(businessEntity(beOwnerGuid()));
+        ELSE
+            MESSAGE 'ХС по указанному GLN не найден';
     }
-    NEWSESSION NESTED LOCAL {
-        offset() <- 0;
-        count() <- 1000;
-        EXPORT getBusinessEntityListSearchRequest XML;
-        LOCAL response = FILE();
-        TRY {
-            EXTERNAL HTTP urlCerberus() HEADERS httpHeaders PARAMS exportFile() TO response;
-        } CATCH {
-            fileToString(response());
-            MESSAGE CONCAT ' ', 'Ошибка при запросе к службе:', resultString();
-            RETURN;
-        }
-        IMPORT getBusinessEntityListExtResponse XML FROM response();
-        FOR guid(INTEGER i) AND NOT businessEntity(guid(i)) NEW b = BusinessEntity DO {
-            guid(b) <- guid(i);
-        }
-        FOR BusinessEntity b = businessEntity(guid(INTEGER i)) DO {
-            name(b) <- ISTRING(fullName(i));
-            IF inn(i) THEN inn(b) <- STRING[12](inn(i));
-        }
-        APPLY;
-    }
-    MESSAGE 'Найдено: ' + (GROUP SUM 1 IF guid(INTEGER i)) + ' хозяйствующих субъектов';
 }
+
+// --- Запрет удаления ---
+
+CONSTRAINT DROPPED(b IS BusinessEntity) AND (PREV(own(b)) OR (GROUP SUM 1 IF PREV(businessEntity(LegalEntity l)) = b))
+    MESSAGE 'Невозможно удалить: хозяйствующий субъект является собственным или связан с организацией';
+
+// --- Расширение форм ---
 
 EXTEND FORM businessEntity
+    PROPERTIES(o) READONLY fullName, status
     PROPERTIES(o) getBusinessEntityByGUID DRAW o TOOLBAR
 ;
 
+DESIGN businessEntity {
+    tabPane {
+        fill = 1;
+    }
+    tabProperties {
+        MOVE PROPERTY(own(o)) FIRST;
+        MOVE PROPERTY(status(o)) AFTER PROPERTY(guid(o));
+        MOVE PROPERTY(type(o)) AFTER PROPERTY(status(o));
+        MOVE PROPERTY(fullName(o)) AFTER PROPERTY(name(o));
+        MOVE PROPERTY(fio(o)) AFTER PROPERTY(fullName(o));
+        MOVE PROPERTY(getBusinessEntityByGUID(o)) LAST;
+    }
+    PROPERTY(guid(o)) { caption = 'GUID ХС'; }
+    PROPERTY(type(o)) { caption = 'Тип ХС'; charWidth = 5; }
+    PROPERTY(fio(o)) { charWidth = 50; }
+    PROPERTY(addressView(o)) { charWidth = 255; }
+    PROPERTY(getBusinessEntityByGUID(o)) { caption = 'Обновить ХС'; }
+}
+
 EXTEND FORM businessEntities
-    PROPERTIES() searchGuid, searchInn, searchKpp, searchOgrn, findBusinessEntities DRAW o TOOLBAR
-    PROPERTIES(o) getBusinessEntityByGUID GRID
+    PROPERTIES(o) READONLY fullName, status
+    PROPERTIES() DRAW o TOOLBAR loadBusinessEntities, loadBusinessEntityByGLN
 ;
 
 DESIGN businessEntities {
-    TOOLBARBOX {
-        NEW searchBox {
-            horizontal = TRUE;
-            caption = 'Поиск в Ветис';
-            MOVE PROPERTY(searchGuid());
-            MOVE PROPERTY(searchInn());
-            MOVE PROPERTY(searchKpp());
-            MOVE PROPERTY(searchOgrn());
-            MOVE PROPERTY(findBusinessEntities());
-        }
-    }
+    PROPERTY(getBusinessEntityList()) { caption = 'Обновить ХС'; }
+    PROPERTY(getBusinessEntityList(o)) { caption = 'Обновить ХС'; }
+    PROPERTY(getBusinessEntityByGUID(o)) { caption = 'Обновить ХС'; }
 }
