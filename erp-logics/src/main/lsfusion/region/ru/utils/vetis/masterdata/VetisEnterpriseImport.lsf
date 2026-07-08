@@ -19,20 +19,22 @@ FORM importEnterprise FORMEXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2
     PROPERTIES() IN owner ownerGuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
 ;
 
+afterImportEnterprise ABSTRACT (Enterprise, TEXT);
+
 importEnterprise(TEXT xml, BusinessEntity owner) {
     NEWSESSION {
-        stringToFile('<dt:enterprise xmlns:dt="http://api.vetrf.ru/schema/cdm/dictionary/v2" xmlns:bs="http://api.vetrf.ru/schema/cdm/base">' + 
-                      xml + 
+        stringToFile('<dt:enterprise xmlns:dt="http://api.vetrf.ru/schema/cdm/dictionary/v2" xmlns:bs="http://api.vetrf.ru/schema/cdm/base">' +
+                      xml +
                       '</dt:enterprise>');
-        
+
         IMPORT importEnterprise XML FROM resultFile();
-        
+
         IF NOT guid() THEN RETURN;
 
         IF ownerGuid() AND NOT businessEntity(ownerGuid()) THEN NEW b = BusinessEntity {
             guid(b) <- ownerGuid();
         }
-        
+
         IF NOT enterprise(guid()) THEN NEW e = Enterprise {
             guid(e) <- guid();
             owner(e) <- owner;
@@ -46,9 +48,11 @@ importEnterprise(TEXT xml, BusinessEntity owner) {
             name(e) <- name();
             owner(e) <- businessEntity(ownerGuid()) WHERE ownerGuid();
         }
-        
+
+        afterImportEnterprise(enterprise(guid()), xml);
+
         APPLY;
-    } 
+    }
 }
 
 // request by guid
@@ -75,6 +79,7 @@ getEnterpriseList 'Загрузить данные' (Enterprise b) {
         LOCAL response = FILE();
         TRY {
             EXTERNAL HTTP urlCerberus() HEADERS httpHeaders PARAMS exportFile() TO response;
+            open(response());
         } CATCH {
             fileToString(response());
             MESSAGE CONCAT ' ', 'Ошибка при запросе к службе : ', resultString();

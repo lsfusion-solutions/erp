@@ -1,0 +1,285 @@
+MODULE VetisEnterpriseGestori;
+
+REQUIRE VetisEnterpriseImport, VetisStock;
+
+NAMESPACE Vetis;
+
+// --- Новые свойства площадки ---
+
+type 'Тип' = DATA STRING (Enterprise) CHARWIDTH 20;
+kpp 'КПП' = DATA STRING[9] (Enterprise) CHARWIDTH 9;
+addressView 'Фактический адрес' = DATA ISTRING (Enterprise) CHARWIDTH 60;
+gln 'GLN' = DATA STRING (Enterprise) CHARWIDTH 13;
+
+// --- Форма карточки площадки: READONLY + вкладки ---
+
+EXTEND FORM enterprise
+    PROPERTIES(o) READONLY type, kpp, addressView
+;
+
+DESIGN enterprise {
+    BOX(o) {
+        NEW tabPane {
+            tabbed = TRUE;
+            fill = 1;
+            NEW tabProperties {
+                caption = 'Реквизиты';
+                MOVE PROPERTY(guid(o));
+                MOVE PROPERTY(name(o));
+                MOVE PROPERTY(nameOwner(o));
+                MOVE PROPERTY(type(o));
+                MOVE PROPERTY(kpp(o));
+                MOVE PROPERTY(addressView(o));
+            }
+            NEW tabStocks {
+                caption = 'Склады';
+            }
+        }
+    }
+    PROPERTY(guid(o)) { caption = 'GUID площадки'; }
+}
+
+// --- Вкладка Склады ---
+
+EXTEND FORM enterprise
+    OBJECTS s = Stock
+    PROPERTIES(s) name, enterprise
+    FILTERS enterprise(s) = o
+;
+
+DESIGN enterprise {
+    tabStocks {
+        MOVE BOX(s);
+    }
+}
+
+// --- importEnterprise: расширение для type / kpp / addressView ---
+
+GROUP importEnterpriseOfficialRegistration EXTID 'dt:officialRegistration';
+GROUP importEnterpriseAddress EXTID 'dt:address';
+
+eType = DATA LOCAL STRING();
+eKpp = DATA LOCAL STRING();
+eAddressView = DATA LOCAL STRING();
+
+FORM importEnterpriseDetails FORMEXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:enterprise'
+    PROPERTIES() eType EXTID 'dt:type'
+    PROPERTIES() IN importEnterpriseOfficialRegistration eKpp EXTID 'dt:kpp'
+    PROPERTIES() IN importEnterpriseAddress eAddressView EXTID 'dt:addressView'
+;
+
+afterImportEnterprise(Enterprise e, TEXT xml) + {
+    
+    NEWSESSION {
+        stringToFile('<dt:enterprise xmlns:dt="http://api.vetrf.ru/schema/cdm/dictionary/v2" xmlns:bs="http://api.vetrf.ru/schema/cdm/base">' +
+                      xml +
+                      '</dt:enterprise>');
+        open(resultFile());
+        IMPORT importEnterpriseDetails XML FROM resultFile();
+        IF eType() THEN type(e) <- eType();
+        IF eKpp() THEN kpp(e) <- STRING[9](eKpp());
+        IF eAddressView() THEN addressView(e) <- ISTRING(eAddressView());
+        APPLY;
+    }
+}
+
+// --- GetEnterpriseByGuid: загрузка type / kpp / addressView вручную ---
+
+GROUP getEnterpriseByGuidResponseEnterprise EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:enterprise' : getEnterpriseByGuidResponse;
+GROUP getEnterpriseByGuidResponseOfficialReg EXTID 'dt:officialRegistration' : getEnterpriseByGuidResponseEnterprise;
+GROUP getEnterpriseByGuidResponseAddress EXTID 'dt:address' : getEnterpriseByGuidResponseEnterprise;
+
+FORM getEnterpriseDetailResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() IN getEnterpriseByGuidResponseEnterprise eType EXTID 'dt:type'
+    PROPERTIES() IN getEnterpriseByGuidResponseOfficialReg eKpp EXTID 'dt:kpp'
+    PROPERTIES() IN getEnterpriseByGuidResponseAddress eAddressView EXTID 'dt:addressView'
+;
+
+loadEnterpriseDetails 'Загрузить реквизиты' (Enterprise b) {
+    NEWSESSION {
+        LOCAL requestFile = FILE();
+        EXPORT getEnterpriseByGuidRequest OBJECTS e = b XML TO requestFile;
+        LOCAL response = FILE();
+        TRY {
+            EXTERNAL HTTP urlCerberus() HEADERS httpHeaders PARAMS requestFile() TO response;
+        } CATCH {
+            fileToString(response());
+            MESSAGE CONCAT ' ', 'Ошибка при запросе к службе:', resultString();
+            RETURN;
+        }
+        IMPORT getEnterpriseDetailResponse XML FROM response();
+        IF eType() THEN type(b) <- eType();
+        IF eKpp() THEN kpp(b) <- STRING[9](eKpp());
+        IF eAddressView() THEN addressView(b) <- ISTRING(eAddressView());
+        APPLY;
+    }
+}
+
+// --- GetRussianEnterpriseList_v2: поиск по GUID ---
+
+searchEnterpriseGuid 'GUID (поиск)' = DATA LOCAL STRING();
+
+GROUP getRussianEnterpriseListRequest EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getRussianEnterpriseListRequest' : body;
+GROUP getRussianEnterpriseListRequestListOptions EXTID 'base=http://api.vetrf.ru/schema/cdm/base:listOptions' : getRussianEnterpriseListRequest;
+GROUP getRussianEnterpriseListRequestEnterprise EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:enterprise' : getRussianEnterpriseListRequest;
+
+FORM getRussianEnterpriseListRequest FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() header EXTID 'soapenv:Header'
+    PROPERTIES() IN getRussianEnterpriseListRequestListOptions count EXTID 'base:count', offset EXTID 'base:offset'
+    PROPERTIES() IN getRussianEnterpriseListRequestEnterprise
+        searchEnterpriseGuid EXTID 'base=http://api.vetrf.ru/schema/cdm/base:guid'
+;
+
+GROUP getRussianEnterpriseListResponse EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getRussianEnterpriseListResponse' : body;
+GROUP getRussianEnterpriseListResponseList EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:enterpriseList' : getRussianEnterpriseListResponse;
+GROUP russianEnterpriseOwner EXTID 'dt:owner';
+
+entGuid = DATA LOCAL STRING(INTEGER);
+entName = DATA LOCAL STRING(INTEGER);
+entType = DATA LOCAL STRING(INTEGER);
+entOwnerGuid = DATA LOCAL STRING(INTEGER);
+entLast = DATA LOCAL STRING(INTEGER);
+
+FORM getRussianEnterpriseListResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() IN getRussianEnterpriseListResponseList total EXTID 'dt:total' ATTR
+    OBJECTS ent = INTEGER EXTID 'dt:enterprise' IN getRussianEnterpriseListResponseList
+    PROPERTIES(ent) entGuid EXTID 'base=http://api.vetrf.ru/schema/cdm/base:guid',
+                    entName EXTID 'dt:name',
+                    entType EXTID 'dt:type',
+                    entLast EXTID 'base=http://api.vetrf.ru/schema/cdm/base:last'
+    PROPERTIES(ent) IN russianEnterpriseOwner entOwnerGuid EXTID 'base=http://api.vetrf.ru/schema/cdm/base:guid'
+;
+
+// --- GetBusinessMemberByGLN_v2: поиск по GLN ---
+
+searchGlnEnterprise 'GLN (поиск)' = DATA LOCAL STRING();
+
+GROUP getBusinessMemberByGLNRequest EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getBusinessMemberByGLNRequest' : body;
+
+FORM getBusinessMemberByGLNRequest FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() header EXTID 'soapenv:Header'
+    PROPERTIES() IN getBusinessMemberByGLNRequest
+        searchGlnEnterprise EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:globalID'
+;
+
+GROUP getBusinessMemberByGLNResponse EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getBusinessMemberByGLNResponse' : body;
+GROUP getBusinessMemberByGLNResponseMember EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:businessMember' : getBusinessMemberByGLNResponse;
+GROUP getBusinessMemberByGLNResponseEnt EXTID 'dt:enterprise' : getBusinessMemberByGLNResponseMember;
+GROUP getBusinessMemberByGLNResponseEntOwner EXTID 'dt:owner' : getBusinessMemberByGLNResponseEnt;
+
+glnEntGuid = DATA LOCAL STRING();
+glnEntName = DATA LOCAL STRING();
+glnEntType = DATA LOCAL STRING();
+glnEntOwnerGuid = DATA LOCAL STRING();
+
+FORM getBusinessMemberByGLNResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() IN getBusinessMemberByGLNResponseEnt
+        glnEntGuid EXTID 'base=http://api.vetrf.ru/schema/cdm/base:guid',
+        glnEntName EXTID 'dt:name',
+        glnEntType EXTID 'dt:type'
+    PROPERTIES() IN getBusinessMemberByGLNResponseEntOwner glnEntOwnerGuid EXTID 'base=http://api.vetrf.ru/schema/cdm/base:guid'
+;
+
+FORM inputGlnEnterprise 'Загрузить площадку по GLN'
+    PROPERTIES() searchGlnEnterprise
+;
+
+loadEnterpriseByGLN 'Загрузить площадку по GLN' () {
+    DIALOG inputGlnEnterprise DO {
+        NEWSESSION NESTED LOCAL {
+            LOCAL requestFile = FILE();
+            EXPORT getBusinessMemberByGLNRequest XML TO requestFile;
+            LOCAL response = FILE();
+            TRY {
+                EXTERNAL HTTP urlCerberus() HEADERS httpHeaders PARAMS requestFile() TO response;
+            } CATCH {
+                fileToString(response());
+                MESSAGE CONCAT ' ', 'Ошибка при запросе к службе:', resultString();
+                RETURN;
+            }
+            IMPORT getBusinessMemberByGLNResponse XML FROM response();
+            IF glnEntGuid() THEN {
+                IF NOT enterprise(glnEntGuid()) THEN NEW e = Enterprise {
+                    guid(e) <- glnEntGuid();
+                }
+                FOR Enterprise e = enterprise(glnEntGuid()) DO {
+                    IF glnEntName() THEN name(e) <- ISTRING(glnEntName());
+                    IF glnEntType() THEN type(e) <- glnEntType();
+                    gln(e) <- searchGlnEnterprise();
+                    IF glnEntOwnerGuid() THEN {
+                        IF NOT businessEntity(glnEntOwnerGuid()) THEN NEW b = BusinessEntity {
+                            guid(b) <- glnEntOwnerGuid();
+                        }
+                        owner(e) <- businessEntity(glnEntOwnerGuid());
+                    }
+                }
+            }
+            APPLY;
+        }
+    }
+}
+
+FORM inputEnterpriseGuid 'Загрузить площадку'
+    PROPERTIES() searchEnterpriseGuid
+;
+
+loadEnterpriseFromVetis 'Загрузить площадку' () {
+    DIALOG inputEnterpriseGuid DO {
+        IF NOT searchEnterpriseGuid() THEN {
+            MESSAGE 'Укажите GUID площадки';
+            RETURN;
+        }
+        NEWSESSION NESTED LOCAL {
+            LOCAL requestFile = FILE();
+            offset() <- 0;
+            count() <- 100;
+            EXPORT getRussianEnterpriseListRequest XML TO requestFile;
+            LOCAL response = FILE();
+            TRY {
+                EXTERNAL HTTP urlCerberus() HEADERS httpHeaders PARAMS requestFile() TO response;
+            } CATCH {
+                fileToString(response());
+                MESSAGE CONCAT ' ', 'Ошибка при запросе к службе:', resultString();
+                RETURN;
+            }
+            IMPORT getRussianEnterpriseListResponse XML FROM response();
+            FOR entGuid(INTEGER i) AND entLast(i) = 'true' AND NOT enterprise(entGuid(i)) NEW e = Enterprise DO {
+                guid(e) <- entGuid(i);
+            }
+            FOR Enterprise e = enterprise(entGuid(INTEGER i)) AND entLast(i) = 'true' DO {
+                name(e) <- ISTRING(entName(i));
+                IF entType(i) THEN type(e) <- entType(i);
+                IF entOwnerGuid(i) AND NOT businessEntity(entOwnerGuid(i)) THEN NEW b = BusinessEntity {
+                    guid(b) <- entOwnerGuid(i);
+                }
+                IF entOwnerGuid(i) THEN owner(e) <- businessEntity(entOwnerGuid(i));
+            }
+            APPLY;
+        }
+        MESSAGE 'Найдено: ' + (GROUP SUM 1 IF entGuid(INTEGER i) AND entLast(i) = 'true') + ' площадок';
+    }
+}
+
+// --- Расширение форм ---
+
+EXTEND FORM enterprise
+    PROPERTIES(o) loadEnterpriseDetails
+;
+
+DESIGN enterprise {
+    tabProperties {
+        MOVE PROPERTY(loadEnterpriseDetails(o));
+    }
+    PROPERTY(loadEnterpriseDetails(o)) { caption = 'Обновить'; }
+}
+
+EXTEND FORM enterprises
+    PROPERTIES() DRAW o TOOLBAR loadEnterpriseFromVetis, loadEnterpriseByGLN 
+    PROPERTIES(o) READONLY type, kpp, addressView, gln
+;
+
+DESIGN enterprises {
+    PROPERTY(getEnterpriseList()) { caption = 'Обновить данные'; }
+    PROPERTY(getEnterpriseList(o)) { caption = 'Обновить данные'; }
+    PROPERTY(guid(o)) { caption = 'GUID площадки'; }
+}
