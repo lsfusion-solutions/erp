@@ -171,6 +171,9 @@ NAVIGATOR {
 
 META defineDocumentTransport(doc, obj, container)
     truck = DATA Truck (###doc);
+    replace(Truck l, Truck o) + {
+        truck(###doc r) <- o WHERE truck(r) == l;
+    }
     nameTruck 'Автомобиль' (###doc i) = name(truck(i));
     
     EXTEND FORM doc
@@ -194,3 +197,70 @@ DESIGN options{
         }
     }
 }
+
+// ------------------------------------ объединение машин -------------------------- //
+
+in 'Отм.' = DATA LOCAL BOOLEAN (Truck);
+countInTruck = GROUP SUM 1 IF in(Truck t);
+
+FORM confirmReplaceTruck 'Объединяемые машины'
+    OBJECTS truck = Truck PANEL
+
+    OBJECTS l = Truck
+    PROPERTIES(l) READONLY name, trailer, owner, nameLegalEntity BACKGROUND backgroundLegalEntity(l)
+    FILTERS l==truck
+
+    OBJECTS l2 = Truck
+    PROPERTIES(l2) in
+    PROPERTIES(l2) READONLY name, trailer, owner, nameLegalEntity BACKGROUND backgroundLegalEntity(l2)
+    FILTERS in(l2)
+;
+
+DESIGN confirmReplaceTruck {
+    REMOVE BOX(truck);
+    NEW splitContainer{
+        fill = 1;
+        MOVE BOX(l){
+            caption = 'Основная машина';
+        }
+        MOVE BOX(l2){
+            caption = 'Удаляемая машина';
+        }
+    }
+    MOVE TOOLBARBOX;
+}
+
+replace  ABSTRACT LIST ( Truck, Truck);
+preReplace  ABSTRACT LIST ( Truck, Truck);
+
+replace 'Объединить'(Truck truck)  {
+    NEWSESSION NESTED (in[Truck]) {
+        setNoEventsInTransaction();
+
+        DIALOG confirmReplaceTruck OBJECTS l=truck DO {
+            FOR in(Truck l) AND truck IS Truck DO {
+                IF l != truck THEN {
+                    preReplace(l, truck);
+                    replace(l, truck);
+                    in(l) <- NULL;
+                    DELETE l;
+                } ELSE {
+                    MESSAGE 'Выделенная машина не может совпадать с объединяемой';
+                }
+            }
+            APPLY;
+        }
+
+        in(Truck l) <- NULL;
+
+        dropNoEventsInTransaction();
+    }
+} CONFIRM;
+
+replace(Truck l, Truck o) + {
+    defaultTruck(Driver r) <- o WHERE defaultTruck(r) == l;
+}
+EXTEND FORM trucks
+    PROPERTIES (t) in BEFORE sid(t)
+    PROPERTIES (t) replace TOOLBAR
+;
