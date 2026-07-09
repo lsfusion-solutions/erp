@@ -1,0 +1,49 @@
+MODULE VetisProductTypeGestori;
+
+REQUIRE VetisProductImport;
+
+NAMESPACE Vetis;
+
+// --- Групповая отметка типов продукции ---
+
+inGestori 'Отм.' = DATA LOCAL BOOLEAN (ProductType);
+
+// --- Загрузка продукции по отмеченным типам ---
+
+loadProductsByMarkedGestori 'Загрузить продукцию' (ProductType current) {
+    NEWSESSION NESTED LOCAL {
+        offset() <- 0;
+        count() <- 1000;
+        DIALOG getProductByTypeListRequestParams NOMANAGESESSION DO {
+            IF GROUP SUM 1 IF inGestori(ProductType pt) THEN {
+                FOR inGestori(ProductType pt) DO
+                    importProductByTypeList(pt);
+            } ELSE {
+                importProductByTypeList(current);
+            }
+            APPLY;
+        }
+    }
+}
+
+// --- Ограничения ---
+
+CONSTRAINT DROPPED(ProductType pt IS ProductType) AND PREV(pt IS ProductType)
+    MESSAGE 'Удаление типов продукции не допускается. Справочник является системным.';
+
+CONSTRAINT CHANGED(id(ProductType pt)) AND PREV(id(pt))
+    MESSAGE 'Изменение кода типа продукции не допускается.';
+
+// --- Расширение формы "Типы продукции" ---
+
+EXTEND FORM productTypes
+    PROPERTIES(o) inGestori BEFORE id(o)
+    PROPERTIES(o) DRAW o TOOLBAR loadProductsByMarkedGestori
+;
+
+DESIGN productTypes {
+    PROPERTY(new) { hide = TRUE; }
+    PROPERTY(edit) { hide = TRUE; }
+    PROPERTY(delete) { hide = TRUE; }
+}
+
