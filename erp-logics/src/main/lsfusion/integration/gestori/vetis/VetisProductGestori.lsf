@@ -1,0 +1,51 @@
+MODULE VetisProductGestori;
+
+REQUIRE VetisSubProductImport;
+
+NAMESPACE Vetis;
+
+// --- Групповая отметка продукции ---
+
+inGestori 'Отм.' = DATA LOCAL BOOLEAN (Product);
+
+// --- Загрузка видов продукции по отмеченной продукции ---
+
+loadSubProductsByMarkedGestori 'Загрузить виды продукции' (Product current) {
+    NEWSESSION NESTED LOCAL {
+        offset() <- 0;
+        count() <- 1000;
+        DIALOG getSubProductByProductListRequestParams NOMANAGESESSION DO {
+            IF GROUP SUM 1 IF inGestori(Product p) THEN {
+                FOR inGestori(Product p) DO
+                    importSubProductByProductList(p);
+            } ELSE {
+                importSubProductByProductList(current);
+            }
+            APPLY;
+        }
+    }
+}
+
+// --- Ограничения ---
+
+CONSTRAINT DROPPED(p IS Product) AND PREV(p IS Product)
+    MESSAGE 'Удаление записей продукции не допускается. Справочник загружается только из Ветис.';
+
+CONSTRAINT CHANGED(guid(Product p)) AND PREV(guid(p))
+    MESSAGE 'Изменение кода (GUID) продукции не допускается.';
+
+CONSTRAINT CHANGED(productType(Product p)) AND PREV(productType(p))
+    MESSAGE 'Изменение ссылки на тип продукции не допускается.';
+
+// --- Расширение формы "Продукция" ---
+
+EXTEND FORM products
+    PROPERTIES(o) inGestori BEFORE guid(o)
+    PROPERTIES(o) DRAW o TOOLBAR loadSubProductsByMarkedGestori
+;
+
+DESIGN products {
+    PROPERTY(new) { hide = TRUE; }
+    PROPERTY(edit) { hide = TRUE; }
+    PROPERTY(delete) { hide = TRUE; }
+}
