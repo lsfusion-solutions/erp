@@ -217,7 +217,7 @@ overEmailList = ABSTRACT STRING[800](Order);
 overEmailFrom = ABSTRACT STRING[800](Order);
 overEmailSubject = ABSTRACT STRING[800](Order);
 
-calcEmaiSupplierl(Order order) = OVERRIDE overEmailList(order), supplierEmail(supplier(order), customerStock(order)), email(supplierStock(order)), email(supplier(order));
+calcEmailSupplier(Order order) = OVERRIDE overEmailList(order), supplierEmail(supplier(order), customerStock(order)), email(supplierStock(order)), email(supplier(order));
 
 calcEmailCustomer 'Отправить заказ поставщику' (Order order)  { 
     
@@ -230,7 +230,7 @@ calcEmailCustomer 'Отправить заказ поставщику' (Order or
     EMAIL
     FROM OVERRIDE email(createdUser(order)) IF NOT notUseUserEmail(), overEmailFrom(order),fromEmailOrders()
     SUBJECT OVERRIDE overEmailSubject(order), 'Заказ №' + seriesNumber(order) + ' на '  + shipmentDate(order)+ ' от ' + nameCustomer(order)
-    TO calcEmaiSupplierl(order)
+    TO calcEmailSupplier(order)
     BODY bodyFile()
     ATTACH file() 
            NAME number(order) + '/' + shipmentDate(order) // без кирилицы должно быть
@@ -251,7 +251,7 @@ logSendDocumentOrder(Purchase.Order o)  {
 	    seriesDocument(d) <- series(o); 
 	    dateDocument(d) <- date(o);
 	    typeChange(d) <- TypeChange.email;
-	    note(d) <- IF notEmailSend(o) THEN notEmailSend(o) ELSE STRING[255](calcEmaiSupplierl(o));      
+	    note(d) <- IF notEmailSend(o) THEN notEmailSend(o) ELSE STRING[255](calcEmailSupplier(o));      
 	    hostnameComputer(d) <- hostnameCurrentComputer();
 	    userLogin(d) <- login(currentUser()); 
 	    nameContact(d) <- STRING[100](name(currentUser()));
@@ -275,7 +275,7 @@ emailCustomerSingle 'Отправить заказ поставщику' (Purcha
         consumedEmailCustomer(order) <- NULL;
         overEmailCustomer(order);
 	    IF NOT consumedEmailCustomer(order) THEN {
-	        IF calcEmaiSupplierl(order) THEN {
+	        IF calcEmailSupplier(order) THEN {
 	            isSent(order) <- TRUE;
 	            IF NOT disableDocumentLog() THEN logSendDocumentOrder(order);
 	            sentDateTime(order) <- currentDateTime();
@@ -300,7 +300,7 @@ emailCustomer 'Отправить заказы поставщикам' (Purchase
 }
 
 provider 'Доставка' = ABSTRACT CASE ISTRING[200] (Order) MATERIALIZED CHARWIDTH 20;
-provider(Order o) += WHEN calcEmaiSupplierl(o)  THEN 'e-mail: ' + ISTRING[192](calcEmaiSupplierl(o));
+provider(Order o) += WHEN calcEmailSupplier(o)  THEN 'e-mail: ' + ISTRING[192](calcEmailSupplier(o));
 
 skipShowEmailCustomer = ABSTRACT BOOLEAN (Purchase.Order);
 
