@@ -181,6 +181,7 @@ sendBeltelecomSMS 'Отправить рассылку' (Dispatch d) {
         } ELSE {
             IF isSend(d) THEN {
                 MESSAGE 'Рассылка уже отправлена';
+                RETURN;
             }
 
             LOCAL stateAuthor = STRING[2]();
@@ -203,6 +204,7 @@ sendBeltelecomSMS 'Отправить рассылку' (Dispatch d) {
                 MESSAGE CONCAT '\n', 'Рассылка не сохранилась',
                     'Состояние аутентификации: ' + descriptionStateAuthor(stateAuthor()),
                     'Состояние рассылки: ' + descriptionStateSMS(stateSMS());
+                RETURN;
             }
         }
         APPLY;
@@ -224,10 +226,6 @@ FORM dispatches 'Рассылки'
     ORDERS createdTime(d)
     FILTERGROUP notSend
         FILTER 'Не отправленные' NOT isSend(d) DEFAULT
-
-    OBJECTS n = INTEGER
-    PROPERTIES READONLY BACKGROUND backgroundIncorrectPhone(d, n) getPhone(d, n)
-    FILTERS iterate(n, 1, countPhones(d))
 ;
 
 DESIGN dispatches {
@@ -237,11 +235,6 @@ DESIGN dispatches {
         NEW tabPane {
             tabbed = TRUE;
             fill = 1;
-            MOVE BOX(n) {
-                fill = 1;
-                caption = 'Номера телефонов';
-                showIf = NOT overSendBeltelecomSMSCondition(d);
-            }
             NEW actions {
                 caption = 'Действия';
                 NEW sendActions {
@@ -413,7 +406,6 @@ showDiscountCardkeys(DispatchTemplate d) += WHEN typeDispatch(d) == TypeDispatch
 @defineDispatchMessageReplaceKeys(3, 4, DiscountCard, lastname, lastNameContact, 'Фамилия (карта)');
 
 formattedMessage 'Текст SMS-рассылки с обработкой' (Dispatch d, DiscountCard c) = replaceKeys(c, message(d));
-stringFormattedMessage 'Текст SMS-рассылки с обработкой' (Dispatch d, DiscountCard c) = STRING(formattedMessage(d, c));
 
 digitsPhone 'Цифры из номера' (DiscountCard d) = digits(phoneLegalEntity(d));
 correctPhone 'Корректный номер' (DiscountCard d) = correctPhone(digitsPhone(d));
@@ -508,14 +500,14 @@ EXTEND FORM dispatches
     OBJECTS c = DiscountCard
     PROPERTIES(c) READONLY BACKGROUND backgroundCorrectPhone(c)
         number, phoneLegalEntity, firstNameContact, lastNameContact
-    PROPERTIES(d, c) BACKGROUND backgroundCorrectPhone(c) READONLY stringFormattedMessage,
-        idBeltelecom, descriptionStateAuthor, descriptionStateSMS
+    PROPERTIES(d, c) BACKGROUND backgroundCorrectPhone(c) idBeltelecom,
+        descriptionStateAuthor, descriptionStateSMS
     FILTERS in(d,c)
 ;
 
 DESIGN dispatches {
     tabPane {
-        MOVE BOX(c) AFTER BOX(n) {
+        MOVE BOX(c) BEFORE actions {
             fill = 1;
             caption = 'Дисконтные карты';
             showIf = typeDispatch(d) == TypeDispatch.discountCard;
