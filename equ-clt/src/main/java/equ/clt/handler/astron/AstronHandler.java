@@ -1690,7 +1690,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             for (DiscountCard d : discountCardList) {
                 if (notInterrupted()) {
                     Integer clientId = getClientId(d);
-                    Integer clientGroupId = isSocial(d) ? 7 : 1; //так захардкожено у БКС, обычные клиенты - 1, социальные - 7
+                    Integer clientGroupId = nvl(getClntGrpId(d.extInfo), isSocial(d) ? 7 : 1); //если группа не задана в extInfo: обычные клиенты - 1, социальные - 7
                     String clientName = nvl(trim(d.nameDiscountCard, 50), "");
                     String clientBirthday = d.birthdayContact != null ? d.birthdayContact.format(dateFormatter) + "000000" : null;
                     int delflag = getLocked(d.extInfo);
@@ -2974,6 +2974,15 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             }
         }
         return locked;
+    }
+
+    private Integer getClntGrpId(String extInfo) {
+        for (JSONObject infoJSON : getExtInfo(extInfo).jsonObjects) {
+            if (infoJSON.has("clntGrpId")) {
+                return infoJSON.getInt("clntGrpId");
+            }
+        }
+        return null;
     }
 
     private AstronSettings getSettings() {
