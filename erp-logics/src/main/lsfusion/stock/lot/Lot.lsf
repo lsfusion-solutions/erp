@@ -289,14 +289,21 @@ END
 
 META defineDocumentLotIn(doc, quantityProp, obj, formList, postedProp)
     @defineDocumentLot(doc, quantityProp, postedProp);
-
+        
+    editLotInDialog = ABSTRACT BOOLEAN (###doc##Detail);
     changeQuantityLot (###doc##Detail d) {
         quantity(Lot l) <- quantity(d, l);
-        SHOW dialogInLots;    
+        IF editLotInDialog(d) THEN {
+            DIALOG dialogOutLots DO {
+                quantity(d, Lot l) <- quantity(l);
+            }
+        } ELSE {
+            SHOW dialogInLots;
+        }
     }
-    
+
     EXTEND FORM doc
-        PROPERTIES(d) quantityLot AFTER quantityProp(d) ON CHANGE changeQuantityLot(d) 
+        PROPERTIES(d) quantityLot AFTER quantityProp(d) ON CHANGE changeQuantityLot(d)
                       BACKGROUND backgroundQuantityLot(d) 
                       SHOWIF useLot(obj)
                       READONLYIF NOT lotType(sku(d))

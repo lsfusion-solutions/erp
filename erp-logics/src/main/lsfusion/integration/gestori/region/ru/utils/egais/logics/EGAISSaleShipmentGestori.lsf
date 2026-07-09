@@ -26,6 +26,13 @@ skuPositionOriginalDocument(WayBillPosition wp) += WHEN lastSaleInvoiceDetail(wp
 editQuantity(UserInvoiceDetail d, F2Reg r) += NOT hideFillQuantity(userInvoice(d));
 hideFillQuantity(UserInvoiceDetail d, F2Reg r) += hideFillQuantity(userInvoice(d));
 
+CONSTRAINT (SETCHANGED(quantity(UserShipmentDetail d, F2Reg r)) OR SETCHANGED(quantity(d)))
+    AND quantityF2Reg(d) > quantity(d)
+    MESSAGE 'Суммарное количество по справкам Б не должно превышать количество по позиции';
+CONSTRAINT (SETCHANGED(quantity(UserInvoiceDetail d, F2Reg r)) OR SETCHANGED(quantity(d)))
+    AND quantityF2Reg(d) > quantity(d)
+    MESSAGE 'Суммарное количество по справкам Б не должно превышать количество по позиции';
+
 @defineDocumentWayBillConstraint(invoice, 'Накладная (продажа)');
 
 DESIGN userInvoice {
@@ -63,22 +70,33 @@ overProcessFillWayBill(Shipment s) +{
     transportRegNumber(wayBill(s)) <- CONCAT ' ', nameTruckModel(truck(trip(s))), sid(truck(trip(s)));
     tranRedirect(wayBill(s)) <- OVERRIDE redirect(trip(s)), 'Нет' IF wayBill(s);
     tranForwarder(wayBill(s)) <- OVERRIDE forwarder(trip(s)), tranDriver(wayBill(s));
+    changeOwnership(wayBill(s)) <- shipper(wayBill(s)) = consignee(wayBill(s)) OR INN(shipper(wayBill(s))) = INN(consignee(wayBill(s)));
 }
 
 CONSTRAINT DROPPED(Sale.Shipment s IS Sale.Shipment) AND PREV(activeWayBillOutDoc(wayBill(s)))
     MESSAGE 'Запрещено удаление поставки, по которой выполнена отправка в ЕГАИС';
 
-DESIGN truck { 
-    PROPERTY(sid(t)) { 
-        regexp = '^[АВЕКМНОРСТУХABEKMHOPCTYXавекмнорстухabekmhopctyx][АВЕКМНОРСТУХABEKMHOPCTYXавекмнорстухabekmhopctyx]?\\d{3}\\d?[АВЕКМНОРСТУХABEKMHOPCTYXавекмнорстухabekmhopctyx][АВЕКМНОРСТУХABEKMHOPCTYXавекмнорстухabekmhopctyx]?\\d{2}\\d?$';
-        regexpMessage = 'Неправильный формат номера';
+DESIGN truck {
+    PROPERTY(sid(t)) {
+        // ТС: 1 буква, 3 цифры, 2 буквы, код региона (2-3 цифры), RUS (необязательно)
+        regexp = '^[АВЕКМНОРСТУХавекмнорстух]\\d{3}[АВЕКМНОРСТУХавекмнорстух][АВЕКМНОРСТУХавекмнорстух]\\d{2}\\d?(RUS)?$';
+        regexpMessage = 'Неправильный формат номера ТС (например А123ВС77 или А123ВС777RUS)';
     }
 
     PROPERTY(trailer(t)) {
-        regexp = '^[АВЕКМНОРСТУХABEKMHOPCTYXавекмнорстухabekmhopctyx][АВЕКМНОРСТУХABEKMHOPCTYXавекмнорстухabekmhopctyx]?\\d{3}\\d?[АВЕКМНОРСТУХABEKMHOPCTYXавекмнорстухabekmhopctyx][АВЕКМНОРСТУХABEKMHOPCTYXавекмнорстухabekmhopctyx]?\\d{2}\\d?$';
-        regexpMessage = 'Неправильный формат номера';
+        // Прицеп: 2 буквы, 4 цифры, код региона (2-3 цифры), RUS (необязательно)
+        regexp = '^[АВЕКМНОРСТУХавекмнорстух][АВЕКМНОРСТУХавекмнорстух]\\d{4}\\d{2}\\d?(RUS)?$';
+        regexpMessage = 'Неправильный формат номера прицепа (например АВ123477 или АВ1234777RUS)';
     }
 }
+
+hideCancel(Invoice i) += NOT regId(wayBill(i));
+hideCancel(Shipment s) += NOT regId(wayBill(s));
+
+backgroundQuantityLot (InvoiceDetail d) = (IF quantityLot(d) = quantity(d) THEN RGB(224,255,224) ELSE RGB(255,224,224)) IF lotType(sku(d));
+EXTEND FORM invoices
+    PROPERTIES(d) READONLY quantityLot AFTER quantity(d) BACKGROUND backgroundQuantityLot(d) SHOWIF useLot(operation(i))
+;
 
 DESIGN invoices {
     PROPERTY(cancelEGAIS) { caption = 'Отправить в ЕГАИС акт отказа от ТТН';}
