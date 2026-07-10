@@ -8,6 +8,8 @@ CLASS BusinessEntity 'Хозяйствующий субъект';
 TABLE businessEntity (BusinessEntity);
 
 guid 'GUID хозяйствующего субъекта' = DATA STRING (BusinessEntity) CHARWIDTH 36 INDEXED NONULL;
+
+showFio = ABSTRACT BOOLEAN (BusinessEntity);
 businessEntity 'Площадка' = GROUP AGGR BusinessEntity b BY guid(b);
 
 name 'Наименование' = DATA ISTRING (BusinessEntity) CHARWIDTH 40;
@@ -20,7 +22,9 @@ addressView 'Юридический адрес' = DATA ISTRING (BusinessEntity) 
 
 FORM businessEntity 'Хозяйствующий субъект'
     OBJECTS o = BusinessEntity PANEL
-    PROPERTIES(o) READONLY guid, name, inn, type, fio, kpp, ogrn, addressView
+    PROPERTIES(o) guid
+    PROPERTIES(o) READONLY name, inn, type, kpp, ogrn, addressView
+    PROPERTIES(o) READONLY fio SHOWIF showFio(o)
 
     EDIT BusinessEntity OBJECT o
 ;

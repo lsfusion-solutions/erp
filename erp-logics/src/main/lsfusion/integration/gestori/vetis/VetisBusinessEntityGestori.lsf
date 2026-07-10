@@ -9,6 +9,14 @@ NAMESPACE Vetis;
 fullName 'Наименование полное' = DATA ISTRING (BusinessEntity) CHARWIDTH 100;
 status 'Статус Ветис' = DATA STRING[5] (BusinessEntity) CHARWIDTH 5;
 
+showFio(BusinessEntity b) += type(b) = '2' OR type(b) = '3';
+
+typeDescription 'Тип ХС' (BusinessEntity b) = CASE
+    WHEN type(b) = '1' THEN 'ЮЛ'
+    WHEN type(b) = '2' THEN 'ФЛ'
+    WHEN type(b) = '3' THEN 'ИП'
+    ELSE type(b);
+
 // --- GetBusinessEntityByGuid ---
 
 GROUP getBusinessEntityByGuidRequest EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getBusinessEntityByGuidRequest' : body;
@@ -74,10 +82,10 @@ getBusinessEntityByGUID 'Обновить ХС' (BusinessEntity b) {
 
 // --- Загрузить ХС (поиск по параметрам) ---
 
-searchGuid 'GUID (поиск)' = DATA LOCAL STRING ();
-searchInn 'ИНН (поиск)' = DATA LOCAL STRING ();
-searchKpp 'КПП (поиск)' = DATA LOCAL STRING ();
-searchOgrn 'ОГРН/ОГРНИП (поиск)' = DATA LOCAL STRING ();
+searchGuid 'GUID' = DATA LOCAL STRING ();
+searchInn 'ИНН' = DATA LOCAL STRING ();
+searchKpp 'КПП' = DATA LOCAL STRING ();
+searchOgrn 'ОГРН/ОГРНИП' = DATA LOCAL STRING ();
 
 FORM getBusinessEntityListSearchRequest FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
     PROPERTIES() header EXTID 'soapenv:Header'
@@ -168,7 +176,7 @@ loadBusinessEntities 'Загрузить ХС' () {
 
 // --- Загрузить ХС по GLN ---
 
-searchGlnBusinessEntity 'GLN (поиск)' = DATA LOCAL STRING();
+searchGlnBusinessEntity 'GLN' = DATA LOCAL STRING();
 
 GROUP beGLNRequest EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getBusinessMemberByGLNRequest' : body;
 
@@ -195,6 +203,10 @@ FORM inputGlnBusinessEntity 'Загрузить ХС по GLN'
 
 loadBusinessEntityByGLN 'Загрузить ХС по GLN' () {
     DIALOG inputGlnBusinessEntity DO {
+        IF NOT searchGlnBusinessEntity() THEN {
+            MESSAGE 'Укажите GLN';
+            RETURN;
+        }
         NEWSESSION NESTED LOCAL {
             LOCAL requestFile = FILE();
             EXPORT getBeByGLNRequest XML TO requestFile;
@@ -219,16 +231,42 @@ loadBusinessEntityByGLN 'Загрузить ХС по GLN' () {
     }
 }
 
-// --- Запрет удаления ---
+// --- Выбор ХС в форме организации (п.1.8) ---
+
+filterOwnForLE = DATA LOCAL BOOLEAN();
+
+FORM dialogBEForLE 'Выбор ХС'
+    OBJECTS o = BusinessEntity
+    PROPERTIES(o) READONLY guid, name
+    FILTERS (filterOwnForLE() AND own(o)) OR (NOT filterOwnForLE() AND NOT own(o))
+    LIST BusinessEntity OBJECT o
+;
+
+changeBusinessEntityLE(LegalEntity l) + {
+    filterOwnForLE() <- isCompany(l);
+    DIALOG dialogBEForLE OBJECTS o = businessEntity(l) INPUT DO businessEntity(l) <- o;
+}
+
+// --- Запрет удаления и изменения GUID ---
 
 CONSTRAINT DROPPED(b IS BusinessEntity) AND (PREV(own(b)) OR (GROUP SUM 1 IF PREV(businessEntity(LegalEntity l)) = b))
     MESSAGE 'Невозможно удалить: хозяйствующий субъект является собственным или связан с организацией';
 
+CONSTRAINT CHANGED(guid(BusinessEntity b)) AND PREV(guid(b))
+    MESSAGE 'Изменение GUID ХС не допускается';
+
 // --- Расширение форм ---
 
 EXTEND FORM businessEntity
-    PROPERTIES(o) READONLY fullName, status
+    PROPERTIES(o) READONLY fullName, status, typeDescription
     PROPERTIES(o) getBusinessEntityByGUID DRAW o TOOLBAR
+    PROPERTIES(l) READONLY kpp, ogrn AFTER inn(l)
+;
+
+EXTEND FORM businessEntities
+    PROPERTIES(o) READONLY fullName, status
+    PROPERTIES(o) READONLY typeDescription AFTER type(o)
+    PROPERTIES() DRAW o TOOLBAR loadBusinessEntities, loadBusinessEntityByGLN
 ;
 
 DESIGN businessEntity {
@@ -238,24 +276,21 @@ DESIGN businessEntity {
     tabProperties {
         MOVE PROPERTY(own(o)) FIRST;
         MOVE PROPERTY(status(o)) AFTER PROPERTY(guid(o));
-        MOVE PROPERTY(type(o)) AFTER PROPERTY(status(o));
+        MOVE PROPERTY(typeDescription(o)) AFTER PROPERTY(status(o));
         MOVE PROPERTY(fullName(o)) AFTER PROPERTY(name(o));
         MOVE PROPERTY(fio(o)) AFTER PROPERTY(fullName(o));
         MOVE PROPERTY(getBusinessEntityByGUID(o)) LAST;
     }
     PROPERTY(guid(o)) { caption = 'GUID ХС'; }
-    PROPERTY(type(o)) { caption = 'Тип ХС'; charWidth = 5; }
+    PROPERTY(type(o)) { hide = TRUE; }
+    PROPERTY(typeDescription(o)) { charWidth = 5; }
     PROPERTY(fio(o)) { charWidth = 50; }
     PROPERTY(addressView(o)) { charWidth = 255; }
     PROPERTY(getBusinessEntityByGUID(o)) { caption = 'Обновить ХС'; }
 }
 
-EXTEND FORM businessEntities
-    PROPERTIES(o) READONLY fullName, status
-    PROPERTIES() DRAW o TOOLBAR loadBusinessEntities, loadBusinessEntityByGLN
-;
-
 DESIGN businessEntities {
     PROPERTY(getBusinessEntityList()) { caption = 'Обновить ХС'; }
     PROPERTY(getBusinessEntityList(o)) { caption = 'Обновить ХС'; }
+    PROPERTY(type(o)) { hide = TRUE; }
 }
