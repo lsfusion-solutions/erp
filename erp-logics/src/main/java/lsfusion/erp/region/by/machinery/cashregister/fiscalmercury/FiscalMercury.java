@@ -2,6 +2,7 @@ package lsfusion.erp.region.by.machinery.cashregister.fiscalmercury;
 
 import com.sun.jna.Library;
 import com.sun.jna.Native;
+import lsfusion.erp.ERPLoggers;
 
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
@@ -85,7 +86,7 @@ public class FiscalMercury {
         try {
             System.loadLibrary("megawdriver");
         } catch (Exception e) {
-            System.out.println(e);
+            ERPLoggers.cashRegisterlogger.error("Mercury init error: ", e);
         }
 
         connect();

@@ -4,6 +4,7 @@ import com.jacob.activeX.ActiveXComponent;
 import com.jacob.com.ComFailException;
 import com.jacob.com.Dispatch;
 import com.jacob.com.Variant;
+import lsfusion.erp.ERPLoggers;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -27,7 +28,7 @@ public class FiscalEpson {
                 epsonDispatch = epsonActiveXComponent.getObject();
             }
         } catch (UnsatisfiedLinkError e) {
-            System.out.println(e);
+            ERPLoggers.cashRegisterlogger.error("Epson init error: ", e);
         }
     }
 
@@ -434,7 +435,7 @@ public class FiscalEpson {
             for (String line : electronicJournalData.split("\r\n"))
                 printLine(line.isEmpty() ? " " : line);
         } catch (Exception e) {
-            System.out.println(e);
+            ERPLoggers.cashRegisterlogger.error("Epson print receipt copy error: ", e);
         } finally {
             closeReceipt();
         }

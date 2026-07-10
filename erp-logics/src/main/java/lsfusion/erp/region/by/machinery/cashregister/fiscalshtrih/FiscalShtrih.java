@@ -3,6 +3,7 @@ package lsfusion.erp.region.by.machinery.cashregister.fiscalshtrih;
 import com.jacob.activeX.ActiveXComponent;
 import com.jacob.com.Dispatch;
 import com.jacob.com.Variant;
+import lsfusion.erp.ERPLoggers;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -18,7 +19,7 @@ public class FiscalShtrih {
             shtrihActiveXComponent = new ActiveXComponent("AddIn.DrvFR");
             shtrihDispatch = shtrihActiveXComponent.getObject();
         } catch (UnsatisfiedLinkError e) {
-            System.out.println(e);
+            ERPLoggers.cashRegisterlogger.error("Shtrih init error: ", e);
         }
     }
 

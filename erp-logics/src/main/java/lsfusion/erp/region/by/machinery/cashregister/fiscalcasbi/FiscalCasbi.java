@@ -2,6 +2,7 @@ package lsfusion.erp.region.by.machinery.cashregister.fiscalcasbi;
 
 import com.sun.jna.Library;
 import com.sun.jna.Native;
+import lsfusion.erp.ERPLoggers;
 
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
@@ -52,7 +53,7 @@ public class FiscalCasbi {
         try {
             System.loadLibrary("ksb");
         } catch (Exception e) {
-            System.out.println(e);
+            ERPLoggers.cashRegisterlogger.error("Casbi init error: ", e);
         }
     }
 
