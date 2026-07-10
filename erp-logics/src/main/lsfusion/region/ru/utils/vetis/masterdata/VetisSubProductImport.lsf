@@ -31,9 +31,11 @@ FORM getSubProductByProductListResponse FORMEXTID 'soapenv=http://schemas.xmlsoa
                   name EXTID 'dt:name'
 ;
 
+afterImportSubProductByProductList ABSTRACT (Product, FILE);
+
 importSubProductByProductList (Product pt) {
     EXPORT getSubProductByProductListRequest OBJECTS t = pt XML;
-    
+
     LOCAL response = FILE();
     TRY {
         EXTERNAL HTTP urlProduct() HEADERS httpHeaders PARAMS exportFile() TO response;
@@ -42,20 +44,22 @@ importSubProductByProductList (Product pt) {
         MESSAGE CONCAT ' ', 'Ошибка при запросе к службе : ', resultString();
         RETURN;
     }
-    
+
     IMPORT getSubProductByProductListResponse XML FROM response();
-    
+
     FOR guid(INTEGER i) AND NOT subProduct(guid(i)) DO NEW p = SubProduct {
-        guid(p) <- guid(i); 
+        guid(p) <- guid(i);
     }
-    
+
     FOR guid(INTEGER i) = guid(SubProduct p) DO {
         name(p) <- name(i);
-        
+
         product(p) <- pt;
-        
+
         inactive(p) <- NOT active(i);
     }
+
+    afterImportSubProductByProductList(pt, response());
 }
 
 getSubProductByProductList 'Загрузить данные' (Product pt) {

@@ -1,12 +1,33 @@
 MODULE VetisProductGestori;
 
-REQUIRE VetisSubProductImport;
+REQUIRE VetisSubProductImport, VetisProductImport, VetisSubProductGestori;
 
 NAMESPACE Vetis;
+
+// --- Новые свойства продукции ---
+
+idProductTypeProduct 'Код типа продукции' (Product p) = id(productType(p));
 
 // --- Групповая отметка продукции ---
 
 inGestori 'Отм.' = DATA LOCAL BOOLEAN (Product);
+
+// --- Импорт Код ТН ВЭД для SubProduct ---
+
+codeSubL = DATA LOCAL STRING(INTEGER);
+
+FORM getSubProductByProductListExtResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    OBJECTS i = INTEGER EXTID 'dt:subProduct' IN getSubProductByProductListResponseList
+    PROPERTIES(i) guid EXTID 'bs:guid',
+                  codeSubL EXTID 'dt:code'
+;
+
+afterImportSubProductByProductList(Product pt, FILE response) + {
+    IMPORT getSubProductByProductListExtResponse XML FROM response;
+    FOR guid(INTEGER i) = guid(SubProduct sp) DO {
+        IF codeSubL(i) THEN code(sp) <- codeSubL(i);
+    }
+}
 
 // --- Загрузка видов продукции по отмеченной продукции ---
 
@@ -41,10 +62,18 @@ CONSTRAINT CHANGED(productType(Product p)) AND PREV(productType(p))
 
 EXTEND FORM products
     PROPERTIES(o) inGestori BEFORE guid(o)
+    PROPERTIES(o) READONLY idProductTypeProduct AFTER nameProductType(o)
     PROPERTIES(o) DRAW o TOOLBAR loadSubProductsByMarkedGestori
 ;
 
+EXTEND FORM product
+    PROPERTIES(s) READONLY code
+;
+
+
 DESIGN products {
+    PROPERTY(guid(o)) { caption = 'GUID продукции'; }
+    PROPERTY(getProductByTypeList()) { caption = 'Загрузить продукцию'; }
     PROPERTY(new) { hide = TRUE; }
     PROPERTY(edit) { hide = TRUE; }
     PROPERTY(delete) { hide = TRUE; }
