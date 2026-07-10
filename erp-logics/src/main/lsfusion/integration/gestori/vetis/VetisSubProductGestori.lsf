@@ -1,14 +1,14 @@
 MODULE VetisSubProductGestori;
 
-REQUIRE VetisProductItem, VetisProductItemImport, VetisProductItemExport, VetisSubProductImport;
+REQUIRE VetisProductItem, VetisSubProductImport, VetisProductItemImport, VetisProductItemExport;
 
 NAMESPACE Vetis;
 
-// --- Тип продукции на виде продукции ---
+// --- Новые свойства вида продукции ---
 
+guidProduct 'GUID продукции' (SubProduct s) = guid(product(s));
+idProductTypeSubProduct 'Код типа продукции' (SubProduct s) = id(productType(product(s)));
 nameProductTypeGestori 'Тип продукции' (SubProduct s) = name(productType(product(s)));
-
-// --- Код ТН ВЭД ---
 
 code 'Код ТН ВЭД' = DATA STRING (SubProduct) CHARWIDTH 10;
 
@@ -16,25 +16,95 @@ code 'Код ТН ВЭД' = DATA STRING (SubProduct) CHARWIDTH 10;
 
 inGestori 'Отм.' = DATA LOCAL BOOLEAN (SubProduct);
 
-// --- Расширение существующей SOAP-формы getProductItemListRequest ---
+// --- ХС-владелец для диалога параметров (UI-фильтр для сужения списка производителя/площадки) ---
 
-GROUP getProductItemListRequestSubProduct EXTID 'dt:subProduct' : getProductItemListRequest;
+ownerBESP = DATA LOCAL BusinessEntity ();
+nameOwnerBESP 'ХС-владелец' () = name(ownerBESP());
 
-EXTEND FORM getProductItemListRequest
-    OBJECTS sp = SubProduct PANEL
-    PROPERTIES(sp) guid EXTID 'bs:guid' IN getProductItemListRequestSubProduct
+// --- Диалоги выбора параметров ---
+
+FORM dialogSpOwner 'ХС-владелец'
+    OBJECTS o = BusinessEntity
+    PROPERTIES(o) READONLY guid, name
+    FILTERS own(o) AND (NOT enterprise() OR owner(enterprise()) = o)
+    LIST BusinessEntity OBJECT o
 ;
 
-// --- Диалог параметров ---
+FORM dialogSpBE 'ХС-производитель'
+    OBJECTS o = BusinessEntity
+    PROPERTIES(o) READONLY guid, name
+    FILTERS own(o)
+        AND (NOT ownerBESP() OR o = ownerBESP())
+        AND (NOT enterprise() OR owner(enterprise()) = o)
+    LIST BusinessEntity OBJECT o
+;
+
+FORM dialogSpEnterprise 'Площадка производителя'
+    OBJECTS o = Enterprise
+    PROPERTIES(o) READONLY guid, name, nameOwner
+    FILTERS own(owner(o))
+        AND (NOT ownerBESP() OR owner(o) = ownerBESP())
+        AND (NOT businessEntity() OR owner(o) = businessEntity())
+    LIST Enterprise OBJECT o
+;
+
+changeOwnerBESP () {
+    DIALOG dialogSpOwner OBJECTS o = ownerBESP() INPUT DO {
+        ownerBESP() <- o;
+        IF businessEntity() AND businessEntity() != o THEN businessEntity() <- NULL;
+        IF enterprise() AND owner(enterprise()) != o THEN enterprise() <- NULL;
+    }
+}
+
+changeBESP () {
+    DIALOG dialogSpBE OBJECTS o = businessEntity() INPUT DO {
+        businessEntity() <- o;
+        IF NOT ownerBESP() THEN ownerBESP() <- o;
+        IF enterprise() AND owner(enterprise()) != o THEN enterprise() <- NULL;
+    }
+}
+
+changeEnterpriseSP () {
+    DIALOG dialogSpEnterprise OBJECTS o = enterprise() INPUT DO {
+        enterprise() <- o;
+        IF NOT businessEntity() THEN businessEntity() <- owner(o);
+        IF NOT ownerBESP() THEN ownerBESP() <- owner(o);
+    }
+}
+
+// --- Диалог параметров загрузки номенклатуры ---
 
 FORM loadProductItemsBySpParams 'Параметры загрузки номенклатуры'
-    PROPERTIES() offset, count
+    PROPERTIES() nameOwnerBESP ON CHANGE changeOwnerBESP(),
+                 nameBusinessEntity ON CHANGE changeBESP(),
+                 nameEnterprise ON CHANGE changeEnterpriseSP(),
+                 offset, count
 ;
 
-// --- Импорт номенклатуры по одному виду продукции ---
+// --- Собственная форма запроса GetProductItemList с namespace-декларациями ---
 
-importProductItemsBySubProductGestori (SubProduct sp) {
-    EXPORT getProductItemListRequest OBJECTS sp = sp XML;
+GROUP getProductItemListBySPReq EXTID 'v2:getProductItemListRequest' : body;
+GROUP getProductItemListBySPReqListOpts EXTID 'bs:listOptions' : getProductItemListBySPReq;
+GROUP getProductItemListBySPReqSubProduct EXTID 'dt:subProduct' : getProductItemListBySPReq;
+GROUP getProductItemListBySPReqProducer EXTID 'dt:producer' : getProductItemListBySPReq;
+GROUP getProductItemListBySPReqBE EXTID 'dt:businessEntity' : getProductItemListBySPReqProducer;
+GROUP getProductItemListBySPReqEnterprise EXTID 'dt:enterprise' : getProductItemListBySPReqProducer;
+
+FORM getProductItemListBySPRequest FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES ATTR ='http://api.vetrf.ru/schema/cdm/base' EXTID 'xmlns:bs',
+                    ='http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2' EXTID 'xmlns:v2',
+                    ='http://api.vetrf.ru/schema/cdm/dictionary/v2' EXTID 'xmlns:dt'
+    PROPERTIES() IN getProductItemListBySPReqListOpts count EXTID 'bs:count', offset EXTID 'bs:offset'
+    OBJECTS sp = SubProduct PANEL
+    PROPERTIES(sp) guid EXTID 'bs:guid' IN getProductItemListBySPReqSubProduct
+    PROPERTIES   IN getProductItemListBySPReqBE = guid(businessEntity()) EXTID 'bs:guid'
+    PROPERTIES   IN getProductItemListBySPReqEnterprise = guid(enterprise()) EXTID 'bs:guid'
+;
+
+// --- Загрузка номенклатуры по отмеченным видам продукции ---
+
+importProductItemsBySPGestori (SubProduct sp) {
+    EXPORT getProductItemListBySPRequest OBJECTS sp = sp XML;
     LOCAL response = FILE();
     TRY {
         EXTERNAL HTTP urlProduct() HEADERS httpHeaders PARAMS exportFile() TO response;
@@ -61,28 +131,44 @@ importProductItemsBySubProductGestori (SubProduct sp) {
     }
 }
 
-// --- Загрузка номенклатуры по отмеченным видам продукции ---
-
 loadProductItemsByMarkedGestori 'Загрузить номенклатуру' () {
     NEWSESSION NESTED LOCAL {
         offset() <- 0;
         count() <- 1000;
         DIALOG loadProductItemsBySpParams NOMANAGESESSION DO {
             FOR inGestori(SubProduct sp) DO
-                importProductItemsBySubProductGestori(sp);
+                importProductItemsBySPGestori(sp);
             APPLY;
         }
     }
 }
+
+// --- Ограничения ---
+
+CONSTRAINT DROPPED(SubProduct s IS SubProduct) AND PREV(s IS SubProduct)
+    MESSAGE 'Удаление видов продукции не допускается. Справочник загружается только из Ветис.';
+
+CONSTRAINT CHANGED(guid(SubProduct s)) AND PREV(guid(s))
+    MESSAGE 'Изменение кода (GUID) вида продукции не допускается.';
+
+CONSTRAINT CHANGED(product(SubProduct s)) AND PREV(product(s))
+    MESSAGE 'Изменение ссылки на продукцию не допускается.';
 
 // --- Расширение справочника Виды продукции ---
 
 EXTEND FORM subProducts
     PROPERTIES(o) inGestori BEFORE guid(o)
     PROPERTIES(o) READONLY nameProductTypeGestori AFTER nameProduct(o)
+    PROPERTIES(o) READONLY guidProduct AFTER nameProductTypeGestori(o)
+    PROPERTIES(o) READONLY idProductTypeSubProduct AFTER guidProduct(o)
     PROPERTIES(o) READONLY code
     PROPERTIES() loadProductItemsByMarkedGestori DRAW o TOOLBAR
 ;
 
-CONSTRAINT DROPPED(SubProduct s IS SubProduct) AND PREV(s IS SubProduct)
-    MESSAGE 'Удаление видов продукции не допускается. Справочник загружается только из Ветис.';
+DESIGN subProducts {
+    PROPERTY(guid(o)) { caption = 'GUID вида продукции'; }
+    PROPERTY(getSubProductByProductList()) { caption = 'Загрузить виды продукции'; }
+    PROPERTY(new) { hide = TRUE; }
+    PROPERTY(edit) { hide = TRUE; }
+    PROPERTY(delete) { hide = TRUE; }
+}

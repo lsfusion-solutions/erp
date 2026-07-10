@@ -7,6 +7,20 @@ NAMESPACE Vetis;
 // --- Новые свойства продукции ---
 
 idProductTypeProduct 'Код типа продукции' (Product p) = id(productType(p));
+code 'Код ТН ВЭД' = DATA STRING (Product) CHARWIDTH 10;
+
+// --- Импорт Код ТН ВЭД для Product ---
+
+codeProductL = DATA LOCAL STRING(INTEGER);
+
+EXTEND FORM getProductByTypeListResponse
+    PROPERTIES(i) codeProductL EXTID 'dt:code'
+;
+
+afterImportProductByTypeList(ProductType pt, FILE response) + {
+    FOR guid(INTEGER i) = guid(Product p) DO
+        IF codeProductL(i) THEN code(p) <- codeProductL(i);
+}
 
 // --- Групповая отметка продукции ---
 
@@ -63,10 +77,12 @@ CONSTRAINT CHANGED(productType(Product p)) AND PREV(productType(p))
 EXTEND FORM products
     PROPERTIES(o) inGestori BEFORE guid(o)
     PROPERTIES(o) READONLY idProductTypeProduct AFTER nameProductType(o)
+    PROPERTIES(o) READONLY code AFTER idProductTypeProduct(o)
     PROPERTIES(o) DRAW o TOOLBAR loadSubProductsByMarkedGestori
 ;
 
 EXTEND FORM product
+    PROPERTIES(o) READONLY code
     PROPERTIES(s) READONLY code
 ;
 

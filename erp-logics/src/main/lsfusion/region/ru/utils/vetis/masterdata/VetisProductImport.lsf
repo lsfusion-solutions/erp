@@ -8,11 +8,11 @@ GROUP getProductByTypeListRequest EXTID 'v2:getProductByTypeListRequest' : body;
 GROUP getProductByTypeListRequestListOptions EXTID 'bs:listOptions' : getProductByTypeListRequest;
 
 FORM getProductByTypeListRequest FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
-    PROPERTIES ATTR ='http://api.vetrf.ru/schema/cdm/base' EXTID 'xmlns:bs', 
-                    ='http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2' EXTID 'xmlns:v2', 
+    PROPERTIES ATTR ='http://api.vetrf.ru/schema/cdm/base' EXTID 'xmlns:bs',
+                    ='http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2' EXTID 'xmlns:v2',
                     ='http://api.vetrf.ru/schema/cdm/dictionary/v2' EXTID 'xmlns:prod'
     PROPERTIES() IN getProductByTypeListRequestListOptions count EXTID 'bs:count', offset EXTID 'bs:offset'
-    
+
     OBJECTS t = ProductType PANEL
     PROPERTIES id(t) EXTID 'prod:productType' IN getProductByTypeListRequest
 ;
@@ -31,9 +31,11 @@ FORM getProductByTypeListResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/
                   name EXTID 'dt:name'
 ;
 
+afterImportProductByTypeList ABSTRACT (ProductType, FILE);
+
 importProductByTypeList (ProductType pt) {
     EXPORT getProductByTypeListRequest OBJECTS t = pt XML;
-    
+
     LOCAL response = FILE();
     TRY {
         EXTERNAL HTTP urlProduct() HEADERS httpHeaders PARAMS exportFile() TO response;
@@ -42,20 +44,22 @@ importProductByTypeList (ProductType pt) {
         MESSAGE CONCAT ' ', 'Ошибка при запросе к службе : ', resultString();
         RETURN;
     }
-    
+
     IMPORT getProductByTypeListResponse XML FROM response();
-    
+
     FOR guid(INTEGER i) AND NOT product(guid(i)) DO NEW p = Product {
-        guid(p) <- guid(i); 
+        guid(p) <- guid(i);
     }
-    
+
     FOR guid(INTEGER i) = guid(Product p) DO {
         name(p) <- name(i);
-        
+
         productType(p) <- pt;
-        
+
         inactive(p) <- NOT active(i);
     }
+
+    afterImportProductByTypeList(pt, response());
 }
 
 getProductByTypeList 'Загрузить данные' (ProductType pt) {
@@ -77,7 +81,7 @@ getProductByTypeList 'Загрузить данные' () {
     NEWSESSION {
         offset() <- 0;
         count() <- 1000;
-        DIALOG getProductByTypeListRequestParams DO {   
+        DIALOG getProductByTypeListRequestParams DO {
             FOR ProductType pt IS ProductType DO
                 importProductByTypeList(pt);
         }
