@@ -668,7 +668,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             return sendPacket(port, packet);
             
         } catch (Exception e) {
-            System.out.println(String.format("error: %s", e));
+            mertechLogger.error("Mertech error occurred", e);
             return new Result.Error(-1, e.getMessage());
         }
     }
@@ -705,7 +705,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             return sendPacket(port, packet);
             
         } catch (Exception e) {
-            System.out.println(String.format("error: %s", e));
+            mertechLogger.error("Mertech error occurred", e);
             return new Result.Error(-1, e.getMessage());
         }
     }
@@ -740,7 +740,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             return sendPacket(port, packet);
             
         } catch (Exception e) {
-            System.out.println(String.format("error: %s", e));
+            mertechLogger.error("Mertech error occurred", e);
             return new Result.Error(-1, e.getMessage());
         }
     }
@@ -783,7 +783,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             return result;
             
         } catch (Exception e) {
-            System.out.println(String.format("error: %s", e));
+            mertechLogger.error("Mertech error occurred", e);
             return new Result.Error(-1, e.getMessage());
         }
     }
@@ -809,7 +809,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             return sendPacket(port, packet);
             
         } catch (Exception e) {
-            System.out.println(String.format("error: %s", e));
+            mertechLogger.error("Mertech error occurred", e);
             return new Result.Error(-1, e.getMessage());
         }
     }
@@ -835,7 +835,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             return sendPacket(port, packet);
             
         } catch (Exception e) {
-            System.out.println(String.format("error: %s", e));
+            mertechLogger.error("Mertech error occurred", e);
             return new Result.Error(-1, e.getMessage());
         }
     }
@@ -861,7 +861,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             return sendPacket(port, packet);
             
         } catch (Exception e) {
-            System.out.println(String.format("error: %s", e));
+            mertechLogger.error("Mertech error occurred", e);
             return new Result.Error(-1, e.getMessage());
         }
     }
@@ -883,7 +883,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             return sendPacket(port, packet);
             
         } catch (Exception e) {
-            System.out.println(String.format("error: %s", e));
+            mertechLogger.error("Mertech error occurred", e);
             return new Result.Error(-1, e.getMessage());
         }
     }

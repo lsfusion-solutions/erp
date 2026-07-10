@@ -291,11 +291,6 @@ public class JsonReadProcess {
         tResult = null;
     }
 
-    //  для отладки
-    void print(String cMsg) {
-        System.out.println(": " + cMsg);
-    }
-
     // Обработка ошибок
     private boolean errBox(String eMsg) {
         clsProp();
