@@ -1,0 +1,44 @@
+MODULE SaleOrderFuel;
+
+REQUIRE SaleOrder, SaleFuel, SkuLedgerFuel, ItemFuel;
+
+NAMESPACE Sale;
+
+showFuel(Order o) = showFuel(operation(o));
+showFuel(UserOrder o) = showFuel(operation(o));
+
+volume 'Объём (топливо), л' = ABSTRACT NUMERIC[16,5] (OrderDetail) CHARWIDTH 7 MATERIALIZED;
+volume 'Объём (топливо), л' = DATA NUMERIC[16,5] (UserOrderDetail) CHARWIDTH 7;
+volume (UserOrderDetail orderDetail) += volume(orderDetail);
+
+density 'Плотность, кг/л' = ABSTRACT NUMERIC[9,5] (OrderDetail) CHARWIDTH 7 MATERIALIZED;
+density 'Плотность, кг/л' = DATA NUMERIC[9,5] (UserOrderDetail) CHARWIDTH 7;
+density (UserOrderDetail orderDetail) += density(orderDetail);
+
+@fuelDensity(userOrderDetail, 'заказ (продажа)');
+
+volumeOrderDetail 'Объём (топливо, всего), л' (order) = GROUP SUM volume(OrderDetail idetail) BY order(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
+volumeUserOrderDetail 'Объём (топливо, всего), л' (userOrder) = GROUP SUM volume(UserOrderDetail idetail) BY userOrder(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
+
+overBackgroundDensity = ABSTRACT CASE COLOR (UserOrderDetail);
+
+EXTEND FORM userOrder
+    PROPERTIES(o) SHOWIF showFuel(o) volumeUserOrderDetail
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) SHOWIF showFuel(o) volume AFTER quantity(d)
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) SHOWIF showFuel(o) density AFTER volume(d) ON CHANGE changeDensity(d) ON CONTEXTMENU fillDensity15C(d) ON CONTEXTMENU fillDensityFromTable(d) BACKGROUND overBackgroundDensity(d)
+;
+
+overCopy(UserOrderDetail d, OrderDetail detail) + {
+    volume(d) <- volume(detail);
+    density(d) <- density(detail);
+}
+overCopy[UserOrderDetail,UserOrderDetail](UserOrderDetail d, UserOrderDetail detail) + {
+    volume(d) <- volume(detail);
+    density(d) <- density(detail);
+}
+
+EXTEND FORM orders
+    PROPERTIES(o) READONLY SHOWIF showFuel(o) volumeOrderDetail AFTER quantityOrderDetail(o)
+    PROPERTIES(d) READONLY SHOWIF showFuel(o) volume AFTER quantity(d)
+    PROPERTIES(d) READONLY SHOWIF showFuel(o) density AFTER volume(d)
+;
