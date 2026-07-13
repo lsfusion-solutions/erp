@@ -92,30 +92,24 @@ getVetDocumentChangesListRequestGestori 'Запросить изменившие
     endDateChangesVD() <- dateTimeToDateTime(currentDate(), TIME('23:59:59'));
     DIALOG getVetDocumentChangesListRequestParams DO {
         skipMessage() <- TRUE;
-        APPLY;
         LOCAL cnt = INTEGER();
         cnt() <- 0;
-        FOR Enterprise e AND own(owner(e)) AND
-            (GROUP SUM 1 IF enterprise(Stock st) = e AND isCompany(legalEntity(st))) AND
-            (NOT limitAccess(currentUser()) OR accessCompany(currentUser(), e))
-        DO {
-            NEWSESSION {
-                NEW r = VetDocumentListRequest {
-                    businessEntity(r) <- owner(e);
-                    changes(r) <- TRUE;
-                    offset(r) <- 0;
-                    count(r) <- 1000;
-                    beginDate(r) <- beginDateChangesVD();
-                    endDate(r) <- endDateChangesVD();
-                    enterprise(r) <- e;
-                    getVetDocumentListRequest(r);
-                    APPLY;
-                }
+        NEWSESSION NESTED LOCAL {
+            FOR Enterprise e AND own(owner(e)) AND (GROUP SUM 1 IF enterprise(Stock st) = e AND isCompany(legalEntity(st))) AND
+                (NOT limitAccess(currentUser()) OR accessCompany(currentUser(), e)) NEW r = VetDocumentListRequest DO {
+                businessEntity(r) <- owner(e);
+                changes(r) <- TRUE;
+                offset(r) <- 0;
+                count(r) <- 1000;
+                beginDate(r) <- beginDateChangesVD();
+                endDate(r) <- endDateChangesVD();
+                enterprise(r) <- e;
+                getVetDocumentListRequest(r);
+                cnt() <- cnt() + 1;
             }
-            cnt() <- cnt() + 1;
+            APPLY NESTED LOCAL;
         }
         skipMessage() <- NULL;
-        APPLY;
         MESSAGE 'Отправлено ' + cnt() + ' запросов';
     }
 }
@@ -160,10 +154,10 @@ DESIGN applicationRequests {
     }
 }
 
-CONSTRAINT changes(VetDocumentListRequest r) AND NOT beginDate(r)
+CONSTRAINT SETCHANGED(changes(VetDocumentListRequest r)) AND NOT beginDate(r)
     MESSAGE 'При запросе изменившихся ВСД укажите "Дата/время с"';
 
-CONSTRAINT changes(VetDocumentListRequest r) AND NOT endDate(r)
+CONSTRAINT SETCHANGED(changes(VetDocumentListRequest r)) AND NOT endDate(r)
     MESSAGE 'При запросе изменившихся ВСД укажите "Дата/время по"';
 
 DESIGN getVetDocumentListRequestParams {
