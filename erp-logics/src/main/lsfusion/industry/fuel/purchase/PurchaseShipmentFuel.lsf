@@ -75,15 +75,15 @@ fillShipmentDensity (UserInvoiceDetail d, NUMERIC[9,5] n) {
         IF n THEN {
             shipmentDensity(d) <- n;
             IF NOT shipmentQuantity(d) THEN {
-                shipmentQuantity(d) <- NUMERIC[16,5](round3(shipmentVolume(d) * shipmentDensity(d)));
+                shipmentQuantity(d) <- NUMERIC[16,5](round(shipmentVolume(d) * shipmentDensity(d), roundFuelQuantity()));
             } ELSE IF NOT shipmentVolume(d) THEN {
-                shipmentVolume(d) <- NUMERIC[16,5](round3(shipmentQuantity(d) / shipmentDensity(d)));
+                shipmentVolume(d) <- NUMERIC[16,5](round(shipmentQuantity(d) / shipmentDensity(d), roundFuelQuantity()));
             } ELSE {
                 ASK 'Нажмите "Да" для пересчета объёма поставлено (л) или "Нет" для пересчета кол-ва поставлено (кг)' yes = YESNO DO {
                     IF yes THEN {
-                        shipmentVolume(d) <- NUMERIC[16,5](round3(shipmentQuantity(d) / shipmentDensity(d)));
+                        shipmentVolume(d) <- NUMERIC[16,5](round(shipmentQuantity(d) / shipmentDensity(d), roundFuelQuantity()));
                     } ELSE {
-                        shipmentQuantity(d) <- NUMERIC[16,5](round3(shipmentVolume(d) * shipmentDensity(d)));
+                        shipmentQuantity(d) <- NUMERIC[16,5](round(shipmentVolume(d) * shipmentDensity(d), roundFuelQuantity()));
                     }
                 } ELSE {
                     shipmentDensity(d) <- PREV(shipmentDensity(d));
