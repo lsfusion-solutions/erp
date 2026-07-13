@@ -150,6 +150,8 @@ FORM importVetDocument FORMEXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-
                    type EXTID 'vd:type', relationshipType EXTID 'vd:relationshipType'
 ;
 
+afterImportVetDocument ABSTRACT (VetDocument);
+
 importVetDocument(TEXT xml) {
     NEWSESSION {
         stringToFile('<vd:vetDocument xmlns:vd="http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2" xmlns:bs="http://api.vetrf.ru/schema/cdm/base" xmlns:dt="http://api.vetrf.ru/schema/cdm/dictionary/v2">' + 
@@ -248,7 +250,9 @@ importVetDocument(TEXT xml) {
             
             authentication(d) <- authentication();
             purpose(d) <- purpose(purposeGuid());
-            
+
+            afterImportVetDocument(d);
+
             FOR issueKey(INTEGER i) AND NOT vetReferenceDocument(d, issueKey(i)) NEW rd = VetReferenceDocument DO {
                 vetDocument(rd) <- d;
                 issueSeries(rd) <- issueSeries(i);

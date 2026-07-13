@@ -69,6 +69,8 @@ dateInvoiceIC 'Дата накладной' (IncomingConsignment c) =
 CLASS GetVetDocumentByUuidRequest 'Запрос ВСД по UUID' : ApplicationRequest;
 
 uuidToFetch 'UUID ВСД' = DATA STRING (GetVetDocumentByUuidRequest);
+enterprise 'Площадка' = DATA Enterprise (GetVetDocumentByUuidRequest);
+enterpriseGuid (GetVetDocumentByUuidRequest r) = guid(enterprise(r));
 
 localTransactionId (GetVetDocumentByUuidRequest r) = LONG(r AS GetVetDocumentByUuidRequest);
 
@@ -77,7 +79,8 @@ FORM getVetDocumentByUuidRequestForm
     OBJECTS r = GetVetDocumentByUuidRequest PANEL
     PROPERTIES(r) localTransactionId EXTID 'merc:localTransactionId'
     PROPERTIES(r) IN initiator loginMercury EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:login'
-    PROPERTIES(r) uuidToFetch EXTID 'merc:uuid'
+    PROPERTIES(r) uuidToFetch EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid'
+    PROPERTIES(r) enterpriseGuid EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:enterpriseGuid'
 ;
 
 submitGetVetDocumentByUuidRequest (GetVetDocumentByUuidRequest r) {
@@ -87,46 +90,89 @@ submitGetVetDocumentByUuidRequest (GetVetDocumentByUuidRequest r) {
 
 FORM getVetDocumentByUuidResponse
     FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:getVetDocumentByUuidResponse'
-    PROPERTIES() vetDocument EXTID 'merc:vetDocument'
+    OBJECTS vd = INTEGER EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:vetDocument'
+    PROPERTIES(vd) vetDocument EXTID 'value:full'
 ;
 
 process (GetVetDocumentByUuidRequest r) + {
     NEWSESSION {
         stringToFile(response(r));
         IMPORT getVetDocumentByUuidResponse XML FROM resultFile();
-        IF vetDocument() THEN
-            importVetDocument(vetDocument());
+        FOR vetDocument(INTEGER i) DO
+            importVetDocument(vetDocument(i));
         processed(r) <- TRUE;
         APPLY;
     }
 }
 
 uuidInputGestori = DATA LOCAL STRING ();
-businessEntityForUuidGestori = DATA LOCAL BusinessEntity ();
-nameBusinessEntityForUuidGestori 'Хозяйствующий субъект' () = name(businessEntityForUuidGestori());
+vetDocumentForUuidGestori () = vetDocument(uuidInputGestori());
+nameProductItemForUuidGestori 'Продукция' () = nameProductItem(vetDocumentForUuidGestori());
+enterpriseForUuidGestori () = consigneeEnterprise(vetDocumentForUuidGestori());
+nameEnterpriseForUuidGestori 'Площадка' () = name(enterpriseForUuidGestori());
 
 FORM fetchVetDocumentByUuidDialog 'Запросить ВСД по UUID'
-    PROPERTIES() uuidInputGestori, nameBusinessEntityForUuidGestori
+    PROPERTIES() uuidInputGestori
+    PROPERTIES() nameProductItemForUuidGestori
+    PROPERTIES() nameEnterpriseForUuidGestori
 ;
 
 DESIGN fetchVetDocumentByUuidDialog {
-    PROPERTY(uuidInputGestori()) { caption = 'UUID ВСД'; charWidth = 40; }
-    PROPERTY(nameBusinessEntityForUuidGestori()) { notNull = TRUE; }
+    PROPERTY(uuidInputGestori()) { caption = 'UUID ВСД'; charWidth = 40; notNull = TRUE; }
+    PROPERTY(nameProductItemForUuidGestori()) { charWidth = 40; }
+    PROPERTY(nameEnterpriseForUuidGestori()) { notNull = TRUE; }
 }
 
-getVetDocumentByUUIDGestori 'Запросить ВСД по UUID' () {
-    businessEntityForUuidGestori() <- GROUP MAX BusinessEntity be IF own(be);
+getVetDocumentByUUIDGestori 'Запросить ВСД по UUID' (VetDocument d) {
+    vetDocumentForUuidGestori() <- d;
+    uuidInputGestori() <- uuid(d);
+    enterpriseForUuidGestori() <- consigneeEnterprise(d);
     DIALOG fetchVetDocumentByUuidDialog DO {
-        IF uuidInputGestori() AND businessEntityForUuidGestori() THEN
-            NEWSESSION {
+        IF uuidInputGestori() AND enterpriseForUuidGestori() THEN
+            NEWSESSION NESTED LOCAL {
                 NEW r = GetVetDocumentByUuidRequest {
-                    businessEntity(r) <- businessEntityForUuidGestori();
+                    enterprise(r) <- enterpriseForUuidGestori();
+                    businessEntity(r) <- owner(enterpriseForUuidGestori());
                     uuidToFetch(r) <- uuidInputGestori();
                     submitGetVetDocumentByUuidRequest(r);
                     APPLY;
                 }
                 MESSAGE 'Запрос отправлен. Обработайте через "Обмен с Ветис" в форме Заявок.';
             }
+    }
+}
+
+// ---- Маркировка (level 2) ----
+
+packingTypeGlobalIDGestori 'Тип упаковки' = DATA STRING (VetDocument);
+productMarksClassGestori 'Тип штрихкода' = DATA STRING (VetDocument);
+productMarksGestori 'Маркировка' = DATA STRING (VetDocument);
+
+pkgLevelImport = DATA LOCAL INTEGER (INTEGER);
+pkgPackingTypeGlobalIDImport = DATA LOCAL STRING (INTEGER);
+pkgProductMarksValueImport = DATA LOCAL STRING (INTEGER);
+pkgProductMarksClassImport = DATA LOCAL STRING (INTEGER);
+
+GROUP pkgListImportGroup EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:packageList' : certifiedConsignmentBatch;
+GROUP pkgPackingTypeImportGroup EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:packingType';
+GROUP pkgProductMarksImportGroup EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:productMarks';
+
+EXTEND FORM importVetDocument
+    OBJECTS pkg = INTEGER EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:package' IN pkgListImportGroup
+    PROPERTIES(pkg) pkgLevelImport EXTID 'dt:level',
+                    pkgPackingTypeGlobalIDImport EXTID 'dt:globalID' IN pkgPackingTypeImportGroup,
+                    pkgProductMarksValueImport EXTID 'dt:productMarks',
+                    pkgProductMarksClassImport EXTID 'class' ATTR IN pkgProductMarksImportGroup
+;
+
+afterImportVetDocument(VetDocument d) + {
+    packingTypeGlobalIDGestori(d) <- NULL;
+    productMarksClassGestori(d) <- NULL;
+    productMarksGestori(d) <- NULL;
+    FOR pkgLevelImport(INTEGER i) = 2 DO {
+        packingTypeGlobalIDGestori(d) <- pkgPackingTypeGlobalIDImport(i);
+        productMarksClassGestori(d) <- pkgProductMarksClassImport(i);
+        productMarksGestori(d) <- pkgProductMarksValueImport(i);
     }
 }
 
@@ -149,9 +195,10 @@ EXTEND FORM vetDocuments
     PROPERTIES(o) READONLY AFTER volume(o)                   actualVolumeGestori
     PROPERTIES(o) READONLY updateDate, stateGestori
     PROPERTIES(o) READONLY packageList
+    PROPERTIES(o) READONLY AFTER packageList(o) packingTypeGlobalIDGestori, productMarksClassGestori, productMarksGestori
     PROPERTIES(o) READONLY BEFORE expiryDateHour(o) expiryDateGestori BACKGROUND expiredBackgroundGestori(o)
 
-    PROPERTIES() getVetDocumentByUUIDGestori DRAW o TOOLBAR
+    PROPERTIES(o) getVetDocumentByUUIDGestori DRAW o TOOLBAR
 
     OBJECTS rd = VetReferenceDocument
     PROPERTIES(rd) READONLY issueSeries, issueNumber, issueDate, type, relationshipType
@@ -193,3 +240,28 @@ DESIGN vetDocument {
         MOVE PROPERTY(volumeGestori(o));
     }
 }
+
+//// ---- Пакетная отправка запросов на гашение ВСД ----
+//
+//processIncomingConsignmentsGestori 'Отправить запросы на гашение ВСД' () {
+//    LOCAL cnt = INTEGER();
+//    LOCAL skipped = INTEGER();
+//    cnt() <- 0;
+//    skipped() <- 0;
+//    NEWSESSION { skipMessage() <- TRUE; APPLY; }
+//    FOR IncomingConsignment c IF toProcess(c) DO {
+//        IF expiryDate(vetDocument(c)) AND expiryDate(vetDocument(c)) < currentDate() THEN
+//            skipped() <- skipped() + 1;
+//        ELSE {
+//            process(c);
+//            cnt() <- cnt() + 1;
+//        }
+//    }
+//    NEWSESSION { skipMessage() <- NULL; APPLY; }
+//    MESSAGE 'Отправлено ' + cnt() + ' запросов' +
+//        (IF skipped() > 0 THEN ', пропущено ' + skipped() + ' с истёкшим сроком годности' ELSE '');
+//}
+//
+//EXTEND FORM incomingConsignments
+//    PROPERTIES() processIncomingConsignmentsGestori TOOLBAR
+//;
