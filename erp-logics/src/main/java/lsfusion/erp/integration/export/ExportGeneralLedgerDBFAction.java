@@ -22,7 +22,7 @@ import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.language.property.LP;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
-import lsfusion.server.logics.form.stat.struct.export.plain.dbf.OverJDBField;
+import lsfusion.erp.integration.OverJDBField;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import org.apache.commons.io.FileUtils;
 
