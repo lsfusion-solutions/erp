@@ -43,14 +43,92 @@ seriesNumberIncomingConsignment 'Номер накладной' (StockEntry s) =
 backgroundExpiryGestori (StockEntry s) =
     IF expiryDate(s) AND expiryDate(s) < currentDate() THEN RGB(255, 180, 180);
 
-// --- Запрос записи журнала по GUID ---
+// --- Запрос записи журнала по GUID из API Меркурий (1.1) ---
 
-getStockEntryByGuid 'Запросить запись журнала по GUID' () {
-    INPUT g = STRING[36] DO {
-        FOR StockEntry s = stockEntry(g) DO
-            MESSAGE 'Запись журнала найдена: ' + number(s) NOWAIT;
-        IF NOT stockEntry(g) THEN
-            MESSAGE 'Запись журнала с GUID ' + g + ' не найдена в базе. Выполните запрос в Меркурии.' NOWAIT;
+CLASS GetStockEntryByGuidRequest 'Запрос записи журнала по GUID' : ApplicationRequest;
+
+guidToFetch 'GUID записи журнала' = DATA STRING (GetStockEntryByGuidRequest);
+enterprise 'Площадка' = DATA Enterprise (GetStockEntryByGuidRequest);
+enterpriseGuid (GetStockEntryByGuidRequest r) = guid(enterprise(r));
+
+localTransactionId (GetStockEntryByGuidRequest r) = LONG(r AS GetStockEntryByGuidRequest);
+
+FORM getStockEntryByGuidRequestForm
+    FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:getStockEntryByGuidRequest'
+    OBJECTS r = GetStockEntryByGuidRequest PANEL
+    PROPERTIES(r) localTransactionId EXTID 'merc:localTransactionId'
+    PROPERTIES(r) IN initiator loginMercury EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:login'
+    PROPERTIES(r) guidToFetch EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
+    PROPERTIES(r) enterpriseGuid EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:enterpriseGuid'
+;
+
+submitGetStockEntryByGuidRequest (GetStockEntryByGuidRequest r) {
+    EXPORT getStockEntryByGuidRequestForm OBJECTS r = r XML;
+    submit(r, exportFile());
+}
+
+FORM getStockEntryByGuidResponse
+    FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:getStockEntryByGuidResponse'
+    OBJECTS se = INTEGER EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:stockEntry'
+    PROPERTIES(se) stockEntry EXTID 'value:full'
+;
+
+process (GetStockEntryByGuidRequest r) + {
+    NEWSESSION {
+        stringToFile(replace(response(r), 'getStockEntryByUuidResponse', 'getStockEntryByGuidResponse'));
+        IMPORT getStockEntryByGuidResponse XML FROM resultFile();
+        FOR stockEntry(INTEGER i) DO
+            importStockEntry(stockEntry(i), enterprise(r));
+        processed(r) <- TRUE;
+        APPLY;
+    }
+}
+
+// --- Диалог с контролем GUID (1.1.1, 1.1.2) ---
+
+guidInputSEGestori 'GUID записи журнала' = DATA LOCAL STRING ();
+enterpriseSEGuidGestori = DATA LOCAL Enterprise ();
+nameEnterpriseSEGuidGestori 'Площадка' () = name(enterpriseSEGuidGestori());
+
+isHexGuidGestori = FORMULA NULL BOOLEAN 'CASE WHEN $1 ~ \'^[0-9a-f]{32}$\' THEN 1 ELSE NULL END';
+
+cleanGuidSEGestori (STRING g) = lower(replace(g, '-', ''));
+formatGuidSEGestori (STRING g) =
+    substr(g, 1, 8) + '-' + substr(g, 9, 4) + '-' + substr(g, 13, 4) + '-' + substr(g, 17, 4) + '-' + substr(g, 21, 12);
+
+FORM getStockEntryByGuidDialog 'Запросить запись журнала по GUID'
+    PROPERTIES() guidInputSEGestori, nameEnterpriseSEGuidGestori READONLY
+;
+
+DESIGN getStockEntryByGuidDialog {
+    PROPERTY(guidInputSEGestori()) { charWidth = 40; notNull = TRUE; }
+}
+
+getStockEntryByGuid 'Запросить запись журнала по GUID' (StockEntry s) {
+    guidInputSEGestori() <- guid(s);
+    enterpriseSEGuidGestori() <- enterprise(s);
+    DIALOG getStockEntryByGuidDialog DO {
+        LOCAL cleaned = STRING();
+        cleaned() <- cleanGuidSEGestori(trim(guidInputSEGestori()));
+        IF NOT isHexGuidGestori(cleaned()) THEN {
+            MESSAGE 'Некорректный GUID: допускаются только символы 0-9, a-f и дефис, всего 32 символа без учёта дефисов';
+            RETURN;
+        }
+        NEWSESSION NESTED LOCAL {
+            NEW r = GetStockEntryByGuidRequest {
+                enterprise(r) <- enterpriseSEGuidGestori();
+                businessEntity(r) <- owner(enterpriseSEGuidGestori());
+                guidToFetch(r) <- formatGuidSEGestori(cleaned());
+                skipMessage() <- TRUE;
+                submitGetStockEntryByGuidRequest(r);
+                skipMessage() <- NULL;
+                IF id(r) THEN {
+                    APPLY;
+                    MESSAGE 'Запрос отправлен' NOWAIT;
+                } ELSE
+                    MESSAGE 'Запрос не отправлен: ' + (OVERRIDE error(r), 'нет ответа от сервиса');
+            }
+        }
     }
 }
 
@@ -92,8 +170,7 @@ EXTEND FORM stockEntries
         nameTypeIncomingConsignment AFTER uuidVetDocument(s),
         issueDateVSD AFTER expiryDate(s)
 
-    PROPERTIES() DRAW s TOOLBAR getStockEntryByGuid
-    PROPERTIES(s) DRAW s TOOLBAR showStockEntryMovements
+    PROPERTIES(s) DRAW s TOOLBAR getStockEntryByGuid, showStockEntryMovements
 
     FILTERS (GROUP SUM 1 IF enterprise(Stock st) = enterprise(s) AND accessCompany(currentUser(), st)) OR NOT limitAccess(currentUser())
 ;
