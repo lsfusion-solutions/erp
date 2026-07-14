@@ -43,11 +43,56 @@ DESIGN applicationRequests {
     }
 }
 
-// --- Переименование кнопок ---
+// --- 1.4.1: Запрос записей журнала — отправка и сообщение только после успешного сохранения заявки ---
+
+createdSERequest = DATA LOCAL BOOLEAN (StockEntryListRequest);
+
+getStockEntryListRequestGestori 'Запросить записи складского журнала' () {
+    NEWSESSION {
+        IF countStockEntry() THEN {
+            offset() <- 0;
+            count() <- OVERRIDE countStockEntry(), 1000;
+            DIALOG getStockEntryListRequestParamsEx DO {
+                createdSERequest(StockEntryListRequest r) <- NULL;
+                FOR iterate(INTEGER i, 0, (INTEGER(count()) - 1) / 1000) DO NEW r = StockEntryListRequest {
+                    offset(r) <- i * 1000;
+                    count(r) <- 1000;
+                    beginDate(r) <- beginDate();
+                    endDate(r) <- endDate();
+                    enterprise(r) <- enterpriseStockEntry();
+                    businessEntity(r) <- owner(enterprise(r));
+                    createdSERequest(r) <- TRUE;
+                }
+                APPLY;
+                IF canceled() THEN RETURN;
+                FOR createdSERequest(StockEntryListRequest r) DO
+                    getStockEntryListRequest(r);
+                APPLY;
+            }
+        } ELSE {
+            NEW r = StockEntryListRequest {
+                offset(r) <- 0;
+                count(r) <- 1000;
+                DIALOG getStockEntryListRequestParams OBJECTS r = r DO {
+                    businessEntity(r) <- owner(enterprise(r));
+                    APPLY;
+                    IF canceled() THEN RETURN;
+                    getStockEntryListRequest(r);
+                    APPLY;
+                }
+            }
+        }
+    }
+}
+
+EXTEND FORM applicationRequests
+    PROPERTIES() getStockEntryListRequestGestori
+;
 
 DESIGN applicationRequests {
     actions {
-        PROPERTY(getStockEntryListRequest()) { caption = 'Запросить записи складского журнала'; }
+        MOVE PROPERTY(getStockEntryListRequestGestori()) AFTER PROPERTY(getStockEntryListRequest());
+        PROPERTY(getStockEntryListRequest()) { hide = TRUE; }
     }
 }
 
@@ -87,14 +132,16 @@ FORM getVetDocumentChangesListRequestParams 'Параметры запроса �
     PROPERTIES() beginDateChangesVD, endDateChangesVD
 ;
 
+createdVDRequest = DATA LOCAL BOOLEAN (VetDocumentListRequest);
+
 getVetDocumentChangesListRequestGestori 'Запросить изменившиеся ВСД' () {
     beginDateChangesVD() <- dateTimeToDateTime(currentDate(), TIME('00:00:00'));
     endDateChangesVD() <- dateTimeToDateTime(currentDate(), TIME('23:59:59'));
     DIALOG getVetDocumentChangesListRequestParams DO {
-        skipMessage() <- TRUE;
-        LOCAL cnt = INTEGER();
-        cnt() <- 0;
         NEWSESSION NESTED LOCAL {
+            createdVDRequest(VetDocumentListRequest r) <- NULL;
+            LOCAL cnt = INTEGER();
+            cnt() <- 0;
             FOR Enterprise e AND own(owner(e)) AND (GROUP SUM 1 IF enterprise(Stock st) = e AND isCompany(legalEntity(st))) AND
                 (NOT limitAccess(currentUser()) OR accessCompany(currentUser(), e)) NEW r = VetDocumentListRequest DO {
                 businessEntity(r) <- owner(e);
@@ -104,13 +151,21 @@ getVetDocumentChangesListRequestGestori 'Запросить изменившие
                 beginDate(r) <- beginDateChangesVD();
                 endDate(r) <- endDateChangesVD();
                 enterprise(r) <- e;
-                getVetDocumentListRequest(r);
-                cnt() <- cnt() + 1;
+                createdVDRequest(r) <- TRUE;
             }
             APPLY NESTED LOCAL;
+            IF canceled() THEN RETURN;
+            skipMessage() <- TRUE;
+            FOR createdVDRequest(VetDocumentListRequest r) DO
+                getVetDocumentListRequest(r);
+            skipMessage() <- NULL;
+            APPLY NESTED LOCAL;
+            cnt() <- GROUP SUM 1 IF createdVDRequest(VetDocumentListRequest r) AND id(r);
+            IF cnt() > 0 THEN
+                MESSAGE 'Отправлено ' + cnt() + ' запросов';
+            ELSE
+                MESSAGE 'Запросы не отправлены';
         }
-        skipMessage() <- NULL;
-        MESSAGE 'Отправлено ' + cnt() + ' запросов';
     }
 }
 
