@@ -100,6 +100,7 @@ FORM getBusinessEntityListSearchRequest FORMEXTID 'soapenv=http://schemas.xmlsoa
 
 typeL = DATA LOCAL STRING(INTEGER);
 nameL = DATA LOCAL STRING(INTEGER);
+fullNameL = DATA LOCAL STRING(INTEGER);
 statusL = DATA LOCAL STRING(INTEGER);
 fioL = DATA LOCAL STRING(INTEGER);
 kppL = DATA LOCAL STRING(INTEGER);
@@ -111,7 +112,7 @@ FORM getBusinessEntityListExtResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.
     OBJECTS businessEntity = INTEGER EXTID 'dt:businessEntity' IN getBusinessEntityListResponseList
     PROPERTIES(businessEntity) guid EXTID 'base=http://api.vetrf.ru/schema/cdm/base:guid',
                                statusL EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:status',
-                               fullName EXTID 'dt:fullName',
+                               fullNameL EXTID 'dt:fullName',
                                nameL EXTID 'dt:name',
                                inn EXTID 'dt:inn',
                                typeL EXTID 'dt:type',
@@ -123,14 +124,17 @@ FORM getBusinessEntityListExtResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.
 
 afterGetBusinessEntityList(BusinessEntity b, FILE response) + {
     IMPORT getBusinessEntityListExtResponse XML FROM response;
-    IF statusL(0) THEN status(b) <- statusL(0);
-    IF nameL(0) THEN name(b) <- ISTRING(nameL(0));
-    IF fullName(0) THEN Vetis.fullName(b) <- ISTRING(fullName(0));
-    IF typeL(0) THEN type(b) <- typeL(0);
-    IF fioL(0) THEN fio(b) <- ISTRING(fioL(0));
-    IF kppL(0) THEN kpp(b) <- STRING[9](kppL(0));
-    IF ogrnL(0) THEN ogrn(b) <- STRING[15](ogrnL(0));
-    IF addressViewL(0) THEN addressView(b) <- ISTRING(addressViewL(0));
+    IF guid(0) THEN {
+        status(b) <- statusL(0);
+        name(b) <- ISTRING(OVERRIDE nameL(0), fullNameL(0));
+        Vetis.inn(b) <- STRING[12](inn(0));
+        Vetis.fullName(b) <- ISTRING(fullNameL(0));
+        type(b) <- typeL(0);
+        fio(b) <- ISTRING(fioL(0));
+        kpp(b) <- STRING[9](kppL(0));
+        ogrn(b) <- STRING[15](ogrnL(0));
+        addressView(b) <- ISTRING(addressViewL(0));
+    }
 }
 
 FORM loadBusinessEntitiesDialog 'Загрузить ХС'
@@ -160,18 +164,20 @@ loadBusinessEntities 'Загрузить ХС' () {
                 guid(b) <- guid(i);
             }
             FOR BusinessEntity b = businessEntity(guid(INTEGER i)) DO {
-                IF nameL(i) THEN name(b) <- ISTRING(nameL(i));
-                IF fullName(i) THEN Vetis.fullName(b) <- ISTRING(fullName(i));
-                IF inn(i) THEN Vetis.inn(b) <- STRING[12](inn(i));
-                IF typeL(i) THEN type(b) <- typeL(i);
-                IF fioL(i) THEN fio(b) <- ISTRING(fioL(i));
-                IF kppL(i) THEN kpp(b) <- STRING[9](kppL(i));
-                IF ogrnL(i) THEN ogrn(b) <- STRING[15](ogrnL(i));
-                IF addressViewL(i) THEN addressView(b) <- ISTRING(addressViewL(i));
+                name(b) <- ISTRING(OVERRIDE nameL(i), fullNameL(i));
+                Vetis.fullName(b) <- ISTRING(fullNameL(i));
+                Vetis.inn(b) <- STRING[12](inn(i));
+                Vetis.status(b) <- statusL(i);
+                type(b) <- typeL(i);
+                fio(b) <- ISTRING(fioL(i));
+                kpp(b) <- STRING[9](kppL(i));
+                ogrn(b) <- STRING[15](ogrnL(i));
+                addressView(b) <- ISTRING(addressViewL(i));
             }
+            IF (GROUP SUM 1 IF guid(INTEGER i)) THEN
+                MESSAGE 'Найдено: ' + (GROUP SUM 1 IF guid(INTEGER i)) + ' хозяйствующих субъектов';
             APPLY;
         }
-        MESSAGE 'Найдено: ' + (GROUP SUM 1 IF guid(INTEGER i)) + ' хозяйствующих субъектов';
     }
 }
 
@@ -253,7 +259,7 @@ changeBusinessEntityLE(LegalEntity l) + {
 CONSTRAINT DROPPED(b IS BusinessEntity) AND (PREV(own(b)) OR (GROUP SUM 1 IF PREV(businessEntity(LegalEntity l)) = b))
     MESSAGE 'Невозможно удалить: хозяйствующий субъект является собственным или связан с организацией';
 
-CONSTRAINT CHANGED(guid(BusinessEntity b)) AND PREV(guid(b))
+CONSTRAINT SETCHANGED(guid(BusinessEntity b)) AND PREV(guid(b))
     MESSAGE 'Изменение GUID ХС не допускается';
 
 // --- Расширение форм ---
@@ -276,10 +282,10 @@ DESIGN businessEntity {
     }
     tabProperties {
         MOVE PROPERTY(own(o)) FIRST;
-        MOVE PROPERTY(status(o)) AFTER PROPERTY(guid(o));
-        MOVE PROPERTY(typeDescription(o)) AFTER PROPERTY(status(o));
         MOVE PROPERTY(fullName(o)) AFTER PROPERTY(name(o));
         MOVE PROPERTY(fio(o)) AFTER PROPERTY(fullName(o));
+        MOVE PROPERTY(typeDescription(o)) AFTER PROPERTY(fio(o));
+        MOVE PROPERTY(status(o)) AFTER PROPERTY(addressView(o));
         MOVE PROPERTY(getBusinessEntityByGUID(o)) LAST;
     }
     PROPERTY(guid(o)) { caption = 'GUID ХС'; }
