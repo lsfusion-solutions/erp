@@ -163,6 +163,8 @@ changeEnterprises(ProductItem o)  {
     }
 }
 
+skipOwnConstraint 'Пропустить проверку собственного ХС' = DATA LOCAL BOOLEAN ();
+
 readonlyProductItem = ABSTRACT BOOLEAN (ProductItem);
 readonlyProductItemOwner = ABSTRACT BOOLEAN (ProductItem);
 hideNewProductItem = ABSTRACT BOOLEAN ();
@@ -175,8 +177,10 @@ FORM productItem 'Номенклатура'
     OBJECTS o = ProductItem PANEL
     PROPERTIES(o) READONLY isExported, guid, uuid
     PROPERTIES(o) READONLYIF readonlyProductItem(o) name, globalID, code,
-        nameSubProduct ON CHANGE changeSubProduct(o), nameProducer, nameOwner, inactive,
+        nameSubProduct ON CHANGE changeSubProduct(o), inactive,
         nameEnterprises ON CHANGE changeEnterprises(o)
+    PROPERTIES(o) READONLYIF readonlyProductItem(o) OR readonlyProductItemOwner(o)
+        nameProducer, nameOwner
 
     EDIT ProductItem OBJECT o
 ;

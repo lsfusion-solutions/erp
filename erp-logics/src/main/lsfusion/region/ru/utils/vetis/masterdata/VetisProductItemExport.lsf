@@ -27,7 +27,13 @@ uuid = DATA LOCAL STRING(ProductItemRequest);
 globalID = DATA LOCAL STRING(ProductItemRequest);
 nameE = DATA LOCAL STRING(ProductItemRequest);
 code = DATA LOCAL STRING(ProductItemRequest);
+correspondsToGostE = DATA LOCAL STRING(ProductItemRequest);
+gostE = DATA LOCAL STRING(ProductItemRequest);
 productType = DATA LOCAL STRING(ProductItemRequest);
+packagingTypeE = DATA LOCAL STRING(ProductItemRequest);
+packagingQuantityE = DATA LOCAL INTEGER(ProductItemRequest);
+packagingVolumeE = DATA LOCAL NUMERIC[16,6](ProductItemRequest);
+packagingUnitE = DATA LOCAL STRING(ProductItemRequest);
 guid1 = DATA LOCAL STRING(ProductItemRequest);
 guid2 = DATA LOCAL STRING(ProductItemRequest);
 guid3 = DATA LOCAL STRING(ProductItemRequest);
@@ -40,14 +46,19 @@ FORM modifyProducerStockList FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/merc
     PROPERTIES(r) IN initiator loginMercury EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:login'
 
     PROPERTIES(r) IN modificationOperation type EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:type'
-    PROPERTIES(r) IN productItem guid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid', uuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid', globalID EXTID 'dt:globalID', nameE EXTID 'dt:name', code EXTID 'dt:code', productType EXTID 'dt:productType'
+    PROPERTIES(r) IN productItem guid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid', uuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid', globalID EXTID 'dt:globalID', nameE EXTID 'dt:name', code EXTID 'dt:code', correspondsToGostE EXTID 'dt:correspondsToGost', gostE EXTID 'dt:gost', productType EXTID 'dt:productType'
     PROPERTIES(r) IN product guid1 EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
     PROPERTIES(r) IN subProduct guid2 EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
     PROPERTIES(r) IN producer guid3 EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
     PROPERTIES(r) IN tmOwner guid4 EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
     OBJECTS producing = Enterprise IN productItem EXTID 'dt:producing'
     PROPERTIES(r, producing) IN location guid5 EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
-        FILTERS guid5(r, producing);
+        FILTERS guid5(r, producing)
+    PROPERTIES(r) IN productItem packagingTypeE EXTID 'dt:packagingType', packagingQuantityE EXTID 'dt:quantity',
+                                 packagingVolumeE EXTID 'dt:volume', packagingUnitE EXTID 'dt:unit';
+
+fillProducerStockList ABSTRACT (ProductItemRequest, ProductItem);
+afterProcessProducerStockList ABSTRACT (ProductItemRequest);
 
 createModifyProducerStockList 'Создание наменклатуры' (ProductItem p) {
     NEWSESSION {
@@ -61,6 +72,7 @@ createModifyProducerStockList 'Создание наменклатуры' (Produ
             globalID(r) <- globalID(p);
             nameE(r) <- name(p);
             code(r) <- code(p);
+            fillProducerStockList(r, p);
             productType(r) <- STRING(id(productType(product(subProduct(p)))));
             guid1(r) <- guid(product(subProduct(p)));
             guid2(r) <- guid(subProduct(p));
@@ -89,6 +101,7 @@ updateModifyProducerStockList 'Изменение номенклатуры' (Pro
             globalID(r) <- globalID(p);
             nameE(r) <- name(p);
             code(r) <- code(p);
+            fillProducerStockList(r, p);
             productType(r) <- STRING(id(productType(product(subProduct(p)))));
             guid1(r) <- guid(product(subProduct(p)));
             guid2(r) <- guid(subProduct(p));
@@ -103,11 +116,10 @@ updateModifyProducerStockList 'Изменение номенклатуры' (Pro
     }
 }
 
-readonlyProductItem(ProductItem i) += (isExported(i) AND own(producer(i)) OR NOT own(producer(i))) OR readonlyProductItemOwner(i);
+readonlyProductItem(ProductItem i) += isExported(i) OR (producer(i) AND NOT own(producer(i)));
 
 operationType = DATA STRING (ProductItemRequest);
 
-skipOwnConstraint 'Пропустить проверку собственного ХС' = DATA LOCAL BOOLEAN ();
 hideManualProducerStockList = ABSTRACT BOOLEAN ();
 
 EXTEND FORM productItems
@@ -141,6 +153,7 @@ guidR1 = DATA LOCAL STRING();
 uuidR2 = DATA LOCAL STRING();
 guidR2 = DATA LOCAL STRING();
 correspondsToGostR = DATA LOCAL STRING();
+gostR = DATA LOCAL STRING();
 uuidR3 = DATA LOCAL STRING();
 guidR3 = DATA LOCAL STRING();
 uuidR4 = DATA LOCAL STRING();
@@ -154,7 +167,7 @@ offsetR = DATA LOCAL STRING();
 
 FORM modifyProducerStockListResponse FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:modifyProducerStockListResponse'
     PROPERTIES() IN productItemListR countR ATTR, totalR ATTR, offsetR ATTR
-    PROPERTIES() IN productItemR uuidR EXTID 'bs:uuid', guidR EXTID 'bs:guid', activeR EXTID 'bs:active', lastR EXTID 'bs:last', statusR EXTID 'bs:status', createDateR EXTID 'bs:createDate', updateDateR EXTID 'bs:updateDate', globalIDR EXTID 'dt:globalID', nameR EXTID 'dt:name', productTypeR EXTID 'dt:productType', correspondsToGostR EXTID 'dt:correspondsToGost', isPublicR EXTID 'dt:isPublic'
+    PROPERTIES() IN productItemR uuidR EXTID 'bs:uuid', guidR EXTID 'bs:guid', activeR EXTID 'bs:active', lastR EXTID 'bs:last', statusR EXTID 'bs:status', createDateR EXTID 'bs:createDate', updateDateR EXTID 'bs:updateDate', globalIDR EXTID 'dt:globalID', nameR EXTID 'dt:name', productTypeR EXTID 'dt:productType', correspondsToGostR EXTID 'dt:correspondsToGost', gostR EXTID 'dt:gost', isPublicR EXTID 'dt:isPublic'
     PROPERTIES() IN productR uuidR1 EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid', guidR1 EXTID 'bs:guid'
     PROPERTIES() IN subProductR uuidR2 EXTID 'bs:uuid', guidR2 EXTID 'bs:guid'
     PROPERTIES() IN producerR uuidR3 EXTID 'bs:uuid', guidR3 EXTID 'bs:guid'
@@ -165,10 +178,18 @@ FORM modifyProducerStockListResponse FORMEXTID 'merc=http://api.vetrf.ru/schema/
     PROPERTIES(producing) IN location uuidR5 EXTID 'bs:uuid', guidR5 EXTID 'bs:guid';
 
 process (ProductItemRequest r) + {
-    IF operationType(r) = 'DELETE' THEN NEWSESSION {
-        DELETE productItem(r);
-        processed(r) <- TRUE;
-        APPLY;
+    IF operationType(r) = 'DELETE' THEN {
+        NEWSESSION {
+            guid(productItem(r)) <- NULL;
+            uuid(productItem(r)) <- NULL;
+            isExported(productItem(r)) <- NULL;
+            processed(r) <- TRUE;
+            APPLY;
+        }
+        NEWSESSION {
+            DELETE productItem(r);
+            APPLY;
+        }
     } ELSE NEWSESSION {
         stringToFile(response(r));
         IMPORT modifyProducerStockListResponse XML FROM resultFile();
@@ -178,6 +199,7 @@ process (ProductItemRequest r) + {
         name(productItem(r)) <- nameR();
         uuid(productItem(r)) <- uuidR();
         guid(productItem(r)) <- guidR();
+        afterProcessProducerStockList(r);
         processed(r) <- TRUE;
         APPLY;
     }

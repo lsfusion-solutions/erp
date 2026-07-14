@@ -4,10 +4,10 @@ REQUIRE VetisBusinessEntityOwn, VetisEnterprise, VetisProduct, VetisProductItem;
 
 NAMESPACE Vetis;
 
-GROUP getProductItemListRequest EXTID 'v2:getProductItemListRequest' : body;
-GROUP getProductItemListRequestListOptions EXTID 'bs:listOptions' : getProductItemListRequest;
+GROUP getProductItemListRequest EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getProductItemListRequest' : body;
+GROUP getProductItemListRequestListOptions EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:listOptions' : getProductItemListRequest;
 
-GROUP getProductItemListRequestProducer EXTID 'dt:producer' : getProductItemListRequest;
+GROUP getProductItemListRequestProducer EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:producer' : getProductItemListRequest;
 
 GROUP getProductItemListRequestBusinessEntity EXTID 'dt:businessEntity' : getProductItemListRequestProducer;
 
@@ -20,9 +20,10 @@ enterprise = DATA LOCAL Enterprise ();
 nameEnterprise 'Предприятие-производитель продукции' () = name(enterprise());
 
 FORM getProductItemListRequest FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
-    PROPERTIES() IN getProductItemListRequestListOptions count EXTID 'bs:count', offset EXTID 'bs:offset'
-    PROPERTIES   IN getProductItemListRequestBusinessEntity = guid(businessEntity()) EXTID 'bs:guid'
-    PROPERTIES   IN getProductItemListRequestEnterprise = guid(enterprise()) EXTID 'bs:guid'
+    PROPERTIES() header EXTID 'soapenv:Header'
+    PROPERTIES() IN getProductItemListRequestListOptions count EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:count', offset EXTID 'bs:offset'
+    PROPERTIES   IN getProductItemListRequestBusinessEntity = guid(businessEntity()) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
+    PROPERTIES   IN getProductItemListRequestEnterprise = guid(enterprise()) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
 ;
 
 changeGetProductItemListBE ABSTRACT ();
@@ -59,6 +60,7 @@ FORM getProductItemListResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/so
 
 getProductItemList 'Загрузить данные' () {
     NEWSESSION {
+        skipOwnConstraint() <- TRUE;
         count() <- 1000;
         DIALOG getProductItemListRequestParams DO {
             EXPORT getProductItemListRequest XML;

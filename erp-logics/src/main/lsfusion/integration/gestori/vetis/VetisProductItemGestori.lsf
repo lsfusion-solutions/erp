@@ -1,6 +1,6 @@
 MODULE VetisProductItemGestori;
 
-REQUIRE VetisProductItem, VetisProductItemImport, VetisProductItemExport, VetisStockEntry;
+REQUIRE VetisProductItem, VetisProductItemImport, VetisProductItemExport, VetisStockEntry, VetisItem;
 
 NAMESPACE Vetis;
 
@@ -21,6 +21,39 @@ EXTEND FORM productItems
 
 hideNewProductItem() += TRUE;
 
+// --- Дополнительные поля номенклатуры (таблица полей карточки) ---
+
+correspondsToGost 'Соответствует ГОСТу' = DATA BOOLEAN (ProductItem);
+gost 'ГОСТ' = DATA STRING[50] (ProductItem);
+
+packagingType 'Тип упаковки' = DATA STRING[50] (ProductItem);
+packagingQuantity 'Кол-во единиц упаковки' = DATA INTEGER (ProductItem);
+packagingVolume 'Объем единицы упаковки' = DATA NUMERIC[16,6] (ProductItem);
+packagingUnit 'Ед.изм. объема единицы упаковки' = DATA STRING[30] (ProductItem);
+
+EXTEND FORM productItem
+    PROPERTIES(o) READONLY nameProductTypeGestori, nameProductGestori
+    PROPERTIES(o) READONLYIF readonlyProductItem(o) correspondsToGost, gost
+    PROPERTIES(o) READONLYIF readonlyProductItem(o) OR uuid(o)
+        packagingType, packagingQuantity, packagingVolume, packagingUnit
+;
+
+// Заполнение доп. полей в запросах CREATE/UPDATE
+fillProducerStockList(ProductItemRequest r, ProductItem p) + {
+    correspondsToGostE(r) <- 'true' IF correspondsToGost(p);
+    gostE(r) <- gost(p);
+    packagingTypeE(r) <- packagingType(p);
+    packagingQuantityE(r) <- packagingQuantity(p);
+    packagingVolumeE(r) <- packagingVolume(p);
+    packagingUnitE(r) <- packagingUnit(p);
+}
+
+// Обновление доп. полей из положительного ответа
+afterProcessProducerStockList(ProductItemRequest r) + {
+    correspondsToGost(productItem(r)) <- TRUE IF correspondsToGostR() = 'true';
+    gost(productItem(r)) <- STRING[50](gostR());
+}
+
 DESIGN productItems {
     PROPERTY(guid(o)) { caption = 'GUID номенклатуры'; }
     PROPERTY(uuid(o)) { caption = 'UUID номенклатуры'; }
@@ -36,6 +69,11 @@ CONSTRAINT DROPPED(ProductItem p IS ProductItem) AND PREV(hasVetDocument(p))
 
 CONSTRAINT DROPPED(ProductItem p IS ProductItem) AND PREV(hasStockEntry(p))
     MESSAGE 'Нельзя удалять номенклатуру: связана с записями складского журнала';
+
+hasItem 'Есть товары' (ProductItem p) = GROUP SUM 1 IF in(Item i, p);
+
+CONSTRAINT DROPPED(ProductItem p IS ProductItem) AND PREV(hasItem(p))
+    MESSAGE 'Нельзя удалять номенклатуру: связана со справочником товаров';
 
 CONSTRAINT DROPPED(ProductItem p IS ProductItem) AND PREV(uuid(p)) AND PREV(ownProductGestori(p))
     MESSAGE 'Для удаления собственной номенклатуры используйте кнопку "Удалить"';
@@ -93,9 +131,8 @@ createProductItemGestori 'Добавить' (SubProduct sp) {
     NEWSESSION {
         NEW p = ProductItem {
             subProduct(p) <- sp;
-            SHOW productItem OBJECTS o = p WAIT;
+            SHOW productItem OBJECTS o = p MANAGESESSION;
         }
-        APPLY;
     }
 }
 
@@ -159,7 +196,7 @@ readonlyProductItemOwner(ProductItem i) += TRUE IF uuid(i) AND ownProductGestori
 
 // Открыть карточку номенклатуры в режиме просмотра
 viewProductItem 'Просмотр' (ProductItem p) {
-    SHOW productItem OBJECTS o = p;
+    SHOW productItem OBJECTS o = p READONLY;
 }
 
 // Удаление: собственная с uuid — отправить запрос на удаление в Ветис; иначе — удалить напрямую
@@ -180,9 +217,110 @@ EXTEND FORM productItems
 guidPI 'GUID номенклатуры (фильтр)' = DATA LOCAL STRING[50]();
 
 EXTEND FORM getProductItemListRequest
-    PROPERTIES() IN getProductItemListRequest guidPI EXTID 'bs:guid'
+    PROPERTIES() IN getProductItemListRequest guidPI EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
 ;
 
 EXTEND FORM getProductItemListRequestParams
     PROPERTIES() guidPI
+;
+
+// --- Запрос номенклатуры по GUID (GetProductItemByGuid_v2) ---
+
+searchProductItemGuid 'GUID номенклатуры' = DATA LOCAL STRING() CHARWIDTH 50;
+
+GROUP getProductItemByGuidRequest EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getProductItemByGuidRequest' : body;
+
+FORM getProductItemByGuidRequest FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() header EXTID 'soapenv:Header'
+    PROPERTIES() IN getProductItemByGuidRequest searchProductItemGuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
+;
+
+GROUP getProductItemByGuidResponse EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getProductItemByGuidResponse' : body;
+GROUP getProductItemByGuidResponsePI EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:productItem' : getProductItemByGuidResponse;
+GROUP getProductItemByGuidResponseSubProduct EXTID 'dt:subProduct' : getProductItemByGuidResponsePI;
+GROUP getProductItemByGuidResponseProducer EXTID 'dt:producer' : getProductItemByGuidResponsePI;
+GROUP getProductItemByGuidResponseTmOwner EXTID 'dt:tmOwner' : getProductItemByGuidResponsePI;
+
+piGuidBG = DATA LOCAL STRING();
+piUuidBG = DATA LOCAL STRING();
+piActiveBG = DATA LOCAL STRING();
+piNameBG = DATA LOCAL STRING();
+piGlobalIDBG = DATA LOCAL STRING();
+piCodeBG = DATA LOCAL STRING();
+piCorrespondsBG = DATA LOCAL STRING();
+piGostBG = DATA LOCAL STRING();
+piSubProductGuidBG = DATA LOCAL STRING();
+piProducerGuidBG = DATA LOCAL STRING();
+piTmOwnerGuidBG = DATA LOCAL STRING();
+
+FORM getProductItemByGuidResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() IN getProductItemByGuidResponsePI
+        piUuidBG EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid',
+        piGuidBG EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
+        piActiveBG EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:active',
+        piGlobalIDBG EXTID 'dt:globalID',
+        piNameBG EXTID 'dt:name',
+        piCodeBG EXTID 'dt:code',
+        piCorrespondsBG EXTID 'dt:correspondsToGost',
+        piGostBG EXTID 'dt:gost'
+    PROPERTIES() IN getProductItemByGuidResponseSubProduct piSubProductGuidBG EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
+    PROPERTIES() IN getProductItemByGuidResponseProducer piProducerGuidBG EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
+    PROPERTIES() IN getProductItemByGuidResponseTmOwner piTmOwnerGuidBG EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
+;
+
+FORM inputProductItemGuid 'Запрос номенклатуры по GUID'
+    PROPERTIES() searchProductItemGuid
+;
+
+loadProductItemByGuid 'Загрузить номенклатуру по GUID' () {
+    DIALOG inputProductItemGuid DO {
+        IF NOT searchProductItemGuid() THEN {
+            MESSAGE 'Укажите GUID номенклатуры';
+            RETURN;
+        }
+        NEWSESSION NESTED LOCAL {
+            skipOwnConstraint() <- TRUE;
+            LOCAL requestFile = FILE();
+            EXPORT getProductItemByGuidRequest XML TO requestFile;
+            LOCAL response = FILE();
+            TRY {
+                EXTERNAL HTTP urlProduct() HEADERS httpHeaders PARAMS requestFile() TO response;
+            } CATCH {
+                fileToString(response());
+                MESSAGE CONCAT ' ', 'Ошибка при запросе к службе:', resultString();
+                RETURN;
+            }
+            IMPORT getProductItemByGuidResponse XML FROM response();
+            IF NOT piGuidBG() THEN {
+                MESSAGE 'Номенклатура не найдена';
+                RETURN;
+            }
+            IF NOT productItem(piGuidBG()) THEN NEW p = ProductItem {
+                guid(p) <- piGuidBG();
+            }
+            FOR ProductItem p = productItem(piGuidBG()) DO {
+                uuid(p) <- piUuidBG();
+                name(p) <- ISTRING(piNameBG());
+                globalID(p) <- piGlobalIDBG();
+                code(p) <- ISTRING(piCodeBG());
+                correspondsToGost(p) <- TRUE IF piCorrespondsBG() = 'true';
+                gost(p) <- STRING[50](piGostBG());
+                subProduct(p) <- subProduct(piSubProductGuidBG());
+                IF piProducerGuidBG() AND NOT businessEntity(piProducerGuidBG()) THEN NEW b = BusinessEntity {
+                    guid(b) <- piProducerGuidBG();
+                }
+                producer(p) <- businessEntity(piProducerGuidBG());
+                IF piTmOwnerGuidBG() AND NOT businessEntity(piTmOwnerGuidBG()) THEN NEW b = BusinessEntity {
+                    guid(b) <- piTmOwnerGuidBG();
+                }
+                owner(p) <- businessEntity(piTmOwnerGuidBG());
+                inactive(p) <- TRUE IF piActiveBG() = 'false';
+            }
+            APPLY;
+        }
+    }
+}
+
+EXTEND FORM productItems
+    PROPERTIES() loadProductItemByGuid DRAW o TOOLBAR
 ;
