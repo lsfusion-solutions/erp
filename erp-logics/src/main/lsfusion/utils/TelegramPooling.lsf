@@ -184,6 +184,7 @@ FORM telegramGetUpdates
 EXTEND CLASS ChatType{
     supergroup 'Supergroup'
 }
+
 fillNewAccountChats 'Обновить чаты' (Account a) {
     LOCAL result = JSONFILE();
 
@@ -225,14 +226,21 @@ fillNewAccountChats 'Обновить чаты' (Account a) {
     }
 } TOOLBAR;
 
+errorSend = DATA LOCAL BOOLEAN (Account);
+
 sendMessageTelegram(Account a, STRING message) {
+    errorSend(a) <- NULL;
+    LOCAL NESTED errorSend = BOOLEAN (Chat);
+    errorSend(Chat ch) <- NULL WHERE account(ch) = a;
     FOR Chat c IS Chat AND account(c) = a DO {
         TRY {
             sendMessage(c, message);
         } CATCH {
+            errorSend(c) <- TRUE;
             logToFile('MessageTelegram', CONCAT '\n', (CONCAT ' : ', 'ID_CHAT', id(c)), ' ERROR:', messageCaughtException());
         }
     }
+    errorSend(a) <- TRUE WHERE [GROUP MAX errorSend(Chat c) BY account(c)](a);
 }
 
 sendMessageTelegram(STRING name, STRING message) {
@@ -241,3 +249,60 @@ sendMessageTelegram(STRING name, STRING message) {
         sendMessageTelegram(a, message);
     }
 }
+
+// ---- Получение входящих сообщений от бота (getUpdates + offset) ----
+
+lastUpdateId 'Последний полученный update_id' = DATA LONG (Account);
+
+receiveMessages 'Получить сообщения' (Account a) {
+    IF NOT isTelegram(a) THEN RETURN;
+
+    NEWSESSION {
+        LOCAL result = JSONFILE();
+
+        // offset = lastUpdateId + 1 — подтверждаем прошлые апдейты, чтобы не получать их повторно
+        TRY {
+            EXTERNAL HTTP GET 'https://api.telegram.org/bot' + token(a) + '/getUpdates'
+                + (OVERRIDE ('?offset=' + (lastUpdateId(a) + 1)), '') TO result;
+            IMPORT telegramGetUpdates FROM result();
+        } CATCH {
+            MESSAGE 'Ошибка запроса Telegram getUpdates: ' + messageCaughtException() NOWAIT;
+            RETURN;
+        }
+
+        IF ok() THEN {
+            // создаём чаты, из которых пришли текстовые сообщения, если их ещё нет
+            FOR INTEGER i1 = [GROUP MAX INTEGER i IF text(i) BY STRING(id10(i))](STRING chatId)
+                AND NOT chatIdAccount(a, chatId)
+                NEW c = Chat DO {
+                account(c) <- a;
+                id(c) <- chatId;
+                chatType(c) <- CASE
+                    WHEN type3(i1) = 'private' THEN ChatType.private
+                    WHEN type3(i1) = 'channel' THEN ChatType.channel
+                    WHEN type3(i1) = 'supergroup' THEN ChatType.supergroup
+                    ELSE ChatType.group;
+                title(c) <- title2(i1);
+                name(c) <- OVERRIDE title2(i1), (CONCAT ' ', first_name8(i1), last_name3(i1));
+            }
+
+            // сохраняем сами сообщения в класс Message (Messenger)
+            FOR text(INTEGER i) AND Chat c = chatIdAccount(a, STRING(id10(i))) NEW m = Message DO {
+                chat(m) <- c;
+                message(m) <- text(i);
+                from(m) <- OVERRIDE (CONCAT ' ', first_name9(i), last_name4(i)), username10(i);
+                dateTime(m) <- [FORMULA DATETIME 'to_timestamp($1)'](DOUBLE(date1(i))); // date — unix epoch (сек), PostgreSQL
+            }
+
+            // сдвигаем offset на максимальный полученный update_id (в т.ч. по не-сообщениям)
+            lastUpdateId(a) <- OVERRIDE LONG(GROUP MAX update_id(INTEGER i)), lastUpdateId(a);
+
+            APPLY;
+        } ELSE {
+            MESSAGE 'Не удалось получить сообщения Telegram по аккаунту ' + name(a) NOWAIT;
+        }
+    }
+}
+
+synchronizeChats(Messenger.Account a) + { IF isTelegram(a) THEN fillNewAccountChats(a); }
+isSynchronize(Messenger m) += WHEN m == Messenger.telegram THEN TRUE;
