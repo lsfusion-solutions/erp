@@ -29,7 +29,7 @@ volume 'Объем, л' (SkuLedger ledger) = MULTI volume[InSkuLedger](ledger), 
 signedVolume 'Объем, л' (SkuLedger ledger) = MULTI volume[InSkuLedger](ledger), -volume[OutFIFOSkuLedger](ledger) CHARWIDTH 7 MATERIALIZED;
 
 volume 'Объем, л' (Batch ledger, Batch batch) = volume(ledger) IF batch == ledger;
-volume 'Объем, л' (DataSkuLedger ledger, Batch batch) = NUMERIC[16,5](cost(ledger,batch) / density(ledger)) IF density(ledger) > 0.0;
+volume 'Объем, л' (DataSkuLedger ledger, Batch batch) = NUMERIC[16,5](cost(ledger,batch) * coeffFuel() / density(ledger)) IF density(ledger) > 0.0;
 volume 'Объем, л' (SkuLedger ledger, Batch batch) = MULTI volume[Batch,Batch](ledger, batch), volume[DataSkuLedger,Batch](ledger, batch) MATERIALIZED;
 
 signedVolume (SkuLedger ledger, Batch batch) = IF ledger IS OutSkuLedger THEN -volume(ledger, batch) ELSE volume(ledger, batch);
@@ -145,13 +145,13 @@ END
 
 META fuelDensityActions(object)
     WHEN LOCAL (SETCHANGED(quantity(###object d)) OR SETCHANGED(volume(d))) AND NOT density(d) AND isFuel(sku(d)) DO {
-        density(d) <- NUMERIC[9,5](quantity(d) / volume(d));
+        density(d) <- NUMERIC[9,5](quantity(d) * coeffFuel() / volume(d));
     }
     WHEN LOCAL SETCHANGED(quantity(###object d)) AND NOT CHANGED(volume(d)) AND density(d) AND isFuel(sku(d)) DO {
-        volume(d) <- NUMERIC[16,5](round(quantity(d) / density(d), roundFuelQuantity()));
+        volume(d) <- NUMERIC[16,5](round(quantity(d) * coeffFuel() / density(d), roundFuelQuantity()));
     }
     WHEN LOCAL SETCHANGED(volume(###object d)) AND NOT CHANGED(quantity(d)) AND density(d) AND isFuel(sku(d)) DO {
-        quantity(d) <- NUMERIC[16,5](round(volume(d) * density(d), roundFuelQuantity()));
+        quantity(d) <- NUMERIC[16,5](round(volume(d) * density(d) / coeffFuel(), roundFuelQuantity()));
     }
 
     extraFillDensity ABSTRACT LIST (###object, NUMERIC[9,5]);
@@ -160,15 +160,15 @@ META fuelDensityActions(object)
             IF n THEN {
                 density(d) <- n;
                 IF NOT quantity(d) THEN {
-                    quantity(d) <- NUMERIC[16,5](round(volume(d) * density(d), roundFuelQuantity()));
+                    quantity(d) <- NUMERIC[16,5](round(volume(d) * density(d) / coeffFuel(), roundFuelQuantity()));
                 } ELSE IF NOT volume(d) THEN {
-                    volume(d) <- NUMERIC[16,5](round(quantity(d) / density(d), roundFuelQuantity()));
+                    volume(d) <- NUMERIC[16,5](round(quantity(d) * coeffFuel() / density(d), roundFuelQuantity()));
                 } ELSE {
                     ASK 'Нажмите "Да" для пересчета объёма (л) или "Нет" для пересчета кол-ва (кг)' yes = YESNO DO {
                         IF yes THEN {
-                            volume(d) <- NUMERIC[16,5](round(quantity(d) / density(d), roundFuelQuantity()));
+                            volume(d) <- NUMERIC[16,5](round(quantity(d) * coeffFuel() / density(d), roundFuelQuantity()));
                         } ELSE {
-                            quantity(d) <- NUMERIC[16,5](round(volume(d) * density(d), roundFuelQuantity()));
+                            quantity(d) <- NUMERIC[16,5](round(volume(d) * density(d) / coeffFuel(), roundFuelQuantity()));
                         }
                     } ELSE {
                         density(d) <- PREV(density(d));
