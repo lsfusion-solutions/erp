@@ -668,6 +668,17 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                                                 }
                                                 case "by.lwo.oplati.payment": {
                                                     payments.add(new Payment(oplatiPaymentType, sum));
+                                                    break;
+                                                }
+                                                case "priorbank.customer.qr.payment.plugin": {
+                                                    payments.add(new Payment("qr", sum));
+                                                    break;
+                                                }
+                                                default: {
+                                                    String paymentId = getPluginPaymentId(paymentType);
+                                                    if (paymentId != null) {
+                                                        payments.add(new Payment(paymentId, sum));
+                                                    }
                                                 }
                                             }
                                         }

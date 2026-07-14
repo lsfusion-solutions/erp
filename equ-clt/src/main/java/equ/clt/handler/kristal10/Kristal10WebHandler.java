@@ -704,24 +704,15 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                                     payments.add(new Payment(oplatiPaymentType, sum));
                                     break;
                                 }
-                                case "payme.service.payment": {
-                                    payments.add(new Payment("payme", sum));
-                                    break;
-                                }
-                                case "clickpass.service.payment": {
-                                    payments.add(new Payment("clickpass", sum));
-                                    break;
-                                }
-                                case "apelsinpay.payment.plugin": {
-                                    payments.add(new Payment("apelsinpay", sum));
-                                    break;
-                                }
-                                case "anorbankqr.payment.plugin": {
-                                    payments.add(new Payment("anorbankqr", sum));
-                                    break;
-                                }
                                 case "priorbank.customer.qr.payment.plugin": {
                                     payments.add(new Payment("qr", sum));
+                                    break;
+                                }
+                                default: {
+                                    String paymentId = getPluginPaymentId(paymentType);
+                                    if (paymentId != null) {
+                                        payments.add(new Payment(paymentId, sum));
+                                    }
                                 }
                             }
                         }

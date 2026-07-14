@@ -871,6 +871,16 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         return cashRegister;
     }
 
+    //id платежа-плагина получаем отрезанием стандартного суффикса типа
+    protected String getPluginPaymentId(String paymentType) {
+        for (String suffix : new String[]{".service.payment", ".payment.plugin"}) {
+            if (paymentType.endsWith(suffix)) {
+                return paymentType.substring(0, paymentType.length() - suffix.length());
+            }
+        }
+        return null;
+    }
+
     protected Set<String> parseStringPayments(String payments) {
         Set<String> paymentsSet = new HashSet<>();
         try {
