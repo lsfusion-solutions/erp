@@ -601,7 +601,7 @@ noGroupItemOrder 'Не группировать по товару' = DATA BOOLEA
 
 //Маркировка
 isMarking 'Маркировка' = DATA BOOLEAN (TerminalDocumentTypePreferences);
-scanBoxLotMode 'Режим сканирования "короб-марка"' = DATA BOOLEAN (TerminalDocumentTypePreferences);
+//scanBoxLotMode 'Режим сканирования "короб-марка"' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 allowScanLotFirst 'Разрешить сканирование марки без сканирования кода товара' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 checkLotBalance 'Контроль остатка марок' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 allowDeleteLot 'Разрешить удаление марки' = DATA BOOLEAN (TerminalDocumentTypePreferences);
@@ -611,6 +611,7 @@ onlineLotValidate 'Online валидация кодов маркировки' = 
 checkItemLotsCount 'Контроль количества марок' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 banInvalidLot 'Запрет невалидной марки' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 banUnloadDocumentWithLotCountDiff 'Запрет выгрузки документа с несоответствующим количеством марок' = DATA BOOLEAN (TerminalDocumentTypePreferences);
+allowAcceptBox 'Разрешить приемку короба' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 
 //goodsField1 'Инфо-поле 1 для товара' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 //goodsField2 'Инфо-поле 2 для товара' = DATA BOOLEAN (TerminalDocumentTypePreferences);
@@ -677,7 +678,6 @@ FORM terminalDocumentTypePreferences 'Настройки документа' FOR
         noGroupItemOrder,
 
         isMarking,
-        scanBoxLotMode,
         allowScanLotFirst,
         checkLotBalance,
         allowDeleteLot,
@@ -686,7 +686,8 @@ FORM terminalDocumentTypePreferences 'Настройки документа' FOR
         onlineLotValidate,
         banInvalidLot,
         checkItemLotsCount,
-        banUnloadDocumentWithLotCountDiff
+        banUnloadDocumentWithLotCountDiff, 
+        allowAcceptBox
 
 //        goodsField1, goodsField2, goodsField3, goodsField4, goodsField5
 ;
@@ -802,13 +803,13 @@ DESIGN terminalDocumentTypePreferences {
             MOVE PROPERTY(checkLotBalance(o));
             MOVE PROPERTY(allowDeleteLot(o));
             MOVE PROPERTY(allowNewLot(o));
-            MOVE PROPERTY(scanBoxLotMode(o));
             MOVE PROPERTY(allowScanLotFirst(o));
             MOVE PROPERTY(allowCreateBox(o));
             MOVE PROPERTY(onlineLotValidate(o));
             MOVE PROPERTY(banInvalidLot(o));
             MOVE PROPERTY(checkItemLotsCount(o));
             MOVE PROPERTY(banUnloadDocumentWithLotCountDiff(o));
+            MOVE PROPERTY(allowAcceptBox(o));
         }
     }
     MOVE TOOLBARBOX;
@@ -876,7 +877,6 @@ copyFlags(TerminalDocumentType t, TerminalDocumentTypePreferences p) {
 
     //Маркировка
     isMarking(p) <- flag(t, TerminalFlags.FLG_VOP_ENABLE_MARKING);
-    scanBoxLotMode(p) <- flag(t, TerminalFlags.FLG_VOP_MARKING_MODE_BOX_LOT);
     checkLotBalance(p) <- flag(t, TerminalFlags.FLG_VOP_CHECK_LOTS);
     allowDeleteLot(p) <- flag(t, TerminalFlags.FLG_VOP_ALLOW_DELETE_LOTS);
     allowNewLot(p) <- flag(t, TerminalFlags.FLG_VOP_ALLOW_NEW_LOT);
@@ -943,7 +943,6 @@ flagsFromPreferences(TerminalDocumentType t , TerminalDocumentTypePreferences p)
 
     //Маркировка
     in(t, TerminalFlags.FLG_VOP_ENABLE_MARKING) <- isMarking(p);
-    in(t, TerminalFlags.FLG_VOP_MARKING_MODE_BOX_LOT) <- scanBoxLotMode(p);
     in(t, TerminalFlags.FLG_VOP_CHECK_LOTS) <- checkLotBalance(p);
     in(t, TerminalFlags.FLG_VOP_ALLOW_DELETE_LOTS) <- allowDeleteLot(p);
     in(t, TerminalFlags.FLG_VOP_ALLOW_NEW_LOT) <- allowNewLot(p);
