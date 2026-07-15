@@ -82,6 +82,12 @@ isBundle = ABSTRACT BOOLEAN (STRING[14]);
 isGroup = ABSTRACT BOOLEAN (STRING[14]);
 isSet = ABSTRACT BOOLEAN (STRING[14]);
 
+templateId (LotOrder o) = CASE WHEN idType(o)=='beer' THEN 18
+                                        WHEN idType(o)=='nabeer'THEN 28
+                                        WHEN idType(o)=='softdrinks' THEN 29
+                                        WHEN idType(o)=='water' THEN 16
+                                        ELSE 10;
+
 GROUP attributes;
 
 FORM export
@@ -92,7 +98,7 @@ FORM export
     PROPERTIES gtin = VALUE(products), 
                quantity = quantity(o, products), 
                serialNumberType = 'OPERATOR' IF products IS STRING[14], 
-               templateId = IF idType(o)=='beer' THEN 18 ELSE 10 IF products IS STRING[14],
+               templateId = templateId(o),
                cisType = OVERRIDE 'BUNDLE' IF isBundle(products), 'GROUP' IF isGroup(products), 'SET' IF isSet(products), 'UNIT' IF products IS STRING[14]
 
     PROPERTIES IN attributes contactPerson = name(currentUser()), releaseMethodType = id(releaseMethodType(o)), createMethodType = 'SELF_MADE',
