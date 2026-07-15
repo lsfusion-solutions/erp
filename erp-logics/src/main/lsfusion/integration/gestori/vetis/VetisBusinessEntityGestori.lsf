@@ -208,6 +208,9 @@ FORM getBeByGLNResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envel
     PROPERTIES() IN beGLNResponseEntOwner beOwnerGuid EXTID 'base=http://api.vetrf.ru/schema/cdm/base:guid'
 ;
 
+// GLN — ровно 13 цифр (GLNType в схеме Ветис)
+isGlnGestori = FORMULA NULL BOOLEAN 'CASE WHEN $1 ~ \'^[0-9]{13}$\' THEN 1 ELSE NULL END';
+
 FORM inputGlnBusinessEntity 'Загрузить ХС по GLN'
     PROPERTIES() searchGlnBusinessEntity
 ;
@@ -216,6 +219,11 @@ loadBusinessEntityByGLN 'Загрузить ХС по GLN' () {
     DIALOG inputGlnBusinessEntity DO {
         IF NOT searchGlnBusinessEntity() THEN {
             MESSAGE 'Укажите GLN';
+            RETURN;
+        }
+        searchGlnBusinessEntity() <- trim(searchGlnBusinessEntity());
+        IF NOT isGlnGestori(searchGlnBusinessEntity()) THEN {
+            MESSAGE 'Некорректный GLN: должно быть ровно 13 цифр';
             RETURN;
         }
         NEWSESSION NESTED LOCAL {
