@@ -18,6 +18,10 @@ typeDescription 'Тип ХС' (BusinessEntity b) = CASE
     WHEN type(b) = '3' THEN 'ИП'
     ELSE type(b);
 
+// 2.1.6: Наименование и Наименование полное — только для ЮЛ (тип = 1)
+isLegalEntityBE 'ЮЛ' (BusinessEntity b) = type(b) = '1';
+nameBE 'Наименование' (BusinessEntity b) = name(b);
+
 // --- GetBusinessEntityByGuid ---
 
 GROUP getBusinessEntityByGuidRequest EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getBusinessEntityByGuidRequest' : body;
@@ -265,7 +269,9 @@ CONSTRAINT SETCHANGED(guid(BusinessEntity b)) AND PREV(guid(b))
 // --- Расширение форм ---
 
 EXTEND FORM businessEntity
-    PROPERTIES(o) READONLY fullName, status, typeDescription
+    PROPERTIES(o) READONLY nameBE SHOWIF isLegalEntityBE(o)
+    PROPERTIES(o) READONLY fullName SHOWIF isLegalEntityBE(o)
+    PROPERTIES(o) READONLY status, typeDescription
     PROPERTIES(o) getBusinessEntityByGUID DRAW o TOOLBAR
     PROPERTIES(l) READONLY kpp, ogrn AFTER inn(l)
 ;
@@ -282,13 +288,15 @@ DESIGN businessEntity {
     }
     tabProperties {
         MOVE PROPERTY(own(o)) FIRST;
-        MOVE PROPERTY(fullName(o)) AFTER PROPERTY(name(o));
+        MOVE PROPERTY(nameBE(o)) AFTER PROPERTY(guid(o));
+        MOVE PROPERTY(fullName(o)) AFTER PROPERTY(nameBE(o));
         MOVE PROPERTY(fio(o)) AFTER PROPERTY(fullName(o));
         MOVE PROPERTY(typeDescription(o)) AFTER PROPERTY(fio(o));
         MOVE PROPERTY(status(o)) AFTER PROPERTY(addressView(o));
         MOVE PROPERTY(getBusinessEntityByGUID(o)) LAST;
     }
     PROPERTY(guid(o)) { caption = 'GUID ХС'; }
+    PROPERTY(name(o)) { hide = TRUE; }
     PROPERTY(type(o)) { hide = TRUE; }
     PROPERTY(typeDescription(o)) { charWidth = 5; }
     PROPERTY(fio(o)) { charWidth = 50; }

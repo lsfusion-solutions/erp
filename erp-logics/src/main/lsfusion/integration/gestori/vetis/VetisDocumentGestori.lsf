@@ -164,6 +164,28 @@ EXTEND FORM importVetDocument
     PROPERTIES() quantityPackImport EXTID 'dt:quantity' IN packagingQtyImportGroup
 ;
 
+// ---- Ветис20: дозаполнение номенклатуры из vd:productItem ВСД ----
+
+piCodeImport = DATA LOCAL STRING ();
+piSubProductGuidImport = DATA LOCAL STRING ();
+piProducerGuidImport = DATA LOCAL STRING ();
+piTmOwnerGuidImport = DATA LOCAL STRING ();
+piProducingEnterpriseGuidImport = DATA LOCAL STRING (INTEGER);
+
+GROUP piSubProductImportGroup EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:subProduct' : pkgProductItemImportGroup;
+GROUP piProducerImportGroup EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:producer' : pkgProductItemImportGroup;
+GROUP piTmOwnerImportGroup EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:tmOwner' : pkgProductItemImportGroup;
+GROUP piProducingLocationImportGroup EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:location';
+
+EXTEND FORM importVetDocument
+    PROPERTIES() piCodeImport EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:code' IN pkgProductItemImportGroup
+    PROPERTIES() piSubProductGuidImport EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN piSubProductImportGroup
+    PROPERTIES() piProducerGuidImport EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN piProducerImportGroup
+    PROPERTIES() piTmOwnerGuidImport EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN piTmOwnerImportGroup
+    OBJECTS pip = INTEGER EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:producing' IN pkgProductItemImportGroup
+    PROPERTIES(pip) piProducingEnterpriseGuidImport EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN piProducingLocationImportGroup
+;
+
 // ---- 1.4.2, 1.4.4: описания типов документа и связи (DocumentType_v2.0, ReferenceType_v2.0) ----
 
 nameTypeGestori 'Тип документа' (VetReferenceDocument rd) = CASE
@@ -237,6 +259,36 @@ afterImportVetDocument(VetDocument d) + {
         productMarksGestori(d) <- pkgProductMarksValueImport(i);
     }
     quantityPackGestori(d) <- NUMERIC[16,5](quantityPackImport());
+
+    // Ветис20: дозаполнение записи номенклатуры данными из vd:productItem
+    skipOwnConstraint() <- TRUE; // импорт из Ветис не должен требовать реквизиты и слать запросы обратно в Ветис
+    FOR ProductItem i = productItem(d) DO {
+        code(i) <- ISTRING(piCodeImport()) WHERE NOT code(i) AND piCodeImport();
+        IF NOT subProduct(i) AND piSubProductGuidImport() THEN {
+            IF NOT subProduct(piSubProductGuidImport()) THEN NEW sp = SubProduct {
+                guid(sp) <- piSubProductGuidImport();
+            }
+            subProduct(i) <- subProduct(piSubProductGuidImport());
+        }
+        IF NOT producer(i) AND piProducerGuidImport() THEN {
+            IF NOT businessEntity(piProducerGuidImport()) THEN NEW b = BusinessEntity {
+                guid(b) <- piProducerGuidImport();
+            }
+            producer(i) <- businessEntity(piProducerGuidImport());
+        }
+        IF NOT owner(i) AND piTmOwnerGuidImport() THEN {
+            IF NOT businessEntity(piTmOwnerGuidImport()) THEN NEW b = BusinessEntity {
+                guid(b) <- piTmOwnerGuidImport();
+            }
+            owner(i) <- businessEntity(piTmOwnerGuidImport());
+        }
+        FOR STRING g = piProducingEnterpriseGuidImport(INTEGER k) DO {
+            IF NOT enterprise(g) THEN NEW e = Enterprise {
+                guid(e) <- g;
+            }
+            in(i, enterprise(g)) <- TRUE;
+        }
+    }
 }
 
 // ---- Список ВСД ----
