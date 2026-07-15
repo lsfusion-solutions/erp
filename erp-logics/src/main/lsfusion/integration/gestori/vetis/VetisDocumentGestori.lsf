@@ -2,7 +2,7 @@ MODULE VetisDocumentGestori;
 
 REQUIRE VetisDocument, VetisStock, VetisStockEntry, VetisIncomingConsignment,
         VetisProcessIncomingConsignment, VetisWithdrawVetDocument, VetisItem,
-        VetisDocumentImport, VetisPurchaseShipment;
+        VetisDocumentImport, VetisPurchaseShipment, VetisStockEntryGestori;
 
 NAMESPACE Vetis;
 
@@ -124,23 +124,85 @@ DESIGN fetchVetDocumentByUuidDialog {
 }
 
 getVetDocumentByUUIDGestori 'Запросить ВСД по UUID' (VetDocument d) {
-    vetDocumentForUuidGestori() <- d;
     uuidInputGestori() <- uuid(d);
-    enterpriseForUuidGestori() <- consigneeEnterprise(d);
     DIALOG fetchVetDocumentByUuidDialog DO {
-        IF uuidInputGestori() AND enterpriseForUuidGestori() THEN
-            NEWSESSION NESTED LOCAL {
-                NEW r = GetVetDocumentByUuidRequest {
-                    enterprise(r) <- enterpriseForUuidGestori();
-                    businessEntity(r) <- owner(enterpriseForUuidGestori());
-                    uuidToFetch(r) <- uuidInputGestori();
-                    submitGetVetDocumentByUuidRequest(r);
-                    APPLY;
-                }
-                MESSAGE 'Запрос отправлен. Обработайте через "Обмен с Ветис" в форме Заявок.';
+        // 1.3.5: все параметры поиска обязательны
+        IF NOT (uuidInputGestori() AND enterpriseForUuidGestori()) THEN {
+            MESSAGE 'Укажите все параметры поиска';
+            RETURN;
+        }
+        // 1.3.6: контроль корректности UUID и приведение к маске
+        LOCAL cleaned = STRING();
+        cleaned() <- cleanGuidSEGestori(trim(uuidInputGestori()));
+        IF NOT isHexGuidGestori(cleaned()) THEN {
+            MESSAGE 'Некорректный UUID: допускаются только символы 0-9, a-f и дефис, всего 32 символа без учёта дефисов';
+            RETURN;
+        }
+        NEWSESSION NESTED LOCAL {
+            NEW r = GetVetDocumentByUuidRequest {
+                enterprise(r) <- enterpriseForUuidGestori();
+                businessEntity(r) <- owner(enterpriseForUuidGestori());
+                uuidToFetch(r) <- formatGuidSEGestori(cleaned());
+                submitGetVetDocumentByUuidRequest(r);
+                APPLY;
             }
+            MESSAGE 'Запрос отправлен. Обработайте через "Обмен с Ветис" в форме Заявок.';
+        }
     }
 }
+
+// ---- 1.3.11: Кол-во упаковок (vd:batch/vd:productItem/dt:packaging/dt:quantity) ----
+
+quantityPackGestori 'Кол-во' = DATA NUMERIC[16,5] (VetDocument);
+
+quantityPackImport = DATA LOCAL STRING ();
+
+GROUP pkgProductItemImportGroup EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:productItem' : certifiedConsignmentBatch;
+GROUP packagingQtyImportGroup EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:packaging' : pkgProductItemImportGroup;
+
+EXTEND FORM importVetDocument
+    PROPERTIES() quantityPackImport EXTID 'dt:quantity' IN packagingQtyImportGroup
+;
+
+// ---- 1.4.2, 1.4.4: описания типов документа и связи (DocumentType_v2.0, ReferenceType_v2.0) ----
+
+nameTypeGestori 'Тип документа' (VetReferenceDocument rd) = CASE
+    WHEN type(rd) = 1 THEN 'Товарно-транспортная накладная'
+    WHEN type(rd) = 2 THEN 'Коносамент'
+    WHEN type(rd) = 3 THEN 'CMR'
+    WHEN type(rd) = 4 THEN 'Авианакладная'
+    WHEN type(rd) = 5 THEN 'Транспортная накладная'
+    WHEN type(rd) = 6 THEN 'ТОРГ-12'
+    WHEN type(rd) = 7 THEN 'Разрешение Россельхознадзора на ввоз/вывоз/транзит подконтрольной продукции'
+    WHEN type(rd) = 8 THEN 'Разрешение ветеринарного управления субъекта страны ТС на ввоз продукции'
+    WHEN type(rd) = 9 THEN 'Акт отбора пробы на исследование'
+    WHEN type(rd) = 10 THEN 'ТОРГ-13'
+    WHEN type(rd) = 11 THEN 'Ветеринарный сертификат на перемещение внутри РФ'
+    WHEN type(rd) = 12 THEN 'Ветеринарный сертификат третьих стран на ввоз продукции на территорию РФ'
+    WHEN type(rd) = 13 THEN 'Ветеринарный сертификат страны ТС на ввоз продукции на территорию РФ'
+    WHEN type(rd) = 14 THEN 'Ветеринарный сертификат РФ на вывоз продукции на территорию стран ТС'
+    WHEN type(rd) = 15 THEN 'Ветеринарный сертификат РФ на вывоз продукции на территорию третьих стран'
+    WHEN type(rd) = 16 THEN 'Заказ'
+    WHEN type(rd) = 17 THEN 'Паспорт гражданина РФ'
+    WHEN type(rd) = 18 THEN 'Паспорт иностранного гражданина'
+    WHEN type(rd) = 19 THEN 'Паспорт гражданина Республики Казахстан'
+    WHEN type(rd) = 20 THEN 'Паспорт гражданина Республики Беларусь'
+    WHEN type(rd) = 21 THEN 'Паспорт гражданина Республики Армения'
+    WHEN type(rd) = 22 THEN 'Паспорт гражданина Республики Киргизия'
+    WHEN type(rd) = 23 THEN 'УПД'
+    WHEN type(rd) = 24 THEN 'Электронный ветеринарный производственный сертификат'
+    ELSE STRING(type(rd))
+CHARWIDTH 40;
+
+nameRelationshipTypeGestori 'Тип связи' (VetReferenceDocument rd) = CASE
+    WHEN relationshipType(rd) = 1 THEN 'Сопроводительный документ'
+    WHEN relationshipType(rd) = 2 THEN 'Предшествующий документ'
+    WHEN relationshipType(rd) = 3 THEN 'Следующий документ'
+    WHEN relationshipType(rd) = 4 THEN 'Документ, взамен которого выдан текущий документ'
+    WHEN relationshipType(rd) = 5 THEN 'Документ, заменяющий текущий документ'
+    WHEN relationshipType(rd) = 6 THEN 'Связанный документ'
+    ELSE STRING(relationshipType(rd))
+CHARWIDTH 30;
 
 // ---- Маркировка (level 2) ----
 
@@ -174,6 +236,7 @@ afterImportVetDocument(VetDocument d) + {
         productMarksClassGestori(d) <- pkgProductMarksClassImport(i);
         productMarksGestori(d) <- pkgProductMarksValueImport(i);
     }
+    quantityPackGestori(d) <- NUMERIC[16,5](quantityPackImport());
 }
 
 // ---- Список ВСД ----
@@ -192,7 +255,7 @@ EXTEND FORM vetDocuments
 
     PROPERTIES(o) READONLY AFTER issueSeriesNumberWaybill(o) waybillDate
     PROPERTIES(o) READONLY AFTER nameProductItem(o)          codeProductItem, idItemGestori
-    PROPERTIES(o) READONLY AFTER volume(o)                   actualVolumeGestori
+    PROPERTIES(o) READONLY AFTER volume(o)                   actualVolumeGestori, quantityPackGestori
     PROPERTIES(o) READONLY updateDate, stateGestori
     PROPERTIES(o) READONLY packageList
     PROPERTIES(o) READONLY AFTER packageList(o) packingTypeGlobalIDGestori, productMarksClassGestori, productMarksGestori
@@ -201,7 +264,7 @@ EXTEND FORM vetDocuments
     PROPERTIES(o) getVetDocumentByUUIDGestori DRAW o TOOLBAR
 
     OBJECTS rd = VetReferenceDocument
-    PROPERTIES(rd) READONLY issueSeries, issueNumber, issueDate, type, relationshipType
+    PROPERTIES(rd) READONLY issueSeries, issueNumber, issueDate, type, nameTypeGestori, relationshipType, nameRelationshipTypeGestori
     FILTERS vetDocument(rd) = o
 
     OBJECTS ic = IncomingConsignment
@@ -219,11 +282,19 @@ DESIGN vetDocuments {
         NEW docsTabbed AFTER BOX(o) {
             tabbed = TRUE;
             fill = 0.4;
-            MOVE BOX(rd) { caption = 'Связанные документы ВСД'; }
-            MOVE BOX(ic) { caption = 'Связь с документами системы'; }
+            MOVE BOX(rd) { caption = 'Связанные документы'; }           // 1.4
+            MOVE BOX(ic) { caption = 'Связанные документы системы'; }   // 1.5
         }
     }
     PROPERTY(expiryDate(o)) { hide = TRUE; }
+    // 1.3.7 - 1.3.10: переименование полей списка
+    PROPERTY(uuid(o)) { caption = 'UUID ВСД'; }
+    PROPERTY(guidConsignorEnterprise(o)) { caption = 'GUID площадки отправителя'; }
+    PROPERTY(guidConsigneeEnterprise(o)) { caption = 'GUID площадки получателя'; }
+    PROPERTY(guidProductItem(o)) { caption = 'GUID номенклатуры продукции'; }
+    // 1.4.1, 1.4.3: коды типа документа и связи
+    PROPERTY(type(rd)) { caption = 'Код типа документа'; }
+    PROPERTY(relationshipType(rd)) { caption = 'Код типа связи'; }
 }
 
 // ---- Просмотр ВСД ----
