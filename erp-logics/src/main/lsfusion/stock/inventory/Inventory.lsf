@@ -1482,12 +1482,14 @@ excludeSku = ABSTRACT BOOLEAN (Inventory, Sku);
 createPageCustom  ABSTRACT LIST (ListInventory, PageInventory);
 createPageCustom = ABSTRACT BOOLEAN (ListInventory);
 
+skipBatchCreate = ABSTRACT BOOLEAN (ListInventory);
+
 createPage 'Создать страницу описи с остатками'  (ListInventory listInventory)  { 
     DIALOG dialogSkuGroup DO {    
         NEW p = PageInventory {
             listInventory(p) <- listInventory;
             IF createPageCustom(listInventory) THEN createPageCustom(listInventory, p);
-            ELSE IF isBatch(inventory(listInventory)) THEN {
+            ELSE IF isBatch(inventory(listInventory)) AND NOT skipBatchCreate(listInventory) THEN {
                 FOR (NUMERIC[16,5] cnt == balanceB(Batch b, stock(listInventory), dateTime(inventory(listInventory))) AND NOT excludeBatch(inventory(listInventory),b) AND cnt > 0 AND inSession(skuGroup(sku(b)))) AND (isItem(sku(b)) OR isContainer(sku(b))) NEW d = PageInventoryDetail DO {
                     pageInventory(d) <- p;
                     sku(d) <- sku(b);
@@ -2388,7 +2390,9 @@ DESIGN operation {
 }
 
 CONSTRAINT isPosted(inventory(PageInventoryDetail d)) AND isBatch(inventory(d)) AND NOT notCheckBatchDetail(operation(inventory(d)))  AND NOT batch(d)
-    MESSAGE 'В инвентаризации по партиям не должно быть строк описи без партий.';     
+    MESSAGE 'В инвентаризации по партиям не должно быть строк описи без партий.';
+
+skipBatchCreate(ListInventory i) += notCheckBatchDetail(operation(inventory(i)));
 
 batchQuantity 'Расписано по партиям' = GROUP SUM quantityPageInventoryDetail(CollationSheet cs, Batch bt) BY cs, sku(bt);
 backgroundQuantity(CollationSheet cs, Sku sk) += WHEN 
