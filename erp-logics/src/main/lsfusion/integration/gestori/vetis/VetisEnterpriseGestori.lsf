@@ -312,15 +312,13 @@ loadEnterpriseByGLN 'Загрузить площадку по GLN' () {
                     IF glnEntType() THEN type(e) <- glnEntType();
                     IF glnEntStatus() THEN status(e) <- STRING[5](glnEntStatus());
                     gln(e) <- searchGlnEnterprise();
-                    IF glnEntOwnerGuid() THEN {
-                        IF NOT businessEntity(glnEntOwnerGuid()) THEN NEW b = BusinessEntity {
-                            guid(b) <- glnEntOwnerGuid();
-                        }
-                        owner(e) <- businessEntity(glnEntOwnerGuid());
-                    }
+                    // для существующего ХС ссылку ставим сразу; новый ХС создаст и дозагрузит checkEnterpriseOwnerGestori после APPLY
+                    IF businessEntity(glnEntOwnerGuid()) THEN owner(e) <- businessEntity(glnEntOwnerGuid());
                 }
             }
-            APPLY;
+            APPLY NESTED LOCAL; // glnEntGuid/glnEntOwnerGuid нужны проверке 1.9 ниже
+            // 1.9: проверка связи площадки с ХС
+            checkEnterpriseOwnerGestori(enterprise(glnEntGuid()), glnEntOwnerGuid());
         }
     }
 }
