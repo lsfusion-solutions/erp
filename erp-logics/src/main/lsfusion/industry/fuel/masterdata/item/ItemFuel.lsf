@@ -14,19 +14,30 @@ density15C 'Плотность при 15°С, кг/л' = DATA NUMERIC[9,5] (Item
 ktr 'КТР' = DATA NUMERIC[8,5] (Item) IN itemDensity;
 
 dataRoundFuelQuantity = DATA INTEGER ();
-roundFuelQuantity 'Знаков после запятой для округления топлива'() = OVERRIDE dataRoundFuelQuantity(), 3;
+roundFuelQuantity 'Знаков после запятой для округления кол-ва'() = OVERRIDE dataRoundFuelQuantity(), 3;
+
+dataRoundFuelVolume = DATA INTEGER ();
+roundFuelVolume 'Знаков после запятой для округления объёма'() = OVERRIDE dataRoundFuelVolume(), 3;
 
 // коэффициент 1000 если учёт тонны/литры; 0,001 если кг/м3  
 dataCoeffFuel = DATA NUMERIC[16,5] ();
 coeffFuel 'Коэффициент перевода для топлива'() = OVERRIDE dataCoeffFuel(), 1.0;
 
 EXTEND FORM options
-    PROPERTIES roundFuelQuantity(), coeffFuel();
+    PROPERTIES () roundFuelQuantity, roundFuelVolume, coeffFuel
+;
 
 DESIGN options {
     items {
-        MOVE PROPERTY (roundFuelQuantity());
-        MOVE PROPERTY (coeffFuel());
+        NEW fuel {
+            caption = 'Топливо';
+            NEW roundFuel {
+                horizontal = TRUE;
+                MOVE PROPERTY (roundFuelQuantity());
+                MOVE PROPERTY (roundFuelVolume());
+            }
+            MOVE PROPERTY (coeffFuel());
+        }
     }
 }
 
