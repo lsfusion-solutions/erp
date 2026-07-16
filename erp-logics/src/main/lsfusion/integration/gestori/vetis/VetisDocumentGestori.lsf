@@ -65,6 +65,28 @@ dateInvoiceIC 'Дата накладной' (IncomingConsignment c) =
     date(invoice(Shipment.invoiceDetail(VetisPurchase.shipmentDetail(
         c AS VetisPurchase.ShipmentIncomingConsignment))));
 
+// 1.6: связь ВСД со строками накладной закупки — видна сразу после подбора ВСД, до проведения накладной
+seriesNumberInvoicePDGestori 'Номер накладной' (Purchase.InvoiceDetail pid) = seriesNumber(invoice(pid));
+dateInvoicePDGestori 'Дата накладной' (Purchase.InvoiceDetail pid) = date(invoice(pid));
+postedInvoicePDGestori 'Проведена' (Purchase.InvoiceDetail pid) = isPosted(pid);
+
+// 1.7: запрет удаления ВСД при наличии связей
+hasInvoiceDetailVDGestori (VetDocument d) = GROUP SUM 1 IF VetisPurchase.volume(Purchase.InvoiceDetail pid, d);
+hasShipmentDetailVDGestori (VetDocument d) = GROUP SUM 1 IF VetisPurchase.volume(Purchase.ShipmentDetail sd, d);
+hasOutgoingConsignmentVDGestori (VetDocument d) = GROUP MAX OutgoingConsignment c IF vetDocument(c) = d;
+hasStockEntryVDGestori (VetDocument d) = GROUP SUM 1 IF in(StockEntry s, d);
+
+CONSTRAINT DROPPED(VetDocument d IS VetDocument) AND PREV(hasInvoiceDetailVDGestori(d))
+    MESSAGE 'Нельзя удалять ВСД: есть связь с документом системы';
+CONSTRAINT DROPPED(VetDocument d IS VetDocument) AND PREV(hasShipmentDetailVDGestori(d))
+    MESSAGE 'Нельзя удалять ВСД: есть связь с документом системы';
+CONSTRAINT DROPPED(VetDocument d IS VetDocument) AND PREV(hasIncomingConsignmentGestori(d))
+    MESSAGE 'Нельзя удалять ВСД: есть связь с входящей партией';
+CONSTRAINT DROPPED(VetDocument d IS VetDocument) AND PREV(hasOutgoingConsignmentVDGestori(d))
+    MESSAGE 'Нельзя удалять ВСД: есть связь с исходящей партией';
+CONSTRAINT DROPPED(VetDocument d IS VetDocument) AND PREV(hasStockEntryVDGestori(d))
+    MESSAGE 'Нельзя удалять ВСД: есть связь с записью складского журнала';
+
 // ---- Запросить ВСД по UUID из API Меркурий ----
 
 CLASS GetVetDocumentByUuidRequest 'Запрос ВСД по UUID' : ApplicationRequest;
@@ -307,9 +329,10 @@ EXTEND FORM vetDocuments
     PROPERTIES(rd) READONLY issueSeries, issueNumber, issueDate, type, nameTypeGestori, relationshipType, nameRelationshipTypeGestori
     FILTERS vetDocument(rd) = o
 
-    OBJECTS ic = IncomingConsignment
-    PROPERTIES(ic) READONLY objectClassName, deliveryDate, seriesNumberInvoiceIC, dateInvoiceIC
-    FILTERS vetDocument(ic) = o
+    OBJECTS pid = Purchase.InvoiceDetail
+    PROPERTIES READONLY seriesNumberInvoicePDGestori(pid), dateInvoicePDGestori(pid), postedInvoicePDGestori(pid)
+    PROPERTIES READONLY volumePidGestori = VetisPurchase.volume(pid, o)
+    FILTERS VetisPurchase.volume(pid, o)
 ;
 
 DESIGN vetDocuments {
@@ -323,7 +346,7 @@ DESIGN vetDocuments {
             tabbed = TRUE;
             fill = 0.4;
             MOVE BOX(rd) { caption = 'Связанные документы'; }           // 1.4
-            MOVE BOX(ic) { caption = 'Связанные документы системы'; }   // 1.5
+            MOVE BOX(pid) { caption = 'Связанные документы системы'; }  // 1.5, 1.6
         }
     }
     PROPERTY(expiryDate(o)) { hide = TRUE; }
@@ -335,6 +358,8 @@ DESIGN vetDocuments {
     // 1.4.1, 1.4.3: коды типа документа и связи
     PROPERTY(type(rd)) { caption = 'Код типа документа'; }
     PROPERTY(relationshipType(rd)) { caption = 'Код типа связи'; }
+    // 1.8
+    PROPERTY(guidStockEntry(o)) { caption = 'GUID записи журнала'; }
 }
 
 // ---- Просмотр ВСД ----
@@ -545,9 +570,10 @@ EXTEND FORM vetDocument
                   finalizedGestori, shipmentRouteGestori
     PROPERTIES(rd) READONLY nameTypeGestori AFTER type(rd)
     PROPERTIES(rd) READONLY nameRelationshipTypeGestori AFTER relationshipType(rd)
-    OBJECTS ic = IncomingConsignment
-    PROPERTIES(ic) READONLY seriesNumberInvoiceIC, dateInvoiceIC
-    FILTERS vetDocument(ic) = o
+    OBJECTS pid = Purchase.InvoiceDetail
+    PROPERTIES READONLY seriesNumberInvoicePDGestori(pid), dateInvoicePDGestori(pid), postedInvoicePDGestori(pid)
+    PROPERTIES READONLY volumePidVDGestori = VetisPurchase.volume(pid, o)
+    FILTERS VetisPurchase.volume(pid, o)
 ;
 
 DESIGN vetDocument {
@@ -621,8 +647,8 @@ DESIGN vetDocument {
             MOVE PROPERTY(shipmentRouteGestori(o)) { panelCaptionVertical = TRUE; fill = 1; }
         }
         NEW systemDocsGestori {
-            caption = 'Связанные документы';   // 2.3
-            MOVE BOX(ic);
+            caption = 'Связанные документы';   // 2.3, 1.6
+            MOVE BOX(pid);
         }
     }
     referenceDocument { caption = 'Связанные документы'; }  // 2.2
