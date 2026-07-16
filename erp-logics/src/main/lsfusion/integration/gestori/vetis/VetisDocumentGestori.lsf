@@ -2,7 +2,8 @@ MODULE VetisDocumentGestori;
 
 REQUIRE VetisDocument, VetisStock, VetisStockEntry, VetisIncomingConsignment,
         VetisProcessIncomingConsignment, VetisWithdrawVetDocument, VetisItem,
-        VetisDocumentImport, VetisPurchaseShipment, VetisStockEntryGestori;
+        VetisDocumentImport, VetisPurchaseShipment, VetisStockEntryGestori,
+        VetisEnterpriseGestori;
 
 NAMESPACE Vetis;
 
@@ -108,26 +109,51 @@ process (GetVetDocumentByUuidRequest r) + {
 uuidInputGestori = DATA LOCAL STRING ();
 vetDocumentForUuidGestori () = vetDocument(uuidInputGestori());
 nameProductItemForUuidGestori 'Продукция' () = nameProductItem(vetDocumentForUuidGestori());
-enterpriseForUuidGestori () = consigneeEnterprise(vetDocumentForUuidGestori());
-nameEnterpriseForUuidGestori 'Площадка' () = name(enterpriseForUuidGestori());
+
+enterpriseInputGestori = DATA LOCAL Enterprise ();
+nameEnterpriseInputGestori 'Площадка' () = name(enterpriseInputGestori());
+
+// 1.3.13: площадки собственных ХС, связанные со складами/магазинами, к которым имеет доступ пользователь
+accessEnterpriseGestori (Enterprise e) = own(owner(e)) AND (accessCompany(currentUser(), e) OR NOT limitAccess(currentUser()));
+
+FORM dialogAccessEnterprisesGestori 'Площадки'
+    OBJECTS o = Enterprise
+    PROPERTIES(o) READONLY guid, name, nameOwner
+    FILTERS accessEnterpriseGestori(o)
+;
+
+changeEnterpriseInputGestori () {
+    DIALOG dialogAccessEnterprisesGestori OBJECTS o = enterpriseInputGestori() INPUT DO
+        enterpriseInputGestori() <- o;
+}
+
+// при вводе UUID ВСД, уже известного системе, площадка подставляется автоматически
+changeUuidInputGestori () {
+    INPUT s = STRING DO {
+        uuidInputGestori() <- s;
+        IF consigneeEnterprise(vetDocumentForUuidGestori()) THEN
+            enterpriseInputGestori() <- consigneeEnterprise(vetDocumentForUuidGestori());
+    }
+}
 
 FORM fetchVetDocumentByUuidDialog 'Запросить ВСД по UUID'
-    PROPERTIES() uuidInputGestori
+    PROPERTIES() uuidInputGestori ON CHANGE changeUuidInputGestori()
     PROPERTIES() nameProductItemForUuidGestori
-    PROPERTIES() nameEnterpriseForUuidGestori
+    PROPERTIES() nameEnterpriseInputGestori ON CHANGE changeEnterpriseInputGestori()
 ;
 
 DESIGN fetchVetDocumentByUuidDialog {
     PROPERTY(uuidInputGestori()) { caption = 'UUID ВСД'; charWidth = 40; notNull = TRUE; }
     PROPERTY(nameProductItemForUuidGestori()) { charWidth = 40; }
-    PROPERTY(nameEnterpriseForUuidGestori()) { notNull = TRUE; }
+    PROPERTY(nameEnterpriseInputGestori()) { notNull = TRUE; }
 }
 
 getVetDocumentByUUIDGestori 'Запросить ВСД по UUID' (VetDocument d) {
     uuidInputGestori() <- uuid(d);
+    enterpriseInputGestori() <- consigneeEnterprise(d);
     DIALOG fetchVetDocumentByUuidDialog DO {
         // 1.3.5: все параметры поиска обязательны
-        IF NOT (uuidInputGestori() AND enterpriseForUuidGestori()) THEN {
+        IF NOT (uuidInputGestori() AND enterpriseInputGestori()) THEN {
             MESSAGE 'Укажите все параметры поиска';
             RETURN;
         }
@@ -140,8 +166,8 @@ getVetDocumentByUUIDGestori 'Запросить ВСД по UUID' (VetDocument d
         }
         NEWSESSION NESTED LOCAL {
             NEW r = GetVetDocumentByUuidRequest {
-                enterprise(r) <- enterpriseForUuidGestori();
-                businessEntity(r) <- owner(enterpriseForUuidGestori());
+                enterprise(r) <- enterpriseInputGestori();
+                businessEntity(r) <- owner(enterpriseInputGestori());
                 uuidToFetch(r) <- formatGuidSEGestori(cleaned());
                 submitGetVetDocumentByUuidRequest(r);
                 APPLY;
@@ -236,6 +262,7 @@ pkgLevelImport = DATA LOCAL INTEGER (INTEGER);
 pkgPackingTypeGlobalIDImport = DATA LOCAL STRING (INTEGER);
 pkgProductMarksValueImport = DATA LOCAL STRING (INTEGER);
 pkgProductMarksClassImport = DATA LOCAL STRING (INTEGER);
+pkgQuantityImport = DATA LOCAL STRING (INTEGER); // 1.3.12: dt:quantity уровня упаковки
 
 GROUP pkgListImportGroup EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:packageList' : certifiedConsignmentBatch;
 GROUP pkgPackingTypeImportGroup EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:packingType';
@@ -246,50 +273,11 @@ EXTEND FORM importVetDocument
     PROPERTIES(pkg) pkgLevelImport EXTID 'dt:level',
                     pkgPackingTypeGlobalIDImport EXTID 'dt:globalID' IN pkgPackingTypeImportGroup,
                     pkgProductMarksValueImport EXTID 'dt:productMarks',
-                    pkgProductMarksClassImport EXTID 'class' ATTR IN pkgProductMarksImportGroup
+                    pkgProductMarksClassImport EXTID 'class' ATTR IN pkgProductMarksImportGroup,
+                    pkgQuantityImport EXTID 'dt:quantity'
 ;
 
-afterImportVetDocument(VetDocument d) + {
-    packingTypeGlobalIDGestori(d) <- NULL;
-    productMarksClassGestori(d) <- NULL;
-    productMarksGestori(d) <- NULL;
-    FOR pkgLevelImport(INTEGER i) = 2 DO {
-        packingTypeGlobalIDGestori(d) <- pkgPackingTypeGlobalIDImport(i);
-        productMarksClassGestori(d) <- pkgProductMarksClassImport(i);
-        productMarksGestori(d) <- pkgProductMarksValueImport(i);
-    }
-    quantityPackGestori(d) <- NUMERIC[16,5](quantityPackImport());
-
-    // Ветис20: дозаполнение записи номенклатуры данными из vd:productItem
-    skipOwnConstraint() <- TRUE; // импорт из Ветис не должен требовать реквизиты и слать запросы обратно в Ветис
-    FOR ProductItem i = productItem(d) DO {
-        code(i) <- ISTRING(piCodeImport()) WHERE NOT code(i) AND piCodeImport();
-        IF NOT subProduct(i) AND piSubProductGuidImport() THEN {
-            IF NOT subProduct(piSubProductGuidImport()) THEN NEW sp = SubProduct {
-                guid(sp) <- piSubProductGuidImport();
-            }
-            subProduct(i) <- subProduct(piSubProductGuidImport());
-        }
-        IF NOT producer(i) AND piProducerGuidImport() THEN {
-            IF NOT businessEntity(piProducerGuidImport()) THEN NEW b = BusinessEntity {
-                guid(b) <- piProducerGuidImport();
-            }
-            producer(i) <- businessEntity(piProducerGuidImport());
-        }
-        IF NOT owner(i) AND piTmOwnerGuidImport() THEN {
-            IF NOT businessEntity(piTmOwnerGuidImport()) THEN NEW b = BusinessEntity {
-                guid(b) <- piTmOwnerGuidImport();
-            }
-            owner(i) <- businessEntity(piTmOwnerGuidImport());
-        }
-        FOR STRING g = piProducingEnterpriseGuidImport(INTEGER k) DO {
-            IF NOT enterprise(g) THEN NEW e = Enterprise {
-                guid(e) <- g;
-            }
-            in(i, enterprise(g)) <- TRUE;
-        }
-    }
-}
+// реализация afterImportVetDocument — единая, в конце модуля (после всех деклараций)
 
 // ---- Список ВСД ----
 
@@ -364,6 +352,285 @@ DESIGN vetDocument {
     }
 }
 
+// ---- 2.1: форма просмотра ВСД — основное окно ----
+
+idTypeGestori 'Тип ВСД' (VetDocument d) = id(type(d));
+idStatusGestori 'Статус ВСД' (VetDocument d) = id(status(d));
+
+updateDateTimeGestori = DATA DATETIME (VetDocument);
+updateDateGestori 'Дата посл.изменения Ветис' (VetDocument d) = DATE(updateDateTimeGestori(d));
+updateTimeGestori 'Время посл.изменения Ветис' (VetDocument d) = TIME(updateDateTimeGestori(d));
+
+createdDateTimeGestori = DATA DATETIME (VetDocument);
+createdDateTimeGestori(VetDocument d) <- currentDateTime() WHEN SET(d IS VetDocument);
+createdDateGestori 'Дата создания в системе' (VetDocument d) = DATE(createdDateTimeGestori(d));
+createdTimeGestori 'Время создания в системе' (VetDocument d) = TIME(createdDateTimeGestori(d));
+
+guidConsignorBEGestori 'GUID ХС отправителя' (VetDocument d) = guid(consignorBusinessEntity(d));
+guidConsigneeBEGestori 'GUID ХС получателя' (VetDocument d) = guid(consigneeBusinessEntity(d));
+
+idStocksConsignorGestori 'Код склада/магазина отправителя' (VetDocument d) =
+    GROUP CONCAT id(Stock st) IF enterprise(st) = consignorEnterprise(d), ', ' ORDER st CHARWIDTH 15;
+nameStocksConsignorGestori 'Наименование склада/магазина отправителя' (VetDocument d) =
+    GROUP CONCAT name(Stock st) IF enterprise(st) = consignorEnterprise(d), ', ' ORDER st CHARWIDTH 30;
+idStocksConsigneeGestori 'Код склада/магазина получателя' (VetDocument d) =
+    GROUP CONCAT id(Stock st) IF enterprise(st) = consigneeEnterprise(d), ', ' ORDER st CHARWIDTH 15;
+nameStocksConsigneeGestori 'Наименование склада/магазина получателя' (VetDocument d) =
+    GROUP CONCAT name(Stock st) IF enterprise(st) = consigneeEnterprise(d), ', ' ORDER st CHARWIDTH 30;
+
+guidStockEntryGestori 'GUID записи журнала' (VetDocument d) = GROUP CONCAT guid(StockEntry s) IF in(s, d), ', ' ORDER s CHARWIDTH 36;
+numberStockEntryGestori 'Номер записи журнала' (VetDocument d) = GROUP CONCAT number(StockEntry s) IF in(s, d), ', ' ORDER s CHARWIDTH 15;
+
+// ---- 2.1: вкладка «Партия продукции» ----
+
+idProductTypeGestori 'Код типа продукции' (VetDocument d) = id(productType(d));
+guidUnitGestori 'GUID ед.изм.' (VetDocument d) = guid(unit(d));
+guidPurposeGestori 'GUID назначения груза' (VetDocument d) = guid(purpose(d));
+
+// фактический возврат: по частично принятым входящим партиям (принято меньше объёма ВСД)
+returnVolumeGestori 'Вес-объем факт.возврат' (VetDocument d) =
+    NUMERIC[17,6](GROUP SUM (volume(vetDocument(IncomingConsignment c)) - volume(c)) IF vetDocument(c) = d AND returnedDelivery(c));
+
+// происхождение (vd:origin): страна, производители, роли; владелец (vd:owner)
+countryOriginGuidGestori 'GUID страны производства' = DATA STRING (VetDocument);
+producersOriginGuidGestori 'GUID производителей' = DATA STRING (VetDocument);
+producersOriginRoleGestori 'Роли производителей' = DATA STRING (VetDocument);
+ownerBEGuidGestori 'GUID владельца продукции' = DATA STRING (VetDocument);
+
+ocGuidImport = DATA LOCAL STRING ();
+oprEnterpriseGuidImport = DATA LOCAL STRING (INTEGER);
+oprRoleImport = DATA LOCAL STRING (INTEGER);
+ownerBatchGuidImport = DATA LOCAL STRING ();
+
+GROUP originImportGroupGestori EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:origin' : certifiedConsignmentBatch;
+GROUP originCountryImportGroupGestori EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:country' : originImportGroupGestori;
+GROUP oprEnterpriseImportGroupGestori EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:enterprise';
+GROUP batchOwnerImportGroupGestori EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:owner' : certifiedConsignmentBatch;
+
+EXTEND FORM importVetDocument
+    PROPERTIES() ocGuidImport EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN originCountryImportGroupGestori
+    PROPERTIES() ownerBatchGuidImport EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN batchOwnerImportGroupGestori
+    OBJECTS opr = INTEGER EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:producer' IN originImportGroupGestori
+    PROPERTIES(opr) oprEnterpriseGuidImport EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN oprEnterpriseImportGroupGestori,
+                    oprRoleImport EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:role'
+;
+
+// ---- 2.1: вкладка «Маршрут» (транспорт/маршрут/возврат) ----
+
+transportTypeGestori 'Тип транспортного средства' = DATA INTEGER (VetDocument);
+transportNumbersGestori 'Номера трансп.средств' = DATA STRING (VetDocument);
+transportNumberTypesGestori 'Типы номеров трансп.средств' = DATA STRING (VetDocument);
+finalizedGestori 'Флаг закр.произв.серии' = DATA BOOLEAN (VetDocument);
+shipmentRouteGestori 'Маршрут следования' = DATA TEXT (VetDocument);
+
+transportTypeImport = DATA LOCAL STRING ();
+vehicleNumberImport = DATA LOCAL STRING ();
+trailerNumberImport = DATA LOCAL STRING ();
+containerNumberImport = DATA LOCAL STRING ();
+wagonNumberImport = DATA LOCAL STRING ();
+shipNameImport = DATA LOCAL STRING ();
+flightNumberImport = DATA LOCAL STRING ();
+finalizedImport = DATA LOCAL STRING ();
+shipmentRouteImport = DATA LOCAL TEXT ();
+
+GROUP transportInfoImportGroupGestori EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:transportInfo' : certifiedConsignment;
+GROUP transportNumberImportGroupGestori EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:transportNumber' : transportInfoImportGroupGestori;
+GROUP productionImportGroupGestori EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:production';
+
+EXTEND FORM importVetDocument
+    PROPERTIES() transportTypeImport EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:transportType' IN transportInfoImportGroupGestori
+    PROPERTIES() IN transportNumberImportGroupGestori
+        vehicleNumberImport EXTID 'vd:vehicleNumber',
+        trailerNumberImport EXTID 'vd:trailerNumber',
+        containerNumberImport EXTID 'vd:containerNumber',
+        wagonNumberImport EXTID 'vd:wagonNumber',
+        shipNameImport EXTID 'vd:shipName',
+        flightNumberImport EXTID 'vd:flightNumber'
+    PROPERTIES() finalizedImport EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:finalized' IN productionImportGroupGestori
+    PROPERTIES() shipmentRouteImport EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:shipmentRoute'
+;
+
+// ---- 2.4: GLN отправителя ----
+
+glnConsignorImport = DATA LOCAL STRING ();
+glnConsignorEntImport = DATA LOCAL STRING ();
+
+EXTEND FORM importVetDocument
+    PROPERTIES() glnConsignorImport EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:globalID' IN certifiedConsignor
+    PROPERTIES() glnConsignorEntImport EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:globalID' IN certifiedConsignorEnterprise
+;
+
+// ---- Единая реализация afterImportVetDocument ----
+
+afterImportVetDocument(VetDocument d) + {
+    packingTypeGlobalIDGestori(d) <- NULL;
+    productMarksClassGestori(d) <- NULL;
+    productMarksGestori(d) <- NULL;
+    // 1.3.12: Кол-во — из vd:productItem/dt:packaging (если есть), иначе из packageList/dt:package уровня 2
+    quantityPackGestori(d) <- NUMERIC[16,5](quantityPackImport());
+    FOR pkgLevelImport(INTEGER i) = 2 DO {
+        packingTypeGlobalIDGestori(d) <- pkgPackingTypeGlobalIDImport(i);
+        productMarksClassGestori(d) <- pkgProductMarksClassImport(i);
+        productMarksGestori(d) <- pkgProductMarksValueImport(i);
+        IF pkgQuantityImport(i) AND NOT quantityPackGestori(d) THEN
+            quantityPackGestori(d) <- NUMERIC[16,5](pkgQuantityImport(i));
+    }
+
+    // Ветис20: дозаполнение записи номенклатуры данными из vd:productItem
+    skipOwnConstraint() <- TRUE; // импорт из Ветис не должен требовать реквизиты и слать запросы обратно в Ветис
+    FOR ProductItem i = productItem(d) DO {
+        code(i) <- ISTRING(piCodeImport()) WHERE NOT code(i) AND piCodeImport();
+        IF NOT subProduct(i) AND piSubProductGuidImport() THEN {
+            IF NOT subProduct(piSubProductGuidImport()) THEN NEW sp = SubProduct {
+                guid(sp) <- piSubProductGuidImport();
+            }
+            subProduct(i) <- subProduct(piSubProductGuidImport());
+        }
+        IF NOT producer(i) AND piProducerGuidImport() THEN {
+            IF NOT businessEntity(piProducerGuidImport()) THEN NEW b = BusinessEntity {
+                guid(b) <- piProducerGuidImport();
+            }
+            producer(i) <- businessEntity(piProducerGuidImport());
+        }
+        IF NOT owner(i) AND piTmOwnerGuidImport() THEN {
+            IF NOT businessEntity(piTmOwnerGuidImport()) THEN NEW b = BusinessEntity {
+                guid(b) <- piTmOwnerGuidImport();
+            }
+            owner(i) <- businessEntity(piTmOwnerGuidImport());
+        }
+        FOR STRING g = piProducingEnterpriseGuidImport(INTEGER k) DO {
+            IF NOT enterprise(g) THEN NEW e = Enterprise {
+                guid(e) <- g;
+            }
+            in(i, enterprise(g)) <- TRUE;
+        }
+    }
+
+    // 2.1: дата/время последнего изменения Ветис (vd:lastUpdateDate — ISO с зоной)
+    updateDateTimeGestori(d) <- DATETIME(replace(left(lastUpdateDate(), 19), 'T', ' '));
+    // 2.1: происхождение и владелец
+    countryOriginGuidGestori(d) <- ocGuidImport();
+    producersOriginGuidGestori(d) <- (GROUP CONCAT oprEnterpriseGuidImport(INTEGER i), ', ' ORDER i);
+    producersOriginRoleGestori(d) <- (GROUP CONCAT oprRoleImport(INTEGER i), ', ' ORDER i);
+    ownerBEGuidGestori(d) <- ownerBatchGuidImport();
+    // 2.1: транспорт/маршрут
+    transportTypeGestori(d) <- INTEGER(transportTypeImport());
+    transportNumbersGestori(d) <- STRING(CONCAT ', ', vehicleNumberImport(), trailerNumberImport(), containerNumberImport(),
+                                                      wagonNumberImport(), shipNameImport(), flightNumberImport());
+    transportNumberTypesGestori(d) <- STRING(CONCAT ', ', 'машина' IF vehicleNumberImport(), 'прицеп' IF trailerNumberImport(),
+                                                          'контейнер' IF containerNumberImport(), 'вагон' IF wagonNumberImport(),
+                                                          'судно' IF shipNameImport(), 'рейс' IF flightNumberImport());
+    finalizedGestori(d) <- TRUE IF finalizedImport() = 'true';
+    shipmentRouteGestori(d) <- shipmentRouteImport();
+    // 2.4: GLN отправителя
+    IF (OVERRIDE glnConsignorImport(), glnConsignorEntImport()) THEN
+        FOR Enterprise e = consignorEnterprise(d) DO
+            gln(e) <- STRING(OVERRIDE glnConsignorImport(), glnConsignorEntImport());
+}
+
+// ---- 2.1–2.3: раскладка формы просмотра ----
+
+EXTEND FORM vetDocument
+    PROPERTIES(o) READONLY idTypeGestori, idStatusGestori, updateDateGestori, updateTimeGestori,
+                  createdDateGestori, createdTimeGestori,
+                  guidConsignorBEGestori, idStocksConsignorGestori, nameStocksConsignorGestori,
+                  guidConsigneeBEGestori, idStocksConsigneeGestori, nameStocksConsigneeGestori,
+                  guidStockEntryGestori, numberStockEntryGestori,
+                  idProductTypeGestori, codeProductItem, globalIDProductItem2 = globalIDProductItem,
+                  productMarksGestori, packingTypeGlobalIDGestori, productMarksClassGestori,
+                  guidUnitGestori, actualVolumeGestori, returnVolumeGestori, quantityPackGestori,
+                  idItemGestori, guidPurposeGestori,
+                  countryOriginGuidGestori, producersOriginGuidGestori, producersOriginRoleGestori, ownerBEGuidGestori,
+                  transportTypeGestori, transportNumbersGestori, transportNumberTypesGestori,
+                  finalizedGestori, shipmentRouteGestori
+    PROPERTIES(rd) READONLY nameTypeGestori AFTER type(rd)
+    PROPERTIES(rd) READONLY nameRelationshipTypeGestori AFTER relationshipType(rd)
+    OBJECTS ic = IncomingConsignment
+    PROPERTIES(ic) READONLY seriesNumberInvoiceIC, dateInvoiceIC
+    FILTERS vetDocument(ic) = o
+;
+
+DESIGN vetDocument {
+    header {
+        NEW mainVDGestori FIRST {
+            caption = 'Основное';
+            lines = 4;
+            MOVE PROPERTY(uuid(o)) { caption = 'UUID документа'; }
+            MOVE PROPERTY(issueDate(o)) { caption = 'Дата ВСД'; }
+            MOVE PROPERTY(idTypeGestori(o));
+            MOVE PROPERTY(idStatusGestori(o));
+            MOVE PROPERTY(stateGestori(o)) { caption = 'Состояние документа'; }
+            MOVE PROPERTY(updateDateGestori(o));
+            MOVE PROPERTY(updateTimeGestori(o));
+            MOVE PROPERTY(createdDateGestori(o));
+            MOVE PROPERTY(createdTimeGestori(o));
+            MOVE PROPERTY(guidConsignorBEGestori(o));
+            MOVE PROPERTY(guidConsignorEnterprise(o)) { caption = 'GUID площадки отправителя'; }
+            MOVE PROPERTY(idStocksConsignorGestori(o));
+            MOVE PROPERTY(nameStocksConsignorGestori(o));
+            MOVE PROPERTY(guidConsigneeBEGestori(o));
+            MOVE PROPERTY(guidConsigneeEnterprise(o)) { caption = 'GUID площадки получателя'; }
+            MOVE PROPERTY(idStocksConsigneeGestori(o));
+            MOVE PROPERTY(nameStocksConsigneeGestori(o));
+            MOVE PROPERTY(guidStockEntryGestori(o));
+            MOVE PROPERTY(numberStockEntryGestori(o));
+        }
+    }
+    batch {
+        caption = 'Партия продукции';
+        NEW batchMainGestori FIRST {
+            lines = 4;
+            MOVE PROPERTY(idProductTypeGestori(o));
+            MOVE PROPERTY(nameProductType(o)) { caption = 'Тип продукции'; }
+            MOVE PROPERTY(guidProduct(o)) { caption = 'GUID продукции'; }
+            MOVE PROPERTY(nameProduct(o)) { caption = 'Продукция'; }
+            MOVE PROPERTY(guidSubProduct(o)) { caption = 'GUID вида продукции'; }
+            MOVE PROPERTY(nameSubProduct(o)) { caption = 'Вид продукции'; }
+            MOVE PROPERTY(guidProductItem(o)) { caption = 'GUID номенклатуры'; }
+            MOVE PROPERTY(nameProductItem(o)) { caption = 'Наименование номенклатуры'; }
+            MOVE PROPERTY(codeProductItem(o)) { caption = 'Артикул номенклатуры'; }
+            MOVE PROPERTY(globalIDProductItem2) { caption = 'Баркод номенклатуры'; }
+            MOVE PROPERTY(productMarksGestori(o)) { caption = 'Торг.маркировка номенклатуры'; }
+            MOVE PROPERTY(packingTypeGlobalIDGestori(o)) { caption = 'Тип упаковки'; }
+            MOVE PROPERTY(productMarksClassGestori(o)) { caption = 'Тип маркировки упаковки'; }
+            MOVE PROPERTY(batchID(o)) { caption = 'Идентификатор партии'; }
+            MOVE PROPERTY(guidUnitGestori(o));
+            MOVE PROPERTY(volume(o)) { caption = 'Вес-объем'; }
+            MOVE PROPERTY(actualVolumeGestori(o)) { caption = 'Вес-объем фактически'; }
+            MOVE PROPERTY(returnVolumeGestori(o));
+            MOVE PROPERTY(quantityPackGestori(o)) { caption = 'Кол-во в торг.маркировке'; }
+            MOVE PROPERTY(dateOfProduction(o)) { caption = 'Дата производства'; }
+            MOVE PROPERTY(expiryDate(o)) { caption = 'Дата окончания срока годности'; }
+            MOVE PROPERTY(perishable(o)) { caption = 'Признак скоропорта'; }
+            MOVE PROPERTY(lowGradeCargo(o)) { caption = 'Признак некачественного товара'; }
+            MOVE PROPERTY(idItemGestori(o)) { caption = 'Код товара'; }
+            MOVE PROPERTY(guidPurposeGestori(o));
+            MOVE PROPERTY(countryOriginGuidGestori(o));
+            MOVE PROPERTY(producersOriginGuidGestori(o));
+            MOVE PROPERTY(producersOriginRoleGestori(o));
+            MOVE PROPERTY(ownerBEGuidGestori(o));
+        }
+    }
+    details {
+        NEW routeGestori {
+            caption = 'Маршрут';
+            MOVE PROPERTY(transportTypeGestori(o));
+            MOVE PROPERTY(transportNumbersGestori(o));
+            MOVE PROPERTY(transportNumberTypesGestori(o));
+            MOVE PROPERTY(finalizedGestori(o));
+            MOVE PROPERTY(shipmentRouteGestori(o)) { panelCaptionVertical = TRUE; fill = 1; }
+        }
+        NEW systemDocsGestori {
+            caption = 'Связанные документы';   // 2.3
+            MOVE BOX(ic);
+        }
+    }
+    referenceDocument { caption = 'Связанные документы'; }  // 2.2
+    // 2.2.1, 2.2.3: коды и описания типов
+    PROPERTY(type(rd)) { caption = 'Код типа документа'; }
+    PROPERTY(relationshipType(rd)) { caption = 'Код типа связи'; }
+}
+
 //// ---- Пакетная отправка запросов на гашение ВСД ----
 //
 //processIncomingConsignmentsGestori 'Отправить запросы на гашение ВСД' () {
@@ -388,3 +655,12 @@ DESIGN vetDocument {
 //EXTEND FORM incomingConsignments
 //    PROPERTIES() processIncomingConsignmentsGestori TOOLBAR
 //;
+
+// ---- Задача 4886, п.1.1: различить два поля «Объем продукции» в списке входящих партий ----
+// volume — объём по строке документа поставки (фактическое количество, пересчитанное в единицы ВСД)
+// volumeVetDocument — объём продукции из самого ВСД
+
+DESIGN incomingConsignments {
+    PROPERTY(volume(c)) { caption = 'Объем продукции фактический'; }
+    PROPERTY(volumeVetDocument(c)) { caption = 'Объем продукции по ВСД'; }
+}
