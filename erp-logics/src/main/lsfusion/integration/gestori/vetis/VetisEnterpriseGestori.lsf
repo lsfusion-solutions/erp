@@ -123,6 +123,35 @@ FORM getEnterpriseDetailResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/s
     PROPERTIES() IN getEnterpriseByGuidResponseOwner eOwnerGuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
 ;
 
+// --- 2.7 (Ветис28): связь «ХС ведёт деятельность на площадке» ---
+// владелец площадки (dt:owner) может быть другим ХС — площадки деятельности иначе не видны во вкладке «Площадки»
+
+inActivity 'Ведёт деятельность' = DATA BOOLEAN (BusinessEntity, Enterprise);
+
+afterImportActivityLocation(BusinessEntity b, Enterprise e) + { inActivity(b, e) <- TRUE; }
+
+showActivityEnterprise(BusinessEntity b, Enterprise e) += inActivity(b, e);
+
+// колонка вкладки: для собственных площадок (владелец) отметку не показываем
+inActivityNotOwner 'Ведёт деятельность' (BusinessEntity b, Enterprise e) = inActivity(b, e) AND NOT owner(e) = b;
+
+// список ХС, ведущих деятельность на площадке
+nameActivityBEs 'Ведёт деятельность' (Enterprise e) = GROUP CONCAT name(BusinessEntity b) IF inActivity(b, e), ', ' ORDER b CHARWIDTH 30;
+
+EXTEND FORM enterprise
+    PROPERTIES(o) READONLY nameActivityBEs
+;
+
+DESIGN enterprise {
+    tabProperties {
+        MOVE PROPERTY(nameActivityBEs(o));
+    }
+}
+
+EXTEND FORM enterprises
+    PROPERTIES(o) READONLY nameActivityBEs
+;
+
 // --- 1.9: проверка связи площадки с ХС после загрузки данных ---
 
 checkEnterpriseOwnerGestori (Enterprise e, STRING ownerGuid) {
@@ -136,10 +165,8 @@ checkEnterpriseOwnerGestori (Enterprise e, STRING ownerGuid) {
                 }
                 APPLY;
             }
+            // 1.9.4: запрос площадок ХС при успешной загрузке — внутри getBusinessEntityByGUID (Ветис28 1.15)
             getBusinessEntityByGUID(businessEntity(ownerGuid));
-            // 1.9.4: загрузка ХС выполнена успешно — выполнить запрос площадок ХС
-            IF name(businessEntity(ownerGuid)) THEN
-                getActivityLocationList(businessEntity(ownerGuid));
         }
         // 1.9.2: обновить у площадки ссылку на экземпляр ХС
         IF businessEntity(ownerGuid) THEN NEWSESSION {
@@ -375,8 +402,13 @@ DESIGN enterprises {
 }
 
 EXTEND FORM businessEntity
-    PROPERTIES(e) READONLY kpp
+    PROPERTIES(e) READONLY kpp, nameOwner
+    PROPERTIES READONLY inActivityNotOwner(o, e)
 ;
+
+DESIGN businessEntity {
+    PROPERTY(nameOwner(e)) { caption = 'Владелец'; }
+}
 
 DESIGN businessEntity {
     tabEnterprises {

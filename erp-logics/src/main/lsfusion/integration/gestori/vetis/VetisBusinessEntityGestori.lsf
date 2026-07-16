@@ -1,6 +1,6 @@
 MODULE VetisBusinessEntityGestori;
 
-REQUIRE VetisBusinessEntityImport, VetisLegalEntity;
+REQUIRE VetisBusinessEntityImport, VetisLegalEntity, VetisEnterpriseImport;
 
 NAMESPACE Vetis;
 
@@ -8,6 +8,7 @@ NAMESPACE Vetis;
 
 fullName 'Наименование полное' = DATA ISTRING (BusinessEntity) CHARWIDTH 100;
 status 'Статус Ветис' = DATA STRING[5] (BusinessEntity) CHARWIDTH 5;
+uuid 'UUID ХС' = DATA STRING (BusinessEntity) CHARWIDTH 36; // 1.16, служебное — на формы не выводится
 
 showFio(BusinessEntity b) += type(b) = '2' OR type(b) = '3';
 readonlyGuid(BusinessEntity b) += TRUE IF guid(b);
@@ -36,6 +37,7 @@ GROUP getBusinessEntityByGuidResponseEntity EXTID 'dt=http://api.vetrf.ru/schema
 GROUP getBusinessEntityByGuidResponseJuridicalAddress EXTID 'dt:juridicalAddress' : getBusinessEntityByGuidResponseEntity;
 
 beStatus = DATA LOCAL STRING();
+beUuid = DATA LOCAL STRING();
 beType = DATA LOCAL STRING();
 beName = DATA LOCAL ISTRING();
 beFullName = DATA LOCAL ISTRING();
@@ -48,6 +50,7 @@ beAddressView = DATA LOCAL ISTRING();
 FORM getBusinessEntityByGuidResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
     PROPERTIES() IN getBusinessEntityByGuidResponseEntity
         beStatus EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:status',
+        beUuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid',
         beType EXTID 'dt:type',
         beName EXTID 'dt:name',
         beFullName EXTID 'dt:fullName',
@@ -73,6 +76,7 @@ getBusinessEntityByGUID 'Обновить ХС' (BusinessEntity b) {
         }
         IMPORT getBusinessEntityByGuidResponse XML FROM response();
         IF beStatus() THEN status(b) <- beStatus();
+        IF beUuid() THEN uuid(b) <- beUuid(); // 1.16.1
         IF beType() THEN type(b) <- beType();
         IF beName() THEN name(b) <- beName();
         IF beFullName() THEN fullName(b) <- beFullName();
@@ -82,6 +86,8 @@ getBusinessEntityByGUID 'Обновить ХС' (BusinessEntity b) {
         IF beOgrn() THEN ogrn(b) <- STRING[15](beOgrn());
         IF beAddressView() THEN addressView(b) <- beAddressView();
         APPLY;
+        // 1.15: после загрузки данных по ХС — запрос площадок ХС
+        IF name(b) THEN getActivityLocationList(b);
     }
 }
 
@@ -103,6 +109,7 @@ FORM getBusinessEntityListSearchRequest FORMEXTID 'soapenv=http://schemas.xmlsoa
 ;
 
 typeL = DATA LOCAL STRING(INTEGER);
+uuidL = DATA LOCAL STRING(INTEGER);
 nameL = DATA LOCAL STRING(INTEGER);
 fullNameL = DATA LOCAL STRING(INTEGER);
 statusL = DATA LOCAL STRING(INTEGER);
@@ -116,6 +123,7 @@ FORM getBusinessEntityListExtResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.
     OBJECTS businessEntity = INTEGER EXTID 'dt:businessEntity' IN getBusinessEntityListResponseList
     PROPERTIES(businessEntity) guid EXTID 'base=http://api.vetrf.ru/schema/cdm/base:guid',
                                statusL EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:status',
+                               uuidL EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid',
                                fullNameL EXTID 'dt:fullName',
                                nameL EXTID 'dt:name',
                                inn EXTID 'dt:inn',
@@ -130,6 +138,7 @@ afterGetBusinessEntityList(BusinessEntity b, FILE response) + {
     IMPORT getBusinessEntityListExtResponse XML FROM response;
     IF guid(0) THEN {
         status(b) <- statusL(0);
+        uuid(b) <- uuidL(0); // 1.16.1
         name(b) <- ISTRING(OVERRIDE nameL(0), fullNameL(0));
         Vetis.inn(b) <- STRING[12](inn(0));
         Vetis.fullName(b) <- ISTRING(fullNameL(0));
@@ -180,7 +189,10 @@ loadBusinessEntities 'Загрузить ХС' () {
             }
             IF (GROUP SUM 1 IF guid(INTEGER i)) THEN
                 MESSAGE 'Найдено: ' + (GROUP SUM 1 IF guid(INTEGER i)) + ' хозяйствующих субъектов';
-            APPLY;
+            APPLY NESTED LOCAL; // значения ответа нужны циклу 1.16.2 ниже
+            // 1.16.2: UUID ХС не задан или отличается — выполнить запрос данных по ХС (byGuid запишет uuid и площадки — 1.15)
+            FOR BusinessEntity b = businessEntity(guid(INTEGER i)) AND NOT uuid(b) = uuidL(i) DO
+                getBusinessEntityByGUID(b);
         }
     }
 }
@@ -268,8 +280,9 @@ changeBusinessEntityLE(LegalEntity l) + {
 
 // --- Запрет удаления и изменения GUID ---
 
-CONSTRAINT DROPPED(b IS BusinessEntity) AND (PREV(own(b)) OR (GROUP SUM 1 IF PREV(businessEntity(LegalEntity l)) = b))
-    MESSAGE 'Невозможно удалить: хозяйствующий субъект является собственным или связан с организацией';
+CONSTRAINT DROPPED(b IS BusinessEntity) AND (PREV(own(b)) OR (GROUP SUM 1 IF PREV(businessEntity(LegalEntity l)) = b)
+        OR (GROUP SUM 1 IF PREV(owner(Enterprise e)) = b)) // 1.14: связь с площадками
+    MESSAGE 'Невозможно удалить: хозяйствующий субъект является собственным, связан с организацией или площадками';
 
 CONSTRAINT SETCHANGED(guid(BusinessEntity b)) AND PREV(guid(b))
     MESSAGE 'Изменение GUID ХС не допускается';

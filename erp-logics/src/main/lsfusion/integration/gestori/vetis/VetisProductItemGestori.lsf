@@ -503,18 +503,15 @@ loadUnitByGuidGestori (STRING g) {
     }
 }
 
-// ХС (producer/tmOwner): создать при отсутствии, запросить данные и площадки ХС (покрывает dt:producing/dt:location)
+// ХС (producer/tmOwner): создать при отсутствии, запросить данные; площадки ХС грузит сам getBusinessEntityByGUID (Ветис28 1.15)
 loadDictBusinessEntityGestori (STRING g) {
     IF NOT g THEN RETURN;
     IF NOT businessEntity(g) THEN NEWSESSION {
         NEW b = BusinessEntity { guid(b) <- g; }
         APPLY;
     }
-    IF businessEntity(g) AND NOT name(businessEntity(g)) THEN {
+    IF businessEntity(g) AND NOT name(businessEntity(g)) THEN
         getBusinessEntityByGUID(businessEntity(g));
-        IF name(businessEntity(g)) THEN
-            getActivityLocationList(businessEntity(g));
-    }
 }
 
 afterGetProductItemList() + {
