@@ -168,7 +168,7 @@ loadEnterpriseDetails 'Загрузить реквизиты' (Enterprise b) {
         IF eStatus() THEN registryStatus(b) <- eStatus();
         IF eStatusVetis() THEN status(b) <- STRING[5](eStatusVetis());
         IF eUuidVetis() THEN uuid(b) <- eUuidVetis();
-        APPLY;
+        APPLY NESTED LOCAL; // eOwnerGuid нужен после применения
         checkEnterpriseOwnerGestori(b, eOwnerGuid());
     }
 }
@@ -337,7 +337,7 @@ loadEnterpriseFromVetis 'Загрузить площадку' () {
                 MESSAGE 'Найдено: ' + (GROUP SUM 1 IF entGuid(INTEGER i) AND entLast(i) = 'true') + ' площадок';
             ELSE
                 MESSAGE 'Площадки не найдены';
-            APPLY;
+            APPLY NESTED LOCAL; // значения ответа нужны циклам 1.11.2/1.9 ниже
             // 1.11.2: UUID не задан или отличается — выполнить запрос данных по площадке в Ветис
             FOR Enterprise e = enterprise(entGuid(INTEGER i)) AND entLast(i) = 'true' AND NOT uuid(e) = entUuid(i) DO
                 loadEnterpriseDetails(e);
