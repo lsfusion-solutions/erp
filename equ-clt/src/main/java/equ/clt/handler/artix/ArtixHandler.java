@@ -949,7 +949,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
         Integer tmcScaleGroupCode = infoJSON != null && infoJSON.has("tmcscalegroupcode") ? infoJSON.optInt("tmcscalegroupcode") : null;
         tmcScaleImageObject.put("tmcscalegroupcode", String.valueOf(tmcScaleGroupCode != null ? tmcScaleGroupCode : 1)); //Код ассортиментной группы товаров на весах
         tmcScaleImageObject.put("image", imageBase64); //Изображение товара в base64 (передаётся через info)
-        tmcScaleImageObject.put("extension", ".jpg"); //Расширение файла изображения (imageArtix формируется в jpg)
+        tmcScaleImageObject.put("extension", "jpg"); //Расширение файла изображения (imageArtix формируется в jpg)
 
         rootObject.put("command", "addTmcScaleImage");
         return rootObject.toString();
