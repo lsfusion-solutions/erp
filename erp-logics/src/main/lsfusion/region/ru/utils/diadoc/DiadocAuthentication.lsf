@@ -6,6 +6,7 @@ NAMESPACE Diadoc;
 
 url 'Url' = DATA STRING ();
 clientId 'Ключ разработчика' = DATA STRING ();
+solutionInfo 'Метка технологического партнера' = DATA STRING ();
 useTestSignature 'Использовать тестовый сертификат для подписи' = DATA BOOLEAN ();
 
 CLASS User 'Пользователь Диадока';
@@ -35,11 +36,13 @@ token = DATA STRING (User);
 tokenDateTime = DATA DATETIME (User);
 
 httpHeaders(TEXT name) = CASE
-    WHEN name == 'Authorization' THEN 'DiadocAuth ddauth_api_client_id=' + clientId();
+    WHEN name == 'Authorization' THEN 'DiadocAuth ddauth_api_client_id=' + clientId()
+    WHEN name == 'X-Solution-Info' THEN solutionInfo();
 
 httpHeadersToken(TEXT name) = CASE
     WHEN name == 'Authorization' THEN 'DiadocAuth ddauth_api_client_id=' + clientId() + ',ddauth_token=' + token()
-    WHEN name == 'Accept' THEN 'application/json';
+    WHEN name == 'Accept' THEN 'application/json'
+    WHEN name == 'X-Solution-Info' THEN solutionInfo();
 
 getToken (User u) {
     IF NOT tokenDateTime(u) > sumMinutes(currentDateTime(), -480) OR NOT token(u) THEN { 
@@ -73,7 +76,7 @@ DESIGN employee {
 }
 
 EXTEND FORM integrationData
-    PROPERTIES urlDiadoc = url(), clientIdDiadoc = clientId(), useTestSignature()
+    PROPERTIES urlDiadoc = url(), clientIdDiadoc = clientId(), solutionInfo(), useTestSignature()
 ;
 
 
@@ -83,6 +86,7 @@ DESIGN integrationData {
             caption = 'Диадок API';
             MOVE PROPERTY(urlDiadoc);
             MOVE PROPERTY(clientIdDiadoc);
+            MOVE PROPERTY(solutionInfo());
             MOVE PROPERTY(useTestSignature());
         }
     }
