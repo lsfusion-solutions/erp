@@ -1752,15 +1752,30 @@ EXTEND FORM internetOrders
 ;
 
 EXTEND FORM pickingDashboard
-    PROPERTIES (p) TOOLBAR SHOWIF isWBOrderPicking(p) AND wbSupplyId(p) sendSupplyToDeliver, getSupplyInfo, getOrdersInSupply, deleteSupplyFBS,
+    PROPERTIES (p) SHOWIF isWBOrderPicking(p) AND wbSupplyId(p) sendSupplyToDeliver, getSupplyInfo, getOrdersInSupply, deleteSupplyFBS,
         manageSupplyBoxes SHOWIF isWBOrderPicking(p) AND wbSupplyId(p) AND isPvzDelivery(p),
-        getSupplyBarcode SHOWIF isWBOrderPicking(p) AND wbSupplyId(p) AND (status(p) == StatusPicking.deliver OR 
+        getSupplyBarcode SHOWIF isWBOrderPicking(p) AND wbSupplyId(p) AND (status(p) == StatusPicking.deliver OR
             status(p) == StatusPicking.closed) AND NOT wbSupplyBarcodeFile(p),
         openWBSupplyBarcodeFile SHOWIF wbSupplyBarcodeFile(p)
     PROPERTIES (p) READONLY SHOWIF isWBOrderPicking(p) AND wbSupplyId(p) wbSupplyBarcode, wbSupplyBarcodeFile
 
     PROPERTIES(o) SHOWIF isWBOrderFBS(o) openSticker DRAW o TOOLBAR
 ;
+
+DESIGN pickingDashboard {
+    specification {
+        NEW wbActions {
+            caption = 'Действия WB';
+            MOVE PROPERTY (sendSupplyToDeliver(p));
+            MOVE PROPERTY (getSupplyInfo(p));
+            MOVE PROPERTY (getOrdersInSupply(p));
+            MOVE PROPERTY (deleteSupplyFBS(p));
+            MOVE PROPERTY (manageSupplyBoxes(p));
+            MOVE PROPERTY (getSupplyBarcode(p));
+            MOVE PROPERTY (openWBSupplyBarcodeFile(p));
+        }
+    }
+}
 
 DESIGN internetOrders {
     documentDetail {
@@ -1922,5 +1937,11 @@ createInvoice 'Создать накладную продажа' (Picking p) {
 showCreateInvoice (Picking p) = isWBOrderPicking(p) AND pickingQuantityInternetOrderDetail(p) AND NOT saleInvoiceWB(p);
 
 EXTEND FORM pickingDashboard
-    PROPERTIES(p) SHOWIF showCreateInvoice(p) createInvoice DRAW p TOOLBAR 
+    PROPERTIES(p) SHOWIF showCreateInvoice(p) createInvoice
 ;
+
+DESIGN pickingDashboard {
+    wbActions {
+        MOVE PROPERTY (createInvoice(p));
+    }
+}
