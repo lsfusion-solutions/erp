@@ -339,6 +339,10 @@ EXTEND FORM vetDocuments
     PROPERTIES READONLY seriesNumberInvoicePDGestori(pid), dateInvoicePDGestori(pid), postedInvoicePDGestori(pid)
     PROPERTIES READONLY volumePidGestori = VetisPurchase.volume(pid, o)
     FILTERS VetisPurchase.volume(pid, o)
+
+    OBJECTS ic = IncomingConsignment
+    PROPERTIES(ic) READONLY objectClassName, deliveryDate, seriesNumberInvoiceIC, dateInvoiceIC
+    FILTERS vetDocument(ic) = o
 ;
 
 DESIGN vetDocuments {
@@ -352,7 +356,11 @@ DESIGN vetDocuments {
             tabbed = TRUE;
             fill = 0.4;
             MOVE BOX(rd) { caption = 'Связанные документы'; }
-            MOVE BOX(pid) { caption = 'Связанные документы системы'; }
+            NEW systemDocsListGestori {
+                caption = 'Связанные документы системы';
+                MOVE BOX(pid) { caption = 'Накладные закупки'; }
+                MOVE BOX(ic) { caption = 'Входящие партии'; }
+            }
         }
     }
     PROPERTY(expiryDate(o)) { hide = TRUE; }
@@ -768,6 +776,10 @@ EXTEND FORM vetDocument
     PROPERTIES READONLY seriesNumberInvoicePDGestori(pid), dateInvoicePDGestori(pid), postedInvoicePDGestori(pid)
     PROPERTIES READONLY volumePidVDGestori = VetisPurchase.volume(pid, o)
     FILTERS VetisPurchase.volume(pid, o)
+
+    OBJECTS ic = IncomingConsignment
+    PROPERTIES(ic) READONLY objectClassName, deliveryDate, seriesNumberInvoiceIC, dateInvoiceIC
+    FILTERS vetDocument(ic) = o
 ;
 
 DESIGN vetDocument {
@@ -842,7 +854,8 @@ DESIGN vetDocument {
         }
         NEW systemDocsGestori {
             caption = 'Связанные документы';
-            MOVE BOX(pid);
+            MOVE BOX(pid) { caption = 'Накладные закупки'; }
+            MOVE BOX(ic) { caption = 'Входящие партии'; }
         }
     }
     referenceDocument { caption = 'Связанные документы'; }
