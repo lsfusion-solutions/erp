@@ -1690,7 +1690,11 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             for (DiscountCard d : discountCardList) {
                 if (notInterrupted()) {
                     Integer clientId = getClientId(d);
-                    Integer clientGroupId = nvl(getClntGrpId(d.extInfo), isSocial(d) ? 7 : 1); //если группа не задана в extInfo: обычные клиенты - 1, социальные - 7
+                    Integer extClntGrpId = getClntGrpId(d.extInfo);
+                    boolean social = isSocial(d);
+                    Integer clientGroupId = nvl(extClntGrpId, social ? 7 : 1); //если группа не задана в extInfo: обычные клиенты - 1, социальные - 7
+                    astronLogger.info(String.format("exportClnt: CLNTID %s, card %s, clntGrpId %s, isSocial %s -> CLNTGRPID %s, extInfo %s",
+                            clientId, d.numberDiscountCard, extClntGrpId, social, clientGroupId, d.extInfo)); //временный лог, убрать после разбора CLNTGRPID
                     String clientName = nvl(trim(d.nameDiscountCard, 50), "");
                     String clientBirthday = d.birthdayContact != null ? d.birthdayContact.format(dateFormatter) + "000000" : null;
                     int delflag = getLocked(d.extInfo);
