@@ -8,7 +8,7 @@ NAMESPACE Vetis;
 
 fullName 'Наименование полное' = DATA ISTRING (BusinessEntity) CHARWIDTH 100;
 status 'Статус Ветис' = DATA STRING[5] (BusinessEntity) CHARWIDTH 5;
-uuid 'UUID ХС' = DATA STRING (BusinessEntity) CHARWIDTH 36; // 1.16, служебное — на формы не выводится
+uuid 'UUID ХС' = DATA STRING (BusinessEntity) CHARWIDTH 36; // служебное — на формы не выводится
 
 showFio(BusinessEntity b) += type(b) = '2' OR type(b) = '3';
 readonlyGuid(BusinessEntity b) += TRUE IF guid(b);
@@ -19,7 +19,7 @@ typeDescription 'Тип ХС' (BusinessEntity b) = CASE
     WHEN type(b) = '3' THEN 'ИП'
     ELSE type(b);
 
-// 2.1.6: Наименование и Наименование полное — только для ЮЛ (тип = 1)
+// Наименование и Наименование полное — только для ЮЛ (тип = 1)
 isLegalEntityBE 'ЮЛ' (BusinessEntity b) = type(b) = '1';
 nameBE 'Наименование' (BusinessEntity b) = name(b);
 
@@ -76,7 +76,7 @@ getBusinessEntityByGUID 'Обновить ХС' (BusinessEntity b) {
         }
         IMPORT getBusinessEntityByGuidResponse XML FROM response();
         IF beStatus() THEN status(b) <- beStatus();
-        IF beUuid() THEN uuid(b) <- beUuid(); // 1.16.1
+        IF beUuid() THEN uuid(b) <- beUuid();
         IF beType() THEN type(b) <- beType();
         IF beName() THEN name(b) <- beName();
         IF beFullName() THEN fullName(b) <- beFullName();
@@ -86,7 +86,7 @@ getBusinessEntityByGUID 'Обновить ХС' (BusinessEntity b) {
         IF beOgrn() THEN ogrn(b) <- STRING[15](beOgrn());
         IF beAddressView() THEN addressView(b) <- beAddressView();
         APPLY;
-        // 1.15: после загрузки данных по ХС — запрос площадок ХС
+        // после загрузки данных по ХС — запрос площадок ХС
         IF name(b) THEN getActivityLocationList(b);
     }
 }
@@ -138,7 +138,7 @@ afterGetBusinessEntityList(BusinessEntity b, FILE response) + {
     IMPORT getBusinessEntityListExtResponse XML FROM response;
     IF guid(0) THEN {
         status(b) <- statusL(0);
-        uuid(b) <- uuidL(0); // 1.16.1
+        uuid(b) <- uuidL(0);
         name(b) <- ISTRING(OVERRIDE nameL(0), fullNameL(0));
         Vetis.inn(b) <- STRING[12](inn(0));
         Vetis.fullName(b) <- ISTRING(fullNameL(0));
@@ -189,8 +189,8 @@ loadBusinessEntities 'Загрузить ХС' () {
             }
             IF (GROUP SUM 1 IF guid(INTEGER i)) THEN
                 MESSAGE 'Найдено: ' + (GROUP SUM 1 IF guid(INTEGER i)) + ' хозяйствующих субъектов';
-            APPLY NESTED LOCAL; // значения ответа нужны циклу 1.16.2 ниже
-            // 1.16.2: UUID ХС не задан или отличается — выполнить запрос данных по ХС (byGuid запишет uuid и площадки — 1.15)
+            APPLY NESTED LOCAL; // значения ответа нужны циклу дозагрузки ниже
+            // UUID ХС не задан или отличается — выполнить запрос данных по ХС (byGuid запишет uuid и подтянет площадки)
             FOR BusinessEntity b = businessEntity(guid(INTEGER i)) AND NOT uuid(b) = uuidL(i) DO
                 getBusinessEntityByGUID(b);
         }
@@ -262,7 +262,7 @@ loadBusinessEntityByGLN 'Загрузить ХС по GLN' () {
     }
 }
 
-// --- Выбор ХС в форме организации (п.1.8) ---
+// --- Выбор ХС в форме организации ---
 
 filterOwnForLE = DATA LOCAL BOOLEAN();
 
@@ -281,7 +281,7 @@ changeBusinessEntityLE(LegalEntity l) + {
 // --- Запрет удаления и изменения GUID ---
 
 CONSTRAINT DROPPED(b IS BusinessEntity) AND (PREV(own(b)) OR (GROUP SUM 1 IF PREV(businessEntity(LegalEntity l)) = b)
-        OR (GROUP SUM 1 IF PREV(owner(Enterprise e)) = b)) // 1.14: связь с площадками
+        OR (GROUP SUM 1 IF PREV(owner(Enterprise e)) = b)) // связь с площадками
     MESSAGE 'Невозможно удалить: хозяйствующий субъект является собственным, связан с организацией или площадками';
 
 CONSTRAINT SETCHANGED(guid(BusinessEntity b)) AND PREV(guid(b))

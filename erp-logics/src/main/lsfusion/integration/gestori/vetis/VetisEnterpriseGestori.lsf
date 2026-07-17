@@ -123,7 +123,7 @@ FORM getEnterpriseDetailResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/s
     PROPERTIES() IN getEnterpriseByGuidResponseOwner eOwnerGuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
 ;
 
-// --- 2.7 (Ветис28): связь «ХС ведёт деятельность на площадке» ---
+// --- Связь «ХС ведёт деятельность на площадке» ---
 // владелец площадки (dt:owner) может быть другим ХС — площадки деятельности иначе не видны во вкладке «Площадки»
 
 inActivity 'Ведёт деятельность' = DATA BOOLEAN (BusinessEntity, Enterprise);
@@ -152,23 +152,23 @@ EXTEND FORM enterprises
     PROPERTIES(o) READONLY nameActivityBEs
 ;
 
-// --- 1.9: проверка связи площадки с ХС после загрузки данных ---
+// --- Проверка связи площадки с ХС после загрузки данных ---
 
 checkEnterpriseOwnerGestori (Enterprise e, STRING ownerGuid) {
-    // 1.9.1: связь с ХС есть в данных Ветис, но ссылка отсутствует или указывает на другой ХС
+    // связь с ХС есть в данных Ветис, но ссылка отсутствует или указывает на другой ХС
     IF ownerGuid AND NOT guid(owner(e)) = ownerGuid THEN {
         IF NOT businessEntity(ownerGuid) THEN {
-            // 1.9.3: экземпляр ХС не найден — создать и выполнить запрос ХС по GUID
+            // экземпляр ХС не найден — создать и выполнить запрос ХС по GUID
             NEWSESSION {
                 NEW b = BusinessEntity {
                     guid(b) <- ownerGuid;
                 }
                 APPLY;
             }
-            // 1.9.4: запрос площадок ХС при успешной загрузке — внутри getBusinessEntityByGUID (Ветис28 1.15)
+            // запрос площадок ХС при успешной загрузке — внутри getBusinessEntityByGUID 
             getBusinessEntityByGUID(businessEntity(ownerGuid));
         }
-        // 1.9.2: обновить у площадки ссылку на экземпляр ХС
+        // обновить у площадки ссылку на экземпляр ХС
         IF businessEntity(ownerGuid) THEN NEWSESSION {
             owner(e) <- businessEntity(ownerGuid);
             APPLY;
@@ -316,8 +316,8 @@ loadEnterpriseByGLN 'Загрузить площадку по GLN' () {
                     IF businessEntity(glnEntOwnerGuid()) THEN owner(e) <- businessEntity(glnEntOwnerGuid());
                 }
             }
-            APPLY NESTED LOCAL; // glnEntGuid/glnEntOwnerGuid нужны проверке 1.9 ниже
-            // 1.9: проверка связи площадки с ХС
+            APPLY NESTED LOCAL; // glnEntGuid/glnEntOwnerGuid нужны проверке связи ниже
+            // проверка связи площадки с ХС
             checkEnterpriseOwnerGestori(enterprise(glnEntGuid()), glnEntOwnerGuid());
         }
     }
@@ -362,11 +362,11 @@ loadEnterpriseFromVetis 'Загрузить площадку' () {
                 MESSAGE 'Найдено: ' + (GROUP SUM 1 IF entGuid(INTEGER i) AND entLast(i) = 'true') + ' площадок';
             ELSE
                 MESSAGE 'Площадки не найдены';
-            APPLY NESTED LOCAL; // значения ответа нужны циклам 1.11.2/1.9 ниже
-            // 1.11.2: UUID не задан или отличается — выполнить запрос данных по площадке в Ветис
+            APPLY NESTED LOCAL; // значения ответа нужны циклам дозагрузки/проверки ниже
+            // UUID не задан или отличается — выполнить запрос данных по площадке в Ветис
             FOR Enterprise e = enterprise(entGuid(INTEGER i)) AND entLast(i) = 'true' AND NOT uuid(e) = entUuid(i) DO
                 loadEnterpriseDetails(e);
-            // 1.9: проверка связи загруженных площадок с ХС
+            // проверка связи загруженных площадок с ХС
             FOR Enterprise e = enterprise(entGuid(INTEGER i)) AND entLast(i) = 'true' DO
                 checkEnterpriseOwnerGestori(e, STRING(entOwnerGuid(i)));
         }
@@ -396,12 +396,31 @@ DESIGN enterprises {
     PROPERTY(getEnterpriseList(o)) { caption = 'Обновить площадки'; }
     PROPERTY(guid(o)) { caption = 'GUID площадки'; }
     PROPERTY(nameOwner(o)) { caption = 'Наименование ХС'; }
-    PROPERTY(delete) { hide = TRUE; } // 1.10
+    PROPERTY(delete) { hide = TRUE; }
 }
+
+// --- Дозагрузка ХС-владельцев площадок при загрузке площадок ХС ---
+
+getActivityLocationListGestori 'Загрузить площадки' (BusinessEntity b) {
+    getActivityLocationList(b);
+    // владелец площадки отличается от запрошенного ХС и ещё не загружен — запросить данные ХС
+    FOR BusinessEntity ow IS BusinessEntity AND (GROUP SUM 1 IF inActivity(b, Enterprise e) AND owner(e) = ow) AND NOT ow = b AND NOT name[BusinessEntity](ow) DO
+        getBusinessEntityByGUID(ow);
+}
+
+// --- Склад/магазин, связанный с площадкой / организацией ---
+
+idStocksGestori 'Код склада/магазина' (Enterprise e) = GROUP CONCAT Stock.id(Stock st) IF enterprise(st) = e, ', ' ORDER st CHARWIDTH 10;
+nameStocksGestori 'Наименование склада/магазина' (Enterprise e) = GROUP CONCAT Stock.name(Stock st) IF enterprise(st) = e, ', ' ORDER st CHARWIDTH 30;
+
+idStocksLEGestori 'Код склада/магазина' (LegalEntity l) = GROUP CONCAT Stock.id(Stock st) IF legalEntity(st) = l, ', ' ORDER st CHARWIDTH 10;
 
 EXTEND FORM businessEntity
     PROPERTIES(e) READONLY kpp, nameOwner
     PROPERTIES READONLY inActivityNotOwner(o, e)
+    PROPERTIES(e) READONLY idStocksGestori, nameStocksGestori
+    PROPERTIES(l) READONLY idStocksLEGestori BEFORE name(l)
+    PROPERTIES(o) getActivityLocationListGestori DRAW e TOOLBAR
 ;
 
 DESIGN businessEntity {
@@ -412,5 +431,7 @@ DESIGN businessEntity {
     tabEnterprises {
         MOVE BOX(e);
     }
-    PROPERTY(getActivityLocationList(o)) { caption = 'Загрузить площадки'; }
+    PROPERTY(getActivityLocationList(o)) { hide = TRUE; }        // заменена на getActivityLocationListGestori
+    PROPERTY(guid(e)) { caption = 'GUID площадки'; }
+    PROPERTY(name(e)) { caption = 'Наименование площадки'; }
 }

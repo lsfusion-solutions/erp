@@ -32,7 +32,7 @@ packagingQuantity 'Кол-во единиц упаковки' = DATA INTEGER (Pr
 packagingVolume 'Объем единицы упаковки' = DATA NUMERIC[16,6] (ProductItem);
 packagingUnit 'Ед.изм. объема единицы упаковки' = DATA STRING[30] (ProductItem);
 
-statusVetisGestori 'Статус Ветис' = DATA STRING[5] (ProductItem) CHARWIDTH 5; // 4.6
+statusVetisGestori 'Статус Ветис' = DATA STRING[5] (ProductItem) CHARWIDTH 5;
 
 EXTEND FORM productItem
     PROPERTIES(o) READONLY nameProductTypeGestori, nameProductGestori
@@ -42,7 +42,7 @@ EXTEND FORM productItem
     PROPERTIES(o) READONLY statusVetisGestori
 ;
 
-// 4.2: поля карточки в одну колонку в порядке тегов <vd:productItem>
+// поля карточки в одну колонку в порядке тегов <vd:productItem>
 DESIGN productItem {
     NEW mainColumnGestori FIRST {
         lines = 1;
@@ -141,7 +141,7 @@ deleteModifyProducerStockList 'Удалить номенклатуру' (Product
 
 // --- Блок 3: Форма редактирования ---
 
-// Item 16: Диалог выбора вида продукции с деревом классификатора Ветис
+// Диалог выбора вида продукции с деревом классификатора Ветис
 FORM selectSubProduct 'Выбор вида продукции'
     TREE tree pt = ProductType, p = Product
     PROPERTIES READONLY name(pt), name(p)
@@ -159,7 +159,7 @@ changeSubProduct(ProductItem pi) + {
         subProduct(pi) <- o;
 }
 
-// Item 14: Обязательные поля для собственной продукции
+// Обязательные поля для собственной продукции
 // producer: требуем при создании (ownProductGestori зависит от producer, поэтому нельзя проверять через ownProductGestori)
 CONSTRAINT SET(ProductItem p IS ProductItem) AND NOT producer(p) AND NOT skipOwnConstraint()
     MESSAGE 'Укажите Производителя';
@@ -170,7 +170,7 @@ CONSTRAINT ownProductGestori(ProductItem p) AND NOT owner(p) AND NOT skipOwnCons
 CONSTRAINT ownProductGestori(ProductItem p) AND NOT (GROUP SUM 1 IF in(p, Enterprise e)) AND NOT skipOwnConstraint()
     MESSAGE 'Для собственной продукции обязательно укажите хотя бы одну Площадку';
 
-// Item 16 (авто-заполнение): кнопка создания с предустановленным видом продукции по выбранному узлу дерева
+// кнопка создания с предустановленным видом продукции по выбранному узлу дерева
 createProductItemGestori 'Добавить' (SubProduct sp) {
     NEWSESSION {
         NEW p = ProductItem {
@@ -184,7 +184,7 @@ EXTEND FORM productItems
     PROPERTIES DRAW o TOOLBAR createProductItemGestori(sp)
 ;
 
-// --- Блок 4: Действия в справочнике (пп. 17-19) ---
+// --- Блок 4: Действия в справочнике ---
 
 // п.18: ХС — только собственные; если площадка выбрана — только её ХС-владелец
 FORM dialogGetProductItemBE 'Хозяйствующий субъект'
@@ -218,7 +218,7 @@ changeGetProductItemListEnterprise() + {
     }
 }
 
-// 5.5: выбор ХС-владельца — только собственные ХС
+// выбор ХС-владельца — только собственные ХС
 FORM dialogGetProductItemOwner 'Хозяйствующий субъект'
     OBJECTS o = BusinessEntity
     PROPERTIES(o) READONLY guid, name
@@ -251,7 +251,7 @@ hideDeleteProductItem(ProductItem o) += TRUE IF o IS ProductItem;
 // Производитель и Владелец становятся только для чтения после регистрации в Ветис (uuid заполнен)
 readonlyProductItemOwner(ProductItem i) += TRUE IF uuid(i) AND ownProductGestori(i);
 
-// --- 1.1: производственная площадка + автозаполнение списка площадок ---
+// --- Производственная площадка + автозаполнение списка площадок ---
 
 productionStockGestori 'Производственная площадка' = DATA BOOLEAN (Stock);
 
@@ -311,12 +311,12 @@ EXTEND FORM productItems
     PROPERTIES(o) TOOLBAR deleteProductItemGestori SHOWIF NOT isExported(o) DRAW o
 ;
 
-// 5.3: переименование кнопки загрузки
+// переименование кнопки загрузки
 DESIGN productItems {
     PROPERTY(getProductItemList()) { caption = 'Загрузить номенклатуру'; }
 }
 
-// --- 5.6: запрос связанных справочников после загрузки номенклатуры ---
+// --- Запрос связанных справочников после загрузки номенклатуры ---
 
 // доп. парсинг списочного ответа: продукция (dt:product), ХС-владелец (dt:tmOwner) и ед.изм. (dt:unit)
 productGuidPIGestori = DATA LOCAL STRING (INTEGER);
@@ -333,6 +333,11 @@ EXTEND FORM getProductItemListResponse
     PROPERTIES(i) unitGuidPIGestori EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN piListUnitGestori
 ;
 
+// UUID справочников (служебные, для определения необходимости запроса)
+uuid 'UUID' = DATA STRING[50] (Product) CHARWIDTH 36;
+uuid 'UUID' = DATA STRING[50] (SubProduct) CHARWIDTH 36;
+uuid 'UUID' = DATA STRING[50] (Unit) CHARWIDTH 36;
+
 searchDictGuidGestori = DATA LOCAL STRING();
 
 // Продукция (GetProductByGuid); Тип продукции — перечисление, заполняется из ответа
@@ -347,6 +352,7 @@ GROUP getProductByGuidResponse EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry
 GROUP getProductByGuidResponseP EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:product' : getProductByGuidResponse;
 
 prGuidBGG = DATA LOCAL STRING();
+prUuidBGG = DATA LOCAL STRING();
 prNameBGG = DATA LOCAL STRING();
 prActiveBGG = DATA LOCAL STRING();
 prTypeBGG = DATA LOCAL STRING();
@@ -354,6 +360,7 @@ prTypeBGG = DATA LOCAL STRING();
 FORM getProductByGuidResponseGestori FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
     PROPERTIES() IN getProductByGuidResponseP
         prGuidBGG EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
+        prUuidBGG EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid',
         prActiveBGG EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:active',
         prNameBGG EXTID 'dt:name',
         prTypeBGG EXTID 'dt:productType'
@@ -382,6 +389,7 @@ loadProductByGuidGestori (STRING g) {
         }
         FOR Product p = product(prGuidBGG()) DO {
             name(p) <- ISTRING(prNameBGG());
+            uuid(p) <- STRING[50](prUuidBGG());
             productType(p) <- productType(INTEGER(prTypeBGG()));
             inactive(p) <- TRUE IF prActiveBGG() = 'false';
         }
@@ -401,6 +409,7 @@ GROUP getSubProductByGuidResponse EXTID 'v2=http://api.vetrf.ru/schema/cdm/regis
 GROUP getSubProductByGuidResponseSP EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:subProduct' : getSubProductByGuidResponse;
 
 spGuidBGG = DATA LOCAL STRING();
+spUuidBGG = DATA LOCAL STRING();
 spNameBGG = DATA LOCAL STRING();
 spActiveBGG = DATA LOCAL STRING();
 spProductGuidBGG = DATA LOCAL STRING();
@@ -408,6 +417,7 @@ spProductGuidBGG = DATA LOCAL STRING();
 FORM getSubProductByGuidResponseGestori FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
     PROPERTIES() IN getSubProductByGuidResponseSP
         spGuidBGG EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
+        spUuidBGG EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid',
         spActiveBGG EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:active',
         spNameBGG EXTID 'dt:name',
         spProductGuidBGG EXTID 'dt:productGuid'
@@ -439,6 +449,7 @@ loadSubProductByGuidGestori (STRING g) {
         }
         FOR SubProduct s = subProduct(spGuidBGG()) DO {
             name(s) <- ISTRING(spNameBGG());
+            uuid(s) <- STRING[50](spUuidBGG());
             IF product(spProductGuidBGG()) THEN product(s) <- product(spProductGuidBGG());
             inactive(s) <- TRUE IF spActiveBGG() = 'false';
         }
@@ -458,6 +469,7 @@ GROUP getUnitByGuidResponse EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws
 GROUP getUnitByGuidResponseU EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:unit' : getUnitByGuidResponse;
 
 unGuidBGG = DATA LOCAL STRING();
+unUuidBGG = DATA LOCAL STRING();
 unNameBGG = DATA LOCAL STRING();
 unFullNameBGG = DATA LOCAL STRING();
 unCommonGuidBGG = DATA LOCAL STRING();
@@ -466,6 +478,7 @@ unFactorBGG = DATA LOCAL STRING();
 FORM getUnitByGuidResponseGestori FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
     PROPERTIES() IN getUnitByGuidResponseU
         unGuidBGG EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
+        unUuidBGG EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid',
         unNameBGG EXTID 'dt:name',
         unFullNameBGG EXTID 'dt:fullName',
         unCommonGuidBGG EXTID 'dt:commonUnitGuid',
@@ -495,6 +508,7 @@ loadUnitByGuidGestori (STRING g) {
         }
         FOR Unit u = unit(unGuidBGG()) DO {
             name(u) <- ISTRING(unNameBGG());
+            uuid(u) <- STRING[50](unUuidBGG());
             fullName(u) <- ISTRING(unFullNameBGG());
             commonUnit(u) <- unit(unCommonGuidBGG());
             factor(u) <- INTEGER(unFactorBGG());
@@ -503,7 +517,7 @@ loadUnitByGuidGestori (STRING g) {
     }
 }
 
-// ХС (producer/tmOwner): создать при отсутствии, запросить данные; площадки ХС грузит сам getBusinessEntityByGUID (Ветис28 1.15)
+// ХС (producer/tmOwner): создать при отсутствии, запросить данные; площадки ХС грузит сам getBusinessEntityByGUID 
 loadDictBusinessEntityGestori (STRING g) {
     IF NOT g THEN RETURN;
     IF NOT businessEntity(g) THEN NEWSESSION {
@@ -585,14 +599,11 @@ FORM inputProductItemGuid 'Запрос номенклатуры по GUID'
     PROPERTIES() searchProductItemGuid
 ;
 
-loadProductItemByGuid 'Загрузить номенклатуру по GUID' () {
-    DIALOG inputProductItemGuid DO {
-        IF NOT searchProductItemGuid() THEN {
-            MESSAGE 'Укажите GUID номенклатуры';
-            RETURN;
-        }
-        NEWSESSION NESTED LOCAL {
+// ядро без диалога — используется и при дозагрузке из ВСД 
+loadProductItemByGuidCoreGestori (STRING g) {
+    NEWSESSION NESTED LOCAL {
             skipOwnConstraint() <- TRUE;
+            searchProductItemGuid() <- g;
             LOCAL requestFile = FILE();
             EXPORT getProductItemByGuidRequest XML TO requestFile;
             LOCAL response = FILE();
@@ -631,7 +642,7 @@ loadProductItemByGuid 'Загрузить номенклатуру по GUID' ()
             }
             APPLY NESTED LOCAL; // LOCAL-значения ответа нужны дозагрузке ниже
 
-            // 5.6: дозагрузка связанных справочников (продукция — до вида продукции)
+            // дозагрузка связанных справочников (продукция — до вида продукции)
             loadDictBusinessEntityGestori(piProducerGuidBG());
             loadDictBusinessEntityGestori(piTmOwnerGuidBG());
             IF piProductGuidBG() AND (NOT product(piProductGuidBG()) OR NOT name(product(piProductGuidBG()))) THEN
@@ -645,7 +656,16 @@ loadProductItemByGuid 'Загрузить номенклатуру по GUID' ()
                 subProduct(p) <- subProduct(piSubProductGuidBG());
                 APPLY;
             }
+    }
+}
+
+loadProductItemByGuid 'Загрузить номенклатуру по GUID' () {
+    DIALOG inputProductItemGuid DO {
+        IF NOT searchProductItemGuid() THEN {
+            MESSAGE 'Укажите GUID номенклатуры';
+            RETURN;
         }
+        loadProductItemByGuidCoreGestori(searchProductItemGuid());
     }
 }
 

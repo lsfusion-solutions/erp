@@ -43,7 +43,7 @@ DESIGN applicationRequests {
     }
 }
 
-// --- 1.4.1: Запрос записей журнала — отправка и сообщение только после успешного сохранения заявки ---
+// --- Запрос записей журнала — отправка и сообщение только после успешного сохранения заявки ---
 
 createdSERequest = DATA LOCAL BOOLEAN (StockEntryListRequest);
 
@@ -96,7 +96,7 @@ DESIGN applicationRequests {
     }
 }
 
-// --- 1.3.2: blankFilter — запрашивать только записи с ненулевым объёмом ---
+// --- blankFilter — запрашивать только записи с ненулевым объёмом ---
 
 EXTEND FORM getStockEntryListRequest
     PROPERTIES IN searchPattern ='NOT_BLANK' EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:blankFilter'
@@ -231,7 +231,7 @@ CONSTRAINT SET(VetDocumentListRequest r IS VetDocumentListRequest) AND
     (GROUP MAX VetDocumentListRequest rr IF enterprise(rr) = enterprise(r) AND beginDate(rr) = beginDate(r) AND endDate(rr) = endDate(r))
     MESSAGE 'Заявка с такими же параметрами уже создана и ожидает обмена с Ветис';
 
-// --- 1.4: Запрет повторного создания заявки записей журнала ---
+// --- Запрет повторного создания заявки записей журнала ---
 
 hasPendingSERequest (Enterprise e, DATETIME bd, DATETIME ed) =
     GROUP MAX StockEntryListRequest r
@@ -242,7 +242,7 @@ CONSTRAINT SET(StockEntryListRequest r IS StockEntryListRequest) AND
     (GROUP MAX StockEntryListRequest rr IF enterprise(rr) = enterprise(r) AND beginDate(rr) = beginDate(r) AND endDate(rr) = endDate(r))
     MESSAGE 'Заявка с такими же параметрами уже создана и ожидает обмена с Ветис';
 
-// --- 1.5: Запрет параллельной обработки (не создавать пока есть незавершённая по той же площадке) ---
+// --- Запрет параллельной обработки (не создавать пока есть незавершённая по той же площадке) ---
 
 CONSTRAINT SET(VetDocumentListRequest r IS VetDocumentListRequest) AND
     (GROUP SUM 1 IF notCompleted(VetDocumentListRequest rr) AND enterprise(rr) = enterprise(r) AND rr != r)
@@ -252,7 +252,7 @@ CONSTRAINT SET(StockEntryListRequest r IS StockEntryListRequest) AND
     (GROUP SUM 1 IF notCompleted(StockEntryListRequest rr) AND enterprise(rr) = enterprise(r) AND rr != r)
     MESSAGE 'Для данной площадки уже есть незавершённая заявка на получение записей журнала';
 
-// --- 1.6: Запрет создания заявки по недоступной пользователю площадке ---
+// --- Запрет создания заявки по недоступной пользователю площадке ---
 
 CONSTRAINT SETCHANGED(enterprise(VetDocumentListRequest r)) AND limitAccess(currentUser()) AND
     NOT accessCompany(currentUser(), enterprise(r))
@@ -262,7 +262,7 @@ CONSTRAINT SETCHANGED(enterprise(StockEntryListRequest r)) AND limitAccess(curre
     NOT accessCompany(currentUser(), enterprise(r))
     MESSAGE 'Нет доступа к данной площадке';
 
-// --- 1.7/1.8: Площадка и GUID площадки в списке заявок ---
+// --- Площадка и GUID площадки в списке заявок ---
 
 nameEnterpriseRequest 'Площадка' (ApplicationRequest r) =
     OVERRIDE name(enterprise(r AS VetDocumentListRequest)),
