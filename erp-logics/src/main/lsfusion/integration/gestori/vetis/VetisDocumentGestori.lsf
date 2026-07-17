@@ -3,7 +3,8 @@ MODULE VetisDocumentGestori;
 REQUIRE VetisDocument, VetisStock, VetisStockEntry, VetisIncomingConsignment,
         VetisProcessIncomingConsignment, VetisWithdrawVetDocument, VetisItem,
         VetisDocumentImport, VetisPurchaseShipment, VetisStockEntryGestori,
-        VetisEnterpriseGestori, VetisProductItemGestori, VetisPurposeImport;
+        VetisEnterpriseGestori, VetisProductItemGestori, VetisPurposeImport,
+        VetisSaleReturnInvoice, VetisSaleShipment, VetisPurchaseReturnShipment;
 
 NAMESPACE Vetis;
 
@@ -75,6 +76,11 @@ dateInvoiceIC 'Дата накладной' (IncomingConsignment c) =
 seriesNumberInvoicePDGestori 'Номер накладной' (Purchase.InvoiceDetail pid) = seriesNumber(invoice(pid));
 dateInvoicePDGestori 'Дата накладной' (Purchase.InvoiceDetail pid) = date(invoice(pid));
 postedInvoicePDGestori 'Проведена' (Purchase.InvoiceDetail pid) = isPosted(pid);
+
+// связь ВСД со строками накладной продажи-возврата (приём возврата от покупателя по ВСД)
+seriesNumberInvoiceSRGestori 'Номер накладной' (SaleReturn.InvoiceDetail srd) = seriesNumber(invoice(srd));
+dateInvoiceSRGestori 'Дата накладной' (SaleReturn.InvoiceDetail srd) = date(invoice(srd));
+postedInvoiceSRGestori 'Проведена' (SaleReturn.InvoiceDetail srd) = isPosted(srd);
 
 // запрет удаления ВСД при наличии связей
 hasInvoiceDetailVDGestori (VetDocument d) = GROUP SUM 1 IF VetisPurchase.volume(Purchase.InvoiceDetail pid, d);
@@ -340,9 +346,26 @@ EXTEND FORM vetDocuments
     PROPERTIES READONLY volumePidGestori = VetisPurchase.volume(pid, o)
     FILTERS VetisPurchase.volume(pid, o)
 
+    OBJECTS srd = SaleReturn.InvoiceDetail
+    PROPERTIES READONLY seriesNumberInvoiceSRGestori(srd), dateInvoiceSRGestori(srd), postedInvoiceSRGestori(srd)
+    PROPERTIES READONLY volumeSrdGestori = VetisSaleReturn.volume(srd, o)
+    FILTERS VetisSaleReturn.volume(srd, o)
+
+    OBJECTS ocp = OutgoingConsignment
+    PROPERTIES(ocp) READONLY waybillNumber, waybillDate, volume
+    FILTERS vetDocument(ocp) = o AND ocp IS VetisPurchaseReturn.ShipmentOutgoingConsignment
+
+    OBJECTS ocs = OutgoingConsignment
+    PROPERTIES(ocs) READONLY waybillNumber, waybillDate, volume
+    FILTERS vetDocument(ocs) = o AND ocs IS VetisSale.ShipmentOutgoingConsignment
+
     OBJECTS ic = IncomingConsignment
     PROPERTIES(ic) READONLY objectClassName, deliveryDate, seriesNumberInvoiceIC, dateInvoiceIC
     FILTERS vetDocument(ic) = o
+
+    OBJECTS oc = OutgoingConsignment
+    PROPERTIES(oc) READONLY objectClassName, nameConsignorEnterprise, waybillNumber, waybillDate, volume, numberStockEntry
+    FILTERS vetDocument(oc) = o
 ;
 
 DESIGN vetDocuments {
@@ -358,8 +381,19 @@ DESIGN vetDocuments {
             MOVE BOX(rd) { caption = 'Связанные документы'; }
             NEW systemDocsListGestori {
                 caption = 'Связанные документы системы';
-                MOVE BOX(pid) { caption = 'Накладные закупки'; }
-                MOVE BOX(ic) { caption = 'Входящие партии'; }
+                tabbed = TRUE;
+                fill = 1;
+                MOVE BOX(pid) { caption = 'Накладные закупки'; fill = 1; }
+                MOVE BOX(ocp) { caption = 'Накладные закупки-возврат'; fill = 1; }
+                MOVE BOX(ocs) { caption = 'Накладные продажи'; fill = 1; }
+                MOVE BOX(srd) { caption = 'Накладные продажи-возврат'; fill = 1; }
+            }
+            NEW partiesListGestori {
+                caption = 'Связанные партии';
+                tabbed = TRUE;
+                fill = 1;
+                MOVE BOX(ic) { caption = 'Входящие партии'; fill = 1; }
+                MOVE BOX(oc) { caption = 'Исходящие партии'; fill = 1; }
             }
         }
     }
@@ -777,9 +811,26 @@ EXTEND FORM vetDocument
     PROPERTIES READONLY volumePidVDGestori = VetisPurchase.volume(pid, o)
     FILTERS VetisPurchase.volume(pid, o)
 
+    OBJECTS srd = SaleReturn.InvoiceDetail
+    PROPERTIES READONLY seriesNumberInvoiceSRGestori(srd), dateInvoiceSRGestori(srd), postedInvoiceSRGestori(srd)
+    PROPERTIES READONLY volumeSrdVDGestori = VetisSaleReturn.volume(srd, o)
+    FILTERS VetisSaleReturn.volume(srd, o)
+
+    OBJECTS ocp = OutgoingConsignment
+    PROPERTIES(ocp) READONLY waybillNumber, waybillDate, volume
+    FILTERS vetDocument(ocp) = o AND ocp IS VetisPurchaseReturn.ShipmentOutgoingConsignment
+
+    OBJECTS ocs = OutgoingConsignment
+    PROPERTIES(ocs) READONLY waybillNumber, waybillDate, volume
+    FILTERS vetDocument(ocs) = o AND ocs IS VetisSale.ShipmentOutgoingConsignment
+
     OBJECTS ic = IncomingConsignment
     PROPERTIES(ic) READONLY objectClassName, deliveryDate, seriesNumberInvoiceIC, dateInvoiceIC
     FILTERS vetDocument(ic) = o
+
+    OBJECTS oc = OutgoingConsignment
+    PROPERTIES(oc) READONLY objectClassName, nameConsignorEnterprise, waybillNumber, waybillDate, volume, numberStockEntry
+    FILTERS vetDocument(oc) = o
 ;
 
 DESIGN vetDocument {
@@ -854,8 +905,19 @@ DESIGN vetDocument {
         }
         NEW systemDocsGestori {
             caption = 'Связанные документы';
-            MOVE BOX(pid) { caption = 'Накладные закупки'; }
-            MOVE BOX(ic) { caption = 'Входящие партии'; }
+            tabbed = TRUE;
+            fill = 1;
+            MOVE BOX(pid) { caption = 'Накладные закупки'; fill = 1; }
+            MOVE BOX(ocp) { caption = 'Накладные закупки-возврат'; fill = 1; }
+            MOVE BOX(ocs) { caption = 'Накладные продажи'; fill = 1; }
+            MOVE BOX(srd) { caption = 'Накладные продажи-возврат'; fill = 1; }
+        }
+        NEW partiesVDGestori {
+            caption = 'Связанные партии';
+            tabbed = TRUE;
+            fill = 1;
+            MOVE BOX(ic) { caption = 'Входящие партии'; fill = 1; }
+            MOVE BOX(oc) { caption = 'Исходящие партии'; fill = 1; }
         }
     }
     referenceDocument { caption = 'Связанные документы'; }
