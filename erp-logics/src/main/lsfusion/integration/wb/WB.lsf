@@ -90,7 +90,10 @@ onStarted() + {
         solution(StatusHTTP sh) <- 'Уменьшите количество объектов в запросе' WHERE sh == StatusHTTP.limitExceeded;
 
         name(StatusHTTP sh) <- 'Отсутствие в запросе параметра nmId/Размер ставки не изменен/т.д.' WHERE sh == StatusHTTP.missingParameter;
-        solution(StatusHTTP sh) <- 'Проверьте данные запроса. Данные запроса не должны противоречить друг другу' WHERE sh == StatusHTTP.missingParameter;        
+        solution(StatusHTTP sh) <- 'Проверьте данные запроса. Данные запроса не должны противоречить друг другу' WHERE sh == StatusHTTP.missingParameter;
+
+        name(StatusHTTP sh) <- 'Слишком много запросов' WHERE sh == StatusHTTP.manyRequests;
+        solution(StatusHTTP sh) <- 'Превышен глобальный лимит запросов Wildberries. Подождите ~60 сек и повторите. Ответ 4XX учитывается за 10 запросов, поэтому серия ошибок быстро расходует квоту. См. https://dev.wildberries.ru/openapi/api-information' WHERE sh == StatusHTTP.manyRequests;
         APPLY;
     }    
 }
@@ -120,6 +123,14 @@ onStarted() + {
 }
 
 extraDescriptionStatusHTTP = DATA LOCAL STRING ();
+
+// Тело 429-ответа WB: {"title":"too many requests","detail":"Limited by global limiter, ...","code":"...","requestId":"..."}
+title429 = DATA LOCAL STRING();
+detail429 = DATA LOCAL STRING();
+
+FORM importError429
+    PROPERTIES() title429 EXTID 'title', detail429 EXTID 'detail'
+;
 
 messageStatusHTTP (STRING statusCode) = CASE 
     WHEN INTEGER(statusCode) >= 500 AND INTEGER (statusCode) < 600 THEN 

@@ -50,13 +50,16 @@ updateBalanceItems 'Обновить(загрузить) остатки това
                 LOCAL exported = INTEGER ();
                 exported() <- 0;
 
-                WHILE exported() < (GROUP MAX index(Size s)) DO {
+                LOCAL stopOnLimit = BOOLEAN ();
+
+                WHILE exported() < (GROUP MAX index(Size s)) AND NOT stopOnLimit() DO {
                     EXPORT JSON FROM 'chrtId' = chrtID(Size s), 'amount' = overCurrentBalanceSize(s, w) WHERE
                         index(s) > exported() AND index(s) <= exported() + postItemsBalanceLimit();
 
                     fileToString(exportFile());
                     resultString() <- '\{"stocks":' + resultString() + '\}';
                     stringToFile(resultString(), 'UTF-8', 'json');
+                    logToFile('WB', 'PUT body: ' + resultString());
 
                     TRY {
                         EXTERNAL HTTP PUT url(CategoryRequest.marketplace) + '/api/v3/stocks/' + id(w) HEADERS httpHeaders PARAMS resultFile() TO response;
@@ -70,7 +73,13 @@ updateBalanceItems 'Обновить(загрузить) остатки това
                         messageStock() <- messageStatusHTTP(STRING(statusHttp()));
                     } CATCH {
                         logToFile('WB', messageCaughtException());
-                        IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 406 OR statusHttp() == 409 THEN {
+                        IF statusHttp() == 429 THEN {
+                            IMPORT importError429 JSON FROM response();
+                            stopOnLimit() <- TRUE;
+                            extraDescriptionStatusHTTP() <- OVERRIDE detail429(), title429();
+                            error(w) <- TRUE;
+                            errorText(w) <- OVERRIDE detail429(), title429();
+                        } ELSE IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 406 OR statusHttp() == 409 THEN {
                             IMPORT importError JSON FROM response();
                             extraDescriptionStatusHTTP() <- 'Остатки товаров не обновлены: ' + message();
                             error(w) <- TRUE;
@@ -83,6 +92,7 @@ updateBalanceItems 'Обновить(загрузить) остатки това
                         APPLY NESTED LOCAL;
                         exported() <- exported() + postTransferItemsLimit();
                     }
+                    IF NOT stopOnLimit() THEN sleep(200);
                 }
                 afterSendRequestIS();
             } ELSE {
@@ -119,9 +129,13 @@ deleteBalanceItems 'Удалить остатки товаров на WB' (Wareh
                 LOCAL exported = INTEGER ();
                 exported() <- 0;
 
-                WHILE exported() < (GROUP MAX index(Size s)) DO {
+                LOCAL stopOnLimit = BOOLEAN ();
+
+                WHILE exported() < (GROUP MAX index(Size s)) AND NOT stopOnLimit() DO {
                     stringToFile('\{"chrtIds":[' +  (GROUP CONCAT STRING(chrtID(Size s)) IF
                         index(s) > exported() AND index(s) <= exported() + postItemsBalanceLimit(), ',' ORDER s) + ']\}', 'UTF-8', 'json');
+                    fileToString(resultFile());
+                    logToFile('WB', 'DELETE body: ' + resultString());
 
                     TRY {
                         EXTERNAL HTTP DELETE url(CategoryRequest.marketplace) + '/api/v3/stocks/' + id(w) HEADERS httpHeaders PARAMS resultFile() TO response;
@@ -134,7 +148,13 @@ deleteBalanceItems 'Удалить остатки товаров на WB' (Wareh
                         messageStock() <- messageStatusHTTP(STRING(statusHttp()));
                     } CATCH {
                         logToFile('WB', messageCaughtException());
-                        IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                        IF statusHttp() == 429 THEN {
+                            IMPORT importError429 JSON FROM response();
+                            stopOnLimit() <- TRUE;
+                            extraDescriptionStatusHTTP() <- OVERRIDE detail429(), title429();
+                            error(w) <- TRUE;
+                            errorText(w) <- OVERRIDE detail429(), title429();
+                        } ELSE IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
                             IMPORT importError JSON FROM response();
                             extraDescriptionStatusHTTP() <- 'Остатки товаров не удалены: ' + message();
                             error(w) <- TRUE;
@@ -148,6 +168,7 @@ deleteBalanceItems 'Удалить остатки товаров на WB' (Wareh
                         exported() <- exported() + postTransferItemsLimit();
                     }
                     afterSendRequestIS();
+                    IF NOT stopOnLimit() THEN sleep(200);
                 }
             } ELSE {
                 MESSAGE 'Остатки товаров уже удалены';
@@ -241,9 +262,13 @@ postBalanceItems 'Получить остатки товаров с WB' (Warehou
                 LOCAL exported = INTEGER ();
                 exported() <- 0;
 
-                WHILE exported() < (GROUP MAX index(Size s)) DO {
+                LOCAL stopOnLimit = BOOLEAN ();
+
+                WHILE exported() < (GROUP MAX index(Size s)) AND NOT stopOnLimit() DO {
                     stringToFile('\{"chrtIds":[' + (GROUP CONCAT STRING(chrtID(Size s)) IF
                         index(s) > exported() AND index(s) <= exported() + postItemsBalanceLimit(), ',' ORDER s) + ']\}', 'UTF-8', 'json');
+                    fileToString(resultFile());
+                    logToFile('WB', 'POST body: ' + resultString());
 
                     TRY {
                         EXTERNAL HTTP POST url(CategoryRequest.marketplace) + '/api/v3/stocks/' + id(w) HEADERS httpHeaders PARAMS resultFile() TO response;
@@ -259,7 +284,13 @@ postBalanceItems 'Получить остатки товаров с WB' (Warehou
                         messageStock() <- messageStatusHTTP(STRING(statusHttp()));
                     } CATCH {
                         logToFile('WB', messageCaughtException());
-                        IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                        IF statusHttp() == 429 THEN {
+                            IMPORT importError429 JSON FROM response();
+                            stopOnLimit() <- TRUE;
+                            extraDescriptionStatusHTTP() <- OVERRIDE detail429(), title429();
+                            error(w) <- TRUE;
+                            errorText(w) <- OVERRIDE detail429(), title429();
+                        } ELSE IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
                             IMPORT importError JSON FROM response();
                             extraDescriptionStatusHTTP() <- 'Остатки товаров не получены: ' + message();
                             error(w) <- TRUE;
@@ -273,6 +304,7 @@ postBalanceItems 'Получить остатки товаров с WB' (Warehou
                         APPLY NESTED LOCAL;
                         exported() <- exported() + postTransferItemsLimit();
                     }
+                    IF NOT stopOnLimit() THEN sleep(200);
                 }
             } ELSE {
                 MESSAGE 'Нет товаров для получения остатков';

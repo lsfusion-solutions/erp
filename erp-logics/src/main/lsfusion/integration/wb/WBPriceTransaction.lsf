@@ -394,10 +394,12 @@ uploadPricesDiscounts 'Установить цены и скидки' () {
             LOCAL exported = INTEGER ();
             exported() <- 0;
 
-            WHILE exported() < (GROUP MAX index(Item i)) DO {
-                EXPORT JSON FROM 'nmID' = nmID(Item i), 'price' = price(i), 'discount' = discount(i) WHERE 
+            LOCAL stopOnLimit = BOOLEAN ();
+
+            WHILE exported() < (GROUP MAX index(Item i)) AND NOT stopOnLimit() DO {
+                EXPORT JSON FROM 'nmID' = nmID(Item i), 'price' = price(i), 'discount' = discount(i) WHERE
                     index(i) > exported() AND index(i) <= exported() + updatePricesDiscountsLimit();
-                
+
                 fileToString(exportFile());
                 resultString() <- '\{"data":' + resultString() + '\}';
                 stringToFile(resultString(), 'UTF-8', 'json');
@@ -410,6 +412,11 @@ uploadPricesDiscounts 'Установить цены и скидки' () {
                     message() <- messageStatusHTTP(STRING(statusHttp()));
                 } CATCH {
                     logToFile('WB', messageCaughtException());
+                    IF statusHttp() == 429 THEN {
+                        IMPORT importError429 JSON FROM response();
+                        stopOnLimit() <- TRUE;
+                        extraDescriptionStatusHTTP() <- OVERRIDE detail429(), title429();
+                    }
                     message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
                 } FINALLY {
                     afterSendRequestIS();
@@ -422,7 +429,7 @@ uploadPricesDiscounts 'Установить цены и скидки' () {
                             dateTime(t) <- currentDateTime();
                             user(t) <- currentUser();
                             status(t) <- PriceTransactionStatus.processing;
-                            
+
                             in(t, Item i) <- TRUE WHERE index(i) > exported() AND index(i) <= exported() + updatePricesDiscountsLimit();
                             price(t, Item i) <- price(i) WHERE in(t, i);
                             discount(t, Item i) <- discount(i) WHERE in(t, i);
@@ -436,6 +443,7 @@ uploadPricesDiscounts 'Установить цены и скидки' () {
                 }
 
                 exported() <- exported() + updatePricesDiscountsLimit();
+                IF NOT stopOnLimit() THEN sleep(200);
             }
         } ELSE {
             MESSAGE 'Отсутствуют данные для выгрузки';
@@ -468,7 +476,9 @@ uploadPricesSizes 'Установить цены для размеров' () {
             LOCAL exported = INTEGER ();
             exported() <- 0;
 
-            WHILE exported() < (GROUP MAX index(Size i)) DO {
+            LOCAL stopOnLimit = BOOLEAN ();
+
+            WHILE exported() < (GROUP MAX index(Size i)) AND NOT stopOnLimit() DO {
                 EXPORT JSON FROM 'nmID' = nmID(itemWB(Size i)), 'sizeID' = chrtID(i), 'price' = price(i) WHERE
                     index(i) > exported() AND index(i) <= exported() + updatePricesSizesLimit();
 
@@ -484,6 +494,11 @@ uploadPricesSizes 'Установить цены для размеров' () {
                     message() <- messageStatusHTTP(STRING(statusHttp()));
                 } CATCH {
                     logToFile('WB', messageCaughtException());
+                    IF statusHttp() == 429 THEN {
+                        IMPORT importError429 JSON FROM response();
+                        stopOnLimit() <- TRUE;
+                        extraDescriptionStatusHTTP() <- OVERRIDE detail429(), title429();
+                    }
                     message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
                 } FINALLY {
                     afterSendRequestIS();
@@ -509,6 +524,7 @@ uploadPricesSizes 'Установить цены для размеров' () {
                 }
 
                 exported() <- exported() + updatePricesSizesLimit();
+                IF NOT stopOnLimit() THEN sleep(200);
             }
         } ELSE {
             MESSAGE 'Отсутствуют данные для выгрузки';
@@ -541,7 +557,9 @@ uploadClubDiscounts 'Установить скидки WB Клуба' () {
             LOCAL exported = INTEGER ();
             exported() <- 0;
 
-            WHILE exported() < (GROUP MAX index(Item i)) DO {
+            LOCAL stopOnLimit = BOOLEAN ();
+
+            WHILE exported() < (GROUP MAX index(Item i)) AND NOT stopOnLimit() DO {
                 EXPORT JSON FROM 'nmID' = nmID(Item i), 'clubDiscount' = clubDiscount(i) WHERE
                     index(i) > exported() AND index(i) <= exported() + updateClubDiscountsLimit();
 
@@ -557,6 +575,11 @@ uploadClubDiscounts 'Установить скидки WB Клуба' () {
                     message() <- messageStatusHTTP(STRING(statusHttp()));
                 } CATCH {
                     logToFile('WB', messageCaughtException());
+                    IF statusHttp() == 429 THEN {
+                        IMPORT importError429 JSON FROM response();
+                        stopOnLimit() <- TRUE;
+                        extraDescriptionStatusHTTP() <- OVERRIDE detail429(), title429();
+                    }
                     message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
                 } FINALLY {
                     afterSendRequestIS();
@@ -582,6 +605,7 @@ uploadClubDiscounts 'Установить скидки WB Клуба' () {
                 }
 
                 exported() <- exported() + updateClubDiscountsLimit();
+                IF NOT stopOnLimit() THEN sleep(200);
             }
         } ELSE {
             MESSAGE 'Отсутствуют данные для выгрузки';

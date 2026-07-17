@@ -95,6 +95,38 @@ deliveryType (DistributionCenter dc) += deliveryType(dc) IF dc IS DistributionCe
 nameDeliveryType 'Тип доставки' (Stock st) = staticCaption(deliveryType(st));
 nameDeliveryType 'Тип доставки' (DistributionCenter dc) = staticCaption(deliveryType(dc));
 
+// Пороги для расчёта cargoType по габаритам карточки товара.
+// Источник: https://seller.wildberries.ru/instructions/ru/ru/material/bulky-items-shipment-in-fbs
+dataMaxSideMGT = DATA NUMERIC[10,2] ();
+maxSideMGT 'Макс. сторона для МГТ, см' = OVERRIDE dataMaxSideMGT(), 120.00;
+
+dataMaxSumMGT = DATA NUMERIC[10,2] ();
+maxSumMGT 'Макс. сумма сторон для МГТ, см' = OVERRIDE dataMaxSumMGT(), 200.00;
+
+dataMaxSideKGT = DATA NUMERIC[10,2] ();
+maxSideKGT 'Макс. сторона для КГТ+, см' = OVERRIDE dataMaxSideKGT(), 200.00;
+
+dataMaxSumKGT = DATA NUMERIC[10,2] ();
+maxSumKGT 'Макс. сумма сторон для КГТ+, см' = OVERRIDE dataMaxSumKGT(), 280.00;
+
+dataMinWeightSGT = DATA NUMERIC[10,3] ();
+minWeightSGT 'Мин. вес брутто для СГТ, кг' = OVERRIDE dataMinWeightSGT(), 25.000;
+
+maxSide (Item i) = CASE
+    WHEN length(i) >= width(i) AND length(i) >= height(i) THEN length(i)
+    WHEN width(i) >= height(i) THEN width(i)
+    ELSE height(i);
+
+sumSides (Item i) = length(i) + width(i) + height(i);
+
+cargoType 'Тип груза (расчётный)' (Item i) = CASE
+    WHEN NOT length(i) OR NOT width(i) OR NOT height(i) THEN NULL
+    WHEN weightBrutto(i) >= minWeightSGT() OR maxSide(i) > maxSideKGT() OR sumSides(i) > maxSumKGT() THEN CargoType.SGT
+    WHEN maxSide(i) > maxSideMGT() OR sumSides(i) > maxSumMGT() THEN CargoType.KGT
+    ELSE CargoType.MGT;
+
+nameCargoType 'Тип груза' (Item i) = staticCaption(cargoType(i));
+
 FORM distributionCenters 'Склады WB'
     OBJECTS dc = DistributionCenter 
     PROPERTIES(dc) READONLY selected
@@ -115,11 +147,11 @@ changeIdStockWB (Warehouse w) {
 FORM warehouse 'Собственный склад на WB'
     OBJECTS w = Warehouse PANEL
     PROPERTIES(w) id READONLY, name, address
-    PROPERTIES id 'Код склада WB' = id(distributionCenter(w)) ON CHANGE changeIdStockWB(w), 
+    PROPERTIES id 'Код склада WB' = id(distributionCenter(w)) ON CHANGE changeIdStockWB(w),
         name 'Наименование склада WB' = name(distributionCenter(w)) ON CHANGE changeIdStockWB(w)
     PROPERTIES(w) READONLY error BACKGROUND RGB(255, 51, 51) IF error(w), errorText SHOWIF error(w)
     ORDERS name(w)
-    
+
     EDIT Warehouse OBJECT w
 ;
 
@@ -281,7 +313,7 @@ postStock 'Создать склад продавца (собственный)' 
             LOCAL isCreatedWB = BOOLEAN (Stock);
             errorText(w) <- NULL WHERE error(w);
             error(w) <- NULL WHERE error(w);
-    
+
             logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/v3/warehouses');
             EXPORT JSON FROM name = name(w), officeId = id(distributionCenter(w)) WHERE isCreatedWB(w);
             
@@ -559,6 +591,37 @@ DESIGN masterData {
                     }
                 }
             }
+        }
+    }
+}
+
+EXTEND FORM item
+    PROPERTIES(i) READONLY nameCargoType
+;
+
+EXTEND FORM masterData
+    PROPERTIES(item) READONLY nameCargoType
+;
+
+DESIGN item {
+    itemHeader {
+        MOVE PROPERTY(nameCargoType(i));
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() maxSideMGT, maxSumMGT, maxSideKGT, maxSumKGT, minWeightSGT
+;
+
+DESIGN integrationData {
+    tabContainer {
+        NEW cargoTypeSettings {
+            caption = 'Расчёт cargoType';
+            MOVE PROPERTY(maxSideMGT());
+            MOVE PROPERTY(maxSumMGT());
+            MOVE PROPERTY(maxSideKGT());
+            MOVE PROPERTY(maxSumKGT());
+            MOVE PROPERTY(minWeightSGT());
         }
     }
 }
