@@ -57,6 +57,7 @@ inBackSheetStocks 'Склады' () =
     GROUP CONCAT STRING(name(Stock st)) IF inBackSheet(st) ,', ' ORDER name(st),st CHARWIDTH 50;
 
 overFillReportBackSheetFromTo  ABSTRACT ( GroupType, DATE, DATE);
+beforeFillReportBackSheetFromTo  ABSTRACT ( GroupType, DATE, DATE);
 
 skipBackSheet = ABSTRACT VALUE BOOLEAN (Sku);
 inBackSheet(Sku s, Stock st) = inBackSheet(st) AND s IS Sku AND NOT skipBackSheet(s);
@@ -79,7 +80,9 @@ fillReportBackSheetFromTo 'Сформировать'(GroupType gt, DATE df, DATE
     sumB(Group g) <- NULL;           
     sumIn(Group g) <- NULL;  
     sumOut(Group g) <- NULL;  
-    sumA(Group g) <- NULL;  
+    sumA(Group g) <- NULL;
+
+    beforeFillReportBackSheetFromTo(gt, df, dt);
 
     balanceA(Sku sk) <- NUMERIC[16,5]((GROUP SUM balanceA(sk, Stock st, dt) IF inBackSheet(sk,st)));           
     sumA(Sku sk) <- NUMERIC[18,4]((GROUP SUM sumA(sk, Stock st, dt) IF inBackSheet(sk,st)));  
