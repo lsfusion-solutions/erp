@@ -151,6 +151,8 @@ FORM importVetDocument FORMEXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-
 ;
 
 afterImportVetDocument ABSTRACT (VetDocument);
+skipImportVetDocument = ABSTRACT BOOLEAN (STRING, STRING); // (uuid ВСД, vd:lastUpdateDate) — пропустить обработку
+afterApplyImportVetDocument ABSTRACT (VetDocument); // после APPLY (LOCAL сохранены) — дозагрузка справочников
 
 importVetDocument(TEXT xml) {
     NEWSESSION {
@@ -159,8 +161,10 @@ importVetDocument(TEXT xml) {
                       '</vd:vetDocument>');
         
         IMPORT importVetDocument XML FROM resultFile();
-        
+
         IF NOT uuid() THEN RETURN;
+
+        IF skipImportVetDocument(uuid(), lastUpdateDate()) THEN RETURN;
 
         IF consignorBusinessEntityGuid() AND NOT businessEntity(consignorBusinessEntityGuid()) THEN NEW b = BusinessEntity {
             guid(b) <- consignorBusinessEntityGuid();
@@ -262,11 +266,13 @@ importVetDocument(TEXT xml) {
                 relationshipType(rd) <- relationshipType(i);
             }
             
-//            DELETE VetReferenceDocument rd WHERE vetDocument(rd) = d AND NOT [GROUP MAX INTEGER i BY issueKey(i)](issueKey(rd));  
+//            DELETE VetReferenceDocument rd WHERE vetDocument(rd) = d AND NOT [GROUP MAX INTEGER i BY issueKey(i)](issueKey(rd));
         }
-        
-        APPLY;
-    } 
+
+        APPLY NESTED LOCAL;
+
+        afterApplyImportVetDocument(vetDocument(uuid()));
+    }
 }
 
 
