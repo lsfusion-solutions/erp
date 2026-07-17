@@ -145,13 +145,16 @@ loadProductItemsByMarkedGestori 'Загрузить номенклатуру' ()
 
 // --- Ограничения ---
 
-CONSTRAINT DROPPED(SubProduct s IS SubProduct) AND PREV(s IS SubProduct)
+// служебный флаг для скриптовой очистки справочников (снимает запреты только в рамках сессии скрипта)
+skipDeleteGestori = DATA LOCAL BOOLEAN ();
+
+CONSTRAINT DROPPED(SubProduct s IS SubProduct) AND PREV(s IS SubProduct) AND NOT skipDeleteGestori()
     MESSAGE 'Удаление видов продукции не допускается. Справочник загружается только из Ветис.';
 
-CONSTRAINT CHANGED(guid(SubProduct s)) AND PREV(guid(s))
+CONSTRAINT CHANGED(guid(SubProduct s)) AND PREV(guid(s)) AND NOT skipDeleteGestori()
     MESSAGE 'Изменение кода (GUID) вида продукции не допускается.';
 
-CONSTRAINT CHANGED(product(SubProduct s)) AND PREV(product(s))
+CONSTRAINT CHANGED(product(SubProduct s)) AND PREV(product(s)) AND NOT skipDeleteGestori()
     MESSAGE 'Изменение ссылки на продукцию не допускается.';
 
 // --- Расширение справочника Виды продукции ---

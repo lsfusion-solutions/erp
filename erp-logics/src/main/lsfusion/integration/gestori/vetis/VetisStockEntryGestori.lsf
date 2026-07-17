@@ -35,8 +35,10 @@ nameConsignorEnterpriseVSD 'Площадка отправителя ВСД' (Sto
 
 nameTypeIncomingConsignment 'Тип накладной' (StockEntry s) = objectClassName(incomingConsignment(s));
 
-seriesNumberIncomingConsignment 'Номер накладной' (StockEntry s) =
-    seriesNumber(invoice(Shipment.invoiceDetail(VetisPurchase.shipmentDetail(incomingConsignment(s) AS VetisPurchase.ShipmentIncomingConsignment))));
+seriesNumberGestori 'Номер накладной' (IncomingConsignment c) =
+    seriesNumber(invoice(Shipment.invoiceDetail(VetisPurchase.shipmentDetail(c AS VetisPurchase.ShipmentIncomingConsignment))));
+
+seriesNumberIncomingConsignment 'Номер накладной' (StockEntry s) = seriesNumberGestori(incomingConsignment(s));
 
 // --- Подсветка истёкшего срока годности ---
 
@@ -138,6 +140,18 @@ FORM stockEntryMovements 'Движение по записи складског�
     OBJECTS s = StockEntry PANEL
     PROPERTIES(s) READONLY guid, number, nameEnterprise, nameProductItem, volume, nameUnit
 
+    // 1.8: входящая партия — над таблицей исходящих
+    OBJECTS ic = IncomingConsignment
+    PROPERTIES(ic) READONLY
+        icStockName = nameConsignorEnterpriseVetDocument,
+        icDocType = objectClassName,
+        icDocNumber = seriesNumberGestori,
+        icDocDate = deliveryDate,
+        volume,
+        nameStatusVetDocument,
+        uuidVetDocument
+    FILTERS incomingConsignment(s) = ic
+
     OBJECTS oc = OutgoingConsignment
     PROPERTIES(oc) READONLY
         stockName = nameConsignorEnterprise,
@@ -150,6 +164,12 @@ FORM stockEntryMovements 'Движение по записи складског�
     FILTERS stockEntry(oc) = s
     ORDERS docDate
 ;
+
+DESIGN stockEntryMovements {
+    PROPERTY(guid(s)) { caption = 'GUID записи журнала'; } // 1.6
+    BOX(ic) { caption = 'Входящая партия'; }
+    BOX(oc) { caption = 'Исходящая партия'; }
+}
 
 showStockEntryMovements 'Движение' (StockEntry s) {
     SHOW stockEntryMovements OBJECTS s = s;
@@ -174,3 +194,8 @@ EXTEND FORM stockEntries
 
     FILTERS (GROUP SUM 1 IF enterprise(Stock st) = enterprise(s) AND accessCompany(currentUser(), st)) OR NOT limitAccess(currentUser())
 ;
+
+DESIGN stockEntries {
+    PROPERTY(guid(s)) { caption = 'GUID записи журнала'; }        // 1.6
+    PROPERTY(guidEnterprise(s)) { caption = 'GUID площадки'; }    // 1.7
+}
