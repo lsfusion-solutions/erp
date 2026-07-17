@@ -1738,12 +1738,28 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
     private boolean isSocial(DiscountCard d) {
         for(JSONObject infoJSON : getExtInfo(d.extInfo).jsonObjects) {
-            JSONArray clientAnswers = infoJSON.optJSONArray("clientAnswers");
+            JSONArray clientAnswers = getClientAnswers(infoJSON);
             if (clientAnswers != null && clientAnswers.length() >= 4) {
                 return clientAnswers.getString(3).equals("Да");
             }
         }
         return false;
+    }
+
+    //при материализации подзапросов на больших выборках вложенный массив может приходить строкой с хвостовыми пробелами
+    private JSONArray getClientAnswers(JSONObject infoJSON) {
+        JSONArray clientAnswers = infoJSON.optJSONArray("clientAnswers");
+        if (clientAnswers == null) {
+            String value = infoJSON.optString("clientAnswers", "").trim();
+            if (value.startsWith("[")) {
+                try {
+                    clientAnswers = new JSONArray(value);
+                } catch (Exception e) {
+                    astronLogger.error("failed to parse clientAnswers: " + value, e);
+                }
+            }
+        }
+        return clientAnswers;
     }
     private void exportClntForm(Connection conn, AstronConnectionString params, String tbl, Integer updateNum) throws SQLException {
         String[] keys = new String[]{"CLNTFORMID"};
@@ -1832,7 +1848,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             for (DiscountCard d : discountCardList) {
                 if (notInterrupted()) {
                     for (JSONObject infoJSON : getExtInfo(d.extInfo).jsonObjects) {
-                        JSONArray clientAnswers = infoJSON.optJSONArray("clientAnswers");
+                        JSONArray clientAnswers = getClientAnswers(infoJSON);
                         if (clientAnswers != null) {
                             for (int i = 0; i < clientAnswers.length(); i++) {
                                 String clientAnswer = clientAnswers.getString(i);
