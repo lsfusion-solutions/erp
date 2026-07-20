@@ -1,0 +1,118 @@
+MODULE ETRNFromOrderRequest;
+
+REQUIRE ETRNOrderRequest, ETRN;
+
+NAMESPACE ETRN;
+
+// ------------------------- ЭТрН на основании заказа-заявки ------------------------- //
+// Создание транспортной накладной из заказа-заявки с переносом всех заполненных полей:
+// участники, ТС/водитель, груз, адреса погрузки/выгрузки из пунктов маршрута, реквизиты заявки.
+// Связь заявка -> ЭТрН хранится в etrn(OrderRequest).
+
+// заявка-основание для ЭТрН (обратная к etrn(OrderRequest))
+orderRequestETRN (ETRN e) = GROUP MAX OrderRequest o BY etrn(o);
+numberOrderRequestETRN 'Заказ-заявка (основание)' (ETRN e) = number(orderRequestETRN(e)) CHARWIDTH 10;
+
+// адрес и время первого пункта погрузки / выгрузки заявки
+loadingPointAddress (OrderRequest o) = GROUP MAX address(OrderPoint p) IF operation(p) == OrderPointOperation.loading AND pointIndex(p) == firstLoadingPoint(orderRequest(p)) BY orderRequest(p);
+loadingPointDateTime (OrderRequest o) = GROUP MAX operationDateTime(OrderPoint p) IF operation(p) == OrderPointOperation.loading AND pointIndex(p) == firstLoadingPoint(orderRequest(p)) BY orderRequest(p);
+unloadingPointAddress (OrderRequest o) = GROUP MAX address(OrderPoint p) IF operation(p) == OrderPointOperation.unloading AND pointIndex(p) == firstUnloadingPoint(orderRequest(p)) BY orderRequest(p);
+unloadingPointDateTime (OrderRequest o) = GROUP MAX operationDateTime(OrderPoint p) IF operation(p) == OrderPointOperation.unloading AND pointIndex(p) == firstUnloadingPoint(orderRequest(p)) BY orderRequest(p);
+
+// текстовое описание маршрута (все пункты) - чтобы не потерять промежуточные пункты в ЭТрН
+routePointsText (OrderRequest o) = GROUP CONCAT (nameOperation(OrderPoint p) + ': ' + address(p)), '; ' ORDER pointIndex(p), p BY orderRequest(p);
+
+// ------------------------- Перенос полей ------------------------- //
+
+fill (OrderRequest o, ETRN e) {
+    // шапка
+    provider(e) <- provider(o);
+    currency(e) <- currency(o);
+    orderNumber(e) <- number(o);
+    orderDate(e) <- date(o);
+
+    // участники
+    shipper(e) <- shipper(o);
+    carrier(e) <- carrier(o);
+
+    // ТС и водитель (ответ перевозчика Т2)
+    driver(e) <- driver(o);
+    truck(e) <- truck(o);
+    trailer(e) <- trailer(o);
+
+    // подача / погрузка
+    declaredSupplyDateTime(e) <- supplyDateTime(o);
+    weightMethod(e) <- weightMethod(o);
+    loadingAddress(e) <- loadingPointAddress(o);
+
+    // доставка
+    deliveryAddress(e) <- unloadingPointAddress(o);
+    deliveryDateTime(e) <- unloadingPointDateTime(o);
+    route(e) <- routePointsText(o);
+
+    // строки груза
+    FOR orderRequest(OrderDetail d) == o ORDER index(d), d DO NEW nd = ETRNDetail {
+        etrn(nd) <- e;
+        cargo(nd) <- cargo(d);
+        condition(nd) <- condition(d);
+        tareType(nd) <- tareType(d);
+        quantityPlaces(nd) <- quantityPlaces(d);
+        volume(nd) <- volume(d);
+        grossWeight(nd) <- grossWeight(d);
+        height(nd) <- height(d);
+        length(nd) <- length(d);
+        width(nd) <- width(d);
+    }
+
+    // обратная связь заявка -> ЭТрН
+    etrn(o) <- e;
+}
+
+// ------------------------- Действия ------------------------- //
+
+createETRNFromOrder 'Создать ЭТрН на основании заявки' (OrderRequest o) {
+    IF etrn(o) THEN {
+        MESSAGE CONCAT ' ', 'Для заявки уже создана ЭТрН:', seriesNumber(etrn(o));
+        RETURN;
+    }
+    NEWSESSION {
+        NEW e = ETRN {
+            fill(o, e);
+            edit(e);
+        }
+    }
+} IMAGE 'add.png';
+
+showETRNFromOrder 'Просмотреть ЭТрН' (OrderRequest o) {
+    SHOW etrn OBJECTS e = etrn(o) READONLY;
+}
+
+editETRNFromOrder 'Редактировать ЭТрН' (OrderRequest o) {
+    NEWSESSION {
+        edit(etrn(o));
+    }
+} IMAGE 'edit.png';
+
+// ------------------------- Формы ------------------------- //
+
+EXTEND FORM orderRequests
+    PROPERTIES(o) READONLY seriesNumberETRN
+    PROPERTIES(o) createETRNFromOrder TOOLBAR SHOWIF NOT etrn(o),
+                  editETRNFromOrder TOOLBAR SHOWIF etrn(o),
+                  showETRNFromOrder TOOLBAR SHOWIF etrn(o)
+;
+
+// основание (заявка) на форме ЭТрН
+EXTEND FORM etrn
+    PROPERTIES(e) numberOrderRequestETRN READONLY
+;
+
+DESIGN etrn {
+    headerRow2 {
+        MOVE PROPERTY(numberOrderRequestETRN(e));
+    }
+}
+
+EXTEND FORM etrns
+    PROPERTIES(e) READONLY numberOrderRequestETRN
+;

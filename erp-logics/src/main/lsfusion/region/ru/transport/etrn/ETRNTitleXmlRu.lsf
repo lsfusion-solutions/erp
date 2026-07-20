@@ -1,0 +1,391 @@
+MODULE ETRNTitleXmlRu;
+
+REQUIRE ETRNExchange, TransportRu, Cargo, LegalEntityRu, Utils;
+
+NAMESPACE ETRN;
+
+// Разбор XML титула ЭТрН по приказу ФНС N ЕД-7-26/1065@ (раздел II) в документ ЭТрН.
+// Формат приказа - единый для обоих API (Kontur.Логистика и Диадок), поэтому общий модуль.
+// Провайдер кладёт входящий XML в titleFile(ETRN) и вызывает parseETRNTitleXml.
+
+// ------------------------- Импорт титула Т1 из XML-файла ------------------------- //
+// Полный разбор файла обмена информации грузоотправителя (приказ ФНС N ЕД-7-26/1065@,
+// раздел II) в документ ЭТрН - для входящих перевозок, где мы грузополучатель/перевозчик.
+// Файл титула: поле "Файл титула (XML)" на вкладке "Обмен" (вручную или из документооборота).
+
+// лукапы статических справочников
+etrnWeightMethod (STRING[2] code) = GROUP MAX ETRNWeightMethod m BY id(m);
+etrnRedirectPerson (ISTRING[15] name) = GROUP MAX ETRNRedirectPerson p BY name(p);
+
+// ------------------------- Локальные свойства ------------------------- //
+
+// СодИнфГО (шапка)
+impT1Number = DATA LOCAL STRING ();
+impT1Date = DATA LOCAL STRING ();
+impT1OrderNumber = DATA LOCAL STRING ();
+impT1OrderDate = DATA LOCAL STRING ();
+
+// СвГО / СвГП / СвПер (участники)
+impT1GOExp = DATA LOCAL STRING ();
+impT1GOInn = DATA LOCAL STRING ();
+impT1GOName = DATA LOCAL STRING ();
+impT1GPInn = DATA LOCAL STRING ();
+impT1GPName = DATA LOCAL STRING ();
+impT1PerInn = DATA LOCAL STRING ();
+impT1PerName = DATA LOCAL STRING ();
+
+// АдресДостГр
+impT1GPAddrText = DATA LOCAL STRING ();
+impT1GPIndex = DATA LOCAL STRING ();
+impT1GPDistrict = DATA LOCAL STRING ();
+impT1GPCity = DATA LOCAL STRING ();
+impT1GPLocality = DATA LOCAL STRING ();
+impT1GPStreet = DATA LOCAL STRING ();
+impT1GPHouse = DATA LOCAL STRING ();
+impT1GPCorpus = DATA LOCAL STRING ();
+impT1GPFlat = DATA LOCAL STRING ();
+
+// УказГО
+impT1Zapr = DATA LOCAL STRING ();
+impT1DostDT = DATA LOCAL STRING ();
+impT1Srok = DATA LOCAL STRING ();
+impT1Plomba = DATA LOCAL STRING ();
+impT1Norm = DATA LOCAL STRING ();
+impT1Ogr = DATA LOCAL STRING ();
+impT1Route = DATA LOCAL STRING ();
+impT1PALitso = DATA LOCAL STRING ();
+impT1PASposob = DATA LOCAL STRING ();
+impT1PAPhone = DATA LOCAL STRING ();
+impT1PAEmail = DATA LOCAL STRING ();
+impT1PAOther = DATA LOCAL STRING ();
+impT1TempFrom = DATA LOCAL STRING ();
+impT1TempTo = DATA LOCAL STRING ();
+impT1HumFrom = DATA LOCAL STRING ();
+impT1HumTo = DATA LOCAL STRING ();
+
+// СвВодит (может быть несколько)
+impT1VodLast = DATA LOCAL STRING (INTEGER);
+impT1VodFirst = DATA LOCAL STRING (INTEGER);
+impT1VodMiddle = DATA LOCAL STRING (INTEGER);
+impT1VodInn = DATA LOCAL STRING (INTEGER);
+impT1VodSer = DATA LOCAL STRING (INTEGER);
+impT1VodNum = DATA LOCAL STRING (INTEGER);
+impT1VodDate = DATA LOCAL STRING (INTEGER);
+impT1VodPhone = DATA LOCAL STRING (INTEGER);
+
+// СвТС
+impT1TSReg = DATA LOCAL STRING ();
+impT1TSVlad = DATA LOCAL STRING ();
+impT1TSSts = DATA LOCAL STRING ();
+impT1TSVin = DATA LOCAL STRING ();
+impT1TSType = DATA LOCAL STRING ();
+impT1TSBrand = DATA LOCAL STRING ();
+impT1TSGruzopod = DATA LOCAL STRING ();
+impT1TSVmest = DATA LOCAL STRING ();
+impT1PricepReg = DATA LOCAL STRING ();
+
+// СвПогруз
+impT1PgZayav = DATA LOCAL STRING ();
+impT1PgPrib = DATA LOCAL STRING ();
+impT1PgUbyt = DATA LOCAL STRING ();
+impT1PgSostTar = DATA LOCAL STRING ();
+impT1PgSostUp = DATA LOCAL STRING ();
+impT1PgSostKuz = DATA LOCAL STRING ();
+impT1PgMass = DATA LOCAL STRING ();
+impT1PgMet = DATA LOCAL STRING ();
+impT1PgKolMest = DATA LOCAL STRING ();
+impT1PgAddrText = DATA LOCAL STRING ();
+impT1PgIndex = DATA LOCAL STRING ();
+impT1PgCity = DATA LOCAL STRING ();
+impT1PgStreet = DATA LOCAL STRING ();
+impT1PgHouse = DATA LOCAL STRING ();
+
+// ОпГруз (строки груза)
+impT1OpName = DATA LOCAL STRING (INTEGER);
+impT1OpTnved = DATA LOCAL STRING (INTEGER);
+impT1OpCondition = DATA LOCAL STRING (INTEGER);
+impT1OpPack = DATA LOCAL STRING (INTEGER);
+impT1OpTare = DATA LOCAL STRING (INTEGER);
+impT1OpDensity = DATA LOCAL STRING (INTEGER);
+impT1OpVolume = DATA LOCAL STRING (INTEGER);
+impT1OpPlaces = DATA LOCAL STRING (INTEGER);
+impT1OpOther = DATA LOCAL STRING (INTEGER);
+impT1OpHeight = DATA LOCAL STRING (INTEGER);
+impT1OpLength = DATA LOCAL STRING (INTEGER);
+impT1OpWidth = DATA LOCAL STRING (INTEGER);
+impT1OpNet = DATA LOCAL STRING (INTEGER);
+impT1OpGross = DATA LOCAL STRING (INTEGER);
+impT1OpPallets = DATA LOCAL STRING (INTEGER);
+impT1OpCost = DATA LOCAL STRING (INTEGER);
+
+// СвКонтейн (контейнеры строки)
+impT1ContQty = DATA LOCAL STRING (INTEGER, INTEGER);
+impT1ContNumber = DATA LOCAL STRING (INTEGER, INTEGER);
+
+// ------------------------- Импортная форма (структура раздела II приказа) ------------------------- //
+
+GROUP impT1Doc EXTID 'Документ';
+GROUP impT1Content EXTID 'СодИнфГО' : impT1Doc;
+GROUP impT1GO EXTID 'СвГО' : impT1Content;
+GROUP impT1GORek EXTID 'РекИдентГО' : impT1GO;
+GROUP impT1GOIdSv EXTID 'ИдСв' : impT1GORek;
+GROUP impT1GOUL EXTID 'СвЮЛУч' : impT1GOIdSv;
+GROUP impT1GP EXTID 'СвГП' : impT1Content;
+GROUP impT1GPRek EXTID 'РекИдентГП' : impT1GP;
+GROUP impT1GPIdSv EXTID 'ИдСв' : impT1GPRek;
+GROUP impT1GPUL EXTID 'СвЮЛУч' : impT1GPIdSv;
+GROUP impT1GPAddr EXTID 'АдресДостГр' : impT1GP;
+GROUP impT1GPAddrRF EXTID 'АдресРФ' : impT1GPAddr;
+GROUP impT1GPAddrInf EXTID 'АдресИнф' : impT1GPAddr;
+GROUP impT1CargoGr EXTID 'СвГруз' : impT1Content;
+GROUP impT1Gabar EXTID 'Габар';
+GROUP impT1Mass EXTID 'ПлМасГруз';
+GROUP impT1Cost EXTID 'ЦеннГруз';
+GROUP impT1Ukaz EXTID 'УказГО' : impT1Content;
+GROUP impT1Mrsh EXTID 'МршПрвз' : impT1Ukaz;
+GROUP impT1PA EXTID 'СвПА' : impT1Ukaz;
+GROUP impT1PAKont EXTID 'КонтПА' : impT1PA;
+GROUP impT1Klim EXTID 'КлимРеж' : impT1Ukaz;
+GROUP impT1Per EXTID 'СвПер' : impT1Content;
+GROUP impT1PerIdSv EXTID 'ИдСв' : impT1Per;
+GROUP impT1PerUL EXTID 'СвЮЛУч' : impT1PerIdSv;
+GROUP impT1VodFIO EXTID 'ФИО';
+GROUP impT1TS EXTID 'СвТС' : impT1Content;
+GROUP impT1TSTS EXTID 'ТС' : impT1TS;
+GROUP impT1TSPar EXTID 'ПарТС' : impT1TSTS;
+GROUP impT1Pricep EXTID 'Прицеп' : impT1TS;
+GROUP impT1Pogruz EXTID 'СвПогруз' : impT1Content;
+GROUP impT1PgAddr EXTID 'ФАдресПогр' : impT1Pogruz;
+GROUP impT1PgAddrRF EXTID 'АдресРФ' : impT1PgAddr;
+GROUP impT1PgAddrInf EXTID 'АдресИнф' : impT1PgAddr;
+
+FORM etrnTitleXmlImport
+    PROPERTIES IN impT1Content
+        impT1Number() EXTID 'НомерТрН' ATTR,
+        impT1Date() EXTID 'ДатаТрН' ATTR,
+        impT1OrderNumber() EXTID 'НомЗак' ATTR,
+        impT1OrderDate() EXTID 'ДатаЗак' ATTR
+
+    PROPERTIES IN impT1GO impT1GOExp() EXTID 'ГОЭксп' ATTR
+    PROPERTIES IN impT1GOUL impT1GOInn() EXTID 'ИННЮЛ' ATTR, impT1GOName() EXTID 'НаимОрг' ATTR
+
+    PROPERTIES IN impT1GPUL impT1GPInn() EXTID 'ИННЮЛ' ATTR, impT1GPName() EXTID 'НаимОрг' ATTR
+    PROPERTIES IN impT1GPAddr impT1GPAddrText() EXTID 'АдрКоммент' ATTR
+    PROPERTIES IN impT1GPAddrRF
+        impT1GPIndex() EXTID 'Индекс' ATTR,
+        impT1GPDistrict() EXTID 'Район' ATTR,
+        impT1GPCity() EXTID 'Город' ATTR,
+        impT1GPLocality() EXTID 'НаселПункт' ATTR,
+        impT1GPStreet() EXTID 'Улица' ATTR,
+        impT1GPHouse() EXTID 'Дом' ATTR,
+        impT1GPCorpus() EXTID 'Корпус' ATTR,
+        impT1GPFlat() EXTID 'Кварт' ATTR
+
+    PROPERTIES IN impT1PerUL impT1PerInn() EXTID 'ИННЮЛ' ATTR, impT1PerName() EXTID 'НаимОрг' ATTR
+
+    PROPERTIES IN impT1Ukaz
+        impT1Zapr() EXTID 'ЗапрПерегруз' ATTR,
+        impT1DostDT() EXTID 'ДатВрДостГр' ATTR,
+        impT1Srok() EXTID 'СрокДостГр' ATTR,
+        impT1Plomba() EXTID 'СвПломба' ATTR,
+        impT1Norm() EXTID 'УкНормПрвз' ATTR,
+        impT1Ogr() EXTID 'ОгрСкор' ATTR
+    PROPERTIES IN impT1Mrsh impT1Route() EXTID 'МршТекст' ATTR
+    PROPERTIES IN impT1PA impT1PALitso() EXTID 'ЛицоПА' ATTR, impT1PASposob() EXTID 'СпосПерУкПА' ATTR
+    PROPERTIES IN impT1PAKont
+        impT1PAPhone() EXTID 'Тлф',
+        impT1PAEmail() EXTID 'ЭлПочта',
+        impT1PAOther() EXTID 'ИнКонт'
+    PROPERTIES IN impT1Klim
+        impT1TempFrom() EXTID 'ТемпНеНиже' ATTR,
+        impT1TempTo() EXTID 'ТемпНеВыше' ATTR,
+        impT1HumFrom() EXTID 'ВлажнНеНиже' ATTR,
+        impT1HumTo() EXTID 'ВлажнНеВыше' ATTR
+
+    OBJECTS vod = INTEGER EXTID 'СвВодит' IN impT1Content
+    PROPERTIES(vod)
+        impT1VodInn EXTID 'ИННФЛ' ATTR,
+        impT1VodSer EXTID 'СерВУ' ATTR,
+        impT1VodNum EXTID 'НомВУ' ATTR,
+        impT1VodDate EXTID 'ДатаВыдВУ' ATTR,
+        impT1VodPhone EXTID 'Тлф'
+    PROPERTIES(vod) IN impT1VodFIO
+        impT1VodLast EXTID 'Фамилия' ATTR,
+        impT1VodFirst EXTID 'Имя' ATTR,
+        impT1VodMiddle EXTID 'Отчество' ATTR
+
+    PROPERTIES IN impT1TSTS
+        impT1TSReg() EXTID 'РегНомер' ATTR,
+        impT1TSVlad() EXTID 'ТипВлад' ATTR,
+        impT1TSSts() EXTID 'НомСТС' ATTR,
+        impT1TSVin() EXTID 'НомерВИН' ATTR
+    PROPERTIES IN impT1TSPar
+        impT1TSType() EXTID 'Тип' ATTR,
+        impT1TSBrand() EXTID 'Марка' ATTR,
+        impT1TSGruzopod() EXTID 'Грузопод' ATTR,
+        impT1TSVmest() EXTID 'Вместим' ATTR
+    PROPERTIES IN impT1Pricep impT1PricepReg() EXTID 'РегНомер' ATTR
+
+    PROPERTIES IN impT1Pogruz
+        impT1PgZayav() EXTID 'ЗаявПогр' ATTR,
+        impT1PgPrib() EXTID 'ФДатВрПриб' ATTR,
+        impT1PgUbyt() EXTID 'ФДатВрУбыт' ATTR,
+        impT1PgSostTar() EXTID 'ФСостТар' ATTR,
+        impT1PgSostUp() EXTID 'ФСостУп' ATTR,
+        impT1PgSostKuz() EXTID 'ФСостКуз' ATTR,
+        impT1PgMass() EXTID 'МасБрутОтгр' ATTR,
+        impT1PgMet() EXTID 'МетОпрМасс' ATTR,
+        impT1PgKolMest() EXTID 'КолМестПрием' ATTR
+    PROPERTIES IN impT1PgAddr impT1PgAddrText() EXTID 'АдрКоммент' ATTR
+    PROPERTIES IN impT1PgAddrRF
+        impT1PgIndex() EXTID 'Индекс' ATTR,
+        impT1PgCity() EXTID 'Город' ATTR,
+        impT1PgStreet() EXTID 'Улица' ATTR,
+        impT1PgHouse() EXTID 'Дом' ATTR
+
+    OBJECTS op = INTEGER EXTID 'ОпГруз' IN impT1CargoGr
+    PROPERTIES(op)
+        impT1OpName EXTID 'НаимГруз' ATTR,
+        impT1OpTnved EXTID 'КодТовНом' ATTR,
+        impT1OpCondition EXTID 'СостГруз' ATTR,
+        impT1OpPack EXTID 'СпУпак' ATTR,
+        impT1OpTare EXTID 'ВидТар' ATTR,
+        impT1OpDensity EXTID 'Плотн' ATTR,
+        impT1OpVolume EXTID 'Объем' ATTR,
+        impT1OpPlaces EXTID 'КолМестГр' ATTR,
+        impT1OpOther EXTID 'ДрОГруз' ATTR
+    PROPERTIES(op) IN impT1Gabar
+        impT1OpHeight EXTID 'ВысЗнач' ATTR,
+        impT1OpLength EXTID 'ДлЗнач' ATTR,
+        impT1OpWidth EXTID 'ШирЗнач' ATTR
+    PROPERTIES(op) IN impT1Mass
+        impT1OpNet EXTID 'МасНетЗнач' ATTR,
+        impT1OpGross EXTID 'МасБрутЗнач' ATTR,
+        impT1OpPallets EXTID 'КолПалл' ATTR
+    PROPERTIES(op) IN impT1Cost impT1OpCost EXTID 'СтЦеннГр' ATTR
+
+    OBJECTS cont = INTEGER EXTID 'СвКонтейн'
+    PROPERTIES(op, cont) impT1ContQty EXTID 'КолКонтейн' ATTR,
+                         impT1ContNumber EXTID 'ИдКонтейн' // TODO: ИдКонтейн - ОМ, читается первое значение
+;
+
+// ------------------------- Разбор в документ ------------------------- //
+
+vzToDateTime (STRING s) = DATETIME(toDateTimeFormat(left(s, 19), 'DD.MM.YYYY"T"HH24:MI:SS'));
+
+parseETRNTitleXml 'Импортировать титул Т1 из файла' (ETRN e) {
+    IF NOT titleFile(e) THEN {
+        MESSAGE 'Не загружен файл титула Т1 (поле "Файл титула (XML)" на вкладке "Обмен")';
+        RETURN;
+    }
+
+    IMPORT etrnTitleXmlImport XML FROM titleFile(e);
+
+    // параметры документа
+    number(e) <- STRING[48](impT1Number());
+    date(e) <- DATE(toDateFormat(impT1Date(), 'DD.MM.YYYY'));
+    orderNumber(e) <- STRING[100](impT1OrderNumber());
+    orderDate(e) <- DATE(toDateFormat(impT1OrderDate(), 'DD.MM.YYYY'));
+
+    // участники (поиск по ИНН; наши роли вычислятся автоматически)
+    shipper(e) <- legalEntityInn(STRING[12](impT1GOInn())) WHERE legalEntityInn(STRING[12](impT1GOInn()));
+    forwarder(e) <- TRUE IF impT1GOExp() = '1';
+    consignee(e) <- legalEntityInn(STRING[12](impT1GPInn())) WHERE legalEntityInn(STRING[12](impT1GPInn()));
+    carrier(e) <- legalEntityInn(STRING[12](impT1PerInn())) WHERE legalEntityInn(STRING[12](impT1PerInn()));
+
+    LOCAL missingParticipants = STRING ();
+    missingParticipants() <- CONCAT '; ',
+        (CONCAT ' ', impT1GOName(), 'ИНН ' + impT1GOInn()) IF impT1GOInn() AND NOT legalEntityInn(STRING[12](impT1GOInn())),
+        (CONCAT ' ', impT1GPName(), 'ИНН ' + impT1GPInn()) IF impT1GPInn() AND NOT legalEntityInn(STRING[12](impT1GPInn())),
+        (CONCAT ' ', impT1PerName(), 'ИНН ' + impT1PerInn()) IF impT1PerInn() AND NOT legalEntityInn(STRING[12](impT1PerInn()));
+    IF missingParticipants() THEN
+        MESSAGE CONCAT ' ', 'Участники титула не найдены в справочнике организаций:', missingParticipants();
+
+    // адрес доставки: комментарий/структурный адрес РФ
+    deliveryAddress(e) <- ISTRING[350](OVERRIDE impT1GPAddrText(),
+        (CONCAT ', ', impT1GPIndex(), impT1GPDistrict(), impT1GPCity(), impT1GPLocality(), impT1GPStreet(), impT1GPHouse(), impT1GPCorpus(), impT1GPFlat()));
+
+    // указания грузоотправителя
+    banReload(e) <- TRUE IF impT1Zapr() = '1';
+    deliveryDateTime(e) <- vzToDateTime(impT1DostDT());
+    deliveryPeriod(e) <- ISTRING[100](impT1Srok());
+    seals(e) <- ISTRING[2000](impT1Plomba());
+    transportInstructions(e) <- ISTRING[2000](impT1Norm());
+    speedLimits(e) <- ISTRING[2000](impT1Ogr());
+    route(e) <- ISTRING[2000](impT1Route());
+    temperatureFrom(e) <- NUMERIC[7,2](impT1TempFrom());
+    temperatureTo(e) <- NUMERIC[7,2](impT1TempTo());
+    humidityFrom(e) <- NUMERIC[5,2](impT1HumFrom());
+    humidityTo(e) <- NUMERIC[5,2](impT1HumTo());
+
+    // переадресовка
+    redirectPerson(e) <- etrnRedirectPerson(ISTRING[15](impT1PALitso())) WHERE etrnRedirectPerson(ISTRING[15](impT1PALitso()));
+    redirectMethod(e) <- ISTRING[255](impT1PASposob());
+    redirectPhone(e) <- ISTRING[255](impT1PAPhone());
+    redirectEmail(e) <- ISTRING[255](impT1PAEmail());
+    redirectContacts(e) <- ISTRING[255](impT1PAOther());
+
+    // прием груза перевозчиком (погрузка)
+    declaredSupplyDateTime(e) <- vzToDateTime(impT1PgZayav());
+    arrivalDateTime(e) <- vzToDateTime(impT1PgPrib());
+    departureDateTime(e) <- vzToDateTime(impT1PgUbyt());
+    containerCondition(e) <- ISTRING[255](impT1PgSostTar());
+    packageCondition(e) <- ISTRING[255](impT1PgSostUp());
+    bodyCondition(e) <- ISTRING[255](impT1PgSostKuz());
+    acceptGrossWeight(e) <- NUMERIC[17,3](impT1PgMass());
+    weightMethod(e) <- etrnWeightMethod(STRING[2](impT1PgMet()));
+    acceptQuantityPlaces(e) <- INTEGER(impT1PgKolMest());
+    loadingAddress(e) <- ISTRING[350](OVERRIDE impT1PgAddrText(),
+        (CONCAT ', ', impT1PgIndex(), impT1PgCity(), impT1PgStreet(), impT1PgHouse()));
+
+    // водители и ТС стороннего перевозчика - информационно
+    incomingDriverInfo(e) <- ISTRING[1000](GROUP CONCAT (CONCAT ' ', impT1VodLast(INTEGER i), impT1VodFirst(i), impT1VodMiddle(i),
+        'ВУ ' + (CONCAT ' ', impT1VodSer(i), impT1VodNum(i), impT1VodDate(i)), 'ИНН ' + impT1VodInn(i), 'тел. ' + impT1VodPhone(i)), '; ' ORDER i);
+    incomingVehicleInfo(e) <- ISTRING[500](CONCAT ', ', impT1TSType(), impT1TSBrand(), 'рег. № ' + impT1TSReg(),
+        'г/п ' + impT1TSGruzopod() + ' т', impT1TSVmest() + ' м3', 'VIN ' + impT1TSVin(), 'прицеп ' + impT1PricepReg());
+
+    // строки груза с контейнерами: пересоздаются (только когда мы не грузоотправитель)
+    IF NOT roleShipper(e) THEN {
+        DELETE ETRNDetail d WHERE etrn(d) = e;
+        FOR impT1OpName(INTEGER i) NEW nd = ETRNDetail DO {
+            etrn(nd) <- e;
+            // отсутствующие справочные значения создаются из титула
+            IF impT1OpPack(i) AND NOT packageWayName(ISTRING[255](impT1OpPack(i))) THEN NEW pw = PackageWay {
+                name(pw) <- ISTRING[255](impT1OpPack(i));
+            }
+            IF impT1OpCondition(i) AND NOT conditionName(ISTRING[255](impT1OpCondition(i))) THEN NEW cc = CargoCondition {
+                name(cc) <- ISTRING[255](impT1OpCondition(i));
+            }
+            // отсутствующий в справочнике груз создаётся с реквизитами из титула
+            IF NOT cargoName(ISTRING[255](impT1OpName(i))) THEN NEW c = Cargo {
+                name(c) <- ISTRING[255](impT1OpName(i));
+                tnved(c) <- STRING[4](impT1OpTnved(i));
+                packageWay(c) <- packageWayName(ISTRING[255](impT1OpPack(i)));
+                tareType(c) <- tareType(STRING[2](impT1OpTare(i)));
+            }
+            cargo(nd) <- cargoName(ISTRING[255](impT1OpName(i)));
+            condition(nd) <- conditionName(ISTRING[255](impT1OpCondition(i)));
+            packageWay(nd) <- packageWayName(ISTRING[255](impT1OpPack(i)));
+            tareType(nd) <- tareType(STRING[2](impT1OpTare(i)));
+            density(nd) <- NUMERIC[5,2](impT1OpDensity(i));
+            volume(nd) <- NUMERIC[17,3](impT1OpVolume(i));
+            quantityPlaces(nd) <- INTEGER(impT1OpPlaces(i));
+            otherInfo(nd) <- ISTRING[1000](impT1OpOther(i));
+            height(nd) <- NUMERIC[17,3](impT1OpHeight(i));
+            length(nd) <- NUMERIC[17,3](impT1OpLength(i));
+            width(nd) <- NUMERIC[17,3](impT1OpWidth(i));
+            netWeight(nd) <- NUMERIC[17,3](impT1OpNet(i));
+            grossWeight(nd) <- NUMERIC[17,3](impT1OpGross(i));
+            quantityPallets(nd) <- INTEGER(impT1OpPallets(i));
+            cost(nd) <- NUMERIC[19,2](impT1OpCost(i));
+
+            FOR impT1ContQty(i, INTEGER j) OR impT1ContNumber(i, j) NEW ct = ETRNDetailContainer DO {
+                detail(ct) <- nd;
+                quantity(ct) <- INTEGER(impT1ContQty(i, j));
+                number(ct) <- ISTRING[255](impT1ContNumber(i, j));
+            }
+        }
+    }
+
+    APPLY;
+}

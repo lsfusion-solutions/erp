@@ -1,0 +1,74 @@
+MODULE DiadocLogisticsPrintForm;
+
+REQUIRE DiadocLogisticsEvents;
+
+NAMESPACE Diadoc;
+
+// ------------------------- Печатная форма перевозки через Диадок ------------------------- //
+// GeneratePrintForm: GET /GeneratePrintForm?boxId&messageId&documentId.
+// Если форма готова - 200 и PDF в теле; если формируется - 200 с пустым телом и
+// заголовком Retry-After (секунды до повторного запроса). Повторяем с ожиданием.
+// documentId = entityId титула 0 reception-документа перевозки.
+
+// заголовки ответа GeneratePrintForm (Retry-After)
+headersPrintForm = DATA LOCAL STRING (STRING);
+
+diadocImportPrintForm (ETRN.ETRN e) {
+    IF NOT (receptionDocMessageId(e) AND receptionDocEntityId(e)) THEN {
+        MESSAGE 'Нет reception-документа перевозки в Диадоке (Т1 не отправлен / события не получены)';
+        RETURN;
+    }
+    IF NOT receptionBoxId(e) THEN {
+        MESSAGE 'Не найден ящик Диадока нашей организации-участника перевозки';
+        RETURN;
+    }
+
+    FOR User u == userDiadocETRN() DO NEWSESSION {
+        getToken(u);
+
+        LOCAL boxIdPF = STRING ();
+        boxIdPF() <- receptionBoxId(e);
+
+        LOCAL data = RAWFILE ();
+        LOCAL done = BOOLEAN ();
+        LOCAL attempts = INTEGER ();
+        LOCAL retryAfter = INTEGER ();
+        attempts() <- 0;
+
+        WHILE NOT done() AND attempts() < 10 DO {
+            attempts() <- attempts() (+) 1;
+            headersPrintForm(STRING s) <- NULL;
+
+            TRY {
+                EXTERNAL HTTP GET url() + '/GeneratePrintForm?boxId=' + boxIdPF() +
+                    '&messageId=' + receptionDocMessageId(e) + '&documentId=' + receptionDocEntityId(e)
+                    HEADERS httpHeadersToken HEADERSTO headersPrintForm TO data;
+            } CATCH {
+                fileToString(FILE(data()), 'UTF-8');
+                MESSAGE 'Ошибка получения печатной формы (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+                RETURN;
+            }
+
+            // форма ещё формируется - ждём Retry-After (не более 5 секунд за попытку)
+            IF headersPrintForm('Retry-After') THEN {
+                retryAfter() <- OVERRIDE INTEGER(headersPrintForm('Retry-After')), 3;
+                IF retryAfter() > 5 THEN retryAfter() <- 5;
+                sleep(1000 * retryAfter());
+            } ELSE
+                done() <- TRUE;
+        }
+
+        IF NOT (done() AND data()) THEN {
+            MESSAGE 'Печатная форма перевозки ещё формируется в Диадоке, повторите позже';
+            RETURN;
+        }
+
+        ETRN.printForm(e) <- file(data(), 'pdf');
+        APPLY;
+    }
+}
+
+// реализация абстракции ETRNExchange (кнопка «Печатная форма»)
+ETRN.importPrintForm (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvider.diadoc THEN {
+    diadocImportPrintForm(e);
+}

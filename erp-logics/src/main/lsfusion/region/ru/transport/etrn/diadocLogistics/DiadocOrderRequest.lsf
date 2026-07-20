@@ -1,0 +1,138 @@
+MODULE DiadocOrderRequest;
+
+REQUIRE DiadocLogistics, DiadocOrderRequestT1Form, DiadocOrderRequestT2Form;
+
+NAMESPACE Diadoc;
+
+// ------------------------- Заказ-заявка через Диадок: генерация XML + подпись + отправка ------------------------- //
+// Т1 (грузоотправитель): GenerateTitleXml titleIndex=0 -> подпись КЭП -> PostMessage (создаёт документ заказа-заявки).
+// Т2 (перевозчик): GenerateTitleXml titleIndex=1 (letterId/documentId от Т1) -> подпись -> PostMessagePatch (ответный титул).
+// Формы UserDataXml - в модулях DiadocOrderRequestT1Form / DiadocOrderRequestT2Form (namespace ETRN).
+
+// связь заказа-заявки с документом Диадока (Т1 + Т2 - один двухтитульный документ)
+diadocDocument = DATA Document (ETRN.OrderRequest);
+
+// ------------------------- Т1: заявка грузоотправителя ------------------------- //
+
+diadocSendOrderRequest (ETRN.OrderRequest o) {
+    IF NOT diadocBox(ETRN.shipper(o)) THEN {
+        MESSAGE 'Не найден ящик Диадока грузоотправителя';
+        RETURN;
+    }
+    IF NOT diadocBox(ETRN.carrier(o)) THEN {
+        MESSAGE 'Не найден ящик Диадока перевозчика (получатель заявки)';
+        RETURN;
+    }
+
+    // догрузить структурные реквизиты организаций-участников, если их нет
+    //ensureDiadocOrgData(ETRN.shipper(o));
+    //ensureDiadocOrgData(ETRN.carrier(o));
+
+    FOR User u == userDiadocETRN() DO NEWSESSION {
+        fromBox() <- diadocBox(ETRN.shipper(o));
+        toBox() <- diadocBox(ETRN.carrier(o));
+
+        getToken(u);
+        EXPORT diadocOrderRequestT1 OBJECTS o = o XML;
+
+        LOCAL result = FILE ();
+        TRY {
+            EXTERNAL HTTP POST url() + '/GenerateTitleXml?boxId=' + fromBoxId() +
+                '&documentTypeNamedId=' + orderRequestTypeNamedId() +
+                '&documentFunction=' + orderRequestFunction() + '&documentVersion=' + orderRequestVersion() + '&titleIndex=0'
+                HEADERS httpHeadersToken PARAMS exportFile() TO result;
+
+            typeNamedIdDocument(0) <- orderRequestTypeNamedId();
+            functionDocument(0) <- orderRequestFunction();
+            versionDocument(0) <- orderRequestVersion();
+            contentDocument(0) <- encode(RAWFILE(result()), 'base64');
+
+            IF useTestSignature() THEN signWithTestSignature(0) <- TRUE;
+            ELSE {
+                sign(FILE(result()), TRUE, ETRN.shipper(o));
+                signatureDocument(0) <- encodedSignature();
+            }
+
+            postMessage(u);
+            // postMessage глотает HTTP-ошибки (MESSAGE внутри) - успех определяем по созданному документу
+            IF createdDocument() THEN {
+                diadocDocument(o) <- createdDocument();
+                ETRN.exchangeStatus(o) <- ETRN.ETRNExchangeStatus.signed;
+                ETRN.exchangeMessage(o) <- NULL;
+            } ELSE
+                ETRN.exchangeMessage(o) <- 'Заявка Т1 не отправлена (Диадок): ошибка PostMessage';
+        } CATCH {
+            fileToString(result(), 'UTF-8');
+            ETRN.exchangeMessage(o) <- 'Ошибка отправки заявки Т1 (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+            MESSAGE ETRN.exchangeMessage(o);
+        }
+        APPLY;
+    }
+}
+
+ETRN.sendOrderRequest (ETRN.OrderRequest o) + WHEN ETRN.provider(o) == ETRN.ETRNProvider.diadoc THEN {
+    diadocSendOrderRequest(o);
+}
+
+// ------------------------- Т2: ответ перевозчика (patch) ------------------------- //
+
+diadocSendOrderResponse (ETRN.OrderRequest o) {
+    IF NOT diadocDocument(o) THEN {
+        MESSAGE 'Нет документа заказа-заявки для ответа перевозчика (Диадок)';
+        RETURN;
+    }
+    IF NOT diadocBox(ETRN.carrier(o)) THEN {
+        MESSAGE 'Не найден ящик Диадока перевозчика';
+        RETURN;
+    }
+
+    // догрузить структурные реквизиты перевозчика, если их нет
+    //ensureDiadocOrgData(ETRN.carrier(o));
+
+    FOR User u == userDiadocETRN() DO NEWSESSION {
+        box() <- diadocBox(ETRN.carrier(o));
+        message() <- message(diadocDocument(o));
+        parentEntity(0) <- entity(diadocDocument(o));
+        isRecipientTitles(0) <- TRUE;
+
+        getToken(u);
+        EXPORT diadocOrderRequestT2 OBJECTS o = o XML;
+
+        LOCAL result = FILE ();
+        TRY {
+            EXTERNAL HTTP POST url() + '/GenerateTitleXml?boxId=' + boxId() +
+                '&documentTypeNamedId=' + orderRequestTypeNamedId() +
+                '&documentFunction=' + orderRequestFunction() + '&documentVersion=' + orderRequestVersion() +
+                '&titleIndex=1&letterId=' + messageId() + '&documentId=' + parentEntityId(0)
+                HEADERS httpHeadersToken PARAMS exportFile() TO result;
+
+            contentDocument(0) <- encode(RAWFILE(result()), 'base64');
+
+            IF useTestSignature() THEN signWithTestSignature(0) <- TRUE;
+            ELSE {
+                sign(FILE(result()), TRUE, ETRN.carrier(o));
+                signatureDocument(0) <- encodedSignature();
+            }
+
+            postMessagePatch(u);
+            // postMessagePatch глотает HTTP-ошибки (MESSAGE внутри) - успех определяем по созданному дополнению
+            IF createdMessagePatch() THEN {
+                ETRN.exchangeStatus(o) <- ETRN.ETRNExchangeStatus.signed;
+                ETRN.exchangeMessage(o) <- NULL;
+            } ELSE
+                ETRN.exchangeMessage(o) <- 'Ответ на заявку Т2 не отправлен (Диадок): ошибка PostMessagePatch';
+        } CATCH {
+            fileToString(result(), 'UTF-8');
+            ETRN.exchangeMessage(o) <- 'Ошибка отправки ответа на заявку Т2 (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+            MESSAGE ETRN.exchangeMessage(o);
+        }
+        APPLY;
+    }
+}
+
+ETRN.acceptOrderRequest (ETRN.OrderRequest o) + WHEN ETRN.provider(o) == ETRN.ETRNProvider.diadoc THEN {
+    diadocSendOrderResponse(o);
+}
+
+// Приём входящих заявок и обновление статусов - через ленту docflow-событий V5
+// (DiadocLogisticsEvents: importEvents / processEvent), общие действия ETRNExchange.

@@ -1,0 +1,104 @@
+MODULE PurchaseInvoiceETRN;
+
+REQUIRE PurchaseInvoice, ETRN;
+
+NAMESPACE ETRN;
+
+// ------------------------- ЭТрН на основании закупочной накладной (самовывоз) ------------------------- //
+// Покупатель забирает товар со склада поставщика наемным транспортом: заказчик перевозки - мы,
+// поэтому мы - и грузоотправитель (Т1), и грузополучатель (Т3), перевозчик подписывает Т2/Т4.
+// Поставщик не участвует в документообороте ЭТрН и титулы не подписывает - он указывается
+// как лицо, осуществляющее погрузку, и владелец объекта инфраструктуры пункта погрузки.
+
+purchaseInvoice 'Закупочная накладная (основание)' = DATA Purchase.Invoice (ETRN) INDEXED;
+seriesNumberPurchaseInvoice 'Закупочная накладная (основание)' (ETRN e) = seriesNumber(purchaseInvoice(e)) CHARWIDTH 10;
+
+etrn (Purchase.Invoice i) = GROUP MAX ETRN e BY purchaseInvoice(e);
+seriesNumberETRN 'ЭТрН' (Purchase.Invoice i) = seriesNumber(etrn(i)) CHARWIDTH 10;
+
+// строки накладной, сгруппированные по грузу товара
+quantity (Purchase.Invoice i, Cargo c) = GROUP SUM quantity(Purchase.InvoiceDetail d) BY invoice(d), cargo(sku(d));
+netWeight (Purchase.Invoice i, Cargo c) = GROUP SUM quantity(Purchase.InvoiceDetail d) * netWeight(sku(d)) BY invoice(d), cargo(sku(d));
+grossWeight (Purchase.Invoice i, Cargo c) = GROUP SUM quantity(Purchase.InvoiceDetail d) * grossWeight(sku(d)) BY invoice(d), cargo(sku(d));
+cost (Purchase.Invoice i, Cargo c) = GROUP SUM invoiceSum(Purchase.InvoiceDetail d) BY invoice(d), cargo(sku(d));
+
+// товары накладной без привязанного груза
+quantityNoCargo (Purchase.Invoice i) = GROUP SUM quantity(Purchase.InvoiceDetail d) IF NOT cargo(sku(d)) BY invoice(d);
+namesSkuNoCargo (Purchase.Invoice i) = GROUP CONCAT name(sku(Purchase.InvoiceDetail d)) IF NOT cargo(sku(d)), ', ' ORDER d BY invoice(d);
+
+// расширение заполнения ЭТрН из закупочной накладной (клиентские модули)
+overFill ABSTRACT LIST (Purchase.Invoice, ETRN);
+
+fill (Purchase.Invoice i, ETRN e) {
+    purchaseInvoice(e) <- i;
+
+    // самовывоз: заказчик перевозки (покупатель) - и грузоотправитель, и грузополучатель
+    shipper(e) <- customer(i);
+    consignee(e) <- customer(i);
+    customerStock(e) <- customerStock(i);   // адрес места доставки заполнится событием из ETRN
+    supplierStock(e) <- supplierStock(i);   // адрес места погрузки заполнится событием из ETRN
+    currency(e) <- currency(i);
+
+    // поставщик - лицо, осуществляющее погрузку, и владелец объекта инфраструктуры пункта погрузки
+    loaderIsShipper(e) <- NULL;
+    loader(e) <- supplier(i);
+    infrastructureOwnerIsShipper(e) <- NULL;
+    infrastructureOwner(e) <- supplier(i);
+
+    FOR quantity(i, Cargo c) NEW nd = ETRNDetail DO {
+        etrn(nd) <- e;
+        cargo(nd) <- c;
+        netWeight(nd) <- netWeight(i, c);
+        grossWeight(nd) <- grossWeight(i, c);
+        cost(nd) <- cost(i, c);
+    }
+
+    overFill(i, e);
+}
+
+createETRN 'Создать ЭТрН (самовывоз)' (Purchase.Invoice i) {
+    IF quantityNoCargo(i) THEN {
+        MESSAGE CONCAT ' ', 'Не для всех товаров накладной задан груз (ЭПД). Заполните груз для товаров:', namesSkuNoCargo(i);
+        RETURN;
+    }
+
+    NEWSESSION {
+        NEW e = ETRN {
+            fill(i, e);
+            edit(e);
+        }
+    }
+} IMAGE 'add.png';
+
+showETRN 'Просмотреть ЭТрН' (Purchase.Invoice i) {
+    SHOW etrn OBJECTS e = etrn(i) READONLY;
+}
+
+editETRN 'Редактировать ЭТрН' (Purchase.Invoice i) {
+    NEWSESSION {
+        edit(etrn(i));
+    }
+} IMAGE 'edit.png';
+
+EXTEND FORM Purchase.invoices
+    PROPERTIES(i) READONLY seriesNumberETRN
+    PROPERTIES(i) createETRN TOOLBAR SHOWIF NOT etrn(i),
+                  editETRN TOOLBAR SHOWIF etrn(i),
+                  showETRN TOOLBAR SHOWIF etrn(i)
+;
+
+// -- основание на форме ЭТрН
+
+EXTEND FORM etrn
+    PROPERTIES(e) seriesNumberPurchaseInvoice READONLY
+;
+
+DESIGN etrn {
+    headerRow2 {
+        MOVE PROPERTY(seriesNumberPurchaseInvoice(e));
+    }
+}
+
+EXTEND FORM etrns
+    PROPERTIES(e) READONLY seriesNumberPurchaseInvoice
+;

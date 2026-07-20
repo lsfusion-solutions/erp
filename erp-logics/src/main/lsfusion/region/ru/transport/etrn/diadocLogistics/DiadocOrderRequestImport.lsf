@@ -1,0 +1,51 @@
+MODULE DiadocOrderRequestImport;
+
+REQUIRE DiadocLogisticsEvents, ETRNOrderRequestXmlRu;
+
+NAMESPACE Diadoc;
+
+// ------------------------- Загрузка данных входящих заказов-заявок через Диадок ------------------------- //
+// Скачивание XML титула Т1 заявки (GetEntityContent - контент в формате приказа ФНС, ЗАКЗВГО)
+// и полный разбор общим parseOrderRequestTitleXml (ETRNOrderRequestXmlRu).
+// Координаты документа и ящик - из DiadocLogisticsEvents (документ либо журнал docflow-событий).
+
+diadocImportOrderRequestData (ETRN.OrderRequest o) {
+    IF NOT (orderDocMessageId(o) AND orderDocEntityId(o)) THEN {
+        MESSAGE 'Нет документа заказа-заявки в Диадоке (события не получены)';
+        RETURN;
+    }
+    IF NOT orderBoxId(o) THEN {
+        MESSAGE 'Не найден ящик Диадока нашей организации-участника заявки';
+        RETURN;
+    }
+
+    FOR User u == userDiadocETRN() DO {
+        getToken(u);
+
+        // XML титула Т1 заявки (формат приказа ФНС)
+        LOCAL data = RAWFILE ();
+        TRY {
+            EXTERNAL HTTP GET url() + '/GetEntityContent?boxId=' + orderBoxId(o) +
+                '&messageId=' + orderDocMessageId(o) + '&entityId=' + orderDocEntityId(o)
+                HEADERS httpHeadersToken TO data;
+        } CATCH {
+            fileToString(FILE(data()), 'UTF-8');
+            MESSAGE 'Ошибка получения контента титула заявки (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+            RETURN;
+        }
+
+        ETRN.titleFile(o) <- file(data(), 'xml');
+
+        // полный разбор титула в поля документа (parseOrderRequestTitleXml выполняет свой APPLY)
+        ETRN.parseOrderRequestTitleXml(o);
+
+        ETRN.titleImportedDateTime(o) <- currentDateTime();
+        APPLY;
+    }
+}
+
+ETRN.importOrderRequestData (ETRN.OrderRequest o) + WHEN ETRN.provider(o) == ETRN.ETRNProvider.diadoc THEN {
+    NEWSESSION {
+        diadocImportOrderRequestData(o);
+    }
+}

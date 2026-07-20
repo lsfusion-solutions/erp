@@ -1,0 +1,48 @@
+MODULE DiadocLogisticsT3Form;
+
+REQUIRE ETRNConsignee, DiadocLogisticsT1Form;
+
+NAMESPACE ETRN;
+
+// Экспортная форма UserDataXml титула Т3 (LogisticsWaybillConsigneeTitle) для Диадок API.
+
+GROUP t3ConsigneeInfo EXTID 'ConsigneeInfo';
+GROUP t3CargoAcceptance EXTID 'CargoAcceptance' : t3ConsigneeInfo;
+GROUP t3DeliveryAddress EXTID 'DeliveryAddress' : t3CargoAcceptance;
+GROUP t3DeliveryAddressL EXTID 'AddressLogisticsWaybill' : t3DeliveryAddress;
+GROUP t3DeliveryAddressRF EXTID 'RussianAddress' : t3DeliveryAddressL;
+GROUP t3Signer EXTID 'Signer';
+GROUP t3SignerDetails EXTID 'SignerDetails' : t3Signer;
+
+FORM diadocT3UserData FORMEXTID 'LogisticsWaybillConsigneeTitle'
+    OBJECTS e = ETRN PANEL
+    PROPERTIES ATTR t3DocCreator = name(consignee(e)) EXTID 'DocumentCreator'
+
+    // 0 - груз принят, 1 - отказ в приеме
+    PROPERTIES ATTR IN t3ConsigneeInfo t3ReceivingOp = (IF acceptResult(e) == ETRNAcceptResult.rejected THEN '1' ELSE '0') EXTID 'ReceivingOperation'
+
+    PROPERTIES ATTR IN t3CargoAcceptance
+        t3ActualArrival = diadocDateTime(unloadingArrivalDateTime(e)) EXTID 'ActualArrivalDateTime',
+        t3ActualArrivalTZ = ('1' IF unloadingArrivalDateTime(e)) EXTID 'ActualArrivalDateTimeEnablingTimeZone',
+        t3ActualDeparture = diadocDateTime(unloadingDepartureDateTime(e)) EXTID 'ActualDepartureDateTime',
+        t3ActualDepartureTZ = ('1' IF unloadingDepartureDateTime(e)) EXTID 'ActualDepartureDateTimeEnablingTimeZone',
+        t3StatedArrival = diadocDateTime(unloadingDeclaredDateTime(e)) EXTID 'StatedArrivalDateTime',
+        t3StatedArrivalTZ = ('1' IF unloadingDeclaredDateTime(e)) EXTID 'StatedArrivalDateTimeEnablingTimeZone',
+        t3PlaceCount = acceptedQuantityPlaces(e) EXTID 'PlaceCount',
+        t3CargoStatus = acceptedCondition(e) EXTID 'CargoActualStatus',
+        t3GrossReceived = acceptedGrossWeight(e) EXTID 'GrossWeightReceived'
+    // структурный адрес места доставки (выгружается при наличии Region+ZipCode)
+    PROPERTIES ATTR IN t3DeliveryAddressRF
+        t3DeliveryRegion = (deliveryRegion(e) IF hasDeliveryAddress(e)) EXTID 'Region',
+        t3DeliveryZip = (deliveryZipCode(e) IF hasDeliveryAddress(e)) EXTID 'ZipCode',
+        t3DeliveryCity = (deliveryCity(e) IF hasDeliveryAddress(e)) EXTID 'City',
+        t3DeliveryStreet = (deliveryStreet(e) IF hasDeliveryAddress(e)) EXTID 'Street',
+        t3DeliveryBuilding = (deliveryBuilding(e) IF hasDeliveryAddress(e)) EXTID 'Building'
+
+    PROPERTIES ATTR IN t3Signer t3SignerType = '1' EXTID 'SignerType'
+    PROPERTIES ATTR IN t3SignerDetails
+        t3SignerLast = signerLastName(consignee(e)) EXTID 'LastName',
+        t3SignerFirst = signerFirstName(consignee(e)) EXTID 'FirstName',
+        t3SignerMiddle = signerMiddleName(consignee(e)) EXTID 'MiddleName',
+        t3SignerPos = signerPosition(consignee(e)) EXTID 'Position'
+;

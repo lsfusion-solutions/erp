@@ -1,0 +1,210 @@
+MODULE Cargo;
+
+REQUIRE Sku, Item;
+
+NAMESPACE ETRN;
+
+// ------------------------- Вид тары (классификатор, решение КТС № 378) ------------------------- //
+
+CLASS TareType 'Вид тары';
+TABLE tareType(TareType);
+
+id 'Код' = DATA STRING[2](TareType) IN id CHARWIDTH 3;
+name 'Наименование' = DATA ISTRING[255](TareType) IN id CHARWIDTH 30;
+// однозначное имя для доступа из других namespace (id перегружен в namespace ETRN)
+idTareType 'Код вида тары' (TareType t) = id(t);
+
+tareType (id) = GROUP AGGR TareType t BY id(t);
+
+FORM tareType 'Вид тары'
+    OBJECTS t = TareType PANEL
+    PROPERTIES(t) id, name
+
+    EDIT TareType OBJECT t
+;
+
+FORM tareTypes 'Виды тары'
+    OBJECTS t = TareType
+    PROPERTIES(t) READONLY id, name
+    PROPERTIES(t) NEWSESSION NEW, EDIT, DELETE
+
+    LIST TareType OBJECT t
+;
+
+// «00» - без тары
+onStarted() + {
+    IF NOT tareType('00') THEN NEWSESSION {
+        NEW t = TareType {
+            id(t) <- '00';
+            name(t) <- 'Без тары';
+        }
+        APPLY;
+    }
+}
+
+// ------------------------- Способы упаковки / состояния груза / маркировка ------------------------- //
+// Справочники значений для строк ЭПД (вместо свободного текста); при импорте входящих
+// титулов отсутствующие значения создаются автоматически.
+
+CLASS PackageWay 'Способ упаковки';
+TABLE packageWayD(PackageWay);
+name 'Наименование' = DATA ISTRING[255](PackageWay) IN id CHARWIDTH 20;
+packageWayName = GROUP MAX PackageWay p BY name(p);
+
+FORM packageWay 'Способ упаковки'
+    OBJECTS p = PackageWay PANEL
+    PROPERTIES(p) name
+    EDIT PackageWay OBJECT p
+;
+
+FORM packageWays 'Способы упаковки'
+    OBJECTS p = PackageWay
+    PROPERTIES(p) READONLY name
+    PROPERTIES(p) NEWSESSION NEW, EDIT, DELETE
+    LIST PackageWay OBJECT p
+;
+
+CLASS CargoCondition 'Состояние груза';
+TABLE cargoCondition(CargoCondition);
+name 'Наименование' = DATA ISTRING[255](CargoCondition) IN id CHARWIDTH 20;
+conditionName = GROUP MAX CargoCondition c BY name(c);
+
+// статический элемент «Целый» - состояние груза по умолчанию для строк ЭТрН
+conditionIntact = DATA CargoCondition ();
+
+onStarted() + {
+    IF NOT conditionIntact() THEN NEWSESSION {
+        NEW c = CargoCondition {
+            name(c) <- 'Целый';
+            conditionIntact() <- c;
+        }
+        APPLY;
+    }
+}
+
+FORM cargoCondition 'Состояние груза'
+    OBJECTS c = CargoCondition PANEL
+    PROPERTIES(c) name
+    EDIT CargoCondition OBJECT c
+;
+
+FORM cargoConditions 'Состояния груза'
+    OBJECTS c = CargoCondition
+    PROPERTIES(c) READONLY name
+    PROPERTIES(c) NEWSESSION NEW, EDIT, DELETE
+    LIST CargoCondition OBJECT c
+;
+
+CLASS CargoMarking 'Маркировка';
+TABLE cargoMarking(CargoMarking);
+name 'Наименование' = DATA ISTRING[1000](CargoMarking) IN id CHARWIDTH 20;
+markingName = GROUP MAX CargoMarking m BY name(m);
+
+// статический элемент «Отсутствует» - маркировка по умолчанию для строк груза
+markingAbsent = DATA CargoMarking ();
+
+onStarted() + {
+    IF NOT markingAbsent() THEN NEWSESSION {
+        NEW m = CargoMarking {
+            name(m) <- 'Отсутствует';
+            markingAbsent() <- m;
+        }
+        APPLY;
+    }
+}
+
+FORM cargoMarking 'Маркировка'
+    OBJECTS m = CargoMarking PANEL
+    PROPERTIES(m) name
+    EDIT CargoMarking OBJECT m
+;
+
+FORM cargoMarkings 'Маркировки'
+    OBJECTS m = CargoMarking
+    PROPERTIES(m) READONLY name
+    PROPERTIES(m) NEWSESSION NEW, EDIT, DELETE
+    LIST CargoMarking OBJECT m
+;
+
+// ------------------------- Справочник грузов (для ЭПД / ЭТрН) ------------------------- //
+
+CLASS Cargo 'Груз';
+TABLE cargo(Cargo);
+
+name 'Отгрузочное наименование груза' = DATA ISTRING[255](Cargo) IN id CHARWIDTH 30;
+packageWay = DATA PackageWay (Cargo);
+namePackageWay 'Способ упаковки' (Cargo c) = name(packageWay(c)) CHARWIDTH 20;
+tareType 'Вид тары' = DATA TareType (Cargo);
+nameTareType 'Вид тары' (Cargo c) = name(tareType(c)) CHARWIDTH 20;
+tnved 'Код товарной номенклатуры' = DATA STRING[4](Cargo);
+
+cargoContainer = DATA Cargo();
+container 'Контейнер' (Cargo c) = cargoContainer()==c;
+//cargoContainer = GROUP MAX Cargo c IF container(c);
+
+// статический элемент «Контейнер»
+onStarted() + {
+    IF NOT cargoContainer() THEN NEWSESSION {
+        NEW c = Cargo {
+            name(c) <- 'Контейнер';
+            cargoContainer() <- c;
+        }
+        APPLY;
+    }
+}
+
+FORM cargo 'Груз'
+    OBJECTS c = Cargo PANEL
+    PROPERTIES(c) name, namePackageWay, nameTareType, tnved, container
+
+    EDIT Cargo OBJECT c
+;
+
+DESIGN cargo {
+    OBJECTS {
+        NEW main {
+            caption = 'Основные';
+            MOVE PROPERTY(name(c));
+            MOVE PROPERTY(namePackageWay(c));
+            MOVE PROPERTY(nameTareType(c));
+            MOVE PROPERTY(tnved(c));
+            MOVE PROPERTY(container(c));
+        }
+    }
+}
+
+FORM cargos 'Грузы'
+    OBJECTS c = Cargo
+    PROPERTIES(c) READONLY name, namePackageWay, nameTareType, tnved, container
+    PROPERTIES(c) NEWSESSION NEW, EDIT, DELETE
+
+    LIST Cargo OBJECT c
+;
+
+// ------------------------- Привязка к группам товаров ------------------------- //
+
+dataCargo = DATA Cargo (SkuGroup);
+nearestCargo (SkuGroup child) = GROUP LAST dataCargo(SkuGroup parent) ORDER DESC level(child, parent) WHERE dataCargo(parent);
+
+cargo (SkuGroup skuGroup) = OVERRIDE dataCargo(skuGroup), nearestCargo(skuGroup) MATERIALIZED;
+nameCargo 'Груз (ЭПД)' (SkuGroup skuGroup) = name(cargo(skuGroup)) IN paramsItemGroup;
+
+EXTEND FORM itemGroup PROPERTIES(g) nameCargo;
+EXTEND FORM itemGroups PROPERTIES(g) READONLYIF isReadonly() nameCargo BACKGROUND RGB(190,190,190) IF dataCargo(g);
+
+// ------------------------- Привязка к товарам ------------------------- //
+
+dataCargo = DATA Cargo (Sku);
+cargo (Sku s) = OVERRIDE dataCargo(s), cargo(skuGroup(s)) MATERIALIZED;
+nameCargo 'Груз (ЭПД)' (Sku s) = name(cargo(s)) IN itemBase;
+
+// поиск груза по отгрузочному наименованию (для разбора входящих титулов)
+cargoName = GROUP MAX Cargo c BY name(c);
+
+EXTEND FORM item
+    PROPERTIES(i) nameCargo
+;
+
+EXTEND FORM items
+    PROPERTIES(i) READONLYIF isReadonly() nameCargo
+;

@@ -1,0 +1,22 @@
+MODULE DiadocLogisticsCarrierForm;
+
+REQUIRE ETRNCarrier, DiadocLogisticsT1Form;
+
+NAMESPACE ETRN;
+
+// Экспортная форма UserDataXml титулов перевозчика Т2/Т4 (LogisticsWaybillCarrierTitle).
+// Минимальный титул: только подписант (оговорки/замечания в UserDataXml не передаются,
+// либо опциональны). Диадок строит полный XML по приказу сам.
+
+GROUP tcSigner EXTID 'Signer';
+GROUP tcSignerDetails EXTID 'SignerDetails' : tcSigner;
+
+FORM diadocCarrierUserData FORMEXTID 'LogisticsWaybillCarrierTitle'
+    OBJECTS e = ETRN PANEL
+    PROPERTIES ATTR IN tcSigner tcSignerType = '1' EXTID 'SignerType'
+    PROPERTIES ATTR IN tcSignerDetails
+        tcSignerLast = signerLastName(carrier(e)) EXTID 'LastName',
+        tcSignerFirst = signerFirstName(carrier(e)) EXTID 'FirstName',
+        tcSignerMiddle = signerMiddleName(carrier(e)) EXTID 'MiddleName',
+        tcSignerPos = signerPosition(carrier(e)) EXTID 'Position'
+;

@@ -1,0 +1,189 @@
+MODULE DiadocOrderRequestT1Form;
+
+REQUIRE ETRNOrderRequest, TransportRu, LegalEntityRu, DiadocLogistics;
+
+NAMESPACE ETRN;
+
+// Экспортная форма UserDataXml титула Т1 заказа-заявки (LogisticsOrderRequestSenderTitle) для Диадок API.
+// Грузоотправитель формирует заявку; Диадок по UserDataXml строит полный XML формата ФНС (zakzvper).
+// В namespace ETRN - домен OrderRequest доступен без префиксов; diadocDate/diadocBoxId/diadocFnsParticipantId - из DiadocLogistics.
+
+// строка «Создатель документа»: наименование, ИНН, КПП
+orderDocumentCreator (LegalEntity l) = CONCAT ', ', name(l), 'ИНН ' + inn(l), 'КПП ' + kpp(l);
+
+// ------------------------- Структура UserDataXml ------------------------- //
+
+GROUP orContract EXTID 'TransportContract';
+GROUP orContractParties EXTID 'PartiesRequisites' : orContract;
+GROUP orContractParty EXTID 'PartiesRequisite' : orContractParties;
+
+GROUP orRequest EXTID 'OrderRequest';
+
+GROUP orShipper EXTID 'Shipper' : orRequest;
+GROUP orShipperOrg EXTID 'OrganizationDetails' : orShipper;
+GROUP orShipperPhones EXTID 'Phones' : orShipperOrg;
+GROUP orShipperAddr EXTID 'Address' : orShipperOrg;
+GROUP orShipperAddrRF EXTID 'RussianAddress' : orShipperAddr;
+
+GROUP orCarrier EXTID 'Carrier' : orRequest;
+GROUP orCarrierOrg EXTID 'OrganizationDetails' : orCarrier;
+GROUP orCarrierPhones EXTID 'Phones' : orCarrierOrg;
+GROUP orCarrierAddr EXTID 'Address' : orCarrierOrg;
+GROUP orCarrierAddrRF EXTID 'RussianAddress' : orCarrierAddr;
+
+GROUP orSupply EXTID 'SupplyPoint' : orRequest;
+// адрес пункта подачи: SupplyPoint/Address(CustomAddress)/Address(AddressInfo)/RussianAddress
+GROUP orSupplyAddr EXTID 'Address' : orSupply;
+GROUP orSupplyAddrInfo EXTID 'Address' : orSupplyAddr;
+GROUP orSupplyAddrRF EXTID 'RussianAddress' : orSupplyAddrInfo;
+
+GROUP orAddrPoints EXTID 'AddressPoints' : orRequest;
+// адрес пункта маршрута: AddressPoint/Address(CustomAddress)/Address(AddressInfo)/RussianAddress
+GROUP orPointAddr EXTID 'Address';
+GROUP orPointAddrInfo EXTID 'Address' : orPointAddr;
+GROUP orPointAddrRF EXTID 'RussianAddress' : orPointAddrInfo;
+GROUP orPointOwner EXTID 'OwnerOrganization';
+
+GROUP orCargoes EXTID 'Cargoes' : orRequest;
+GROUP orCargoWeight EXTID 'PlacesWeight';
+GROUP orCargoDimensions EXTID 'PlacesDimensions';
+GROUP orCargoDelivery EXTID 'DeliveryPoints';
+GROUP orCargoDeliveryPoint EXTID 'DeliveryPoint' : orCargoDelivery;
+
+GROUP orVehReq EXTID 'VehicleRequirements' : orRequest;
+
+GROUP orSigners EXTID 'Signers';
+GROUP orSigner EXTID 'Signer' : orSigners;
+GROUP orSignerDetails EXTID 'SignerDetails' : orSigner;
+
+FORM diadocOrderRequestT1 FORMEXTID 'LogisticsOrderRequestSenderTitle'
+    OBJECTS o = OrderRequest PANEL
+    PROPERTIES ATTR
+        orNumber = (OVERRIDE number(o), 'Без номера') EXTID 'Number',
+        orDate = diadocDate(date(o)) EXTID 'Date',
+        orFunction = ('Application' IF o IS OrderRequest) EXTID 'Function',
+        orCreator = orderDocumentCreator(shipper(o)) EXTID 'DocumentCreator'
+
+    // договор перевозки (основание заявки)
+    PROPERTIES ATTR IN orContract
+        orContractName = contractName(o) EXTID 'DocumentName',
+        orContractNumber = contractNumber(o) EXTID 'DocumentNumber',
+        orContractDate = diadocDate(contractDate(o)) EXTID 'DocumentDate'
+    PROPERTIES ATTR IN orContractParty
+        orContractPartyInn = inn(carrier(o)) EXTID 'Inn',
+        orContractPartyName = name(carrier(o)) EXTID 'OrgName'
+
+    // требования к перевозке
+    PROPERTIES ATTR IN orRequest
+        orSanitary = sanitary(o) EXTID 'SanitaryRequirements',
+        orFood = food(o) EXTID 'FoodRequirements'
+
+    // грузоотправитель
+    PROPERTIES ATTR IN orShipperOrg
+        orShipperOgrn = ogrn(shipper(o)) EXTID 'Ogrn',
+        orShipperName = name(shipper(o)) EXTID 'OrgName',
+        orShipperInn = inn(shipper(o)) EXTID 'Inn',
+        orShipperKpp = kpp(shipper(o)) EXTID 'Kpp',
+        orShipperFns = diadocFnsParticipantId(shipper(o)) EXTID 'FnsParticipantId',
+        orShipperType = diadocOrgType(shipper(o)) EXTID 'OrgType'   // 1 - ИП, 2 - ЮЛ (по длине ИНН)
+    PROPERTIES IN orShipperPhones orShipperPhone = phone(shipper(o)) EXTID 'Phone'
+    // структурный адрес организации (из справочника Диадока); выгружается только при наличии Region+ZipCode
+    PROPERTIES ATTR IN orShipperAddrRF
+        orShipperZip = (diadocOrgZipCode(shipper(o)) IF hasDiadocOrgAddress(shipper(o))) EXTID 'ZipCode',
+        orShipperRegion = (diadocOrgRegion(shipper(o)) IF hasDiadocOrgAddress(shipper(o))) EXTID 'Region',
+        orShipperTerritory = (diadocOrgTerritory(shipper(o)) IF hasDiadocOrgAddress(shipper(o))) EXTID 'Territory',
+        orShipperCity = (diadocOrgCity(shipper(o)) IF hasDiadocOrgAddress(shipper(o))) EXTID 'City',
+        orShipperLocality = (diadocOrgLocality(shipper(o)) IF hasDiadocOrgAddress(shipper(o))) EXTID 'Locality',
+        orShipperStreet = (diadocOrgStreet(shipper(o)) IF hasDiadocOrgAddress(shipper(o))) EXTID 'Street',
+        orShipperBuilding = (diadocOrgBuilding(shipper(o)) IF hasDiadocOrgAddress(shipper(o))) EXTID 'Building',
+        orShipperBlock = (diadocOrgBlock(shipper(o)) IF hasDiadocOrgAddress(shipper(o))) EXTID 'Block',
+        orShipperApartment = (diadocOrgApartment(shipper(o)) IF hasDiadocOrgAddress(shipper(o))) EXTID 'Apartment'
+
+    // перевозчик
+    PROPERTIES ATTR IN orCarrierOrg
+        orCarrierOgrn = ogrn(carrier(o)) EXTID 'Ogrn',
+        orCarrierName = name(carrier(o)) EXTID 'OrgName',
+        orCarrierInn = inn(carrier(o)) EXTID 'Inn',
+        orCarrierKpp = kpp(carrier(o)) EXTID 'Kpp',
+        orCarrierFns = diadocFnsParticipantId(carrier(o)) EXTID 'FnsParticipantId',
+        orCarrierType = diadocOrgType(carrier(o)) EXTID 'OrgType'   // 1 - ИП, 2 - ЮЛ (по длине ИНН)
+    PROPERTIES IN orCarrierPhones orCarrierPhoneOrg = phone(carrier(o)) EXTID 'Phone'
+    PROPERTIES ATTR IN orCarrierAddrRF
+        orCarrierZip = (diadocOrgZipCode(carrier(o)) IF hasDiadocOrgAddress(carrier(o))) EXTID 'ZipCode',
+        orCarrierRegion = (diadocOrgRegion(carrier(o)) IF hasDiadocOrgAddress(carrier(o))) EXTID 'Region',
+        orCarrierTerritory = (diadocOrgTerritory(carrier(o)) IF hasDiadocOrgAddress(carrier(o))) EXTID 'Territory',
+        orCarrierCity = (diadocOrgCity(carrier(o)) IF hasDiadocOrgAddress(carrier(o))) EXTID 'City',
+        orCarrierLocality = (diadocOrgLocality(carrier(o)) IF hasDiadocOrgAddress(carrier(o))) EXTID 'Locality',
+        orCarrierStreet = (diadocOrgStreet(carrier(o)) IF hasDiadocOrgAddress(carrier(o))) EXTID 'Street',
+        orCarrierBuilding = (diadocOrgBuilding(carrier(o)) IF hasDiadocOrgAddress(carrier(o))) EXTID 'Building',
+        orCarrierBlock = (diadocOrgBlock(carrier(o)) IF hasDiadocOrgAddress(carrier(o))) EXTID 'Block',
+        orCarrierApartment = (diadocOrgApartment(carrier(o)) IF hasDiadocOrgAddress(carrier(o))) EXTID 'Apartment'
+
+    // пункт подачи ТС
+    // TODO: структурный адрес пункта подачи (GarAddress) - на тестовой площадке
+    PROPERTIES ATTR IN orSupply
+        orSupplyZone = ('Specified' IF supplyDateTime(o)) EXTID 'SupplyDateTimeZone',
+        orSupplyDateTime = diadocDateTime(supplyDateTime(o)) EXTID 'DateTime'
+    // структурный адрес пункта подачи (выгружается при наличии Region+ZipCode)
+    PROPERTIES ATTR IN orSupplyAddrRF
+        orSupplyRegion = (supplyRegion(o) IF hasSupplyAddress(o)) EXTID 'Region',
+        orSupplyZip = (supplyZipCode(o) IF hasSupplyAddress(o)) EXTID 'ZipCode',
+        orSupplyCity = (supplyCity(o) IF hasSupplyAddress(o)) EXTID 'City',
+        orSupplyStreet = (supplyStreet(o) IF hasSupplyAddress(o)) EXTID 'Street',
+        orSupplyBuilding = (supplyBuilding(o) IF hasSupplyAddress(o)) EXTID 'Building'
+
+    // требования к транспортному средству
+    PROPERTIES ATTR IN orVehReq
+        orVehType = vehicleType(o) EXTID 'Type',
+        orVehWeight = vehicleWeight(o) EXTID 'WeightCapacity',
+        orVehVolume = vehicleVolume(o) EXTID 'VolumeCapacity'
+
+    // подписант (грузоотправитель)
+    PROPERTIES ATTR IN orSigners orSignersBoxId = diadocBoxId(shipper(o)) EXTID 'BoxId'
+    PROPERTIES ATTR IN orSigner orSignerMethod = ('5' IF o IS OrderRequest) EXTID 'SignerPowersConfirmationMethod'
+    PROPERTIES ATTR IN orSignerDetails
+        orSignerLast = signerLastName(shipper(o)) EXTID 'LastName',
+        orSignerFirst = signerFirstName(shipper(o)) EXTID 'FirstName',
+        orSignerMiddle = signerMiddleName(shipper(o)) EXTID 'MiddleName',
+        orSignerPos = signerPosition(shipper(o)) EXTID 'Position'
+
+    // пункты маршрута (погрузка/выгрузка)
+    OBJECTS ap = OrderPoint EXTID 'AddressPoint' IN orAddrPoints
+    PROPERTIES ATTR
+        apOrder = pointIndex(ap) EXTID 'PointOrder',
+        apOperation = idOperationPoint(ap) EXTID 'OperationAtPoint',
+        apDate = diadocDateTime(operationDateTime(ap)) EXTID 'OperationDate'
+    // структурный адрес пункта (выгружается при наличии Region+ZipCode)
+    PROPERTIES ATTR IN orPointAddrRF
+        apRegion = (pointRegion(ap) IF hasPointAddress(ap)) EXTID 'Region',
+        apZip = (pointZipCode(ap) IF hasPointAddress(ap)) EXTID 'ZipCode',
+        apCity = (pointCity(ap) IF hasPointAddress(ap)) EXTID 'City',
+        apStreet = (pointStreet(ap) IF hasPointAddress(ap)) EXTID 'Street',
+        apBuilding = (pointBuilding(ap) IF hasPointAddress(ap)) EXTID 'Building'
+    PROPERTIES ATTR IN orPointOwner
+        apOwnerName = ownerName(ap) EXTID 'Name',
+        apOwnerInn = ownerInn(ap) EXTID 'Inn'
+    FILTERS pointOrderRequest(ap) == o
+
+    // строки груза
+    OBJECTS d = OrderDetail EXTID 'Cargo' IN orCargoes
+    PROPERTIES ATTR
+        cargoName = nameCargo(d) EXTID 'Name',
+        cargoCondition = nameCondition(d) EXTID 'Condition',
+        cargoContainerType = (OVERRIDE detailTareCode(d), '00') EXTID 'ContainerType',
+        cargoPlaceCount = quantityPlaces(d) EXTID 'PlaceCount',
+        cargoWeighingMethod = (OVERRIDE idWeightMethod(weightMethod(o)), '01') EXTID 'WeighingMethod',
+        cargoVolume = volume(d) EXTID 'Volume',
+        cargoDistribution = detailDistribution(d) EXTID 'DistributionAlongPlatform',
+        cargoDivisibility = detailDivisibility(d) EXTID 'Divisibility'
+    PROPERTIES ATTR IN orCargoWeight cargoGross = grossWeight(d) EXTID 'Gross'
+    PROPERTIES ATTR IN orCargoDimensions
+        cargoHeight = height(d) EXTID 'Height',
+        cargoLength = length(d) EXTID 'Length',
+        cargoWidth = width(d) EXTID 'Width'
+    PROPERTIES ATTR IN orCargoDeliveryPoint
+        cargoLoadingPoint = firstLoadingPoint(o) EXTID 'LoadingPoint',
+        cargoUnloadingPoint = firstUnloadingPoint(o) EXTID 'UnloadingPoint',
+        cargoDeliveryPlaces = quantityPlaces(d) EXTID 'PlaceCount'
+    FILTERS detailOrderRequest(d) == o
+;

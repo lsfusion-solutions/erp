@@ -1,0 +1,349 @@
+MODULE ETRNExchange;
+
+REQUIRE ETRN;
+
+NAMESPACE ETRN;
+
+// ------------------------- Провайдеры ЭПД ------------------------- //
+// Конкретные операторы (Контур.Логистика и др.) добавляют статические объекты
+// через EXTEND CLASS и реализуют абстрактные действия обмена.
+
+CLASS ETRNProvider 'Провайдер ЭПД' : StaticObject;
+
+name 'Наименование' (ETRNProvider p) = staticCaption(p) IF p IS ETRNProvider CHARWIDTH 20;
+
+defaultProvider = DATA ETRNProvider ();
+nameDefaultProvider 'Провайдер ЭПД по умолчанию' = name(defaultProvider());
+
+skipFieldCheckETRN 'Не проверять обязательные поля при отправке титулов ЭТрН' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES() nameDefaultProvider, skipFieldCheckETRN
+;
+
+DESIGN options {
+    tranport {
+        MOVE PROPERTY(nameDefaultProvider());
+        MOVE PROPERTY(skipFieldCheckETRN());
+    }
+}
+
+// ------------------------- Провайдер и состояние обмена на документе ------------------------- //
+
+provider 'Провайдер ЭПД' = DATA ETRNProvider (ETRN);
+nameProvider 'Провайдер ЭПД' (ETRN e) = name(provider(e));
+
+WHEN LOCAL SET(ETRN e IS ETRN) AND NOT CHANGED(provider(e)) INLINE DO
+    provider(e) <- defaultProvider();
+
+CLASS ETRNExchangeStatus 'Статус обмена ЭТрН' {
+    draftSaved 'Черновик сохранен у провайдера',
+    approvedForSignature 'Передан на подпись',
+    driverApproval 'Передан водителю на согласование',
+    signed 'Подписан',
+    completed 'Документооборот завершен',
+    rejected 'Отказ в подписи',
+    invalid 'Ошибка в документообороте'
+}
+
+name 'Наименование' (ETRNExchangeStatus s) = staticCaption(s) IF s IS ETRNExchangeStatus CHARWIDTH 25;
+
+exchangeStatus 'Статус обмена' = DATA ETRNExchangeStatus (ETRN);
+nameExchangeStatus 'Статус обмена' (ETRN e) = name(exchangeStatus(e));
+
+// подписант организации (общий для всех провайдеров и титулов)
+signerLastName 'Подписант: фамилия' = DATA ISTRING[60](LegalEntity);
+signerFirstName 'Подписант: имя' = DATA ISTRING[60](LegalEntity);
+signerMiddleName 'Подписант: отчество' = DATA ISTRING[60](LegalEntity);
+signerPosition 'Подписант: должность' = DATA ISTRING[128](LegalEntity);
+
+transportationId 'ИД перевозки у провайдера' = DATA STRING[36](ETRN) INDEXED;
+etrn (STRING[36] transportationId) = GROUP MAX ETRN e BY transportationId(e);
+
+mintransId 'УИД Минтранса (ГИС ЭПД)' = DATA STRING[255](ETRN);
+providerStatus 'Статус перевозки (провайдер)' = DATA STRING[100](ETRN);
+exchangeMessage 'Сообщение обмена' = DATA TEXT (ETRN);
+
+titleFile 'Файл титула (XML)' = DATA FILE (ETRN);
+printForm 'Печатная форма (PDF)' = DATA FILE (ETRN);
+qrCode 'QR-код перевозки' = DATA FILE (ETRN); // GIF; обновляется провайдером после подписания Т7/Т8
+
+// полнота данных входящего документа: загружен ли полный состав из титула Т1
+titleImportedDateTime 'Дата/время загрузки данных титула' = DATA DATETIME (ETRN);
+
+// ------------------------- Лента событий провайдера ------------------------- //
+
+CLASS ETRNEvent 'Событие ЭПД';
+TABLE etrnEvent(ETRNEvent);
+
+provider = DATA ETRNProvider (ETRNEvent);
+nameProvider 'Провайдер' (ETRNEvent ev) = name(provider(ev));
+
+id 'ИД события' = DATA STRING[100](ETRNEvent) IN id;
+event = GROUP AGGR ETRNEvent ev WHERE ev IS ETRNEvent BY provider(ev), id(ev);
+
+dateTime 'Дата/время (UTC)' = DATA DATETIME (ETRNEvent);
+type 'Тип события' = DATA STRING[100](ETRNEvent);
+status 'Новый статус перевозки' = DATA STRING[100](ETRNEvent);
+transportationId 'ИД перевозки' = DATA STRING[36](ETRNEvent);
+
+mintransId 'УИД Минтранса (из события)' = DATA STRING[255](ETRNEvent);
+
+etrn = DATA ETRN (ETRNEvent) INDEXED;
+seriesNumberETRN 'ЭТрН' (ETRNEvent ev) = seriesNumber(etrn(ev));
+
+processedDateTime 'Дата/время обработки' = DATA DATETIME (ETRNEvent);
+
+lastEventId 'ИД последнего полученного события' = DATA STRING[100](ETRNProvider);
+
+// ------------------------- Абстракции обмена (реализуются модулями провайдеров) ------------------------- //
+
+// черновики / передача на подпись / согласование водителем - специфика Контур.Логистики (модуль KonturLogistics)
+sendSigned 'Подписать и отправить Т1' ABSTRACT CASE (ETRN);   // формирование XML Т1 + подпись КЭП + отправка (POST documents)
+importPrintForm 'Получить печатную форму' ABSTRACT CASE (ETRN);
+importQR 'Получить QR-код' ABSTRACT CASE (ETRN);
+importEvents 'Получить события' ABSTRACT CASE (ETRNProvider);   // приём новых событий в журнал (без продвижения документов)
+processEvent 'Обработать событие' ABSTRACT CASE (ETRNEvent);   // продвижение документа по событию (реализация - у провайдера)
+
+// титул грузополучателя (Т3); черновик / на подпись Т3 - специфика Контур.Логистики (модуль KonturLogistics)
+sendConsigneeSigned 'Подписать и отправить Т3' ABSTRACT CASE (ETRN);   // XML от consignee-delivery + подпись КЭП + POST documents
+
+// титулы перевозчика (Т2 / Т4)
+sendCarrierReception 'Отправить титул о приеме (Т2)' ABSTRACT CASE (ETRN);
+sendCarrierDelivery 'Отправить титул о выдаче (Т4)' ABSTRACT CASE (ETRN);
+
+// входящие перевозки (мы - грузополучатель или перевозчик):
+// 1. приём - создание документов с базовыми данными; 2. загрузка полного состава из титула Т1
+importIncoming 'Получить входящие перевозки' ABSTRACT CASE (ETRNProvider);
+importFullData 'Загрузить данные титула' ABSTRACT CASE (ETRN);   // скачивание XML титула Т1 + полный разбор (реализация - у провайдера)
+
+checkProvider (ETRN e) {
+    IF NOT provider(e) THEN {
+        MESSAGE 'Для ЭТрН не задан провайдер ЭПД';
+        RETURN;
+    }
+}
+
+// ------------------------- Проверка обязательных полей титула Т1 ------------------------- //
+// Обязательность - по приказу ФНС N ЕД-7-26/1065@ (раздел II) и постановке задачи.
+// Проверяется при отправке, а не констрейнтами - черновик документа можно сохранять частично заполненным.
+
+missingDetailT1 (ETRNDetail d) = CONCAT ', ',
+    'груз' IF NOT cargo(d),
+    'состояние груза' IF NOT condition(d),
+    'способ упаковки' IF NOT packageWay(d),
+    'вид тары' IF NOT tareType(d),
+    'количество грузовых мест' IF NOT quantityPlaces(d),
+    'масса брутто' IF NOT grossWeight(d),
+    'стоимость груза' IF NOT cost(d),
+    'маркировка' IF NOT marking(d);
+
+missingDetailsT1 (ETRN e) = GROUP CONCAT ('строка ' + index(ETRNDetail d) + ': ' + missingDetailT1(d)), '; ' ORDER d BY etrn(d);
+
+missingT1 (ETRN e) = CONCAT ', ',
+    'дата заказа (заявки)' IF NOT orderDate(e),
+    'грузоотправитель' IF NOT shipper(e),
+    'грузополучатель' IF NOT consignee(e),
+    'адрес места доставки груза' IF NOT deliveryAddress(e),
+    'код региона места доставки' IF NOT deliveryRegion(e),
+    'почтовый индекс места доставки' IF NOT deliveryZipCode(e),
+    'перевозчик' IF NOT carrier(e),
+    'водитель' IF NOT driver(e),
+    'телефон водителя' IF driver(e) AND NOT phone(driver(e)),
+    'ВУ (серия, номер, дата) или ИНН водителя' IF driver(e) AND NOT (licenseSeries(driver(e)) AND licenseNumber(driver(e)) AND licenseDate(driver(e))) AND NOT inn(driver(e)),
+    'транспортное средство' IF NOT truck(e),
+    'рег. номер ТС' IF truck(e) AND NOT sid(truck(e)),
+    'тип ТС' IF truck(e) AND NOT type(truck(e)),
+    'марка ТС' IF truck(e) AND NOT truckModel(truck(e)),
+    'грузоподъемность ТС' IF truck(e) AND NOT weight(truck(e)),
+    'вместимость ТС' IF truck(e) AND NOT capacity(truck(e)),
+    'тип владения ТС' IF truck(e) AND NOT ownershipType(truck(e)),
+    'рег. номер прицепа' IF trailer(e) AND NOT sid(trailer(e)),
+    'тип прицепа' IF trailer(e) AND NOT type(trailer(e)),
+    'марка прицепа' IF trailer(e) AND NOT truckModel(trailer(e)),
+    'грузоподъемность прицепа' IF trailer(e) AND NOT weight(trailer(e)),
+    'вместимость прицепа' IF trailer(e) AND NOT capacity(trailer(e)),
+    'тип владения прицепа' IF trailer(e) AND NOT ownershipType(trailer(e)),
+    'лицо, по указанию которого может осуществляться переадресовка' IF NOT redirectPerson(e),
+    'контактный телефон лица переадресовки' IF NOT redirectPhone(e),
+    'заявленные дата и время подачи' IF NOT declaredSupplyDateTime(e),
+    'фактические дата и время прибытия' IF NOT arrivalDateTime(e),
+    'фактические дата и время убытия' IF NOT departureDateTime(e),
+    'масса брутто груза (прием перевозчиком)' IF NOT acceptGrossWeight(e),
+    'метод определения массы груза' IF NOT weightMethod(e),
+    'количество грузовых мест (прием перевозчиком)' IF NOT acceptQuantityPlaces(e),
+    'адрес места погрузки' IF NOT loadingAddress(e),
+    'код региона места погрузки' IF NOT loadingRegion(e),
+    'почтовый индекс места погрузки' IF NOT loadingZipCode(e),
+    'лицо, осуществляющее погрузку' IF NOT loaderIsShipper(e) AND NOT loader(e),
+    'владелец объекта инфраструктуры пункта погрузки' IF NOT infrastructureOwnerIsShipper(e) AND NOT infrastructureOwnerUnknown(e) AND NOT infrastructureOwner(e),
+    'обстоятельства отсутствия информации о владельце инфраструктуры' IF infrastructureOwnerUnknown(e) AND NOT infrastructureOwnerNoInfo(e),
+    'сведения о грузе (нет ни одной строки)' IF NOT [GROUP SUM 1 BY etrn(ETRNDetail d)](e);
+
+checkT1 (ETRN e) {
+    IF missingT1(e) OR missingDetailsT1(e) THEN {
+        MESSAGE CONCAT '\n', 'Не заполнены обязательные поля титула Т1:', missingT1(e), missingDetailsT1(e);
+        RETURN;
+    }
+}
+
+filledT1 (ETRN e) = e IS ETRN AND NOT missingT1(e) AND NOT missingDetailsT1(e);
+
+sendSignedETRN 'Подписать и отправить Т1' (ETRN e) {
+    checkProvider(e);
+    IF NOT provider(e) THEN RETURN;
+    IF NOT skipFieldCheckETRN() THEN {
+        checkT1(e);
+        IF NOT filledT1(e) THEN RETURN;
+    }
+    sendSigned(e);
+} IMAGE 'apply.png';
+
+showPrintForm 'Печатная форма' (ETRN e) {
+    IF NOT printForm(e) AND provider(e) THEN importPrintForm(e);
+    IF printForm(e) THEN open(printForm(e));
+} IMAGE 'print.png';
+
+showQR 'QR-код перевозки' (ETRN e) {
+    // QR может обновляться на стороне провайдера (переадресовка, замена водителя/ТС) - запрашиваем всегда
+    IF provider(e) THEN importQR(e);
+    IF qrCode(e) THEN open(qrCode(e));
+    ELSE MESSAGE 'QR-код перевозки не получен';
+}
+
+sendQRToDriver 'Отправить QR-код водителю' (ETRN e) {
+    IF NOT driver(e) THEN {
+        MESSAGE 'В ЭТрН не указан водитель';
+        RETURN;
+    }
+    IF NOT email(driver(e)) THEN {
+        MESSAGE 'У водителя не задан e-mail (карточка водителя, блок «Реквизиты для ЭПД»)';
+        RETURN;
+    }
+    IF provider(e) THEN importQR(e); // актуальный QR перед отправкой
+    IF NOT qrCode(e) THEN {
+        MESSAGE 'QR-код перевозки не получен';
+        RETURN;
+    }
+
+    EMAIL SUBJECT 'QR-код перевозки ЭТрН ' + seriesNumber(e)
+        TO email(driver(e))
+        BODY (CONCAT ' ', 'QR-код перевозки ЭТрН', seriesNumber(e), 'во вложении. Предъявляется при проверке.')
+        ATTACH qrCode(e) NAME ('qr_' + seriesNumber(e));
+
+    MESSAGE 'QR-код отправлен водителю на ' + email(driver(e));
+}
+
+// 1. приём новых событий в журнал (без продвижения документов) - для планировщика
+importETRNEvents 'Получить события ЭПД' () {
+    FOR ETRNProvider p IS ETRNProvider DO
+        importEvents(p);
+}
+
+// 2. обработка необработанных событий журнала: продвижение документов - для планировщика
+processETRNEvents 'Обработать события ЭПД' () {
+    NEWSESSION {
+        FOR ETRNEvent ev IS ETRNEvent AND NOT processedDateTime(ev) ORDER dateTime(ev), ev DO {
+            // документ мог появиться (импорт входящей перевозки) уже после приёма события
+            IF NOT etrn(ev) THEN etrn(ev) <- etrn(transportationId(ev));
+            processEvent(ev);
+            processedDateTime(ev) <- currentDateTime();
+        }
+        APPLY;
+    }
+}
+
+// 1. приём входящих перевозок: создание документов с базовыми данными - для планировщика
+importIncomingETRN 'Получить входящие перевозки ЭПД' () {
+    FOR ETRNProvider p IS ETRNProvider DO
+        importIncoming(p);
+}
+
+// 2. загрузка полного состава данных входящих ЭТрН из титула Т1 - для планировщика
+// (реализация провайдера сама ставит titleImportedDateTime при успешной загрузке, чтобы неудача повторилась)
+processIncomingETRN 'Загрузить данные входящих ЭТрН' () {
+    FOR ETRN e IS ETRN AND transportationId(e) AND NOT roleShipper(e) AND NOT titleImportedDateTime(e) AND provider(e) DO
+        importFullData(e);
+}
+
+// ------------------------- Формы ------------------------- //
+
+EXTEND FORM etrn
+    PROPERTIES(e) nameProvider, nameExchangeStatus READONLY, transportationId READONLY,
+                  mintransId READONLY, providerStatus READONLY, exchangeMessage READONLY,
+                  titleFile
+
+    OBJECTS ev = ETRNEvent
+    PROPERTIES(ev) READONLY dateTime, type, status
+    ORDERS dateTime(ev) DESC
+    FILTERS etrn(ev) = e
+;
+
+DESIGN etrn {
+    pane {
+        NEW exchangeTab {
+            caption = 'Обмен';
+            NEW exchangeState {
+                lines = 3;
+                MOVE PROPERTY(nameProvider(e));
+                MOVE PROPERTY(nameExchangeStatus(e));
+                MOVE PROPERTY(providerStatus(e));
+                MOVE PROPERTY(transportationId(e));
+                MOVE PROPERTY(mintransId(e));
+                MOVE PROPERTY(exchangeMessage(e));
+                MOVE PROPERTY(titleFile(e));
+            }
+            MOVE BOX(ev) {
+                caption = 'События';
+                fill = 1;
+            }
+        }
+    }
+}
+
+EXTEND FORM etrns
+    PROPERTIES(e) READONLY nameProvider, nameExchangeStatus, providerStatus
+    PROPERTIES(e) sendSignedETRN SHOWIF (roleShipper(e) AND NOT readonlyT1(e)),
+                  showPrintForm, showQR,
+                  sendQRToDriver SHOWIF driver(e)
+    PROPERTIES importIncomingETRN() DRAW e, processIncomingETRN() DRAW e,
+               importETRNEvents() DRAW e, processETRNEvents() DRAW e
+;
+
+DESIGN etrns {
+    detailPane {   // нижняя панель закладок - в ETRN
+        NEW actionsTab {
+            caption = 'Действия';
+            horizontal = TRUE;
+            NEW actionsT1 {
+                caption = 'Т1: Оформление (грузоотправитель)';
+                MOVE PROPERTY(sendSignedETRN(e));
+            }
+            NEW actionsCommon {
+                caption = 'Провайдер';
+                MOVE PROPERTY(showPrintForm(e));
+                MOVE PROPERTY(showQR(e));
+                MOVE PROPERTY(sendQRToDriver(e));
+                MOVE PROPERTY(importIncomingETRN());
+                MOVE PROPERTY(processIncomingETRN());
+                MOVE PROPERTY(importETRNEvents());
+                MOVE PROPERTY(processETRNEvents());
+            }
+        }
+    }
+}
+
+FORM etrnEvents 'События ЭПД'
+    OBJECTS ev = ETRNEvent
+    PROPERTIES(ev) READONLY dateTime, nameProvider, type, status, mintransId, transportationId, seriesNumberETRN,
+                            processedDateTime
+    PROPERTIES TOOLBAR DRAW ev importETRNEvents(), processETRNEvents()
+    ORDERS dateTime(ev) DESC
+    FILTERGROUP processedFilter FILTER 'Необработанные' NOT processedDateTime(ev) 'F6'
+;
+
+NAVIGATOR {
+    epdNavigator {
+        NEW etrnEvents;
+    }
+}

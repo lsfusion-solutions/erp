@@ -1,0 +1,268 @@
+MODULE ETRNOrderRequestXmlRu;
+
+REQUIRE ETRNOrderRequest, ETRNTitleXmlRu;
+
+NAMESPACE ETRN;
+
+// Разбор XML титула Т1 заказа-заявки (ЗАКЗВГО, формат приказа ФНС по перевозочным документам)
+// в документ OrderRequest - для входящих заявок, где мы перевозчик.
+// Формат приказа - единый для провайдеров, поэтому общий модуль (по аналогии с ETRNTitleXmlRu).
+// Провайдер кладёт входящий XML в titleFile(OrderRequest) и вызывает parseOrderRequestTitleXml.
+
+// ------------------------- Локальные свойства ------------------------- //
+
+// СодИнфГО (шапка): номер/дата заявки, требования
+impOrNumber = DATA LOCAL STRING ();
+impOrDate = DATA LOCAL STRING ();
+impOrNorm = DATA LOCAL STRING ();       // УкНормПрвз - санитарные и прочие указания
+impOrFood = DATA LOCAL STRING ();       // ПрвзПищПрод - перевозка пищевой продукции
+
+// ДогОргПрвз (договор перевозки - основание)
+impOrContractName = DATA LOCAL STRING ();
+impOrContractNumber = DATA LOCAL STRING ();
+impOrContractDate = DATA LOCAL STRING ();
+
+// СвГО / СвПрв (участники: ЮЛ либо ИП)
+impOrGOInn = DATA LOCAL STRING ();
+impOrGOName = DATA LOCAL STRING ();
+impOrGOInnIP = DATA LOCAL STRING ();
+impOrPrvInn = DATA LOCAL STRING ();
+impOrPrvName = DATA LOCAL STRING ();
+impOrPrvInnIP = DATA LOCAL STRING ();
+
+// ПунктПод (подача ТС)
+impOrSupplyDT = DATA LOCAL STRING ();
+impOrSupplyIndex = DATA LOCAL STRING ();
+impOrSupplyRegion = DATA LOCAL STRING ();
+impOrSupplyCity = DATA LOCAL STRING ();
+impOrSupplyStreet = DATA LOCAL STRING ();
+impOrSupplyHouse = DATA LOCAL STRING ();
+
+// ПарТСПрвз (требования к ТС)
+impOrVehType = DATA LOCAL STRING ();
+impOrVehWeight = DATA LOCAL STRING ();
+impOrVehVolume = DATA LOCAL STRING ();
+
+// АдрПункт (пункты маршрута)
+impOrPointOper = DATA LOCAL STRING (INTEGER);
+impOrPointNum = DATA LOCAL STRING (INTEGER);
+impOrPointDT = DATA LOCAL STRING (INTEGER);
+impOrPointIndex = DATA LOCAL STRING (INTEGER);
+impOrPointRegion = DATA LOCAL STRING (INTEGER);
+impOrPointCity = DATA LOCAL STRING (INTEGER);
+impOrPointStreet = DATA LOCAL STRING (INTEGER);
+impOrPointHouse = DATA LOCAL STRING (INTEGER);
+impOrPointOwnerName = DATA LOCAL STRING (INTEGER);
+impOrPointOwnerInn = DATA LOCAL STRING (INTEGER);
+
+// ОпГруз (строки груза)
+impOrOpName = DATA LOCAL STRING (INTEGER);
+impOrOpCondition = DATA LOCAL STRING (INTEGER);
+impOrOpTare = DATA LOCAL STRING (INTEGER);
+impOrOpPlaces = DATA LOCAL STRING (INTEGER);
+impOrOpMet = DATA LOCAL STRING (INTEGER);
+impOrOpVolume = DATA LOCAL STRING (INTEGER);
+impOrOpDistr = DATA LOCAL STRING (INTEGER);     // РаспрГр: 0/1
+impOrOpDivis = DATA LOCAL STRING (INTEGER);     // ДелГр: 0/1
+impOrOpGross = DATA LOCAL STRING (INTEGER);
+impOrOpHeight = DATA LOCAL STRING (INTEGER);
+impOrOpLength = DATA LOCAL STRING (INTEGER);
+impOrOpWidth = DATA LOCAL STRING (INTEGER);
+
+// ------------------------- Импортная форма (структура файла ЗАКЗВГО) ------------------------- //
+
+GROUP impOrDoc EXTID 'Документ';
+GROUP impOrContract EXTID 'ДогОргПрвз' : impOrDoc;
+GROUP impOrContent EXTID 'СодИнфГО' : impOrDoc;
+GROUP impOrGO EXTID 'СвГО' : impOrContent;
+GROUP impOrGOId EXTID 'ИдСв' : impOrGO;
+GROUP impOrGOUL EXTID 'СвЮЛУч' : impOrGOId;
+GROUP impOrGOIP EXTID 'СвИП' : impOrGOId;
+GROUP impOrPrv EXTID 'СвПрв' : impOrContent;
+GROUP impOrPrvId EXTID 'ИдСв' : impOrPrv;
+GROUP impOrPrvUL EXTID 'СвЮЛУч' : impOrPrvId;
+GROUP impOrPrvIP EXTID 'СвИП' : impOrPrvId;
+GROUP impOrSupply EXTID 'ПунктПод' : impOrContent;
+GROUP impOrSupplyAddrP EXTID 'АдрПунктПод' : impOrSupply;
+GROUP impOrSupplyAddr EXTID 'Адрес' : impOrSupplyAddrP;
+GROUP impOrSupplyAddrRF EXTID 'АдрРФ' : impOrSupplyAddr;
+GROUP impOrTS EXTID 'ПарТСПрвз' : impOrContent;
+// пункты маршрута
+GROUP impOrPointAddrP EXTID 'АдресПункт';
+GROUP impOrPointAddr EXTID 'Адрес' : impOrPointAddrP;
+GROUP impOrPointAddrRF EXTID 'АдрРФ' : impOrPointAddr;
+GROUP impOrPointOwner EXTID 'ОргВладИнфр';
+// строки груза
+GROUP impOrMass EXTID 'МасГруз';
+GROUP impOrDims EXTID 'РазмерГрМест';
+
+FORM orderRequestTitleXmlImport
+    PROPERTIES IN impOrContent
+        impOrNumber() EXTID 'НомЗак' ATTR,
+        impOrDate() EXTID 'ДатаЗак' ATTR,
+        impOrNorm() EXTID 'УкНормПрвз' ATTR,
+        impOrFood() EXTID 'ПрвзПищПрод' ATTR
+
+    PROPERTIES IN impOrContract
+        impOrContractName() EXTID 'НаимДок' ATTR,
+        impOrContractNumber() EXTID 'НомерДок' ATTR,
+        impOrContractDate() EXTID 'ДатаДок' ATTR
+
+    PROPERTIES IN impOrGOUL impOrGOInn() EXTID 'ИННЮЛ' ATTR, impOrGOName() EXTID 'НаимОрг' ATTR
+    PROPERTIES IN impOrGOIP impOrGOInnIP() EXTID 'ИННФЛ' ATTR
+    PROPERTIES IN impOrPrvUL impOrPrvInn() EXTID 'ИННЮЛ' ATTR, impOrPrvName() EXTID 'НаимОрг' ATTR
+    PROPERTIES IN impOrPrvIP impOrPrvInnIP() EXTID 'ИННФЛ' ATTR
+
+    PROPERTIES IN impOrSupply impOrSupplyDT() EXTID 'ДатВрПод' ATTR
+    PROPERTIES IN impOrSupplyAddrRF
+        impOrSupplyIndex() EXTID 'Индекс' ATTR,
+        impOrSupplyRegion() EXTID 'КодРегион' ATTR,
+        impOrSupplyCity() EXTID 'Город' ATTR,
+        impOrSupplyStreet() EXTID 'Улица' ATTR,
+        impOrSupplyHouse() EXTID 'Дом' ATTR
+
+    PROPERTIES IN impOrTS
+        impOrVehType() EXTID 'Тип' ATTR,
+        impOrVehWeight() EXTID 'Грузопод' ATTR,
+        impOrVehVolume() EXTID 'Вместим' ATTR
+
+    OBJECTS ap = INTEGER EXTID 'АдрПункт' IN impOrContent
+    PROPERTIES(ap)
+        impOrPointOper EXTID 'Опер' ATTR,
+        impOrPointNum EXTID 'ПорНомПункт' ATTR,
+        impOrPointDT EXTID 'ДатВрОпер' ATTR
+    PROPERTIES(ap) IN impOrPointAddrRF
+        impOrPointIndex EXTID 'Индекс' ATTR,
+        impOrPointRegion EXTID 'КодРегион' ATTR,
+        impOrPointCity EXTID 'Город' ATTR,
+        impOrPointStreet EXTID 'Улица' ATTR,
+        impOrPointHouse EXTID 'Дом' ATTR
+    PROPERTIES(ap) IN impOrPointOwner
+        impOrPointOwnerName EXTID 'НаимВладИнфр' ATTR,
+        impOrPointOwnerInn EXTID 'ИННВладИнфр' ATTR
+
+    OBJECTS op = INTEGER EXTID 'ОпГруз' IN impOrContent
+    PROPERTIES(op)
+        impOrOpName EXTID 'НаимГруз' ATTR,
+        impOrOpCondition EXTID 'СостГруз' ATTR,
+        impOrOpTare EXTID 'ВидТар' ATTR,
+        impOrOpPlaces EXTID 'КолГрМест' ATTR,
+        impOrOpMet EXTID 'МетОпрМасс' ATTR,
+        impOrOpVolume EXTID 'Объем' ATTR,
+        impOrOpDistr EXTID 'РаспрГр' ATTR,
+        impOrOpDivis EXTID 'ДелГр' ATTR
+    PROPERTIES(op) IN impOrMass impOrOpGross EXTID 'МасБрутЗнач' ATTR
+    PROPERTIES(op) IN impOrDims
+        impOrOpHeight EXTID 'ВысЗнач' ATTR,
+        impOrOpLength EXTID 'ДлЗнач' ATTR,
+        impOrOpWidth EXTID 'ШирЗнач' ATTR
+;
+
+// ------------------------- Разбор в документ ------------------------- //
+// vzToDateTime / etrnWeightMethod / cargoName - из ETRNTitleXmlRu / Cargo
+
+parseOrderRequestTitleXml 'Импортировать титул заявки из файла' (OrderRequest o) {
+    IF NOT titleFile(o) THEN {
+        MESSAGE 'Не загружен файл титула заявки (поле "Файл титула (XML)")';
+        RETURN;
+    }
+
+    IMPORT orderRequestTitleXmlImport XML FROM titleFile(o);
+
+    // шапка и требования
+    number(o) <- STRING[48](impOrNumber());
+    date(o) <- DATE(toDateFormat(impOrDate(), 'DD.MM.YYYY'));
+    sanitary(o) <- ISTRING[1000](impOrNorm());
+    food(o) <- ISTRING[1000](impOrFood());
+
+    // договор перевозки
+    contractName(o) <- ISTRING[255](impOrContractName());
+    contractNumber(o) <- ISTRING[255](impOrContractNumber());
+    contractDate(o) <- DATE(toDateFormat(impOrContractDate(), 'DD.MM.YYYY'));
+
+    // участники (поиск по ИНН ЮЛ либо ИП; наши роли вычислятся автоматически)
+    shipper(o) <- legalEntityInn(STRING[12](OVERRIDE impOrGOInn(), impOrGOInnIP())) WHERE legalEntityInn(STRING[12](OVERRIDE impOrGOInn(), impOrGOInnIP()));
+    carrier(o) <- legalEntityInn(STRING[12](OVERRIDE impOrPrvInn(), impOrPrvInnIP())) WHERE legalEntityInn(STRING[12](OVERRIDE impOrPrvInn(), impOrPrvInnIP()));
+
+    LOCAL missingParticipants = STRING ();
+    missingParticipants() <- CONCAT '; ',
+        (CONCAT ' ', impOrGOName(), 'ИНН ' + (OVERRIDE impOrGOInn(), impOrGOInnIP())) IF (OVERRIDE impOrGOInn(), impOrGOInnIP()) AND NOT legalEntityInn(STRING[12](OVERRIDE impOrGOInn(), impOrGOInnIP())),
+        (CONCAT ' ', impOrPrvName(), 'ИНН ' + (OVERRIDE impOrPrvInn(), impOrPrvInnIP())) IF (OVERRIDE impOrPrvInn(), impOrPrvInnIP()) AND NOT legalEntityInn(STRING[12](OVERRIDE impOrPrvInn(), impOrPrvInnIP()));
+    IF missingParticipants() THEN
+        MESSAGE CONCAT ' ', 'Участники заявки не найдены в справочнике организаций:', missingParticipants();
+
+    // подача ТС
+    supplyDateTime(o) <- vzToDateTime(impOrSupplyDT());
+    supplyRegion(o) <- STRING[2](impOrSupplyRegion());
+    supplyZipCode(o) <- STRING[6](impOrSupplyIndex());
+    supplyCity(o) <- ISTRING[255](impOrSupplyCity());
+    supplyStreet(o) <- ISTRING[255](impOrSupplyStreet());
+    supplyBuilding(o) <- ISTRING[20](impOrSupplyHouse());
+
+    // требования к ТС
+    vehicleType(o) <- ISTRING[255](impOrVehType());
+    vehicleWeight(o) <- NUMERIC[10,2](impOrVehWeight());
+    vehicleVolume(o) <- NUMERIC[10,2](impOrVehVolume());
+
+    // метод определения массы - из первой строки груза
+    weightMethod(o) <- etrnWeightMethod(STRING[2]([GROUP MIN impOrOpMet(INTEGER i) IF impOrOpName(i)]()));
+
+    // пункты маршрута и строки груза пересоздаются (только когда мы не грузоотправитель)
+    IF NOT roleShipper(o) THEN {
+        DELETE OrderPoint p WHERE orderRequest(p) = o;
+        FOR impOrPointOper(INTEGER i) NEW np = OrderPoint DO {
+            orderRequest(np) <- o;
+            dataIndex(np) <- INTEGER(impOrPointNum(i));
+            operation(np) <- CASE WHEN impOrPointOper(i) = 'Погрузка' THEN OrderPointOperation.loading
+                                  WHEN impOrPointOper(i) = 'Выгрузка' THEN OrderPointOperation.unloading;
+            operationDateTime(np) <- vzToDateTime(impOrPointDT(i));
+            region(np) <- STRING[2](impOrPointRegion(i));
+            zipCode(np) <- STRING[6](impOrPointIndex(i));
+            city(np) <- ISTRING[255](impOrPointCity(i));
+            street(np) <- ISTRING[255](impOrPointStreet(i));
+            building(np) <- ISTRING[20](impOrPointHouse(i));
+            address(np) <- ISTRING[350](CONCAT ', ', impOrPointIndex(i), impOrPointCity(i), impOrPointStreet(i), impOrPointHouse(i));
+            ownerName(np) <- ISTRING[255](impOrPointOwnerName(i));
+            ownerInn(np) <- STRING[12](impOrPointOwnerInn(i));
+        }
+
+        DELETE OrderDetail d WHERE orderRequest(d) = o;
+        FOR impOrOpName(INTEGER i) NEW nd = OrderDetail DO {
+            orderRequest(nd) <- o;
+            // отсутствующие справочные значения создаются из титула
+            IF impOrOpCondition(i) AND NOT conditionName(ISTRING[255](impOrOpCondition(i))) THEN NEW cc = CargoCondition {
+                name(cc) <- ISTRING[255](impOrOpCondition(i));
+            }
+            // отсутствующий в справочнике груз создаётся с реквизитами из титула
+            IF NOT cargoName(ISTRING[255](impOrOpName(i))) THEN NEW c = Cargo {
+                name(c) <- ISTRING[255](impOrOpName(i));
+                tareType(c) <- tareType(STRING[2](impOrOpTare(i)));
+            }
+            cargo(nd) <- cargoName(ISTRING[255](impOrOpName(i)));
+            condition(nd) <- conditionName(ISTRING[255](impOrOpCondition(i)));
+            tareType(nd) <- tareType(STRING[2](impOrOpTare(i)));
+            quantityPlaces(nd) <- INTEGER(impOrOpPlaces(i));
+            volume(nd) <- NUMERIC[17,3](impOrOpVolume(i));
+            grossWeight(nd) <- NUMERIC[17,3](impOrOpGross(i));
+            height(nd) <- NUMERIC[17,3](impOrOpHeight(i));
+            length(nd) <- NUMERIC[17,3](impOrOpLength(i));
+            width(nd) <- NUMERIC[17,3](impOrOpWidth(i));
+            distributable(nd) <- TRUE IF impOrOpDistr(i) = '1';
+            divisible(nd) <- TRUE IF impOrOpDivis(i) = '1';
+        }
+    }
+
+    APPLY;
+}
+
+// кнопка ручного импорта из файла (по аналогии с parseETRNTitleXml на списке ЭТрН)
+EXTEND FORM orderRequests
+    PROPERTIES(o) READONLY titleImportedDateTime
+    PROPERTIES(o) parseOrderRequestTitleXml SHOWIF (roleCarrier(o) AND titleFile(o))
+;
+
+DESIGN orderRequests {
+    actionsTab {
+        MOVE PROPERTY(parseOrderRequestTitleXml(o));
+    }
+}

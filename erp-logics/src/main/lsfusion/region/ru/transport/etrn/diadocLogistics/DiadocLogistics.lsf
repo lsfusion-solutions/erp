@@ -1,0 +1,156 @@
+MODULE DiadocLogistics;
+
+REQUIRE ETRNExchange, ETRNConsignee, ETRNCarrier, LegalEntityRu,
+        DiadocMessage, DiadocOrganization, DiadocAuthentication, CryptoProLegalEntity;
+
+NAMESPACE Diadoc;
+
+// Реализация обмена ЭТрН через Диадок API (продукт Diadoc.Логистика):
+// генерация XML титулов методом GenerateTitleXml из упрощённого UserDataXml,
+// подпись КЭП и отправка через PostMessage / PostMessagePatch.
+// Переиспользует инфраструктуру Диадока: авторизация, ящики, сообщения.
+
+// провайдер ЭПД - Диадок (в отличие от Kontur.Логистики)
+EXTEND CLASS ETRN.ETRNProvider { diadoc 'Диадок (Логистика)' }
+
+// ------------------------- Настройки формата и обмена ЭПД ------------------------- //
+// Значения по умолчанию проставляются на onStarted, если ещё не заданы; редактируются в «Интеграция».
+
+logisticsTypeNamedId 'Тип документа ЭТрН' = DATA STRING[50] ();
+logisticsVersion 'Версия формата ЭТрН' = DATA STRING[50] ();
+// заказ-заявка (LogisticsOrderRequest): двухтитульный документ Т1 (грузоотправитель) + Т2 (перевозчик)
+orderRequestTypeNamedId 'Тип документа заказа-заявки' = DATA STRING[50] ();
+orderRequestVersion 'Версия формата заказа-заявки' = DATA STRING[50] ();
+orderRequestFunction 'Функция документа заказа-заявки' = DATA STRING[20] ();
+// идентификатор documentflow статусов ГИС ЭПД (ЭТрН и заказ-заявка)
+klMtDocflowNamedId 'Идентификатор docflow ГИС ЭПД' = DATA STRING[50] ();
+// смещение часового пояса (для datetimeutc/timeutc, формат ±ЧЧ:ММ); по умолчанию МСК
+diadocTimeZoneOffset 'Смещение часового пояса ЭПД (±ЧЧ:ММ)' = DATA STRING[6] ();
+
+onStarted() + {
+    IF NOT logisticsTypeNamedId() THEN logisticsTypeNamedId() <- 'LogisticsWaybill';
+    IF NOT logisticsVersion() THEN logisticsVersion() <- 'kl_trn_mt_05_01';
+    IF NOT orderRequestTypeNamedId() THEN orderRequestTypeNamedId() <- 'LogisticsOrderRequest';
+    IF NOT orderRequestVersion() THEN orderRequestVersion() <- 'zakzvper_05_01_01';
+    IF NOT orderRequestFunction() THEN orderRequestFunction() <- 'default';
+    IF NOT klMtDocflowNamedId() THEN klMtDocflowNamedId() <- 'KlMt';
+    IF NOT diadocTimeZoneOffset() THEN diadocTimeZoneOffset() <- '+03:00';
+}
+
+// форматирование дат для UserDataXml Диадока (общее для всех титулов)
+diadocDate (DATE d) = toChar(d, 'DD.MM.YYYY');
+// datetimeutc: ДД.ММ.ГГГГTЧЧ:ММ:СС±ЧЧ:ММ (смещение обязательно)
+diadocDateTime (DATETIME d) = toChar(d, 'DD.MM.YYYY"T"HH24:MI:SS') + diadocTimeZoneOffset();
+
+// ------------------------- Настройки на форме «Интеграция» ------------------------- //
+
+EXTEND FORM integrationData
+    PROPERTIES() logisticsTypeNamedId, logisticsVersion,
+                 orderRequestTypeNamedId, orderRequestVersion, orderRequestFunction,
+                 klMtDocflowNamedId, diadocTimeZoneOffset
+;
+
+DESIGN integrationData {
+    pane {
+        NEW diadocLogisticsSettings {
+            caption = 'Диадок Логистика (ЭПД)';
+            lines = 2;
+            MOVE PROPERTY(logisticsTypeNamedId());
+            MOVE PROPERTY(logisticsVersion());
+            MOVE PROPERTY(orderRequestTypeNamedId());
+            MOVE PROPERTY(orderRequestVersion());
+            MOVE PROPERTY(orderRequestFunction());
+            MOVE PROPERTY(klMtDocflowNamedId());
+            MOVE PROPERTY(diadocTimeZoneOffset());
+        }
+    }
+}
+
+// ------------------------- Связь перевозки ЭТрН с документами Диадока ------------------------- //
+// Перевозка в Диадоке = набор документов: Т1+Т2 - один двухтитульный (reception),
+// Т3+Т4 - отдельный двухтитульный (delivery). Все документы одной перевозки связаны через kl-id.
+
+// идентификаторы перевозки (kl-id - внутренний ид Диадока, mt-id - УИД Минтранса / ГИС ЭПД)
+diadocKlId 'kl-id (перевозка Диадок)' = DATA STRING[36](ETRN.ETRN) INDEXED;
+etrnByKlId (STRING[36] klId) = GROUP MAX ETRN.ETRN e BY diadocKlId(e);
+
+// документы перевозки в Диадоке
+diadocReceptionDocument = DATA Document (ETRN.ETRN);   // Т1 + Т2
+diadocDeliveryDocument = DATA Document (ETRN.ETRN);     // Т3 + Т4
+
+// kl-id / mt-id из пользовательских данных документа Диадока
+// TODO: сверить ключи CustomData ('kl-id' / 'mt-id') и их заполнение при импорте на тестовой площадке
+klIdDocument (Document d) = metadata(d, 'kl-id');
+mtIdDocument (Document d) = metadata(d, 'mt-id');
+
+// идентификаторы исходного документа для patch (Т2 -> reception, Т4 -> delivery)
+receptionMessageId (ETRN.ETRN e) = messageId(diadocReceptionDocument(e));
+receptionEntityId (ETRN.ETRN e) = entityId(diadocReceptionDocument(e));
+deliveryMessageId (ETRN.ETRN e) = messageId(diadocDeliveryDocument(e));
+deliveryEntityId (ETRN.ETRN e) = entityId(diadocDeliveryDocument(e));
+
+// ящик Диадока нашей организации-участника
+diadocBox (LegalEntity l) = GROUP LAST Box b IF legalEntity(organization(b)) == l ORDER b;
+diadocBoxId (LegalEntity l) = boxId(diadocBox(l));
+
+// идентификатор участника документооборота СФ (ФНС) - для OrganizationDetails заказа-заявки
+diadocFnsParticipantId (LegalEntity l) = fnsParticipantId(organization(diadocBox(l)));
+
+// ------------------------- Структурные реквизиты организации-участника ------------------------- //
+// Структурный адрес участника хранится в справочнике организаций Диадока (Organization);
+// заполняется из GetMyOrganizations / GetOrganizationsByInnKpp.
+
+diadocOrg (LegalEntity l) = organization(diadocBox(l));
+
+// достаточность структурного адреса организации (Region + ZipCode - минимум по UserDataXsd RussianAddress)
+hasDiadocOrgAddress (LegalEntity l) = region(diadocOrg(l)) AND zipCode(diadocOrg(l));
+
+// однозначные имена полей структурного адреса организации-участника (для форм титулов, namespace ETRN)
+diadocOrgZipCode (LegalEntity l) = zipCode(diadocOrg(l));
+diadocOrgRegion (LegalEntity l) = region(diadocOrg(l));
+diadocOrgTerritory (LegalEntity l) = territory(diadocOrg(l));
+diadocOrgCity (LegalEntity l) = city(diadocOrg(l));
+diadocOrgLocality (LegalEntity l) = locality(diadocOrg(l));
+diadocOrgStreet (LegalEntity l) = street(diadocOrg(l));
+diadocOrgBuilding (LegalEntity l) = building(diadocOrg(l));
+diadocOrgBlock (LegalEntity l) = block(diadocOrg(l));
+diadocOrgApartment (LegalEntity l) = apartment(diadocOrg(l));
+
+// тип организации-участника (OrganizationType_DatabaseOrder): 1 - ИП (ИНН 12 знаков), 2 - ЮЛ
+diadocOrgType (LegalEntity l) = (IF length(inn(l)) == 12 THEN '1' ELSE '2') IF l IS LegalEntity;
+
+// наблюдатель документооборота ЭТрН (иной получатель документа, OtherRecipientIds титула Т1):
+// например, поставщик при самовывозе - не участник перевозки, но получает документ в свой ящик
+diadocObserver = DATA LegalEntity (ETRN.ETRN);
+nameDiadocObserver 'Наблюдатель (иной получатель)' (ETRN.ETRN e) = name(diadocObserver(e)) CHARWIDTH 30;
+
+EXTEND FORM etrn
+    PROPERTIES(e) nameDiadocObserver
+;
+
+DESIGN etrn {
+    exchangeState {
+        MOVE PROPERTY(nameDiadocObserver(e));
+    }
+}
+
+// пользователь Диадока для авторизации (можно переопределить)
+overUserDiadocETRN = ABSTRACT User ();
+userDiadocETRN () = OVERRIDE overUserDiadocETRN(), userDiadoc(currentUser());
+
+// проверить и при необходимости догрузить реквизиты организации по API (перед отправкой титулов):
+// есть ИНН и КПП - запрос по двум параметрам; только ИНН - по одному
+ensureDiadocOrgData (LegalEntity l) {
+    IF l AND inn(l) AND NOT hasDiadocOrgAddress(l) THEN {
+        IF kpp(l) THEN getOrganizationsByInnKpp(userDiadocETRN(), inn(l), kpp(l));
+        ELSE getOrganizationsByInn(userDiadocETRN(), inn(l));
+    }
+}
+
+// ------------------------- Проверки перед отправкой ------------------------- //
+
+// наличие ящиков участников (для указания BoxId в UserDataXml)
+missingDiadocBoxes (ETRN.ETRN e) = CONCAT ', ',
+    'ящик грузоотправителя' IF ETRN.shipper(e) AND NOT diadocBox(ETRN.shipper(e)),
+    'ящик грузополучателя' IF ETRN.consignee(e) AND NOT diadocBox(ETRN.consignee(e)),
+    'ящик перевозчика' IF ETRN.carrier(e) AND NOT diadocBox(ETRN.carrier(e));

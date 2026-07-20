@@ -1,0 +1,70 @@
+MODULE DiadocLogisticsT1;
+
+REQUIRE DiadocLogistics, DiadocLogisticsT1Form;
+
+NAMESPACE Diadoc;
+
+// ------------------------- Т1 через Диадок: генерация XML + подпись + отправка ------------------------- //
+// Форма UserDataXml (diadocT1UserData) - в модуле DiadocLogisticsT1Form (namespace ETRN).
+// Здесь: GenerateTitleXml (Диадок строит полный XML по приказу), подпись КЭП, PostMessage.
+
+diadocSendT1 (ETRN.ETRN e) {
+    IF NOT diadocBox(ETRN.shipper(e)) THEN {
+        MESSAGE 'Не найден ящик Диадока грузоотправителя';
+        RETURN;
+    }
+    IF missingDiadocBoxes(e) THEN {
+        MESSAGE CONCAT ' ', 'Не найдены ящики участников:', missingDiadocBoxes(e);
+        RETURN;
+    }
+
+    FOR User u == userDiadocETRN() DO NEWSESSION {
+        fromBox() <- diadocBox(ETRN.shipper(e));
+        toBox() <- diadocBox(ETRN.carrier(e));   // TODO: первичный получатель Т1 - сверить (перевозчик/получатель)
+
+        getToken(u);
+        EXPORT diadocT1UserData OBJECTS e = e XML;
+
+        LOCAL result = FILE ();
+        TRY {
+            EXTERNAL HTTP POST url() + '/GenerateTitleXml?boxId=' + fromBoxId() +
+                '&documentTypeNamedId=' + logisticsTypeNamedId() +
+                '&documentFunction=reception&documentVersion=' + logisticsVersion() + '&titleIndex=0'
+                HEADERS httpHeadersToken PARAMS exportFile() TO result;
+
+            typeNamedIdDocument(0) <- logisticsTypeNamedId();
+            functionDocument(0) <- 'reception';
+            versionDocument(0) <- logisticsVersion();
+            contentDocument(0) <- encode(RAWFILE(result()), 'base64');
+
+            IF useTestSignature() THEN signWithTestSignature(0) <- TRUE;
+            ELSE {
+                sign(FILE(result()), TRUE, ETRN.shipper(e));
+                signatureDocument(0) <- encodedSignature();
+            }
+
+            postMessage(u);
+            // postMessage глотает HTTP-ошибки (MESSAGE внутри) - успех определяем по созданному документу
+            IF createdDocument() THEN {
+                // Т1 создаёт reception-документ перевозки; kl-id связывает все документы перевозки
+                diadocReceptionDocument(e) <- createdDocument();
+                diadocKlId(e) <- STRING[36](klIdDocument(createdDocument()));
+                ETRN.transportationId(e) <- diadocKlId(e);   // общий ИД перевозки (kl-id)
+                ETRN.mintransId(e) <- STRING[255](mtIdDocument(createdDocument())) WHERE mtIdDocument(createdDocument());
+                ETRN.exchangeStatus(e) <- ETRN.ETRNExchangeStatus.signed;
+                ETRN.exchangeMessage(e) <- NULL;
+            } ELSE
+                ETRN.exchangeMessage(e) <- 'Т1 не отправлен (Диадок): ошибка PostMessage';
+        } CATCH {
+            fileToString(result(), 'UTF-8');
+            ETRN.exchangeMessage(e) <- 'Ошибка отправки Т1 (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+            MESSAGE ETRN.exchangeMessage(e);
+        }
+        APPLY;
+    }
+}
+
+// реализация абстракции подписанной отправки Т1 для провайдера Диадок
+ETRN.sendSigned (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvider.diadoc THEN {
+    diadocSendT1(e);
+}

@@ -1,0 +1,122 @@
+MODULE DiadocLogisticsQR;
+
+REQUIRE DiadocLogistics, DiadocLogisticsEvents;
+
+NAMESPACE Diadoc;
+
+// ------------------------- QR-код перевозки через Диадок ------------------------- //
+// QR-код появляется после присвоения перевозке статуса ГИС ЭПД с NamedId = 'QR'
+// (docflow KlMt); бинарный GIF привязан к сущности-вложению этого статуса.
+// Получение по требованию (QR обновляется после Т7/Т8 - переадресовка, замена водителя/ТС):
+//   1. GetDocflows (V5) по reception-документу перевозки -> OuterDocflows[KlMt] ->
+//      StatusEntities со Status.NamedId = 'QR' -> Attachment/Attachment/Entity/EntityId;
+//   2. GetEntityContent -> GIF -> qrCode(ETRN).
+
+// координаты reception-документа и наш ящик - в DiadocLogisticsEvents
+// (receptionDocMessageId / receptionDocEntityId / ourLegalEntity)
+
+// ------------------------- Запрос GetDocflows (V5) ------------------------- //
+
+GROUP qDocumentId EXTID 'DocumentId';
+
+reqMessageIdQ = DATA LOCAL STRING (INTEGER);
+reqEntityIdQ = DATA LOCAL STRING (INTEGER);
+
+FORM exportGetDocflowsRequest
+    OBJECTS r = INTEGER EXTID 'Requests'
+    PROPERTIES(r) IN qDocumentId reqMessageIdQ EXTID 'MessageId', reqEntityIdQ EXTID 'EntityId'
+    FILTERS reqMessageIdQ(r)
+;
+
+// ------------------------- Ответ GetDocflows (V5): статусы KlMt с вложениями ------------------------- //
+// Documents[] -> Docflow -> OuterDocflows[] -> StatusEntities[] { Attachment{Attachment{Entity{EntityId}}},
+//                                                                 Status{NamedId} }
+
+GROUP qDocflow EXTID 'Docflow';
+GROUP qStatus EXTID 'Status';
+GROUP qAttachmentS EXTID 'Attachment';                  // SignedAttachmentV3
+GROUP qAttachmentA EXTID 'Attachment' : qAttachmentS;   // Attachment
+GROUP qEntityA EXTID 'Entity' : qAttachmentA;           // Entity
+
+docOuterQ = DATA LOCAL INTEGER (INTEGER);     // outerDocflow -> документ
+docflowNamedIdQ = DATA LOCAL STRING (INTEGER);
+outerStatusQ = DATA LOCAL INTEGER (INTEGER);  // statusEntity -> outerDocflow
+statusNamedIdQ = DATA LOCAL STRING (INTEGER);
+attachmentEntityIdQ = DATA LOCAL STRING (INTEGER);
+
+FORM importGetDocflowsQR
+    OBJECTS dq = INTEGER EXTID 'Documents'
+
+    OBJECTS oq = INTEGER IN qDocflow EXTID 'OuterDocflows'
+    FILTERS docOuterQ(oq) == dq
+    PROPERTIES(oq) docflowNamedIdQ EXTID 'DocflowNamedId'
+
+    OBJECTS sq = INTEGER EXTID 'StatusEntities'
+    FILTERS outerStatusQ(sq) == oq
+    PROPERTIES(sq) IN qStatus statusNamedIdQ EXTID 'NamedId'
+    PROPERTIES(sq) IN qEntityA attachmentEntityIdQ EXTID 'EntityId'
+;
+
+// сущность-вложение последнего статуса QR документооборота ГИС ЭПД
+qrContentEntityId () = GROUP LAST attachmentEntityIdQ(INTEGER sq)
+                           IF statusNamedIdQ(sq) == 'QR' AND docflowNamedIdQ(outerStatusQ(sq)) == klMtDocflowNamedId()
+                           ORDER sq;
+
+// ------------------------- Получение QR-кода ------------------------- //
+
+diadocImportQR (ETRN.ETRN e) {
+    IF NOT (receptionDocMessageId(e) AND receptionDocEntityId(e)) THEN {
+        MESSAGE 'Нет reception-документа перевозки в Диадоке (Т1 не отправлен / события не получены)';
+        RETURN;
+    }
+    IF NOT receptionBoxId(e) THEN {
+        MESSAGE 'Не найден ящик Диадока нашей организации-участника перевозки';
+        RETURN;
+    }
+
+    FOR User u == userDiadocETRN() DO NEWSESSION {
+        getToken(u);
+
+        LOCAL boxIdQR = STRING ();
+        boxIdQR() <- receptionBoxId(e);
+
+        reqMessageIdQ(0) <- receptionDocMessageId(e);
+        reqEntityIdQ(0) <- receptionDocEntityId(e);
+
+        LOCAL result = FILE ();
+        EXPORT exportGetDocflowsRequest JSON;
+        TRY {
+            EXTERNAL HTTP POST url() + '/V5/GetDocflows?boxId=' + boxIdQR()
+                HEADERS httpHeadersToken PARAMS exportFile() TO result;
+            IMPORT importGetDocflowsQR JSON FROM result();
+        } CATCH {
+            fileToString(result(), 'UTF-8');
+            MESSAGE 'Ошибка получения документооборота перевозки (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+            RETURN;
+        }
+
+        IF NOT qrContentEntityId() THEN {
+            MESSAGE 'QR-код перевозки ещё не присвоен в ГИС ЭПД (нет статуса QR)';
+            RETURN;
+        }
+
+        LOCAL data = RAWFILE ();
+        TRY {
+            EXTERNAL HTTP GET url() + '/GetEntityContent?boxId=' + boxIdQR() +
+                '&messageId=' + receptionDocMessageId(e) + '&entityId=' + qrContentEntityId()
+                HEADERS httpHeadersToken TO data;
+        } CATCH {
+            fileToString(FILE(data()), 'UTF-8');
+            MESSAGE 'Ошибка получения QR-кода (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+            RETURN;
+        }
+
+        ETRN.qrCode(e) <- file(data(), 'gif');
+        APPLY;
+    }
+}
+
+// реализация абстракции ETRNExchange (кнопки «QR-код перевозки» / «Отправить QR-код водителю»)
+ETRN.importQR (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvider.diadoc THEN {
+    diadocImportQR(e);
+}

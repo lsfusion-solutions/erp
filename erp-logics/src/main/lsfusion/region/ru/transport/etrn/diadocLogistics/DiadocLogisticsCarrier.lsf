@@ -1,0 +1,70 @@
+MODULE DiadocLogisticsCarrier;
+
+REQUIRE DiadocLogistics, DiadocLogisticsCarrierForm;
+
+NAMESPACE Diadoc;
+
+// ------------------------- Т2 / Т4 через Диадок: подпись перевозчика + отправка (patch) ------------------------- //
+// UserDataXml перевозчика - только подписант; GenerateTitleXml строит полный XML по приказу.
+// Т2: reception, titleIndex=1 (letterId/documentId от Т1); Т4: delivery, titleIndex=3 (от Т3).
+
+// documentFunction: reception (Т2, patch к reception-документу Т1) / delivery (Т4, patch к delivery-документу Т3)
+// titleIndex: 1 (Т2) / 3 (Т4)
+diadocSendCarrier (ETRN.ETRN e, Document srcDoc, STRING documentFunction, STRING titleIndex, STRING titleName) {
+    IF NOT srcDoc THEN {
+        MESSAGE CONCAT ' ', 'Нет исходного документа перевозки для', titleName, '(Диадок)';
+        RETURN;
+    }
+    IF NOT diadocBox(ETRN.carrier(e)) THEN {
+        MESSAGE 'Не найден ящик Диадока перевозчика';
+        RETURN;
+    }
+
+    FOR User u == userDiadocETRN() DO NEWSESSION {
+        box() <- diadocBox(ETRN.carrier(e));
+        message() <- message(srcDoc);
+        parentEntity(0) <- entity(srcDoc);
+        isRecipientTitles(0) <- TRUE;
+
+        getToken(u);
+        EXPORT diadocCarrierUserData OBJECTS e = e XML;
+
+        LOCAL result = FILE ();
+        TRY {
+            EXTERNAL HTTP POST url() + '/GenerateTitleXml?boxId=' + boxId() +
+                '&documentTypeNamedId=' + logisticsTypeNamedId() +
+                '&documentFunction=' + documentFunction + '&documentVersion=' + logisticsVersion() +
+                '&titleIndex=' + titleIndex + '&letterId=' + messageId() + '&documentId=' + parentEntityId(0)
+                HEADERS httpHeadersToken PARAMS exportFile() TO result;
+
+            contentDocument(0) <- encode(RAWFILE(result()), 'base64');
+
+            IF useTestSignature() THEN signWithTestSignature(0) <- TRUE;
+            ELSE {
+                sign(FILE(result()), TRUE, ETRN.carrier(e));
+                signatureDocument(0) <- encodedSignature();
+            }
+
+            postMessagePatch(u);
+            // postMessagePatch глотает HTTP-ошибки (MESSAGE внутри) - успех определяем по созданному дополнению
+            IF createdMessagePatch() THEN {
+                ETRN.exchangeStatus(e) <- ETRN.ETRNExchangeStatus.signed;
+                ETRN.exchangeMessage(e) <- NULL;
+            } ELSE
+                ETRN.exchangeMessage(e) <- CONCAT ' ', titleName, 'не отправлен (Диадок): ошибка PostMessagePatch';
+        } CATCH {
+            fileToString(result(), 'UTF-8');
+            ETRN.exchangeMessage(e) <- CONCAT ' ', 'Ошибка отправки', titleName, '(Диадок):', (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+            MESSAGE ETRN.exchangeMessage(e);
+        }
+        APPLY;
+    }
+}
+
+ETRN.sendCarrierReception (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvider.diadoc THEN {
+    diadocSendCarrier(e, diadocReceptionDocument(e), 'reception', '1', 'Т2');   // patch к reception-документу (Т1)
+}
+
+ETRN.sendCarrierDelivery (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvider.diadoc THEN {
+    diadocSendCarrier(e, diadocDeliveryDocument(e), 'delivery', '3', 'Т4');   // patch к delivery-документу (Т3)
+}

@@ -1,0 +1,146 @@
+MODULE ETRNCarrier;
+
+REQUIRE ETRNExchange, ETRNConsignee;
+
+NAMESPACE ETRN;
+
+// ETRNConsignee - только ради порядка вкладок этапов на форме (Т2 до Т3, Т4 после)
+
+// ------------------------- Титулы перевозчика (Т2 / Т4) ------------------------- //
+// Приказ ФНС N ЕД-7-26/1065@:
+//   раздел III - файл обмена информации перевозчика о приеме груза к перевозке (Т2);
+//   раздел VII - файл обмена информации перевозчика о выдаче груза грузополучателю (Т4).
+// Оба титула - подтверждение с необязательными оговорками и замечаниями.
+
+// -- Т2: оговорки и замечания перевозчика при приеме груза (ЗамПрвПрием)
+
+receptionRemarkArrivalDateTime 'Оговорки: фактические дата и время прибытия' = DATA DATETIME (ETRN);
+receptionRemarkDepartureDateTime 'Оговорки: фактические дата и время убытия' = DATA DATETIME (ETRN);
+receptionRemarkLoadingDateTime 'Оговорки: дата и время постановки на погрузку' = DATA DATETIME (ETRN);
+receptionRemarkCondition 'Оговорки: состояние груза, крепления, тары, упаковки, маркировки и опломбирования' = DATA STRING (ETRN) CHARWIDTH 40;
+receptionRemarkWeight 'Оговорки: масса груза' = DATA ISTRING[1000](ETRN) CHARWIDTH 25;
+receptionRemarkPlaces 'Оговорки: количество грузовых мест' = DATA ISTRING[1000](ETRN) CHARWIDTH 25;
+receptionRemarkLoading 'Оговорки: проведение погрузочных работ' = DATA ISTRING[1000](ETRN) CHARWIDTH 25;
+
+// -- Т4: оговорки и замечания перевозчика при выдаче груза (ЗамПрвВыд)
+
+issueRemarkArrivalDateTime 'Оговорки: фактические дата и время прибытия' = DATA DATETIME (ETRN);
+issueRemarkDepartureDateTime 'Оговорки: фактические дата и время убытия' = DATA DATETIME (ETRN);
+issueRemarkUnloadingDateTime 'Оговорки: дата и время постановки на выгрузку' = DATA DATETIME (ETRN);
+issueRemarkCondition 'Оговорки: состояние груза, тары, упаковки, маркировки и опломбирования, массы и количества мест' = DATA STRING (ETRN) CHARWIDTH 40;
+issueRemarkUnloading 'Оговорки: проведение работ по выгрузке' = DATA STRING (ETRN) CHARWIDTH 25;
+
+// -- Отправка титулов (реализации - в модулях провайдеров)
+
+// в титулах перевозчика из обязательного - только подписант (оговорки опциональны)
+missingCarrierTitle (ETRN e) = CONCAT ', ',
+    'перевозчик' IF NOT carrier(e),
+    'подписант перевозчика (ФИО)' IF carrier(e) AND NOT (signerLastName(carrier(e)) AND signerFirstName(carrier(e))),
+    'подписант перевозчика (должность)' IF carrier(e) AND NOT signerPosition(carrier(e));
+
+checkCarrierTitle (ETRN e) {
+    IF missingCarrierTitle(e) THEN
+        MESSAGE CONCAT '\n', 'Не заполнены обязательные поля титула перевозчика:', missingCarrierTitle(e);
+}
+
+sendCarrierReceptionETRN 'Отправить титул о приеме (Т2)' (ETRN e) {
+    checkProvider(e);
+    IF NOT provider(e) THEN RETURN;
+    IF NOT skipFieldCheckETRN() THEN {
+        checkCarrierTitle(e);
+        IF missingCarrierTitle(e) THEN RETURN;
+    }
+    sendCarrierReception(e);
+} IMAGE 'share.png';
+
+sendCarrierDeliveryETRN 'Отправить титул о выдаче (Т4)' (ETRN e) {
+    checkProvider(e);
+    IF NOT provider(e) THEN RETURN;
+    IF NOT skipFieldCheckETRN() THEN {
+        checkCarrierTitle(e);
+        IF missingCarrierTitle(e) THEN RETURN;
+    }
+    sendCarrierDelivery(e);
+} IMAGE 'share.png';
+
+// ------------------------- Формы ------------------------- //
+
+EXTEND FORM etrn
+    PROPERTIES(e) READONLYIF readonlyT2(e)
+                  receptionRemarkArrivalDateTime, receptionRemarkDepartureDateTime, receptionRemarkLoadingDateTime,
+                  receptionRemarkCondition, receptionRemarkWeight, receptionRemarkPlaces, receptionRemarkLoading
+    PROPERTIES(e) READONLYIF readonlyT4(e)
+                  issueRemarkArrivalDateTime, issueRemarkDepartureDateTime, issueRemarkUnloadingDateTime,
+                  issueRemarkCondition, issueRemarkUnloading
+;
+
+DESIGN etrn {
+    pane {
+        NEW receptionTab BEFORE consigneeTab {
+            caption = 'Т2: Погрузка (перевозчик)';
+            NEW receptionBox {
+                caption = 'Оговорки и замечания при приеме груза';
+                NEW receptionDates {
+                    horizontal = TRUE;
+                    MOVE PROPERTY(receptionRemarkArrivalDateTime(e));
+                    MOVE PROPERTY(receptionRemarkDepartureDateTime(e));
+                    MOVE PROPERTY(receptionRemarkLoadingDateTime(e));
+                }
+                NEW receptionRemarks {
+                    lines = 2;
+                    MOVE PROPERTY(receptionRemarkCondition(e));
+                    MOVE PROPERTY(receptionRemarkWeight(e));
+                    MOVE PROPERTY(receptionRemarkPlaces(e));
+                    MOVE PROPERTY(receptionRemarkLoading(e));
+                }
+            }
+        }
+        NEW issueTab BEFORE exchangeTab {
+            caption = 'Т4: Разгрузка (перевозчик)';
+            NEW issueBox {
+                caption = 'Оговорки и замечания при выдаче груза';
+                NEW issueDates {
+                    horizontal = TRUE;
+                    MOVE PROPERTY(issueRemarkArrivalDateTime(e));
+                    MOVE PROPERTY(issueRemarkDepartureDateTime(e));
+                    MOVE PROPERTY(issueRemarkUnloadingDateTime(e));
+                }
+                NEW issueRemarks {
+                    lines = 2;
+                    MOVE PROPERTY(issueRemarkCondition(e));
+                    MOVE PROPERTY(issueRemarkUnloading(e));
+                }
+            }
+        }
+    }
+}
+
+// при открытии документа активируется вкладка текущего этапа
+// (только при включенном контроле этапов; выключен - форма открывается как обычно)
+EXTEND FORM etrn
+    ON INIT {
+        IF controlStageEditETRN() THEN {
+            CASE WHEN stage(e) = ETRNStage.loading THEN ACTIVATE TAB etrn.receptionTab;
+                 WHEN stage(e) = ETRNStage.acceptance THEN ACTIVATE TAB etrn.consigneeTab;
+                 WHEN stage(e) = ETRNStage.unloading THEN ACTIVATE TAB etrn.issueTab;
+        }
+    }
+;
+
+EXTEND FORM etrns
+    PROPERTIES(e) sendCarrierReceptionETRN SHOWIF (roleCarrier(e) AND NOT readonlyT2(e)),
+                  sendCarrierDeliveryETRN SHOWIF (roleCarrier(e) AND NOT readonlyT4(e))
+;
+
+DESIGN etrns {
+    actionsTab {
+        NEW actionsT2 AFTER actionsT1 {
+            caption = 'Т2: Погрузка (перевозчик)';
+            MOVE PROPERTY(sendCarrierReceptionETRN(e));
+        }
+        NEW actionsT4 BEFORE actionsCommon {
+            caption = 'Т4: Разгрузка (перевозчик)';
+            MOVE PROPERTY(sendCarrierDeliveryETRN(e));
+        }
+    }
+}

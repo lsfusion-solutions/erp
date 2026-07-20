@@ -1,0 +1,116 @@
+MODULE DiadocOrderRequestT2Form;
+
+REQUIRE ETRNOrderRequest, TransportRu, LegalEntityRu, Currency, DiadocLogistics;
+
+NAMESPACE ETRN;
+
+// Экспортная форма UserDataXml титула Т2 заказа-заявки (LogisticsOrderRequestRecipientTitle) для Диадок API.
+// Ответ перевозчика на заявку: приём/отказ, представитель, водитель, ТС, прицеп, стоимость перевозки, подписант.
+
+// ------------------------- Структура UserDataXml ------------------------- //
+
+GROUP r2Base EXTID 'DocumentCreatorBase';
+GROUP r2BaseParties EXTID 'PartiesRequisites' : r2Base;
+GROUP r2BaseParty EXTID 'PartiesRequisite' : r2BaseParties;
+
+GROUP r2Request EXTID 'OrderRequest';
+
+GROUP r2Organizer EXTID 'OrganizerCarrier' : r2Request;
+GROUP r2OrganizerFio EXTID 'Fio' : r2Organizer;
+
+GROUP r2Drivers EXTID 'Drivers' : r2Request;
+GROUP r2Driver EXTID 'Driver' : r2Drivers;
+GROUP r2DriverFio EXTID 'Fio' : r2Driver;
+
+GROUP r2Vehicle EXTID 'VehicleInfo' : r2Request;
+GROUP r2Truck EXTID 'Vehicle' : r2Vehicle;
+GROUP r2TruckParams EXTID 'TransportParams' : r2Truck;
+GROUP r2Trailers EXTID 'Trailers' : r2Vehicle;
+GROUP r2Trailer EXTID 'Trailer' : r2Trailers;
+GROUP r2TrailerParams EXTID 'TransportParams' : r2Trailer;
+
+GROUP r2Fee EXTID 'TransportFee' : r2Request;
+
+GROUP r2Signers EXTID 'Signers';
+GROUP r2Signer EXTID 'Signer' : r2Signers;
+GROUP r2SignerDetails EXTID 'SignerDetails' : r2Signer;
+
+FORM diadocOrderRequestT2 FORMEXTID 'LogisticsOrderRequestRecipientTitle'
+    OBJECTS o = OrderRequest PANEL
+    PROPERTIES ATTR
+        r2Creator = name(carrier(o)) EXTID 'DocumentCreator'
+
+    // основание (ссылка на заявку грузоотправителя)
+    PROPERTIES ATTR IN r2Base
+        r2BaseName = (OVERRIDE contractName(o), 'Заявка на перевозку') EXTID 'DocumentName',
+        r2BaseNumber = (OVERRIDE number(o), 'Без номера') EXTID 'DocumentNumber',
+        r2BaseDate = diadocDate(date(o)) EXTID 'DocumentDate'
+    PROPERTIES ATTR IN r2BaseParty r2BasePartyInn = inn(shipper(o)) EXTID 'Inn'
+
+    // операция приёма: 1 - заявка принята, 2 - отказ; причина отказа - только при отказе
+    PROPERTIES ATTR IN r2Request
+        r2Receiving = (IF accepted(o) THEN '1' ELSE '2') EXTID 'ReceivingOperation',
+        r2Rejection = ((OVERRIDE rejectionReason(o), 'Отсутствует') IF NOT accepted(o)) EXTID 'RejectionReason'
+
+    // представитель перевозчика
+    PROPERTIES IN r2Organizer r2OrgPhone = carrierPhone(o) EXTID 'Phone'
+    PROPERTIES ATTR IN r2OrganizerFio
+        r2OrgLast = signerLastName(carrier(o)) EXTID 'LastName',
+        r2OrgFirst = signerFirstName(carrier(o)) EXTID 'FirstName',
+        r2OrgMiddle = signerMiddleName(carrier(o)) EXTID 'MiddleName'
+
+    // водитель (в первой версии один)
+    // TODO: отчество водителя (MiddleName) - источник уточнить; несколько водителей
+    PROPERTIES ATTR IN r2Driver
+        r2DriverLicNumber = licenseNumber(driver(o)) EXTID 'LicenseNumber',
+        r2DriverLicSeries = licenseSeries(driver(o)) EXTID 'LicenseSeries',
+        r2DriverLicDate = diadocDate(licenseDate(driver(o))) EXTID 'LicenseDate',
+        r2DriverInn = inn(driver(o)) EXTID 'Inn'
+    PROPERTIES IN r2Driver r2DriverPhone = phone(driver(o)) EXTID 'Phone'
+    PROPERTIES ATTR IN r2DriverFio
+        r2DriverLast = lastName(driver(o)) EXTID 'LastName',
+        r2DriverFirst = firstName(driver(o)) EXTID 'FirstName'
+
+    // транспортное средство
+    PROPERTIES ATTR IN r2Truck
+        r2TruckReg = sid(truck(o)) EXTID 'RegistrationNumber',
+        r2TruckVin = vin(truck(o)) EXTID 'Vin',
+        r2TruckNumber = sid(truck(o)) EXTID 'Number',
+        r2TruckOwnership = idOwnershipType(ownershipType(truck(o))) EXTID 'OwnershipType'
+    PROPERTIES ATTR IN r2TruckParams
+        r2TruckType = type(truck(o)) EXTID 'Type',
+        r2TruckBrand = nameTruckModel(truck(o)) EXTID 'Brand',
+        r2TruckWeight = NUMERIC[10,2](weight(truck(o)) / 1000) EXTID 'WeightCapacity',
+        r2TruckVolume = NUMERIC[10,2](capacity(truck(o))) EXTID 'VolumeCapacity'
+
+    // прицеп (при наличии)
+    PROPERTIES ATTR IN r2Trailer
+        r2TrailerReg = sid(trailer(o)) EXTID 'RegistrationNumber',
+        r2TrailerVin = vin(trailer(o)) EXTID 'Vin',
+        r2TrailerNumber = sid(trailer(o)) EXTID 'Number',
+        r2TrailerOwnership = idOwnershipType(ownershipType(trailer(o))) EXTID 'OwnershipType'
+    PROPERTIES ATTR IN r2TrailerParams
+        r2TrailerType = type(trailer(o)) EXTID 'Type',
+        r2TrailerBrand = nameTruckModel(trailer(o)) EXTID 'Brand',
+        r2TrailerWeight = NUMERIC[10,2](weight(trailer(o)) / 1000) EXTID 'WeightCapacity',
+        r2TrailerVolume = NUMERIC[10,2](capacity(trailer(o))) EXTID 'VolumeCapacity'
+
+    // стоимость перевозки
+    // TODO: CurrencyCode (ОКВ) - сопоставить со справочником валют; пока '643' (рубль)
+    PROPERTIES ATTR IN r2Fee
+        r2FeeCurrencyCode = ('643' IF o IS OrderRequest) EXTID 'CurrencyCode',
+        r2FeeCurrencyName = (OVERRIDE nameCurrency(o), 'Российский рубль') EXTID 'CurrencyName',
+        r2FeeNoVat = feeNoVat(o) EXTID 'SubtotalWithVatExcluded',
+        r2FeeTaxRate = feeTaxRate(o) EXTID 'TaxRate',
+        r2FeeTotal = feeTotal(o) EXTID 'Subtotal',
+        r2FeeCalculations = feeCalculations(o) EXTID 'Calculations'
+
+    // подписант (перевозчик)
+    PROPERTIES ATTR IN r2Signers r2SignersBoxId = diadocBoxId(carrier(o)) EXTID 'BoxId'
+    PROPERTIES ATTR IN r2Signer r2SignerMethod = ('5' IF o IS OrderRequest) EXTID 'SignerPowersConfirmationMethod'
+    PROPERTIES ATTR IN r2SignerDetails
+        r2SignerLast = signerLastName(carrier(o)) EXTID 'LastName',
+        r2SignerFirst = signerFirstName(carrier(o)) EXTID 'FirstName',
+        r2SignerMiddle = signerMiddleName(carrier(o)) EXTID 'MiddleName',
+        r2SignerPos = signerPosition(carrier(o)) EXTID 'Position'
+;

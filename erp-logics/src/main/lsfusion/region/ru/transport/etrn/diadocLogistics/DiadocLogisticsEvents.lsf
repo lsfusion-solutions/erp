@@ -1,0 +1,378 @@
+MODULE DiadocLogisticsEvents;
+
+REQUIRE DiadocLogistics, DiadocOrderRequest;
+
+NAMESPACE Diadoc;
+
+// ------------------------- Приём событий ЭТрН и заказов-заявок через Диадок (V5) ------------------------- //
+// GetDocflowEvents (V5) - лента изменений документов ящика, корректная для многотитульных
+// документов (GetDocument V3 их официально не поддерживает). Двухфазная схема ETRNExchange:
+//   1. importEvents:  постраничное чтение ленты (AfterIndexKey) с фильтром по типам
+//      LogisticsWaybill / LogisticsOrderRequest -> журнал ETRNEvent (без продвижения документов);
+//   2. processEvent:  привязка события к ETRN / OrderRequest (по документу -> по kl-id ->
+//      новая входящая) и продвижение статусов из состояния титулов и docflow ГИС ЭПД (KlMt).
+// kl-id / mt-id - в Details статусов OuterDocflow KlMt (fallback - CustomData документа).
+// TODO: сверить на тестовой площадке ключи kl-id/mt-id и справочник статусов KlMt.
+
+// ------------------------- Курсор ленты по ящику ------------------------- //
+
+docflowIndexKey 'IndexKey ленты docflow-событий' = DATA STRING (Box);
+
+// ------------------------- Расширение журнала ETRNEvent ------------------------- //
+// Общий журнал (ETRNExchange): id, dateTime, type, status, transportationId, mintransId, etrn.
+// Диадоку дополнительно нужны координаты документа и срез статусов титулов.
+
+messageId 'ИД сообщения' = DATA STRING[100](ETRN.ETRNEvent);
+entityId 'ИД сущности (титул 0)' = DATA STRING[100](ETRN.ETRNEvent);
+typeNamedId 'Тип документа' = DATA STRING[100](ETRN.ETRNEvent);
+docFunction 'Функция документа' = DATA STRING[20](ETRN.ETRNEvent);
+
+// статус автора титула по слоту (TitleAuthorStatusV5)
+titleAuthorStatus 'Статус титула' = DATA STRING[50](ETRN.ETRNEvent, INTEGER);
+// отказ участника от подписания титула (TitleParticipantResponseStatusSignatureRejected)
+titleRejected 'Отказ по титулу' = DATA BOOLEAN (ETRN.ETRNEvent, INTEGER);
+
+// привязка события к заказу-заявке (аналог etrn(ETRNEvent) для ЭТрН)
+orderRequest = DATA ETRN.OrderRequest (ETRN.ETRNEvent);
+
+// ящик, по которому событие получено из ленты (нужен для запросов контента входящих,
+// когда участники документа ещё не разобраны и наш ящик нельзя определить по ролям)
+eventBox = DATA Box (ETRN.ETRNEvent);
+
+// ------------------------- Запрос GetDocflowEvents (V5) ------------------------- //
+
+GROUP eventsFilter EXTID 'Filter';
+
+sortDirectionR = DATA LOCAL STRING ();
+afterIndexKeyR = DATA LOCAL STRING ();
+populateDocumentsR = DATA LOCAL BOOLEAN ();
+limitEventsR = DATA LOCAL INTEGER ();
+typeNamedIdR = DATA LOCAL STRING (INTEGER);
+
+FORM exportDocflowEventsRequest
+    PROPERTIES() IN eventsFilter sortDirectionR EXTID 'SortDirection'
+    PROPERTIES() afterIndexKeyR EXTID 'AfterIndexKey',
+                 populateDocumentsR EXTID 'PopulateDocuments',
+                 limitEventsR EXTID 'Limit'
+    OBJECTS t = INTEGER EXTID 'TypeNamedIds'
+    PROPERTIES(t) typeNamedIdR EXTID 'value'
+    FILTERS typeNamedIdR(t)
+;
+
+// ------------------------- Ответ GetDocflowEvents (V5) ------------------------- //
+// GetDocflowEventsResponseV5: { TotalCount, Events[] }
+// DocflowEventV5: { EventId, Timestamp{Ticks}, DocumentId{MessageId,EntityId}, IndexKey,
+//                   Document{DocumentInfo{FullVersion, Metadata[], CustomData[]},
+//                            Docflow{Titles[], OuterDocflows[]}} }
+
+GROUP evTimestamp EXTID 'Timestamp';
+GROUP evDocumentId EXTID 'DocumentId';
+GROUP evDocument EXTID 'Document';
+GROUP evDocumentInfo EXTID 'DocumentInfo' : evDocument;
+GROUP evFullVersion EXTID 'FullVersion' : evDocumentInfo;
+GROUP evDocflow EXTID 'Docflow' : evDocument;
+GROUP tAuthorSigning EXTID 'AuthorSigning';
+GROUP prResponse EXTID 'Response';
+GROUP seStatus EXTID 'Status';
+
+totalCountE = DATA LOCAL INTEGER ();
+
+// события
+eventIdE = DATA LOCAL STRING (INTEGER);
+ticksE = DATA LOCAL LONG (INTEGER);
+messageIdE = DATA LOCAL STRING (INTEGER);
+entityIdE = DATA LOCAL STRING (INTEGER);
+indexKeyE = DATA LOCAL STRING (INTEGER);
+typeNamedIdE = DATA LOCAL STRING (INTEGER);
+functionE = DATA LOCAL STRING (INTEGER);
+
+// метаданные и CustomData документа
+eventMetadataE = DATA LOCAL INTEGER (INTEGER);      // метаданные -> событие
+keyME = DATA LOCAL STRING (INTEGER);
+valueME = DATA LOCAL STRING (INTEGER);
+eventCustomDataE = DATA LOCAL INTEGER (INTEGER);    // customData -> событие
+keyCDE = DATA LOCAL STRING (INTEGER);
+valueCDE = DATA LOCAL STRING (INTEGER);
+
+// титулы (Docflow.Titles)
+eventTitleE = DATA LOCAL INTEGER (INTEGER);         // титул -> событие
+titleIndexE = DATA LOCAL INTEGER (INTEGER);
+authorStatusE = DATA LOCAL STRING (INTEGER);        // TitleAuthorStatusV5
+authorFinishedE = DATA LOCAL BOOLEAN (INTEGER);
+
+// ответы участников титула (Titles[].ParticipantDocflows[].Response)
+titleParticipantE = DATA LOCAL INTEGER (INTEGER);   // участник -> титул
+responseStatusE = DATA LOCAL STRING (INTEGER);      // TitleParticipantResponseStatusV5
+
+// внешние документообороты (Docflow.OuterDocflows)
+eventOuterDocflowE = DATA LOCAL INTEGER (INTEGER);  // outerDocflow -> событие
+docflowNamedIdE = DATA LOCAL STRING (INTEGER);
+latestStatusEntityIdE = DATA LOCAL STRING (INTEGER);
+outerStatusEntityE = DATA LOCAL INTEGER (INTEGER);  // statusEntity -> outerDocflow
+statusNamedIdE = DATA LOCAL STRING (INTEGER);
+statusDetailE = DATA LOCAL INTEGER (INTEGER);       // detail -> statusEntity
+codeE = DATA LOCAL STRING (INTEGER);
+textE = DATA LOCAL STRING (INTEGER);
+
+FORM importDocflowEvents
+    PROPERTIES() totalCountE EXTID 'TotalCount'
+
+    OBJECTS ev = INTEGER EXTID 'Events'
+    PROPERTIES(ev) eventIdE EXTID 'EventId',
+                   indexKeyE EXTID 'IndexKey'
+    PROPERTIES(ev) IN evTimestamp ticksE EXTID 'Ticks'
+    PROPERTIES(ev) IN evDocumentId messageIdE EXTID 'MessageId', entityIdE EXTID 'EntityId'
+    PROPERTIES(ev) IN evFullVersion typeNamedIdE EXTID 'TypeNamedId', functionE EXTID 'Function'
+
+    OBJECTS m = INTEGER IN evDocumentInfo EXTID 'Metadata'
+    FILTERS eventMetadataE(m) == ev
+    PROPERTIES(m) keyME EXTID 'Key', valueME EXTID 'Value'
+
+    OBJECTS cd = INTEGER IN evDocumentInfo EXTID 'CustomData'
+    FILTERS eventCustomDataE(cd) == ev
+    PROPERTIES(cd) keyCDE EXTID 'Key', valueCDE EXTID 'Value'
+
+    OBJECTS tt = INTEGER IN evDocflow EXTID 'Titles'
+    FILTERS eventTitleE(tt) == ev
+    PROPERTIES(tt) titleIndexE EXTID 'TitleIndex'
+    PROPERTIES(tt) IN tAuthorSigning authorStatusE EXTID 'Status', authorFinishedE EXTID 'IsFinished'
+
+    OBJECTS pr = INTEGER EXTID 'ParticipantDocflows'
+    FILTERS titleParticipantE(pr) == tt
+    PROPERTIES(pr) IN prResponse responseStatusE EXTID 'Status'
+
+    OBJECTS od = INTEGER IN evDocflow EXTID 'OuterDocflows'
+    FILTERS eventOuterDocflowE(od) == ev
+    PROPERTIES(od) docflowNamedIdE EXTID 'DocflowNamedId',
+                   latestStatusEntityIdE EXTID 'LatestStatusEntityId'
+
+    OBJECTS se = INTEGER EXTID 'StatusEntities'
+    FILTERS outerStatusEntityE(se) == od
+    PROPERTIES(se) IN seStatus statusNamedIdE EXTID 'NamedId'
+
+    OBJECTS sd = INTEGER IN seStatus EXTID 'Details'
+    FILTERS statusDetailE(sd) == se
+    PROPERTIES(sd) codeE EXTID 'Code', textE EXTID 'Text'
+;
+
+// ------------------------- Вычисления по импортированной странице ------------------------- //
+
+// принадлежность StatusEntity / Detail документообороту KlMt (ГИС ЭПД) и событию
+isKlMtSE (INTEGER se) = docflowNamedIdE(outerStatusEntityE(se)) == klMtDocflowNamedId();
+eventSE (INTEGER se) = eventOuterDocflowE(outerStatusEntityE(se));
+isKlMtSD (INTEGER sd) = isKlMtSE(statusDetailE(sd));
+eventSD (INTEGER sd) = eventSE(statusDetailE(sd));
+
+// текущий статус KlMt события (последний StatusEntity; точнее - LatestStatusEntityId, TODO сверить)
+klMtStatusE (INTEGER ev) = GROUP LAST statusNamedIdE(INTEGER se) IF isKlMtSE(se) ORDER se BY eventSE(se);
+
+// kl-id / mt-id: из Details статусов KlMt, fallback - CustomData документа
+klIdDetailE (INTEGER ev) = GROUP LAST textE(INTEGER sd) IF codeE(sd) == 'kl-id' AND isKlMtSD(sd) ORDER sd BY eventSD(sd);
+mtIdDetailE (INTEGER ev) = GROUP LAST textE(INTEGER sd) IF codeE(sd) == 'mt-id' AND isKlMtSD(sd) ORDER sd BY eventSD(sd);
+klIdCustomE (INTEGER ev) = GROUP MAX valueCDE(INTEGER cd) IF keyCDE(cd) == 'kl-id' BY eventCustomDataE(cd);
+mtIdCustomE (INTEGER ev) = GROUP MAX valueCDE(INTEGER cd) IF keyCDE(cd) == 'mt-id' BY eventCustomDataE(cd);
+klIdE (INTEGER ev) = OVERRIDE klIdDetailE(ev), klIdCustomE(ev);
+mtIdE (INTEGER ev) = OVERRIDE mtIdDetailE(ev), mtIdCustomE(ev);
+
+// отказ участника от подписания титула
+titleRejectedE (INTEGER tt) = GROUP SUM 1 IF responseStatusE(INTEGER pr) == 'TitleParticipantResponseStatusSignatureRejected'
+                                           AND titleParticipantE(pr) == tt;
+
+// ------------------------- 1. Приём страницы ленты ------------------------- //
+
+lastImportedCount = DATA LOCAL INTEGER ();
+
+importDocflowEventsPage (User u, Box b) {
+    NEWSESSION NESTED LOCAL {
+        lastImportedCount() <- NULL;
+        getToken(u);
+
+        sortDirectionR() <- 'Ascending';
+        afterIndexKeyR() <- docflowIndexKey(b);
+        populateDocumentsR() <- TRUE;
+        limitEventsR() <- 100;
+        typeNamedIdR(0) <- logisticsTypeNamedId();
+        typeNamedIdR(1) <- orderRequestTypeNamedId();
+
+        LOCAL result = FILE ();
+        EXPORT exportDocflowEventsRequest JSON;
+        TRY {
+            EXTERNAL HTTP POST url() + '/V5/GetDocflowEvents?boxId=' + boxId(b)
+                HEADERS httpHeadersToken PARAMS exportFile() TO result;
+            IMPORT importDocflowEvents JSON FROM result();
+        } CATCH {
+            fileToString(result(), 'UTF-8');
+            MESSAGE 'Ошибка получения docflow-событий (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+            RETURN;
+        }
+
+        lastImportedCount() <- GROUP SUM 1 IF eventIdE(INTEGER i);
+
+        // журнал ETRNEvent (только приём; продвижение документов - processEvent)
+        FOR eventIdE(INTEGER i) AND NOT ETRN.event(ETRN.ETRNProvider.diadoc, STRING[100](eventIdE(i))) NEW ev = ETRN.ETRNEvent DO {
+            ETRN.provider(ev) <- ETRN.ETRNProvider.diadoc;
+            ETRN.id(ev) <- STRING[100](eventIdE(i));
+        }
+        FOR ETRN.ETRNEvent ev == ETRN.event(ETRN.ETRNProvider.diadoc, STRING[100](eventIdE(INTEGER i))) DO {
+            ETRN.dateTime(ev) <- fromTicksToTimestamp(ticksE(i));
+            ETRN.type(ev) <- STRING[100](CONCAT '/', typeNamedIdE(i), functionE(i));
+            ETRN.status(ev) <- STRING[100](klMtStatusE(i));
+            ETRN.transportationId(ev) <- STRING[36](klIdE(i));
+            ETRN.mintransId(ev) <- STRING[255](mtIdE(i));
+            messageId(ev) <- STRING[100](messageIdE(i));
+            entityId(ev) <- STRING[100](entityIdE(i));
+            typeNamedId(ev) <- STRING[100](typeNamedIdE(i));
+            docFunction(ev) <- STRING[20](functionE(i));
+            eventBox(ev) <- b;
+            FOR eventTitleE(INTEGER tt) == i DO {
+                titleAuthorStatus(ev, titleIndexE(tt)) <- STRING[50](authorStatusE(tt));
+                titleRejected(ev, titleIndexE(tt)) <- TRUE IF titleRejectedE(tt);
+            }
+        }
+
+        // сдвиг курсора ленты
+        docflowIndexKey(b) <- STRING(GROUP LAST indexKeyE(INTEGER i) IF eventIdE(i) ORDER i)
+            WHERE (GROUP LAST indexKeyE(INTEGER j) IF eventIdE(j) ORDER j);
+        APPLY;
+    }
+}
+
+// приём ленты по всем нашим ящикам (реализация абстракции ETRNExchange, для планировщика)
+ETRN.importEvents (ETRN.ETRNProvider p) + WHEN p == ETRN.ETRNProvider.diadoc THEN {
+    FOR User u == userDiadocETRN() DO
+        FOR Box b IF isEmployee(organization(b), u) DO {
+            LOCAL pages = INTEGER ();
+            pages() <- 0;
+            lastImportedCount() <- 100;
+            WHILE lastImportedCount() >= 100 AND pages() < 100 DO {   // страницы по Limit, пока приходит полная
+                pages() <- pages() (+) 1;
+                importDocflowEventsPage(u, b);
+            }
+        }
+}
+
+// ------------------------- 2. Продвижение документов по событию ------------------------- //
+
+// привязка по документу Диадока (приоритетнее kl-id: kl-id может отсутствовать при отправке Т1)
+etrnByReceptionEntity (STRING id) = GROUP MAX ETRN.ETRN e BY entityId(entity(diadocReceptionDocument(e)));
+etrnByDeliveryEntity (STRING id) = GROUP MAX ETRN.ETRN e BY entityId(entity(diadocDeliveryDocument(e)));
+orderByEntity (STRING id) = GROUP MAX ETRN.OrderRequest o BY entityId(entity(diadocDocument(o)));
+
+// маппинг статуса KlMt (ГИС ЭПД) на этап ЭТрН
+// TODO: сверить справочник статусов KlMt на тестовой площадке
+diadocStage (STRING status) = CASE
+    WHEN status LIKE 'Reception%' THEN ETRN.ETRNStage.loading
+    WHEN status LIKE 'OnTheWay%' OR status LIKE 'Delivery%' THEN ETRN.ETRNStage.acceptance
+    WHEN status LIKE 'Completed%' OR status LIKE 'Finished%' THEN ETRN.ETRNStage.unloading;
+
+signedTitle (ETRN.ETRNEvent ev, INTEGER i) = titleAuthorStatus(ev, i) == 'TitleAuthorStatusSigned';
+
+processETRNEvent (ETRN.ETRNEvent ev) {
+    LOCAL e = ETRN.ETRN ();
+    e() <- OVERRIDE ETRN.etrn(ev),
+                    etrnByReceptionEntity(entityId(ev)),
+                    etrnByDeliveryEntity(entityId(ev)),
+                    ETRN.etrn(ETRN.transportationId(ev));
+
+    // новая входящая перевозка (мы - перевозчик или грузополучатель)
+    IF NOT e() THEN NEW ne = ETRN.ETRN {
+        e() <- ne;
+        ETRN.provider(ne) <- ETRN.ETRNProvider.diadoc;
+        diadocKlId(ne) <- ETRN.transportationId(ev);
+        ETRN.stage(ne) <- ETRN.ETRNStage.acceptance;
+        // TODO: заполнить участников/груз - разбор титула Т1 (ParseTitleXml + GetEntityContent)
+    }
+
+    FOR ETRN.ETRN et == e() DO {
+        ETRN.etrn(ev) <- et;
+        diadocKlId(et) <- ETRN.transportationId(ev) WHERE ETRN.transportationId(ev) AND NOT diadocKlId(et);
+        // общий ИД перевозки (нужен processIncomingETRN и поиску etrn(transportationId))
+        ETRN.transportationId(et) <- ETRN.transportationId(ev) WHERE ETRN.transportationId(ev) AND NOT ETRN.transportationId(et);
+        ETRN.mintransId(et) <- ETRN.mintransId(ev) WHERE ETRN.mintransId(ev);
+        ETRN.providerStatus(et) <- ETRN.status(ev);
+        ETRN.stage(et) <- diadocStage(ETRN.status(ev)) WHERE diadocStage(ETRN.status(ev));
+
+        // привязка reception/delivery-документа (если Message/Document уже материализованы через V3)
+        FOR Document d == document(messageId(ev), entityId(ev)) DO {
+            IF docFunction(ev) == 'reception' AND NOT diadocReceptionDocument(et) THEN diadocReceptionDocument(et) <- d;
+            IF docFunction(ev) == 'delivery' AND NOT diadocDeliveryDocument(et) THEN diadocDeliveryDocument(et) <- d;
+        }
+
+        // статус обмена из состояния титулов (reception: Т1/Т2 - слоты 0/1, delivery: Т3/Т4 - слоты 2/3;
+        // здесь слоты в рамках документа события: 0 - титул отправителя, 1 - титул получателя)
+        // отказ получателя подписать титул - для ЭТрН терминален (нужна новая накладная)
+        ETRN.exchangeStatus(et) <- CASE
+            WHEN titleRejected(ev, 0) OR titleRejected(ev, 1) THEN ETRN.ETRNExchangeStatus.rejected
+            WHEN docFunction(ev) == 'delivery' AND signedTitle(ev, 1) THEN ETRN.ETRNExchangeStatus.completed
+            WHEN signedTitle(ev, 0) OR signedTitle(ev, 1) THEN ETRN.ETRNExchangeStatus.signed
+            ELSE ETRN.exchangeStatus(et);
+    }
+}
+
+processOrderRequestEvent (ETRN.ETRNEvent ev) {
+    LOCAL o = ETRN.OrderRequest ();
+    o() <- OVERRIDE orderRequest(ev), orderByEntity(entityId(ev));
+
+    // новая входящая заявка (мы - перевозчик)
+    IF NOT o() THEN NEW no = ETRN.OrderRequest {
+        o() <- no;
+        ETRN.provider(no) <- ETRN.ETRNProvider.diadoc;
+        // TODO: заполнить участников/груз/маршрут - разбор титула заявки (ParseTitleXml)
+    }
+
+    FOR ETRN.OrderRequest or == o() DO {
+        orderRequest(ev) <- or;
+        ETRN.providerStatus(or) <- ETRN.status(ev);
+
+        // привязка документа заявки (если материализован через V3)
+        FOR Document d == document(messageId(ev), entityId(ev)) DO
+            IF NOT diadocDocument(or) THEN diadocDocument(or) <- d;
+
+        // Т1 - слот 0 (грузоотправитель), Т2 - слот 1 (перевозчик)
+        ETRN.exchangeStatus(or) <- CASE
+            WHEN titleRejected(ev, 0) THEN ETRN.ETRNExchangeStatus.rejected
+            WHEN signedTitle(ev, 1) THEN ETRN.ETRNExchangeStatus.completed   // оба титула оформлены
+            WHEN signedTitle(ev, 0) THEN ETRN.ETRNExchangeStatus.signed
+            ELSE ETRN.exchangeStatus(or);
+    }
+}
+
+// продвижение документа по событию (реализация абстракции ETRNExchange; вызывается из
+// processETRNEvents в общей NEWSESSION по неубывающей dateTime)
+ETRN.processEvent (ETRN.ETRNEvent ev) + WHEN ETRN.provider(ev) == ETRN.ETRNProvider.diadoc THEN {
+    IF typeNamedId(ev) == logisticsTypeNamedId() THEN processETRNEvent(ev);
+    IF typeNamedId(ev) == orderRequestTypeNamedId() THEN processOrderRequestEvent(ev);
+}
+
+// ------------------------- Координаты reception-документа перевозки ------------------------- //
+// Для запросов по документу (GetDocflows, GeneratePrintForm и т.п.):
+// приоритет - материализованный Document (исходящие), fallback - журнал docflow-событий (входящие).
+
+lastReceptionMessageId (ETRN.ETRN e) = GROUP LAST messageId(ETRN.ETRNEvent ev) IF docFunction(ev) == 'reception' ORDER ETRN.dateTime(ev), ev BY ETRN.etrn(ev);
+lastReceptionEntityId (ETRN.ETRN e) = GROUP LAST entityId(ETRN.ETRNEvent ev) IF docFunction(ev) == 'reception' ORDER ETRN.dateTime(ev), ev BY ETRN.etrn(ev);
+
+receptionDocMessageId (ETRN.ETRN e) = OVERRIDE receptionMessageId(e), lastReceptionMessageId(e);
+receptionDocEntityId (ETRN.ETRN e) = OVERRIDE receptionEntityId(e), lastReceptionEntityId(e);
+
+// наш ящик - участник документооборота (по роли нашей компании в перевозке)
+ourLegalEntity (ETRN.ETRN e) = OVERRIDE (ETRN.shipper(e) IF isCompany(ETRN.shipper(e))),
+                                        (ETRN.consignee(e) IF isCompany(ETRN.consignee(e))),
+                                        (ETRN.carrier(e) IF isCompany(ETRN.carrier(e)));
+
+// ящик для запросов по перевозке: по роли, fallback - ящик приёма события
+// (для входящих участники известны только после разбора титула)
+lastReceptionBox (ETRN.ETRN e) = GROUP LAST eventBox(ETRN.ETRNEvent ev) IF docFunction(ev) == 'reception' ORDER ETRN.dateTime(ev), ev BY ETRN.etrn(ev);
+receptionBoxId (ETRN.ETRN e) = OVERRIDE diadocBoxId(ourLegalEntity(e)), boxId(lastReceptionBox(e));
+
+// ------------------------- Координаты документа заказа-заявки ------------------------- //
+
+lastOrderMessageId (ETRN.OrderRequest o) = GROUP LAST messageId(ETRN.ETRNEvent ev) ORDER ETRN.dateTime(ev), ev BY orderRequest(ev);
+lastOrderEntityId (ETRN.OrderRequest o) = GROUP LAST entityId(ETRN.ETRNEvent ev) ORDER ETRN.dateTime(ev), ev BY orderRequest(ev);
+lastOrderBox (ETRN.OrderRequest o) = GROUP LAST eventBox(ETRN.ETRNEvent ev) ORDER ETRN.dateTime(ev), ev BY orderRequest(ev);
+
+orderDocMessageId (ETRN.OrderRequest o) = OVERRIDE messageId(message(diadocDocument(o))), lastOrderMessageId(o);
+orderDocEntityId (ETRN.OrderRequest o) = OVERRIDE entityId(entity(diadocDocument(o))), lastOrderEntityId(o);
+
+ourOrderLegalEntity (ETRN.OrderRequest o) = OVERRIDE (ETRN.shipper(o) IF isCompany(ETRN.shipper(o))),
+                                                     (ETRN.carrier(o) IF isCompany(ETRN.carrier(o)));
+orderBoxId (ETRN.OrderRequest o) = OVERRIDE diadocBoxId(ourOrderLegalEntity(o)), boxId(lastOrderBox(o));

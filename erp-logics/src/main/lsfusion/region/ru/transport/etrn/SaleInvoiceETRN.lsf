@@ -1,0 +1,110 @@
+MODULE SaleInvoiceETRN;
+
+REQUIRE SaleInvoice, ETRN;
+
+NAMESPACE ETRN;
+
+// ------------------------- ЭТрН на основании накладной (продажа) ------------------------- //
+
+invoice 'Накладная (основание)' = DATA Sale.Invoice (ETRN) INDEXED;
+seriesNumberInvoice 'Накладная (основание)' (ETRN e) = seriesNumber(invoice(e)) CHARWIDTH 10;
+
+etrn (Sale.Invoice i) = GROUP MAX ETRN e BY invoice(e);
+seriesNumberETRN 'ЭТрН' (Sale.Invoice i) = seriesNumber(etrn(i)) CHARWIDTH 10;
+
+// строки накладной, сгруппированные по грузу товара
+quantity (Sale.Invoice i, Cargo c) = GROUP SUM quantity(Sale.InvoiceDetail d) BY invoice(d), cargo(sku(d));
+netWeight (Sale.Invoice i, Cargo c) = GROUP SUM quantity(Sale.InvoiceDetail d) * netWeight(sku(d)) BY invoice(d), cargo(sku(d));
+grossWeight (Sale.Invoice i, Cargo c) = GROUP SUM quantity(Sale.InvoiceDetail d) * grossWeight(sku(d)) BY invoice(d), cargo(sku(d));
+cost (Sale.Invoice i, Cargo c) = GROUP SUM invoiceSum(Sale.InvoiceDetail d) BY invoice(d), cargo(sku(d));
+
+// товары накладной без привязанного груза
+quantityNoCargo (Sale.Invoice i) = GROUP SUM quantity(Sale.InvoiceDetail d) IF NOT cargo(sku(d)) BY invoice(d);
+namesSkuNoCargo (Sale.Invoice i) = GROUP CONCAT name(sku(Sale.InvoiceDetail d)) IF NOT cargo(sku(d)), ', ' ORDER d BY invoice(d);
+
+// расширение заполнения ЭТрН из накладной (клиентские модули)
+overFill ABSTRACT LIST (Sale.Invoice, ETRN);
+
+fill (Sale.Invoice i, ETRN e) {
+    invoice(e) <- i;
+    shipper(e) <- supplier(i);
+    consignee(e) <- customer(i);
+    customerStock(e) <- customerStock(i);   // адрес места доставки заполнится событием из ETRN
+    supplierStock(e) <- supplierStock(i);   // адрес места погрузки заполнится событием из ETRN
+    currency(e) <- currency(i);
+
+    FOR quantity(i, Cargo c) NEW nd = ETRNDetail DO {
+        etrn(nd) <- e;
+        cargo(nd) <- c;
+        netWeight(nd) <- netWeight(i, c);
+        grossWeight(nd) <- grossWeight(i, c);
+        cost(nd) <- cost(i, c);
+    }
+
+    overFill(i, e);
+}
+
+createETRN 'Создать ЭТрН' (Sale.Invoice i) {
+    IF quantityNoCargo(i) THEN {
+        MESSAGE CONCAT ' ', 'Не для всех товаров накладной задан груз (ЭПД). Заполните груз для товаров:', namesSkuNoCargo(i);
+        RETURN;
+    }
+
+    NEWSESSION {
+        NEW e = ETRN {
+            fill(i, e);
+            edit(e);
+        }
+    }
+} IMAGE 'add.png';
+
+showETRN 'Просмотреть ЭТрН' (Sale.Invoice i) {
+    SHOW etrn OBJECTS e = etrn(i) READONLY;
+}
+
+editETRN 'Редактировать ЭТрН' (Sale.Invoice i) {
+    NEWSESSION {
+        edit(etrn(i));
+    }
+} IMAGE 'edit.png';
+
+EXTEND FORM invoices
+    PROPERTIES createETRN(i) SHOWIF NOT etrn(i),
+               etrnNumber = seriesNumberETRN(i) SHOWIF etrn(i) PANEL READONLY,
+               editETRN(i) SHOWIF etrn(i),
+               showETRN(i) SHOWIF etrn(i)
+;
+
+DESIGN invoices {
+    documentDetail {
+        NEW etrnDocument {
+            caption = 'ЭТрН';
+            NEW etrnRow {
+                horizontal = TRUE;
+                caption = 'ЭТрН';
+                MOVE PROPERTY(etrnNumber) {
+                    charWidth = 20;
+                }
+                MOVE PROPERTY(editETRN(i));
+                MOVE PROPERTY(showETRN(i));
+                MOVE PROPERTY(createETRN(i));
+            }
+        }
+    }
+}
+
+// -- основание на форме ЭТрН
+
+EXTEND FORM etrn
+    PROPERTIES(e) seriesNumberInvoice READONLY
+;
+
+DESIGN etrn {
+    headerRow2 {
+        MOVE PROPERTY(seriesNumberInvoice(e));
+    }
+}
+
+EXTEND FORM etrns
+    PROPERTIES(e) READONLY seriesNumberInvoice
+;

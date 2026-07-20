@@ -1,0 +1,64 @@
+MODULE DiadocLogisticsT1Import;
+
+REQUIRE DiadocLogisticsEvents, ETRNTitleXmlRu;
+
+NAMESPACE Diadoc;
+
+// ------------------------- Загрузка полного состава входящих ЭТрН через Диадок ------------------------- //
+// importIncoming: входящие перевозки создаются лентой docflow-событий V5
+// (DiadocLogisticsEvents.processETRNEvent) - здесь только приём + обработка событий.
+// importFullData: скачивание XML титула Т1 (GetEntityContent - контент хранится в формате
+// приказа ФНС N ЕД-7-26/1065@) и полный разбор общим parseETRNTitleXml (ETRNTitleXmlRu).
+// ParseTitleXml Диадока не используется: он возвращает упрощённый UserDataXml,
+// а общий парсер работает с исходным форматом приказа (единым для всех провайдеров).
+
+// ------------------------- Входящие перевозки ------------------------- //
+// создание документов с базовыми данными - через ленту событий и общий журнал
+
+ETRN.importIncoming (ETRN.ETRNProvider p) + WHEN p == ETRN.ETRNProvider.diadoc THEN {
+    ETRN.importEvents(p);        // 1. вычитать ленту docflow-событий в журнал
+    ETRN.processETRNEvents();    // 2. обработать необработанные события (создаст входящие ЭТрН)
+}
+
+// ------------------------- Полный состав из титула Т1 ------------------------- //
+
+diadocImportFullData (ETRN.ETRN e) {
+    IF NOT (receptionDocMessageId(e) AND receptionDocEntityId(e)) THEN {
+        MESSAGE 'Нет reception-документа перевозки в Диадоке (события не получены)';
+        RETURN;
+    }
+    IF NOT receptionBoxId(e) THEN {
+        MESSAGE 'Не найден ящик Диадока нашей организации-участника перевозки';
+        RETURN;
+    }
+
+    FOR User u == userDiadocETRN() DO {
+        getToken(u);
+
+        // XML титула Т1 (формат приказа ФНС)
+        LOCAL data = RAWFILE ();
+        TRY {
+            EXTERNAL HTTP GET url() + '/GetEntityContent?boxId=' + receptionBoxId(e) +
+                '&messageId=' + receptionDocMessageId(e) + '&entityId=' + receptionDocEntityId(e)
+                HEADERS httpHeadersToken TO data;
+        } CATCH {
+            fileToString(FILE(data()), 'UTF-8');
+            MESSAGE 'Ошибка получения контента титула Т1 (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+            RETURN;
+        }
+
+        ETRN.titleFile(e) <- file(data(), 'xml');
+
+        // полный разбор титула в поля документа (parseETRNTitleXml выполняет свой APPLY)
+        ETRN.parseETRNTitleXml(e);
+
+        ETRN.titleImportedDateTime(e) <- currentDateTime();
+        APPLY;
+    }
+}
+
+ETRN.importFullData (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvider.diadoc THEN {
+    NEWSESSION {
+        diadocImportFullData(e);
+    }
+}

@@ -1,0 +1,191 @@
+MODULE DiadocLogisticsT1Form;
+
+REQUIRE ETRN, TransportRu, DiadocLogistics;
+
+NAMESPACE ETRN;
+
+// Экспортная форма UserDataXml титула Т1 (LogisticsWaybillConsignorTitle) для Диадок API.
+// В namespace ETRN, чтобы домен документа ЭТрН был доступен без префиксов.
+// BoxId участников - через diadocBoxId (из DiadocLogistics).
+
+// diadocDate / diadocDateTime - в базовом модуле DiadocLogistics (общие для всех титулов)
+
+// иные получатели документа (наблюдатели; первый элемент корня по схеме)
+GROUP t1OtherRecipients EXTID 'OtherRecipientIds';
+
+GROUP t1WaybillInfo EXTID 'WaybillInfo';
+
+GROUP t1ShipperInfo EXTID 'ShipperInfo' : t1WaybillInfo;
+GROUP t1Shipper EXTID 'Shipper' : t1ShipperInfo;
+GROUP t1ShipperRef EXTID 'OrganizationReference' : t1Shipper;
+
+GROUP t1ConsigneeInfo EXTID 'ConsigneeInfo' : t1WaybillInfo;
+GROUP t1Consignee EXTID 'Consignee' : t1ConsigneeInfo;
+GROUP t1ConsigneeRef EXTID 'OrganizationReference' : t1Consignee;
+GROUP t1DeliveryAddress EXTID 'DeliveryAddres' : t1ConsigneeInfo;
+GROUP t1DeliveryAddressL EXTID 'AddressLogisticsWaybill' : t1DeliveryAddress;
+GROUP t1DeliveryAddressRF EXTID 'RussianAddress' : t1DeliveryAddressL;
+
+GROUP t1CargoInfo EXTID 'CargoInfo' : t1WaybillInfo;
+GROUP t1ItemDescriptions EXTID 'ItemDescriptions' : t1CargoInfo;
+GROUP t1ItemPlannedMass EXTID 'PlannedMass';
+GROUP t1ItemCost EXTID 'Cost';
+
+GROUP t1Directives EXTID 'ConsignorDirectives' : t1WaybillInfo;
+
+GROUP t1Carrier EXTID 'Carrier' : t1WaybillInfo;
+GROUP t1CarrierRef EXTID 'OrganizationReference' : t1Carrier;
+
+GROUP t1Drivers EXTID 'Drivers' : t1WaybillInfo;
+GROUP t1DriverInfo EXTID 'DriverInfo' : t1Drivers;
+
+GROUP t1VehicleInfo EXTID 'VehicleInfo' : t1WaybillInfo;
+GROUP t1Vehicle EXTID 'Vehicle' : t1VehicleInfo;
+GROUP t1Trailers EXTID 'Trailers' : t1VehicleInfo;
+GROUP t1TrailerG EXTID 'Trailer' : t1Trailers;
+
+GROUP t1LoadingInfo EXTID 'LoadingInfo' : t1WaybillInfo;
+GROUP t1LoadingAddress EXTID 'ActualLoadingAddress' : t1LoadingInfo;
+GROUP t1LoadingAddressL EXTID 'AddressLogisticsWaybill' : t1LoadingAddress;
+GROUP t1LoadingAddressRF EXTID 'RussianAddress' : t1LoadingAddressL;
+GROUP t1LoadingParty EXTID 'LoadingPartyDetails' : t1LoadingInfo;
+GROUP t1LoadingPartyReq EXTID 'Requisites' : t1LoadingParty;
+GROUP t1LoadingPartyOrg EXTID 'OrganizationDetails' : t1LoadingPartyReq;
+GROUP t1LoadingOwner EXTID 'LoadingOwnerDetails' : t1LoadingInfo;
+GROUP t1LoadingOwnerReq EXTID 'Requisites' : t1LoadingOwner;
+GROUP t1LoadingOwnerOrg EXTID 'OrganizationDetails' : t1LoadingOwnerReq;
+
+GROUP t1Signer EXTID 'Signer';
+GROUP t1SignerDetails EXTID 'SignerDetails' : t1Signer;
+
+// обязательные Phones у организаций-участников (база организации требует Phones)
+GROUP t1ShipperPhones EXTID 'Phones' : t1ShipperRef;
+GROUP t1ConsigneePhones EXTID 'Phones' : t1ConsigneeRef;
+GROUP t1CarrierPhones EXTID 'Phones' : t1CarrierRef;
+// обязательные сведения о переадресовке (ReaddressDetails: Phones + AccountableSide)
+GROUP t1ReaddressDetails EXTID 'ReaddressDetails' : t1Directives;
+GROUP t1ReaddressPhones EXTID 'Phones' : t1ReaddressDetails;
+// обязательный телефон водителя
+GROUP t1DriverPhones EXTID 'Phones' : t1DriverInfo;
+// обязательная маркировка груза
+GROUP t1ItemMarks EXTID 'Marks';
+
+FORM diadocT1UserData FORMEXTID 'LogisticsWaybillConsignorTitle'
+    OBJECTS e = ETRN PANEL
+    PROPERTIES ATTR
+        t1Number = number(e) EXTID 'Number',
+        t1Date = diadocDate(date(e)) EXTID 'Date',
+        t1OrderNumber = (OVERRIDE orderNumber(e), 'Без номера') EXTID 'OrderNumber',
+        t1OrderDate = diadocDate(orderDate(e)) EXTID 'OrderDate'
+
+    // наблюдатель (иной получатель документа) - ящик Диадока
+    PROPERTIES IN t1OtherRecipients t1ObserverBoxId = diadocBoxId(diadocObserver(e)) EXTID 'OtherRecipientId'
+
+    PROPERTIES ATTR IN t1ShipperInfo t1IsFreightForwarder = (IF forwarder(e) THEN '1' ELSE '0') EXTID 'IsFreightForwarder'
+    PROPERTIES ATTR IN t1ShipperRef t1ShipperBoxId = diadocBoxId(shipper(e)) EXTID 'BoxId'
+    PROPERTIES IN t1ShipperPhones t1ShipperPhone = phone(shipper(e)) EXTID 'Phone'
+
+    PROPERTIES ATTR IN t1ConsigneeRef t1ConsigneeBoxId = diadocBoxId(consignee(e)) EXTID 'BoxId'
+    PROPERTIES IN t1ConsigneePhones t1ConsigneePhone = phone(consignee(e)) EXTID 'Phone'
+    // структурный адрес места доставки (выгружается при наличии Region+ZipCode)
+    PROPERTIES ATTR IN t1DeliveryAddressRF
+        t1DeliveryRegion = (deliveryRegion(e) IF hasDeliveryAddress(e)) EXTID 'Region',
+        t1DeliveryZip = (deliveryZipCode(e) IF hasDeliveryAddress(e)) EXTID 'ZipCode',
+        t1DeliveryCity = (deliveryCity(e) IF hasDeliveryAddress(e)) EXTID 'City',
+        t1DeliveryStreet = (deliveryStreet(e) IF hasDeliveryAddress(e)) EXTID 'Street',
+        t1DeliveryBuilding = (deliveryBuilding(e) IF hasDeliveryAddress(e)) EXTID 'Building'
+
+    PROPERTIES ATTR IN t1Directives t1TransportationDirectives = (OVERRIDE transportInstructions(e), 'Отсутствует') EXTID 'TransportationDirectives'
+    // сведения о переадресовке (обязательный блок)
+    PROPERTIES ATTR IN t1ReaddressDetails t1AccountableSide = (IF redirectPerson(e) == ETRNRedirectPerson.consignee THEN 'Consignee' ELSE 'Consignor') EXTID 'AccountableSide'
+    PROPERTIES IN t1ReaddressPhones t1ReaddressPhone = redirectPhone(e) EXTID 'Phone'
+
+    PROPERTIES ATTR IN t1CarrierRef t1CarrierBoxId = diadocBoxId(carrier(e)) EXTID 'BoxId'
+    PROPERTIES IN t1CarrierPhones t1CarrierPhone = phone(carrier(e)) EXTID 'Phone'
+
+    // водитель (в первой версии один)
+    // TODO: отчество (MiddleName) - источник отчества водителя уточнить
+    PROPERTIES ATTR IN t1DriverInfo
+        driverLastName = lastName(driver(e)) EXTID 'LastName',
+        driverFirstName = firstName(driver(e)) EXTID 'FirstName',
+        driverLicenseNumber = licenseNumber(driver(e)) EXTID 'LicenseNumber',
+        driverLicenseSeries = licenseSeries(driver(e)) EXTID 'LicenseSeries',
+        driverLicenseDate = diadocDate(licenseDate(driver(e))) EXTID 'LicenseDate',
+        driverInn = inn(driver(e)) EXTID 'Inn'
+    PROPERTIES IN t1DriverPhones t1DriverPhone = phone(driver(e)) EXTID 'Phone'
+
+    PROPERTIES ATTR IN t1Vehicle
+        t1VehicleNumber = sid(truck(e)) EXTID 'Number',
+        t1VehicleOwnership = idOwnershipType(ownershipType(truck(e))) EXTID 'Ownership',
+        t1VehicleType = type(truck(e)) EXTID 'Type',
+        t1VehicleModel = nameTruckModel(truck(e)) EXTID 'Model',
+        t1VehicleMaxWeight = NUMERIC[5,2](weight(truck(e)) / 1000) EXTID 'MaxWeight',
+        t1VehicleCapacity = NUMERIC[4,2](capacity(truck(e))) EXTID 'Capacity'
+    // прицеп (при наличии)
+    PROPERTIES ATTR IN t1TrailerG
+        t1TrailerNumber = sid(trailer(e)) EXTID 'Number',
+        t1TrailerOwnership = idOwnershipType(ownershipType(trailer(e))) EXTID 'Ownership',
+        t1TrailerType = type(trailer(e)) EXTID 'Type',
+        t1TrailerModel = nameTruckModel(trailer(e)) EXTID 'Model',
+        t1TrailerMaxWeight = NUMERIC[5,2](weight(trailer(e)) / 1000) EXTID 'MaxWeight',
+        t1TrailerCapacity = NUMERIC[4,2](capacity(trailer(e))) EXTID 'Capacity'
+
+    PROPERTIES ATTR IN t1LoadingInfo
+        t1StatedArrival = diadocDateTime(declaredSupplyDateTime(e)) EXTID 'StatedArrivalDateTime',
+        t1StatedArrivalTZ = ('1' IF declaredSupplyDateTime(e)) EXTID 'StatedArrivalDateTimeEnablingTimeZone',
+        t1ActualArrival = diadocDateTime(arrivalDateTime(e)) EXTID 'ActualArrivalDateTime',
+        t1ActualArrivalTZ = ('1' IF arrivalDateTime(e)) EXTID 'ActualArrivalDateTimeEnablingTimeZone',
+        t1ActualDeparture = diadocDateTime(departureDateTime(e)) EXTID 'ActualDepartureDateTime',
+        t1ActualDepartureTZ = ('1' IF departureDateTime(e)) EXTID 'ActualDepartureDateTimeEnablingTimeZone',
+        t1LoadGrossWeight = acceptGrossWeight(e) EXTID 'GrossWeight',
+        t1WeighingMethod = idWeightMethod(weightMethod(e)) EXTID 'WeighingMethod',
+        t1NumberOfPlaces = acceptQuantityPlaces(e) EXTID 'NumberOfPlaces'
+    // структурный адрес места погрузки (выгружается при наличии Region+ZipCode)
+    PROPERTIES ATTR IN t1LoadingAddressRF
+        t1LoadingRegion = (loadingRegion(e) IF hasLoadingAddress(e)) EXTID 'Region',
+        t1LoadingZip = (loadingZipCode(e) IF hasLoadingAddress(e)) EXTID 'ZipCode',
+        t1LoadingCity = (loadingCity(e) IF hasLoadingAddress(e)) EXTID 'City',
+        t1LoadingStreet = (loadingStreet(e) IF hasLoadingAddress(e)) EXTID 'Street',
+        t1LoadingBuilding = (loadingBuilding(e) IF hasLoadingAddress(e)) EXTID 'Building'
+    PROPERTIES ATTR IN t1LoadingParty t1LoaderMatchingShipper = (IF loaderIsShipper(e) THEN '1' ELSE '2') EXTID 'MatchingShipper'
+    // реквизиты лица, осуществляющего погрузку (когда не грузоотправитель)
+    PROPERTIES ATTR IN t1LoadingPartyOrg
+        t1LoaderOrgType = (diadocOrgType(loader(e)) IF NOT loaderIsShipper(e)) EXTID 'OrgType',
+        t1LoaderName = (name(loader(e)) IF NOT loaderIsShipper(e)) EXTID 'OrgName',
+        t1LoaderInn = (inn(loader(e)) IF NOT loaderIsShipper(e)) EXTID 'Inn',
+        t1LoaderKpp = (kpp(loader(e)) IF NOT loaderIsShipper(e)) EXTID 'Kpp'
+    PROPERTIES ATTR IN t1LoadingOwner
+        t1OwnerType = (IF infrastructureOwnerIsShipper(e) THEN '1' ELSE IF infrastructureOwnerUnknown(e) THEN '3' ELSE '2') EXTID 'Type',
+        t1OwnerNoInfo = (infrastructureOwnerNoInfo(e) IF infrastructureOwnerUnknown(e)) EXTID 'OwnerInfoAbsenceReason'
+    // реквизиты владельца объекта инфраструктуры (когда не грузоотправитель и известен)
+    PROPERTIES ATTR IN t1LoadingOwnerOrg
+        t1OwnerOrgType = (diadocOrgType(infrastructureOwner(e)) IF NOT (infrastructureOwnerIsShipper(e) OR infrastructureOwnerUnknown(e))) EXTID 'OrgType',
+        t1OwnerName = (name(infrastructureOwner(e)) IF NOT (infrastructureOwnerIsShipper(e) OR infrastructureOwnerUnknown(e))) EXTID 'OrgName',
+        t1OwnerInn = (inn(infrastructureOwner(e)) IF NOT (infrastructureOwnerIsShipper(e) OR infrastructureOwnerUnknown(e))) EXTID 'Inn',
+        t1OwnerKpp = (kpp(infrastructureOwner(e)) IF NOT (infrastructureOwnerIsShipper(e) OR infrastructureOwnerUnknown(e))) EXTID 'Kpp'
+
+    PROPERTIES ATTR IN t1Signer t1SignerType = '1' EXTID 'SignerType'
+    PROPERTIES ATTR IN t1SignerDetails
+        t1SignerPosition = signerPosition(shipper(e)) EXTID 'Position',
+        t1SignerLastName = signerLastName(shipper(e)) EXTID 'LastName',
+        t1SignerFirstName = signerFirstName(shipper(e)) EXTID 'FirstName',
+        t1SignerMiddleName = signerMiddleName(shipper(e)) EXTID 'MiddleName'
+
+    // строки груза
+    OBJECTS d = ETRNDetail EXTID 'ItemDescription' IN t1ItemDescriptions
+    PROPERTIES ATTR
+        itemName = nameCargo(d) EXTID 'Name',
+        itemCondition = nameCondition(d) EXTID 'Condition',
+        itemPackageMethod = detailPackageWay(d) EXTID 'PackageMethod',
+        itemContainerType = (OVERRIDE detailTareCode(d), '00') EXTID 'ContainerType',
+        itemCargoSpaceQuantity = quantityPlaces(d) EXTID 'CargoSpaceQuantity',
+        itemStateSystem = ('0' IF d IS ETRNDetail) EXTID 'IsForStateSystemRegistration'
+    PROPERTIES ATTR IN t1ItemPlannedMass itemGrossWeight = grossWeight(d) EXTID 'GrossWeight'
+    // объявленная стоимость (ценность) груза
+    PROPERTIES ATTR IN t1ItemCost
+        itemCostAmount = cost(d) EXTID 'Amount',
+        itemCostCurrency = ('643' IF cost(d)) EXTID 'CurrencyCode'
+    // обязательная маркировка (Marks/Mark); по умолчанию заполняется «Отсутствует»
+    PROPERTIES IN t1ItemMarks itemMark = nameMarking(d) EXTID 'Mark'
+    FILTERS detailETRN(d) == e
+;

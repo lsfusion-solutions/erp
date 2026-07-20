@@ -1,0 +1,93 @@
+MODULE SaleShipmentETRN;
+
+REQUIRE SaleShipment, ETRN;
+
+NAMESPACE ETRN;
+
+// ------------------------- ЭТрН на основании поставки (продажа) ------------------------- //
+// Для клиентов, оформляющих внутреннее перемещение (и отгрузку) поставкой без накладной.
+
+shipment 'Поставка (основание)' = DATA Sale.Shipment (ETRN) INDEXED;
+seriesNumberShipment 'Поставка (основание)' (ETRN e) = seriesNumber(shipment(e)) CHARWIDTH 10;
+
+etrn (Sale.Shipment s) = GROUP MAX ETRN e BY shipment(e);
+seriesNumberETRN 'ЭТрН' (Sale.Shipment s) = seriesNumber(etrn(s)) CHARWIDTH 10;
+
+// строки поставки, сгруппированные по грузу товара
+quantity (Sale.Shipment s, Cargo c) = GROUP SUM quantity(Sale.ShipmentDetail d) BY shipment(d), cargo(sku(d));
+netWeight (Sale.Shipment s, Cargo c) = GROUP SUM quantity(Sale.ShipmentDetail d) * netWeight(sku(d)) BY shipment(d), cargo(sku(d));
+grossWeight (Sale.Shipment s, Cargo c) = GROUP SUM quantity(Sale.ShipmentDetail d) * grossWeight(sku(d)) BY shipment(d), cargo(sku(d));
+cost (Sale.Shipment s, Cargo c) = GROUP SUM sum(Sale.ShipmentDetail d) BY shipment(d), cargo(sku(d));
+
+// товары поставки без привязанного груза
+quantityNoCargo (Sale.Shipment s) = GROUP SUM quantity(Sale.ShipmentDetail d) IF NOT cargo(sku(d)) BY shipment(d);
+namesSkuNoCargo (Sale.Shipment s) = GROUP CONCAT name(sku(Sale.ShipmentDetail d)) IF NOT cargo(sku(d)), ', ' ORDER d BY shipment(d);
+
+// расширение заполнения ЭТрН из поставки (клиентские модули)
+overFill ABSTRACT LIST (Sale.Shipment, ETRN);
+
+fill (Sale.Shipment s, ETRN e) {
+    shipment(e) <- s;
+    shipper(e) <- supplier(s);
+    consignee(e) <- customer(s);
+    customerStock(e) <- customerStock(s);   // адрес места доставки заполнится событием из ETRN
+    supplierStock(e) <- supplierStock(s);   // адрес места погрузки заполнится событием из ETRN
+    currency(e) <- currency(s);
+
+    FOR quantity(s, Cargo c) NEW nd = ETRNDetail DO {
+        etrn(nd) <- e;
+        cargo(nd) <- c;
+        netWeight(nd) <- netWeight(s, c);
+        grossWeight(nd) <- grossWeight(s, c);
+        cost(nd) <- cost(s, c);
+    }
+
+    overFill(s, e);
+}
+
+createETRN 'Создать ЭТрН' (Sale.Shipment s) {
+    IF quantityNoCargo(s) THEN {
+        MESSAGE CONCAT ' ', 'Не для всех товаров поставки задан груз (ЭПД). Заполните груз для товаров:', namesSkuNoCargo(s);
+        RETURN;
+    }
+
+    NEWSESSION {
+        NEW e = ETRN {
+            fill(s, e);
+            edit(e);
+        }
+    }
+} IMAGE 'add.png';
+
+showETRN 'Просмотреть ЭТрН' (Sale.Shipment s) {
+    SHOW etrn OBJECTS e = etrn(s) READONLY;
+}
+
+editETRN 'Редактировать ЭТрН' (Sale.Shipment s) {
+    NEWSESSION {
+        edit(etrn(s));
+    }
+} IMAGE 'edit.png';
+
+EXTEND FORM shipments
+    PROPERTIES(s) READONLY seriesNumberETRN
+    PROPERTIES(s) createETRN TOOLBAR SHOWIF NOT etrn(s),
+                  editETRN TOOLBAR SHOWIF etrn(s),
+                  showETRN TOOLBAR SHOWIF etrn(s)
+;
+
+// -- основание на форме ЭТрН
+
+EXTEND FORM etrn
+    PROPERTIES(e) seriesNumberShipment READONLY
+;
+
+DESIGN etrn {
+    headerRow2 {
+        MOVE PROPERTY(seriesNumberShipment(e));
+    }
+}
+
+EXTEND FORM etrns
+    PROPERTIES(e) READONLY seriesNumberShipment
+;

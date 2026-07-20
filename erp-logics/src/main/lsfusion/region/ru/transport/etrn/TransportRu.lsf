@@ -1,0 +1,172 @@
+MODULE TransportRu;
+
+REQUIRE Transport;
+
+NAMESPACE Transport;
+
+// ------------------------- Водители: реквизиты для ЭПД (ЭТрН) ------------------------- //
+
+licenseSeries 'Серия водительского удостоверения' = DATA STRING[20](Driver);
+licenseNumber 'Номер водительского удостоверения' = DATA STRING[20](Driver);
+licenseDate 'Дата выдачи водительского удостоверения' = DATA DATE (Driver);
+inn 'ИНН физического лица' = DATA STRING[12](Driver);
+signMethod 'Способ идентификации простой подписи' = DATA ISTRING[255](Driver);
+//phone 'Номер телефона' = DATA STRING[20](Driver);
+email 'E-mail' = DATA STRING[100](Driver) CHARWIDTH 25;
+
+EXTEND FORM driver
+    PROPERTIES(e) licenseSeries, licenseNumber, licenseDate, inn, phone, email, signMethod
+;
+
+DESIGN driver {
+    header {
+        NEW driverRu {
+            caption = 'Реквизиты для ЭПД';
+            lines = 3;
+            MOVE PROPERTY(licenseSeries(e));
+            MOVE PROPERTY(licenseNumber(e));
+            MOVE PROPERTY(licenseDate(e));
+            MOVE PROPERTY(inn(e));
+            MOVE PROPERTY(phone(e)){charWidth = 20;}
+            MOVE PROPERTY(email(e));
+            MOVE PROPERTY(signMethod(e));
+        }
+    }
+}
+
+EXTEND FORM drivers
+    PROPERTIES(e) READONLYIF isReadonly() licenseSeries, licenseNumber, licenseDate, inn, phone, email
+;
+
+// ------------------------- Машины: реквизиты для ЭПД (ЭТрН) ------------------------- //
+
+CLASS TruckOwnershipType 'Тип владения' {
+    ownership 'Собственность',
+    jointOwnership 'Совместная собственность супругов',
+    rent 'Аренда',
+    leasing 'Лизинг',
+    freeUse 'Безвозмездное пользование'
+}
+TABLE truckOwnershipType(TruckOwnershipType);
+
+id 'Код' (TruckOwnershipType t) = CASE EXCLUSIVE 
+    WHEN t == TruckOwnershipType.ownership THEN 1
+    WHEN t == TruckOwnershipType.jointOwnership THEN 2
+    WHEN t == TruckOwnershipType.rent THEN 3
+    WHEN t == TruckOwnershipType.leasing THEN 4
+    WHEN t == TruckOwnershipType.freeUse THEN 5 MATERIALIZED ;
+// однозначное имя для доступа из других namespace
+idOwnershipType 'Код типа владения' (TruckOwnershipType t) = id(t);
+
+truckOwnershipType (id) = GROUP MAX TruckOwnershipType t BY id(t);
+
+type 'Тип' = DATA ISTRING[100](Truck);
+capacity 'Вместимость, м3' = DATA NUMERIC[16,5](Truck);
+ownershipType 'Тип владения' = DATA TruckOwnershipType (Truck);
+nameOwnershipType 'Тип владения' (Truck t) = staticCaption(ownershipType(t));
+sts 'Номер СТС' = DATA STRING[10](Truck);
+vin 'VIN номер' = DATA STRING[17](Truck);
+
+EXTEND FORM truck
+    PROPERTIES(t) type, capacity, nameOwnershipType, sts, vin
+;
+
+DESIGN truck {
+    pane {
+        NEW paramsRu {
+            caption = 'Реквизиты для ЭПД';
+            lines = 3;
+            MOVE PROPERTY(type(t));
+            MOVE PROPERTY(capacity(t));
+            MOVE PROPERTY(nameOwnershipType(t));
+            MOVE PROPERTY(sts(t));
+            MOVE PROPERTY(vin(t));
+        }
+    }
+}
+
+EXTEND FORM trucks
+    PROPERTIES(t) READONLYIF isReadonly() type, capacity, nameOwnershipType, sts, vin
+;
+
+// ------------------------- Прицепы (полуприцепы) ------------------------- //
+// Отдельный справочник с реквизитами по формату ЭТрН (ПараметрыТСТип, приказ ФНС).
+
+CLASS Trailer 'Прицеп';
+TABLE trailer(Trailer);
+
+sid 'Рег. номер' = DATA ISTRING[9](Trailer) IN id;
+type 'Тип' = DATA ISTRING[100](Trailer);
+truckModel = DATA TruckModel (Trailer);
+nameTruckModel 'Марка' (Trailer t) = name(truckModel(t));
+name 'Наименование' (Trailer t) = ISTRING[120](CONCAT ', ', nameTruckModel(t), 'рег. зн. ' + sid(t)) IN id;
+weight 'Грузоподъёмность (кг)' = DATA NUMERIC[16,4](Trailer);
+capacity 'Вместимость, м3' = DATA NUMERIC[16,5](Trailer);
+ownershipType 'Тип владения' = DATA TruckOwnershipType (Trailer);
+nameOwnershipType 'Тип владения' (Trailer t) = staticCaption(ownershipType(t));
+sts 'Номер СТС' = DATA STRING[10](Trailer);
+vin 'VIN номер' = DATA STRING[17](Trailer);
+
+inactive 'Неактивный' = DATA BOOLEAN (Trailer);
+active 'Активный' (Trailer t) = t IS Trailer AND NOT inactive(t);
+
+FORM trailer 'Прицеп'
+    OBJECTS t = Trailer PANEL
+    PROPERTIES(t) sid, type, nameTruckModel, weight, capacity, nameOwnershipType, sts, vin, inactive
+
+    EDIT Trailer OBJECT t
+;
+
+DESIGN trailer {
+    OBJECTS {
+        NEW main {
+            caption = 'Основные';
+            lines = 3;
+            MOVE PROPERTY(sid(t));
+            MOVE PROPERTY(type(t));
+            MOVE PROPERTY(nameTruckModel(t));
+            MOVE PROPERTY(weight(t));
+            MOVE PROPERTY(capacity(t));
+            MOVE PROPERTY(nameOwnershipType(t));
+            MOVE PROPERTY(sts(t));
+            MOVE PROPERTY(vin(t));
+            MOVE PROPERTY(inactive(t));
+        }
+    }
+}
+
+FORM trailers 'Прицепы'
+    OBJECTS t = Trailer
+    PROPERTIES(t) READONLY sid, nameTruckModel, type, weight, capacity, nameOwnershipType, sts, vin, inactive
+    PROPERTIES(t) NEWSESSION NEW, EDIT, DELETE
+    FILTERGROUP active FILTER 'Активные' active(t) 'F6' DEFAULT
+
+    LIST Trailer OBJECT t
+;
+
+// прицеп по умолчанию у машины
+defaultTrailer = DATA Trailer (Truck);
+nameDefaultTrailer 'Прицеп (справочник)' (Truck t) = name(defaultTrailer(t));
+
+// обратная совместимость: базовое текстовое поле trailer у Truck (используется в печатных
+// формах и прочей логике) синхронизируется с рег. номером прицепа из справочника
+WHEN LOCAL (CHANGED(sid(defaultTrailer(Truck t))) OR CHANGED(nameTruckModel(defaultTrailer(t)))) AND NOT CHANGED(trailer(t)) DO
+    trailer(t) <- ISTRING[100](CONCAT ' ', nameTruckModel(defaultTrailer(t)), sid(defaultTrailer(t)));
+
+EXTEND FORM truck
+    PROPERTIES(t) nameDefaultTrailer
+;
+
+DESIGN truck {
+    paramsRu {
+        MOVE PROPERTY(nameDefaultTrailer(t));
+    }
+}
+
+NAVIGATOR {
+    transportNavigator {
+        transportMasterData {
+            NEW trailers;
+        }
+    }
+}

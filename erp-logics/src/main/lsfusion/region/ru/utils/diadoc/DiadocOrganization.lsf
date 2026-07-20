@@ -410,20 +410,9 @@ FORM importOrganizations
                   addressCodeD EXTID 'AddressCode'
 ;
 
-getMyOrganizations 'Получить мои организации' (User u) {
-    NEWSESSION {
-        getToken(u);
-        
-        LOCAL result = FILE ();
-        TRY {
-            EXTERNAL HTTP GET url() + '/GetMyOrganizations' HEADERS httpHeadersToken TO result;
-            IMPORT importOrganizations JSON FROM result();
-        } CATCH {
-            fileToString(result(), 'UTF-8');
-            MESSAGE 'Ошибка получения организаций ' + statusHttp() + ' ' + resultString();
-        }
-        
-        FOR orgId(INTEGER i) AND NOT organization(orgId(i)) NEW o = Organization DO {
+// разбор импортированного ответа (GetMyOrganizations / GetOrganizationsByInnKpp) в справочник организаций
+applyImportedOrganizations (User u) {
+    FOR orgId(INTEGER i) AND NOT organization(orgId(i)) NEW o = Organization DO {
             orgId(o) <- orgId(i);
         }
         FOR Organization o == organization(orgId(INTEGER i)) DO {
@@ -490,8 +479,56 @@ getMyOrganizations 'Получить мои организации' (User u) {
             addressCode(d) <- addressCodeD(i);
             organization(d) <- organization(orgId(organizationDepartment(i)));
         }
+}
+
+getMyOrganizations 'Получить мои организации' (User u) {
+    NEWSESSION {
+        getToken(u);
+
+        LOCAL result = FILE ();
+        TRY {
+            EXTERNAL HTTP GET url() + '/GetMyOrganizations' HEADERS httpHeadersToken TO result;
+            IMPORT importOrganizations JSON FROM result();
+        } CATCH {
+            fileToString(result(), 'UTF-8');
+            MESSAGE 'Ошибка получения организаций ' + statusHttp() + ' ' + resultString();
+        }
+
+        applyImportedOrganizations(u);
         APPLY;
     }
+}
+
+// Обновление реквизитов организации (в т.ч. структурного адреса) контрагента.
+// GetOrganizationsByInnKpp возвращает {"Organizations":[...]} - тот же формат, что GetMyOrganizations;
+// КПП опционален - если не задан, запрос идёт только по ИНН.
+fetchOrganizationsByInnKpp (User u, STRING[12] inn, STRING[9] kpp) {
+    NEWSESSION {
+        getToken(u);
+
+        LOCAL result = FILE ();
+        TRY {
+            EXTERNAL HTTP GET url() + '/GetOrganizationsByInnKpp?inn=' + inn + (OVERRIDE '&kpp=' + kpp, '')
+                HEADERS httpHeadersToken TO result;
+            IMPORT importOrganizations JSON FROM result();
+        } CATCH {
+            fileToString(result(), 'UTF-8');
+            MESSAGE CONCAT ' ', 'Ошибка получения организации по ИНН', inn, ':', statusHttp(), resultString();
+        }
+
+        applyImportedOrganizations(u);
+        APPLY;
+    }
+}
+
+// по ИНН и КПП
+getOrganizationsByInnKpp 'Обновить организацию по ИНН и КПП' (User u, STRING[12] inn, STRING[9] kpp) {
+    fetchOrganizationsByInnKpp(u, inn, kpp);
+}
+
+// по одному ИНН (для организаций без КПП)
+getOrganizationsByInn 'Обновить организацию по ИНН' (User u, STRING[12] inn) {
+    fetchOrganizationsByInnKpp(u, inn, NULL);
 }
 
 EXTEND FORM organizations
