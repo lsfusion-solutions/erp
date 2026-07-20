@@ -159,22 +159,25 @@ decreaseVATSumInvoiceCorrectionDetail 'Сумма НДС (уменьшение)'
 decreaseInvoiceSumInvoiceCorrectionDetail 'Сумма с НДС (уменьшение)' = GROUP SUM decreaseInvoiceSum(InvoiceCorrectionDetail idetail) 
     BY invoiceCorrection(idetail) IN documentSum;
 
-WHEN LOCAL (CHANGED(quantityA(InvoiceCorrectionDetail detail)) OR CHANGED(invoicePriceA(detail)) OR CHANGED(currency (detail))) AND withVATPrice(invoiceDetail(detail)) DO
+// суммы «после» заданы внешним документом (например, УКД) — не пересчитывать их по цене/количеству, иначе копеечные расхождения из-за округления цены
+skipRecalcSumA = ABSTRACT BOOLEAN (InvoiceCorrectionDetail);
+
+WHEN LOCAL (CHANGED(quantityA(InvoiceCorrectionDetail detail)) OR CHANGED(invoicePriceA(detail)) OR CHANGED(currency (detail))) AND withVATPrice(invoiceDetail(detail)) AND NOT skipRecalcSumA(detail) DO
     invoiceSumA (detail) <- NUMERIC[18,4](round(quantityA(detail) * invoicePriceA(detail), currency(detail))); 
     
-WHEN LOCAL (CHANGED(invoiceSumA(InvoiceCorrectionDetail detail)) OR CHANGED(valueVAT (detail)) OR CHANGED(currency (detail))) AND withVATPrice(invoiceDetail(detail)) DO 
+WHEN LOCAL (CHANGED(invoiceSumA(InvoiceCorrectionDetail detail)) OR CHANGED(valueVAT (detail)) OR CHANGED(currency (detail))) AND withVATPrice(invoiceDetail(detail)) AND NOT skipRecalcSumA(detail) DO 
     VATSumA (detail)  <- NUMERIC[18,4](round(invoiceSumA(detail) * valueVAT(detail) / (100 (+) valueVAT (detail)), currency(detail)));
     
-WHEN LOCAL (CHANGED(invoiceSumA(InvoiceCorrectionDetail detail)) OR CHANGED (VATSumA(detail))) AND withVATPrice(invoiceDetail(detail)) DO
+WHEN LOCAL (CHANGED(invoiceSumA(InvoiceCorrectionDetail detail)) OR CHANGED (VATSumA(detail))) AND withVATPrice(invoiceDetail(detail)) AND NOT skipRecalcSumA(detail) DO
     sumA(detail) <- NUMERIC[18,4](invoiceSumA(detail) (-) VATSumA(detail));
 
-WHEN LOCAL (CHANGED(quantityA(InvoiceCorrectionDetail detail)) OR CHANGED(priceA(detail)) OR CHANGED(currency (detail))) AND NOT withVATPrice(invoiceDetail(detail)) DO
+WHEN LOCAL (CHANGED(quantityA(InvoiceCorrectionDetail detail)) OR CHANGED(priceA(detail)) OR CHANGED(currency (detail))) AND NOT withVATPrice(invoiceDetail(detail)) AND NOT skipRecalcSumA(detail) DO
     sumA (detail) <- NUMERIC[18,4](round(quantityA(detail) * priceA(detail), currency(detail)));
 
-WHEN LOCAL (CHANGED(sumA(InvoiceCorrectionDetail detail)) OR CHANGED(valueVAT (detail)) OR CHANGED(currency (detail))) AND NOT withVATPrice(invoiceDetail(detail)) DO
+WHEN LOCAL (CHANGED(sumA(InvoiceCorrectionDetail detail)) OR CHANGED(valueVAT (detail)) OR CHANGED(currency (detail))) AND NOT withVATPrice(invoiceDetail(detail)) AND NOT skipRecalcSumA(detail) DO
     VATSumA (detail)  <- NUMERIC[18,4](round(sumA(detail) * valueVAT(detail) / 100, currency(detail)));
 
-WHEN LOCAL (CHANGED(sumA(InvoiceCorrectionDetail detail)) OR CHANGED (VATSumA(detail))) AND NOT withVATPrice(invoiceDetail(detail)) DO
+WHEN LOCAL (CHANGED(sumA(InvoiceCorrectionDetail detail)) OR CHANGED (VATSumA(detail))) AND NOT withVATPrice(invoiceDetail(detail)) AND NOT skipRecalcSumA(detail) DO
     invoiceSumA(detail) <- NUMERIC[18,4](sumA(detail) (+) VATSumA(detail));
 
 overCorrectionPrice = ABSTRACT NUMERIC[16,4] (InvoiceCorrectionDetail);
