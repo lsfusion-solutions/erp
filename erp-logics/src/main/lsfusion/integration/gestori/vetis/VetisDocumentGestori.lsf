@@ -967,3 +967,47 @@ DESIGN incomingConsignments {
     PROPERTY(volumeVetDocument(c)) { caption = 'Объем продукции по ВСД'; }
     PROPERTY(uuidVetDocument(c)) { caption = 'UUID ВСД'; }
 }
+
+// ---- Отправка транспортной партии: блокировать без рейса (машины) по накладной ----
+// рейс (машина) исходящей партии = truck(trip(накладной)); без него в запрос не попадёт номер ТС
+
+processOutgoingGestori 'Отправить в Ветис' (OutgoingConsignment c) {
+    IF (GROUP SUM 1 IF in(OutgoingConsignment oc)) THEN {
+        IF (GROUP SUM 1 IF in(OutgoingConsignment oc) AND NOT truck(oc)) THEN {
+            MESSAGE 'Нельзя отправить транспортную партию: по накладной не указан рейс (машина). Отметьте только партии с назначенным рейсом.';
+            RETURN;
+        }
+    } ELSE IF NOT truck(c) THEN {
+        MESSAGE 'Нельзя отправить транспортную партию: по накладной не указан рейс (машина).';
+        RETURN;
+    }
+    process(c);
+}
+
+EXTEND FORM outgoingConsignments
+    PROPERTIES(c) processOutgoingGestori READONLYIF NOT toProcess(c) GRID
+;
+
+DESIGN outgoingConsignments {
+    PROPERTY(process(c)) { hide = TRUE; }
+}
+
+// ---- Справочник Машины: подсветка некорректного формата номера ТС/прицепа (стандарт РФ) ----
+// ТС: буква цифра×3 буква×2 регион(2-3 цифры); прицеп: буква×2 цифра×4 регион(2-3); буквы АВЕКМНОРСТУХ (кир./лат.)
+isValidVehicleNumberGestori = FORMULA NULL BOOLEAN 'CASE WHEN $1 ~* \'^[АВЕКМНОРСТУХABEKMHOPCTYX][0-9]{3}[АВЕКМНОРСТУХABEKMHOPCTYX]{2}[[:space:]]*[0-9]{2,3}$\' THEN 1 ELSE NULL END';
+isValidTrailerNumberGestori = FORMULA NULL BOOLEAN 'CASE WHEN $1 ~* \'^[АВЕКМНОРСТУХABEKMHOPCTYX]{2}[0-9]{4}[[:space:]]*[0-9]{2,3}$\' THEN 1 ELSE NULL END';
+
+invalidSidTruckGestori (Truck t) = sid(t) AND NOT isValidVehicleNumberGestori(sid(t));
+invalidTrailerTruckGestori (Truck t) = trailer(t) AND NOT isValidTrailerNumberGestori(trailer(t));
+
+EXTEND FORM trucks
+    PROPERTIES(t) READONLYIF isReadonly() sidGestori = sid BACKGROUND (RGB(255,200,200) IF invalidSidTruckGestori(t)) BEFORE nameTruckModel(t),
+                  trailerGestori = trailer BACKGROUND (RGB(255,200,200) IF invalidTrailerTruckGestori(t)) BEFORE weight(t)
+;
+
+DESIGN trucks {
+    PROPERTY(sid(t)) { hide = TRUE; }
+    PROPERTY(trailer(t)) { hide = TRUE; }
+    PROPERTY(sidGestori) { caption = 'Номер'; }
+    PROPERTY(trailerGestori) { caption = 'Прицеп'; }
+}
