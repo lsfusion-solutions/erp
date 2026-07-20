@@ -97,7 +97,7 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
         } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
         } catch (UniversalImportException e) {
-            e.printStackTrace();
+            ERPLoggers.importLogger.error("ImportSaleOrder failed", e);
             messageClientAction(context, e.getMessage(), e.getTitle());
         }
     }

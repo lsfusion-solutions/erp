@@ -1,6 +1,7 @@
 package lsfusion.erp.integration.image;
 
 import lsfusion.base.file.RawFileData;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
@@ -40,7 +41,7 @@ public class LoadImageArticleAction extends DefaultImageArticleAction {
                 safeFileDelete(file);
             }
         } catch (IOException | ScriptingErrorLog.SemanticErrorException e) {
-            e.printStackTrace();
+            ERPLoggers.importLogger.error("LoadImageArticle failed", e);
         }
     }
 }

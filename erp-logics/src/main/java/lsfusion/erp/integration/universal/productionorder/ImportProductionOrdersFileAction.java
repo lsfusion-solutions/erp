@@ -1,6 +1,7 @@
 package lsfusion.erp.integration.universal.productionorder;
 
 import lsfusion.base.file.RawFileData;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.erp.integration.universal.ImportColumnDetail;
 import lsfusion.erp.integration.universal.ImportDocumentAction;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
@@ -55,7 +56,7 @@ public class ImportProductionOrdersFileAction extends ImportDocumentAction {
         } catch (ScriptingErrorLog.SemanticErrorException | ParseException | IOException | xBaseJException e) {
             throw new RuntimeException(e);
         } catch (UniversalImportException e) {
-            e.printStackTrace();
+            ERPLoggers.importLogger.error("ImportProductionOrdersFile failed", e);
             messageClientAction(context, e.getMessage(), e.getTitle());
         }
     }

@@ -11,6 +11,7 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.base.file.FileData;
 import lsfusion.base.file.RawFileData;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.erp.integration.universal.ImportColumnDetail;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.erp.integration.universal.ImportPreviewClientAction;
@@ -170,7 +171,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
         } catch (ScriptingErrorLog.SemanticErrorException | IOException | xBaseJException e) {
             throw new RuntimeException(e);
         } catch (UniversalImportException e) {
-            e.printStackTrace();
+            ERPLoggers.importLogger.error("ImportPurchaseInvoice failed", e);
             messageClientAction(context, e.getMessage(), e.getTitle());
         }
     }
