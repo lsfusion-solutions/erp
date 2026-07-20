@@ -19,28 +19,18 @@ GROUP getProductItemListRequestEnterprise EXTID 'dt:enterprise' : getProductItem
 enterprise = DATA LOCAL Enterprise ();
 nameEnterprise 'Предприятие-производитель продукции' () = name(enterprise());
 
-// ХС-владелец (tmOwner)
-GROUP getProductItemListRequestTmOwner EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:tmOwner' : getProductItemListRequest;
-GROUP getProductItemListRequestTmOwnerBE EXTID 'dt:businessEntity' : getProductItemListRequestTmOwner;
-
-businessEntityOwner = DATA LOCAL BusinessEntity ();
-nameBusinessEntityOwner 'ХС-владелец' () = name(businessEntityOwner());
-
 FORM getProductItemListRequest FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
     PROPERTIES() header EXTID 'soapenv:Header'
     PROPERTIES() IN getProductItemListRequestListOptions count EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:count', offset EXTID 'bs:offset'
     PROPERTIES   IN getProductItemListRequestBusinessEntity = guid(businessEntity()) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
     PROPERTIES   IN getProductItemListRequestEnterprise = guid(enterprise()) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
-    PROPERTIES   IN getProductItemListRequestTmOwnerBE = guid(businessEntityOwner()) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
 ;
 
 changeGetProductItemListBE ABSTRACT ();
 changeGetProductItemListEnterprise ABSTRACT ();
-changeGetProductItemListOwner ABSTRACT ();
 
 FORM getProductItemListRequestParams 'Параметры запроса продукции'
     PROPERTIES() nameBusinessEntity ON CHANGE changeGetProductItemListBE(),
-                 nameBusinessEntityOwner ON CHANGE changeGetProductItemListOwner(),
                  nameEnterprise ON CHANGE changeGetProductItemListEnterprise(), offset, count
 ;
 

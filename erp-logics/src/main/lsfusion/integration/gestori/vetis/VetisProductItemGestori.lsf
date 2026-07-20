@@ -20,6 +20,26 @@ EXTEND FORM productItems
         FILTER 'Собственная' ownProductGestori(o) DEFAULT
 ;
 
+// 7.1: выбор номенклатуры Ветис для связи с товаром — без фильтра «Собственная»
+FORM dialogSelectProductItemGestori 'Номенклатура Ветис'
+    OBJECTS o = ProductItem
+    PROPERTIES(o) READONLY guid, name, nameProducer, ownProductGestori
+    LIST ProductItem OBJECT o
+;
+
+addProductItemGestori 'Добавить' (Item i) {
+    DIALOG dialogSelectProductItemGestori OBJECTS o INPUT DO
+        in(i, o) <- TRUE;
+}
+
+EXTEND FORM item
+    PROPERTIES addProductItemGestori(i) DRAW pi TOOLBAR
+;
+
+DESIGN item {
+    PROPERTY(addProductItem(i)) { hide = TRUE; }
+}
+
 hideNewProductItem() += TRUE;
 
 // --- Дополнительные поля номенклатуры (таблица полей карточки) ---
@@ -46,8 +66,8 @@ EXTEND FORM productItem
 DESIGN productItem {
     NEW mainColumnGestori FIRST {
         lines = 1;
-        MOVE PROPERTY(guid(o));
-        MOVE PROPERTY(uuid(o));
+        MOVE PROPERTY(guid(o)) { caption = 'GUID номенклатуры'; }
+        MOVE PROPERTY(uuid(o)) { caption = 'UUID номенклатуры'; }
         MOVE PROPERTY(name(o));
         MOVE PROPERTY(globalID(o));
         MOVE PROPERTY(code(o));
@@ -122,6 +142,18 @@ pendingDeleteProductItem (ProductItem p) = GROUP SUM 1 IF productItem(ProductIte
 CONSTRAINT SETCHANGED(in(Item i, ProductItem p)) AND in(i, p) AND pendingDeleteProductItem(p)
     MESSAGE 'Нельзя связывать с товаром: по номенклатуре отправлен запрос на удаление в Ветис';
 
+// запрос удаления: vd:affectedList и только bs:uuid (resultingList/bs:guid схема для DELETE не допускает)
+GROUP affectedListGestori EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:affectedList' : modificationOperation;
+GROUP productItemAffectedGestori EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:productItem' : affectedListGestori;
+
+FORM modifyProducerStockListDeleteGestori FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:modifyProducerStockListRequest'
+    OBJECTS r = ProductItemRequest PANEL
+    PROPERTIES(r) localTransactionId EXTID 'merc:localTransactionId'
+    PROPERTIES(r) IN initiator loginMercury EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:login'
+    PROPERTIES(r) IN modificationOperation type EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:type'
+    PROPERTIES(r) IN productItemAffectedGestori uuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid'
+;
+
 deleteModifyProducerStockList 'Удалить номенклатуру' (ProductItem p) {
     NEWSESSION {
         NEW r = ProductItemRequest {
@@ -131,8 +163,7 @@ deleteModifyProducerStockList 'Удалить номенклатуру' (Product
             isExported(p) <- TRUE;
             type(r) <- 'DELETE';
             uuid(r) <- uuid(p);
-            guid(r) <- guid(p);
-            EXPORT modifyProducerStockList OBJECTS r=r XML;
+            EXPORT modifyProducerStockListDeleteGestori OBJECTS r=r XML;
             submit(r, exportFile());
         }
         APPLY;
@@ -170,23 +201,60 @@ CONSTRAINT ownProductGestori(ProductItem p) AND NOT owner(p) AND NOT skipOwnCons
 CONSTRAINT ownProductGestori(ProductItem p) AND NOT (GROUP SUM 1 IF in(p, Enterprise e)) AND NOT skipOwnConstraint()
     MESSAGE 'Для собственной продукции обязательно укажите хотя бы одну Площадку';
 
+// submit делает внешний HTTP-вызов, недопустимый в транзакции события — событие только помечает запись,
+// а сам запрос отправляется после сохранения карточки (вне apply) через sendPendingProductItemRequestsGestori
+needCreateRequestGestori = DATA BOOLEAN (ProductItem);
+needUpdateRequestGestori = DATA BOOLEAN (ProductItem);
+
+WHEN SET(ProductItem p IS ProductItem) AND ownProductGestori(p) AND NOT skipOwnConstraint() DO
+    needCreateRequestGestori(p) <- TRUE;
+
+WHEN (CHANGED(name(ProductItem p)) OR CHANGED(globalID(p)) OR CHANGED(code(p)) OR
+      CHANGED(subProduct(p)) OR CHANGED(producer(p)) OR CHANGED(owner(p)) OR
+      CHANGED(inactive(p))) AND ownProductGestori(p) AND uuid(p) AND NOT isExported(p)
+      AND NOT needCreateRequestGestori(p) AND NOT skipOwnConstraint() DO
+    needUpdateRequestGestori(p) <- TRUE;
+
+// отправка накопленных запросов создания/изменения — вызывается после сохранения карточки, вне транзакции apply
+sendPendingProductItemRequestsGestori () {
+    FOR needCreateRequestGestori(ProductItem p) DO {
+        createModifyProducerStockList(p);
+        NEWSESSION { needCreateRequestGestori(p) <- NULL; APPLY; }
+    }
+    FOR needUpdateRequestGestori(ProductItem p) DO {
+        updateModifyProducerStockList(p);
+        NEWSESSION { needUpdateRequestGestori(p) <- NULL; APPLY; }
+    }
+}
+
 // кнопка создания с предустановленным видом продукции по выбранному узлу дерева
 createProductItemGestori 'Добавить' (SubProduct sp) {
     NEWSESSION {
         NEW p = ProductItem {
             subProduct(p) <- sp;
-            SHOW productItem OBJECTS o = p MANAGESESSION;
+            SHOW productItem OBJECTS o = p DOCKED WAIT MANAGESESSION;
         }
     }
+    // карточка сохранена (её apply завершён) — отправляем запрос в Ветис вне транзакции
+    sendPendingProductItemRequestsGestori();
+}
+
+// редактирование собственной номенклатуры с отправкой запроса изменения после сохранения
+editProductItemGestori 'Изменить' (ProductItem p) {
+    NEWSESSION {
+        SHOW productItem OBJECTS o = p DOCKED WAIT MANAGESESSION;
+    }
+    sendPendingProductItemRequestsGestori();
 }
 
 EXTEND FORM productItems
     PROPERTIES DRAW o TOOLBAR createProductItemGestori(sp)
+    PROPERTIES(o) TOOLBAR editProductItemGestori SHOWIF ownProductGestori(o) AND NOT isExported(o) DRAW o
 ;
 
 // --- Блок 4: Действия в справочнике ---
 
-// п.18: ХС — только собственные; если площадка выбрана — только её ХС-владелец
+// ХС — только собственные; если площадка выбрана — только её ХС-владелец
 FORM dialogGetProductItemBE 'Хозяйствующий субъект'
     OBJECTS o = BusinessEntity
     PROPERTIES(o) READONLY guid, name
@@ -194,7 +262,7 @@ FORM dialogGetProductItemBE 'Хозяйствующий субъект'
     LIST BusinessEntity OBJECT o
 ;
 
-// п.17: площадки — только с собственным владельцем; если ХС выбран — только его площадки
+// площадки — только с собственным владельцем; если ХС выбран — только его площадки
 FORM dialogGetProductItemEnterprise 'Площадка'
     OBJECTS o = Enterprise
     PROPERTIES(o) READONLY guid, name, nameOwner
@@ -218,33 +286,12 @@ changeGetProductItemListEnterprise() + {
     }
 }
 
-// выбор ХС-владельца — только собственные ХС
-FORM dialogGetProductItemOwner 'Хозяйствующий субъект'
-    OBJECTS o = BusinessEntity
-    PROPERTIES(o) READONLY guid, name
-    FILTERS own(o)
-    LIST BusinessEntity OBJECT o
-;
-
-changeGetProductItemListOwner() + {
-    DIALOG dialogGetProductItemOwner OBJECTS o = businessEntityOwner() INPUT DO businessEntityOwner() <- o;
-}
-
-// запросы отправляются в отдельном потоке/сессии: submit делает EXTERNAL HTTP, недопустимый в транзакции события
-WHEN SET(ProductItem p IS ProductItem) AND ownProductGestori(p) AND NOT skipOwnConstraint() DO
-    NEWTHREAD NEWSESSION NEWSQL createModifyProducerStockList(p);
-
-WHEN (CHANGED(name(ProductItem p)) OR CHANGED(globalID(p)) OR CHANGED(code(p)) OR
-      CHANGED(subProduct(p)) OR CHANGED(producer(p)) OR CHANGED(owner(p)) OR
-      CHANGED(inactive(p))) AND ownProductGestori(p) AND uuid(p) AND NOT isExported(p) AND NOT skipOwnConstraint() DO
-    NEWTHREAD NEWSESSION NEWSQL updateModifyProducerStockList(p);
-
 
 // Скрыть кнопки ручного запроса в Ветис — запросы выполняются автоматически
 hideManualProducerStockList() += TRUE;
 
-// Редактировать — только для собственной номенклатуры без необработанного запроса
-hideEditProductItem(ProductItem o) += TRUE IF NOT ownProductGestori(o) OR isExported(o);
+// Стандартная кнопка «Редактировать» скрыта — вместо неё editProductItemGestori (с отправкой запроса после сохранения)
+hideEditProductItem(ProductItem o) += TRUE IF o IS ProductItem;
 // Стандартная кнопка DELETE скрыта везде — вместо неё используется deleteProductItemGestori
 hideDeleteProductItem(ProductItem o) += TRUE IF o IS ProductItem;
 
@@ -293,7 +340,7 @@ changeOwner(ProductItem pi) + {
 
 // Открыть карточку номенклатуры в режиме просмотра
 viewProductItem 'Просмотр' (ProductItem p) {
-    SHOW productItem OBJECTS o = p READONLY;
+    SHOW productItem OBJECTS o = p DOCKED WAIT READONLY;
 }
 
 // Удаление: собственная с uuid — отправить запрос на удаление в Ветис; иначе — удалить напрямую
@@ -387,6 +434,10 @@ loadProductByGuidGestori (STRING g) {
         IF NOT product(prGuidBGG()) THEN NEW p = Product {
             guid(p) <- prGuidBGG();
         }
+        // связанный справочник Тип продукции (dt:productType) — создать запись, если отсутствует
+        IF prTypeBGG() AND NOT productType(INTEGER(prTypeBGG())) THEN NEW pt = ProductType {
+            id(pt) <- INTEGER(prTypeBGG());
+        }
         FOR Product p = product(prGuidBGG()) DO {
             name(p) <- ISTRING(prNameBGG());
             uuid(p) <- STRING[50](prUuidBGG());
@@ -424,7 +475,7 @@ FORM getSubProductByGuidResponseGestori FORMEXTID 'soapenv=http://schemas.xmlsoa
 ;
 
 loadSubProductByGuidGestori (STRING g) {
-    NEWSESSION {
+    NEWSESSION NESTED LOCAL {
         searchDictGuidGestori() <- g;
         LOCAL requestFile = FILE();
         EXPORT getSubProductByGuidRequestGestori XML TO requestFile;
@@ -444,16 +495,18 @@ loadSubProductByGuidGestori (STRING g) {
         IF NOT subProduct(spGuidBGG()) THEN NEW s = SubProduct {
             guid(s) <- spGuidBGG();
         }
-        IF spProductGuidBGG() AND NOT product(spProductGuidBGG()) THEN NEW p = Product {
-            guid(p) <- spProductGuidBGG();
-        }
         FOR SubProduct s = subProduct(spGuidBGG()) DO {
             name(s) <- ISTRING(spNameBGG());
             uuid(s) <- STRING[50](spUuidBGG());
-            IF product(spProductGuidBGG()) THEN product(s) <- product(spProductGuidBGG());
             inactive(s) <- TRUE IF spActiveBGG() = 'false';
         }
-        APPLY;
+        APPLY NESTED LOCAL;
+        // связанный справочник Продукция (dt:productGuid) — запрос в Ветис, если запись пустая
+        IF spProductGuidBGG() AND (NOT product(spProductGuidBGG()) OR NOT name(product(spProductGuidBGG()))) THEN
+            loadProductByGuidGestori(spProductGuidBGG());
+        FOR SubProduct s = subProduct(spGuidBGG()) AND Product p = product(spProductGuidBGG()) DO
+            product(s) <- p;
+        APPLY NESTED LOCAL;
     }
 }
 
@@ -563,9 +616,12 @@ GROUP getProductItemByGuidResponseSubProduct EXTID 'dt:subProduct' : getProductI
 GROUP getProductItemByGuidResponseProducer EXTID 'dt:producer' : getProductItemByGuidResponsePI;
 GROUP getProductItemByGuidResponseTmOwner EXTID 'dt:tmOwner' : getProductItemByGuidResponsePI;
 GROUP getProductItemByGuidResponseUnit EXTID 'dt:unit' : getProductItemByGuidResponsePI;
+GROUP getProductItemByGuidResponseLocation EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:location';
 
 piGuidBG = DATA LOCAL STRING();
 piUuidBG = DATA LOCAL STRING();
+piStatusBG = DATA LOCAL STRING();
+piProducingGuidBG = DATA LOCAL STRING(INTEGER);
 piActiveBG = DATA LOCAL STRING();
 piNameBG = DATA LOCAL STRING();
 piGlobalIDBG = DATA LOCAL STRING();
@@ -582,6 +638,7 @@ FORM getProductItemByGuidResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/
     PROPERTIES() IN getProductItemByGuidResponsePI
         piUuidBG EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid',
         piGuidBG EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
+        piStatusBG EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:status',
         piActiveBG EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:active',
         piGlobalIDBG EXTID 'dt:globalID',
         piNameBG EXTID 'dt:name',
@@ -593,6 +650,8 @@ FORM getProductItemByGuidResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/
     PROPERTIES() IN getProductItemByGuidResponseProducer piProducerGuidBG EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
     PROPERTIES() IN getProductItemByGuidResponseTmOwner piTmOwnerGuidBG EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
     PROPERTIES() IN getProductItemByGuidResponseUnit piUnitGuidBG EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
+    OBJECTS pgg = INTEGER EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:producing' IN getProductItemByGuidResponsePI
+    PROPERTIES(pgg) piProducingGuidBG EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN getProductItemByGuidResponseLocation
 ;
 
 FORM inputProductItemGuid 'Запрос номенклатуры по GUID'
@@ -624,6 +683,7 @@ loadProductItemByGuidCoreGestori (STRING g) {
             }
             FOR ProductItem p = productItem(piGuidBG()) DO {
                 uuid(p) <- piUuidBG();
+                statusVetisGestori(p) <- STRING[5](piStatusBG());
                 name(p) <- ISTRING(piNameBG());
                 globalID(p) <- piGlobalIDBG();
                 code(p) <- ISTRING(piCodeBG());
@@ -651,11 +711,21 @@ loadProductItemByGuidCoreGestori (STRING g) {
                 loadSubProductByGuidGestori(piSubProductGuidBG());
             IF piUnitGuidBG() AND (NOT unit(piUnitGuidBG()) OR NOT name(unit(piUnitGuidBG()))) THEN
                 loadUnitByGuidGestori(piUnitGuidBG());
-            // ссылка на созданный при дозагрузке вид продукции
-            FOR ProductItem p = productItem(piGuidBG()) AND NOT subProduct(p) DO {
-                subProduct(p) <- subProduct(piSubProductGuidBG());
-                APPLY;
+            // площадки производства (dt:producing/dt:location) — создать недостающие (в этой же сессии, чтобы LOCAL был виден)
+            FOR piProducingGuidBG(INTEGER i) AND NOT enterprise(piProducingGuidBG(i)) DO
+                NEW e = Enterprise { guid(e) <- piProducingGuidBG(i); }
+            APPLY NESTED LOCAL;
+            // предварительно дозагрузить данные площадок (5.6)
+            FOR Enterprise e = enterprise(piProducingGuidBG(INTEGER i)) AND NOT name(e) DO
+                loadEnterpriseDetails(e);
+            // связать номенклатуру с площадками и дозаполнить вид продукции
+            FOR ProductItem p = productItem(piGuidBG()) DO {
+                IF NOT subProduct(p) THEN subProduct(p) <- subProduct(piSubProductGuidBG());
+                in(p, Enterprise e) <- NULL WHERE in(p, e);
+                FOR Enterprise e = enterprise(piProducingGuidBG(INTEGER i)) DO
+                    in(p, e) <- TRUE;
             }
+            APPLY NESTED LOCAL;
     }
 }
 
