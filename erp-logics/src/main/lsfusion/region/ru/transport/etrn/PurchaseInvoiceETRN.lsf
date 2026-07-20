@@ -80,13 +80,27 @@ editETRN 'Редактировать ЭТрН' (Purchase.Invoice i) {
     }
 } IMAGE 'edit.png';
 
-EXTEND FORM Purchase.invoices
+
+EXTEND FORM invoices
     PROPERTIES(i) READONLY seriesNumberETRN
-    PROPERTIES(i) createETRN TOOLBAR SHOWIF NOT etrn(i),
-                  editETRN TOOLBAR SHOWIF etrn(i),
-                  showETRN TOOLBAR SHOWIF etrn(i)
+    PROPERTIES createETRN(i) SHOWIF NOT etrn(i),
+        etrnNumber = seriesNumberETRN(i) SHOWIF etrn(i) PANEL READONLY,
+        editETRN(i) SHOWIF etrn(i),
+        showETRN(i) SHOWIF etrn(i)
 ;
 
+DESIGN invoices {
+    actionContainer {
+        NEW etrnRow {
+            caption = 'ЭТрН';
+            MOVE PROPERTY (createETRN(i));
+            MOVE PROPERTY (etrnNumber);
+            MOVE PROPERTY (editETRN(i));
+            MOVE PROPERTY (showETRN(i));
+
+        }
+    }
+}
 // -- основание на форме ЭТрН
 
 EXTEND FORM etrn
