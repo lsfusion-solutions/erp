@@ -1011,3 +1011,31 @@ DESIGN trucks {
     PROPERTY(sidGestori) { caption = 'Номер'; }
     PROPERTY(trailerGestori) { caption = 'Прицеп'; }
 }
+
+// ---- Накладные закупки: полный возврат по ВСД, запрет изменений, автопересчёт объёма ----
+
+// объём по ВСД заблокирован, если по входящей партии отправлена заявка в Ветис (кроме завершившихся ошибкой) или выполнено гашение
+// (существование партии обязательно — иначе черновик без партии считался бы заблокированным)
+vsdVolumeLockedGestori (Purchase.UserInvoiceDetail vd) =
+    GROUP SUM 1 IF VetisPurchase.incomingConsignment(vd, VetDocument vtd) IS Vetis.IncomingConsignment AND NOT VetisPurchase.toProcess(vd, vtd);
+
+// полный возврат всей продукции по ВСД: принять нулевой объём — гашение уходит с решением RETURN_ALL
+fullReturnInvoiceGestori 'Полный возврат' (Purchase.UserInvoiceDetail vd, VetDocument vtd) {
+    VetisPurchase.volume(vd, vtd) <- 0.0;
+}
+
+EXTEND FORM Purchase.userInvoice
+    PROPERTIES(vd, vtd) fullReturnInvoiceGestori READONLYIF vsdVolumeLockedGestori(vd) GRID
+;
+
+// количество по позиции нельзя менять после проведения накладной
+CONSTRAINT CHANGED(shipmentQuantity(Purchase.UserInvoiceDetail vd)) AND isPosted(vd) AND NOT CHANGED(isPosted(vd))
+    MESSAGE 'Нельзя изменить количество: накладная проведена';
+// объём по ВСД нельзя менять после отправки заявки в Ветис (кроме завершившихся ошибкой) или гашения
+CONSTRAINT CHANGED(VetisPurchase.volume(Purchase.UserInvoiceDetail vd, VetDocument vtd)) AND vsdVolumeLockedGestori(vd)
+    MESSAGE 'Нельзя изменить объём по ВСД: отправлена заявка в Ветис или выполнено гашение';
+
+// при изменении количества по связанной с ВСД позиции пересчитывать выбранный объём (нулевой — полный возврат — не трогаем)
+WHEN CHANGED(shipmentQuantity(Purchase.UserInvoiceDetail vd)) AND VetisPurchase.volume(vd, VetDocument vtd) > 0
+        AND NOT vsdVolumeLockedGestori(vd) DO
+    VetisPurchase.fillVolume(vd, vtd);
