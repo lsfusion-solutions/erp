@@ -245,7 +245,7 @@ processETRNEvents 'Обработать события ЭПД' () {
     NEWSESSION {
         FOR ETRNEvent ev IS ETRNEvent AND NOT processedDateTime(ev) ORDER dateTime(ev), ev DO {
             // документ мог появиться (импорт входящей перевозки) уже после приёма события
-            IF NOT etrn(ev) THEN etrn(ev) <- etrn(transportationId(ev));
+            etrn(ev) <- etrn(transportationId(ev)) WHERE NOT etrn(ev);
             processEvent(ev);
             processedDateTime(ev) <- currentDateTime();
         }
