@@ -31,6 +31,12 @@ volumeGestori 'Объем продукции (6 зн.)' (VetDocument d) = NUMERI
 pendingWithdrawGestori (VetDocument d) = GROUP MAX WithdrawVetDocumentRequest r
     IF vetDocument(r) = d AND NOT processed(r);
 
+// при обработке ответа на оформление входящей партии — связать запись журнала с входящей партией
+// (иначе «Тип накладной»/«Номер накладной» в записи журнала пусты — вычисляются из incomingConsignment(StockEntry))
+WHEN SET(processed(ProcessIncomingConsignmentRequest r)) DO
+    FOR StockEntry s IF in(s, vetDocument(incomingConsignment(r))) AND NOT incomingConsignment(s) DO
+        incomingConsignment(s) <- incomingConsignment(r);
+
 pendingProcessGestori (VetDocument d) = GROUP MAX ProcessIncomingConsignmentRequest r
     IF vetDocument(incomingConsignment(r)) = d AND NOT processed(r);
 
@@ -927,30 +933,30 @@ DESIGN vetDocument {
     PROPERTY(relationshipType(rd)) { caption = 'Код типа связи'; }
 }
 
-//// ---- Пакетная отправка запросов на гашение ВСД ----
-//
-//processIncomingConsignmentsGestori 'Отправить запросы на гашение ВСД' () {
-//    LOCAL cnt = INTEGER();
-//    LOCAL skipped = INTEGER();
-//    cnt() <- 0;
-//    skipped() <- 0;
-//    NEWSESSION { skipMessage() <- TRUE; APPLY; }
-//    FOR IncomingConsignment c IF toProcess(c) DO {
-//        IF expiryDate(vetDocument(c)) AND expiryDate(vetDocument(c)) < currentDate() THEN
-//            skipped() <- skipped() + 1;
-//        ELSE {
-//            process(c);
-//            cnt() <- cnt() + 1;
-//        }
-//    }
-//    NEWSESSION { skipMessage() <- NULL; APPLY; }
-//    MESSAGE 'Отправлено ' + cnt() + ' запросов' +
-//        (IF skipped() > 0 THEN ', пропущено ' + skipped() + ' с истёкшим сроком годности' ELSE '');
-//}
-//
-//EXTEND FORM incomingConsignments
-//    PROPERTIES() processIncomingConsignmentsGestori TOOLBAR
-//;
+// ---- Пакетная отправка запросов на гашение ВСД ----
+
+processIncomingConsignmentsGestori 'Отправить запросы на гашение ВСД' () {
+    LOCAL cnt = INTEGER();
+    LOCAL skipped = INTEGER();
+    cnt() <- 0;
+    skipped() <- 0;
+    NEWSESSION { skipMessage() <- TRUE; APPLY; }
+    FOR IncomingConsignment c IF toProcess(c) DO {
+        IF expiryDate(vetDocument(c)) AND expiryDate(vetDocument(c)) < currentDate() THEN
+            skipped() <- skipped() + 1;
+        ELSE {
+            process(c);
+            cnt() <- cnt() + 1;
+        }
+    }
+    NEWSESSION { skipMessage() <- NULL; APPLY; }
+    MESSAGE 'Отправлено ' + cnt() + ' запросов' +
+        (IF skipped() > 0 THEN ', пропущено ' + skipped() + ' с истёкшим сроком годности' ELSE '');
+}
+
+EXTEND FORM incomingConsignments
+    PROPERTIES() processIncomingConsignmentsGestori TOOLBAR
+;
 
 // ---- различить два поля «Объем продукции» в списке входящих партий ----
 // volume — объём по строке документа поставки (фактическое количество, пересчитанное в единицы ВСД)

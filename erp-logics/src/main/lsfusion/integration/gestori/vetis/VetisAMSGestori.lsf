@@ -1,7 +1,8 @@
 MODULE VetisAMSGestori;
 
 REQUIRE VetisAMSReceiveResponse, VetisGetVDList, VetisGetSEList, VetisStock,
-        VetisProcessIncomingConsignment, VetisPurchaseShipment;
+        VetisProcessIncomingConsignment, VetisPurchaseShipment,
+        VetisDocumentGestori, VetisStockEntryGestori, VetisProductItemGestori;
 
 NAMESPACE Vetis;
 
@@ -263,14 +264,18 @@ CONSTRAINT SETCHANGED(enterprise(StockEntryListRequest r)) AND limitAccess(curre
     MESSAGE 'Нет доступа к данной площадке';
 
 // --- Площадка и GUID площадки в списке заявок ---
+// площадка заявки по всем типам запросов: запросы списков/по UUID/по GUID — своя площадка;
+// оформление входящей партии — площадка-получатель ВСД; создание номенклатуры — площадка производства
+enterpriseRequestGestori (ApplicationRequest r) = OVERRIDE
+    enterprise(r AS VetDocumentListRequest),
+    enterprise(r AS StockEntryListRequest),
+    enterprise(r AS GetVetDocumentByUuidRequest),
+    enterprise(r AS GetStockEntryByGuidRequest),
+    consigneeEnterprise(vetDocument(incomingConsignment(r AS ProcessIncomingConsignmentRequest))),
+    (GROUP MIN Enterprise e IF in(productItem(r AS ProductItemRequest), e));
 
-nameEnterpriseRequest 'Площадка' (ApplicationRequest r) =
-    OVERRIDE name(enterprise(r AS VetDocumentListRequest)),
-             name(enterprise(r AS StockEntryListRequest));
-
-guidEnterpriseRequest 'GUID площадки' (ApplicationRequest r) =
-    OVERRIDE guid(enterprise(r AS VetDocumentListRequest)),
-             guid(enterprise(r AS StockEntryListRequest));
+nameEnterpriseRequest 'Площадка' (ApplicationRequest r) = name(enterpriseRequestGestori(r));
+guidEnterpriseRequest 'GUID площадки' (ApplicationRequest r) = guid(enterpriseRequestGestori(r));
 
 EXTEND FORM applicationRequests
     PROPERTIES(r) READONLY nameEnterpriseRequest, guidEnterpriseRequest
