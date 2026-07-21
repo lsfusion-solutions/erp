@@ -37,8 +37,9 @@ WHEN SET(processed(ProcessIncomingConsignmentRequest r)) DO
     FOR StockEntry s IF in(s, vetDocument(incomingConsignment(r))) AND NOT incomingConsignment(s) DO
         incomingConsignment(s) <- incomingConsignment(r);
 
+// заявка в работе = отправлена, ещё не обработана И без ошибки; ошибочная заявка не держит статус «Запрос на гашение отправлен»
 pendingProcessGestori (VetDocument d) = GROUP MAX ProcessIncomingConsignmentRequest r
-    IF vetDocument(incomingConsignment(r)) = d AND NOT processed(r);
+    IF vetDocument(incomingConsignment(r)) = d AND NOT processed(r) AND NOT error(r);
 
 processedProcessGestori (VetDocument d) = GROUP MAX ProcessIncomingConsignmentRequest r
     IF vetDocument(incomingConsignment(r)) = d AND processed(r);
@@ -946,17 +947,20 @@ DESIGN vetDocument {
 
 // ---- Пакетная отправка запросов на гашение ВСД ----
 
+// представитель для гашения по ВСД: одна партия на ВСД среди «К отправке» (группировка — не слать один ВСД несколькими запросами)
+groupProcessConsignmentGestori (VetDocument s) = GROUP MAX IncomingConsignment c IF toProcess(c) AND vetDocument(c) = s;
+
 processIncomingConsignmentsGestori 'Отправить запросы на гашение ВСД' () {
     LOCAL cnt = INTEGER();
     LOCAL skipped = INTEGER();
     cnt() <- 0;
     skipped() <- 0;
     NEWSESSION { skipMessage() <- TRUE; APPLY; }
-    FOR IncomingConsignment c IF toProcess(c) DO {
-        IF expiryDate(vetDocument(c)) AND expiryDate(vetDocument(c)) < currentDate() THEN
+    FOR groupProcessConsignmentGestori(VetDocument s) DO {
+        IF expiryDate(s) AND expiryDate(s) < currentDate() THEN
             skipped() <- skipped() + 1;
         ELSE {
-            process(c);
+            process(groupProcessConsignmentGestori(s));
             cnt() <- cnt() + 1;
         }
     }

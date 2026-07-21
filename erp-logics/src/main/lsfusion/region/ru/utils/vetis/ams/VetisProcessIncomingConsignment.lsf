@@ -35,12 +35,15 @@ GROUP docInspectionResponsible EXTID 'vd:responsible' : docInspection;
 GROUP vetInspection EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:vetInspection' : deliveryFacts;
 GROUP vetInspectionResponsible EXTID 'vd:responsible' : vetInspection;
 
-result (IncomingConsignment c) = CASE WHEN volumeVetDocument(c) = volume(c) THEN 'ACCEPT_ALL'
-                                                    WHEN volume(c) > 0 THEN 'PARTIALLY'
-                                                    ELSE 'RETURN_ALL'; 
+// суммарный принятый объём по ВСД (по всем позициям документа): гашение группируется по ВСД — один запрос с суммой
+processVolume (IncomingConsignment c) = GROUP SUM volume(IncomingConsignment c2) IF vetDocument(c2) = vetDocument(c);
+
+result (IncomingConsignment c) = CASE WHEN volumeVetDocument(c) = processVolume(c) THEN 'ACCEPT_ALL'
+                                                    WHEN processVolume(c) > 0 THEN 'PARTIALLY'
+                                                    ELSE 'RETURN_ALL';
 
 // returned delivery
-returnedDelivery (IncomingConsignment c) = c IS IncomingConsignment AND NOT volumeVetDocument(c) = volume(c); 
+returnedDelivery (IncomingConsignment c) = c IS IncomingConsignment AND NOT volumeVetDocument(c) = processVolume(c);
 returnedDelivery = DATA LOCAL TEXT ();
 
 FORM processIncomingConsignmentRequest FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:processIncomingConsignmentRequest'
@@ -60,7 +63,7 @@ FORM processIncomingConsignmentRequest FORMEXTID 'merc=http://api.vetrf.ru/schem
                = guid(product(vetDocument(incomingConsignment(r)))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN deliveryConsignmentProduct,
                = guid(subProduct(vetDocument(incomingConsignment(r)))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN deliveryConsignmentSubProduct,
                = productItemXml(vetDocument(incomingConsignment(r))) EXTID 'vd:productItem' IN deliveryConsignment,
-               = volume(incomingConsignment(r)) EXTID 'vd:volume' IN deliveryConsignment,
+               = processVolume(incomingConsignment(r)) EXTID 'vd:volume' IN deliveryConsignment,
                = guid(unit(vetDocument(incomingConsignment(r)))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN deliveryConsignmentUnit,
                = dateOfProductionXml(vetDocument(incomingConsignment(r))) EXTID 'vd:dateOfProduction' IN deliveryConsignment,
                = expiryDateXml(vetDocument(incomingConsignment(r))) EXTID 'vd:expiryDate' IN deliveryConsignment,
@@ -126,7 +129,7 @@ FORM processIncomingConsignmentRequestReturnedDelivery
                = guid(product(vetDocument(c))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN consignmentProduct,
                = guid(subProduct(vetDocument(c))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN consignmentSubProduct,
                = productItemXml(vetDocument(c)) EXTID 'vd:productItem' IN consignment,
-               = (IF volume(vetDocument(c)) > volume(c) THEN volume(vetDocument(c)) - volume(c) ELSE 0) EXTID 'vd:volume' IN consignment,
+               = (IF volume(vetDocument(c)) > processVolume(c) THEN volume(vetDocument(c)) - processVolume(c) ELSE 0) EXTID 'vd:volume' IN consignment,
                = guid(unit(vetDocument(c))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN consignmentUnit,
                = dateOfProductionXml(vetDocument(c)) EXTID 'vd:dateOfProduction' IN consignment,
                = expiryDateXml(vetDocument(c)) EXTID 'vd:expiryDate' IN consignment,
@@ -265,9 +268,11 @@ META defineDocumentIncomingProcess (doc, obj)
     toProcess (###doc i) = GROUP SUM 1 IF toProcess(###doc##Detail vd, VetDocument vtd) AND doc(vd) = i; 
     process 'Отправить в Ветис' (###doc##Detail vd, VetDocument vtd) { process(incomingConsignment(vd, vtd)); }
     
+    // гашение по документу: группировка по ВСД — один запрос на ВСД (суммарный принятый объём — в processVolume)
+    groupProcessConsignment (###doc i, VetDocument vtd) = GROUP MAX incomingConsignment(###doc##Detail d, vtd) IF doc(d) = i AND toProcess(d, vtd);
     process 'Отправить в Ветис' (###doc i) {
-        FOR doc(###doc##Detail d) = i AND toProcess(d, VetDocument vd) DO
-            process(d, vd);
+        FOR groupProcessConsignment(i, VetDocument vtd) DO
+            process(groupProcessConsignment(i, vtd));
     }
     
     EXTEND FORM doc##s
