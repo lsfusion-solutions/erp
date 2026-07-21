@@ -46,9 +46,11 @@ FORM modifyProducerStockList FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/merc
     PROPERTIES(r) IN initiator loginMercury EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:login'
 
     PROPERTIES(r) IN modificationOperation type EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:type'
-    PROPERTIES(r) IN productItem guid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid', uuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid', globalID EXTID 'dt:globalID', nameE EXTID 'dt:name', code EXTID 'dt:code', correspondsToGostE EXTID 'dt:correspondsToGost', gostE EXTID 'dt:gost', productType EXTID 'dt:productType'
+    PROPERTIES(r) IN productItem guid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid', uuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid', globalID EXTID 'dt:globalID', nameE EXTID 'dt:name', code EXTID 'dt:code', productType EXTID 'dt:productType'
     PROPERTIES(r) IN product guid1 EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
     PROPERTIES(r) IN subProduct guid2 EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
+    // теги correspondsToGost/gost должны идти после subProduct (требование схемы Ветис)
+    PROPERTIES(r) IN productItem correspondsToGostE EXTID 'dt:correspondsToGost', gostE EXTID 'dt:gost'
     PROPERTIES(r) IN producer guid3 EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
     PROPERTIES(r) IN tmOwner guid4 EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
     OBJECTS producing = Enterprise IN productItem EXTID 'dt:producing'
@@ -59,6 +61,9 @@ FORM modifyProducerStockList FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/merc
 
 fillProducerStockList ABSTRACT (ProductItemRequest, ProductItem);
 afterProcessProducerStockList ABSTRACT (ProductItemRequest);
+
+// при положительном ответе на удаление помечать номенклатуру неактивной и обновлять из ответа (вместо физического удаления)
+deactivateOnDeleteProducerStockList = ABSTRACT BOOLEAN ();
 
 createModifyProducerStockList 'Создание наменклатуры' (ProductItem p) {
     NEWSESSION {
@@ -179,16 +184,31 @@ FORM modifyProducerStockListResponse FORMEXTID 'merc=http://api.vetrf.ru/schema/
 
 process (ProductItemRequest r) + {
     IF operationType(r) = 'DELETE' THEN {
-        NEWSESSION {
-            guid(productItem(r)) <- NULL;
-            uuid(productItem(r)) <- NULL;
+        IF deactivateOnDeleteProducerStockList() THEN NEWSESSION {
+            skipOwnConstraint() <- TRUE; // изменения из ответа не должны триггерить повторный запрос
+            stringToFile(response(r));
+            IMPORT modifyProducerStockListResponse XML FROM resultFile();
             isExported(productItem(r)) <- NULL;
+            globalID(productItem(r)) <- OVERRIDE globalIDR(), globalID(productItem(r));
+            name(productItem(r)) <- OVERRIDE nameR(), name(productItem(r));
+            uuid(productItem(r)) <- OVERRIDE uuidR(), uuid(productItem(r));
+            guid(productItem(r)) <- OVERRIDE guidR(), guid(productItem(r));
+            inactive(productItem(r)) <- TRUE;
+            afterProcessProducerStockList(r);
             processed(r) <- TRUE;
             APPLY;
-        }
-        NEWSESSION {
-            DELETE productItem(r);
-            APPLY;
+        } ELSE {
+            NEWSESSION {
+                guid(productItem(r)) <- NULL;
+                uuid(productItem(r)) <- NULL;
+                isExported(productItem(r)) <- NULL;
+                processed(r) <- TRUE;
+                APPLY;
+            }
+            NEWSESSION {
+                DELETE productItem(r);
+                APPLY;
+            }
         }
     } ELSE NEWSESSION {
         skipOwnConstraint() <- TRUE; // изменения из ответа не должны триггерить повторный UPDATE-запрос

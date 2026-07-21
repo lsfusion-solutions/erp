@@ -11,13 +11,19 @@ ownProductGestori 'Собственная продукция' (ProductItem o) = 
 nameProductTypeGestori 'Тип продукции' (ProductItem o) = name(productType(product(subProduct(o))));
 nameProductGestori 'Продукция' (ProductItem o) = name(product(subProduct(o)));
 
+// служебный признак ошибки обмена с Ветис (не редактируется через интерфейс)
+exchangeErrorGestori 'Ошибка обмена' = DATA BOOLEAN (ProductItem);
+
 EXTEND FORM productItems
     PROPERTIES(o) READONLY nameProductTypeGestori BEFORE nameSubProduct(o)
     PROPERTIES(o) READONLY nameProductGestori BEFORE nameSubProduct(o)
     PROPERTIES(o) READONLY ownProductGestori AFTER nameProducer(o)
+    PROPERTIES(o) READONLY exchangeErrorGestori AFTER isExported(o)
 
     FILTERGROUP own
         FILTER 'Собственная' ownProductGestori(o) DEFAULT
+    FILTERGROUP exchangeErrorGroupGestori
+        FILTER 'Ошибки обмена' exchangeErrorGestori(o)
 ;
 
 // 7.1: выбор номенклатуры Ветис для связи с товаром — без фильтра «Собственная»
@@ -54,11 +60,26 @@ packagingUnit 'Ед.изм. объема единицы упаковки' = DATA
 
 statusVetisGestori 'Статус Ветис' = DATA STRING[5] (ProductItem) CHARWIDTH 5;
 
+// выбор единицы измерения объёма упаковки из справочника Единиц измерения Ветис
+FORM dialogPackagingUnitGestori 'Единица измерения'
+    OBJECTS u = Unit
+    PROPERTIES(u) READONLY guid, name, nameCommonUnit
+    LIST Unit OBJECT u
+;
+changePackagingUnitGestori (ProductItem p) {
+    DIALOG dialogPackagingUnitGestori OBJECTS u INPUT DO
+        packagingUnit(p) <- name(u);
+}
+
+// выбор типа упаковки из справочника (реализация в VetisDocumentGestori — там определён справочник типов упаковки)
+changePackagingTypeGestori ABSTRACT (ProductItem);
+
 EXTEND FORM productItem
     PROPERTIES(o) READONLY nameProductTypeGestori, nameProductGestori
     PROPERTIES(o) READONLYIF readonlyProductItem(o) correspondsToGost, gost
     PROPERTIES(o) READONLYIF readonlyProductItem(o) OR uuid(o)
-        packagingType, packagingQuantity, packagingVolume, packagingUnit
+        packagingType ON CHANGE changePackagingTypeGestori(o), packagingQuantity, packagingVolume,
+        packagingUnit ON CHANGE changePackagingUnitGestori(o)
     PROPERTIES(o) READONLY statusVetisGestori
 ;
 
@@ -66,23 +87,23 @@ EXTEND FORM productItem
 DESIGN productItem {
     NEW mainColumnGestori FIRST {
         lines = 1;
-        MOVE PROPERTY(guid(o)) { caption = 'GUID номенклатуры'; }
-        MOVE PROPERTY(uuid(o)) { caption = 'UUID номенклатуры'; }
-        MOVE PROPERTY(name(o));
-        MOVE PROPERTY(globalID(o));
-        MOVE PROPERTY(code(o));
+        MOVE PROPERTY(guid(o)) { caption = 'GUID номенклатуры'; charWidth = 36; }
+        MOVE PROPERTY(uuid(o)) { caption = 'UUID номенклатуры'; charWidth = 36; }
+        MOVE PROPERTY(name(o)) { charWidth = 50; }
+        MOVE PROPERTY(globalID(o)) { charWidth = 20; }
+        MOVE PROPERTY(code(o)) { charWidth = 30; }
         MOVE PROPERTY(correspondsToGost(o));
-        MOVE PROPERTY(gost(o));
-        MOVE PROPERTY(nameProductTypeGestori(o));
-        MOVE PROPERTY(nameProductGestori(o));
-        MOVE PROPERTY(nameSubProduct(o));
-        MOVE PROPERTY(nameProducer(o));
-        MOVE PROPERTY(nameOwner(o));
-        MOVE PROPERTY(nameEnterprises(o));
-        MOVE PROPERTY(packagingType(o));
-        MOVE PROPERTY(packagingQuantity(o));
-        MOVE PROPERTY(packagingVolume(o));
-        MOVE PROPERTY(packagingUnit(o));
+        MOVE PROPERTY(gost(o)) { charWidth = 50; }
+        MOVE PROPERTY(nameProductTypeGestori(o)) { charWidth = 50; }
+        MOVE PROPERTY(nameProductGestori(o)) { charWidth = 50; }
+        MOVE PROPERTY(nameSubProduct(o)) { charWidth = 50; }
+        MOVE PROPERTY(nameProducer(o)) { charWidth = 50; }
+        MOVE PROPERTY(nameOwner(o)) { charWidth = 50; }
+        MOVE PROPERTY(nameEnterprises(o)) { charWidth = 60; }
+        MOVE PROPERTY(packagingType(o)) { charWidth = 40; }
+        MOVE PROPERTY(packagingQuantity(o)) { charWidth = 12; }
+        MOVE PROPERTY(packagingVolume(o)) { charWidth = 12; }
+        MOVE PROPERTY(packagingUnit(o)) { charWidth = 30; }
         MOVE PROPERTY(statusVetisGestori(o));
         MOVE PROPERTY(inactive(o));
         MOVE PROPERTY(isExported(o));
@@ -170,6 +191,9 @@ deleteModifyProducerStockList 'Удалить номенклатуру' (Product
     }
 }
 
+// при положительном ответе на удаление номенклатуру не удаляем физически, а помечаем неактивной и обновляем из ответа
+deactivateOnDeleteProducerStockList() += TRUE;
+
 // --- Блок 3: Форма редактирования ---
 
 // Диалог выбора вида продукции с деревом классификатора Ветис
@@ -201,6 +225,30 @@ CONSTRAINT ownProductGestori(ProductItem p) AND NOT owner(p) AND NOT skipOwnCons
 CONSTRAINT ownProductGestori(ProductItem p) AND NOT (GROUP SUM 1 IF in(p, Enterprise e)) AND NOT skipOwnConstraint()
     MESSAGE 'Для собственной продукции обязательно укажите хотя бы одну Площадку';
 
+// --- Контроли значений полей карточки (таблица п.4, колонка Примечание) ---
+
+// Наименование — непустое значение
+CONSTRAINT ownProductGestori(ProductItem p) AND NOT name(p) AND NOT skipOwnConstraint()
+    MESSAGE 'Укажите наименование номенклатуры';
+
+// Артикул — уникальный в пределах ХС-производителя
+countProducerCodeGestori (BusinessEntity be, ISTRING[100] c) = GROUP SUM 1 IF producer(ProductItem p) = be AND code(p) = c;
+CONSTRAINT ownProductGestori(ProductItem p) AND code(p) AND producer(p)
+    AND countProducerCodeGestori(producer(p), code(p)) > 1 AND NOT skipOwnConstraint()
+    MESSAGE 'Артикул должен быть уникальным в пределах ХС-производителя';
+
+// ГОСТ — непустое значение, если отмечено "Соответствует ГОСТу"
+CONSTRAINT ownProductGestori(ProductItem p) AND correspondsToGost(p) AND NOT gost(p) AND NOT skipOwnConstraint()
+    MESSAGE 'Укажите ГОСТ: отмечено "Соответствует ГОСТу"';
+
+// Кол-во единиц упаковки — больше нуля
+CONSTRAINT ownProductGestori(ProductItem p) AND packagingQuantity(p) AND NOT (packagingQuantity(p) > 0) AND NOT skipOwnConstraint()
+    MESSAGE 'Количество единиц упаковки должно быть больше нуля';
+
+// Объём единицы упаковки — больше нуля
+CONSTRAINT ownProductGestori(ProductItem p) AND packagingVolume(p) AND NOT (packagingVolume(p) > 0) AND NOT skipOwnConstraint()
+    MESSAGE 'Объём единицы упаковки должен быть больше нуля';
+
 // submit делает внешний HTTP-вызов, недопустимый в транзакции события — событие только помечает запись,
 // а сам запрос отправляется после сохранения карточки (вне apply) через sendPendingProductItemRequestsGestori
 needCreateRequestGestori = DATA BOOLEAN (ProductItem);
@@ -211,9 +259,18 @@ WHEN SET(ProductItem p IS ProductItem) AND ownProductGestori(p) AND NOT skipOwnC
 
 WHEN (CHANGED(name(ProductItem p)) OR CHANGED(globalID(p)) OR CHANGED(code(p)) OR
       CHANGED(subProduct(p)) OR CHANGED(producer(p)) OR CHANGED(owner(p)) OR
-      CHANGED(inactive(p))) AND ownProductGestori(p) AND uuid(p) AND NOT isExported(p)
+      CHANGED(inactive(p)) OR CHANGED(correspondsToGost(p)) OR CHANGED(gost(p))) AND ownProductGestori(p) AND uuid(p) AND NOT isExported(p)
       AND NOT needCreateRequestGestori(p) AND NOT skipOwnConstraint() DO
     needUpdateRequestGestori(p) <- TRUE;
+
+// ошибка обмена: при ошибке отправки/получения ответа — пометить запись и сбросить «Экспортируемый»;
+// при успешной отправке запроса — снять пометку
+WHEN SET(error(ProductItemRequest r)) AND productItem(r) IS ProductItem DO {
+    exchangeErrorGestori(productItem(r)) <- TRUE;
+    isExported(productItem(r)) <- NULL;
+}
+WHEN SET(ProductItemRequest r IS ProductItemRequest) AND NOT error(r) AND productItem(r) IS ProductItem DO
+    exchangeErrorGestori(productItem(r)) <- NULL;
 
 // отправка накопленных запросов создания/изменения — вызывается после сохранения карточки, вне транзакции apply
 sendPendingProductItemRequestsGestori () {
@@ -284,6 +341,18 @@ changeGetProductItemListEnterprise() + {
         IF NOT businessEntity() AND enterprise() THEN
             businessEntity() <- owner(enterprise());
     }
+}
+
+// ХС-владелец в параметрах запроса — выбор из собственных ХС
+FORM dialogGetProductItemOwnerGestori 'ХС-владелец'
+    OBJECTS o = BusinessEntity
+    PROPERTIES(o) READONLY guid, name
+    FILTERS own(o)
+    LIST BusinessEntity OBJECT o
+;
+changeGetProductItemListOwner() + {
+    DIALOG dialogGetProductItemOwnerGestori OBJECTS o = businessEntityOwner() INPUT DO
+        businessEntityOwner() <- o;
 }
 
 
