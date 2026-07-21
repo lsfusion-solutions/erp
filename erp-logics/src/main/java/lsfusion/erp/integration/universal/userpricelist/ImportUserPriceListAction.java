@@ -8,6 +8,7 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.base.file.FileData;
 import lsfusion.base.file.RawFileData;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.erp.integration.universal.ImportColumnDetail;
 import lsfusion.erp.integration.universal.ImportUniversalAction;
 import lsfusion.erp.integration.universal.UniversalImportException;
@@ -102,7 +103,7 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
         } catch (ScriptingErrorLog.SemanticErrorException | IOException | JDBFException e) {
             throw new RuntimeException(e);
         } catch (UniversalImportException e) {
-            e.printStackTrace();
+            ERPLoggers.importLogger.error("ImportUserPriceList failed", e);
             messageClientAction(context, e.getMessage(), e.getTitle());
         }
     }

@@ -110,7 +110,7 @@ public class FiscalVMK {
                 openPort(getPort(comPort, isUnix), baudRate);
             }
         } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
+            cashRegisterlogger.error("FiscalVMK: openPort failed", e);
         }
     }
 
@@ -228,7 +228,7 @@ public class FiscalVMK {
         }
         return true;
         } catch (UnsupportedEncodingException e) {
-            e.printStackTrace(); 
+            cashRegisterlogger.error("FiscalVMK: printFiscalText failed", e);
             return false;
         }
     }
@@ -337,7 +337,7 @@ public class FiscalVMK {
             if (!vmkDLL.vmk.vmk_indik(getBytes(firstLine), getBytes(secondLine)))
                 checkErrors();
         } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            cashRegisterlogger.error("FiscalVMK: displayText failed", e);
         }
     }
 

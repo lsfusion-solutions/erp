@@ -2,6 +2,7 @@ package lsfusion.erp.utils;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.col.interfaces.immutable.ImList;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.erp.integration.DefaultExportAction;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -99,7 +100,7 @@ public abstract class ExportCSVAction extends DefaultExportAction {
                                 ftpClient.disconnect();
                             }
                         } catch (IOException e) {
-                            e.printStackTrace();
+                            ERPLoggers.importLogger.error("ExportCSV: failed to disconnect ftp client", e);
                         }
                     }
                 } else {

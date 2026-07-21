@@ -115,7 +115,7 @@ public class FiscalAbsolut {
             if (!absolutDLL.absolut.Open("COM" + comPort, baudRate, 1, 1111))
                 checkErrors(true);
         } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
+            cashRegisterlogger.error("FiscalAbsolut: openPort failed", e);
         }
     }
 
@@ -294,7 +294,7 @@ public class FiscalAbsolut {
             if (!absolutDLL.absolut.OutScr(1, getBytes(secondLine)))
                 checkErrors(true);
         } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
+            cashRegisterlogger.error("FiscalAbsolut: displayText failed", e);
         }
     }
 
