@@ -81,7 +81,9 @@ yandexEdaOrderStatusDefault (InternetOrder o) = CASE
     WHEN status(o) = StatusInternetOrder.delivered THEN 'DELIVERED'
     WHEN status(o) = StatusInternetOrder.closed THEN 'CANCELLED'
 ;
-yandexEdaOrderStatus (InternetOrder o) = IF useCustomOrderStatus() THEN yandexEdaOrderStatusCustom(o) ELSE yandexEdaOrderStatusDefault(o);
+// точка расширения для альтернативных статусных моделей (напр., самовывоз); NULL по умолчанию — поведение не меняется
+yandexEdaOrderStatusOver = ABSTRACT CASE STRING (InternetOrder);
+yandexEdaOrderStatus (InternetOrder o) = OVERRIDE yandexEdaOrderStatusOver(o), (IF useCustomOrderStatus() THEN yandexEdaOrderStatusCustom(o) ELSE yandexEdaOrderStatusDefault(o));
 
 httpHeadersYandex(TEXT name) = CASE
     WHEN name == 'Content-Type' THEN 'application/vnd.eats.order.v2+json';
@@ -191,6 +193,8 @@ customDeliveredStatus = ABSTRACT CASE StatusInternetOrder (InternetOrder);
 customCancelOrder = ABSTRACT BOOLEAN ();
 overCancelOrder ABSTRACT LIST (InternetOrder);
 
+afterUpdateOrderStatus ABSTRACT LIST (InternetOrder);
+
 updateOrder(FILE f){
     LOCAL order = STRING ();
     order() <- replace(replace(servletPath() + pathInfo(), TEXT('/exec/v1/order/'), TEXT ('')), '/exec/order/', '');
@@ -222,8 +226,9 @@ updateOrder(FILE f){
                         status(internetOrderByUuid(orderLoc())) <- StatusInternetOrder.delivery;
                     }
                     ELSE {
-                    status(internetOrderByUuid(orderLoc())) <- OVERRIDE customDeleteOrderStatus(internetOrderByUuid(orderLoc())), StatusInternetOrder.closed;
-                }
+                        status(internetOrderByUuid(orderLoc())) <- OVERRIDE customDeleteOrderStatus(internetOrderByUuid(orderLoc())), StatusInternetOrder.closed;
+                    }
+                afterUpdateOrderStatus(internetOrderByUuid(orderLoc()));
                 APPLY;
                 IF canceled() THEN {
                     statusHttpTo() <- 500;
@@ -234,7 +239,7 @@ updateOrder(FILE f){
             }
         }
         IMPORT yandexorder FROM JSONFILE(f);
-        FOR InternetOrder io = internetOrderByUuid(order()) DO{
+        FOR InternetOrder io = internetOrderByUuid(order()) DO {
             carrier(io) <- carrierOrder(aggr());
             customerComment(io) <- comment();
             extraUpdateOrder(io);
@@ -271,7 +276,7 @@ updateOrder(FILE f){
             }
             ELSE EXPORT JSON FROM result = 'OK';
         }
-            ELSE orderNotFound();
+        ELSE orderNotFound();
     }
 }
 
@@ -321,13 +326,17 @@ sumItemCost 'Итоговая стоимость' (InternetOrder o) = IF status(
     OR status(o) = StatusInternetOrder.isPicking THEN paymentCardSumInternetOrder(o)
     ELSE pickingSumInternetOrderDetail(o);
 
+// дискриминатор заказа (тип флоу): по умолчанию 'yandex' (доставка), переопределяется для самовывоза
+orderDiscriminator = ABSTRACT CASE STRING (InternetOrder);
+orderDiscriminator(InternetOrder o) += WHEN o IS InternetOrder THEN 'yandex';
+
 // форма информации о заказе
 FORM getOrder FORMEXTID 'null'
 
     OBJECTS o = InternetOrder PANEL
     PROPERTIES idAggregator(o) EXTID 'eatsId', = OVERRIDE customerComment(o), '' EXTID 'comment',
         = IF supplierStock(o) IS DepartmentStore THEN restarauntId(supplierStock(o)) EXTID 'restaurantId',
-        = 'yandex' EXTID 'discriminator' 
+        orderDiscriminator(o) EXTID 'discriminator'
 //    PROPERTIES IN deliveryInfo phoneInternetCustomer(o) EXTID 'phoneNumber',
 //        nameInternetCustomer(o) EXTID 'clientName', = toChar(courierArrivementDate(o), 'YYYY-MM-DD"T"HH24:MI:SS.US+03:00') EXTID 'courierArrivementDate'
     PROPERTIES IN paymentInfo = OVERRIDE sumItemCost(o), paymentCardSumInternetOrder(o) EXTID 'itemsCost',

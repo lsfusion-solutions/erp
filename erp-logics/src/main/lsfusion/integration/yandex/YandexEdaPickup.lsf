@@ -1,0 +1,198 @@
+MODULE YandexEdaPickup;
+
+REQUIRE YandexEdaDefault;
+
+NAMESPACE YandexEda;
+
+//-------------------- ОПРЕДЕЛЕНИЕ ТИПА ЗАКАЗА (discriminator) ------------------------//
+
+// значение discriminator во входящем заказе, по которому заказ распознаётся как самовывоз
+pickupDiscriminator 'Discriminator самовывоза' = DATA STRING[50] () TABLE settings;
+
+onStarted() + {
+    IF NOT pickupDiscriminator() THEN pickupDiscriminator() <- 'pickup';
+}
+
+EXTEND FORM integrationData
+    PROPERTIES () pickupDiscriminator
+;
+DESIGN integrationData {
+    yandexEda {
+        NEW yandexEdaPickup {
+            caption = 'Самовывоза';
+            MOVE PROPERTY (pickupDiscriminator());
+        }
+    }
+}
+
+// признак заказа-самовывоза, проставляется при создании/обновлении по значению discriminator
+isPickup 'Самовывоз (Яндекс)' = DATA BOOLEAN (InternetOrder);
+pickupPointId 'Идентификатор точки выдачи заказа (Яндекс)' = DATA STRING (InternetOrder);
+
+// createOrder и updateOrder вызывают afterCreateOrder после IMPORT yandexorder,
+// поэтому LOCAL discriminator() уже заполнен значением из входящего JSON
+
+pickupPointId = DATA LOCAL STRING();
+EXTEND FORM yandexorder
+    PROPERTIES pickupPointId()
+;
+
+afterCreateOrder(InternetOrder o) + {
+    IF discriminator() == pickupDiscriminator() THEN {
+        isPickup(o) <- TRUE;
+        pickupPointId(o) <- pickupPointId();
+    }
+}
+
+EXTEND CLASS StatusInternetOrder {
+    verified 'Подтверждён'
+}
+
+dateTimePickupStatusChanged = DATA DATETIME (InternetOrder);
+
+afterUpdateOrderStatus(InternetOrder o) + {
+    IF isPickup(o) THEN {
+        CASE
+            WHEN statusUpdate() = 'NEW' THEN {
+                status(o) <- StatusInternetOrder.new;
+            }
+            WHEN statusUpdate() = 'ACCEPTED_BY_RESTAURANT' THEN {
+                status(o) <- StatusInternetOrder.verified;
+            }
+            WHEN statusUpdate() = 'COOKING' THEN {
+                status(o) <- StatusInternetOrder.isPicking;
+            }
+            WHEN statusUpdate() = 'READY' THEN {
+                status(o) <- StatusInternetOrder.picked;
+            }
+            WHEN statusUpdate() = 'DELIVERED' THEN {
+                status(o) <- StatusInternetOrder.completed;
+            }
+            ELSE {
+            status(o) <- StatusInternetOrder.cancel;
+        }
+        IF CHANGED(status(o)) THEN dateTimePickupStatusChanged(o) <- currentDateTime();
+    }
+}
+
+// исходящий discriminator для GET /order/{orderId} (схема PickupOrderUpdate)
+orderDiscriminator(InternetOrder o) += WHEN isPickup(o) THEN 'pickup';
+
+EXTEND FORM internetOrder
+    PROPERTIES (o) READONLY SHOWIF carrier(o) = yandexCarrier() isPickup, pickupPointId  
+;
+
+DESIGN internetOrder{
+    second{
+        MOVE PROPERTY (isPickup(o));
+        MOVE PROPERTY (pickupPointId(o));
+    }
+}
+
+//закрытие заказа если не был прислан статус DELIVERED
+hoursToCancelPickup 'Кол-во часов до автоматического закрытия заказа (свмовывоз)' = DATA INTEGER ();
+
+EXTEND FORM integrationData
+    PROPERTIES () hoursToCancelPickup
+;
+DESIGN integrationData {
+    yandexEdaPickup {
+        MOVE PROPERTY (hoursToCancelPickup());
+    }
+}
+
+
+//YandexEda.cancelInternetOrdersPickupYandex[]
+cancelInternetOrdersPickupYandex () {
+    NEWSESSION {
+        status(InternetOrder o) <- StatusInternetOrder.cancel WHERE sumMinutes(dateTimePickupStatusChanged(o), hoursToCancelPickup() * 60) < currentDateTime() AND
+            isPickup(o) AND status(o) == StatusInternetOrder.picked;
+        APPLY;
+    }
+}
+
+//-------------------- СТАТУСНАЯ МОДЕЛЬ САМОВЫВОЗА ------------------------//
+
+yandexEdaPickupStatus = ABSTRACT CASE STRING (InternetOrder);
+yandexEdaPickupStatus(InternetOrder o) += WHEN status(o) == StatusInternetOrder.new THEN 'NEW';
+yandexEdaPickupStatus(InternetOrder o) += WHEN status(o) == StatusInternetOrder.verified THEN 'ACCEPTED_BY_RESTAURANT';
+yandexEdaPickupStatus(InternetOrder o) += WHEN status(o) == StatusInternetOrder.isPicking THEN 'COOKING';
+yandexEdaPickupStatus(InternetOrder o) += WHEN status(o) == StatusInternetOrder.picked THEN 'READY';
+yandexEdaPickupStatus(InternetOrder o) += WHEN status(o) == StatusInternetOrder.agreed THEN 'READY';
+yandexEdaPickupStatus(InternetOrder o) += WHEN status(o) == StatusInternetOrder.delivery THEN 'READY';
+yandexEdaPickupStatus(InternetOrder o) += WHEN status(o) == StatusInternetOrder.delivered THEN 'READY';
+yandexEdaPickupStatus(InternetOrder o) += WHEN status(o) == StatusInternetOrder.completed THEN 'DELIVERED';
+yandexEdaPickupStatus(InternetOrder o) += WHEN status(o) == StatusInternetOrder.cancel THEN 'CANCELLED';
+
+// для самовывоза статусная модель отличается — подменяем маппинг только для заказов-самовывозов
+yandexEdaOrderStatusOver(InternetOrder o) += WHEN isPickup(o) THEN yandexEdaPickupStatus(o);
+
+//-------------------- ЛЕЙБЛЫ ТОВАРОВ (Labels) ------------------------//
+
+// особые признаки товара, передаются в GET /nomenclature/composition
+CLASS YandexEdaItemLabel 'Лейбл товара ЯндексЕда' {
+    adult 'Товар для взрослых',
+    prescription 'Рецептурный товар',
+    pickup 'Доступен только на самовывоз',
+    delivery 'Доступен только для доставки',
+    all 'Доступен для доставки и самовывоза',
+    energyDrink 'Энергетики',
+    frozen 'Заморозка',
+    alcoholic 'Алкоголь',
+    ownBrand 'СТМ',
+    thermolabile 'Термолабильные товары',
+    vital 'ЖНВЛП'
+}
+
+// значение лейбла в формате API ЯндексЕда
+labelId (YandexEdaItemLabel l) = CASE
+    WHEN l == YandexEdaItemLabel.adult THEN 'adult'
+    WHEN l == YandexEdaItemLabel.prescription THEN 'prescription'
+    WHEN l == YandexEdaItemLabel.pickup THEN 'pickup'
+    WHEN l == YandexEdaItemLabel.delivery THEN 'delivery'
+    WHEN l == YandexEdaItemLabel.all THEN 'all'
+    WHEN l == YandexEdaItemLabel.energyDrink THEN 'energy_drink'
+    WHEN l == YandexEdaItemLabel.frozen THEN 'frozen'
+    WHEN l == YandexEdaItemLabel.alcoholic THEN 'alcoholic'
+    WHEN l == YandexEdaItemLabel.ownBrand THEN 'own_brand'
+    WHEN l == YandexEdaItemLabel.thermolabile THEN 'thermolabile'
+    WHEN l == YandexEdaItemLabel.vital THEN 'vital'
+;
+
+
+in 'Вкл.' = DATA BOOLEAN (YandexEdaItemLabel, Item);
+
+EXTEND FORM item
+    OBJECTS l = YandexEdaItemLabel
+    PROPERTIES in(l, i), staticCaption(l) READONLY 
+;
+
+DESIGN item {
+    itemDetail {
+        NEW yandex {
+            caption = 'Яндекс';
+            MOVE BOX(l);
+        }
+    }
+}
+
+WHEN LOCAL FORMS item SET(in(YandexEdaItemLabel.delivery, Item i)) DO {
+    in(YandexEdaItemLabel.pickup, i) <- NULL;
+    in(YandexEdaItemLabel.all, i) <- NULL;
+}
+
+WHEN LOCAL FORMS item SET(in(YandexEdaItemLabel.pickup, Item i)) DO {
+    in(YandexEdaItemLabel.delivery, i) <- NULL;
+    in(YandexEdaItemLabel.all, i) <- NULL;
+}
+
+WHEN LOCAL FORMS item SET(in(YandexEdaItemLabel.all, Item i)) DO {
+    in(YandexEdaItemLabel.delivery, i) <- NULL;
+    in(YandexEdaItemLabel.pickup, i) <- NULL;
+}
+
+itemLabelsJson (Item i) = '[' + (GROUP CONCAT ('"' + labelId(YandexEdaItemLabel l) + '"') IF in(l, i), ',' ORDER l) + ']';
+
+EXTEND FORM nomenclature
+    PROPERTIES itemLabelsJson(i) EXTID 'labels'
+;
