@@ -51,6 +51,38 @@ name 'Наименование' (ETRNExchangeStatus s) = staticCaption(s) IF s I
 exchangeStatus 'Статус обмена' = DATA ETRNExchangeStatus (ETRN);
 nameExchangeStatus 'Статус обмена' (ETRN e) = name(exchangeStatus(e));
 
+// ------------------------- Следующий шаг документооборота ------------------------- //
+// подсказка по этапу, статусу обмена и нашим ролям: чей сейчас ход;
+// перегружается модулями условных титулов (Т5/Т6 - ETRNConditionalTitles)
+
+overNextAction = ABSTRACT CASE STRING[100] (ETRN);
+overNextActionOur = ABSTRACT CASE BOOLEAN (ETRN);
+
+nextActionFlow (ETRN e) = CASE
+    WHEN closed(e) OR exchangeStatus(e) == ETRNExchangeStatus.completed OR id(stage(e)) == 4 THEN 'Завершено'
+    WHEN exchangeStatus(e) == ETRNExchangeStatus.rejected THEN 'Отказ в подписи - разобраться (мы)'
+    WHEN exchangeStatus(e) == ETRNExchangeStatus.invalid THEN 'Ошибка в документообороте - разобраться (мы)'
+    WHEN id(stage(e)) == 3 THEN 'Ожидается Т4 (перевозчик)'
+    WHEN id(stage(e)) == 2 AND roleConsignee(e) THEN 'Подписать и отправить Т3 (мы)'
+    WHEN id(stage(e)) == 2 THEN 'Ожидается Т3 (грузополучатель)'
+    WHEN id(stage(e)) == 1 AND roleShipper(e) AND NOT exchangeStatus(e) THEN 'Отправить Т1 (мы)'
+    WHEN id(stage(e)) == 1 AND roleShipper(e) AND (exchangeStatus(e) == ETRNExchangeStatus.signed) THEN 'Ожидается Т2 (перевозчик)'
+    WHEN id(stage(e)) == 1 AND roleShipper(e) THEN 'Ожидается подпись Т1 (мы)'
+    WHEN id(stage(e)) == 1 THEN 'Ожидается Т2 (перевозчик)';
+
+nextAction 'Следующий шаг' (ETRN e) = OVERRIDE overNextAction(e), nextActionFlow(e) CHARWIDTH 30;
+
+// ход за нами - для подсветки в списке
+nextActionOurFlow (ETRN e) = TRUE IF
+    NOT (closed(e) OR exchangeStatus(e) == ETRNExchangeStatus.completed OR id(stage(e)) == 4) AND
+    ((exchangeStatus(e) == ETRNExchangeStatus.rejected OR exchangeStatus(e) == ETRNExchangeStatus.invalid) OR
+     (id(stage(e)) == 2 AND roleConsignee(e)) OR
+     (id(stage(e)) == 1 AND roleShipper(e) AND NOT (exchangeStatus(e) == ETRNExchangeStatus.signed)));
+
+nextActionOur (ETRN e) = OVERRIDE overNextActionOur(e), nextActionOurFlow(e);
+
+backgroundNextAction (ETRN e) = RGB(255, 246, 205) IF nextActionOur(e);
+
 // подписант организации (справочное значение - источник по умолчанию для документов)
 signerLastName 'Подписант: фамилия' = DATA ISTRING[60](LegalEntity);
 signerFirstName 'Подписант: имя' = DATA ISTRING[60](LegalEntity);
@@ -351,7 +383,8 @@ DESIGN etrn {
 }
 
 EXTEND FORM etrns
-    PROPERTIES(e) READONLY nameProvider, nameExchangeStatus, providerStatus
+    PROPERTIES(e) READONLY nameProvider, nameExchangeStatus, providerStatus,
+                           nextAction BACKGROUND backgroundNextAction(e)
     PROPERTIES(e) sendSignedETRN SHOWIF (roleShipper(e) AND NOT readonlyT1(e)),
                   showPrintForm, showQR,
                   sendQRToDriver SHOWIF driver(e)

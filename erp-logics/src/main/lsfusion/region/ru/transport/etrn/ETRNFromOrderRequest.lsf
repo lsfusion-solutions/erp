@@ -19,6 +19,19 @@ loadingPointDateTime (OrderRequest o) = GROUP MAX operationDateTime(OrderPoint p
 unloadingPointAddress (OrderRequest o) = GROUP MAX address(OrderPoint p) IF operation(p) == OrderPointOperation.unloading AND pointIndex(p) == firstUnloadingPoint(orderRequest(p)) BY orderRequest(p);
 unloadingPointDateTime (OrderRequest o) = GROUP MAX operationDateTime(OrderPoint p) IF operation(p) == OrderPointOperation.unloading AND pointIndex(p) == firstUnloadingPoint(orderRequest(p)) BY orderRequest(p);
 
+// структурный адрес первого пункта погрузки / выгрузки (обязателен в Т1)
+loadingPointRegion (OrderRequest o) = GROUP MAX region(OrderPoint p) IF operation(p) == OrderPointOperation.loading AND pointIndex(p) == firstLoadingPoint(orderRequest(p)) BY orderRequest(p);
+loadingPointZipCode (OrderRequest o) = GROUP MAX zipCode(OrderPoint p) IF operation(p) == OrderPointOperation.loading AND pointIndex(p) == firstLoadingPoint(orderRequest(p)) BY orderRequest(p);
+loadingPointCity (OrderRequest o) = GROUP MAX city(OrderPoint p) IF operation(p) == OrderPointOperation.loading AND pointIndex(p) == firstLoadingPoint(orderRequest(p)) BY orderRequest(p);
+loadingPointStreet (OrderRequest o) = GROUP MAX street(OrderPoint p) IF operation(p) == OrderPointOperation.loading AND pointIndex(p) == firstLoadingPoint(orderRequest(p)) BY orderRequest(p);
+loadingPointBuilding (OrderRequest o) = GROUP MAX building(OrderPoint p) IF operation(p) == OrderPointOperation.loading AND pointIndex(p) == firstLoadingPoint(orderRequest(p)) BY orderRequest(p);
+
+unloadingPointRegion (OrderRequest o) = GROUP MAX region(OrderPoint p) IF operation(p) == OrderPointOperation.unloading AND pointIndex(p) == firstUnloadingPoint(orderRequest(p)) BY orderRequest(p);
+unloadingPointZipCode (OrderRequest o) = GROUP MAX zipCode(OrderPoint p) IF operation(p) == OrderPointOperation.unloading AND pointIndex(p) == firstUnloadingPoint(orderRequest(p)) BY orderRequest(p);
+unloadingPointCity (OrderRequest o) = GROUP MAX city(OrderPoint p) IF operation(p) == OrderPointOperation.unloading AND pointIndex(p) == firstUnloadingPoint(orderRequest(p)) BY orderRequest(p);
+unloadingPointStreet (OrderRequest o) = GROUP MAX street(OrderPoint p) IF operation(p) == OrderPointOperation.unloading AND pointIndex(p) == firstUnloadingPoint(orderRequest(p)) BY orderRequest(p);
+unloadingPointBuilding (OrderRequest o) = GROUP MAX building(OrderPoint p) IF operation(p) == OrderPointOperation.unloading AND pointIndex(p) == firstUnloadingPoint(orderRequest(p)) BY orderRequest(p);
+
 // текстовое описание маршрута (все пункты) - чтобы не потерять промежуточные пункты в ЭТрН
 routePointsText (OrderRequest o) = GROUP CONCAT (nameOperation(OrderPoint p) + ': ' + address(p)), '; ' ORDER pointIndex(p), p BY orderRequest(p);
 
@@ -44,10 +57,20 @@ fill (OrderRequest o, ETRN e) {
     declaredSupplyDateTime(e) <- supplyDateTime(o);
     weightMethod(e) <- weightMethod(o);
     loadingAddress(e) <- loadingPointAddress(o);
+    loadingRegion(e) <- loadingPointRegion(o);
+    loadingZipCode(e) <- loadingPointZipCode(o);
+    loadingCity(e) <- loadingPointCity(o);
+    loadingStreet(e) <- loadingPointStreet(o);
+    loadingBuilding(e) <- loadingPointBuilding(o);
 
     // доставка
     deliveryAddress(e) <- unloadingPointAddress(o);
     deliveryDateTime(e) <- unloadingPointDateTime(o);
+    deliveryRegion(e) <- unloadingPointRegion(o);
+    deliveryZipCode(e) <- unloadingPointZipCode(o);
+    deliveryCity(e) <- unloadingPointCity(o);
+    deliveryStreet(e) <- unloadingPointStreet(o);
+    deliveryBuilding(e) <- unloadingPointBuilding(o);
     route(e) <- routePointsText(o);
 
     // строки груза

@@ -27,6 +27,11 @@ checkCostT6 (ETRN e) {
         MESSAGE CONCAT '\n', 'Не заполнены обязательные поля титула Т6:', missingCostT6(e);
 }
 
+// получен Т5 без ответа - следующий шаг за нами (грузоотправителем): Т6 или отказ
+overNextAction (ETRN e) += WHEN costChangeDateTime(e) AND NOT costConfirmedDateTime(e) AND roleShipper(e)
+    THEN STRING[100]('Ответить на Т5: Т6 или отказ (мы)');
+overNextActionOur (ETRN e) += WHEN costChangeDateTime(e) AND NOT costConfirmedDateTime(e) AND roleShipper(e) THEN TRUE;
+
 // абстракции (реализуются модулями провайдеров)
 sendCostConfirmation 'Подписать и отправить Т6' ABSTRACT CASE (ETRN);      // согласование изменения стоимости
 rejectCostChange 'Отказаться от изменения стоимости' ABSTRACT CASE (ETRN); // формализованный отказ от подписания Т5
@@ -94,7 +99,6 @@ DESIGN etrn {
 
 // кнопки отправки - на списке ЭТрН, вкладка «Действия» (как у остальных титулов)
 EXTEND FORM etrns
-    PROPERTIES(e) costRejectionReason PANEL
     PROPERTIES(e) sendCostConfirmationETRN SHOWIF (roleShipper(e) AND costChangeDateTime(e)),
                   rejectCostChangeETRN SHOWIF (roleShipper(e) AND costChangeDateTime(e))
 ;
@@ -105,7 +109,6 @@ DESIGN etrns {
             caption = 'Т5/Т6: Стоимость (грузоотправитель)';
             MOVE PROPERTY(sendCostConfirmationETRN(e));
             MOVE PROPERTY(rejectCostChangeETRN(e));
-            MOVE PROPERTY(costRejectionReason(e));
         }
     }
 }

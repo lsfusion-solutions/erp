@@ -115,6 +115,8 @@ orderNumber 'Номер заказа (заявки)' = DATA STRING[100](ETRN);
 orderDate 'Дата заказа (заявки)' = DATA DATE (ETRN);
 orderDate(e) <- date(e) WHEN CHANGED(date(e));
 
+note 'Примечание' = DATA ISTRING[250](ETRN) CHARWIDTH 30;
+
 currency 'Валюта стоимости' = DATA Currency (ETRN);
 nameCurrency 'Валюта стоимости' (ETRN e) = name(currency(e)) CHARWIDTH 10;
 
@@ -426,7 +428,7 @@ FORM etrn 'Электронная транспортная накладная'
     PROPERTIES(e) READONLYIF readonlyT1(e)
                   series, number, date, time, orderNumber,
                   orderDate BACKGROUND (backgroundMandatory(e) IF NOT orderDate(e)),
-                  nameCurrency,
+                  nameCurrency, note,
                   nameShipper BACKGROUND (backgroundMandatory(e) IF NOT shipper(e)),
                   forwarder,
                   nameConsignee BACKGROUND (backgroundMandatory(e) IF NOT consignee(e)),
@@ -524,6 +526,7 @@ DESIGN etrn {
                 horizontal = TRUE;
                 MOVE PROPERTY(orderNumber(e));
                 MOVE PROPERTY(orderDate(e));
+                MOVE PROPERTY(note(e));
             }
         }
         NEW pane {
@@ -689,7 +692,7 @@ DESIGN etrn {
 FORM etrns 'Электронные транспортные накладные'
     OBJECTS e = ETRN
     PROPERTIES(e) READONLY seriesNumber, date, time, nameStage, roles, orderNumber,
-                           nameShipper, nameConsignee, nameCarrier, deliveryAddress, cost, closed
+                           nameShipper, nameConsignee, nameCarrier, deliveryAddress, cost, note, closed
     PROPERTIES(e) NEWSESSION NEW, EDIT, DELETE
     ORDERS date(e) DESC, time(e) DESC
 
