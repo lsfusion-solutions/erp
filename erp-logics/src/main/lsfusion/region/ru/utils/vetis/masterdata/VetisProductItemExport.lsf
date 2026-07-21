@@ -143,22 +143,33 @@ GROUP tmOwnerR EXTID 'dt:tmOwner' : productItemR;
 
 GROUP locationR EXTID 'dt:location';
 
-uuidR = DATA LOCAL STRING();
-guidR = DATA LOCAL STRING();
 activeR = DATA LOCAL STRING();
 lastR = DATA LOCAL STRING();
-statusR = DATA LOCAL STRING();
 createDateR = DATA LOCAL ZDATETIME();
 updateDateR = DATA LOCAL ZDATETIME();
-globalIDR = DATA LOCAL STRING();
-nameR = DATA LOCAL STRING();
 productTypeR = DATA LOCAL STRING();
 uuidR1 = DATA LOCAL STRING();
 guidR1 = DATA LOCAL STRING();
 uuidR2 = DATA LOCAL STRING();
 guidR2 = DATA LOCAL STRING();
-correspondsToGostR = DATA LOCAL STRING();
-gostR = DATA LOCAL STRING();
+
+// ответ на изменение номенклатуры содержит историю версий — обрабатываем запись с <bs:last>true</bs:last>
+uuidRO = DATA LOCAL STRING(INTEGER);
+guidRO = DATA LOCAL STRING(INTEGER);
+lastRO = DATA LOCAL STRING(INTEGER);
+statusRO = DATA LOCAL STRING(INTEGER);
+globalIDRO = DATA LOCAL STRING(INTEGER);
+nameRO = DATA LOCAL STRING(INTEGER);
+correspondsToGostRO = DATA LOCAL STRING(INTEGER);
+gostRO = DATA LOCAL STRING(INTEGER);
+lastProductItemRO () = OVERRIDE (GROUP MAX INTEGER i IF lastRO(i) = 'true'), (GROUP MAX INTEGER i IF lastRO(i));
+uuidR () = uuidRO(lastProductItemRO());
+guidR () = guidRO(lastProductItemRO());
+statusR () = statusRO(lastProductItemRO());
+globalIDR () = globalIDRO(lastProductItemRO());
+nameR () = nameRO(lastProductItemRO());
+correspondsToGostR () = correspondsToGostRO(lastProductItemRO());
+gostR () = gostRO(lastProductItemRO());
 uuidR3 = DATA LOCAL STRING();
 guidR3 = DATA LOCAL STRING();
 uuidR4 = DATA LOCAL STRING();
@@ -172,15 +183,9 @@ offsetR = DATA LOCAL STRING();
 
 FORM modifyProducerStockListResponse FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:modifyProducerStockListResponse'
     PROPERTIES() IN productItemListR countR ATTR, totalR ATTR, offsetR ATTR
-    PROPERTIES() IN productItemR uuidR EXTID 'bs:uuid', guidR EXTID 'bs:guid', activeR EXTID 'bs:active', lastR EXTID 'bs:last', statusR EXTID 'bs:status', createDateR EXTID 'bs:createDate', updateDateR EXTID 'bs:updateDate', globalIDR EXTID 'dt:globalID', nameR EXTID 'dt:name', productTypeR EXTID 'dt:productType', correspondsToGostR EXTID 'dt:correspondsToGost', gostR EXTID 'dt:gost', isPublicR EXTID 'dt:isPublic'
-    PROPERTIES() IN productR uuidR1 EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid', guidR1 EXTID 'bs:guid'
-    PROPERTIES() IN subProductR uuidR2 EXTID 'bs:uuid', guidR2 EXTID 'bs:guid'
-    PROPERTIES() IN producerR uuidR3 EXTID 'bs:uuid', guidR3 EXTID 'bs:guid'
-    PROPERTIES() IN tmOwnerR uuidR4 EXTID 'bs:uuid', guidR4 EXTID 'bs:guid'
-
-    OBJECTS producing = INTEGER EXTID 'dt:producing' IN productItemR
-
-    PROPERTIES(producing) IN location uuidR5 EXTID 'bs:uuid', guidR5 EXTID 'bs:guid';
+    OBJECTS pir = INTEGER EXTID 'dt:productItem' IN productItemListR
+    PROPERTIES(pir) uuidRO EXTID 'bs:uuid', guidRO EXTID 'bs:guid', lastRO EXTID 'bs:last', statusRO EXTID 'bs:status',
+                    globalIDRO EXTID 'dt:globalID', nameRO EXTID 'dt:name', correspondsToGostRO EXTID 'dt:correspondsToGost', gostRO EXTID 'dt:gost';
 
 process (ProductItemRequest r) + {
     IF operationType(r) = 'DELETE' THEN {

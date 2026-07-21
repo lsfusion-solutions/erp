@@ -86,23 +86,24 @@ EXTEND FORM productItem
 // поля карточки в одну колонку в порядке тегов <vd:productItem>
 DESIGN productItem {
     NEW mainColumnGestori FIRST {
+        fill = 1;
         lines = 1;
-        MOVE PROPERTY(guid(o)) { caption = 'GUID номенклатуры'; charWidth = 36; }
-        MOVE PROPERTY(uuid(o)) { caption = 'UUID номенклатуры'; charWidth = 36; }
-        MOVE PROPERTY(name(o)) { charWidth = 50; }
-        MOVE PROPERTY(globalID(o)) { charWidth = 20; }
-        MOVE PROPERTY(code(o)) { charWidth = 30; }
+        MOVE PROPERTY(guid(o)) { caption = 'GUID номенклатуры'; charWidth = 50; }
+        MOVE PROPERTY(uuid(o)) { caption = 'UUID номенклатуры'; charWidth = 50; }
+        MOVE PROPERTY(name(o)) { charWidth = 100; }
+        MOVE PROPERTY(globalID(o)) { charWidth = 50; }
+        MOVE PROPERTY(code(o)) { charWidth = 50; }
         MOVE PROPERTY(correspondsToGost(o));
         MOVE PROPERTY(gost(o)) { charWidth = 50; }
-        MOVE PROPERTY(nameProductTypeGestori(o)) { charWidth = 50; }
-        MOVE PROPERTY(nameProductGestori(o)) { charWidth = 50; }
-        MOVE PROPERTY(nameSubProduct(o)) { charWidth = 50; }
-        MOVE PROPERTY(nameProducer(o)) { charWidth = 50; }
-        MOVE PROPERTY(nameOwner(o)) { charWidth = 50; }
-        MOVE PROPERTY(nameEnterprises(o)) { charWidth = 60; }
-        MOVE PROPERTY(packagingType(o)) { charWidth = 40; }
-        MOVE PROPERTY(packagingQuantity(o)) { charWidth = 12; }
-        MOVE PROPERTY(packagingVolume(o)) { charWidth = 12; }
+        MOVE PROPERTY(nameProductTypeGestori(o)) { charWidth = 100; }
+        MOVE PROPERTY(nameProductGestori(o)) { charWidth = 100; }
+        MOVE PROPERTY(nameSubProduct(o)) { charWidth = 100; }
+        MOVE PROPERTY(nameProducer(o)) { charWidth = 100; }
+        MOVE PROPERTY(nameOwner(o)) { charWidth = 100; }
+        MOVE PROPERTY(nameEnterprises(o)) { charWidth = 100; }
+        MOVE PROPERTY(packagingType(o)) { charWidth = 50; }
+        MOVE PROPERTY(packagingQuantity(o)) { charWidth = 15; }
+        MOVE PROPERTY(packagingVolume(o)) { charWidth = 15; }
         MOVE PROPERTY(packagingUnit(o)) { charWidth = 30; }
         MOVE PROPERTY(statusVetisGestori(o));
         MOVE PROPERTY(inactive(o));
@@ -259,7 +260,7 @@ WHEN SET(ProductItem p IS ProductItem) AND ownProductGestori(p) AND NOT skipOwnC
 
 WHEN (CHANGED(name(ProductItem p)) OR CHANGED(globalID(p)) OR CHANGED(code(p)) OR
       CHANGED(subProduct(p)) OR CHANGED(producer(p)) OR CHANGED(owner(p)) OR
-      CHANGED(inactive(p)) OR CHANGED(correspondsToGost(p)) OR CHANGED(gost(p))) AND ownProductGestori(p) AND uuid(p) AND NOT isExported(p)
+      CHANGED(inactive(p)) OR CHANGED(correspondsToGost(p)) OR CHANGED(gost(p)) OR CHANGED(nameEnterprises(p))) AND ownProductGestori(p) AND uuid(p) AND NOT isExported(p)
       AND NOT needCreateRequestGestori(p) AND NOT skipOwnConstraint() DO
     needUpdateRequestGestori(p) <- TRUE;
 
@@ -414,11 +415,13 @@ viewProductItem 'Просмотр' (ProductItem p) {
 
 // Удаление: собственная с uuid — отправить запрос на удаление в Ветис; иначе — удалить напрямую
 deleteProductItemGestori 'Удалить' (ProductItem p) {
-    IF ownProductGestori(p) AND uuid(p) THEN
-        NEWTHREAD NEWSESSION NEWSQL deleteModifyProducerStockList(p);
-    ELSE NEWSESSION {
-        DELETE p;
-        APPLY;
+    ASK 'Удалить номенклатуру?' DO {
+        IF ownProductGestori(p) AND uuid(p) THEN
+            NEWTHREAD NEWSESSION NEWSQL deleteModifyProducerStockList(p);
+        ELSE NEWSESSION {
+            DELETE p;
+            APPLY;
+        }
     }
 }
 
@@ -798,7 +801,8 @@ loadProductItemByGuidCoreGestori (STRING g) {
     }
 }
 
-loadProductItemByGuid 'Загрузить номенклатуру по GUID' () {
+loadProductItemByGuid 'Загрузить номенклатуру по GUID' (ProductItem o) {
+    searchProductItemGuid() <- guid(o); // подставить GUID текущей записи, если он есть
     DIALOG inputProductItemGuid DO {
         IF NOT searchProductItemGuid() THEN {
             MESSAGE 'Укажите GUID номенклатуры';
@@ -809,5 +813,5 @@ loadProductItemByGuid 'Загрузить номенклатуру по GUID' ()
 }
 
 EXTEND FORM productItems
-    PROPERTIES() loadProductItemByGuid DRAW o TOOLBAR
+    PROPERTIES(o) loadProductItemByGuid TOOLBAR
 ;
