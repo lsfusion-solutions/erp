@@ -1,6 +1,7 @@
 MODULE EGAISLotAdjustmentGestori;
 
-REQUIRE EGAISLotAdjustment, EGAISActFixBarCodeGestori, EGAISActWriteOffGestori;
+REQUIRE EGAISLotAdjustment, EGAISActFixBarCodeGestori, EGAISActWriteOffGestori,
+        LotAdjustmentLot, TerminalLot;
 
 PRIORITY Lot;
 
@@ -9,3 +10,100 @@ NAMESPACE EGAIS;
 @defineOriginalLastDocumentActFixBarCodeAttributes(LotAdjustment);
 @defineOriginalLastDocumentActWriteOffAttributes(LotAdjustment);
 @defineOriginalLastDocumentWayBillAttributes(LotAdjustment, stock);
+
+inEGAISLot 'Числится в ЕГАИС за организацией' (Lot l, Stock st) =
+    TRUE IF client(f2Reg(markCode(id(l)))) = client(st);
+
+incorrectLot 'Не числится в ЕГАИС' (Lot l, LotAdjustment a) =
+    currentBalance(l, stock(a)) AND NOT inEGAISLot(l, stock(a));
+
+EXTEND FORM lotAdjustment
+    FILTERGROUP egaisBalance
+        FILTER 'Числится в ЕГАИС за организацией' inEGAISLot(ks, stock(i)) DEFAULT
+;
+
+filterLotTypePick = DATA LOCAL NESTED LotType ();
+nameFilterLotTypePick 'Тип маркировки' = name(filterLotTypePick()) CHARWIDTH 15;
+
+EXTEND FORM lotAdjustment
+    PROPERTIES() nameFilterLotTypePick
+    FILTERS lotType(sku(ks)) = filterLotTypePick() OR NOT filterLotTypePick()
+;
+DESIGN lotAdjustment {
+    itemBox {
+        NEW pickTopFilter FIRST {
+            horizontal = TRUE;
+            MOVE PROPERTY(nameFilterLotTypePick());
+        }
+    }
+}
+
+importedTerminalDocument 'Загружен в документ' = DATA BOOLEAN (LotAdjustment, TerminalDocument);
+
+importTerminalDocumentLotAccum 'Импорт из ТСД' (LotAdjustment a) {
+    filterStock() <- stock(a);
+    beforeAddDialogTerminalLotAdjustment(a);
+    DIALOG terminalDocuments OBJECTS td INPUT DO {
+        IF NOT (GROUP SUM 1 IF include(TerminalDocument ttd)) THEN {
+            include(td) <- TRUE;
+        }
+        used(TerminalDocument ttd) <- TRUE WHERE include(ttd);
+        importedTerminalDocument(a, TerminalDocument ttd) <- TRUE WHERE include(ttd);
+
+        FOR id(TerminalLotDetail tl) AND include(terminalDocument(tl)) AND NOT lot(id(tl)) DO NEW l = Lot {
+            id(l) <- id(tl);
+            tail(l) <- tail(tl);
+            sku(l) <- sku(terminalDocumentDetail(tl));
+        }
+        FOR id(TerminalLotDetail tl) == id(Lot l) AND include(terminalDocument(tl)) AND idParent(tl) DO {
+            parent(l) <- lot(idParent(tl));
+        }
+        
+        LOCAL imported = BOOLEAN (TerminalDocument);
+        imported(TerminalDocument ttd) <- importedTerminalDocument(a, ttd);
+
+        LOCAL scanned = NUMERIC[16,5] (Lot, Stock);
+        LOCAL scannedSku = NUMERIC[16,5] (Sku, Stock);
+
+        scanned(Lot l, Stock st) <- [GROUP SUM quantity(TerminalLotDetail ld) IF imported(terminalDocument(ld)) BY id(ld), stock(terminalDocument(ld))](id(l), st);
+        scannedSku(Sku s, Stock st) <- [GROUP SUM quantity(TerminalLotDetail ld) IF imported(terminalDocument(ld)) BY sku(lot(id(ld))), stock(terminalDocument(ld))](s, st);
+
+        // строки только по корректным маркам
+        FOR scannedSku(sku(Lot l), stock(a)) AND (scanned(l, stock(a)) OR currentBalance(l, stock(a)))
+            AND NOT scanned(l, stock(a)) == currentBalance(l, stock(a))
+            AND NOT incorrectLot(l, a) AND lotAdjustmentDetail(l, a) DO
+            quantity(lotAdjustmentDetail(l, a)) <- scanned(l, stock(a)) (-) currentBalance(l, stock(a));
+
+        FOR scannedSku(sku(Lot l), stock(a)) AND (scanned(l, stock(a)) OR currentBalance(l, stock(a)))
+            AND NOT scanned(l, stock(a)) == currentBalance(l, stock(a))
+            AND NOT incorrectLot(l, a) AND NOT lotAdjustmentDetail(l, a)
+            DO NEW d = LotAdjustmentDetail {
+            lotAdjustment(d) <- a;
+            lot(d) <- l;
+            quantity(d) <- scanned(l, stock(a)) (-) currentBalance(l, stock(a));
+        }
+
+        // марка в следующей порции
+        DELETE LotAdjustmentDetail d WHERE lotAdjustment(d) == a
+            AND scannedSku(sku(lot(d)), stock(a))
+            AND scanned(lot(d), stock(a)) == currentBalance(lot(d), stock(a));
+
+        // некорректные марки
+        DELETE LotAdjustmentDetail d WHERE lotAdjustment(d) == a AND incorrectLot(lot(d), a);
+
+        include(TerminalDocument ttd) <- NULL;
+        
+        LOCAL incorrectList = TEXT ();
+        incorrectList() <- GROUP CONCAT id(Lot l) IF incorrectLot(l, a) AND scannedSku(sku(l), stock(a))
+            AND (scanned(l, stock(a)) OR currentBalance(l, stock(a)))
+            AND NOT scanned(l, stock(a)) == currentBalance(l, stock(a)), '\n' ORDER id(l);
+        IF incorrectList() THEN
+            MESSAGE 'Марки не числятся в ЕГАИС за организацией, в документ не включены :\n' + incorrectList();
+    }
+}
+
+hideBaseImportLot = DATA LOCAL BOOLEAN ();
+DESIGN lotAdjustment {
+    PROPERTY(importTerminalDocumentLot(i)) { showIf = hideBaseImportLot(); }
+}
+EXTEND FORM lotAdjustment PROPERTIES importTerminalDocumentLotAccum(i) DRAW d TOOLBAR;
