@@ -237,7 +237,6 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
 
                     } catch (Exception e) {
                         processStopListLogger.error(logPrefix, e);
-                        e.printStackTrace();
                     } finally {
                         try {
                             if (ps != null)
@@ -673,7 +672,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
                 }
             } catch (Exception e) {
                 failedRequests.put(entry.requestExchange, e);
-                e.printStackTrace();
+                machineryExchangeLogger.error(logPrefix + "requestSalesInfo failed", e);
             } finally {
                 try {
                     if (statement != null)

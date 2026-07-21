@@ -224,7 +224,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                 }
             } catch (Exception e) {
                 failedRequests.put(entry.requestExchange, e);
-                e.printStackTrace();
+                machineryExchangeLogger.error(logPrefix + "requestSalesInfo failed", e);
             }
         }
     }
@@ -443,7 +443,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                     conn.commit();
 
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    sendSalesLogger.error(logPrefix + "finishReadingSalesInfo failed", e);
                 } finally {
                     try {
                         if (statement != null)

@@ -99,7 +99,7 @@ public class DigiSM5300Handler extends DigiHandler {
                             ftpClient.logout();
                             ftpClient.disconnect();
                         } catch (IOException e) {
-                            e.printStackTrace();
+                            processTransactionLogger.error(getLogPrefix() + "Failed to disconnect ftp client", e);
                         }
                     }
                 }

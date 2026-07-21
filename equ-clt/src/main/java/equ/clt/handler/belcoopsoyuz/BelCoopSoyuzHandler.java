@@ -757,7 +757,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                 ftpClient.disconnect();
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            processTransactionLogger.error("BelCoopSoyuz: error while disconnecting ftp client", e);
         }
     }
 
