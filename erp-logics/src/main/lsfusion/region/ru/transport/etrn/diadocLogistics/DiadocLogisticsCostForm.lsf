@@ -1,0 +1,36 @@
+MODULE DiadocLogisticsCostForm;
+
+REQUIRE ETRN, DiadocLogistics;
+
+NAMESPACE ETRN;
+
+// Экспортные формы UserDataXml для документооборота изменения стоимости (cost):
+// Т6 - титул грузоотправителя о согласовании изменения стоимости (LogisticsWaybillConsignorCostTitle,
+// по схеме обязателен только подписант) и данные подписанта для отказа от подписания Т5.
+
+GROUP t6Signer EXTID 'Signer';
+GROUP t6SignerDetails EXTID 'SignerDetails' : t6Signer;
+
+FORM diadocT6UserData FORMEXTID 'LogisticsWaybillConsignorCostTitle'
+    OBJECTS e = ETRN PANEL
+    PROPERTIES ATTR IN t6Signer t6SignerType = '1' EXTID 'SignerType'
+    PROPERTIES ATTR IN t6SignerDetails
+        t6SignerLast = signerLastName(e) EXTID 'LastName',
+        t6SignerFirst = signerFirstName(e) EXTID 'FirstName',
+        t6SignerMiddle = signerMiddleName(e) EXTID 'MiddleName',
+        t6SignerPos = signerPosition(e) EXTID 'Position'
+;
+
+// данные подписанта для GenerateSignatureRejectionXml (SignerContent, base64)
+// TODO: сверить ожидаемый формат подписанта отказа на тестовой площадке
+GROUP rjSignerDetails EXTID 'SignerDetails';
+
+FORM diadocRejectionSigner FORMEXTID 'Signer'
+    OBJECTS e = ETRN PANEL
+    PROPERTIES ATTR rjSignerType = '1' EXTID 'SignerType'
+    PROPERTIES ATTR IN rjSignerDetails
+        rjSignerLast = signerLastName(e) EXTID 'LastName',
+        rjSignerFirst = signerFirstName(e) EXTID 'FirstName',
+        rjSignerMiddle = signerMiddleName(e) EXTID 'MiddleName',
+        rjSignerPos = signerPosition(e) EXTID 'Position'
+;

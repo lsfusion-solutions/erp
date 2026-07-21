@@ -1,6 +1,6 @@
 MODULE DiadocLogisticsEvents;
 
-REQUIRE DiadocLogistics, DiadocOrderRequest;
+REQUIRE DiadocLogistics, DiadocOrderRequest, ETRNConditionalTitles;
 
 NAMESPACE Diadoc;
 
@@ -253,9 +253,14 @@ ETRN.importEvents (ETRN.ETRNProvider p) + WHEN p == ETRN.ETRNProvider.diadoc THE
 
 // ------------------------- 2. Продвижение документов по событию ------------------------- //
 
+// условные титулы перевозчика (Т5/Т7/Т8) - общие поля и отметки в ETRNConditionalTitles;
+// здесь - диадок-специфика: cost-документ (Т5 + Т6) для ответных патчей
+diadocCostDocument = DATA Document (ETRN.ETRN);
+
 // привязка по документу Диадока (приоритетнее kl-id: kl-id может отсутствовать при отправке Т1)
 etrnByReceptionEntity (STRING id) = GROUP MAX ETRN.ETRN e BY entityId(entity(diadocReceptionDocument(e)));
 etrnByDeliveryEntity (STRING id) = GROUP MAX ETRN.ETRN e BY entityId(entity(diadocDeliveryDocument(e)));
+etrnByCostEntity (STRING id) = GROUP MAX ETRN.ETRN e BY entityId(entity(diadocCostDocument(e)));
 orderByEntity (STRING id) = GROUP MAX ETRN.OrderRequest o BY entityId(entity(diadocDocument(o)));
 
 // маппинг статуса KlMt (ГИС ЭПД) на этап ЭТрН
@@ -272,10 +277,12 @@ processETRNEvent (ETRN.ETRNEvent ev) {
     e() <- OVERRIDE ETRN.etrn(ev),
                     etrnByReceptionEntity(entityId(ev)),
                     etrnByDeliveryEntity(entityId(ev)),
+                    etrnByCostEntity(entityId(ev)),
                     ETRN.etrn(ETRN.transportationId(ev));
 
-    // новая входящая перевозка (мы - перевозчик или грузополучатель)
-    IF NOT e() THEN NEW ne = ETRN.ETRN {
+    // новая входящая перевозка (мы - грузополучатель) - только по reception-документу (Т1);
+    // условные документы (cost/readdress/relay) новую перевозку не создают - ждут привязки по kl-id
+    IF NOT e() AND docFunction(ev) == 'reception' THEN NEW ne = ETRN.ETRN {
         e() <- ne;
         ETRN.provider(ne) <- ETRN.ETRNProvider.diadoc;
         diadocKlId(ne) <- ETRN.transportationId(ev);
@@ -292,20 +299,28 @@ processETRNEvent (ETRN.ETRNEvent ev) {
         ETRN.providerStatus(et) <- ETRN.status(ev);
         ETRN.stage(et) <- diadocStage(ETRN.status(ev)) WHERE diadocStage(ETRN.status(ev));
 
-        // привязка reception/delivery-документа (если Message/Document уже материализованы через V3)
+        // привязка документа перевозки по функции (если Message/Document уже материализованы через V3)
         FOR Document d == document(messageId(ev), entityId(ev)) DO {
             IF docFunction(ev) == 'reception' AND NOT diadocReceptionDocument(et) THEN diadocReceptionDocument(et) <- d;
             IF docFunction(ev) == 'delivery' AND NOT diadocDeliveryDocument(et) THEN diadocDeliveryDocument(et) <- d;
+            IF docFunction(ev) == 'cost' AND NOT diadocCostDocument(et) THEN diadocCostDocument(et) <- d;
         }
 
-        // статус обмена из состояния титулов (reception: Т1/Т2 - слоты 0/1, delivery: Т3/Т4 - слоты 2/3;
-        // здесь слоты в рамках документа события: 0 - титул отправителя, 1 - титул получателя)
+        // отражение условных титулов перевозчика (после Т7/Т8 QR-код перевозки обновляется)
+        IF docFunction(ev) == 'cost' THEN ETRN.costChangeDateTime(et) <- ETRN.dateTime(ev);
+        IF docFunction(ev) == 'readdress' THEN ETRN.readdressDateTime(et) <- ETRN.dateTime(ev);
+        IF docFunction(ev) == 'relay' THEN ETRN.relayDateTime(et) <- ETRN.dateTime(ev);
+
+        // статус обмена из состояния титулов - только по основным документам перевозки
+        // (reception: Т1/Т2 - слоты 0/1, delivery: Т3/Т4 - слоты 2/3; в рамках документа события
+        // слот 0 - титул отправителя, слот 1 - титул получателя);
         // отказ получателя подписать титул - для ЭТрН терминален (нужна новая накладная)
-        ETRN.exchangeStatus(et) <- CASE
-            WHEN titleRejected(ev, 0) OR titleRejected(ev, 1) THEN ETRN.ETRNExchangeStatus.rejected
-            WHEN docFunction(ev) == 'delivery' AND signedTitle(ev, 1) THEN ETRN.ETRNExchangeStatus.completed
-            WHEN signedTitle(ev, 0) OR signedTitle(ev, 1) THEN ETRN.ETRNExchangeStatus.signed
-            ELSE ETRN.exchangeStatus(et);
+        IF docFunction(ev) == 'reception' OR docFunction(ev) == 'delivery' THEN
+            ETRN.exchangeStatus(et) <- CASE
+                WHEN titleRejected(ev, 0) OR titleRejected(ev, 1) THEN ETRN.ETRNExchangeStatus.rejected
+                WHEN docFunction(ev) == 'delivery' AND signedTitle(ev, 1) THEN ETRN.ETRNExchangeStatus.completed
+                WHEN signedTitle(ev, 0) OR signedTitle(ev, 1) THEN ETRN.ETRNExchangeStatus.signed
+                ELSE ETRN.exchangeStatus(et);
     }
 }
 

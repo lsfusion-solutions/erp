@@ -1,0 +1,111 @@
+MODULE ETRNConditionalTitles;
+
+REQUIRE ETRNExchange, ETRNCarrier;   // ETRNCarrier - ради порядка вкладок (Т5/Т6 после Т4)
+
+NAMESPACE ETRN;
+
+// ------------------------- Условные титулы перевозчика (Т5-Т8) ------------------------- //
+// Приказ ФНС N ЕД-7-26/1065@: Т5 - изменение стоимости (требует ответа Т6 грузоотправителя),
+// Т7 - переадресация, Т8 - эстафета (замена водителя/ТС). Все отправляются перевозчиком;
+// наша роль (грузоотправитель/грузополучатель) - принимать их и отвечать Т6 либо отказом.
+// Приём и отправка - в модулях провайдеров; здесь - общие поля, проверки, абстракции и формы.
+
+// отметки полученных условных титулов (проставляются провайдером при приёме)
+costChangeDateTime 'Получено изменение стоимости (Т5)' = DATA DATETIME (ETRN);
+costConfirmedDateTime 'Изменение стоимости подтверждено (Т6)' = DATA DATETIME (ETRN);
+costRejectionReason 'Причина отказа в изменении стоимости' = DATA ISTRING[1000](ETRN) CHARWIDTH 30;
+readdressDateTime 'Переадресация (Т7)' = DATA DATETIME (ETRN);
+relayDateTime 'Замена водителя/ТС (Т8)' = DATA DATETIME (ETRN);
+
+// в Т6 по формату обязателен только подписант
+missingCostT6 (ETRN e) = CONCAT ', ',
+    'грузоотправитель' IF NOT shipper(e),
+    'подписант титулов (ФИО)' IF NOT (signerLastName(e) AND signerFirstName(e));
+
+checkCostT6 (ETRN e) {
+    IF missingCostT6(e) THEN
+        MESSAGE CONCAT '\n', 'Не заполнены обязательные поля титула Т6:', missingCostT6(e);
+}
+
+// абстракции (реализуются модулями провайдеров)
+sendCostConfirmation 'Подписать и отправить Т6' ABSTRACT CASE (ETRN);      // согласование изменения стоимости
+rejectCostChange 'Отказаться от изменения стоимости' ABSTRACT CASE (ETRN); // формализованный отказ от подписания Т5
+
+sendCostConfirmationETRN 'Подтвердить изменение стоимости (Т6)' (ETRN e) {
+    checkProvider(e);
+    IF NOT provider(e) THEN RETURN;
+    IF NOT skipFieldCheckETRN() THEN {
+        checkCostT6(e);
+        IF missingCostT6(e) THEN RETURN;
+    }
+    sendCostConfirmation(e);
+} IMAGE 'apply.png';
+
+rejectCostChangeETRN 'Отказать в изменении стоимости' (ETRN e) {
+    checkProvider(e);
+    IF NOT provider(e) THEN RETURN;
+    IF NOT costRejectionReason(e) THEN {
+        MESSAGE 'Укажите причину отказа в изменении стоимости';
+        RETURN;
+    }
+    IF NOT skipFieldCheckETRN() THEN {
+        checkCostT6(e);
+        IF missingCostT6(e) THEN RETURN;
+    }
+    rejectCostChange(e);
+} IMAGE 'delete.png';
+
+// ------------------------- Формы ------------------------- //
+// отдельные вкладки Т5 и Т6 на карточке ЭТрН (в ряду титулов, после Т4);
+// отметки Т7/Т8 - на вкладке Т5 (все условные титулы перевозчика)
+
+EXTEND FORM etrn
+    PROPERTIES(e) costChangeDateTime READONLY, costConfirmedDateTime READONLY,
+                  costRejectionReason,
+                  readdressDateTime READONLY, relayDateTime READONLY
+;
+
+DESIGN etrn {
+    pane {
+        NEW t5Tab BEFORE exchangeTab {
+            caption = 'Т5: Изменение стоимости (перевозчик)';
+            NEW t5Received {
+                caption = 'Получено от перевозчика';
+                horizontal = TRUE;
+                MOVE PROPERTY(costChangeDateTime(e));
+            }
+            NEW conditionalMarks {
+                caption = 'Прочие условные титулы перевозчика';
+                horizontal = TRUE;
+                MOVE PROPERTY(readdressDateTime(e));
+                MOVE PROPERTY(relayDateTime(e));
+            }
+        }
+        NEW t6Tab BEFORE exchangeTab {
+            caption = 'Т6: Согласование стоимости (грузоотправитель)';
+            NEW t6State {
+                horizontal = TRUE;
+                MOVE PROPERTY(costConfirmedDateTime(e));
+                MOVE PROPERTY(costRejectionReason(e));
+            }
+        }
+    }
+}
+
+// кнопки отправки - на списке ЭТрН, вкладка «Действия» (как у остальных титулов)
+EXTEND FORM etrns
+    PROPERTIES(e) costRejectionReason PANEL
+    PROPERTIES(e) sendCostConfirmationETRN SHOWIF (roleShipper(e) AND costChangeDateTime(e)),
+                  rejectCostChangeETRN SHOWIF (roleShipper(e) AND costChangeDateTime(e))
+;
+
+DESIGN etrns {
+    actionsTab {
+        NEW actionsT56 BEFORE actionsCommon {
+            caption = 'Т5/Т6: Стоимость (грузоотправитель)';
+            MOVE PROPERTY(sendCostConfirmationETRN(e));
+            MOVE PROPERTY(rejectCostChangeETRN(e));
+            MOVE PROPERTY(costRejectionReason(e));
+        }
+    }
+}

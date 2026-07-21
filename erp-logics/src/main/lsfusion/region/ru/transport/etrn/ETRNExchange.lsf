@@ -51,11 +51,25 @@ name 'Наименование' (ETRNExchangeStatus s) = staticCaption(s) IF s I
 exchangeStatus 'Статус обмена' = DATA ETRNExchangeStatus (ETRN);
 nameExchangeStatus 'Статус обмена' (ETRN e) = name(exchangeStatus(e));
 
-// подписант организации (общий для всех провайдеров и титулов)
+// подписант организации (справочное значение - источник по умолчанию для документов)
 signerLastName 'Подписант: фамилия' = DATA ISTRING[60](LegalEntity);
 signerFirstName 'Подписант: имя' = DATA ISTRING[60](LegalEntity);
 signerMiddleName 'Подписант: отчество' = DATA ISTRING[60](LegalEntity);
 signerPosition 'Подписант: должность' = DATA ISTRING[128](LegalEntity);
+
+// подписант титулов документа (первичные поля; заполняются из карточки грузоотправителя,
+// можно поправить на конкретной ЭТрН - используются в наших титулах Т1/Т3/Т6)
+signerLastName 'Подписант: фамилия' = DATA ISTRING[60](ETRN);
+signerFirstName 'Подписант: имя' = DATA ISTRING[60](ETRN);
+signerMiddleName 'Подписант: отчество' = DATA ISTRING[60](ETRN);
+signerPosition 'Подписант: должность' = DATA ISTRING[128](ETRN);
+
+WHEN LOCAL CHANGED(shipper(ETRN e)) DO {
+    signerLastName(e) <- signerLastName(shipper(e)) WHERE signerLastName(shipper(e));
+    signerFirstName(e) <- signerFirstName(shipper(e)) WHERE signerFirstName(shipper(e));
+    signerMiddleName(e) <- signerMiddleName(shipper(e)) WHERE signerMiddleName(shipper(e));
+    signerPosition(e) <- signerPosition(shipper(e)) WHERE signerPosition(shipper(e));
+}
 
 EXTEND FORM legalEntity
     PROPERTIES(l) signerLastName, signerFirstName, signerMiddleName, signerPosition
@@ -160,6 +174,8 @@ missingDetailsT1 (ETRN e) = GROUP CONCAT ('строка ' + index(ETRNDetail d) 
 missingT1 (ETRN e) = CONCAT ', ',
     'дата заказа (заявки)' IF NOT orderDate(e),
     'грузоотправитель' IF NOT shipper(e),
+    'подписант титулов (ФИО)' IF NOT (signerLastName(e) AND signerFirstName(e)),
+    'подписант титулов (должность)' IF NOT signerPosition(e),
     'грузополучатель' IF NOT consignee(e),
     'адрес места доставки груза' IF NOT deliveryAddress(e),
     'код региона места доставки' IF NOT deliveryRegion(e),
@@ -289,6 +305,10 @@ EXTEND FORM etrn
     PROPERTIES(e) nameProvider, nameExchangeStatus READONLY, transportationId READONLY,
                   mintransId READONLY, providerStatus READONLY, exchangeMessage READONLY,
                   titleFile
+    PROPERTIES(e) signerLastName BACKGROUND (backgroundMandatory(e) IF NOT signerLastName(e)),
+                  signerFirstName BACKGROUND (backgroundMandatory(e) IF NOT signerFirstName(e)),
+                  signerMiddleName,
+                  signerPosition BACKGROUND (backgroundMandatory(e) IF NOT signerPosition(e))
 
     OBJECTS ev = ETRNEvent
     PROPERTIES(ev) READONLY dateTime, type, status
@@ -297,6 +317,18 @@ EXTEND FORM etrn
 ;
 
 DESIGN etrn {
+    // подписант - на вкладке «Стороны» титула Т1, где он впервые необходим (подписание Т1;
+    // те же данные используются в Т3 и Т6)
+    parties {
+        NEW signerBox AFTER shipperBox {
+            caption = 'Подписант титулов';
+            horizontal = TRUE;
+            MOVE PROPERTY(signerLastName(e));
+            MOVE PROPERTY(signerFirstName(e));
+            MOVE PROPERTY(signerMiddleName(e));
+            MOVE PROPERTY(signerPosition(e));
+        }
+    }
     pane {
         NEW exchangeTab {
             caption = 'Обмен';

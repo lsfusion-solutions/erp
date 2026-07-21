@@ -1,0 +1,145 @@
+MODULE DiadocLogisticsCost;
+
+REQUIRE DiadocLogisticsEvents, DiadocLogisticsCostForm;
+
+NAMESPACE Diadoc;
+
+// ------------------------- Изменение стоимости перевозки (Т5/Т6) через Диадок ------------------------- //
+// Реализация абстракций ETRNConditionalTitles для провайдера Диадок:
+//   Т6 - GenerateTitleXml (cost, titleIndex=5, letterId/documentId от Т5) -> подпись КЭП
+//        грузоотправителя -> PostMessagePatch (RecipientTitles);
+//   отказ - GenerateSignatureRejectionXml (V2) -> подпись -> PostMessagePatch
+//        (XmlSignatureRejections); документооборот продолжается, перевозчик может прислать Т5 повторно.
+// Приём Т5/Т7/Т8 из ленты docflow-событий - в DiadocLogisticsEvents (diadocCostDocument, отметки).
+
+
+// диадок-специфичные предпроверки (наличие cost-документа и ящика)
+checkCostDocument (ETRN.ETRN e) {
+    IF NOT diadocCostDocument(e) THEN {
+        MESSAGE 'Нет документа изменения стоимости (Т5) в Диадоке: выполните приём событий и сообщений';
+        RETURN;
+    }
+    IF NOT diadocBox(ETRN.shipper(e)) THEN {
+        MESSAGE 'Не найден ящик Диадока грузоотправителя';
+        RETURN;
+    }
+}
+
+// ------------------------- Т6: согласование изменения стоимости ------------------------- //
+
+diadocSendT6 (ETRN.ETRN e) {
+    checkCostDocument(e);
+    IF NOT (diadocCostDocument(e) AND diadocBox(ETRN.shipper(e))) THEN RETURN;
+
+    FOR User u == userDiadocETRN() DO NEWSESSION {
+        box() <- diadocBox(ETRN.shipper(e));
+        message() <- message(diadocCostDocument(e));
+        parentEntity(0) <- entity(diadocCostDocument(e));
+        isRecipientTitles(0) <- TRUE;
+
+        getToken(u);
+        EXPORT diadocT6UserData OBJECTS e = e XML;
+
+        LOCAL result = FILE ();
+        TRY {
+            EXTERNAL HTTP POST url() + '/GenerateTitleXml?boxId=' + boxId() +
+                '&documentTypeNamedId=' + logisticsTypeNamedId() +
+                '&documentFunction=cost&documentVersion=' + logisticsVersion() +
+                '&titleIndex=5&letterId=' + messageId() + '&documentId=' + parentEntityId(0)
+                HEADERS httpHeadersToken PARAMS exportFile() TO result;
+
+            contentDocument(0) <- encode(RAWFILE(result()), 'base64');
+
+            IF useTestSignature() THEN signWithTestSignature(0) <- TRUE;
+            ELSE {
+                sign(FILE(result()), TRUE, ETRN.shipper(e));
+                signatureDocument(0) <- encodedSignature();
+            }
+
+            postMessagePatch(u);
+            // postMessagePatch глотает HTTP-ошибки (MESSAGE внутри) - успех определяем по созданному дополнению
+            IF createdMessagePatch() THEN {
+                ETRN.costConfirmedDateTime(e) <- currentDateTime();
+                ETRN.exchangeMessage(e) <- NULL;
+            } ELSE
+                ETRN.exchangeMessage(e) <- 'Т6 не отправлен (Диадок): ошибка PostMessagePatch';
+        } CATCH {
+            fileToString(result(), 'UTF-8');
+            ETRN.exchangeMessage(e) <- 'Ошибка отправки Т6 (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+            MESSAGE ETRN.exchangeMessage(e);
+        }
+        APPLY;
+    }
+}
+
+ETRN.sendCostConfirmation (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvider.diadoc THEN {
+    diadocSendT6(e);
+}
+
+// ------------------------- Отказ от подписания Т5 ------------------------- //
+
+// тело запроса GenerateSignatureRejectionXml (V2)
+rejMessageId = DATA LOCAL STRING ();
+rejAttachmentId = DATA LOCAL STRING ();
+rejErrorMessage = DATA LOCAL STRING ();
+rejSignerContent = DATA LOCAL TEXT ();
+
+FORM exportSignatureRejectionRequest
+    PROPERTIES() rejMessageId EXTID 'MessageId',
+                 rejAttachmentId EXTID 'AttachmentId',
+                 rejErrorMessage EXTID 'ErrorMessage',
+                 rejSignerContent EXTID 'SignerContent'
+;
+
+diadocRejectT5 (ETRN.ETRN e) {
+    checkCostDocument(e);
+    IF NOT (diadocCostDocument(e) AND diadocBox(ETRN.shipper(e))) THEN RETURN;
+
+    FOR User u == userDiadocETRN() DO NEWSESSION {
+        box() <- diadocBox(ETRN.shipper(e));
+        message() <- message(diadocCostDocument(e));
+        parentEntity(0) <- entity(diadocCostDocument(e));
+        isXmlSignatureRejections(0) <- TRUE;
+
+        getToken(u);
+
+        // данные подписанта отказа (base64 XML)
+        // TODO: сверить ожидаемый формат SignerContent на тестовой площадке
+        EXPORT diadocRejectionSigner OBJECTS e = e XML;
+        rejSignerContent() <- encode(RAWFILE(exportFile()), 'base64');
+        rejMessageId() <- messageId();
+        rejAttachmentId() <- parentEntityId(0);
+        rejErrorMessage() <- ETRN.costRejectionReason(e);
+
+        LOCAL result = FILE ();
+        EXPORT exportSignatureRejectionRequest JSON;
+        TRY {
+            EXTERNAL HTTP POST url() + '/V2/GenerateSignatureRejectionXml?boxId=' + boxId()
+                HEADERS httpHeadersToken PARAMS exportFile() TO result;
+
+            contentDocument(0) <- encode(RAWFILE(result()), 'base64');
+
+            IF useTestSignature() THEN signWithTestSignature(0) <- TRUE;
+            ELSE {
+                sign(FILE(result()), TRUE, ETRN.shipper(e));
+                signatureDocument(0) <- encodedSignature();
+            }
+
+            postMessagePatch(u);
+            IF createdMessagePatch() THEN {
+                ETRN.costChangeDateTime(e) <- NULL;   // документооборот продолжится: перевозчик отправит Т5 повторно
+                ETRN.exchangeMessage(e) <- NULL;
+            } ELSE
+                ETRN.exchangeMessage(e) <- 'Отказ по Т5 не отправлен (Диадок): ошибка PostMessagePatch';
+        } CATCH {
+            fileToString(result(), 'UTF-8');
+            ETRN.exchangeMessage(e) <- 'Ошибка отправки отказа по Т5 (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+            MESSAGE ETRN.exchangeMessage(e);
+        }
+        APPLY;
+    }
+}
+
+ETRN.rejectCostChange (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvider.diadoc THEN {
+    diadocRejectT5(e);
+}
