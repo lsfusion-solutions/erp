@@ -110,3 +110,15 @@ META defineDocumentFuelLtrWeight (object, caption)
         PROPERTIES(d) READONLY SHOWIF (showWeightFuel(i) AND showFuel(i)) weight AFTER quantity(d)
     ;
 END
+
+skipItemFuelConstraint = DATA BOOLEAN () PREREAD;
+
+META defineItemFuelConstraint (object, stock, prefix)
+    CONSTRAINT (SETCHANGED(##stock(###object d)) OR SETCHANGED(##prefix###sku(d))) AND ##stock(d) IS Warehouse AND isFuelLtr(##prefix###sku(d))
+        AND NOT skipItemFuelConstraint()
+        MESSAGE 'Топливо (в литрах) не допускается в оптовом учёте';
+
+    CONSTRAINT (SETCHANGED(##stock(###object d)) OR SETCHANGED(##prefix###sku(d))) AND ##stock(d) IS DepartmentStore AND isFuel(##prefix###sku(d))
+        AND NOT skipItemFuelConstraint()
+        MESSAGE 'Топливо (в тоннах) не допускается в розничном учёте';
+END    
