@@ -644,7 +644,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                         }
                     }
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    requestExchangeLogger.error("Kristal: checkZReportSum failed", e);
                 } finally {
                     if (conn != null)
                         conn.close();

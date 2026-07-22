@@ -92,7 +92,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         } catch (Exception e) {
             if (httpServer != null)
                 httpServer.stop(0);
-            e.printStackTrace();
+            sendSalesLogger.error(getLogPrefix() + "Failed to bind HttpServer", e);
         }
     }
 

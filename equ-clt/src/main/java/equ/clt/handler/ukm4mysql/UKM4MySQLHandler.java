@@ -998,7 +998,6 @@ private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transa
 
                 } catch (SQLException e) {
                     sendSalesLogger.error("ukm4 mysql:", e);
-                    e.printStackTrace();
                 } finally {
                     try {
                         if (conn != null)
@@ -1131,7 +1130,6 @@ private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transa
 
                     } catch (Exception e) {
                         processStopListLogger.error("ukm4 mysql:", e);
-                        e.printStackTrace();
                     } finally {
                         try {
                             if (ps != null)
@@ -1578,7 +1576,7 @@ private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transa
                     }
                 } catch (Exception e) {
                     failedRequests.put(requestExchange.requestExchange, e);
-                    e.printStackTrace();
+                    machineryExchangeLogger.error(logPrefix + "requestSalesInfo failed", e);
                 } finally {
                     try {
                         if (statement != null)
@@ -1617,7 +1615,7 @@ private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transa
                     conn.commit();
 
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    sendSalesLogger.error(logPrefix + "finishReadingSalesInfo failed", e);
                 } finally {
                     try {
                         if (ps != null)

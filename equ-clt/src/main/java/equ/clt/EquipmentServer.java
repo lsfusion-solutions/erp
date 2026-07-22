@@ -513,7 +513,6 @@ public class EquipmentServer {
                 } catch (InterruptedException e) {
                     return;
                 } catch (Exception e) {
-                    e.printStackTrace();
                     equipmentLogger.error("Unhandled exception in consumer: ", e);
                 }
             }
