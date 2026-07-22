@@ -11,13 +11,16 @@ overFillInvoice(Purchase.UserInvoiceDetail pd, InvoiceDetail sd) + {
     IF supplierStock(sd) IS Warehouse AND customerStock(sd) IS DepartmentStore AND isFuel(sku(sd)) THEN {
         sku(pd) <- itemFuelLtr(sku(sd));
         quantity(pd) <- round(volume(sd), roundFuelQuantityLtr());
-        packQuantity(pd) <- quantity(sd) IF extraPack(supplier(sd), itemFuelLtr(sku(sd)));
+        packQuantity(pd) <- quantity(sd) IF extraPack(supplier(sd), sku(pd));
         weight(pd) <- NUMERIC[11,5](round(quantity(sd) * coeffFuel(), roundFuelQuantityLtr()));
+        density(pd) <- NUMERIC[9,5](quantity(sd) * coeffFuel() / volume(sd));
         shipmentQuantity(pd) <- round(shipmentVolume(sd), roundFuelQuantityLtr());
         sum(pd) <- sum(sd);
-        price(pd) <- IF extraPack(supplier(sd), itemFuelLtr(sku(sd))) THEN price(sd) ELSE round2(sum(sd) / volume(sd));
+        price(pd) <- IF extraPack(supplier(sd), sku(pd)) THEN price(sd) ELSE round2(sum(sd) / volume(sd));
         invoiceSum(pd) <- invoiceSum(sd);
-        invoicePrice(pd) <- IF extraPack(supplier(sd), itemFuelLtr(sku(sd))) THEN invoicePrice(sd) ELSE round2(invoiceSum(sd) / volume(sd));
+        invoicePrice(pd) <- IF extraPack(supplier(sd), sku(pd)) THEN invoicePrice(sd) ELSE round2(invoiceSum(sd) / volume(sd));
+        sumNetWeight(pd) <- NUMERIC[14,3](weight(pd));
+        sumGrossWeight(pd) <- NUMERIC[14,3](weight(pd));
     }
 }
 
@@ -25,12 +28,15 @@ setPropertiesPurchaseSale(Purchase.UserInvoiceDetail pd, InvoiceDetail sd) + {
     IF supplierStock(sd) IS Warehouse AND customerStock(sd) IS DepartmentStore AND isFuel(sku(sd)) THEN {
         sku(pd) <- itemFuelLtr(sku(sd));
         quantity(pd) <- round(volume(sd), roundFuelQuantityLtr());
-        packQuantity(pd) <- quantity(sd) IF extraPack(supplier(sd), itemFuelLtr(sku(sd)));
+        packQuantity(pd) <- quantity(sd) IF extraPack(supplier(sd), sku(pd));
         weight(pd) <- NUMERIC[11,5](round(quantity(sd) * coeffFuel(), roundFuelQuantityLtr()));
+        density(pd) <- NUMERIC[9,5](quantity(sd) * coeffFuel() / volume(sd));
         shipmentQuantity(pd) <- round(shipmentVolume(sd), roundFuelQuantityLtr());
         sum(pd) <- sum(sd);
-        price(pd) <- IF extraPack(supplier(sd), itemFuelLtr(sku(sd))) THEN price(sd) ELSE round2(sum(sd) / volume(sd));
+        price(pd) <- IF extraPack(supplier(sd), sku(pd)) THEN price(sd) ELSE round2(sum(sd) / volume(sd));
         invoiceSum(pd) <- invoiceSum(sd);
-        invoicePrice(pd) <- IF extraPack(supplier(sd), itemFuelLtr(sku(sd))) THEN invoicePrice(sd) ELSE round2(invoiceSum(sd) / volume(sd));
+        invoicePrice(pd) <- IF extraPack(supplier(sd), sku(pd)) THEN invoicePrice(sd) ELSE round2(invoiceSum(sd) / volume(sd));
+        sumNetWeight(pd) <- NUMERIC[14,3](weight(pd));
+        sumGrossWeight(pd) <- NUMERIC[14,3](weight(pd));
     }
 }
