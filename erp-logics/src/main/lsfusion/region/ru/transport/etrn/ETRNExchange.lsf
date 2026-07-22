@@ -305,16 +305,28 @@ importETRNEvents 'Получить события ЭПД' () {
         importEvents(p);
 }
 
-// 2. обработка необработанных событий журнала: продвижение документов - для планировщика
+// 2. обработка необработанных событий журнала: продвижение документов - для планировщика.
+// Каждое событие обрабатывается в своей сессии: ошибка применения по одному документу
+// (констрейнт и т.п.) не мешает обработке остальных; ошибка записывается в событие,
+// отметка обработки не ставится - событие повторит попытку в следующий запуск
+processedMessage 'Ошибка обработки' = DATA STRING[1000](ETRNEvent) CHARWIDTH 50;
+
 processETRNEvents 'Обработать события ЭПД' () {
-    NEWSESSION {
-        FOR ETRNEvent ev IS ETRNEvent AND NOT processedDateTime(ev) ORDER dateTime(ev), ev DO {
+    LOCAL NESTED applyError = STRING[1000] ();
+    FOR ETRNEvent ev IS ETRNEvent AND NOT processedDateTime(ev) ORDER dateTime(ev), ev DO {
+        NEWSESSION {
             // документ мог появиться (импорт входящей перевозки) уже после приёма события
             etrn(ev) <- etrn(transportationId(ev)) WHERE NOT etrn(ev);
             processEvent(ev);
             processedDateTime(ev) <- currentDateTime();
+            processedMessage(ev) <- NULL;
+            APPLY;
+            applyError() <- STRING[1000](applyMessage()) IF canceled();
         }
-        APPLY;
+        IF applyError() THEN NEWSESSION {
+            processedMessage(ev) <- applyError();
+            APPLY;
+        }
     }
 }
 
@@ -415,10 +427,47 @@ DESIGN etrns {
     }
 }
 
+// карточка события: общие поля + контейнер providerData, куда модули провайдеров
+// добавляют свои поля с SHOWIF по провайдеру события
+FORM etrnEvent 'Событие ЭПД'
+    OBJECTS ev = ETRNEvent PANEL
+    PROPERTIES(ev) READONLY nameProvider, id, dateTime, type, status,
+                            transportationId, mintransId, seriesNumberETRN, processedDateTime, processedMessage
+
+    EDIT ETRNEvent OBJECT ev
+;
+
+DESIGN etrnEvent {
+    OBJECTS {
+        NEW eventMain {
+            caption = 'Событие';
+            MOVE PROPERTY(nameProvider(ev));
+            MOVE PROPERTY(id(ev));
+            MOVE PROPERTY(dateTime(ev));
+            MOVE PROPERTY(type(ev));
+            MOVE PROPERTY(status(ev));
+        }
+        NEW eventTransportation {
+            caption = 'Перевозка';
+            MOVE PROPERTY(transportationId(ev));
+            MOVE PROPERTY(mintransId(ev));
+            MOVE PROPERTY(seriesNumberETRN(ev));
+            MOVE PROPERTY(processedDateTime(ev));
+            MOVE PROPERTY(processedMessage(ev));
+        }
+        NEW providerData {
+            caption = 'Данные провайдера';
+        }
+    }
+}
+
+// на списке провайдер-специфичные колонки показываются для провайдера по умолчанию (настройки),
+// на карточке - по провайдеру самого события
 FORM etrnEvents 'События ЭПД'
     OBJECTS ev = ETRNEvent
     PROPERTIES(ev) READONLY dateTime, nameProvider, type, status, mintransId, transportationId, seriesNumberETRN,
-                            processedDateTime
+                            processedDateTime, processedMessage
+    PROPERTIES(ev) NEWSESSION EDIT
     PROPERTIES TOOLBAR DRAW ev importETRNEvents(), processETRNEvents()
     ORDERS dateTime(ev) DESC
     FILTERGROUP processedFilter FILTER 'Необработанные' NOT processedDateTime(ev) 'F6'

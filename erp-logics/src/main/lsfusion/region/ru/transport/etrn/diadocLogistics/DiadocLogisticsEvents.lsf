@@ -38,6 +38,29 @@ orderRequest = DATA ETRN.OrderRequest (ETRN.ETRNEvent);
 // ящик, по которому событие получено из ленты (нужен для запросов контента входящих,
 // когда участники документа ещё не разобраны и наш ящик нельзя определить по ролям)
 eventBox = DATA Box (ETRN.ETRNEvent);
+eventBoxId 'Ящик события' (ETRN.ETRNEvent ev) = boxId(eventBox(ev));
+
+// диадок-поля в журнале: на списке - при провайдере по умолчанию Диадок, на карточке - по провайдеру события
+isDiadocETRN () = ETRN.defaultProvider() == ETRN.ETRNProvider.diadoc;
+isDiadocETRN (ETRNEvent e)  = ETRN.provider(e) == ETRN.ETRNProvider.diadoc;
+
+EXTEND FORM ETRN.etrnEvents
+    PROPERTIES(ev) READONLY SHOWIF isDiadocETRN() typeNamedId, docFunction 
+;
+
+EXTEND FORM ETRN.etrnEvent
+    PROPERTIES(ev) READONLY SHOWIF isDiadocETRN(ev) typeNamedId, docFunction, messageId, entityId, eventBoxId
+;
+
+DESIGN ETRN.etrnEvent {
+    providerData {
+        MOVE PROPERTY(typeNamedId(ev));
+        MOVE PROPERTY(docFunction(ev));
+        MOVE PROPERTY(messageId(ev));
+        MOVE PROPERTY(entityId(ev));
+        MOVE PROPERTY(eventBoxId(ev));
+    }
+}
 
 // ------------------------- Запрос GetDocflowEvents (V5) ------------------------- //
 
