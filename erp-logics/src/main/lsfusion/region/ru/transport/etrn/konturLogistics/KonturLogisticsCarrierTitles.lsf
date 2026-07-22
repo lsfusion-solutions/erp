@@ -1,0 +1,340 @@
+MODULE KonturLogisticsCarrierTitles;
+
+REQUIRE KonturLogistics, ETRNCarrier, CryptoProLegalEntity;
+
+NAMESPACE ETRN;
+
+// ------------------------- Титулы перевозчика Т2 / Т4: XML + КЭП ------------------------- //
+// У API Контура нет генерации XML для титулов перевозчика: XML формируется по приказу
+// ФНС N ЕД-7-26/1065@ (разделы III и VII), подписывается КЭП (модуль CryptoPro)
+// и отправляется парой файлов через POST /v1/transportations/documents.
+
+// FNSId участников и подписант организации - в базовом модуле KonturLogistics
+
+// ------------------------- Файлы и подписи предыдущих титулов ------------------------- //
+// В Т2 вкладывается подпись файла Т1, в Т4 - подпись файла Т3 (Base64).
+// TODO: заполнение из документооборота перевозки (GET /v1/transportations/{id}/full-docflow
+// или /titles/{titleId}) - формат ответа сверить на тестовой площадке.
+
+t1FileName 'Имя файла Т1' = DATA STRING[255](ETRN);
+t1FileDate 'Дата файла Т1 (ДД.ММ.ГГГГ)' = DATA STRING[10](ETRN);
+t1FileTime 'Время файла Т1 (ЧЧ:ММ:СС)' = DATA STRING[8](ETRN);
+t1Signature 'Подпись файла Т1 (Base64)' = DATA TEXT (ETRN);
+
+t3FileName 'Имя файла Т3' = DATA STRING[255](ETRN);
+t3FileDate 'Дата файла Т3 (ДД.ММ.ГГГГ)' = DATA STRING[10](ETRN);
+t3FileTime 'Время файла Т3 (ЧЧ:ММ:СС)' = DATA STRING[8](ETRN);
+t3Signature 'Подпись файла Т3 (Base64)' = DATA TEXT (ETRN);
+
+docflowFile 'Архив документооборота' = DATA FILE (ETRN);
+
+konturImportDocflow 'Получить документооборот (Контур)' (ETRN e) {
+    setKonturAuth(konturOurParty(e));
+    IF NOT transportationId(e) THEN {
+        MESSAGE 'Для ЭТрН не получен идентификатор перевозки у провайдера';
+        RETURN;
+    }
+    TRY {
+        EXTERNAL HTTP GET konturUrl() + '/v1/transportations/' + transportationId(e) + '/full-docflow' HEADERS konturHeaders TO konturResult;
+        docflowFile(e) <- konturResult();
+        // TODO: разобрать архив - извлечь имена файлов, даты/время и подписи титулов Т1 и Т3
+        MESSAGE 'Архив документооборота получен. Разбор файлов и подписей титулов - TODO (сверить формат на тестовой площадке).';
+        APPLY;
+    } CATCH {
+        fileToString(konturResult(), 'UTF-8');
+        MESSAGE CONCAT ' ', 'Ошибка получения документооборота:', statusHttp(), resultString(), messageCaughtException();
+    }
+}
+
+// заполнение реквизитов файлов Т1/Т3 из архива титула (/titles/{titleId}, ИД - из событий)
+konturImportT1Files 'Получить файл Т1 (Контур)' (ETRN e) {
+    IF NOT konturT1TitleId(e) THEN {
+        MESSAGE 'Не известен ИД титула Т1 - выполните приём и обработку событий ЭПД';
+        RETURN;
+    }
+    konturImportTitleFiles(e, konturT1TitleId(e));
+    IF konturTitleFileName() THEN {
+        t1FileName(e) <- konturTitleFileName();
+        t1FileDate(e) <- konturTitleFileDate();
+        t1FileTime(e) <- konturTitleFileTime();
+        t1Signature(e) <- konturTitleSignature();
+    }
+}
+
+konturImportT3Files 'Получить файл Т3 (Контур)' (ETRN e) {
+    IF NOT konturT3TitleId(e) THEN {
+        MESSAGE 'Не известен ИД титула Т3 - выполните приём и обработку событий ЭПД';
+        RETURN;
+    }
+    konturImportTitleFiles(e, konturT3TitleId(e));
+    IF konturTitleFileName() THEN {
+        t3FileName(e) <- konturTitleFileName();
+        t3FileDate(e) <- konturTitleFileDate();
+        t3FileTime(e) <- konturTitleFileTime();
+        t3Signature(e) <- konturTitleSignature();
+    }
+}
+
+EXTEND FORM etrn
+    PROPERTIES(e) READONLYIF readonlyT2(e) t1FileName, t1FileDate, t1FileTime
+    PROPERTIES(e) konturImportT1Files SHOWIF isKonturETRN(e)
+    PROPERTIES(e) READONLYIF readonlyT4(e) t3FileName, t3FileDate, t3FileTime
+    PROPERTIES(e) konturImportT3Files SHOWIF isKonturETRN(e)
+;
+
+DESIGN etrn {
+    receptionTab {
+        NEW t2TitleFiles {
+            caption = 'Файл титула Т1 (для формирования Т2)';
+            horizontal = TRUE;
+            MOVE PROPERTY(t1FileName(e));
+            MOVE PROPERTY(t1FileDate(e));
+            MOVE PROPERTY(t1FileTime(e));
+            MOVE PROPERTY(konturImportT1Files(e));
+        }
+    }
+    issueTab {
+        NEW t4TitleFiles {
+            caption = 'Файл титула Т3 (для формирования Т4)';
+            horizontal = TRUE;
+            MOVE PROPERTY(t3FileName(e));
+            MOVE PROPERTY(t3FileDate(e));
+            MOVE PROPERTY(t3FileTime(e));
+            MOVE PROPERTY(konturImportT3Files(e));
+        }
+    }
+}
+
+EXTEND FORM etrns
+    PROPERTIES(e) konturImportDocflow SHOWIF roleCarrier(e)
+;
+
+DESIGN etrns {
+    actionsCommon {
+        MOVE PROPERTY(konturImportDocflow(e));
+    }
+}
+
+// ------------------------- Общее для XML титулов ------------------------- //
+
+// ДатаВремяВЗТип без указания UTC (НалКоорТочВр = 0)
+vzDateTime (DATETIME d) = toChar(d, 'DD.MM.YYYY"T"HH24:MI:SS');
+
+t2FileName 'Имя файла Т2' = DATA STRING[255](ETRN);
+t4FileName 'Имя файла Т4' = DATA STRING[255](ETRN);
+
+// ------------------------- XML титула Т2 (раздел III приказа) ------------------------- //
+
+GROUP konturT2Doc EXTID 'Документ';
+GROUP konturT2IdInfGO EXTID 'ИдИнфГО' : konturT2Doc;
+GROUP konturT2Content EXTID 'СодИнфПрвПрием' : konturT2Doc;
+GROUP konturT2Rem EXTID 'ЗамПрвПрием' : konturT2Content;
+GROUP konturT2Signer EXTID 'Подписант' : konturT2Doc;
+GROUP konturT2FIO EXTID 'ФИО' : konturT2Signer;
+
+FORM konturT2 FORMEXTID 'Файл'
+    OBJECTS e = ETRN PANEL
+
+    PROPERTIES idFile = t2FileName(e) ATTR EXTID 'ИдФайл',
+               versProg = 'lsFusion ERP' ATTR EXTID 'ВерсПрог',
+               versForm = '5.01' ATTR EXTID 'ВерсФорм'
+
+    PROPERTIES IN konturT2Doc
+               knd = '1110340' ATTR EXTID 'КНД',
+               poFactHZ = 'Транспортная накладная, информация перевозчика о приеме груза' ATTR EXTID 'ПоФактХЖ',
+               datInf = toChar(currentDate(), 'DD.MM.YYYY') ATTR EXTID 'ДатИнфПрвПрием',
+               vrInf = toChar(currentDateTime(), 'HH24:MI:SS') ATTR EXTID 'ВрИнфПрвПрием'
+
+    PROPERTIES IN konturT2IdInfGO
+               idFileGO = t1FileName(e) ATTR EXTID 'ИдФайлИнфГО',
+               datFileGO = t1FileDate(e) ATTR EXTID 'ДатФайлИнфГО',
+               vrFileGO = t1FileTime(e) ATTR EXTID 'ВрФайлИнфГО',
+               epGO = t1Signature(e) ATTR EXTID 'ЭП'
+
+    PROPERTIES IN konturT2Content
+               uid = (OVERRIDE mintransId(e), 'Без номера') ATTR EXTID 'УИД_ТрН',
+               sodOper = 'Груз принят к перевозке водителем, уполномоченным перевозчиком на перевозку груза, от лица, осуществившего погрузку груза в транспортное средство' ATTR EXTID 'СодОпер'
+
+    PROPERTIES IN konturT2Rem
+               zamPrib = vzDateTime(receptionRemarkArrivalDateTime(e)) ATTR EXTID 'ЗамДатВрПриб',
+               nalPrib = ('0' IF receptionRemarkArrivalDateTime(e)) ATTR EXTID 'НалКоорТочВрПрб',
+               zamUbyt = vzDateTime(receptionRemarkDepartureDateTime(e)) ATTR EXTID 'ЗамДатВрУбыт',
+               nalUbyt = ('0' IF receptionRemarkDepartureDateTime(e)) ATTR EXTID 'НалКоорТочВрУб',
+               zamPos = vzDateTime(receptionRemarkLoadingDateTime(e)) ATTR EXTID 'ЗамДатВрПосПрием',
+               nalPos = ('0' IF receptionRemarkLoadingDateTime(e)) ATTR EXTID 'НалКоорТочВрПрм',
+               zamSost = receptionRemarkCondition(e) ATTR EXTID 'ЗамСостГруз',
+               zamMass = receptionRemarkWeight(e) ATTR EXTID 'ЗамМасс',
+               zamMest = receptionRemarkPlaces(e) ATTR EXTID 'ЗамКолМест',
+               zamPogr = receptionRemarkLoading(e) ATTR EXTID 'ЗамПогрРаб'
+
+    PROPERTIES IN konturT2Signer
+               statPodp = '1' ATTR EXTID 'СтатПодп',
+               dolzhn = signerPosition(carrier(e)) ATTR EXTID 'Должн'
+
+    PROPERTIES IN konturT2FIO
+               familia = signerLastName(carrier(e)) ATTR EXTID 'Фамилия',
+               imya = signerFirstName(carrier(e)) ATTR EXTID 'Имя',
+               otch = signerMiddleName(carrier(e)) ATTR EXTID 'Отчество'
+;
+
+// ------------------------- XML титула Т4 (раздел VII приказа) ------------------------- //
+
+GROUP konturT4Doc EXTID 'Документ';
+GROUP konturT4IdInfGP EXTID 'ИдИнфГП' : konturT4Doc;
+GROUP konturT4Content EXTID 'СодПрвВыд' : konturT4Doc;
+GROUP konturT4Rem EXTID 'ЗамПрвВыд' : konturT4Content;
+GROUP konturT4Signer EXTID 'Подписант' : konturT4Doc;
+GROUP konturT4FIO EXTID 'ФИО' : konturT4Signer;
+
+FORM konturT4 FORMEXTID 'Файл'
+    OBJECTS e = ETRN PANEL
+
+    PROPERTIES idFile = t4FileName(e) ATTR EXTID 'ИдФайл',
+               versProg = 'lsFusion ERP' ATTR EXTID 'ВерсПрог',
+               versForm = '5.01' ATTR EXTID 'ВерсФорм'
+
+    PROPERTIES IN konturT4Doc
+               knd = '1110342' ATTR EXTID 'КНД',
+               poFactHZ = 'Транспортная накладная, информация перевозчика о выдаче груза грузополучателю' ATTR EXTID 'ПоФактХЖ',
+               datInf = toChar(currentDate(), 'DD.MM.YYYY') ATTR EXTID 'ДатИнфПрвВыд',
+               vrInf = toChar(currentDateTime(), 'HH24:MI:SS') ATTR EXTID 'ВрИнфПрвВыд'
+
+    PROPERTIES IN konturT4IdInfGP
+               idFileGP = t3FileName(e) ATTR EXTID 'ИдФайлИнфГП',
+               datFileGP = t3FileDate(e) ATTR EXTID 'ДатФайлИнфГП',
+               vrFileGP = t3FileTime(e) ATTR EXTID 'ВрФайлИнфГП',
+               epGP = t3Signature(e) ATTR EXTID 'ЭП'
+
+    PROPERTIES IN konturT4Content
+               uid = (OVERRIDE mintransId(e), 'Без номера') ATTR EXTID 'УИД_ТрН',
+               sodOper = 'Груз с указанными характеристиками сдан водителем, уполномоченным перевозчиком на перевозку груза, лицу, управомоченному на получение груза' ATTR EXTID 'СодОпер'
+
+    PROPERTIES IN konturT4Rem
+               zamPrib = vzDateTime(issueRemarkArrivalDateTime(e)) ATTR EXTID 'ЗамДатаВрПриб',
+               nalPrib = ('0' IF issueRemarkArrivalDateTime(e)) ATTR EXTID 'НалКоорТочВрПр',
+               zamUbyt = vzDateTime(issueRemarkDepartureDateTime(e)) ATTR EXTID 'ЗамДатВрУбыт',
+               nalUbyt = ('0' IF issueRemarkDepartureDateTime(e)) ATTR EXTID 'НалКоорТочВрУб',
+               zamPos = vzDateTime(issueRemarkUnloadingDateTime(e)) ATTR EXTID 'ЗамДатВрПосВыгр',
+               nalPos = ('0' IF issueRemarkUnloadingDateTime(e)) ATTR EXTID 'НалКоорТочВрВыгр',
+               zamSost = issueRemarkCondition(e) ATTR EXTID 'ЗамСостГруз',
+               zamRab = issueRemarkUnloading(e) ATTR EXTID 'ЗамРабВыгр'
+
+    PROPERTIES IN konturT4Signer
+               statPodp = '1' ATTR EXTID 'СтатПодп',
+               dolzhn = signerPosition(carrier(e)) ATTR EXTID 'Должн'
+
+    PROPERTIES IN konturT4FIO
+               familia = signerLastName(carrier(e)) ATTR EXTID 'Фамилия',
+               imya = signerFirstName(carrier(e)) ATTR EXTID 'Имя',
+               otch = signerMiddleName(carrier(e)) ATTR EXTID 'Отчество'
+;
+
+// ------------------------- Формирование, подписание, отправка ------------------------- //
+
+konturTitleXml = DATA LOCAL FILE ();
+
+missingKonturCarrierTitle (ETRN e) = CONCAT ', ',
+    'идентификатор перевозки' IF NOT transportationId(e),
+    'FNSId грузоотправителя' IF NOT fnsId(shipper(e)),
+    'FNSId грузополучателя' IF NOT fnsId(consignee(e)),
+    'FNSId перевозчика' IF NOT fnsId(carrier(e)),
+    'подписант перевозчика (фамилия, имя, должность)' IF NOT (signerLastName(carrier(e)) AND signerFirstName(carrier(e)) AND signerPosition(carrier(e))),
+    'ключ УКЭП перевозчика' IF NOT keyAlias(carrier(e));
+
+konturSendT2 'Отправить титул Т2 (Контур)' (ETRN e) {
+    setKonturAuth(carrier(e));   // от имени перевозчика
+    konturEnsureFnsId(e);   // дозапросить FNSId участников, если ещё не получен
+    IF missingKonturCarrierTitle(e) THEN {
+        MESSAGE CONCAT '\n', 'Отправка Т2 невозможна, не заполнено:', missingKonturCarrierTitle(e);
+        RETURN;
+    }
+    IF NOT (t1FileName(e) AND t1FileDate(e) AND t1FileTime(e) AND t1Signature(e)) THEN
+        konturImportT1Files(e);   // автозаполнение из архива титула по ИД из событий
+    IF NOT (t1FileName(e) AND t1FileDate(e) AND t1FileTime(e) AND t1Signature(e)) THEN {
+        MESSAGE 'Нет данных файла титула Т1 (имя, дата, время, подпись)';
+        RETURN;
+    }
+
+    generateUUID();
+    t2FileName(e) <- STRING[255](CONCAT '_', 'ON_TRNACLPPRIN', fnsId(consignee(e)), fnsId(shipper(e)), fnsId(carrier(e)), '0', toChar(currentDate(), 'YYYYMMDD'), generatedUUID());
+
+    EXPORT konturT2 OBJECTS e = e XML CHARSET 'windows-1251' TO konturTitleXml;
+
+    sign(FILE(konturTitleXml()), TRUE, carrier(e));
+    IF NOT signature() THEN {
+        MESSAGE 'Не удалось сформировать подпись КЭП';
+        RETURN;
+    }
+
+    TRY {
+        // TODO: сверить формат multipart (имена частей файла титула и подписи) на тестовой площадке
+        EXTERNAL HTTP POST konturUrl() + '/v1/transportations/documents?transportationId=' + transportationId(e) +
+            (OVERRIDE '&initiatorBoxId=' + konturBoxId(), '')
+            HEADERS konturHeaders PARAMS konturTitleXml(), FILE(signature()) TO konturResult;
+
+        titleFile(e) <- konturTitleXml();
+        exchangeStatus(e) <- ETRNExchangeStatus.signed;
+        exchangeMessage(e) <- NULL;
+        APPLY;
+    } CATCH {
+        fileToString(konturResult(), 'UTF-8');
+        exchangeMessage(e) <- CONCAT ' ', 'Ошибка отправки Т2:', statusHttp(), resultString(), messageCaughtException();
+        MESSAGE exchangeMessage(e);
+    }
+}
+
+konturSendT4 'Отправить титул Т4 (Контур)' (ETRN e) {
+    setKonturAuth(carrier(e));   // от имени перевозчика
+    konturEnsureFnsId(e);   // дозапросить FNSId участников, если ещё не получен
+    IF missingKonturCarrierTitle(e) THEN {
+        MESSAGE CONCAT '\n', 'Отправка Т4 невозможна, не заполнено:', missingKonturCarrierTitle(e);
+        RETURN;
+    }
+    IF NOT (t3FileName(e) AND t3FileDate(e) AND t3FileTime(e) AND t3Signature(e)) THEN
+        konturImportT3Files(e);   // автозаполнение из архива титула по ИД из событий
+    IF NOT (t3FileName(e) AND t3FileDate(e) AND t3FileTime(e) AND t3Signature(e)) THEN {
+        MESSAGE 'Нет данных файла титула Т3 (имя, дата, время, подпись)';
+        RETURN;
+    }
+
+    generateUUID();
+    t4FileName(e) <- STRING[255](CONCAT '_', 'ON_TRNACLPVYN', fnsId(consignee(e)), fnsId(shipper(e)), fnsId(carrier(e)), '0', toChar(currentDate(), 'YYYYMMDD'), generatedUUID());
+
+    EXPORT konturT4 OBJECTS e = e XML CHARSET 'windows-1251' TO konturTitleXml;
+
+    sign(FILE(konturTitleXml()), TRUE, carrier(e));
+    IF NOT signature() THEN {
+        MESSAGE 'Не удалось сформировать подпись КЭП';
+        RETURN;
+    }
+
+    TRY {
+        // TODO: сверить формат multipart (имена частей файла титула и подписи) на тестовой площадке
+        EXTERNAL HTTP POST konturUrl() + '/v1/transportations/documents?transportationId=' + transportationId(e) +
+            (OVERRIDE '&initiatorBoxId=' + konturBoxId(), '')
+            HEADERS konturHeaders PARAMS konturTitleXml(), FILE(signature()) TO konturResult;
+
+        titleFile(e) <- konturTitleXml();
+        exchangeStatus(e) <- ETRNExchangeStatus.signed;
+        exchangeMessage(e) <- NULL;
+        APPLY;
+    } CATCH {
+        fileToString(konturResult(), 'UTF-8');
+        exchangeMessage(e) <- CONCAT ' ', 'Ошибка отправки Т4:', statusHttp(), resultString(), messageCaughtException();
+        MESSAGE exchangeMessage(e);
+    }
+}
+
+// ------------------------- Реализации абстракций ------------------------- //
+
+sendCarrierReception (ETRN e) + WHEN provider(e) = ETRNProvider.kontur THEN {
+    NEWSESSION {
+        konturSendT2(e);
+    }
+}
+
+sendCarrierDelivery (ETRN e) + WHEN provider(e) = ETRNProvider.kontur THEN {
+    NEWSESSION {
+        konturSendT4(e);
+    }
+}

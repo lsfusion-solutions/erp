@@ -1,0 +1,90 @@
+MODULE KonturLogisticsT1Import;
+
+REQUIRE KonturLogistics, ETRNTitleXmlRu;
+
+NAMESPACE ETRN;
+
+// Kontur-специфика загрузки полного состава титула Т1: получение titleId,
+// скачивание архива титула, распаковка XML. Разбор XML - в общем ETRNTitleXmlRu.
+
+// ------------------------- Загрузка полного состава титула Т1 у провайдера ------------------------- //
+// Скачивание XML-файла титула Т1 из документооборота перевозки и полный разбор parseETRNTitleXml.
+// titleId Т1 берётся из сведений о перевозке (receptionInfo.titleId).
+
+konturFullTitleId = DATA LOCAL STRING[100] ();
+
+GROUP konturReceptionInfo EXTID 'receptionInfo';
+FORM konturReceptionTitleId
+    PROPERTIES IN konturReceptionInfo konturFullTitleId() EXTID 'titleId'
+;
+
+konturImportFullData (ETRN e) {
+    setKonturAuth(konturOurParty(e));
+    IF NOT transportationId(e) THEN {
+        MESSAGE 'Для ЭТрН не получен идентификатор перевозки у провайдера';
+        RETURN;
+    }
+
+    // 1. идентификатор титула Т1 (receptionInfo.titleId)
+    // TODO: сверить метод/тело запроса на тестовой площадке (POST /v2/transportations/{id})
+    konturFullTitleId() <- NULL;
+    TRY {
+        EXTERNAL HTTP POST konturUrl() + '/v2/transportations/' + transportationId(e) +
+            (OVERRIDE '?diadocBoxId=' + konturBoxId(), '') HEADERS konturHeaders TO konturResult;
+        IMPORT konturReceptionTitleId JSON FROM konturResult();
+    } CATCH {
+        fileToString(konturResult(), 'UTF-8');
+        MESSAGE CONCAT ' ', 'Ошибка получения идентификатора титула Т1:', statusHttp(), resultString(), messageCaughtException();
+        RETURN;
+    }
+    IF NOT konturFullTitleId() THEN {
+        MESSAGE 'Не удалось получить идентификатор титула Т1 перевозки';
+        RETURN;
+    }
+
+    // 2. архив файлов титула (zip: xml + подпись)
+    TRY {
+        EXTERNAL HTTP GET konturUrl() + '/v1/transportations/' + transportationId(e) + '/titles/' + konturFullTitleId()
+            HEADERS konturHeaders TO konturResult;
+    } CATCH {
+        fileToString(konturResult(), 'UTF-8');
+        MESSAGE CONCAT ' ', 'Ошибка получения файлов титула Т1:', statusHttp(), resultString(), messageCaughtException();
+        RETURN;
+    }
+
+    // 3. распаковать архив, извлечь XML-файл титула (не .sig)
+    titleFile(e) <- NULL;
+    unzipping() <- konturResult();
+    makeUnzipFile();
+    FOR unzipped(STRING[100] s) AND upper(s) LIKE '%.XML' DO
+        titleFile(e) <- unzipped(s);
+    IF NOT titleFile(e) THEN {
+        MESSAGE 'В архиве титула Т1 не найден XML-файл';
+        RETURN;
+    }
+
+    // 4. полный разбор титула Т1 в поля документа (parseETRNTitleXml выполняет свой APPLY)
+    parseETRNTitleXml(e);
+
+    titleImportedDateTime(e) <- currentDateTime();
+    APPLY;
+}
+
+importFullData (ETRN e) + WHEN provider(e) = ETRNProvider.kontur THEN {
+    NEWSESSION {
+        konturImportFullData(e);
+    }
+}
+
+// ------------------------- Кнопки на списке ЭТрН ------------------------- //
+
+EXTEND FORM etrns
+    PROPERTIES(e) READONLY titleImportedDateTime
+    PROPERTIES(e) parseETRNTitleXml SHOWIF ((roleConsignee(e) OR roleCarrier(e)) AND titleFile(e))
+;
+
+DESIGN etrns {
+    actionsCommon {
+        MOVE PROPERTY(parseETRNTitleXml(e));
+    }
+}

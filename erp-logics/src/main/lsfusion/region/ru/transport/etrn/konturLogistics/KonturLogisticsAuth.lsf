@@ -1,0 +1,213 @@
+MODULE KonturLogisticsAuth;
+
+REQUIRE ETRNExchange, LegalEntity, Time, Utils;
+
+NAMESPACE ETRN;
+
+// Автономная аутентификация Контур.Логистики (не зависит от модулей Diadoc).
+// Поддерживает два способа: API-Key (x-kontur-apikey) и OpenID Connect (Bearer + refresh_token).
+// Мультибокс: настройки авторизации хранятся на ящике (KonturBox), привязанном к организации.
+
+EXTEND CLASS ETRNProvider { kontur 'Контур.Логистика' }
+
+onStarted()+{
+    IF NOT defaultProvider() THEN {
+        defaultProvider() <- ETRNProvider.kontur;
+    }
+}
+
+// ------------------------- Глобальные настройки провайдера ------------------------- //
+
+konturStaging 'Тестовая площадка' = DATA BOOLEAN ();
+konturGost 'ГОСТ-шифрование' = DATA BOOLEAN ();
+
+konturUrl () = IF konturStaging() THEN 'https://logist-api-staging.kontur.ru'
+               ELSE IF konturGost() THEN 'https://logist-api-gost.kontur.ru'
+               ELSE 'https://logist-api.kontur.ru';
+
+// OpenID Connect (одно приложение-интегратор на систему)
+konturOidcUrl 'URL OpenID провайдера' = DATA STRING[255](); // напр. https://auth.kontur.ru
+konturClientId 'client_id приложения' = DATA STRING[255]();
+konturClientSecret 'client_secret приложения' = DATA STRING[255]() ECHO;
+
+// Системные настройки по умолчанию (обратная совместимость: один ящик/ключ без мультибокс)
+konturApiKeySystem 'API-Key (по умолчанию)' = DATA STRING[255]() ECHO;
+konturBoxIdSystem 'ID ящика по умолчанию' = DATA STRING[36]();
+
+// ------------------------- Способ авторизации ------------------------- //
+
+CLASS KonturAuthMode 'Способ авторизации Контур' {
+    apiKey 'API-Key',
+    oidc 'OpenID Connect'
+}
+name 'Наименование' (KonturAuthMode m) = staticCaption(m) IF m IS KonturAuthMode;
+
+// ------------------------- Ящик Контур.Логистика ------------------------- //
+
+CLASS KonturBox 'Ящик Контур.Логистика';
+TABLE konturBox (KonturBox);
+
+boxId 'ID ящика (Диадок)' = DATA STRING[36](KonturBox) IN id;
+konturBox (STRING[36] boxId) = GROUP AGGR KonturBox b BY boxId(b);
+
+legalEntity 'Организация' = DATA LegalEntity (KonturBox);
+nameLegalEntity 'Организация' (KonturBox b) = name(legalEntity(b)) CHARWIDTH 25;
+name 'Наименование' (KonturBox b) = OVERRIDE nameLegalEntity(b), boxId(b);
+
+authMode 'Способ авторизации' = DATA KonturAuthMode (KonturBox);
+nameAuthMode 'Способ авторизации' (KonturBox b) = staticCaption(authMode(b));
+
+apiKey 'API-Key' = DATA STRING[255](KonturBox) ECHO;
+accessToken = DATA STRING (KonturBox);
+refreshToken 'Refresh token' = DATA STRING (KonturBox) ECHO;
+tokenExpiresAt 'Токен действителен до' = DATA DATETIME (KonturBox);
+
+// ящик нашей организации (для определения владельца запроса)
+konturBox (LegalEntity l) = GROUP LAST KonturBox b ORDER b BY legalEntity(b);
+
+// ------------------------- OIDC: обновление токена по refresh_token ------------------------- //
+
+konturOidcResult = DATA LOCAL FILE ();
+
+konturOidcHeaders (TEXT name) = CASE
+    WHEN name == 'Content-Type' THEN 'application/x-www-form-urlencoded';
+
+// POST /connect/token, grant_type=refresh_token → новый access_token (+ refresh_token, expires_in)
+// TODO: сверить endpoint OpenID провайдера и формат ответа на тестовой площадке
+konturRefreshOidc (KonturBox b) {
+    IF NOT (refreshToken(b) AND konturClientId() AND konturOidcUrl()) THEN {
+        MESSAGE 'Для OIDC-авторизации не заданы refresh_token / client_id / URL OpenID провайдера';
+        RETURN;
+    }
+    TRY {
+        EXTERNAL HTTP POST konturOidcUrl() + '/connect/token'
+            HEADERS konturOidcHeaders
+            PARAMS ('grant_type=refresh_token&refresh_token=' + refreshToken(b) +
+                    '&client_id=' + konturClientId() +
+                    (OVERRIDE '&client_secret=' + konturClientSecret(), '') +
+                    '&scope=offline_access')
+            TO konturOidcResult;
+
+        IMPORT JSON FROM konturOidcResult() FIELDS () STRING access_token, STRING refresh_token, INTEGER expires_in DO {
+            IF access_token THEN {
+                accessToken(b) <- access_token;
+                refreshToken(b) <- refresh_token WHERE refresh_token;
+                // срок с запасом 1 минута; expires_in - в секундах
+                tokenExpiresAt(b) <- sumMinutes(currentDateTime(), (OVERRIDE expires_in, 3600) / 60 - 1);
+            }
+        }
+        APPLY;
+    } CATCH {
+        fileToString(konturOidcResult(), 'UTF-8');
+        MESSAGE CONCAT ' ', 'Ошибка обновления OIDC-токена:', statusHttp(), resultString(), messageCaughtException();
+    }
+}
+
+// ------------------------- Контекст запроса ------------------------- //
+// Перед каждым обращением к API устанавливается контекст (setKonturAuth), из которого
+// konturHeaders формирует заголовок, а konturBoxId подставляется в query как diadocBoxId.
+
+curBox = DATA LOCAL KonturBox ();
+curApiKey = DATA LOCAL STRING[255] ();
+curToken = DATA LOCAL STRING ();
+curBoxId = DATA LOCAL STRING[36] ();
+
+konturHeaders (TEXT name) = CASE
+    WHEN name == 'x-kontur-apikey' AND curApiKey() THEN curApiKey()
+    WHEN name == 'Authorization' AND curToken() THEN 'Bearer ' + curToken();
+
+// diadocBoxId в query (пусто, если не задан)
+konturBoxId () = curBoxId();
+
+setKonturAuth (KonturBox b) {
+    curBox() <- b;
+    IF authMode(b) == KonturAuthMode.oidc THEN {
+        IF NOT (tokenExpiresAt(b) > currentDateTime()) THEN konturRefreshOidc(b);
+        curToken() <- accessToken(b);
+        curApiKey() <- NULL;
+    } ELSE {
+        curApiKey() <- OVERRIDE apiKey(b), konturApiKeySystem();
+        curToken() <- NULL;
+    }
+    curBoxId() <- OVERRIDE boxId(b), konturBoxIdSystem();
+}
+
+// авторизация по умолчанию (нет мультибокс - системный ключ/ящик)
+setKonturAuthDefault () {
+    curBox() <- NULL;
+    curApiKey() <- konturApiKeySystem();
+    curToken() <- NULL;
+    curBoxId() <- konturBoxIdSystem();
+}
+
+// авторизация от имени организации-владельца ящика (fallback на системные настройки)
+setKonturAuth (LegalEntity l) {
+    IF konturBox(l) THEN setKonturAuth(konturBox(l));
+    ELSE setKonturAuthDefault();
+}
+
+// ------------------------- Формы настроек ------------------------- //
+
+EXTEND FORM options
+    PROPERTIES() konturStaging, konturGost, konturApiKeySystem, konturBoxIdSystem,
+                 konturOidcUrl, konturClientId, konturClientSecret
+;
+
+DESIGN options {
+    tranport {
+        NEW konturLogistics {
+            caption = 'Контур.Логистика';
+            lines = 2;
+            MOVE PROPERTY(konturStaging());
+            MOVE PROPERTY(konturGost());
+            MOVE PROPERTY(konturApiKeySystem());
+            MOVE PROPERTY(konturBoxIdSystem());
+            NEW konturOidc {
+                caption = 'OpenID Connect';
+                horizontal = TRUE;
+                MOVE PROPERTY(konturOidcUrl());
+                MOVE PROPERTY(konturClientId());
+                MOVE PROPERTY(konturClientSecret());
+            }
+        }
+    }
+}
+
+FORM konturBox 'Ящик Контур.Логистика'
+    OBJECTS b = KonturBox PANEL
+    PROPERTIES(b) boxId, nameLegalEntity, nameAuthMode, apiKey, refreshToken, accessToken READONLY, tokenExpiresAt READONLY
+
+    EDIT KonturBox OBJECT b
+;
+
+DESIGN konturBox {
+    OBJECTS {
+        NEW main {
+            caption = 'Ящик';
+            MOVE PROPERTY(boxId(b));
+            MOVE PROPERTY(nameLegalEntity(b));
+            NEW auth {
+                caption = 'Авторизация';
+                MOVE PROPERTY(nameAuthMode(b));
+                MOVE PROPERTY(apiKey(b));
+                MOVE PROPERTY(refreshToken(b));
+                MOVE PROPERTY(accessToken(b));
+                MOVE PROPERTY(tokenExpiresAt(b));
+            }
+        }
+    }
+}
+
+FORM konturBoxes 'Ящики Контур.Логистика'
+    OBJECTS b = KonturBox
+    PROPERTIES(b) READONLY boxId, nameLegalEntity, nameAuthMode, tokenExpiresAt
+    PROPERTIES(b) NEWSESSION NEW, EDIT, DELETE
+
+    LIST KonturBox OBJECT b
+;
+
+NAVIGATOR {
+    epdNavigator {
+        NEW konturBoxes;
+    }
+}
