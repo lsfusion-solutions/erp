@@ -28,7 +28,11 @@ createPriceListLabelExtra ABSTRACT LIST(PriceTransactionDocument);
 createPriceListLabel 'Распечатать ценники'(PriceTransactionDocument priceList)  { 
 	NEWSESSION {
 	    DIALOG selectDepartmentStore OBJECTS p = priceList, d INPUT DO {
-	        select(Sku sku, LabelType labelType, d) <- countPriceListDetail(sku,priceList) AND inPrint(labelType, sku, d);   
+	        select(Sku sku, LabelType labelType, d) <- countPriceListDetail(sku,priceList) AND inPrint(labelType, sku, d);
+            IF printLabelBalance() THEN {
+                select(Sku sku, LabelType labelType, d) <- NULL WHERE select(sku, labelType, d) AND NOT prevCurrentBalance(sku, d) > 0;
+            }
+
 	        localPriceListType() <- printLabelPriceListType(operation[PriceList](priceList));
 	        createPriceListLabelExtra(priceList);
 	        createLabelTransaction(d);  
