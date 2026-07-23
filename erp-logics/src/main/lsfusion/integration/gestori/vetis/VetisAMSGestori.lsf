@@ -17,16 +17,28 @@ EXTEND FORM applicationRequests
     FILTERS accessApplicationRequest(currentUser(), r) OR NOT limitAccess(currentUser())
 ;
 
+// --- Площадка заявки (все типы запросов) ---
+// запросы списков/по UUID/по GUID — своя площадка; оформление входящей партии — площадка-получатель ВСД;
+// создание номенклатуры — площадка производства; оформление транспортной партии/условия регионализации — площадка-отправитель
+enterpriseRequestGestori (ApplicationRequest r) = OVERRIDE
+    enterprise(r AS VetDocumentListRequest),
+    enterprise(r AS StockEntryListRequest),
+    enterprise(r AS GetVetDocumentByUuidRequest),
+    enterprise(r AS GetStockEntryByGuidRequest),
+    consigneeEnterprise(vetDocument(incomingConsignment(r AS ProcessIncomingConsignmentRequest))),
+    (GROUP MIN Enterprise e IF in(productItem(r AS ProductItemRequest), e)),
+    (GROUP MAX consignorEnterprise(OutgoingConsignment oc) IF in(r AS PrepareOutgoingConsignmentRequest, oc)),
+    (GROUP MAX consignorEnterprise(OutgoingConsignment oc) IF in(r AS CheckShipmentRegionalization, oc));
+
 // --- Фильтр по площадке ---
 
 filterEnterprise = DATA LOCAL Enterprise();
 nameFilterEnterprise 'Площадка' () = name(filterEnterprise());
 
 EXTEND FORM applicationRequests
-    PROPERTIES() nameFilterEnterprise PANEL 
+    PROPERTIES() nameFilterEnterprise PANEL
     FILTERS NOT filterEnterprise()
-        OR enterprise(r AS VetDocumentListRequest) = filterEnterprise()
-        OR enterprise(r AS StockEntryListRequest) = filterEnterprise()
+        OR enterpriseRequestGestori(r) = filterEnterprise()
 ;
 
 // --- Дополнительные фильтры ---
@@ -263,19 +275,7 @@ CONSTRAINT SETCHANGED(enterprise(StockEntryListRequest r)) AND limitAccess(curre
     NOT accessCompany(currentUser(), enterprise(r))
     MESSAGE 'Нет доступа к данной площадке';
 
-// --- Площадка и GUID площадки в списке заявок ---
-// площадка заявки по всем типам запросов: запросы списков/по UUID/по GUID — своя площадка;
-// оформление входящей партии — площадка-получатель ВСД; создание номенклатуры — площадка производства
-enterpriseRequestGestori (ApplicationRequest r) = OVERRIDE
-    enterprise(r AS VetDocumentListRequest),
-    enterprise(r AS StockEntryListRequest),
-    enterprise(r AS GetVetDocumentByUuidRequest),
-    enterprise(r AS GetStockEntryByGuidRequest),
-    consigneeEnterprise(vetDocument(incomingConsignment(r AS ProcessIncomingConsignmentRequest))),
-    (GROUP MIN Enterprise e IF in(productItem(r AS ProductItemRequest), e)),
-    (GROUP MAX consignorEnterprise(OutgoingConsignment oc) IF in(r AS PrepareOutgoingConsignmentRequest, oc)),
-    (GROUP MAX consignorEnterprise(OutgoingConsignment oc) IF in(r AS CheckShipmentRegionalization, oc));
-
+// --- Площадка и GUID площадки в списке заявок (свойство enterpriseRequestGestori объявлено выше, у фильтра) ---
 nameEnterpriseRequest 'Площадка' (ApplicationRequest r) = name(enterpriseRequestGestori(r));
 guidEnterpriseRequest 'GUID площадки' (ApplicationRequest r) = guid(enterpriseRequestGestori(r));
 
