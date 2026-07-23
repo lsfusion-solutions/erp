@@ -992,30 +992,6 @@ DESIGN incomingConsignments {
     PROPERTY(uuidVetDocument(c)) { caption = 'UUID ВСД'; }
 }
 
-// ---- Отправка транспортной партии: блокировать без рейса (машины) по накладной ----
-// рейс (машина) исходящей партии = truck(trip(накладной)); без него в запрос не попадёт номер ТС
-
-processOutgoingGestori 'Отправить в Ветис' (OutgoingConsignment c) {
-    IF (GROUP SUM 1 IF in(OutgoingConsignment oc)) THEN {
-        IF (GROUP SUM 1 IF in(OutgoingConsignment oc) AND NOT truck(oc)) THEN {
-            MESSAGE 'Нельзя отправить транспортную партию: по накладной не указан рейс (машина). Отметьте только партии с назначенным рейсом.';
-            RETURN;
-        }
-    } ELSE IF NOT truck(c) THEN {
-        MESSAGE 'Нельзя отправить транспортную партию: по накладной не указан рейс (машина).';
-        RETURN;
-    }
-    process(c);
-}
-
-EXTEND FORM outgoingConsignments
-    PROPERTIES(c) processOutgoingGestori READONLYIF NOT toProcess(c) GRID
-;
-
-DESIGN outgoingConsignments {
-    PROPERTY(process(c)) { hide = TRUE; }
-}
-
 // ---- Справочник Машины: подсветка некорректного формата номера ТС/прицепа (стандарт РФ) ----
 // ТС: буква цифра×3 буква×2 регион(2-3 цифры); прицеп: буква×2 цифра×4 регион(2-3); буквы АВЕКМНОРСТУХ (кир./лат.)
 isValidVehicleNumberGestori = FORMULA NULL BOOLEAN 'CASE WHEN $1 ~* \'^[АВЕКМНОРСТУХABEKMHOPCTYX][0-9]{3}[АВЕКМНОРСТУХABEKMHOPCTYX]{2}[[:space:]]*[0-9]{2,3}$\' THEN 1 ELSE NULL END';
@@ -1023,6 +999,21 @@ isValidTrailerNumberGestori = FORMULA NULL BOOLEAN 'CASE WHEN $1 ~* \'^[АВЕК
 
 invalidSidTruckGestori (Truck t) = sid(t) AND NOT isValidVehicleNumberGestori(sid(t));
 invalidTrailerTruckGestori (Truck t) = trailer(t) AND NOT isValidTrailerNumberGestori(trailer(t));
+
+// ---- Отправка транспортной партии: проверки перед отправкой (все пути отправки идут через processOutgoingConsignment) ----
+// рейс (машина) исходящей партии = truck(trip(накладной)); без него в запрос не попадёт номер ТС
+beforeProcessOutgoingConsignment() + {
+    FOR in(OutgoingConsignment oc) AND (NOT truck(oc) OR NOT sid(truck(oc))) DO {
+        MESSAGE 'Нельзя отправить транспортную партию: по накладной не указан рейс или госномер транспортного средства.';
+        cancelProcessOutgoingConsignment() <- TRUE;
+        RETURN;
+    }
+    FOR in(OutgoingConsignment oc) AND NOT isValidVehicleNumberGestori(sid(truck(oc))) DO {
+        MESSAGE 'Нельзя отправить транспортную партию: некорректный номер транспортного средства «' + sid(truck(oc)) + '».';
+        cancelProcessOutgoingConsignment() <- TRUE;
+        RETURN;
+    }
+}
 
 EXTEND FORM trucks
     PROPERTIES(t) READONLYIF isReadonly() sidGestori = sid BACKGROUND (RGB(255,200,200) IF invalidSidTruckGestori(t)) BEFORE nameTruckModel(t),

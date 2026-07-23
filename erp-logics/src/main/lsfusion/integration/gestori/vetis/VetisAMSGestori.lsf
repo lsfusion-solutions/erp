@@ -272,7 +272,9 @@ enterpriseRequestGestori (ApplicationRequest r) = OVERRIDE
     enterprise(r AS GetVetDocumentByUuidRequest),
     enterprise(r AS GetStockEntryByGuidRequest),
     consigneeEnterprise(vetDocument(incomingConsignment(r AS ProcessIncomingConsignmentRequest))),
-    (GROUP MIN Enterprise e IF in(productItem(r AS ProductItemRequest), e));
+    (GROUP MIN Enterprise e IF in(productItem(r AS ProductItemRequest), e)),
+    (GROUP MAX consignorEnterprise(OutgoingConsignment oc) IF in(r AS PrepareOutgoingConsignmentRequest, oc)),
+    (GROUP MAX consignorEnterprise(OutgoingConsignment oc) IF in(r AS CheckShipmentRegionalization, oc));
 
 nameEnterpriseRequest 'Площадка' (ApplicationRequest r) = name(enterpriseRequestGestori(r));
 guidEnterpriseRequest 'GUID площадки' (ApplicationRequest r) = guid(enterpriseRequestGestori(r));
