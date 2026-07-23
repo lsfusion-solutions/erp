@@ -187,12 +187,14 @@ issueDateLastRequestVetDocument 'Время заявки' (VetDocument s) = issu
 nameStatusLastRequestVetDocument 'Статус заявки' (VetDocument s) = nameStatus(lastRequestVetDocument(s));
 errorLastRequestVetDocument 'Ошибка заявки' (VetDocument s) = error(lastRequestVetDocument(s));
 toProcessVetDocument 'К отправке' (VetDocument s) = (GROUP SUM 1 IF vetDocument(IncomingConsignment c) = s)
-    AND NOT notCompleted(lastRequestVetDocument(s)) AND NOT succeeded(lastRequestVetDocument(s));
+    AND NOT notCompleted(lastRequestVetDocument(s)) AND NOT succeeded(lastRequestVetDocument(s))
+    AND NOT status(s) = VetDocumentStatus.UTILIZED; // погашенный ВСД отправлять на гашение не нужно
 issueDateLastRequest 'Время заявки' (IncomingConsignment o) = issueDate(lastRequest(o));
 nameStatusLastRequest 'Статус заявки' (IncomingConsignment o) = nameStatus(lastRequest(o));
 errorLastRequest 'Ошибка заявки' (IncomingConsignment o) = error(lastRequest(o));
 
-toProcess 'К отправке' (IncomingConsignment o) = o IS IncomingConsignment AND NOT notCompleted(lastRequest(o)) AND NOT succeeded(lastRequest(o)) MATERIALIZED INDEXED;  
+toProcess 'К отправке' (IncomingConsignment o) = o IS IncomingConsignment AND NOT notCompleted(lastRequest(o)) AND NOT succeeded(lastRequest(o))
+    AND NOT status(vetDocument(o)) = VetDocumentStatus.UTILIZED MATERIALIZED INDEXED; // погашенные ВСД не «К отправке»
 
 EXTEND FORM incomingConsignments
     PROPERTIES(c) READONLY issueDateLastRequest, nameStatusLastRequest 
