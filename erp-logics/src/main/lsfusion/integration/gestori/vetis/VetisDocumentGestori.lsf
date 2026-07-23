@@ -1095,7 +1095,13 @@ CONSTRAINT countInvoiceVDGestori(VetDocument s) > 1
 forbidMultiDetailVDGestori 'Запрещать связывать ВСД с несколькими позициями одного документа' = DATA BOOLEAN ();
 CONSTRAINT forbidMultiDetailVDGestori() AND countDetailVDInvoiceGestori(Purchase.UserInvoice inv, VetDocument s) > 1
     MESSAGE 'Нельзя связывать один ВСД с несколькими позициями одного документа';
-EXTEND FORM options PROPERTIES forbidMultiDetailVDGestori();
+// настройка — на форме Администрирование → Интеграция, вкладка ВЕТИС
+EXTEND FORM integrationData PROPERTIES() forbidMultiDetailVDGestori;
+DESIGN integrationData {
+    vetis {
+        MOVE PROPERTY(forbidMultiDetailVDGestori());
+    }
+}
 
 // при изменении количества по связанной с ВСД позиции пересчитывать выбранный объём (нулевой — полный возврат — не трогаем)
 WHEN CHANGED(shipmentQuantity(Purchase.UserInvoiceDetail vd)) AND VetisPurchase.volume(vd, VetDocument vtd) > 0

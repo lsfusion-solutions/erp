@@ -280,7 +280,8 @@ META defineDocumentIncomingProcess (doc, obj)
     errorLastRequest 'Ошибка заявки' (###doc##Detail vd, VetDocument vtd) = errorLastRequest(incomingConsignment(vd, vtd));
     
     toProcess (###doc##Detail vd, VetDocument vtd) = toProcess(incomingConsignment(vd, vtd));
-    toProcess (###doc i) = GROUP SUM 1 IF toProcess(###doc##Detail vd, VetDocument vtd) AND doc(vd) = i; 
+    // есть строки с непогашенными ВСД, по которым запрос на оформление ещё не отправлен (или завершился ошибкой)
+    toProcess (###doc i) = GROUP SUM 1 IF toProcess(###doc##Detail vd, VetDocument vtd) AND doc(vd) = i AND toProcessVetDocument(vtd);
     process 'Отправить в Ветис' (###doc##Detail vd, VetDocument vtd) { process(incomingConsignment(vd, vtd)); }
     
     // гашение по документу: группировка по ВСД — один запрос на ВСД (суммарный принятый объём — в processVolume);
