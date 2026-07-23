@@ -3,9 +3,9 @@ package lsfusion.erp.region.by.finance.evat;
 import lsfusion.base.SystemUtils;
 import lsfusion.interop.action.ClientAction;
 import lsfusion.interop.action.ClientActionDispatcher;
+import org.apache.log4j.Logger;
 
 import java.io.File;
-import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -14,6 +14,8 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 public class EVATClientAction implements ClientAction {
+    private final static Logger logger = Logger.getLogger(EVATClientAction.class);
+
     public static boolean initialized;
 
     public Map<String, Map<Long, List<Object>>> files; //signAndSend
@@ -67,10 +69,10 @@ public class EVATClientAction implements ClientAction {
         try {
             return new EVATWorker(files, invoices, serviceUrl, path, exportPath, password, certNumber, certIndex, useActiveX, type).execute();
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            logger.error("EVAT client action interrupted", e);
             return e.getMessage();
         } catch (ExecutionException e) {
-            e.printStackTrace();
+            logger.error("EVAT client action failed", e);
             return "Убедитесь, что все сертификаты актуальны. Выполните импорт СОС на портале.\n\n" + e.getMessage();
         }
     }
@@ -85,7 +87,7 @@ public class EVATClientAction implements ClientAction {
             method.setAccessible(true);
             method.invoke(urlClassLoader, u);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Error adding path " + s + " to classpath", e);
         }
     }
 }
