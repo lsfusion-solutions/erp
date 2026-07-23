@@ -102,8 +102,8 @@ DESIGN productItem {
         MOVE PROPERTY(nameOwner(o)) { charWidth = 100; }
         MOVE PROPERTY(nameEnterprises(o)) { charWidth = 100; }
         MOVE PROPERTY(packagingType(o)) { charWidth = 50; }
-        MOVE PROPERTY(packagingQuantity(o)) { charWidth = 15; }
-        MOVE PROPERTY(packagingVolume(o)) { charWidth = 15; }
+        MOVE PROPERTY(packagingQuantity(o)) { charWidth = 15; valueAlignmentHorz = START; }
+        MOVE PROPERTY(packagingVolume(o)) { charWidth = 15; valueAlignmentHorz = START; }
         MOVE PROPERTY(packagingUnit(o)) { charWidth = 30; }
         MOVE PROPERTY(statusVetisGestori(o));
         MOVE PROPERTY(inactive(o));
@@ -258,11 +258,19 @@ needUpdateRequestGestori = DATA BOOLEAN (ProductItem);
 WHEN SET(ProductItem p IS ProductItem) AND ownProductGestori(p) AND NOT skipOwnConstraint() DO
     needCreateRequestGestori(p) <- TRUE;
 
+// запись зарегистрирована в реестре (есть GUID) — изменения уходят запросом изменения
 WHEN (CHANGED(name(ProductItem p)) OR CHANGED(globalID(p)) OR CHANGED(code(p)) OR
       CHANGED(subProduct(p)) OR CHANGED(producer(p)) OR CHANGED(owner(p)) OR
-      CHANGED(inactive(p)) OR CHANGED(correspondsToGost(p)) OR CHANGED(gost(p)) OR CHANGED(nameEnterprises(p))) AND ownProductGestori(p) AND uuid(p) AND NOT isExported(p)
+      CHANGED(inactive(p)) OR CHANGED(correspondsToGost(p)) OR CHANGED(gost(p)) OR CHANGED(nameEnterprises(p))) AND ownProductGestori(p) AND guid(p) AND NOT isExported(p)
       AND NOT needCreateRequestGestori(p) AND NOT skipOwnConstraint() DO
     needUpdateRequestGestori(p) <- TRUE;
+
+// запись без GUID (ещё не зарегистрирована) — изменения уходят запросом создания
+WHEN (CHANGED(name(ProductItem p)) OR CHANGED(globalID(p)) OR CHANGED(code(p)) OR
+      CHANGED(subProduct(p)) OR CHANGED(producer(p)) OR CHANGED(owner(p)) OR
+      CHANGED(inactive(p)) OR CHANGED(correspondsToGost(p)) OR CHANGED(gost(p)) OR CHANGED(nameEnterprises(p))) AND ownProductGestori(p) AND NOT guid(p) AND NOT isExported(p)
+      AND NOT SET(p IS ProductItem) AND NOT needCreateRequestGestori(p) AND NOT skipOwnConstraint() DO
+    needCreateRequestGestori(p) <- TRUE;
 
 // ошибка обмена: при ошибке отправки/получения ответа — пометить запись и сбросить «Экспортируемый»;
 // при успешной отправке запроса — снять пометку
@@ -367,6 +375,8 @@ hideDeleteProductItem(ProductItem o) += TRUE IF o IS ProductItem;
 
 // Производитель и Владелец становятся только для чтения после регистрации в Ветис (uuid заполнен)
 readonlyProductItemOwner(ProductItem i) += TRUE IF uuid(i) AND ownProductGestori(i);
+// вид продукции нельзя менять у существующей (зарегистрированной в реестре) номенклатуры
+readonlyProductItemSubProduct(ProductItem i) += TRUE IF guid(i);
 
 // --- Производственная площадка + автозаполнение списка площадок ---
 
