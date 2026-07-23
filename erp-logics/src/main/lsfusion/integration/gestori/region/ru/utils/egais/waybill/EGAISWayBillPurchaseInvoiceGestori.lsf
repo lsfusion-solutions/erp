@@ -1,6 +1,7 @@
 MODULE EGAISWayBillPurchaseInvoiceGestori;
 
-REQUIRE EGAISPurchaseInvoiceMatchGestori, EGAISStock, EGAISItem, EGAISWayBillActExchange;
+REQUIRE EGAISPurchaseInvoiceMatchGestori, EGAISStock, EGAISItem, EGAISWayBillActExchange,
+        EGAISPurchaseShipmentGestori;
 
 PRIORITY Purchase;
 
@@ -16,7 +17,7 @@ createPurchaseFromTTN 'Создать накладную (закупка) из �
         RETURN;
     }
     IF NOT operationFromTTN() THEN {
-        MESSAGE 'Не задана операция накладной (закупка) из ЕГАИС ТТН (раздел "Опции")';
+        MESSAGE 'Не задана операция накладной (закупка) из ЕГАИС ТТН (раздел "Интеграция" -> "ЕГАИС")';
         RETURN;
     }
     IF NOT stock(consignee(w)) THEN {
@@ -41,10 +42,12 @@ createPurchaseFromTTN 'Создать накладную (закупка) из �
             quantity(d) <- quantity(p);
             invoicePrice(d) <- price(p);
             price(d) <- round2(price(p) * 100 / (100 + valueVAT(minItem(product(p)))));
-            shipmentQuantity(d) <- quantity(p) IF NOT countMarkCodes(p);
-            quantity(d, p) <- quantity(p) IF NOT countMarkCodes(p);
+            quantity(d, p) <- quantity(p);
             in(sku(d), product(p)) <- TRUE;
         }
+        
+        IF canCreateLot(i) THEN
+            createLots(i);
 
         SHOW userInvoice OBJECTS i = i;
     }

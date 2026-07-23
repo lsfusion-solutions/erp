@@ -10,7 +10,9 @@ META defineDocumentInWayBillActProcess (doc, quantityProp)
     quantityWayBill 'Кол-во (ЕГАИС)' (###doc###Detail d) = GROUP SUM quantity(d, WayBillPosition p) IF NOT canceled(p);
 
     overCheckProcess = ABSTRACT VALUE STRING (###doc);
-    
+    // позволяет исключить марку из акта, даже если она привязана к документу
+    skipAcceptedMark = ABSTRACT BOOLEAN (###doc, WayBillMark);
+
     process 'Отправить в ЕГАИС' (###doc d) {
         IF overCheckProcess(d) THEN {
             MESSAGE overCheckProcess(d);
@@ -31,7 +33,7 @@ META defineDocumentInWayBillActProcess (doc, quantityProp)
         FOR WayBill w = wayBill(d) DO {
             NEWSESSION {
                 realQuantity(WayBillPosition p) <- quantity###doc(p) WHERE wayBill(p) = w;
-                accepted(WayBillMark m) <- TRUE IF quantity(d, lot(markCode(m))) WHERE wayBill(wayBillPosition(m)) = w;
+                accepted(WayBillMark m) <- TRUE IF quantity(d, lot(markCode(m))) AND NOT skipAcceptedMark(d, m) WHERE wayBill(wayBillPosition(m)) = w;
                 APPLY;
                 IF canceled() THEN RETURN;
             }

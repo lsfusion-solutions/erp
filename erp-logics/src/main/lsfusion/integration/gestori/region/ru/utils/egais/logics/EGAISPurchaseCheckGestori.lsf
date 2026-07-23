@@ -16,11 +16,11 @@ dataCheckLog 'Лог сверки с ЕГАИС ТТН' = DATA TEXT (UserInvoice
 
 // признаки результата сверки по накладной
 checkErrorCnt (UserInvoice i) =
-    GROUP SUM 1 IF userInvoice(UserInvoiceDetail d) = i AND shipmentQuantity(d) > 0 AND unboundLine(d) > 0.0001; // факт не уместился в ТТН (превышение / нет товара в ТТН)
+    GROUP SUM 1 IF userInvoice(UserInvoiceDetail d) = i AND shipmentQuantity(d) > 0 AND leftUserInvoiceDetail(d) > 0.0001; // факт не уместился в ТТН (превышение / нет товара в ТТН)
 checkAcceptedCnt (UserInvoice i) =
     GROUP SUM 1 IF userInvoice(UserInvoiceDetail d) = i AND shipmentQuantity(d) > 0; // что-то принято
 checkUnboundTTNCnt(UserInvoice i) =
-    GROUP SUM 1 IF userInvoice(wayBill(WayBillPosition p)) = i AND unboundPos(p) > 0.0001; // недопринято по ТТН
+    GROUP SUM 1 IF userInvoice(wayBill(WayBillPosition p)) = i AND leftUserInvoice(p) > 0.0001; // недопринято по ТТН
 
 computedCheckResult (UserInvoice i) =
     CASE
@@ -35,6 +35,8 @@ checkTTN 'Сверить с ТТН' (UserInvoice i) {
         MESSAGE 'Для накладной не выбрана ЕГАИС ТТН';
         RETURN;
     }
+    
+    applyMatch(i);
     dataCheckResultStatus(i) <- computedCheckResult(i);
     dataCheckLog(i) <- matchLog(i);
     IF matchLog(i) THEN
@@ -55,8 +57,13 @@ CONSTRAINT CHANGED(shipmentQuantity(UserInvoiceDetail d)) AND checked(userInvoic
 CONSTRAINT isPosted(Invoice i) AND checkResultStatus(i) = WayBillStatus.checkedError
     MESSAGE 'Накладная со сверкой "с ошибками" не проводится. Исправьте расхождения.';
 
+CONSTRAINT DROPCHANGED(createShipment(UserInvoice i)) AND checked(i)
+    AND NOT disableEGAISDocumentConstraints()
+    MESSAGE 'После сверки с ЕГАИС ТТН нельзя сбрасывать флаг "Создать поставку". Сначала сбросьте сверку.';
+
 EXTEND FORM userInvoice
-    PROPERTIES(i) DRAW ed TOOLBAR checkTTN SHOWIF NOT checked(i), resetCheck SHOWIF checked(i)
+    PROPERTIES(i) DRAW ed TOOLBAR checkTTN SHOWIF NOT checked(i),
+                  resetCheck SHOWIF checked(i) AND NOT activeWayBillAct(wayBill(i))
     PROPERTIES(i) READONLY dataCheckLog
 ;
 

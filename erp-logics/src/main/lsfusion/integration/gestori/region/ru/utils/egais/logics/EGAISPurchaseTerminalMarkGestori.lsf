@@ -8,9 +8,39 @@ expectedTTNMarkLot (UserInvoiceDetail d, Lot l) =
     GROUP SUM 1 IF EGAISPurchase.quantity(d, EGAIS.wayBillPosition(EGAIS.WayBillMark m)) > 0
                 AND EGAIS.idMarkCode(m) = id(l);
 
+importedTerminalDocument 'Загружен в накладную' = DATA BOOLEAN (UserInvoice, TerminalDocument);
+
 overAddDialogTerminalToUserInvoice (UserInvoice i, TerminalDocument t) + {
-    quantity(UserInvoiceDetail d, Lot l) <- 0.0
-        WHERE userInvoice(d) = i AND expectedTTNMarkLot(d, l) AND NOT quantity(d, l);
+    importedTerminalDocument(i, TerminalDocument ttd) <- TRUE WHERE include(ttd);
+
+    LOCAL imported = BOOLEAN (TerminalDocument);
+    imported(TerminalDocument ttd) <- importedTerminalDocument(i, ttd);
+
+    IF GROUP SUM 1 IF id(TerminalLotDetail tl) AND imported(terminalDocument(tl)) AND NOT skipTerminalLot(i) THEN {
+        // марки по всем загруженным документам ТСД
+        quantity(UserInvoiceDetail d, Lot l) <- (GROUP SUM 1 IF l = lot(id(TerminalLotDetail tld)) AND NOT aggregated(l)
+                AND imported(terminalDocument(tld)) AND sku(terminalDocumentDetail(tld)) = sku(d))
+            WHERE userInvoice(d) = i;
+
+        // непринятые марки из помарочного состава ТТН остаются в списке с количеством 0
+        quantity(UserInvoiceDetail d, Lot l) <- 0.0
+            WHERE userInvoice(d) = i AND expectedTTNMarkLot(d, l) AND NOT quantity(d, l);
+    }
+}
+
+afterAddDialogTerminalToUserInvoice (UserInvoice i, TerminalDocument t) + {
+    LOCAL scannedSku = NUMERIC[16,5] (Sku, UserInvoice);
+    scannedSku(Sku s, i) <- [GROUP SUM quantity(TerminalDocumentDetail tdd)
+        IF importedTerminalDocument(i, terminalDocument(tdd)) BY sku(tdd)](s);
+
+    FOR invoice(UserInvoiceDetail o) == i DO {
+        shipmentQuantity(o) <- OVERRIDE (PARTITION UNGROUP scannedSku LIMIT STRICT quantity(o)
+            IF invoice(o) == i ORDER index(o), o BY sku(o), invoice(o)), 0.0;
+        manufactureDate(o) <- (GROUP MAX extraDate1(TerminalDocumentDetail tdd)
+            IF importedTerminalDocument(i, terminalDocument(tdd)) AND sku(tdd) == sku(o));
+        expiryDate(o) <- (GROUP MAX extraDate2(TerminalDocumentDetail tdd)
+            IF importedTerminalDocument(i, terminalDocument(tdd)) AND sku(tdd) == sku(o));
+    }
 }
 
 editLotInDialog(UserInvoiceDetail d) += TRUE IF lotType(sku(d));

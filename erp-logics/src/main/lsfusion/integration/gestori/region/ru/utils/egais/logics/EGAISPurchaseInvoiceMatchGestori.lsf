@@ -6,58 +6,87 @@ PRIORITY Purchase;
 
 NAMESPACE EGAISPurchase;
 
-quantityDistr (UserInvoiceDetail d) = OVERRIDE shipmentQuantity(d), quantity(d);
-match (UserInvoiceDetail d, WayBillPosition p) = in(sku(d), product(p)) AND wayBill(p) = wayBill(userInvoice(d));
+quantityToDistribute (UserInvoiceDetail d) = shipmentQuantity(d);
+matchDetailPosition (UserInvoiceDetail d, WayBillPosition p) = in(sku(d), product(p)) AND wayBill(p) = wayBill(userInvoice(d));
 
-boundLine (UserInvoiceDetail d) = GROUP SUM quantity(d, WayBillPosition p) MATERIALIZED;
-unboundLine (UserInvoiceDetail d) = quantityDistr(d) (-) boundLine(d);
-boundPos (WayBillPosition p) = GROUP SUM quantity(UserInvoiceDetail d, p) MATERIALIZED;
-unboundPos (WayBillPosition p) = quantity(p) (-) boundPos(p);
+leftUserInvoiceDetail (UserInvoiceDetail d) = quantityToDistribute(d) (-) quantityWayBill(d);
 
-// Проход A: товар + цена + количество. Точные пары 1:1
-candA (UserInvoiceDetail d, WayBillPosition p) =
-    match(d, p) AND quantityDistr(d) > 0 AND invoicePrice(d) = price(p) AND quantity(d) = quantity(p);
-posA  = GROUP MIN WayBillPosition p IF candA(UserInvoiceDetail d, p) BY d;
-lineA = GROUP MIN UserInvoiceDetail d IF candA(d, WayBillPosition p) AND posA(d) = p BY p;
-passA (UserInvoiceDetail d, WayBillPosition p) = quantityDistr(d) IF posA(d) = p AND lineA(p) = d;
+// Проход 1: товар + цена + количество. Точные пары 1:1
+matchExact (UserInvoiceDetail d, WayBillPosition p) =
+    matchDetailPosition(d, p) AND quantityToDistribute(d) > 0 AND invoicePrice(d) = price(p) AND quantity(d) = quantity(p);
+exactPosition = GROUP MIN WayBillPosition p IF matchExact(UserInvoiceDetail d, p) BY d;
+exactDetail   = GROUP MIN UserInvoiceDetail d IF matchExact(d, WayBillPosition p) AND exactPosition(d) = p BY p;
+bindExact (UserInvoiceDetail d, WayBillPosition p) = quantityToDistribute(d) IF exactPosition(d) = p AND exactDetail(p) = d;
 
-// Проход B товар + цена
-candB (UserInvoiceDetail d, WayBillPosition p) =
-    match(d, p) AND invoicePrice(d) = price(p) AND unboundPos(p) > 0 AND unboundLine(d) > 0;
-sumRemB (WayBillPosition p) = GROUP SUM unboundLine(UserInvoiceDetail d) IF candB(d, p);
-shareB (UserInvoiceDetail d, WayBillPosition p) =
-    unboundPos(p) * unboundLine(d) / sumRemB(p) IF candB(d, p) AND sumRemB(p) > 0;
-passB (UserInvoiceDetail d, WayBillPosition p) =
-    PARTITION UNGROUP unboundLine LIMIT shareB(d, p) IF candB(d, p) ORDER p BY d;
 
-// Проход C товар
-candC (UserInvoiceDetail d, WayBillPosition p) =
-    match(d, p) AND unboundPos(p) > 0 AND unboundLine(d) > 0;
-sumRemC (WayBillPosition p) = GROUP SUM unboundLine(UserInvoiceDetail d) IF candC(d, p);
-shareC (UserInvoiceDetail d, WayBillPosition p) =
-    unboundPos(p) * unboundLine(d) / sumRemC(p) IF candC(d, p) AND sumRemC(p) > 0;
-passC (UserInvoiceDetail d, WayBillPosition p) =
-    PARTITION UNGROUP unboundLine LIMIT shareC(d, p) IF candC(d, p) ORDER p BY d;
+// Проход 2: товар + цена
+matchByPrice (UserInvoiceDetail d, WayBillPosition p) =
+    matchDetailPosition(d, p) AND invoicePrice(d) = price(p) AND NOT countMarkCodes(p) AND leftUserInvoice(p) > 0 AND leftUserInvoiceDetail(d) > 0;
+// первая по порядку позиция, к которой строка ещё может привязаться
+positionByPrice = GROUP MIN WayBillPosition p IF matchByPrice(UserInvoiceDetail d, p) BY d;
+// строки, нацеленные на одну позицию, делят её остаток по порядку спецификации
+cumLeftDetailByPrice (UserInvoiceDetail d, WayBillPosition p) =
+    PARTITION SUM leftUserInvoiceDetail(d) IF positionByPrice(d) = p ORDER index(d), d BY p;
+availPositionByPrice (UserInvoiceDetail d) =
+    leftUserInvoice(positionByPrice(d)) (-) (cumLeftDetailByPrice(d, positionByPrice(d)) (-) leftUserInvoiceDetail(d));
+bindByPrice (UserInvoiceDetail d) =
+    (IF leftUserInvoiceDetail(d) <= availPositionByPrice(d) THEN leftUserInvoiceDetail(d) ELSE availPositionByPrice(d))
+        IF positionByPrice(d) AND availPositionByPrice(d) > 0;
+
+// Проход 3: товар
+matchByProduct (UserInvoiceDetail d, WayBillPosition p) =
+    matchDetailPosition(d, p) AND NOT countMarkCodes(p) AND leftUserInvoice(p) > 0 AND leftUserInvoiceDetail(d) > 0;
+positionByProduct = GROUP MIN WayBillPosition p IF matchByProduct(UserInvoiceDetail d, p) BY d;
+cumLeftDetailByProduct (UserInvoiceDetail d, WayBillPosition p) =
+    PARTITION SUM leftUserInvoiceDetail(d) IF positionByProduct(d) = p ORDER index(d), d BY p;
+availPositionByProduct (UserInvoiceDetail d) =
+    leftUserInvoice(positionByProduct(d)) (-) (cumLeftDetailByProduct(d, positionByProduct(d)) (-) leftUserInvoiceDetail(d));
+bindByProduct (UserInvoiceDetail d) =
+    (IF leftUserInvoiceDetail(d) <= availPositionByProduct(d) THEN leftUserInvoiceDetail(d) ELSE availPositionByProduct(d))
+        IF positionByProduct(d) AND availPositionByProduct(d) > 0;
+
+// маркированные позиции связываются не по количеству, а по фактически принятым маркам
+acceptedMark (UserInvoiceDetail d, WayBillMark m) = TRUE IF Purchase.quantity(d, lot(markCode(m))) > 0;
+quantityAcceptedMark (UserInvoiceDetail d, WayBillPosition p) =
+    GROUP SUM 1 IF acceptedMark(d, WayBillMark m) AND wayBillPosition(m) = p;
 
 applyMatch (UserInvoice i) {
+    // маркированные позиции: привязка равна числу принятых марок
+    quantity(UserInvoiceDetail d, WayBillPosition p) <- OVERRIDE quantityAcceptedMark(d, p), 0.0
+        WHERE userInvoice(d) = i AND countMarkCodes(p) AND quantity(d, p);
+
     // сброс немаркированных привязок с нуля, чтобы проходы считали остаток корректно
     quantity(UserInvoiceDetail d, WayBillPosition p) <- NULL
         WHERE userInvoice(d) = i AND NOT countMarkCodes(p);
-    quantity(UserInvoiceDetail d, WayBillPosition p) <- passA(d, p)
+    quantity(UserInvoiceDetail d, WayBillPosition p) <- bindExact(d, p)
         WHERE userInvoice(d) = i AND NOT countMarkCodes(p);
-    quantity(UserInvoiceDetail d, WayBillPosition p) <- OVERRIDE quantity(d, p), passB(d, p)
-        WHERE userInvoice(d) = i AND NOT countMarkCodes(p);
-    quantity(UserInvoiceDetail d, WayBillPosition p) <- OVERRIDE quantity(d, p), passC(d, p)
-        WHERE userInvoice(d) = i AND NOT countMarkCodes(p);
+
+    // Проход 2: товар + цена
+    LOCAL countIterationByPrice = INTEGER ();
+    countIterationByPrice() <- 0;
+    WHILE (GROUP SUM 1 IF userInvoice(UserInvoiceDetail d) = i AND bindByPrice(d) > 0) AND countIterationByPrice() < 1000 DO {
+        quantity(UserInvoiceDetail d, WayBillPosition p) <- (OVERRIDE quantity(d, p), 0.0) (+) bindByPrice(d)
+            WHERE userInvoice(d) = i AND p = positionByPrice(d) AND bindByPrice(d) > 0;
+        countIterationByPrice() <- countIterationByPrice() + 1;
+    }
+
+    // Проход 3: товар
+    LOCAL countIterationByProduct = INTEGER ();
+    countIterationByProduct() <- 0;
+    WHILE (GROUP SUM 1 IF userInvoice(UserInvoiceDetail d) = i AND bindByProduct(d) > 0) AND countIterationByProduct() < 1000 DO {
+        quantity(UserInvoiceDetail d, WayBillPosition p) <- (OVERRIDE quantity(d, p), 0.0) (+) bindByProduct(d)
+            WHERE userInvoice(d) = i AND p = positionByProduct(d) AND bindByProduct(d) > 0;
+        countIterationByProduct() <- countIterationByProduct() + 1;
+    }
 }
 
 // Лог расхождений: остаток после связывания (от сохранённой привязки)
 matchLogLine = GROUP CONCAT
-    ('Накладная, не связано: ' + name(sku(UserInvoiceDetail d)) + ' = ' + STRING(round2(unboundLine(d))))
-    IF unboundLine(d) > 0.0001, '\n' ORDER d BY userInvoice(d);
+    ('Накладная, не связано: ' + name(sku(UserInvoiceDetail d)) + ' = ' + STRING(round2(leftUserInvoiceDetail(d))))
+    IF leftUserInvoiceDetail(d) > 0.0001, '\n' ORDER d BY userInvoice(d);
 matchLogPos = GROUP CONCAT
-    ('ЕГАИС ТТН, не связано: ' + fullNameProduct(WayBillPosition p) + ' = ' + STRING(round2(unboundPos(p))))
-    IF unboundPos(p) > 0.0001, '\n' ORDER p BY userInvoice(wayBill(p));
+    ('ЕГАИС ТТН, не связано: ' + fullNameProduct(WayBillPosition p) + ' = ' + STRING(round2(leftUserInvoice(p))))
+    IF leftUserInvoice(p) > 0.0001, '\n' ORDER p BY userInvoice(wayBill(p));
 matchLog (UserInvoice i) = CONCAT '\n', matchLogLine(i), matchLogPos(i);
 
 dataMatchLog 'Лог связывания с ЕГАИС ТТН' = DATA TEXT (UserInvoice);
@@ -91,7 +120,7 @@ WHEN CHANGED(shipmentQuantity(UserInvoiceDetail d)) AND wayBill(userInvoice(d)) 
     applyMatch(userInvoice(d));
 
 statusEGAIS 'Статус ЕГАИС' (Invoice i) = status(wayBill(i));
-nameStatusEGAIS 'Статус ЕГАИС' (Invoice i) = name(statusEGAIS(i));
+nameStatusEGAIS 'Статус ЕГАИС' (Invoice i) = name(statusEGAIS(i)) CHARWIDTH 50;
 
 EXTEND FORM invoices
     PROPERTIES(i) READONLY nameStatusEGAIS
@@ -128,7 +157,7 @@ DESIGN integrationData {
     }
 }
 
-hasTTNMatch (UserInvoiceDetail d) = GROUP SUM 1 IF match(d, WayBillPosition p);
+hasTTNMatch (UserInvoiceDetail d) = GROUP SUM 1 IF matchDetailPosition(d, WayBillPosition p);
 notInTTN (UserInvoiceDetail d) = wayBill(userInvoice(d)) AND NOT hasTTNMatch(d) AND NOT shipmentQuantity(d);
 
 syncTTN 'Синхронизировать с ТТН' (UserInvoice i) {

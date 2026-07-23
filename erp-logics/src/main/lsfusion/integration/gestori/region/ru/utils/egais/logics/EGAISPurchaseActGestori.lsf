@@ -24,12 +24,15 @@ actRegStatus (Invoice i) =
 
 status (WayBill w) += WHEN userInvoice(w) THEN
     OVERRIDE dataManualStatus(userInvoice(w)),
+             (WayBillStatus.actSentReject IF hasRRWB(wayBillAct(w))),
              (actRegStatus(userInvoice(w)) IF accepted(w) OR canceled(w)),
              (actSentStatus(userInvoice(w)) IF notRejected(wayBillActOutDoc(wayBillAct(w)))),
              checkResultStatus(userInvoice(w)),
              WayBillStatus.linked;
 
 overCheckProcess (Invoice i) += 'Для отправки в ЕГАИС сначала выполните сверку с ТТН (Сверить с ТТН)' IF NOT checked(i);
+
+skipAcceptedMark(Invoice i, WayBillMark m) += TRUE IF NOT quantity(i, lot(markCode(m))) > 0;
 
 EXTEND FORM userInvoice
     PROPERTIES(i) DRAW ed TOOLBAR processEGAISUserInvoice = process

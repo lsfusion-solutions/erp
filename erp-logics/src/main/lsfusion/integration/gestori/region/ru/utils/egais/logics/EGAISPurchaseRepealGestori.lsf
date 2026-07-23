@@ -6,6 +6,12 @@ PRIORITY Purchase;
 
 NAMESPACE EGAISPurchase;
 
-// распровести накладную закупки при отказе от ТТН 
+// распровести накладную закупки при отказе от ТТН
 WHEN SET(canceled(WayBill b)) AND wayBill(UserInvoice i) = b AND isPosted(i) DO
     isPosted(i) <- NULL;
+
+WHEN DROPPED(accepted(WayBill b)) AND wayBill(UserInvoice i) = b DO {
+    IF isPosted(i) THEN isPosted(i) <- NULL;
+    dataCheckResultStatus(i) <- NULL;
+    dataCheckLog(i) <- NULL;
+}
