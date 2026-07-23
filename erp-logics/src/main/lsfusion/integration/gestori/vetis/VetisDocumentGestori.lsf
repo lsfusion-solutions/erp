@@ -1181,3 +1181,72 @@ DESIGN Purchase.userInvoice {
 // суммарный объём по строкам ВСД не должен превышать объём продукции
 CONSTRAINT totalVolumeVDGestori(VetDocument s) > volume(s)
     MESSAGE 'Суммарный объём по строкам, связанным с ВСД, превышает объём продукции';
+
+// ---- Накладные продажи, вкладка ВЕТИС (записи журнала / исходящие партии) ----
+
+// объём (поставлено) по строке = фактическое количество × вес единицы товара
+volumeShippedSaleGestori 'Объем (поставлено)' (Sale.UserInvoiceDetail d) = NUMERIC[16,5](shipmentQuantity(d) * netWeight(sku(d)));
+
+// суммарный объём по строкам, связанным с записью журнала, по которым ещё не созданы ВСД
+totalVolumeSEGestori 'Объем всего' (StockEntry se) = GROUP SUM VetisSale.volume(Sale.UserInvoiceDetail d, se) IF NOT VetisSale.vetDocument(d, se);
+
+// строка заблокирована: по исходящей партии отправлен запрос (кроме завершившихся ошибкой) или сформирована транспортная партия (есть ВСД)
+seVolumeLockedSaleGestori (Sale.UserInvoiceDetail d) = GROUP SUM 1 IF VetisSale.outgoingConsignment(d, StockEntry se) IS OutgoingConsignment
+    AND (notCompleted(lastRequest(VetisSale.outgoingConsignment(d, se))) OR succeeded(lastRequest(VetisSale.outgoingConsignment(d, se)))
+         OR vetDocument(VetisSale.outgoingConsignment(d, se)));
+
+EXTEND FORM Sale.userInvoice
+    PROPERTIES(vd) READONLY volumeShippedSaleGestori
+    PROPERTIES(se) READONLY totalVolumeSEGestori
+;
+
+DESIGN Sale.userInvoice {
+    vetis { caption = 'ВЕТИС'; }
+    PROPERTY(volumeStockEntry(vd)) { caption = 'Объем по строке'; }
+    PROPERTY(guid(se)) { caption = 'GUID записи журнала'; }
+    PROPERTY(volume(vd, se)) { caption = 'Объем по строке'; }
+}
+
+// суммарный объём нераспределённых в ВСД строк не должен превышать текущий остаток записи журнала
+CONSTRAINT totalVolumeSEGestori(StockEntry se) > volume(se)
+    MESSAGE 'Суммарный объём по строкам, связанным с записью журнала, превышает текущий остаток записи журнала';
+
+// суммарный объём по связанным записям журнала не может превышать объём по строке
+CONSTRAINT VetisSale.volumeStockEntry(Sale.UserInvoiceDetail d) > volumeShippedSaleGestori(d)
+    MESSAGE 'Суммарный объём по записям журнала превышает объём по строке накладной';
+
+// запрет изменения количества и объёма по записям журнала после отправки запроса/формирования транспортной партии
+CONSTRAINT CHANGED(shipmentQuantity(Sale.UserInvoiceDetail d)) AND seVolumeLockedSaleGestori(d) AND NOT CHANGED(seVolumeLockedSaleGestori(d))
+    MESSAGE 'Нельзя изменить количество: по исходящим партиям отправлены запросы в Ветис или сформирована транспортная партия';
+CONSTRAINT CHANGED(VetisSale.volume(Sale.UserInvoiceDetail d, StockEntry se)) AND seVolumeLockedSaleGestori(d) AND NOT CHANGED(seVolumeLockedSaleGestori(d))
+    MESSAGE 'Нельзя изменить объём по записи журнала: по исходящим партиям отправлены запросы в Ветис или сформирована транспортная партия';
+
+// при изменении количества по связанной с записью журнала позиции пересчитывать выбранный объём
+WHEN CHANGED(shipmentQuantity(Sale.UserInvoiceDetail d)) AND VetisSale.volume(d, StockEntry se) > 0
+        AND NOT seVolumeLockedSaleGestori(d) DO
+    VetisSale.fillVolume(d, se);
+
+// ---- Заявки ВЕТИС по накладной продажи ----
+
+// накладная, по товарам которой создана заявка (оформление транспортной партии / условия регионализации)
+invoiceSaleRequestGestori 'Накладная продажи' (ApplicationRequest r) = OVERRIDE
+    (GROUP MAX Sale.invoice(Sale.UserInvoiceDetail d) IF in(r AS PrepareOutgoingConsignmentRequest, VetisSale.outgoingConsignment(d, StockEntry se))),
+    (GROUP MAX Sale.invoice(Sale.UserInvoiceDetail d) IF in(r AS CheckShipmentRegionalization, VetisSale.outgoingConsignment(d, StockEntry se)));
+seriesNumberInvoiceSaleRequestGestori 'Накладная продажи' (ApplicationRequest r) = seriesNumber[Invoice.Invoice](invoiceSaleRequestGestori(r));
+
+filterSaleInvoiceRequestGestori = DATA LOCAL Sale.Invoice ();
+
+EXTEND FORM applicationRequests
+    PROPERTIES(r) READONLY seriesNumberInvoiceSaleRequestGestori
+    FILTERS NOT filterSaleInvoiceRequestGestori() OR invoiceSaleRequestGestori(r) = filterSaleInvoiceRequestGestori()
+;
+
+// кнопка на накладной продажи: заявки, отфильтрованные по накладной
+showVetisRequestsSaleGestori 'Заявки ВЕТИС' (Sale.Invoice i) {
+    filterSaleInvoiceRequestGestori() <- i;
+    SHOW applicationRequests;
+}
+
+EXTEND FORM Sale.userInvoice
+    PROPERTIES showVetisRequestsSaleGestori(i) DRAW vd TOOLBAR
+;

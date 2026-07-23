@@ -19,7 +19,9 @@ DESIGN integrationData {
 }
 
 in = DATA BOOLEAN (PrepareOutgoingConsignmentRequest, OutgoingConsignment);
+// контроль удаления — только по выполненным и по отправленным необработанным заявкам; заявки с ошибкой удалению не мешают
 CONSTRAINT DROPPED(in(PrepareOutgoingConsignmentRequest r, OutgoingConsignment c)) AND NOT allowDeleteOutgoingConsignment()
+    AND (PREV(notCompleted(r)) OR PREV(succeeded(r)))
     MESSAGE 'Запрещено удалять исходящую партию для созданной заявки';
 
 localTransactionId (PrepareOutgoingConsignmentRequest r) = LONG(r AS PrepareOutgoingConsignmentRequest);
