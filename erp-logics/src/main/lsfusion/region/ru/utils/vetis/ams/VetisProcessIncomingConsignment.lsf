@@ -42,6 +42,9 @@ result (IncomingConsignment c) = CASE WHEN volumeVetDocument(c) = processVolume(
                                                     WHEN processVolume(c) > 0 THEN 'PARTIALLY'
                                                     ELSE 'RETURN_ALL';
 
+// сырые XML-фрагменты ВСД содержат bs:uuid справочников — в запрос гашения uuid не передаются
+stripUuidXml = FORMULA TEXT 'regexp_replace($1, \'<bs:uuid[^>]*>[^<]*</bs:uuid>\', \'\', \'g\')';
+
 // returned delivery
 returnedDelivery (IncomingConsignment c) = c IS IncomingConsignment AND NOT volumeVetDocument(c) = processVolume(c);
 returnedDelivery = DATA LOCAL TEXT ();
@@ -62,16 +65,16 @@ FORM processIncomingConsignmentRequest FORMEXTID 'merc=http://api.vetrf.ru/schem
     PROPERTIES = id(productType(vetDocument(incomingConsignment(r)))) EXTID 'vd:productType' IN deliveryConsignment,
                = guid(product(vetDocument(incomingConsignment(r)))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN deliveryConsignmentProduct,
                = guid(subProduct(vetDocument(incomingConsignment(r)))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN deliveryConsignmentSubProduct,
-               = productItemXml(vetDocument(incomingConsignment(r))) EXTID 'vd:productItem' IN deliveryConsignment,
-               = processVolume(incomingConsignment(r)) EXTID 'vd:volume' IN deliveryConsignment,
+               = stripUuidXml(productItemXml(vetDocument(incomingConsignment(r)))) EXTID 'vd:productItem' IN deliveryConsignment,
+               = NUMERIC[16,5](OVERRIDE processVolume(incomingConsignment(r)), 0.0) EXTID 'vd:volume' IN deliveryConsignment, // принятый объём; при полном возврате — 0
                = guid(unit(vetDocument(incomingConsignment(r)))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN deliveryConsignmentUnit,
                = dateOfProductionXml(vetDocument(incomingConsignment(r))) EXTID 'vd:dateOfProduction' IN deliveryConsignment,
                = expiryDateXml(vetDocument(incomingConsignment(r))) EXTID 'vd:expiryDate' IN deliveryConsignment,
                = batchID(vetDocument(incomingConsignment(r))) EXTID 'vd:batchID' IN deliveryConsignment,
                = IF perishable(vetDocument(incomingConsignment(r))) THEN 'true' ELSE 'false' EXTID 'vd:perishable' IN deliveryConsignment,
-               = origin(vetDocument(incomingConsignment(r))) EXTID 'vd:origin' IN deliveryConsignment,
+               = stripUuidXml(origin(vetDocument(incomingConsignment(r)))) EXTID 'vd:origin' IN deliveryConsignment,
                = IF lowGradeCargo(vetDocument(incomingConsignment(r))) THEN 'true' ELSE 'false' EXTID 'vd:lowGradeCargo' IN deliveryConsignment,
-               = packageList(vetDocument(incomingConsignment(r))) EXTID 'vd:packageList' IN deliveryConsignment
+               = stripUuidXml(packageList(vetDocument(incomingConsignment(r)))) EXTID 'vd:packageList' IN deliveryConsignment
 
 //=batch(vetDocument(incomingConsignment(r))) IN delivery EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:consignment',
     PROPERTIES =guid(broker(vetDocument(incomingConsignment(r)))) IN deliveryBroker EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
@@ -128,16 +131,17 @@ FORM processIncomingConsignmentRequestReturnedDelivery
     PROPERTIES = id(productType(vetDocument(c))) EXTID 'vd:productType' IN consignment,
                = guid(product(vetDocument(c))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN consignmentProduct,
                = guid(subProduct(vetDocument(c))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN consignmentSubProduct,
-               = productItemXml(vetDocument(c)) EXTID 'vd:productItem' IN consignment,
-               = (IF volume(vetDocument(c)) > processVolume(c) THEN volume(vetDocument(c)) - processVolume(c) ELSE 0) EXTID 'vd:volume' IN consignment,
+               = stripUuidXml(productItemXml(vetDocument(c))) EXTID 'vd:productItem' IN consignment,
+               // возвращаемый объём = объём по ВСД минус принятый (при полном возврате — весь объём ВСД)
+               = NUMERIC[16,5](IF volume(vetDocument(c)) (-) processVolume(c) > 0 THEN volume(vetDocument(c)) (-) processVolume(c) ELSE 0.0) EXTID 'vd:volume' IN consignment,
                = guid(unit(vetDocument(c))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN consignmentUnit,
                = dateOfProductionXml(vetDocument(c)) EXTID 'vd:dateOfProduction' IN consignment,
                = expiryDateXml(vetDocument(c)) EXTID 'vd:expiryDate' IN consignment,
                = batchID(vetDocument(c)) EXTID 'vd:batchID' IN consignment,
                = IF perishable(vetDocument(c)) THEN 'true' ELSE 'false' EXTID 'vd:perishable' IN consignment,
-               = origin(vetDocument(c)) EXTID 'vd:origin' IN consignment,
+               = stripUuidXml(origin(vetDocument(c))) EXTID 'vd:origin' IN consignment,
                = IF lowGradeCargo(vetDocument(c)) THEN 'true' ELSE 'false' EXTID 'vd:lowGradeCargo' IN consignment,
-               = packageList(vetDocument(c)) EXTID 'vd:packageList' IN consignment
+               = stripUuidXml(packageList(vetDocument(c))) EXTID 'vd:packageList' IN consignment
 
     PROPERTIES =guid(broker(vetDocument(c))) IN broker EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
                =transportInfo(vetDocument(c)) EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:transportInfo',
@@ -150,7 +154,7 @@ FORM processIncomingConsignmentRequestReturnedDelivery
 //    FILTERS vetDocument(rd) = vetDocument(c),
 //            relationshipType(rd) = 1
 
-    PROPERTIES = authentication(vetDocument(c)) EXTID 'vd:authentication' IN vetCertificate
+    PROPERTIES = stripUuidXml(authentication(vetDocument(c))) EXTID 'vd:authentication' IN vetCertificate
 
 ; 
 
