@@ -14,9 +14,10 @@ NAMESPACE Vetis;
 waybillByTypeGestori (VetDocument d, INTEGER t) = GROUP MIN VetReferenceDocument rd IF vetDocument(rd) = d AND type(rd) = t;
 waybillGestori (VetDocument d) = OVERRIDE waybillByTypeGestori(d, 1), waybillByTypeGestori(d, 5), waybillByTypeGestori(d, 6),
                                           waybillByTypeGestori(d, 23), waybillByTypeGestori(d, 16), waybill(d);
-issueSeriesNumberWaybillGestori 'Накладная' (VetDocument d) = issueSeriesNumber(waybillGestori(d));
+// в поле «Накладная» — только номер документа (без серии)
+issueSeriesNumberWaybillGestori 'Накладная' (VetDocument d) = issueNumber(waybillGestori(d));
 // отбор/отображение накладной по всему Ветис — по приоритету типов Gestori (в т.ч. фильтр «Заполнить по номеру»)
-waybillOverride(VetDocument d) += waybillGestori(d);
+issueSeriesNumberWaybillOverride(VetDocument d) += issueSeriesNumberWaybillGestori(d);
 
 waybillDate 'Дата накладной' (VetDocument d) = issueDate(waybillGestori(d));
 
@@ -718,6 +719,19 @@ afterApplyImportVetDocument(VetDocument d) + {
             APPLY;
         }
     }
+    // GLN площадок отправителя/получателя — в т.ч. для площадок, созданных дозагрузкой
+    IF (OVERRIDE glnConsignorImport(), glnConsignorEntImport()) AND enterprise(STRING(consignorEnterpriseGuid())) THEN
+        NEWSESSION NESTED LOCAL {
+            FOR Enterprise e = enterprise(STRING(consignorEnterpriseGuid())) DO
+                gln(e) <- STRING(OVERRIDE glnConsignorImport(), glnConsignorEntImport());
+            APPLY;
+        }
+    IF (OVERRIDE glnConsigneeImport(), glnConsigneeEntImport()) AND enterprise(STRING(consigneeEnterpriseGuid())) THEN
+        NEWSESSION NESTED LOCAL {
+            FOR Enterprise e = enterprise(STRING(consigneeEnterpriseGuid())) DO
+                gln(e) <- STRING(OVERRIDE glnConsigneeImport(), glnConsigneeEntImport());
+            APPLY;
+        }
 }
 
 // ---- Единая реализация afterImportVetDocument ----
