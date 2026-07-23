@@ -20,6 +20,8 @@ GROUP producer EXTID 'dt:producer' : productItem;
 GROUP tmOwner EXTID 'dt:tmOwner' : productItem;
 GROUP producing EXTID 'dt:producing' : productItem;
 GROUP packaging EXTID 'dt:packaging' : productItem;
+GROUP packagingType EXTID 'dt:packagingType' : packaging;
+GROUP packagingUnit EXTID 'dt:unit' : packaging;
 GROUP location EXTID 'dt:location';
 
 type = DATA LOCAL STRING(ProductItemRequest);
@@ -57,9 +59,10 @@ FORM modifyProducerStockList FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/merc
     OBJECTS producing = Enterprise IN productItem EXTID 'dt:producing'
     PROPERTIES(r, producing) IN location guid5 EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
         FILTERS guid5(r, producing)
-    // теги упаковки — внутри dt:packaging (требование схемы Ветис)
-    PROPERTIES(r) IN packaging packagingTypeE EXTID 'dt:packagingType', packagingQuantityE EXTID 'dt:quantity',
-                               packagingVolumeE EXTID 'dt:volume', packagingUnitE EXTID 'dt:unit';
+    // теги упаковки — внутри dt:packaging; тип упаковки — кодом dt:globalID, единица — bs:guid (по документации)
+    PROPERTIES(r) IN packagingType packagingTypeE EXTID 'dt:globalID'
+    PROPERTIES(r) IN packaging packagingQuantityE EXTID 'dt:quantity', packagingVolumeE EXTID 'dt:volume'
+    PROPERTIES(r) IN packagingUnit packagingUnitE EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid';
 
 fillProducerStockList ABSTRACT (ProductItemRequest, ProductItem);
 afterProcessProducerStockList ABSTRACT (ProductItemRequest);
