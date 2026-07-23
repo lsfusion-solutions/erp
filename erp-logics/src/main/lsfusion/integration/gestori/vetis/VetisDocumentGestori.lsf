@@ -1104,15 +1104,20 @@ processVDGestori 'Отправить в ВЕТИС' (VetDocument s) {
 }
 
 // форма «Входящие партии»: отправка по строке группируется по ВСД (не слать один ВСД несколькими запросами);
+// время/статус заявки — на уровне ВСД (одинаковы для всех партий одного UUID ВСД);
 // колонки «Тип»/«Статус» → «Тип ВСД»/«Статус ВСД»
 processRowICGestori 'Отправить в ВЕТИС' (IncomingConsignment c) {
     processVDGestori(vetDocument(c));
 }
 EXTEND FORM incomingConsignments
+    PROPERTIES READONLY issueDateVDICGestori = issueDateLastRequestVetDocument(vetDocument(c)),
+                        nameStatusVDICGestori = nameStatusLastRequestVetDocument(vetDocument(c))
     PROPERTIES(c) processRowICGestori READONLYIF NOT toProcessVetDocument(vetDocument(c)) GRID
 ;
 DESIGN incomingConsignments {
     PROPERTY(process(c)) { hide = TRUE; }
+    PROPERTY(issueDateLastRequest(c)) { hide = TRUE; }
+    PROPERTY(nameStatusLastRequest(c)) { hide = TRUE; }
     PROPERTY(nameTypeVetDocument(c)) { caption = 'Тип ВСД'; }
     PROPERTY(nameStatusVetDocument(c)) { caption = 'Статус ВСД'; }
 }
