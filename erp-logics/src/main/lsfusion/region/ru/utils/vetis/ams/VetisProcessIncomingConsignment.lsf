@@ -180,6 +180,14 @@ process 'Отправить в Ветис' (IncomingConsignment c) {
 }
 
 lastRequest (IncomingConsignment o) = GROUP LAST ProcessIncomingConsignmentRequest r ORDER r WHERE incomingConsignment(r) = o MATERIALIZED;
+
+// заявка на гашение отправляется одна на ВСД (через партию-представителя) — статусы отслеживаются на уровне ВСД
+lastRequestVetDocument (VetDocument s) = GROUP LAST ProcessIncomingConsignmentRequest r ORDER r WHERE vetDocument(incomingConsignment(r)) = s;
+issueDateLastRequestVetDocument 'Время заявки' (VetDocument s) = issueDate(lastRequestVetDocument(s));
+nameStatusLastRequestVetDocument 'Статус заявки' (VetDocument s) = nameStatus(lastRequestVetDocument(s));
+errorLastRequestVetDocument 'Ошибка заявки' (VetDocument s) = error(lastRequestVetDocument(s));
+toProcessVetDocument 'К отправке' (VetDocument s) = (GROUP SUM 1 IF vetDocument(IncomingConsignment c) = s)
+    AND NOT notCompleted(lastRequestVetDocument(s)) AND NOT succeeded(lastRequestVetDocument(s));
 issueDateLastRequest 'Время заявки' (IncomingConsignment o) = issueDate(lastRequest(o));
 nameStatusLastRequest 'Статус заявки' (IncomingConsignment o) = nameStatus(lastRequest(o));
 errorLastRequest 'Ошибка заявки' (IncomingConsignment o) = error(lastRequest(o));
@@ -268,8 +276,9 @@ META defineDocumentIncomingProcess (doc, obj)
     toProcess (###doc i) = GROUP SUM 1 IF toProcess(###doc##Detail vd, VetDocument vtd) AND doc(vd) = i; 
     process 'Отправить в Ветис' (###doc##Detail vd, VetDocument vtd) { process(incomingConsignment(vd, vtd)); }
     
-    // гашение по документу: группировка по ВСД — один запрос на ВСД (суммарный принятый объём — в processVolume)
-    groupProcessConsignment (###doc i, VetDocument vtd) = GROUP MAX incomingConsignment(###doc##Detail d, vtd) IF doc(d) = i AND toProcess(d, vtd);
+    // гашение по документу: группировка по ВСД — один запрос на ВСД (суммарный принятый объём — в processVolume);
+    // toProcessVetDocument защищает от повторной отправки по ВСД, у которого заявка уже есть через другую партию
+    groupProcessConsignment (###doc i, VetDocument vtd) = GROUP MAX incomingConsignment(###doc##Detail d, vtd) IF doc(d) = i AND toProcess(d, vtd) AND toProcessVetDocument(vtd);
     process 'Отправить в Ветис' (###doc i) {
         FOR groupProcessConsignment(i, VetDocument vtd) DO
             process(groupProcessConsignment(i, vtd));

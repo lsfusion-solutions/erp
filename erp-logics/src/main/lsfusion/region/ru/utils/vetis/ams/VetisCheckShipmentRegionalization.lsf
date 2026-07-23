@@ -35,8 +35,9 @@ guid3 = DATA LOCAL STRING(INTEGER);
 guid4 = DATA LOCAL STRING(INTEGER);
 guid5 = DATA LOCAL STRING(INTEGER);
 
-in (CheckShipmentRegionalization c, SubProduct p) = 
-    [GROUP SUM 1 IF in(c, OutgoingConsignment oc) AND in(stockEntry(oc), ProductItem pi) BY subProduct(pi)](p);
+in (CheckShipmentRegionalization c, SubProduct p) = OVERRIDE
+    [GROUP SUM 1 IF in(c, OutgoingConsignment oc) AND in(stockEntry(oc), ProductItem pi) BY subProduct(pi)](p),
+    [GROUP SUM 1 IF in(c, OutgoingConsignment oc) AND in(stockEntry(oc), VetDocument vd) BY subProduct(vd)](p);
 in (CheckShipmentRegionalization c, Enterprise e) = 
     GROUP SUM 1 IF in(c, OutgoingConsignment oc) AND (consignorEnterprise(oc) == e OR consigneeEnterprise(oc) == e);
 
@@ -119,6 +120,11 @@ processCheckOutgoingConsignment () {
             NEW r = CheckShipmentRegionalization {
                 businessEntity(r) <- GROUP MAX consignorBusinessEntity(OutgoingConsignment oc) IF in(oc);
                 in(r, OutgoingConsignment oc) <- TRUE WHERE in(oc);
+                // схема требует cargoType (вид продукции) — без него запрос отклоняется Ветис
+                IF NOT (GROUP SUM 1 IF in(r, SubProduct p)) THEN {
+                    MESSAGE 'Нельзя отправить запрос условий регионализации: не определён вид продукции по отгружаемой продукции. Заполните «Вид продукции» в номенклатуре Ветис отгружаемого товара.';
+                    RETURN;
+                }
                 EXPORT checkShipmentRegionalization OBJECTS r = r XML;
 
                 fileToString(exportFile());

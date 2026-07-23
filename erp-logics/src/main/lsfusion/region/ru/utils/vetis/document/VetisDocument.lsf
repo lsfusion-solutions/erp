@@ -128,7 +128,9 @@ issueKey (VetReferenceDocument rd) = CONCAT ';', issueSeries(rd), issueNumber(rd
 vetReferenceDocument = GROUP MAX VetReferenceDocument rd BY vetDocument(rd), issueKey(rd);
 
 waybill (VetDocument d) = GROUP LAST VetReferenceDocument r ORDER r WHERE vetDocument(r) = d AND relationshipType(r) = 1;
-issueSeriesNumberWaybill 'Накладная' (VetDocument d) = issueSeriesNumber(waybill(d)); 
+// накладная для отбора/отображения — переопределяемая (по умолчанию базовый waybill)
+waybillOverride = ABSTRACT VetReferenceDocument (VetDocument);
+issueSeriesNumberWaybill 'Накладная' (VetDocument d) = issueSeriesNumber(OVERRIDE waybillOverride(d), waybill(d));
 
 FORM vetDocument 'ВСД'
     OBJECTS o = VetDocument PANEL

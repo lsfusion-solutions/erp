@@ -15,6 +15,8 @@ waybillByTypeGestori (VetDocument d, INTEGER t) = GROUP MIN VetReferenceDocument
 waybillGestori (VetDocument d) = OVERRIDE waybillByTypeGestori(d, 1), waybillByTypeGestori(d, 5), waybillByTypeGestori(d, 6),
                                           waybillByTypeGestori(d, 23), waybillByTypeGestori(d, 16), waybill(d);
 issueSeriesNumberWaybillGestori 'Накладная' (VetDocument d) = issueSeriesNumber(waybillGestori(d));
+// отбор/отображение накладной по всему Ветис — по приоритету типов Gestori (в т.ч. фильтр «Заполнить по номеру»)
+waybillOverride(VetDocument d) += waybillGestori(d);
 
 waybillDate 'Дата накладной' (VetDocument d) = issueDate(waybillGestori(d));
 
@@ -36,6 +38,12 @@ pendingWithdrawGestori (VetDocument d) = GROUP MAX WithdrawVetDocumentRequest r
 WHEN SET(processed(ProcessIncomingConsignmentRequest r)) DO
     FOR StockEntry s IF in(s, vetDocument(incomingConsignment(r))) AND NOT incomingConsignment(s) DO
         incomingConsignment(s) <- incomingConsignment(r);
+
+// при исчезновении входящей партии (распроведение накладной / снятие объёма) удалять связанную заявку гашения,
+// иначе срабатывает NONULL «Incoming consignment не задано» и накладную нельзя сохранить непроведённой;
+// после этого партию можно сформировать заново (переоформление после ошибки)
+WHEN DROPPED(incomingConsignment(ProcessIncomingConsignmentRequest r)) DO
+    DELETE r;
 
 // заявка в работе = отправлена, ещё не обработана И без ошибки; ошибочная заявка не держит статус «Запрос на гашение отправлен»
 pendingProcessGestori (VetDocument d) = GROUP MAX ProcessIncomingConsignmentRequest r
@@ -947,8 +955,9 @@ DESIGN vetDocument {
 
 // ---- Пакетная отправка запросов на гашение ВСД ----
 
-// представитель для гашения по ВСД: одна партия на ВСД среди «К отправке» (группировка — не слать один ВСД несколькими запросами)
-groupProcessConsignmentGestori (VetDocument s) = GROUP MAX IncomingConsignment c IF toProcess(c) AND vetDocument(c) = s;
+// представитель для гашения по ВСД: одна партия на ВСД (группировка — не слать один ВСД несколькими запросами);
+// отбор по статусу заявки ВСД, а не партии — чтобы не отправлять дубль по партии без собственной заявки
+groupProcessConsignmentGestori (VetDocument s) = GROUP MAX IncomingConsignment c IF vetDocument(c) = s AND toProcessVetDocument(s);
 
 processIncomingConsignmentsGestori 'Отправить запросы на гашение ВСД' () {
     LOCAL cnt = INTEGER();
@@ -1043,6 +1052,15 @@ EXTEND FORM Purchase.userInvoice
     PROPERTIES(vd, vtd) fullReturnInvoiceGestori READONLYIF vsdVolumeLockedGestori(vd) GRID
 ;
 
+// вкладка ВСД: колонка «Накладная» из issueSeriesNumberWaybillGestori; «Код» → «UUID ВСД»
+EXTEND FORM Purchase.userInvoice
+    PROPERTIES(vtd) READONLY issueSeriesNumberWaybillGestori AFTER issueSeriesNumberWaybill(vtd)
+;
+DESIGN Purchase.userInvoice {
+    PROPERTY(issueSeriesNumberWaybill(vtd)) { hide = TRUE; }
+    PROPERTY(uuid(vtd)) { caption = 'UUID ВСД'; }
+}
+
 // количество по позиции нельзя менять после проведения накладной
 CONSTRAINT CHANGED(shipmentQuantity(Purchase.UserInvoiceDetail vd)) AND isPosted(vd) AND NOT CHANGED(isPosted(vd))
     MESSAGE 'Нельзя изменить количество: накладная проведена';
@@ -1050,7 +1068,80 @@ CONSTRAINT CHANGED(shipmentQuantity(Purchase.UserInvoiceDetail vd)) AND isPosted
 CONSTRAINT CHANGED(VetisPurchase.volume(Purchase.UserInvoiceDetail vd, VetDocument vtd)) AND vsdVolumeLockedGestori(vd)
     MESSAGE 'Нельзя изменить объём по ВСД: отправлена заявка в Ветис или выполнено гашение';
 
+// принятый вес по позиции не может превышать вес в ВСД
+CONSTRAINT VetisPurchase.volume(Purchase.UserInvoiceDetail vd, VetDocument vtd) > volume(vtd)
+    MESSAGE 'Количество по позиции в пересчёте на вес превышает вес в ВСД';
+
+// число позиций накладной, связанных с данным ВСД (по объёму)
+countDetailVDInvoiceGestori (Purchase.UserInvoice inv, VetDocument s) =
+    GROUP SUM 1 IF VetisPurchase.volume(Purchase.UserInvoiceDetail d, s) > 0 AND Purchase.userInvoice(d) = inv;
+// один ВСД нельзя связывать с разными накладными
+countInvoiceVDGestori (VetDocument s) = GROUP SUM 1 IF countDetailVDInvoiceGestori(Purchase.UserInvoice inv, s);
+CONSTRAINT countInvoiceVDGestori(VetDocument s) > 1
+    MESSAGE 'Один ВСД нельзя связывать с разными накладными';
+
+// по настройке: запрет связывать один ВСД с несколькими позициями одного документа
+forbidMultiDetailVDGestori 'Запрещать связывать ВСД с несколькими позициями одного документа' = DATA BOOLEAN ();
+CONSTRAINT forbidMultiDetailVDGestori() AND countDetailVDInvoiceGestori(Purchase.UserInvoice inv, VetDocument s) > 1
+    MESSAGE 'Нельзя связывать один ВСД с несколькими позициями одного документа';
+EXTEND FORM options PROPERTIES forbidMultiDetailVDGestori();
+
 // при изменении количества по связанной с ВСД позиции пересчитывать выбранный объём (нулевой — полный возврат — не трогаем)
 WHEN CHANGED(shipmentQuantity(Purchase.UserInvoiceDetail vd)) AND VetisPurchase.volume(vd, VetDocument vtd) > 0
         AND NOT vsdVolumeLockedGestori(vd) DO
     VetisPurchase.fillVolume(vd, vtd);
+
+// ---- Вкладка ВЕТИС: заявка на гашение отслеживается на уровне ВСД (несколько строк/партий одного ВСД) ----
+
+// отправка по строке — один запрос на ВСД через партию-представителя (объём суммируется в processVolume)
+processVDGestori 'Отправить в ВЕТИС' (VetDocument s) {
+    process(groupProcessConsignmentGestori(s));
+}
+
+// список накладных закупки: время/статус/ошибка заявки по ВСД — одинаковы для всех строк этого ВСД
+EXTEND FORM Purchase.invoices
+    PROPERTIES READONLY issueDateVDGestori = issueDateLastRequestVetDocument(vtd),
+                        nameStatusVDGestori = nameStatusLastRequestVetDocument(vtd)
+    PROPERTIES READONLY errorVDGestori = errorLastRequestVetDocument(vtd) PANEL
+    PROPERTIES processRowVDGestori = processVDGestori(vtd) READONLYIF NOT toProcessVetDocument(vtd) GRID
+;
+
+DESIGN Purchase.invoices {
+    vetis {
+        caption = 'ВЕТИС';
+        MOVE PROPERTY(errorVDGestori) {
+            alignment = STRETCH;
+            panelCaptionVertical = TRUE;
+        }
+    }
+    PROPERTY(issueDateLastRequest(vd, vtd)) { hide = TRUE; }
+    PROPERTY(nameStatusLastRequest(vd, vtd)) { hide = TRUE; }
+    PROPERTY(errorLastRequest(vd, vtd)) { hide = TRUE; }
+    PROPERTY(process(vd, vtd)) { hide = TRUE; }
+    PROPERTY(uuid(vtd)) { caption = 'UUID ВСД'; }
+    PROPERTY(volume(vd, vtd)) { caption = 'Объем по строке'; }
+}
+
+// ---- Форма накладной, вкладка ВЕТИС ----
+
+// объём (поставлено) по строке = фактическое количество × вес единицы товара
+volumeShippedGestori 'Объем (поставлено)' (Purchase.UserInvoiceDetail d) = NUMERIC[16,5](shipmentQuantity(d) * netWeight(sku(d)));
+
+// суммарный принятый объём по всем строкам, связанным с ВСД
+totalVolumeVDGestori 'Объем всего' (VetDocument s) = GROUP SUM VetisPurchase.volume(Purchase.UserInvoiceDetail d, s);
+
+EXTEND FORM Purchase.userInvoice
+    PROPERTIES(vd) READONLY volumeShippedGestori
+    PROPERTIES(vtd) READONLY totalVolumeVDGestori
+;
+
+DESIGN Purchase.userInvoice {
+    vetis { caption = 'ВЕТИС'; }
+    PROPERTY(uuidVetDocument(vd)) { caption = 'UUID ВСД'; }
+    PROPERTY(volumeVetDocument(vd)) { caption = 'Объем по строке'; }
+    PROPERTY(volume(vd, vtd)) { caption = 'Объем по строке'; }
+}
+
+// суммарный объём по строкам ВСД не должен превышать объём продукции
+CONSTRAINT totalVolumeVDGestori(VetDocument s) > volume(s)
+    MESSAGE 'Суммарный объём по строкам, связанным с ВСД, превышает объём продукции';
