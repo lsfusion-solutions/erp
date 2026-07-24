@@ -1,19 +1,29 @@
 MODULE EGAISFRegReservationGestori;
 
-REQUIRE EGAISActWriteOffExchangeGestori;
+REQUIRE EGAISActWriteOffExchangeGestori, EGAISFRegLedgerGestori,
+        EGAISSaleShipment, EGAISPurchaseReturnShipment, EGAISWriteOff;
 
 NAMESPACE EGAIS;
 
-//Суммарный резерв по справке Б (все активные акты списания) ---
-reservedF2Reg 'Зарезервировано по справке Б' (F2Reg r) = GROUP SUM overQuantity(ActWriteOffPosition p)
+reservedActWriteOff (F2Reg r) = GROUP SUM overQuantity(ActWriteOffPosition p)
     IF f2Reg(p) = r
     AND NOT canceled(actWriteOff(p))
     AND NOT posted(actWriteOff(p));
 
-//Доступное количество = остаток ЕГАИС − зарезервированное 
+reservedSale (F2Reg r) = GROUP SUM EGAISSale.quantity(Sale.ShipmentDetail d, r)
+    IF NOT EGAISSale.wayBill(Sale.shipment(d));
+
+reservedReturn (F2Reg r) = GROUP SUM EGAISPurchaseReturn.quantity(PurchaseReturn.ShipmentDetail d, r)
+    IF NOT EGAISPurchaseReturn.wayBill(PurchaseReturn.shipment(d));
+
+reservedWriteOff (F2Reg r) = GROUP SUM quantity(WriteOffDetail d, r)
+    IF NOT actWriteOff(writeOff(d));
+
+reservedF2Reg 'Текущий резерв' (F2Reg r) =
+    reservedActWriteOff(r) (+) reservedSale(r) (+) reservedReturn(r) (+) reservedWriteOff(r);
+
 availableF2Reg 'Доступно по справке Б' (F2Reg r) = currentBalance(r) (-) reservedF2Reg(r);
 
-//Отображение в таблице марок формы actWriteOff
 availableF2Reg 'Доступно по справке Б' (ActWriteOffMark m) =
     availableF2Reg(f2Reg(actWriteOffPosition(m)));
 
@@ -21,11 +31,13 @@ EXTEND FORM actWriteOff
     PROPERTIES(m) READONLY availableF2Reg BEFORE idMarkCode(m)
 ;
 
-CONSTRAINT (SETCHANGED(overQuantity(ActWriteOffPosition p)) OR SETCHANGED(f2Reg(p)))
-    AND NOT canceled(actWriteOff(p)) AND NOT posted(actWriteOff(p))
-    AND reservedF2Reg(f2Reg(p)) > currentBalance(f2Reg(p))
+EXTEND FORM balanceReg
+    PROPERTIES(r) READONLY reservedF2Reg AFTER currentBalance(r)
+;
+
+CONSTRAINT SET(availableF2Reg(F2Reg r) < 0) AND CHANGED(reservedF2Reg(r))
     AND NOT disableEGAISDocumentConstraints()
-    MESSAGE 'Превышен доступный остаток по справке Б в документах системы. ';
+    MESSAGE 'Превышен доступный остаток по справке Б: количество уже зарезервировано другими документами';
 
 activeDocCountByMark(MarkCode mc) = GROUP SUM 1
     BY markCode(ActWriteOffMark m)
