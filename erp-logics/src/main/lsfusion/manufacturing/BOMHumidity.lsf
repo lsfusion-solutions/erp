@@ -73,17 +73,17 @@ drynessQuantityBom 'Кол-во по спец. для полуфабрикато
 recBruttoQuantity 'Кол-во компонентов в натуре' (BOM BOM, DATE date) = GROUP SUM recBruttoQuantity (BOM, Sku sku, date)*(OVERRIDE netWeight[Item](sku), 1.0 IF sku IS Sku);
 recBruttoDrynessQuantity 'В сухих веществах' (BOM BOM, DATE date) = GROUP SUM recBruttoDrynessQuantity(BOM, Item sku, date);
 
-drynessQuantity 'Кол-во для комонента(товар) в сухих веществах' (Component cc,DATE dt)=  bruttoQuantity(cc,dt) * 
+drynessQuantity 'Кол-во для компонента(товар) в сухих веществах' (Component cc,DATE dt)=  bruttoQuantity(cc,dt) * 
                                                                                        (OVERRIDE overNetWeight(cc), 1.0 IF cc IS Component) *
                                                                                        percentDryness(cc)/100;
-drynessQuantity 'Кол-во для комонентов сухих веществах' (Component c) = (overNettoNetWeight(c) * percentDryness(c)/100) IF NOT isPack(c);
-drynessQuantityComponents 'Кол-во по комонентам в сухих веществах' (b) = GROUP SUM drynessQuantity(Component c) BY BOM(c);
+drynessQuantity 'Кол-во для компонентов сухих веществах' (Component c) = (overNettoNetWeight(c) * percentDryness(c)/100) IF NOT isPack(c);
+drynessQuantityComponents 'Кол-во по компонентам в сухих веществах' (b) = GROUP SUM drynessQuantity(Component c) BY BOM(c);
 calcPercentHumidity 'Массовая доля сухих веществ, %' (BOM b)= drynessQuantityComponents(b)/(overNettoNetWeightComponent(b) IF overNettoNetWeightComponent(b)!=0)*100; 
 
 //--
 recBruttoQuantity 'Кол-во компонентов в натуре' (Product product, DATE date) = recBruttoQuantity(BOM(product),date);
 recBruttoDrynessQuantity 'В сухих веществах' (Product product, DATE date) = recBruttoDrynessQuantity(BOM(product),date);
-drynessQuantityComponents 'Кол-во по комонентам в сухих веществах' (Product product) =drynessQuantityComponents(BOM(product));
+drynessQuantityComponents 'Кол-во по компонентам в сухих веществах' (Product product) =drynessQuantityComponents(BOM(product));
 //--
 calcPercentHumidity 'Массовая доля сухих веществ, %' (Product product) =calcPercentHumidity(BOM(product));
 
