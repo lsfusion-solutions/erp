@@ -1,12 +1,16 @@
 MODULE VetisCheckShipmentRegionalization;
 
-REQUIRE VetisAMSReceiveResponse, VetisPrepareOutgoingConsignment, VetisRegionalization;
+REQUIRE VetisAMSReceiveResponse, VetisPrepareOutgoingConsignment, VetisRegionalization, VetisIncomingConsignment;
 
 NAMESPACE Vetis;
 
 CLASS CheckShipmentRegionalization 'Получение условий регионализации' : ApplicationRequest;
 
 in = DATA BOOLEAN (CheckShipmentRegionalization, OutgoingConsignment);
+in = DATA BOOLEAN (CheckShipmentRegionalization, IncomingConsignment);
+// явная таблица: авто-имя трёхключевой таблицы обрезается и совпадает с таблицей условий исходящих партий
+TABLE checkR13nInConsignmentCondition (CheckShipmentRegionalization, IncomingConsignment, Condition);
+in = DATA BOOLEAN (CheckShipmentRegionalization, IncomingConsignment, Condition);
 
 GROUP body1 EXTID 'SOAP-ENV:Body';
 GROUP submitApplicationRequest1 EXTID 'apldef=http://api.vetrf.ru/schema/cdm/application/ws-definitions:submitApplicationRequest' : body1;
@@ -37,12 +41,15 @@ guid5 = DATA LOCAL STRING(INTEGER);
 
 in (CheckShipmentRegionalization c, SubProduct p) = OVERRIDE
     [GROUP SUM 1 IF in(c, OutgoingConsignment oc) AND in(stockEntry(oc), ProductItem pi) BY subProduct(pi)](p),
-    [GROUP SUM 1 IF in(c, OutgoingConsignment oc) AND in(stockEntry(oc), VetDocument vd) BY subProduct(vd)](p);
-in (CheckShipmentRegionalization c, Enterprise e) = 
-    GROUP SUM 1 IF in(c, OutgoingConsignment oc) AND (consignorEnterprise(oc) == e OR consigneeEnterprise(oc) == e);
+    [GROUP SUM 1 IF in(c, OutgoingConsignment oc) AND in(stockEntry(oc), VetDocument vd) BY subProduct(vd)](p),
+    [GROUP SUM 1 IF in(c, IncomingConsignment ic) BY subProduct(vetDocument(ic))](p);
+in (CheckShipmentRegionalization c, Enterprise e) = OVERRIDE
+    (GROUP SUM 1 IF in(c, OutgoingConsignment oc) AND (consignorEnterprise(oc) == e OR consigneeEnterprise(oc) == e)),
+    (GROUP SUM 1 IF in(c, IncomingConsignment ic) AND (consignorEnterpriseVetDocument(ic) == e OR consigneeEnterpriseVetDocument(ic) == e));
 
 index (CheckShipmentRegionalization c, Enterprise e) = 
-    IF GROUP SUM 1 IF in(c, OutgoingConsignment oc) AND consignorEnterprise(oc) == e THEN 1
+    IF (GROUP SUM 1 IF in(c, OutgoingConsignment oc) AND consignorEnterprise(oc) == e) OR
+       (GROUP SUM 1 IF in(c, IncomingConsignment ic) AND consigneeEnterpriseVetDocument(ic) == e) THEN 1
     ELSE 2;
 
 FORM checkShipmentRegionalization FORMEXTID 'SOAP-ENV=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
@@ -170,6 +177,72 @@ EXTEND FORM outgoingConsignments
         FILTER 'Получить условия регионализации' toProcessCheck(c)
 ;
 
+// --- условия регионализации для входящих партий (аналогично исходящим) ---
+
+checkStatus = DATA CheckRequestStatus (ApplicationRequest, IncomingConsignment);
+nameCheckStatus 'Статус получения условий регионализации' (ApplicationRequest r, IncomingConsignment o) = name(checkStatus(r, o));
+
+lastCheckRequest (IncomingConsignment o) = GROUP LAST CheckShipmentRegionalization r ORDER r WHERE in(r, o) MATERIALIZED;
+issueDateLastCheckRequest 'Время получения условий регионализации' (IncomingConsignment o) = issueDate(lastCheckRequest(o));
+nameStatusLastCheckRequest 'Статус получения условий регионализации' (IncomingConsignment o) = nameCheckStatus(lastCheckRequest(o), o);
+errorLastCheckRequest 'Ошибка получения условий регионализации' (IncomingConsignment o) = error(lastCheckRequest(o));
+
+succeededCheck 'Успешна' (ApplicationRequest r, IncomingConsignment o) =
+    (checkStatus(r, o) = CheckRequestStatus.ALLOWED OR checkStatus(r, o) = CheckRequestStatus.ALLOWEDCONDITION);
+rejectedCheck 'Отмена' (ApplicationRequest r, IncomingConsignment o) =
+    checkStatus(r, o) = CheckRequestStatus.REJECTED;
+
+toProcessCheck 'Получить условия регионализации' (IncomingConsignment o) = o IS IncomingConsignment AND
+    NOT notCompleted(lastCheckRequest(o)) AND
+    (NOT succeededCheck(lastCheckRequest(o), o) OR rejectedCheck(lastCheckRequest(o), o))
+        MATERIALIZED INDEXED;
+
+processCheck 'Получить условия регионализации' (IncomingConsignment c) {
+    NEWSESSION {
+        NEW r = CheckShipmentRegionalization {
+            businessEntity(r) <- consigneeBusinessEntityVetDocument(c);
+            in(r, c) <- TRUE;
+            // схема требует cargoType (вид продукции) — без него запрос отклоняется Ветис
+            IF NOT (GROUP SUM 1 IF in(r, SubProduct p)) THEN {
+                MESSAGE 'Нельзя отправить запрос условий регионализации: не определён вид продукции по ВСД входящей партии.';
+                RETURN;
+            }
+            EXPORT checkShipmentRegionalization OBJECTS r = r XML;
+
+            fileToString(exportFile());
+            request(r) <- rtrim(ltrim(replace(resultString(), '<?xml version="1.0" encoding="UTF-8"?>', ''), '
+'), '
+');
+
+            LOCAL response = FILE();
+            httpBusinessEntity() <- businessEntity(r);
+
+            TRY {
+                EXTERNAL HTTP POST urlAMS() HEADERS httpHeaders PARAMS exportFile() TO response;
+            } CATCH {
+                fileToString(response());
+                error(r) <- CONCAT '
+', 'Ошибка при формировании запроса к Ветис :', messageCaughtException(), resultString();
+                logToFile('vetis', error(r));
+                MESSAGE error(r);
+                RETURN;
+            }
+
+            applicationId() <- NULL;
+            IMPORT submitApplicationResponse XML FROM response();
+
+            id(r) <- applicationId();
+            IF NOT skipMessage() THEN MESSAGE 'Запрос сформирован' NOWAIT;
+        }
+        APPLY;
+    }
+}
+
+EXTEND FORM incomingConsignments
+    PROPERTIES(c) READONLY issueDateLastCheckRequest, nameStatusLastCheckRequest
+    PROPERTIES(c) processCheck READONLYIF NOT toProcessCheck(c) GRID
+;
+
 // process
 
 GROUP body2 EXTID 'env:Body';
@@ -269,6 +342,20 @@ process (CheckShipmentRegionalization r) + {
         }
         
 
+        in (r, IncomingConsignment icc, Condition conc) <- NULL WHERE in(r, icc) AND conc IS Condition;
+        FOR imported(INTEGER routeSection2) AND sqnId(routeSection2) DO {
+            FOR imported(INTEGER i2) AND r13nRouteSectionAppliedR13nRule(i2) == routeSection2 AND subProduct(guid3(i2)) AND INTEGER(decision(i2)) == 2 AND INTEGER(sqnId(routeSection2)) == 1 DO {
+                FOR imported(INTEGER con2) AND appliedR13nRuleCondition(con2) == i2 AND condition(guid1(con2)) DO {
+                    in (r, IncomingConsignment icc, condition(guid1(con2))) <- TRUE WHERE
+                        in(r, icc) AND subProduct(vetDocument(icc)) = subProduct(guid3(i2));
+                }
+            }
+            FOR imported(INTEGER i2) AND r13nRouteSectionAppliedR13nRule(i2) == routeSection2 AND subProduct(guid3(i2)) AND INTEGER(sqnId(routeSection2)) == 1 DO {
+                checkStatus(r, IncomingConsignment icc) <- checkRequestStatus(INTEGER(decision(i2))) WHERE
+                    in(r, icc) AND subProduct(vetDocument(icc)) = subProduct(guid3(i2));
+            }
+        }
+
         processed(r) <- TRUE;
         APPLY;
     }
@@ -287,6 +374,23 @@ showRegionalizationConditions 'Показать условия регионал�
 }
 
 EXTEND FORM outgoingConsignments PROPERTIES(c) showRegionalizationConditions DRAW c GRID READONLYIF NOT hasRegionalization(c);
+
+// условия регионализации входящей партии
+hasRegionalization (IncomingConsignment c) = GROUP SUM 1 IF in(lastCheckRequest(c), c, Condition con);
+
+FORM regionalizationConditionsIncoming 'Условия регионализации'
+    OBJECTS c = IncomingConsignment PANEL
+
+    OBJECTS con = Condition
+    PROPERTIES name(con), strict(con)
+    FILTERS in(lastCheckRequest(c), c, con)
+;
+
+showRegionalizationConditions 'Показать условия регионализации' (IncomingConsignment c) {
+    SHOW regionalizationConditionsIncoming OBJECTS c = c;
+}
+
+EXTEND FORM incomingConsignments PROPERTIES(c) showRegionalizationConditions DRAW c GRID READONLYIF NOT hasRegionalization(c);
 
 GROUP condition EXTID 'vd:condition';
 
