@@ -120,16 +120,19 @@ EXTEND FORM getStockEntryListRequest
 uuidVetDocumentRequest 'UUID ВСД' (ApplicationRequest r) =
     uuid(vetDocument(incomingConsignment(r AS ProcessIncomingConsignmentRequest)));
 
-seriesNumberInvoiceRequest 'Номер накладной' (ApplicationRequest r) =
+seriesNumberInvoiceRequest 'Номер накладной' (ApplicationRequest r) = OVERRIDE
     seriesNumber(invoice(Shipment.invoiceDetail(VetisPurchase.shipmentDetail(
-        incomingConsignment(r AS ProcessIncomingConsignmentRequest) AS VetisPurchase.ShipmentIncomingConsignment))));
+        incomingConsignment(r AS ProcessIncomingConsignmentRequest) AS VetisPurchase.ShipmentIncomingConsignment)))),
+    seriesNumber[Invoice.Invoice](invoiceSaleRequestGestori(r)) MATERIALIZED;
 
-dateInvoiceRequest 'Дата накладной' (ApplicationRequest r) =
+dateInvoiceRequest 'Дата накладной' (ApplicationRequest r) = OVERRIDE
     date(invoice(Shipment.invoiceDetail(VetisPurchase.shipmentDetail(
-        incomingConsignment(r AS ProcessIncomingConsignmentRequest) AS VetisPurchase.ShipmentIncomingConsignment))));
+        incomingConsignment(r AS ProcessIncomingConsignmentRequest) AS VetisPurchase.ShipmentIncomingConsignment)))),
+    date[Invoice.Invoice](invoiceSaleRequestGestori(r)) MATERIALIZED;
 
-objectClassNameRequest 'Операция' (ApplicationRequest r) =
-    objectClassName(incomingConsignment(r AS ProcessIncomingConsignmentRequest));
+objectClassNameRequest 'Операция' (ApplicationRequest r) = OVERRIDE
+    objectClassName(incomingConsignment(r AS ProcessIncomingConsignmentRequest)),
+    STRING(name(operation(invoiceSaleRequestGestori(r)))) MATERIALIZED;
 
 EXTEND FORM applicationRequests
     PROPERTIES(r) READONLY uuidVetDocumentRequest, seriesNumberInvoiceRequest, dateInvoiceRequest, objectClassNameRequest

@@ -1227,18 +1227,20 @@ WHEN CHANGED(shipmentQuantity(Sale.UserInvoiceDetail d)) AND VetisSale.volume(d,
         AND NOT seVolumeLockedSaleGestori(d) DO
     VetisSale.fillVolume(d, se);
 
+// если связей с записями журнала ещё нет — при изменении количества заполнить позицию автоматически
+WHEN CHANGED(shipmentQuantity(Sale.UserInvoiceDetail d)) AND NOT VetisSale.volumeStockEntry(d) DO
+    VetisSale.volume(d, StockEntry se) <- NUMERIC[16,5](VetisSale.calcQuantity(d, se) * (OVERRIDE factor(sku(d), Vetis.unit(se)), 1.0));
+
 // ---- Заявки ВЕТИС по накладной продажи ----
 
 // накладная, по товарам которой создана заявка (оформление транспортной партии / условия регионализации)
 invoiceSaleRequestGestori 'Накладная продажи' (ApplicationRequest r) = OVERRIDE
     (GROUP MAX Sale.invoice(Sale.UserInvoiceDetail d) IF in(r AS PrepareOutgoingConsignmentRequest, VetisSale.outgoingConsignment(d, StockEntry se))),
-    (GROUP MAX Sale.invoice(Sale.UserInvoiceDetail d) IF in(r AS CheckShipmentRegionalization, VetisSale.outgoingConsignment(d, StockEntry se)));
-seriesNumberInvoiceSaleRequestGestori 'Накладная продажи' (ApplicationRequest r) = seriesNumber[Invoice.Invoice](invoiceSaleRequestGestori(r));
+    (GROUP MAX Sale.invoice(Sale.UserInvoiceDetail d) IF in(r AS CheckShipmentRegionalization, VetisSale.outgoingConsignment(d, StockEntry se))) MATERIALIZED;
 
 filterSaleInvoiceRequestGestori = DATA LOCAL Sale.Invoice ();
 
 EXTEND FORM applicationRequests
-    PROPERTIES(r) READONLY seriesNumberInvoiceSaleRequestGestori
     FILTERS NOT filterSaleInvoiceRequestGestori() OR invoiceSaleRequestGestori(r) = filterSaleInvoiceRequestGestori()
 ;
 
