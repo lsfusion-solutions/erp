@@ -302,6 +302,8 @@ numberReport 'Номер' (STRING[50] number) = OVERRIDE
 numberFilter(GiftCard g) = (numberReport(g) >= numberReport(fromNumberFilter()) OR NOT fromNumberFilter())
                                         AND (numberReport(g) <= numberReport(toNumberFilter()) OR NOT toNumberFilter());
 
+overFilterGiftCard = ABSTRACT BOOLEAN (Item);
+
 FORM giftCardsDashboard 'Подарочные сертификаты'
     PROPERTIES () fromNumberFilter, toNumberFilter, nameStoreFilter 
     
@@ -324,7 +326,7 @@ FORM giftCardsDashboard 'Подарочные сертификаты'
     OBJECTS i = Item
     PROPERTIES (i) READONLY caption, id, priceGiftCard, expireDaysGiftCard
     PROPERTIES TOOLBAR addGift() DRAW i, editGift(i), DELETE(i) NEWSESSION
-    FILTERS skuType(i) == SkuType.skuTypeGiftCard
+    FILTERS skuType(i) == SkuType.skuTypeGiftCard OR overFilterGiftCard(i)
     
     OBJECTS p = GiftCardPurchase
     PROPERTIES (p) READONLY number, series, date, time, nameDepartmentStore, note

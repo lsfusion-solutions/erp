@@ -10,6 +10,8 @@ purchaseDetail = GROUP MAX GiftCardPurchaseDetail p BY giftCardPurchase(p), pric
 purchaseDetail = GROUP MAX GiftCardPurchaseDetail p BY giftCardPurchase(p), sku(p);
 purchaseDetail = GROUP MAX GiftCardPurchaseDetail p IF  NOT sku(p) BY giftCardPurchase(p);
 
+overPrice  = ABSTRACT NUMERIC[16,4](GiftCard);
+
 processZReportExtraFields(STRING json) + {
     FOR SET (GiftCard g == giftCard(ReceiptGiftCardSaleDetail d)) AND NOT giftCardPurchaseDetail(g) DO {
         IF NOT purchase('Продажа ' + date(d), departmentStore(d)) THEN {
@@ -21,7 +23,7 @@ processZReportExtraFields(STRING json) + {
         }
 
         FOR GiftCardPurchase p == purchase('Продажа ' + date(d), departmentStore(d)) DO {
-            FOR Sku s == sku(price(d)) DO {
+            FOR Sku s == sku(OVERRIDE overPrice(g), price(d)) DO {
                 IF NOT purchaseDetail(p, s) THEN {
                     NEW pd = GiftCardPurchaseDetail {
                         giftCardPurchase(pd) <- p;
@@ -58,7 +60,7 @@ processZReportExtraFields(STRING json) + {
         }
 
         FOR GiftCardPurchase p == purchase('Продажа ' + date(d), departmentStore(d)) DO {
-            FOR Sku s  == sku(NUMERIC(ceil(sum(d),5))) DO {
+            FOR Sku s  == sku(OVERRIDE overPrice(g), NUMERIC[16,4](ceil(sum(d), 5))) DO {
                 IF NOT purchaseDetail(p, s) THEN {
                     NEW pd = GiftCardPurchaseDetail {
                         giftCardPurchase(pd) <- p;
