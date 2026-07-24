@@ -2,7 +2,6 @@ package lsfusion.erp.integration.universal.purchaseinvoice;
 
 import com.github.junrar.Archive;
 import com.github.junrar.exception.RarException;
-import com.github.junrar.impl.FileVolumeManager;
 import com.github.junrar.rarfile.FileHeader;
 import com.google.common.base.Throwables;
 import jxl.read.biff.BiffException;
@@ -283,7 +282,7 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
             File outputDirectory = new File(inputFile.getParent() + "/" + getFileName(inputFile));
             if(inputFile.exists() && (outputDirectory.exists() || outputDirectory.mkdir())) {
                 dirList.add(outputDirectory);
-                Archive a = new Archive(new FileVolumeManager(inputFile));
+                Archive a = new Archive(inputFile);
 
                 FileHeader fh = a.nextFileHeader();
 
