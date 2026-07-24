@@ -184,7 +184,7 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
 
                                             boolean ignoreInvoicesAfterDocumentsClosedDate = findProperty("ignoreInvoicesAfterDocumentsClosedDate[]").read(context) != null;
                                             int importResult = makeImport(newContext, invoiceObject, importTypeObject, file, fileExtension, settings, staticNameImportType, staticCaptionImportType,
-                                                    completeIdItemAsEAN, checkInvoiceExistence, allowIncorrectBarcode, ignoreInvoicesAfterDocumentsClosedDate);
+                                                    completeIdItemAsEAN, allowIncorrectBarcode, checkInvoiceExistence, ignoreInvoicesAfterDocumentsClosedDate);
 
                                             if(invoiceObject != null) {
                                                 findProperty("original[Purchase.Invoice]").change(new DataObject(new FileData(file.second, fileExtension), DynamicFormatFileClass.get()), newContext, invoiceObject);
