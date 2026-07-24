@@ -1091,9 +1091,10 @@ countInvoiceVDGestori (VetDocument s) = GROUP SUM 1 IF countDetailVDInvoiceGesto
 CONSTRAINT countInvoiceVDGestori(VetDocument s) > 1
     MESSAGE 'Один ВСД нельзя связывать с разными накладными';
 
-// по настройке: запрет связывать один ВСД с несколькими позициями одного документа
+// по настройке: запрет связывать один ВСД с несколькими позициями одного документа (только для подтверждённых ВСД)
 forbidMultiDetailVDGestori 'Запрещать связывать ВСД с несколькими позициями одного документа' = DATA BOOLEAN ();
 CONSTRAINT forbidMultiDetailVDGestori() AND countDetailVDInvoiceGestori(Purchase.UserInvoice inv, VetDocument s) > 1
+    AND status(s) = VetDocumentStatus.CONFIRMED
     MESSAGE 'Нельзя связывать один ВСД с несколькими позициями одного документа';
 // настройка — на форме Администрирование → Интеграция, вкладка ВЕТИС
 EXTEND FORM integrationData PROPERTIES() forbidMultiDetailVDGestori;

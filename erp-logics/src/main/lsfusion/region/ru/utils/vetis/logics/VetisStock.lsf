@@ -117,12 +117,14 @@ META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, contai
     
     // объём ВСД, уже распределённый по строкам других документов (при заполнении не превышаем свободный остаток)
     usedVolumeOther (###doc d, VetDocument vtd) = GROUP SUM volume(###doc##Detail vd, vtd) IF NOT doc(vd) = d;
+    usedVolumeOtherLocal = DATA LOCAL NUMERIC[16,5] (VetDocument);
 
     fillVolume 'Заполнить по номеру' (###doc d) {
         DIALOG requestWayBillNumber OBJECTS s = seriesNumber(d) INPUT DO {
             number() <- s;
+            usedVolumeOtherLocal(VetDocument vtd) <- usedVolumeOther(d, vtd);
             volume(###doc##Detail vd, VetDocument vtd) <-
-                (PARTITION UNGROUP shipmentQuantity LIMIT (volume(vtd) (-) usedVolumeOther(d, vtd))/(OVERRIDE factor(sku(vd), unit(vtd)), 1.0) IF number() = issueSeriesNumberWaybill(vtd) AND  matches(vd, vtd)  AND status(vtd) = VetDocumentStatus.CONFIRMED ORDER DESC volume(vtd), vtd BY vd)*(OVERRIDE factor(sku(vd), unit(vtd)), 1.0)
+                (PARTITION UNGROUP shipmentQuantity LIMIT (volume(vtd) (-) usedVolumeOtherLocal(vtd))/(OVERRIDE factor(sku(vd), unit(vtd)), 1.0) IF number() = issueSeriesNumberWaybill(vtd) AND  matches(vd, vtd)  AND status(vtd) = VetDocumentStatus.CONFIRMED ORDER DESC volume(vtd), vtd BY vd)*(OVERRIDE factor(sku(vd), unit(vtd)), 1.0)
                 WHERE doc(vd) = d;
             fillExpiryDate(d);
         }
