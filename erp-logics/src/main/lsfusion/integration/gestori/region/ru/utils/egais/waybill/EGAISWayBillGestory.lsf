@@ -86,10 +86,21 @@ reject 'Отказ от ТТН' (WayBill w) {
     }
 } TOOLBAR CONFIRM;
 
-EXTEND FORM wayBills 
+nameAcceptResult 'Результат приёмки' (WayBill w) =
+    (CASE WHEN isAccept(w) = 'Accepted'    THEN 'Принята полностью'
+          WHEN isAccept(w) = 'Differences' THEN 'Принята частично'
+          ELSE 'Отказ от приёмки') IF countWayBillActs(w) CHARWIDTH 20;
+
+EXTEND FORM wayBills
     PROPERTIES (w) READONLY idShipper BEFORE shortNameShipper(w), idConsignee BEFORE shortNameConsignee(w)
+    PROPERTIES (w) READONLY nameAcceptResult
     PROPERTIES (w) reject
     PROPERTIES (p) select FIRST
+
+    FILTERGROUP acceptResult
+        FILTER 'Принята полностью' isAccept(w) = 'Accepted' AND countWayBillActs(w)
+        FILTER 'Принята частично'  isAccept(w) = 'Differences' AND countWayBillActs(w)
+        FILTER 'Отказ от приёмки'  isAccept(w) = 'Rejected' AND countWayBillActs(w)
 ;
 
 DESIGN wayBills {
