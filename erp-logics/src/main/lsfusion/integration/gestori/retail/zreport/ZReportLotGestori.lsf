@@ -27,6 +27,15 @@ CONSTRAINT SETCHANGED(lot(ReceiptSaleDetail d)) AND departmentStore(d) AND avail
     CHECKED BY lot[ReceiptSaleDetail]
     MESSAGE 'Превышен свободный остаток для кода маркировки';
 
+countReceiptSaleDetailLot (Lot l, Receipt r) =
+    GROUP SUM 1 IF lot(ReceiptSaleDetail d) = l AND receipt(d) = r;
+
+CONSTRAINT SETCHANGED(lot(ReceiptSaleDetail d))
+    AND countReceiptSaleDetailLot(lot(d), receipt(d)) > 1
+    AND currentUser() IS CustomUser
+    CHECKED BY lot[ReceiptSaleDetail]
+    MESSAGE 'Код маркировки уже указан в другой позиции этого чека';
+
 WHEN LOCAL FORMS zReport CHANGED (idBarcode(ReceiptDetail d))  AND NOT (sku(d)) DO {
     sku(d) <- sku(barcode(idBarcode(d)));
 }
