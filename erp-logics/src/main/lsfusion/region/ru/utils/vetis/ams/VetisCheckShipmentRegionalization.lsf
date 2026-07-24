@@ -1,6 +1,6 @@
 MODULE VetisCheckShipmentRegionalization;
 
-REQUIRE VetisAMSReceiveResponse, VetisPrepareOutgoingConsignment, VetisRegionalization, VetisIncomingConsignment;
+REQUIRE VetisAMSReceiveResponse, VetisPrepareOutgoingConsignment, VetisRegionalization, VetisIncomingConsignment, VetisProcessIncomingConsignment;
 
 NAMESPACE Vetis;
 
@@ -42,7 +42,7 @@ guid5 = DATA LOCAL STRING(INTEGER);
 in (CheckShipmentRegionalization c, SubProduct p) = OVERRIDE
     [GROUP SUM 1 IF in(c, OutgoingConsignment oc) AND in(stockEntry(oc), ProductItem pi) BY subProduct(pi)](p),
     [GROUP SUM 1 IF in(c, OutgoingConsignment oc) AND in(stockEntry(oc), VetDocument vd) BY subProduct(vd)](p),
-    [GROUP SUM 1 IF in(c, IncomingConsignment ic) BY subProduct(vetDocument(ic))](p);
+    [GROUP SUM 1 IF in(c, IncomingConsignment ic) BY subProductProcess(vetDocument(ic))](p);
 in (CheckShipmentRegionalization c, Enterprise e) = OVERRIDE
     (GROUP SUM 1 IF in(c, OutgoingConsignment oc) AND (consignorEnterprise(oc) == e OR consigneeEnterprise(oc) == e)),
     (GROUP SUM 1 IF in(c, IncomingConsignment ic) AND (consignorEnterpriseVetDocument(ic) == e OR consigneeEnterpriseVetDocument(ic) == e));
@@ -347,12 +347,12 @@ process (CheckShipmentRegionalization r) + {
             FOR imported(INTEGER i2) AND r13nRouteSectionAppliedR13nRule(i2) == routeSection2 AND subProduct(guid3(i2)) AND INTEGER(decision(i2)) == 2 AND INTEGER(sqnId(routeSection2)) == 1 DO {
                 FOR imported(INTEGER con2) AND appliedR13nRuleCondition(con2) == i2 AND condition(guid1(con2)) DO {
                     in (r, IncomingConsignment icc, condition(guid1(con2))) <- TRUE WHERE
-                        in(r, icc) AND subProduct(vetDocument(icc)) = subProduct(guid3(i2));
+                        in(r, icc) AND subProductProcess(vetDocument(icc)) = subProduct(guid3(i2));
                 }
             }
             FOR imported(INTEGER i2) AND r13nRouteSectionAppliedR13nRule(i2) == routeSection2 AND subProduct(guid3(i2)) AND INTEGER(sqnId(routeSection2)) == 1 DO {
                 checkStatus(r, IncomingConsignment icc) <- checkRequestStatus(INTEGER(decision(i2))) WHERE
-                    in(r, icc) AND subProduct(vetDocument(icc)) = subProduct(guid3(i2));
+                    in(r, icc) AND subProductProcess(vetDocument(icc)) = subProduct(guid3(i2));
             }
         }
 
@@ -399,3 +399,8 @@ EXTEND FORM  prepareOutgoingConsignmentRequest
     PROPERTIES(con) IN condition guid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
     FILTERS in(lastCheckRequest(d), d, con)
 ;
+
+// условия регионализации в возвратном сегменте запроса гашения (вставляются внутрь vd:authentication)
+r13nClauseXml (IncomingConsignment c) +=
+    GROUP CONCAT ('<vd:r13nClause xmlns:vd="http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2"><vd:condition><bs:guid xmlns:bs="http://api.vetrf.ru/schema/cdm/base">' + guid(Condition con) + '</bs:guid></vd:condition></vd:r13nClause>')
+        IF in(lastCheckRequest(c), c, con), '' ORDER con;

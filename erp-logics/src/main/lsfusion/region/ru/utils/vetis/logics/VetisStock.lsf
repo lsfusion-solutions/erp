@@ -127,6 +127,10 @@ META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, contai
     fillVolume 'Заполнить по номеру' (###doc d) {
         DIALOG requestWayBillNumber OBJECTS s = seriesNumber(d) INPUT DO {
             number() <- s;
+            IF NOT (GROUP SUM 1 IF number() = issueSeriesNumberWaybill(VetDocument vtd) AND status(vtd) = VetDocumentStatus.CONFIRMED AND matches(###doc##Detail vd, vtd) AND doc(vd) = d) THEN {
+                MESSAGE 'Подтверждённые ВСД с таким номером накладной не найдены';
+                RETURN;
+            }
             usedVolumeOtherLocal(VetDocument vtd) <- usedVolumeOther(d, vtd);
             volume(###doc##Detail vd, VetDocument vtd) <-
                 (PARTITION UNGROUP shipmentQuantity LIMIT (volume(vtd) (-) usedVolumeOtherLocal(vtd))/(OVERRIDE factor(sku(vd), unit(vtd)), 1.0) IF number() = issueSeriesNumberWaybill(vtd) AND  matches(vd, vtd)  AND status(vtd) = VetDocumentStatus.CONFIRMED ORDER DESC volume(vtd), vtd BY vd)*(OVERRIDE factor(sku(vd), unit(vtd)), 1.0)
