@@ -1,6 +1,6 @@
 MODULE PurchaseOrderGestori;
 
-REQUIRE PurchaseOrderStatus, SaleReportsRu, ReportFileNameGestori;
+REQUIRE PurchaseOrderStatus, SaleReportsRu, ReportFileNameGestori, PurchaseReturnOrder, PurchaseReturnInvoice;
 
 NAMESPACE Purchase;
 
@@ -112,6 +112,19 @@ DESIGN userOrder {
             MOVE PROPERTY(dateConfirmed(o));
         }
     }
+}
+
+// Удаление из заказа строк, по которым не указано количество
+deleteEmptyQuantityUserOrderDetail 'Удалить строки без количества' (UserOrder o) {
+    DELETE UserOrderDetail d WHERE userOrder(d) == o AND NOT quantity(d);
+} IN documentPrm TOOLBAR CONFIRM;
+
+EXTEND FORM userOrder
+    PROPERTIES(o) DRAW d deleteEmptyQuantityUserOrderDetail
+;
+
+DESIGN userOrder {
+    PROPERTY(deleteEmptyQuantityUserOrderDetail(o)) { focusable = FALSE; }
 }
 
 EXTEND FORM orders
@@ -715,4 +728,10 @@ DESIGN purchaseOrderReportForm {
 }
 
 CONSTRAINT (SET (isPosted(UserOrder doc)) OR DROPPED (countUserOrderDetail(doc))) AND isPosted(doc) AND detailsFillCheck(operation(doc)) AND NOT countUserOrderDetail(doc)
+    MESSAGE 'Для текущей операции обязательно наличие строк спецификации';
+
+CONSTRAINT (SET (isPosted(PurchaseReturn.UserOrder doc)) OR DROPPED (countUserOrderDetail(doc))) AND isPosted(doc) AND detailsFillCheck(operation(doc)) AND NOT countUserOrderDetail(doc)
+    MESSAGE 'Для текущей операции обязательно наличие строк спецификации';
+
+CONSTRAINT (SET (isPosted(PurchaseReturn.UserInvoice doc)) OR DROPPED (countUserInvoiceDetail(doc))) AND isPosted(doc) AND detailsFillCheck(operation(doc)) AND NOT countUserInvoiceDetail(doc)
     MESSAGE 'Для текущей операции обязательно наличие строк спецификации';
