@@ -1,6 +1,6 @@
 MODULE EGAISUTMQueryInfoGestori;
 
-REQUIRE EGAISGestori, EGAISInDoc, EGAISOutDoc;
+REQUIRE EGAISGestori, EGAISInDoc, EGAISOutDoc, EGAISUTMGestori;
 
 NAMESPACE EGAIS;
 
@@ -36,6 +36,10 @@ getUtmVersion 'Запросить версию УТМ' (UTM u) {
 regexpMatchUtm = FORMULA NULL STRING PG 'SELECT (regexp_match($1, $2))[1]';
 
 getFsrarIdFromUtm 'Запросить FSRAR_ID УТМ' (UTM u) {
+    IF inactive(u) THEN {
+        MESSAGE 'УТМ "' + name(u) + '" неактивен' NOWAIT;
+        RETURN;
+    }
     LOCAL response = FILE();
     TRY {
         timeoutHttp() <- 60000;
@@ -68,12 +72,15 @@ getFsrarIdFromUtm 'Запросить FSRAR_ID УТМ' (UTM u) {
 } TOOLBAR;
 
 checkUtmAvailability 'Проверить доступность УТМ' (UTM u) {
+    IF inactive(u) THEN
+        throwException('УТМ неактивен: ' + name(u));
+
     IF NOT url(u) THEN
         throwException('УТМ не настроен (не указан URL): ' + name(u));
 
     IF NOT firstClient(u) THEN
         throwException('УТМ не настроен (нет связанных организаций): ' + name(u));
-
+    
     LOCAL response = FILE();
     TRY {
         timeoutHttp() <- 10000;
@@ -126,18 +133,35 @@ beforeGetInDocs(UTM u) + {
     }
 }
 
+getUtmVersionSelect 'Запросить версию УТМ' (UTM u) {
+    IF NOT countSelectUtm() THEN
+        selectUtm(u) <- TRUE;
+    
+    FOR selectUtm(UTM s) DO
+        getUtmVersion(s);
+    
+} TOOLBAR;
+
+getFsrarIdFromUtmSelect 'Запросить FSRAR_ID УТМ' (UTM u) {
+    IF NOT countSelectUtm() THEN
+        selectUtm(u) <- TRUE;
+    
+    FOR selectUtm(UTM s) DO
+        getFsrarIdFromUtm(s);
+} TOOLBAR;
+
 EXTEND FORM UTM
-    PROPERTIES(o) READONLY utmVersion, utmBuildNumber, utmVersionDateTime 
+    PROPERTIES(o) READONLY utmVersion, utmBuildNumber, utmVersionDateTime
     PROPERTIES(o) getUtmVersion, getFsrarIdFromUtm
 ;
 DESIGN UTM {
     TOOLBARRIGHT {
         MOVE PROPERTY(getUtmVersion(o));
-        MOVE PROPERTY(getFsrarIdFromUtm(o));        
+        MOVE PROPERTY(getFsrarIdFromUtm(o));
     }
 }
 
 EXTEND FORM integrationData
     PROPERTIES(utm) READONLY utmVersion, utmBuildNumber, utmVersionDateTime
-    PROPERTIES(utm) getUtmVersion, getFsrarIdFromUtm 
+    PROPERTIES(utm) getUtmVersionSelect, getFsrarIdFromUtmSelect
 ;

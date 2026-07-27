@@ -1,6 +1,6 @@
 MODULE EGAISClientGestori;
 
-REQUIRE EGAISClient, EGAISGestori, EGAISUTMGestori, TextHighlight;
+REQUIRE EGAISClient, EGAISGestori, EGAISUTMGestori, EGAISStock, TextHighlight;
 
 NAMESPACE EGAIS;
 
@@ -8,6 +8,9 @@ synchronized 'Синхронизирован' = DATA BOOLEAN (Client);
 
 CONSTRAINT SETCHANGED(utm(Client t)) AND fsrarId(utm(t)) AND NOT fsrarId(utm(t)) == id(t)
     MESSAGE 'Нельзя связывать УТМ с организацией у которой FSRAR_ID отличается от FSRAR_ID УТМ';
+
+WHEN SETCHANGED(utm(Client c)) AND NOT fsrarId(utm(c)) DO
+    fsrarId(utm(c)) <- id(c);
 
 show 'Просмотреть' (Client c)  {
     NEWSESSION {
@@ -46,7 +49,8 @@ FORM dialogClientsForUtm 'Организации'
 
     OBJECTS o = Client
     PROPERTIES(o) READONLY id, shortName, INN, KPP
-    FILTERS NOT fsrarId(u) OR id(o) = fsrarId(u)
+    FILTERS NOT fsrarId(u) OR id(o) = fsrarId(u),
+            isCompany(stock(o))
 
     LIST Client OBJECT o
 ;

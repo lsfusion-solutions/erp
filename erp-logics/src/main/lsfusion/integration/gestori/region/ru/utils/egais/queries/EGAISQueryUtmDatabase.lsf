@@ -1,6 +1,6 @@
 MODULE EGAISQueryUtmDatabase;
 
-REQUIRE EGAIS;
+REQUIRE EGAIS, EGAISUTMGestori;
 
 NAMESPACE EGAIS;
 
@@ -35,6 +35,26 @@ getUtmDBDateTime 'Получить дату и время создания БД 
     APPLY;
 }
 
+
+getUtmDBDateTimeSelect 'Получить дату и время создания БД УТМ' (UTM u) {
+    IF NOT countSelectUtm() THEN
+        selectUtm(u) <- TRUE; 
+        
+    FOR selectUtm(UTM s) DO
+        getUtmDBDateTime(s);
+} TOOLBAR;
+
+EXTEND FORM UTM
+    PROPERTIES(o) READONLY utmDBDateTime
+    PROPERTIES(o) getUtmDBDateTime
+;
+
+DESIGN UTM {
+    TOOLBARRIGHT {
+        MOVE PROPERTY(getUtmDBDateTime(o));
+    }
+}
+
 EXTEND FORM integrationData
-    PROPERTIES(utm) utmDBDateTime READONLY, getUtmDBDateTime GRID
+    PROPERTIES(utm) utmDBDateTime READONLY, getUtmDBDateTimeSelect
 ;
