@@ -1205,7 +1205,7 @@ CONSTRAINT totalVolumeVDGestori(VetDocument s) > volume(s)
 // ---- Накладные продажи, вкладка ВЕТИС (записи журнала / исходящие партии) ----
 
 // объём (поставлено) по строке = фактическое количество × вес единицы товара
-volumeShippedSaleGestori 'Объем (поставлено)' (Sale.UserInvoiceDetail d) = NUMERIC[16,5](shipmentQuantity(d) * netWeight(sku(d)));
+volumeShippedSaleGestori 'Объем (поставлено)' (Sale.InvoiceDetail d) = NUMERIC[16,5](shipmentQuantity(d) * netWeight(sku(d)));
 
 // суммарный объём по строкам, связанным с записью журнала, по которым ещё не созданы ВСД
 totalVolumeSEGestori 'Объем всего' (StockEntry se) = GROUP SUM VetisSale.volume(Sale.UserInvoiceDetail d, se) IF NOT VetisSale.vetDocument(d, se);
@@ -1229,9 +1229,14 @@ DESIGN Sale.userInvoice {
 
 // ---- Список накладных продажи, вкладка ВЕТИС ----
 
+EXTEND FORM Sale.invoices
+    PROPERTIES(vd) READONLY volumeShippedSaleGestori
+;
+
 DESIGN Sale.invoices {
     vetis { caption = 'ВЕТИС'; }
     PROPERTY(guid(se)) { caption = 'GUID записи журнала'; }
+    PROPERTY(volume(vd, se)) { caption = 'Объем по строке'; }
 }
 
 // суммарный объём нераспределённых в ВСД строк не должен превышать текущий остаток записи журнала
@@ -1277,4 +1282,79 @@ showVetisRequestsSaleGestori 'Заявки ВЕТИС' (Sale.Invoice i) {
 
 EXTEND FORM Sale.userInvoice
     PROPERTIES showVetisRequestsSaleGestori(i) DRAW vd TOOLBAR
+;
+
+// ---- Накладные закупки (возврат), вкладка ВЕТИС (записи журнала / исходящие партии) ----
+
+// объём (поставлено) по строке = фактическое количество × вес единицы товара
+volumeShippedReturnGestori 'Объем (поставлено)' (PurchaseReturn.InvoiceDetail d) = NUMERIC[16,5](shipmentQuantity(d) * netWeight(sku(d)));
+
+// суммарный объём по строкам, связанным с записью журнала, по которым ещё не созданы ВСД
+totalVolumeSEReturnGestori 'Объем всего' (StockEntry se) =
+    GROUP SUM VetisPurchaseReturn.volume(PurchaseReturn.UserInvoiceDetail d, se) IF NOT VetisPurchaseReturn.vetDocument(d, se);
+
+// строка заблокирована: по исходящей партии отправлен запрос (кроме завершившихся ошибкой) или сформирована транспортная партия (есть ВСД)
+seVolumeLockedReturnGestori (PurchaseReturn.UserInvoiceDetail d) = GROUP SUM 1 IF VetisPurchaseReturn.outgoingConsignment(d, StockEntry se) IS OutgoingConsignment
+    AND (notCompleted(lastRequest(VetisPurchaseReturn.outgoingConsignment(d, se))) OR succeeded(lastRequest(VetisPurchaseReturn.outgoingConsignment(d, se)))
+         OR vetDocument(VetisPurchaseReturn.outgoingConsignment(d, se)));
+
+EXTEND FORM PurchaseReturn.userInvoice
+    PROPERTIES(vd) READONLY volumeShippedReturnGestori
+    PROPERTIES(se) READONLY totalVolumeSEReturnGestori
+;
+
+DESIGN PurchaseReturn.userInvoice {
+    vetis { caption = 'ВЕТИС'; }
+    PROPERTY(volumeStockEntry(vd)) { caption = 'Объем по строке'; }
+    PROPERTY(guid(se)) { caption = 'GUID записи журнала'; }
+    PROPERTY(volume(vd, se)) { caption = 'Объем по строке'; }
+}
+
+// ---- Список накладных закупки (возврат), вкладка ВЕТИС ----
+
+EXTEND FORM PurchaseReturn.invoices
+    PROPERTIES(vd) READONLY volumeShippedReturnGestori
+;
+
+DESIGN PurchaseReturn.invoices {
+    vetis { caption = 'ВЕТИС'; }
+    PROPERTY(guid(se)) { caption = 'GUID записи журнала'; }
+    PROPERTY(volume(vd, se)) { caption = 'Объем по строке'; }
+}
+
+// суммарный объём нераспределённых в ВСД строк не должен превышать текущий остаток записи журнала
+CONSTRAINT totalVolumeSEReturnGestori(StockEntry se) > volume(se)
+    MESSAGE 'Суммарный объём по строкам, связанным с записью журнала, превышает текущий остаток записи журнала';
+
+// суммарный объём по связанным записям журнала не может превышать объём по строке
+CONSTRAINT VetisPurchaseReturn.volumeStockEntry(PurchaseReturn.UserInvoiceDetail d) > volumeShippedReturnGestori(d)
+    MESSAGE 'Суммарный объём по записям журнала превышает объём по строке накладной';
+
+// запрет изменения количества и объёма по записям журнала после отправки запроса/формирования транспортной партии
+CONSTRAINT CHANGED(shipmentQuantity(PurchaseReturn.UserInvoiceDetail d)) AND seVolumeLockedReturnGestori(d) AND NOT CHANGED(seVolumeLockedReturnGestori(d))
+    MESSAGE 'Нельзя изменить количество: по исходящим партиям отправлены запросы в Ветис или сформирована транспортная партия';
+CONSTRAINT CHANGED(VetisPurchaseReturn.volume(PurchaseReturn.UserInvoiceDetail d, StockEntry se)) AND seVolumeLockedReturnGestori(d) AND NOT CHANGED(seVolumeLockedReturnGestori(d))
+    MESSAGE 'Нельзя изменить объём по записи журнала: по исходящим партиям отправлены запросы в Ветис или сформирована транспортная партия';
+
+// ---- Заявки ВЕТИС по накладной закупки (возврат) ----
+
+// накладная, по товарам которой создана заявка (оформление транспортной партии / условия регионализации)
+invoiceReturnRequestGestori 'Накладная закупки (возврат)' (ApplicationRequest r) = OVERRIDE
+    (GROUP MAX PurchaseReturn.invoice(PurchaseReturn.UserInvoiceDetail d) IF in(r AS PrepareOutgoingConsignmentRequest, VetisPurchaseReturn.outgoingConsignment(d, StockEntry se))),
+    (GROUP MAX PurchaseReturn.invoice(PurchaseReturn.UserInvoiceDetail d) IF in(r AS CheckShipmentRegionalization, VetisPurchaseReturn.outgoingConsignment(d, StockEntry se))) MATERIALIZED;
+
+filterReturnInvoiceRequestGestori = DATA LOCAL PurchaseReturn.Invoice ();
+
+EXTEND FORM applicationRequests
+    FILTERS NOT filterReturnInvoiceRequestGestori() OR invoiceReturnRequestGestori(r) = filterReturnInvoiceRequestGestori()
+;
+
+// кнопка на накладной закупки (возврат): заявки, отфильтрованные по накладной
+showVetisRequestsReturnGestori 'Заявки ВЕТИС' (PurchaseReturn.Invoice i) {
+    filterReturnInvoiceRequestGestori() <- i;
+    SHOW applicationRequests;
+}
+
+EXTEND FORM PurchaseReturn.userInvoice
+    PROPERTIES showVetisRequestsReturnGestori(i) DRAW vd TOOLBAR
 ;
