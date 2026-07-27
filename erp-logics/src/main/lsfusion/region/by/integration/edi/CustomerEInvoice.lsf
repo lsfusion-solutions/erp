@@ -17,6 +17,9 @@ exportedNoticeCustomer 'Экспортировано уведомление об
 overSupplier = ABSTRACT LegalEntity (EInvoice);
 signSupplier (EInvoice i) = OVERRIDE supplier(i), overSupplier(i);
 
+//зафиксированный при получении провайдер имеет приоритет над настройкой контрагента
+EDIProviderInvoice 'EDI-провайдер' (EInvoice i) = OVERRIDE dataEDIProviderInvoice(i), EDIProviderInvoice(signSupplier(i), customer(i));
+
 signAndSendBlrapnCustomer 'Подписать и отправить извещение о прочтении (покупатель)' ABSTRACT LIST (EInvoice);
 signAndSendBlrapnCustomerEDI 'Подписать и отправить извещение о прочтении (покупатель)'() {
     IF askPasswordEDSService() AND NOT passwordEDSService() THEN {
@@ -24,7 +27,7 @@ signAndSendBlrapnCustomerEDI 'Подписать и отправить изве�
     }
     FOR in(EInvoice i) DO {
         IF isEDI(i) THEN {
-            IF EDIProviderInvoice(signSupplier(i), customer(i)) THEN {
+            IF EDIProviderInvoice(i) THEN {
                 IF imported2560Customer(i) THEN {
                     signAndSendBlrapnCustomer(i);
                 } ELSE {
@@ -55,7 +58,7 @@ signAndSendCustomerEDI 'Подписать и отправить (покупат
     }
     FOR in(EInvoice i) DO {
         IF isEDI(i) THEN {
-            IF EDIProviderInvoice(signSupplier(i),customer(i)) THEN {
+            IF EDIProviderInvoice(i) THEN {
                 IF exportedBlrapnCustomer(i) AND imported2551Customer(i) OR skipCheck2551(i) THEN {
                     signAndSendCustomer(i);
                 } ELSE {
@@ -97,7 +100,7 @@ signAndSendNoticeCustomerEDI 'Подписать и отправить увед�
     }
     FOR in(EInvoice i) DO {
         IF isEDI(i) THEN {
-            IF EDIProviderInvoice(signSupplier(i), customer(i)) THEN {
+            IF EDIProviderInvoice(i) THEN {
                 noticeMessage() <- NULL;
                 fillNoticeMessage(i);
                 DIALOG signAndSendNotice OBJECTS d = noticeMessage() INPUT DO {
@@ -122,7 +125,7 @@ signAndSendNoticeCustomerEDIWithoutDialog 'Подписать и отправи�
     }
     FOR in(EInvoice i) DO {
         IF isEDI(i) THEN {
-            IF EDIProviderInvoice(signSupplier(i), customer(i)) THEN {
+            IF EDIProviderInvoice(i) THEN {
                 noticeMessage() <- NULL;
                 fillNoticeMessage(i);
                 IF noticeMessage() THEN {
@@ -736,6 +739,8 @@ exportedNoticeCustomer 'Экспортировано извещение о пр�
 numberNoticeCustomer 'Номер уведомления об изменении' = DATA STRING[35](ECreditNote);
 dateNoticeCustomer 'Дата уведомления об изменении' = DATA DATETIME (ECreditNote);
 
+EDIProviderInvoice 'EDI-провайдер' (ECreditNote c) = OVERRIDE EDIProviderInvoice(eInvoice(c)), EDIProviderInvoice(supplier(c), customer(c));
+
 
 signAndSendCustomer 'Подписать и отправить (покупатель)'  ABSTRACT LIST (ECreditNote);
 signAndSendCustomerCreditNote 'Подписать и отправить (покупатель)'()  {
@@ -746,7 +751,7 @@ signAndSendCustomerCreditNote 'Подписать и отправить (пок�
         IF NOT exportedCustomer(eInvoice(c)) THEN {
             MESSAGE 'Акт приемки не может быть отправлен. Не подписан ЭТТН';
         } ELSE {
-            IF EDIProviderInvoice(supplier(c), customer(c)) THEN
+            IF EDIProviderInvoice(c) THEN
                 signAndSendCustomer(c);
             ELSE
                 MESSAGE 'Не выбран EDI провайдер для акта приемки : ' + documentId(c);
@@ -762,7 +767,7 @@ signAndSendBlrapnCustomerCreditNote 'Подписать и отправить и
         DIALOG passwordEDSService DO {} ELSE { BREAK; };
     }
     FOR in(ECreditNote i) DO {
-        IF EDIProviderInvoice(customer(i), supplier(i)) THEN {
+        IF EDIProviderInvoice(i) THEN {
             IF importedCustomer(i) THEN {
                 signAndSendBlrapnCustomer(i);
             } ELSE

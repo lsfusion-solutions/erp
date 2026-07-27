@@ -7,6 +7,7 @@ NAMESPACE EDI;
 processEInvoiceMessage (INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) {
     FOR EInvoice ei = eInvoiceDeliveryNoteNumber(eDeliveryNoteNumber()) DO {
         XMLPath(ei) <- archiveDir + '/received/' + toChar(currentDate(), 'yyyyMMdd') + '/' + id(i);
+        dataEDIProviderInvoice(ei) <- EDIProvider(provider) WHERE EDIProvider(provider) AND fixEDIProviderInvoice(customer(ei));
 
         IF NOT eInvoiceMessage(ei, eDocumentID(), EInvoiceMessageKind.in) THEN NEW m = EInvoiceMessage {
             number(m) <- eDocumentID();

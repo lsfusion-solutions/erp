@@ -712,14 +712,26 @@ dataEDIProviderInvoice 'EDI-провайдер для накладных' = DATA
 EDIProviderInvoice 'EDI-провайдер для накладных' (LegalEntity legalEntity, LegalEntity company) = OVERRIDE dataEDIProviderInvoice(legalEntity, company), EDIProvider(legalEntity) IF isCompany(company);
 nameEDIProviderInvoice 'EDI-провайдер для накладных' (LegalEntity legalEntity, LegalEntity company) = staticCaption(EDIProviderInvoice(legalEntity, company));
 
+fixEDIProviderInvoice 'Фиксировать EDI-провайдера полученной накладной' = DATA BOOLEAN (LegalEntity);
+
+//провайдер, через которого накладная получена
+dataEDIProviderInvoice 'EDI-провайдер' = DATA EDIProvider (EInvoice);
+nameEDIProviderInvoice 'EDI-провайдер' (EInvoice i) = staticCaption(dataEDIProviderInvoice(i));
+
+EXTEND FORM eInvoices
+    PROPERTIES (e) READONLYIF (isReadonly() OR NOT isCompany(customer(e))) nameEDIProviderInvoice
+;
+
 EXTEND FORM legalEntity
     PROPERTIES (eCom) READONLY taxpayerId
-    PROPERTIES nameEDIProviderInvoice(l, eCom), GLNeInvoice(l) DRAW eCom;
+    PROPERTIES nameEDIProviderInvoice(l, eCom), GLNeInvoice(l) DRAW eCom
+    PROPERTIES (l) SHOWIF isCompany(l) fixEDIProviderInvoice;
 
 DESIGN legalEntity {
     EDI {
         NEW EInvoice {
             caption = 'Накладные';
+            MOVE PROPERTY (fixEDIProviderInvoice(l));
         }
     }   
 }
