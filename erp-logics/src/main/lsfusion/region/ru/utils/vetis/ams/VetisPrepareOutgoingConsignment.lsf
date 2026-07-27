@@ -109,20 +109,34 @@ in = GROUP SUM 1 IF in(OutgoingConsignment c) BY transportStorageType(c);
 cancelProcessOutgoingConsignment = DATA LOCAL BOOLEAN ();
 beforeProcessOutgoingConsignment ABSTRACT LIST ();
 
+// формировать отдельную заявку на каждую исходящую партию (по умолчанию — одна заявка на тип хранения)
+requestPerOutgoingConsignment = ABSTRACT BOOLEAN ();
+
 processOutgoingConsignment () {
     cancelProcessOutgoingConsignment() <- NULL;
     beforeProcessOutgoingConsignment();
     IF cancelProcessOutgoingConsignment() THEN RETURN;
     NEWSESSION NESTED (in[OutgoingConsignment]) {
-        FOR in(STRING storageType) DO
-            NEW r = PrepareOutgoingConsignmentRequest {
-                businessEntity(r) <- GROUP MAX consignorBusinessEntity(OutgoingConsignment oc) IF in(oc) AND transportStorageType(oc)=storageType;
-                in(r, OutgoingConsignment oc) <- TRUE WHERE in(oc) AND transportStorageType(oc)=storageType;
-                EXPORT prepareOutgoingConsignmentRequest OBJECTS r = r XML;
-            
-                submit(r, exportFile());
-            }
-        APPLY;    
+        IF requestPerOutgoingConsignment() THEN {
+            FOR in(OutgoingConsignment c) DO
+                NEW r = PrepareOutgoingConsignmentRequest {
+                    businessEntity(r) <- consignorBusinessEntity(c);
+                    in(r, c) <- TRUE;
+                    EXPORT prepareOutgoingConsignmentRequest OBJECTS r = r XML;
+
+                    submit(r, exportFile());
+                }
+        } ELSE {
+            FOR in(STRING storageType) DO
+                NEW r = PrepareOutgoingConsignmentRequest {
+                    businessEntity(r) <- GROUP MAX consignorBusinessEntity(OutgoingConsignment oc) IF in(oc) AND transportStorageType(oc)=storageType;
+                    in(r, OutgoingConsignment oc) <- TRUE WHERE in(oc) AND transportStorageType(oc)=storageType;
+                    EXPORT prepareOutgoingConsignmentRequest OBJECTS r = r XML;
+
+                    submit(r, exportFile());
+                }
+        }
+        APPLY;
     }
 }
 

@@ -1033,7 +1033,16 @@ beforeProcessOutgoingConsignment() + {
         cancelProcessOutgoingConsignment() <- TRUE;
         RETURN;
     }
+    FOR in(OutgoingConsignment oc) AND expiryDate(stockEntry(oc)) < currentDate() DO {
+        MESSAGE 'Нельзя отправить транспортную партию: истёк срок годности (' + STRING(expiryDate(stockEntry(oc))) +
+            ') по записи журнала «' + (OVERRIDE number(stockEntry(oc)), guid(stockEntry(oc))) + '».';
+        cancelProcessOutgoingConsignment() <- TRUE;
+        RETURN;
+    }
 }
+
+// каждая исходящая партия отправляется отдельной заявкой
+requestPerOutgoingConsignment() += TRUE;
 
 EXTEND FORM trucks
     PROPERTIES(t) READONLYIF isReadonly() sidGestori = sid BACKGROUND (RGB(255,200,200) IF invalidSidTruckGestori(t)) BEFORE nameTruckModel(t),
@@ -1229,7 +1238,6 @@ CONSTRAINT CHANGED(shipmentQuantity(Sale.UserInvoiceDetail d)) AND seVolumeLocke
 CONSTRAINT CHANGED(VetisSale.volume(Sale.UserInvoiceDetail d, StockEntry se)) AND seVolumeLockedSaleGestori(d) AND NOT CHANGED(seVolumeLockedSaleGestori(d))
     MESSAGE 'Нельзя изменить объём по записи журнала: по исходящим партиям отправлены запросы в Ветис или сформирована транспортная партия';
 
-// при изменении количества по связанной с записью журнала позиции пересчитывать выбранный объём
 WHEN CHANGED(shipmentQuantity(Sale.UserInvoiceDetail d)) AND VetisSale.volume(d, StockEntry se) > 0
         AND NOT seVolumeLockedSaleGestori(d) DO
     VetisSale.fillVolume(d, se);
