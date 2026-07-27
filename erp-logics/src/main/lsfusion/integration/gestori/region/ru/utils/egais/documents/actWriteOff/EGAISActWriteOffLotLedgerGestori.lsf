@@ -1,0 +1,46 @@
+MODULE EGAISActWriteOffLotLedgerGestori;
+
+REQUIRE EGAISActWriteOffLedgerGestori, EGAISLot, EGAISItem, SkuLedgerLotGestori, LotAdjustment, EGAISLotAdjustment;
+
+NAMESPACE EGAIS;
+
+simpleActWriteOff (ActWriteOff w) = w IS ActWriteOff AND NOT typeOriginalDocument(w) AND NOT byReceiptWriteOff(w);
+
+writeOffLotAdjustment 'Списание с баланса ЕГАИС' = DATA ActWriteOff (Lot.LotAdjustment) INDEXED;
+countWriteOffLotAdjustments (ActWriteOff w) = GROUP SUM 1 IF writeOffLotAdjustment(Lot.LotAdjustment la) = w;
+
+createActWriteOffLotAdjustment (ActWriteOff w) {
+    IF simpleActWriteOff(w) AND NOT countWriteOffLotAdjustments(w) THEN {
+        NEW la = Lot.LotAdjustment {
+            writeOffLotAdjustment(la) <- w;
+            isPosted(la) <- TRUE;
+            date(la) <- date(w);
+            time(la) <- toTime(dateTime(w));
+            stock(la) <- stock(client(w));
+            note(la) <- 'Списание с баланса ЕГАИС № ' + number(w) + ' от ' + date(w);
+
+            FOR actWriteOff(actWriteOffPosition(ActWriteOffMark m)) == w AND lot(markCode(m))
+                NEW ad = Lot.LotAdjustmentDetail DO {
+                lotAdjustment(ad) <- la;
+                lot(ad) <- lot(markCode(m));
+                quantity(ad) <- -1.0;
+            }
+        }
+    }
+}
+
+WHEN SET(posted(ActWriteOff w)) DO
+    createActWriteOffLotAdjustment(w);
+
+WHEN DROPPED(posted(ActWriteOff w)) DO
+    DELETE Lot.LotAdjustment la WHERE writeOffLotAdjustment(la) == w;
+
+CONSTRAINT SETCHANGED(markCode(ActWriteOffMark m)) AND simpleActWriteOff(actWriteOff(actWriteOffPosition(m)))
+    AND NOT posted(actWriteOff(actWriteOffPosition(m))) AND lot(markCode(m)) AND NOT availableQuantity(lot(markCode(m))) > 0
+    MESSAGE 'Код маркировки уже занят другим документом системы';
+
+CONSTRAINT SET(countWriteOffLotAdjustments(ActWriteOff w) > 0 AND NOT simpleActWriteOff(w))
+    MESSAGE 'По акту уже выполнено складское списание марок';
+
+CONSTRAINT SET((actWriteOff(Lot.LotAdjustment la) OR actFixBarCode(la)) AND writeOffLotAdjustment(la))
+    MESSAGE 'Документ создан актом списания с баланса ЕГАИС';
