@@ -4,7 +4,7 @@ REQUIRE VetisDocument, VetisStock, VetisStockEntry, VetisIncomingConsignment,
         VetisProcessIncomingConsignment, VetisWithdrawVetDocument, VetisItem,
         VetisDocumentImport, VetisPurchaseShipment, VetisStockEntryGestori,
         VetisEnterpriseGestori, VetisProductItemGestori, VetisPurposeImport,
-        VetisSaleReturnInvoice, VetisSaleShipment, VetisPurchaseReturnShipment;
+        VetisSaleReturnInvoice, VetisSaleReturnShipment, VetisSaleShipment, VetisPurchaseReturnShipment;
 
 NAMESPACE Vetis;
 
@@ -1358,3 +1358,94 @@ showVetisRequestsReturnGestori 'Заявки ВЕТИС' (PurchaseReturn.Invoice
 EXTEND FORM PurchaseReturn.userInvoice
     PROPERTIES showVetisRequestsReturnGestori(i) DRAW vd TOOLBAR
 ;
+
+// ---- Накладные продажи (возврат): вкладка ВЕТИС, объёмы, ограничения ----
+
+// объём по ВСД заблокирован, если по входящей партии отправлена заявка в Ветис (кроме завершившихся ошибкой) или выполнено гашение
+// (существование партии обязательно — иначе черновик без партии считался бы заблокированным)
+vsdVolumeLockedSaleReturnGestori (SaleReturn.UserInvoiceDetail vd) =
+    GROUP SUM 1 IF VetisSaleReturn.incomingConsignment(vd, VetDocument vtd) IS Vetis.IncomingConsignment AND NOT VetisSaleReturn.toProcess(vd, vtd);
+
+// вкладка ВСД: колонка «Накладная» из issueSeriesNumberWaybillGestori
+EXTEND FORM SaleReturn.userInvoice
+    PROPERTIES(vtd) READONLY issueSeriesNumberWaybillGestori AFTER issueSeriesNumberWaybill(vtd)
+;
+
+// количество по позиции нельзя менять после проведения накладной
+CONSTRAINT CHANGED(shipmentQuantity(SaleReturn.UserInvoiceDetail vd)) AND isPosted(vd) AND NOT CHANGED(isPosted(vd))
+    MESSAGE 'Нельзя изменить количество: накладная проведена';
+// объём по ВСД нельзя менять после отправки заявки в Ветис (кроме завершившихся ошибкой) или гашения
+CONSTRAINT CHANGED(VetisSaleReturn.volume(SaleReturn.UserInvoiceDetail vd, VetDocument vtd)) AND vsdVolumeLockedSaleReturnGestori(vd)
+    MESSAGE 'Нельзя изменить объём по ВСД: отправлена заявка в Ветис или выполнено гашение';
+
+// принятый вес по позиции не может превышать вес в ВСД
+CONSTRAINT VetisSaleReturn.volume(SaleReturn.UserInvoiceDetail vd, VetDocument vtd) > volume(vtd)
+    MESSAGE 'Количество по позиции в пересчёте на вес превышает вес в ВСД';
+
+// число позиций накладной, связанных с данным ВСД (по объёму)
+countDetailVDSaleReturnGestori (SaleReturn.UserInvoice inv, VetDocument s) =
+    GROUP SUM 1 IF VetisSaleReturn.volume(SaleReturn.UserInvoiceDetail d, s) > 0 AND SaleReturn.userInvoice(d) = inv;
+// один ВСД нельзя связывать с разными накладными
+countInvoiceVDSaleReturnGestori (VetDocument s) = GROUP SUM 1 IF countDetailVDSaleReturnGestori(SaleReturn.UserInvoice inv, s);
+CONSTRAINT countInvoiceVDSaleReturnGestori(VetDocument s) > 1
+    MESSAGE 'Один ВСД нельзя связывать с разными накладными';
+
+// по настройке: запрет связывать один ВСД с несколькими позициями одного документа (только для подтверждённых ВСД)
+CONSTRAINT forbidMultiDetailVDGestori() AND countDetailVDSaleReturnGestori(SaleReturn.UserInvoice inv, VetDocument s) > 1
+    AND status(s) = VetDocumentStatus.CONFIRMED
+    MESSAGE 'Нельзя связывать один ВСД с несколькими позициями одного документа';
+
+// при изменении количества по связанной с ВСД позиции пересчитывать выбранный объём
+WHEN CHANGED(shipmentQuantity(SaleReturn.UserInvoiceDetail vd)) AND VetisSaleReturn.volume(vd, VetDocument vtd) > 0
+        AND NOT vsdVolumeLockedSaleReturnGestori(vd) DO
+    VetisSaleReturn.fillVolume(vd, vtd);
+
+// список накладных продажи (возврат): время/статус/ошибка заявки по ВСД — одинаковы для всех строк этого ВСД
+EXTEND FORM SaleReturn.invoices
+    PROPERTIES READONLY issueDateVDSaleReturnGestori = issueDateLastRequestVetDocument(vtd),
+                        nameStatusVDSaleReturnGestori = nameStatusLastRequestVetDocument(vtd)
+    PROPERTIES READONLY errorVDSaleReturnGestori = errorLastRequestVetDocument(vtd) PANEL
+    PROPERTIES processRowVDSaleReturnGestori = processVDGestori(vtd) READONLYIF NOT toProcessVetDocument(vtd) GRID
+;
+
+DESIGN SaleReturn.invoices {
+    vetis {
+        caption = 'ВЕТИС';
+        MOVE PROPERTY(errorVDSaleReturnGestori) {
+            alignment = STRETCH;
+            panelCaptionVertical = TRUE;
+        }
+    }
+    PROPERTY(issueDateLastRequest(vd, vtd)) { hide = TRUE; }
+    PROPERTY(nameStatusLastRequest(vd, vtd)) { hide = TRUE; }
+    PROPERTY(errorLastRequest(vd, vtd)) { hide = TRUE; }
+    PROPERTY(process(vd, vtd)) { hide = TRUE; }
+    PROPERTY(uuid(vtd)) { caption = 'UUID ВСД'; }
+    PROPERTY(volume(vd, vtd)) { caption = 'Объем по строке'; }
+}
+
+// ---- Форма накладной продажи (возврат), вкладка ВЕТИС ----
+
+// объём (поставлено) по строке = фактическое количество × вес единицы товара
+volumeShippedSaleReturnGestori 'Объем (поставлено)' (SaleReturn.UserInvoiceDetail d) = NUMERIC[16,5](shipmentQuantity(d) * netWeight(sku(d)));
+
+// суммарный принятый объём по всем строкам, связанным с ВСД
+totalVolumeVDSaleReturnGestori 'Объем всего' (VetDocument s) = GROUP SUM VetisSaleReturn.volume(SaleReturn.UserInvoiceDetail d, s);
+
+EXTEND FORM SaleReturn.userInvoice
+    PROPERTIES(vd) READONLY volumeShippedSaleReturnGestori
+    PROPERTIES(vtd) READONLY totalVolumeVDSaleReturnGestori
+;
+
+DESIGN SaleReturn.userInvoice {
+    vetis { caption = 'ВЕТИС'; }
+    PROPERTY(issueSeriesNumberWaybill(vtd)) { hide = TRUE; }
+    PROPERTY(uuid(vtd)) { caption = 'UUID ВСД'; }
+    PROPERTY(uuidVetDocument(vd)) { caption = 'UUID ВСД'; }
+    PROPERTY(volumeVetDocument(vd)) { caption = 'Объем по строке'; }
+    PROPERTY(volume(vd, vtd)) { caption = 'Объем по строке'; }
+}
+
+// суммарный объём по строкам ВСД не должен превышать объём продукции
+CONSTRAINT totalVolumeVDSaleReturnGestori(VetDocument s) > volume(s)
+    MESSAGE 'Суммарный объём по строкам, связанным с ВСД, превышает объём продукции';
