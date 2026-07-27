@@ -272,7 +272,7 @@ groupType (StatisticGroup statisticGroup) += groupType (statisticGroup);
 group (StatisticGroupType statisticGroupType, Sku sku) += WHEN statisticGroupType IS StatisticGroupType AND sku IS Sku THEN statistic (statisticGroupType, sku);
 
 
-skipStatistic 'Исключить из розн. статистики' = ABSTRACT VALUE BOOLEAN (SaleLedger) MATERIALIZED;
+skipStatistic 'Исключить из статистики' = ABSTRACT VALUE BOOLEAN (SaleLedger) MATERIALIZED;
 
 overVolumeSaleStatistics = ABSTRACT NUMERIC[9,3] (Sku);
 volumeSaleStatistics (Sku s) = OVERRIDE overVolumeSaleStatistics(s), volume(s);
@@ -420,13 +420,17 @@ netWeightBalanceBLedger 'Вес товара на начало , кг' (Sku sku,
     balanceB (sku, stock, date) * netWeight(sku);
 volumeBalanceBLedger 'Объем товара на начало , л' (Sku sku, Stock stock, DATE date) =
     balanceB (sku, stock, date) * volumeSaleStatistics(sku);
+
+// сумма запасов берется из регистра либо по оценке, заданной в расширении
+useOverSumBalance = ABSTRACT BOOLEAN () PREREAD;
+overSumBalanceALedger = ABSTRACT NUMERIC[18,4] (Sku, Stock, DATE);
+overSumBalanceBLedger = ABSTRACT NUMERIC[18,4] (Sku, Stock, DATE);
+
+sumBalanceALedger 'Сумма товара на конец' (Sku sku, Stock stock, DATE date) =
+    IF useOverSumBalance() THEN overSumBalanceALedger(sku, stock, date) ELSE sumA(sku, stock, date);
+sumBalanceBLedger 'Сумма товара на начало' (Sku sku, Stock stock, DATE date) =
+    IF useOverSumBalance() THEN overSumBalanceBLedger(sku, stock, date) ELSE sumB(sku, stock, date);
     
-//sumASkuStockDate (sku, stock, dateTo) -  сумма на конец
-
-//retailSumBalanceASkuLedgerDate 'Сумма товара на конец , сум.' (sku, stock, dateTo) =
-//    retailPriceASkuStockDate (sku, stock, dateTo) * balanceASkuStockDate(sku, stock, dateTo);
-//balanceASkuStockDate (sku, stock, dateTo)    - шт.
-
                                    //с коэффициентом пересчета на конец//
 // всего
 balanceABy 'Остаток на конец' (StatisticGroup group, Stock stock, DATE date)=
@@ -447,7 +451,7 @@ volumeABy 'Объем на конец, л' (StatisticGroup group, Stock stock, D
 retailSumABy 'Сумма на конец, сум.' (StatisticGroup group, Stock stock, DATE date)=
     IF useCalcData() THEN calcRetailSumABy(group, stock, date)
     ELSE (GROUP
-        SUM sumA (Sku sku, stock, date) IF isParent(group, sku))/
+        SUM sumBalanceALedger (Sku sku, stock, date) IF isParent(group, sku))/
             (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
         
 // отечеств. пр-ва
@@ -469,7 +473,7 @@ volumeResidentABy 'Объем на конец, л' (StatisticGroup group, Stock 
 retailSumResidentABy 'Сумма на конец, сум.' (StatisticGroup group, Stock stock, DATE date)=
     IF useCalcData() THEN calcRetailSumResidentABy(group, stock, date)
     ELSE (GROUP
-        SUM sumA (Sku sku, stock, date) IF resident (group, sku))/
+        SUM sumBalanceALedger (Sku sku, stock, date) IF resident (group, sku))/
             (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
         
                                    //с коэффициентом пересчета на начало//
@@ -492,7 +496,7 @@ volumeBBy 'Объем на начало, л' (StatisticGroup group, Stock stock,
 retailSumBBy 'Сумма на начало, сум.' (StatisticGroup group, Stock stock, DATE date)=
      IF useCalcData() THEN calcRetailSumABy(group, stock, sum(date,-1))
      ELSE (GROUP
-        SUM sumB (Sku sku, stock, date) IF isParent(group, sku))/
+        SUM sumBalanceBLedger (Sku sku, stock, date) IF isParent(group, sku))/
             (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
                   
 
@@ -515,7 +519,7 @@ volumeResidentBBy 'Объем на начало, л' (StatisticGroup group, Stoc
 retailSumResidentBBy 'Сумма на начало, сум.' (StatisticGroup group, Stock stock, DATE date)=
     IF useCalcData() THEN calcRetailSumResidentABy(group, stock, sum(date,-1))
     ELSE (GROUP
-        SUM sumB (Sku sku, stock, date) IF resident (group, sku))/
+        SUM sumBalanceBLedger (Sku sku, stock, date) IF resident (group, sku))/
             (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 
 
@@ -655,7 +659,7 @@ volumeABy 'Объем на конец, л' (StatisticGroup group, LegalEntity le
         (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 
 retailSumABy 'Сумма на конец, руб' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE date)=
-    [ GROUP SUM sumA (Sku sku, Stock stock, date) IF isParent(group, sku) AND NOT skipSale(stock)
+    [ GROUP SUM sumBalanceALedger (Sku sku, Stock stock, date) IF isParent(group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock), region(stock)]
         (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 // белорусского производства
@@ -675,7 +679,7 @@ volumeResidentABy 'Объем на конец, л' (StatisticGroup group, LegalE
         (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 
 retailSumResidentABy 'Сумма на конец, руб' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE date)=
-    [ GROUP SUM sumA (Sku sku, Stock stock, date) IF resident (group, sku) AND NOT skipSale(stock)
+    [ GROUP SUM sumBalanceALedger (Sku sku, Stock stock, date) IF resident (group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock), region(stock)]
         (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 
@@ -761,7 +765,7 @@ totalSumResidentSoldBy 'В т.ч.отеч., руб.' (StatisticGroup group, lega
 // суммовые показатели
 
 sumBalanceABy 'Сумма остатка на конец, руб.' (StatisticGroup group, legalEntity, region, DATE date) =
-    GROUP SUM sumA (Sku sku, Stock stock, date) IF isParent(group, sku) AND NOT skipSale(stock)
+    GROUP SUM sumBalanceALedger (Sku sku, Stock stock, date) IF isParent(group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock), region(stock);
 
 
@@ -830,7 +834,7 @@ volumeABy 'Объем на конец, л' (StatisticGroup group, LegalEntity le
         (legalEntity) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 
 retailSumABy 'Сумма на конец, руб' (StatisticGroup group, LegalEntity legalEntity, DATE date)=
-    [ GROUP SUM sumA (Sku sku, Stock stock, date) IF isParent(group, sku) AND NOT skipSale(stock)
+    [ GROUP SUM sumBalanceALedger (Sku sku, Stock stock, date) IF isParent(group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock)]
         (legalEntity) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 // белорусского производства
@@ -850,7 +854,7 @@ volumeResidentABy 'Объем на конец, л' (StatisticGroup group, LegalE
         (legalEntity) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 
 retailSumResidentABy 'Сумма на конец, руб' (StatisticGroup group, LegalEntity legalEntity, DATE date)=
-    [ GROUP SUM sumA (Sku sku, Stock stock, date) IF resident (group, sku) AND NOT skipSale(stock)
+    [ GROUP SUM sumBalanceALedger (Sku sku, Stock stock, date) IF resident (group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock)]
         (legalEntity) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 
@@ -936,7 +940,7 @@ totalSumResidentSoldBy 'В т.ч.отеч., руб.' (StatisticGroup group, lega
 // суммовые показатели
 
 sumBalanceABy 'Сумма остатка на конец, руб.' (StatisticGroup group, legalEntity, DATE date) =
-    GROUP SUM sumA (Sku sku, Stock stock, date) IF isParent(group, sku) AND NOT skipSale(stock)
+    GROUP SUM sumBalanceALedger (Sku sku, Stock stock, date) IF isParent(group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock);
 
 //------------------------------------- остатки и продажи по складу-------------------------------------//
@@ -990,19 +994,19 @@ totalSumResidentSoldBy 'В т.ч.отеч., руб.' (StatisticGroup group, Stoc
 // суммовые показатели
 sumBalanceBBy 'Сумма остатка на начало, руб.' (StatisticGroup group, Stock stock, DATE dateFrom) =
     IF useCalcData() THEN calcSumBalanceABy(group,stock,sum(dateFrom,-1))
-    ELSE (GROUP SUM sumB (Sku sku, stock, dateFrom) IF isParent(group, sku));
+    ELSE (GROUP SUM sumBalanceBLedger (Sku sku, stock, dateFrom) IF isParent(group, sku));
 
 sumResidentBalanceBBy 'В т.ч.отеч., руб.' (StatisticGroup group, Stock stock, DATE dateFrom) =
     IF useCalcData() THEN calcSumResidentBalanceABy(group,stock,sum(dateFrom,-1))
-    ELSE (GROUP SUM sumB (Sku sku, stock, dateFrom) IF resident (group, sku));
+    ELSE (GROUP SUM sumBalanceBLedger (Sku sku, stock, dateFrom) IF resident (group, sku));
 
 sumBalanceABy 'Сумма остатка на конец, руб.' (StatisticGroup group, Stock stock, DATE dateTo) =
     IF useCalcData() THEN calcSumBalanceABy(group,stock,dateTo)
-    ELSE (GROUP SUM sumA (Sku sku, stock, dateTo) IF isParent(group, sku));
+    ELSE (GROUP SUM sumBalanceALedger (Sku sku, stock, dateTo) IF isParent(group, sku));
 
 sumResidentBalanceABy 'В т.ч.отеч., руб.' (StatisticGroup group, Stock stock, DATE dateTo) =
     IF useCalcData() THEN calcSumResidentBalanceABy(group,stock,dateTo)
-    ELSE (GROUP SUM sumA (Sku sku, stock, dateTo) IF resident (group, sku));
+    ELSE (GROUP SUM sumBalanceALedger (Sku sku, stock, dateTo) IF resident (group, sku));
 
 
 skipPrint = ABSTRACT CASE BOOLEAN (Stock);
@@ -1092,7 +1096,7 @@ fillCalcData (DATE dFrom, DATE dTo) {
     
     FOR isCompany(Stock stock) NOINLINE DO {
         balanceSku(Sku s, stock) <- balanceA(s,stock,dTo);
-        sumSku(Sku s, stock) <- sumA(s,stock,dTo);
+        sumSku(Sku s, stock) <- sumBalanceALedger(s,stock,dTo);
             
         FOR iterate(DATE date, dFrom, dTo) ORDER DESC date NOINLINE DO {
             LOCAL localQuantitySoldBy = NUMERIC[30,14] (StatisticGroup, Sku);
@@ -1136,7 +1140,9 @@ fillCalcData (DATE dFrom, DATE dTo) {
             APPLY NESTED LOCAL;
             
             balanceSku(Sku s, stock) <- balanceSku(s,stock) (-) signedQuantity(s,stock,date) WHERE signedQuantity(s,stock,date); 
-            sumSku(Sku s, stock) <- sumSku(s,stock) (-) signedSum(s,stock,date) WHERE signedSum(s,stock,date); 
+            sumSku(Sku s, stock) <- sumSku(s,stock) (-) signedSum(s,stock,date) WHERE signedSum(s,stock,date) AND NOT useOverSumBalance(); 
+            // оценка не раскладывается по движениям регистра, поэтому считается на каждую дату
+            sumSku(Sku s, stock) <- overSumBalanceALedger(s, stock, sum(date, -1)) WHERE useOverSumBalance(); 
         }
     }
 }
@@ -1190,7 +1196,7 @@ retailSumABy 'Сумма на конец, сум.' (StatisticGroup group, DATE d
     IF useCalcData() THEN
         (GROUP SUM calcRetailSumABy(group, Stock stock, date) IF inStat(stock))
     ELSE (GROUP
-        SUM sumA (Sku sku, Stock stock, date) IF isParent(group, sku) AND inStat(stock))/
+        SUM sumBalanceALedger (Sku sku, Stock stock, date) IF isParent(group, sku) AND inStat(stock))/
             (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
         
 // отечеств. пр-ва
@@ -1216,7 +1222,7 @@ retailSumResidentABy 'Сумма на конец, сум.' (StatisticGroup group
     IF useCalcData() THEN
         (GROUP SUM calcRetailSumResidentABy(group, Stock stock, date) IF inStat(stock))
     ELSE (GROUP
-        SUM sumA (Sku sku, Stock stock, date) IF resident (group, sku) AND inStat(stock))/
+        SUM sumBalanceALedger (Sku sku, Stock stock, date) IF resident (group, sku) AND inStat(stock))/
             (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 
 //с коэффициентом пересчета на начало//
@@ -1243,7 +1249,7 @@ retailSumBBy 'Сумма на начало, сум.' (StatisticGroup group, DATE
     IF useCalcData() THEN
         (GROUP SUM calcRetailSumABy(group, Stock stock, sum(date,-1)) IF inStat(stock))
     ELSE (GROUP
-        SUM sumB (Sku sku, Stock stock, date) IF isParent(group, sku) AND inStat(stock))/
+        SUM sumBalanceBLedger (Sku sku, Stock stock, date) IF isParent(group, sku) AND inStat(stock))/
             (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
                   
 
@@ -1270,7 +1276,7 @@ retailSumResidentBBy 'Сумма на начало, сум.' (StatisticGroup gro
     IF useCalcData() THEN
         (GROUP SUM calcRetailSumResidentABy(group, Stock stock, sum(date,-1)) IF inStat(stock))
     ELSE (GROUP
-        SUM sumB (Sku sku, Stock stock, date) IF resident (group, sku) AND inStat(stock))/
+        SUM sumBalanceBLedger (Sku sku, Stock stock, date) IF resident (group, sku) AND inStat(stock))/
             (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 
 
@@ -1466,25 +1472,25 @@ sumBalanceBBy 'Сумма остатка на начало, руб.' (StatisticG
     IF useCalcData() THEN (GROUP
         SUM calcSumBalanceABy(group, Stock stock, sum(dateFrom,-1)) IF inStat(stock))
     ELSE (GROUP
-        SUM sumB (Sku sku, Stock stock, dateFrom) IF isParent(group, sku)  AND inStat(stock));
+        SUM sumBalanceBLedger (Sku sku, Stock stock, dateFrom) IF isParent(group, sku)  AND inStat(stock));
 
 sumResidentBalanceBBy 'В т.ч.отеч., руб.' (StatisticGroup group, DATE dateFrom) =
     IF useCalcData() THEN (GROUP
         SUM calcSumResidentBalanceABy(group, Stock stock, sum(dateFrom,-1)) IF inStat(stock))
     ELSE (GROUP
-        SUM sumB (Sku sku, Stock stock, dateFrom) IF resident (group, sku)  AND inStat(stock));
+        SUM sumBalanceBLedger (Sku sku, Stock stock, dateFrom) IF resident (group, sku)  AND inStat(stock));
 
 sumBalanceABy 'Сумма остатка на конец, руб.' (StatisticGroup group, DATE dateTo) =
     IF useCalcData() THEN (GROUP
         SUM calcSumBalanceABy(group, Stock stock, dateTo) IF inStat(stock))
     ELSE (GROUP
-        SUM sumA (Sku sku, Stock stock, dateTo) IF isParent(group, sku)  AND inStat(stock));
+        SUM sumBalanceALedger (Sku sku, Stock stock, dateTo) IF isParent(group, sku)  AND inStat(stock));
 
 sumResidentBalanceABy 'В т.ч.отеч., руб.' (StatisticGroup group, DATE dateTo) =
     IF useCalcData() THEN (GROUP
         SUM calcSumResidentBalanceABy(group, Stock stock, dateTo) IF inStat(stock))
     ELSE (GROUP
-        SUM sumA (Sku sku, Stock stock, dateTo) IF resident (group, sku)  AND inStat(stock));
+        SUM sumBalanceALedger (Sku sku, Stock stock, dateTo) IF resident (group, sku)  AND inStat(stock));
 
 dataStocks 'Склады' = GROUP CONCAT name(Stock s) IF inStat(s), ', ' ORDER s;
 stocks() = CONCAT '', STRING[3000](dataStocks()), '...' IF length(dataStocks()) > 3000;

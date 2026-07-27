@@ -1,6 +1,6 @@
 MODULE SaleStatisticsStore;
 
-REQUIRE SaleStatistics, ZReport;
+REQUIRE SaleStatistics, ZReport, Pricing;
 
 NAMESPACE Sale;
 
@@ -359,3 +359,19 @@ DESIGN statisticalReportStockSelect {
         }
     }
 }
+
+//---------------------------------------------- Суммы запасов по розничным ценам -------------------------------------//
+
+// в магазине учет может вестись по себестоимости - тогда сумма в регистре не розничная и суммы запасов
+// для отчетности считаются по розничным ценам; в опте (1-торг (опт)) запасы, наоборот, отражаются
+// в покупных ценах, поэтому по смыслу условием должен быть учет по себестоимости склада (costLedger),
+// но в свойствах по региону и компании склад является ключом агрегации и обе ветки попадут в один запрос
+@defineOption(useRetailSumBalance, 'Рассчитывать суммы запасов по розничным ценам', statistics);
+
+useOverSumBalance() += useRetailSumBalance();
+
+overSumBalanceALedger(Sku sku, Stock stock, DATE date) +=
+    NUMERIC[18,4](balanceA(sku, stock, date) * retailPricingPriceA(sku, stock, date));
+// на начало дня действует цена, установленная на конец предыдущего
+overSumBalanceBLedger(Sku sku, Stock stock, DATE date) +=
+    NUMERIC[18,4](balanceB(sku, stock, date) * retailPricingPriceA(sku, stock, sum(date, -1)));
