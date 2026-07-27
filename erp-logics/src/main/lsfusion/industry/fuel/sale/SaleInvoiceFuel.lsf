@@ -1,6 +1,6 @@
 MODULE SaleInvoiceFuel;
 
-REQUIRE SaleInvoice, ItemFuel, SkuLedgerFuel, SaleFuel;
+REQUIRE SaleInvoice, ItemFuel, SkuLedgerFuel, SaleFuel, SaleOrderFuel;
 
 NAMESPACE Sale;
 
@@ -15,6 +15,10 @@ density 'Плотность, кг/л' = ABSTRACT NUMERIC[9,5] (InvoiceDetail) CH
 density 'Плотность, кг/л' = DATA NUMERIC[9,5] (UserInvoiceDetail) CHARWIDTH 7;
 density (UserInvoiceDetail invoiceDetail) += density(invoiceDetail);
 
+temperature 'Температура, °С' = ABSTRACT NUMERIC[5,1] (InvoiceDetail) CHARWIDTH 7 MATERIALIZED;
+temperature 'Температура, °С' = DATA NUMERIC[5,1] (UserInvoiceDetail) CHARWIDTH 7;
+temperature (UserInvoiceDetail invoiceDetail) += temperature(invoiceDetail);
+
 @fuelVolumeConstraintInvoice(invoiceDetail);
 
 @fuelDensity(userInvoiceDetail, 'накладная (продажа)');
@@ -28,20 +32,28 @@ EXTEND FORM userInvoice
     PROPERTIES(i) SHOWIF showFuel(i) volumeUserInvoiceDetail
     PROPERTIES(d) READONLYIF NOT (isFuel(sku(d)) OR extraIsFuel(sku(d))) SHOWIF (showQuantity(i) AND showFuel(i)) volume BACKGROUND backgroundQuantity(d) AFTER quantity(d)
     PROPERTIES(d) READONLYIF NOT (isFuel(sku(d)) OR extraIsFuel(sku(d))) SHOWIF showFuel(i) density AFTER volume(d) ON CHANGE changeDensity(d) ON CONTEXTMENU fillDensity15C(d) ON CONTEXTMENU fillDensityFromTable(d) BACKGROUND overBackgroundDensity(d)
+    PROPERTIES(d) READONLYIF NOT (isFuel(sku(d)) OR extraIsFuel(sku(d))) SHOWIF showFuel(i) temperature
 ;
 
 overCopy(UserInvoiceDetail d, InvoiceDetail detail) + {
     volume(d) <- volume(detail);
     density(d) <- density(detail);
+    temperature(d) <- temperature(detail);
 }
 overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) + {
     volume(d) <- volume(detail);
     density(d) <- density(detail);
+    temperature(d) <- temperature(detail);
 }
 
 EXTEND FORM invoices
     PROPERTIES(i) READONLY SHOWIF showFuel(i) BACKGROUND background(i) volumeInvoiceDetail AFTER quantityInvoiceDetail(i)
     PROPERTIES(d) READONLY SHOWIF showFuel(i) volume AFTER quantity(d)
     PROPERTIES(d) READONLY SHOWIF showFuel(i) density AFTER volume(d)
+    PROPERTIES(d) READONLY SHOWIF showFuel(i) temperature
 ;
 
+overFill (UserInvoiceDetail id, OrderDetail od) + {
+    volume(id) <- volume(od);
+    density(id) <- density(od);
+}
