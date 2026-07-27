@@ -967,6 +967,16 @@ DESIGN vetDocument {
     PROPERTY(relationshipType(rd)) { caption = 'Код типа связи'; }
 }
 
+// ---- Запрет гашения при истёкшем сроке годности ----
+// гашение формирует запись журнала со сроком годности из ВСД — по просроченной продукции заявку не создавать
+beforeProcessIncomingConsignment(IncomingConsignment c) + {
+    IF expiryDate(vetDocument(c)) < currentDate() THEN {
+        MESSAGE 'Нельзя отправить запрос на гашение ВСД ' + (OVERRIDE uuid(vetDocument(c)), '') +
+            ': истёк срок годности продукции (' + STRING(expiryDate(vetDocument(c))) + ').';
+        cancelProcessIncomingConsignment() <- TRUE;
+    }
+}
+
 // ---- Пакетная отправка запросов на гашение ВСД ----
 
 // представитель для гашения по ВСД: одна партия на ВСД (группировка — не слать один ВСД несколькими запросами);

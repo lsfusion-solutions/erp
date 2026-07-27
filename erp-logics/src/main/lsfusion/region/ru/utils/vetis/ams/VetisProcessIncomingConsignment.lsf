@@ -195,7 +195,14 @@ FORM processIncomingConsignmentRequestReturnedDelivery
 
 ; 
 
+// проверка партии перед отправкой запроса на гашение (реализации могут запретить отправку с сообщением)
+cancelProcessIncomingConsignment = DATA LOCAL BOOLEAN ();
+beforeProcessIncomingConsignment ABSTRACT LIST (IncomingConsignment);
+
 process 'Отправить в Ветис' (IncomingConsignment c) {
+    cancelProcessIncomingConsignment() <- NULL;
+    beforeProcessIncomingConsignment(c);
+    IF cancelProcessIncomingConsignment() THEN RETURN;
     IF missingDataProcess(c) THEN {
         MESSAGE 'Нельзя отправить запрос на гашение ВСД ' + (OVERRIDE uuid(vetDocument(c)), '') + ': не заполнено: ' + missingDataProcess(c);
         RETURN;
