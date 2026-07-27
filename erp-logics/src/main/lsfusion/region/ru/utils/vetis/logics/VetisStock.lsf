@@ -123,6 +123,7 @@ META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, contai
     usedVolumeOtherLocal = DATA LOCAL NUMERIC[16,5] (VetDocument);
     remainderVolumeLocal = DATA LOCAL NUMERIC[16,5] (VetDocument);
     assignedVolumeLocal = DATA LOCAL NUMERIC[16,5] (###doc##Detail, VetDocument);
+    shippedVolumeLocal = DATA LOCAL NUMERIC[16,5] (###doc##Detail);
 
     fillVolume 'Заполнить по номеру' (###doc d) {
         DIALOG requestWayBillNumber OBJECTS s = seriesNumber(d) INPUT DO {
@@ -141,6 +142,13 @@ META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, contai
             volume(###doc##Detail vd, VetDocument vtd) <-
                 PARTITION UNGROUP remainderVolumeLocal LIMIT STRICT (assignedVolumeLocal(vd, vtd)) ORDER index(vd), vd BY vtd
                 WHERE doc(vd) = d AND assignedVolumeLocal(vd, vtd);
+            // суммарно по строке не больше объёма поставлено (кол-во × вес нетто): излишек снимается с последних ВСД
+            assignedVolumeLocal(###doc##Detail vd, VetDocument vtd) <- NULL WHERE doc(vd) = d;
+            assignedVolumeLocal(###doc##Detail vd, VetDocument vtd) <- volume(vd, vtd) WHERE doc(vd) = d AND volume(vd, vtd) > 0;
+            shippedVolumeLocal(###doc##Detail vd) <- NUMERIC[16,5](shipmentQuantity(vd) * netWeight(sku(vd))) WHERE doc(vd) = d;
+            volume(###doc##Detail vd, VetDocument vtd) <-
+                PARTITION UNGROUP shippedVolumeLocal LIMIT STRICT (assignedVolumeLocal(vd, vtd)) ORDER DESC volume(vtd), vtd BY vd
+                WHERE doc(vd) = d AND assignedVolumeLocal(vd, vtd) AND shippedVolumeLocal(vd) > 0;
             fillExpiryDate(d);
         }
     }
