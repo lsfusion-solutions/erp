@@ -287,6 +287,8 @@ idUkm5(INTEGER i) = storeId(i) + '_' + posId(i);
 
 processUkm5PaymentExtra ABSTRACT LIST (Payment, INTEGER);
 
+dateSwitchPaymentIdUkm5 'Дата перехода на определение оплат УКМ5 по paymentId' = DATA DATE () PREREAD;
+
 EXTEND FORM groupCashRegister
     PROPERTIES (c) idUkm5 SHOWIF isUkm5(grc);
 
@@ -355,15 +357,26 @@ zReportUkm5 (FILE f) {
             sum(detail) <- NUMERIC[16,4](amount13(j));
             discountSum(detail) <- NUMERIC[18,4](amount10(j));
         }
-        FOR amount4(INTEGER j) AND pType(j) AND elementsPayments(j) = i NEW p = Payment DO{
+        FOR amount4(INTEGER j) AND elementsPayments(j) = i NEW p = Payment DO{
             receipt(p) <- r;
             sum(p) <- IF receiptType(i) = 'Sale' THEN NUMERIC[18,4](amount4(j))
                 ELSE -NUMERIC[18,4](amount4(j));
-            paymentType(p) <- CASE
-                WHEN pType(j) = 'Card' THEN typePaymentSID('card')
-                WHEN pType(j) = 'Cash' THEN typePaymentSID('cash')
-                WHEN pType(j) = 'Certificate' THEN typePaymentSID('giftcard')
-            ;
+            IF dateSwitchPaymentIdUkm5() AND DATE(dateClose(i)) >= dateSwitchPaymentIdUkm5() THEN {
+                paymentType(p) <- CASE
+                    WHEN paymentId(j) = 99 THEN typePaymentSID('cash')
+                    WHEN paymentId(j) = 1 THEN typePaymentSID('card')
+                    WHEN paymentId(j) = 4 THEN typePaymentSID('giftcard')
+                    WHEN paymentId(j) = 5 THEN typePaymentSID('5')
+                    WHEN paymentId(j) = 6 THEN typePaymentSID('qr')
+                    WHEN paymentId(j) = 7 THEN typePaymentSID('krok')
+                ;
+            } ELSE {
+                paymentType(p) <- CASE
+                    WHEN pType(j) = 'Card' THEN typePaymentSID('card')
+                    WHEN pType(j) = 'Cash' THEN typePaymentSID('cash')
+                    WHEN pType(j) = 'Certificate' THEN typePaymentSID('giftcard')
+                ;
+            }
             processUkm5PaymentExtra(p, j);
         }
     }
@@ -384,6 +397,18 @@ receiptPackage(STRING id, STRING date){
     zReportUkm5(f());
 }
 logApiUKM5 'Логировать запросы УКМ5' = DATA BOOLEAN () PREREAD;
+
+EXTEND FORM integrationData
+    PROPERTIES dateSwitchPaymentIdUkm5();
+
+DESIGN integrationData{
+    pane{
+        ukm5{
+            MOVE PROPERTY (dateSwitchPaymentIdUkm5()) AFTER PROPERTY (urlUkm5ServerImport());
+            MOVE PROPERTY (urlUkm5ServerExport()) AFTER PROPERTY (dateSwitchPaymentIdUkm5());
+        }
+    }
+}
 
 //-------------------- api/v1/export/receipt ------------------------//
 api_v1_export_receipt(FILE f) {
