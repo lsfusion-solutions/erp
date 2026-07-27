@@ -15,9 +15,19 @@ supplierSku(Sku s) += supplierLastOrderBatch(s);
 nameSupplierSku 'Наименование поставщика' (Sku s) = name(supplierSku(s));
 idSupplierSku 'Код поставщика' (Sku s) = id(supplierSku(s));
 
-inSessionSku 'Отм.' (Sku s) = OVERRIDE in(s), TRUE IF (GROUP SUM 1 IF inSession(group(GroupType t, s)));
-printInSessionSku 'Товары' () =
-    GROUP CONCAT name(Sku s) IF inSessionSku(s) ,', ' ORDER s CHARWIDTH 100;
+// отбор товаров: базовый (отметка товаров и групп классификатора) + расширение из клиентских модулей
+dataSelectedSku 'Отм.' (Sku s) = OVERRIDE in(s), TRUE IF (GROUP SUM 1 IF inSession(group(GroupType t, s)));
+anySelectedSku () = GROUP SUM 1 IF dataSelectedSku(Sku s);
+
+// дополнительный отбор товаров (реализуется в клиентских модулях)
+overInSessionSku = ABSTRACT BOOLEAN (Sku);
+
+inSessionSku 'Отм.' (Sku s) = OVERRIDE dataSelectedSku(s), overInSessionSku(s);
+
+// краткое описание отбора товаров в заголовке отчета (вместо перечисления наименований)
+overPrintInSessionSku = ABSTRACT STRING ();
+printInSessionSku 'Товары' () = OVERRIDE overPrintInSessionSku(),
+    (GROUP CONCAT name(Sku s) IF inSessionSku(s) ,', ' ORDER s) CHARWIDTH 100;
 
 inCustomer 'Отм.' = DATA LOCAL BOOLEAN (LegalEntity);
 inSaleReportCustomer 'Покупатели' () =
@@ -267,15 +277,15 @@ FORM dialogReportSkuLists 'Выбор списков товаров'
     ORDERS name(o)
 
     EVENTS ON OK {
-        inSessionSku(Sku sku) <- in(o, sku);
+        in(Sku sku) <- in(o, sku);
     }
 ;
 
 changeSkuList 'Список товаров'() {
     DIALOG dialogReportSkuLists OBJECTS o INPUT DO {
-        inSessionSku(Sku s) <- NULL;
+        in(Sku s) <- NULL;
         FOR inReportSkuList(list(ListDetail ld)) AND Sku sk = sku(ld) DO
-            inSessionSku(sk) <- TRUE;
+            in(sk) <- TRUE;
     }
 }
 
