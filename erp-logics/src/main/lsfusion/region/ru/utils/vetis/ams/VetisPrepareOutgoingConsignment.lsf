@@ -260,6 +260,9 @@ META defineDocumentOutgoingProcess (doc, obj)
     }
 
     hasProductItem###doc = GROUP SUM 1 IF in(sku(###doc##Detail detail), ProductItem pi) OR volumeStockEntry(detail) AND pi IS ProductItem BY ##doc(detail);
+
+    // реализации могут запретить правку связей с записями журнала (например, когда по всем партиям уже созданы ВСД)
+    lockedVetis###doc = ABSTRACT BOOLEAN (###doc);
         
     EXTEND FORM doc##s
         OBJECTS vse = (vd = ###doc##Detail, se = StockEntry)
@@ -271,7 +274,7 @@ META defineDocumentOutgoingProcess (doc, obj)
         FILTERS doc(vd) = obj, volume(vd, se)
     
         PROPERTIES(obj) process DRAW vse TOOLBAR SHOWIF toProcess(obj)
-        PROPERTIES(obj) fillVolumeApply DRAW vse TOOLBAR SHOWIF hasProductItem###doc(obj)
+        PROPERTIES(obj) fillVolumeApply DRAW vse TOOLBAR SHOWIF hasProductItem###doc(obj) AND NOT lockedVetis###doc(obj)
          
         PROPERTIES(vd, se) issueDateLastRequest, nameStatusLastRequest, errorLastRequest PANEL,
                            process READONLYIF NOT toProcess(outgoingConsignment(vd, se)) GRID
