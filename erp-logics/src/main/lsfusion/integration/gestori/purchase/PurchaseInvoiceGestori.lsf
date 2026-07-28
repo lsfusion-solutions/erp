@@ -1,0 +1,68 @@
+MODULE PurchaseInvoiceGestori;
+
+REQUIRE PurchaseInvoice, PurchaseShipment, PurchaseLedger;
+
+NAMESPACE Purchase;
+
+// ---- Суммы факт (по Количество поставлено) ----
+
+shipmentInvoiceSum 'Сумма с НДС поставлено' (UserInvoiceDetail d) =
+    NUMERIC[18,4](round(invoicePrice(d) * shipmentQuantity(d), currency(d)))
+    CHARWIDTH 9 PATTERN '#,##0.00##';
+
+shipmentVATSum 'Сумма НДС поставлено' (UserInvoiceDetail d) =
+    NUMERIC[18,4](round([X*Y/(100+Y)](invoicePrice(d) * shipmentQuantity(d), valueVAT(d)), currency(d)))
+    CHARWIDTH 8 PATTERN '#,##0.00##';
+
+shipmentVATSum 'Сумма НДС поставлено' (UserInvoice i) =
+    GROUP SUM shipmentVATSum(UserInvoiceDetail d) BY userInvoice(d)
+    CHARWIDTH 9 IN documentSum PATTERN '#,##0.00##';
+
+shipmentInvoiceSum 'Сумма с НДС поставлено' (UserInvoice i) =
+    GROUP SUM shipmentInvoiceSum(UserInvoiceDetail d) BY userInvoice(d)
+    CHARWIDTH 9 IN documentSum PATTERN '#,##0.00##';
+
+shipmentVATSum 'Сумма НДС поставлено' (Invoice i) =
+    GROUP SUM shipmentVATSum(UserInvoiceDetail d) BY invoice(d)
+    CHARWIDTH 9 PATTERN '#,##0.00##';
+
+shipmentInvoiceSum 'Сумма с НДС поставлено' (Invoice i) =
+    GROUP SUM shipmentInvoiceSum(UserInvoiceDetail d) BY invoice(d)
+    CHARWIDTH 9 PATTERN '#,##0.00##';
+
+shipmentVATSum 'Сумма НДС поставлено' (InvoiceDetail d) = shipmentVATSum(d AS UserInvoiceDetail)
+    CHARWIDTH 8 PATTERN '#,##0.00##';
+
+shipmentInvoiceSum 'Сумма с НДС поставлено' (InvoiceDetail d) = shipmentInvoiceSum(d AS UserInvoiceDetail)
+    CHARWIDTH 9 PATTERN '#,##0.00##';
+
+shipmentQuantity 'Кол-во (поставлено)' (UserInvoice i) =
+    GROUP SUM shipmentQuantity(UserInvoiceDetail d) BY userInvoice(d)
+    IN documentSum;
+
+EXTEND FORM userInvoice
+    PROPERTIES(d) READONLY shipmentVATSum, shipmentInvoiceSum
+    PROPERTIES(i) READONLY shipmentQuantity PANEL, shipmentVATSum PANEL, shipmentInvoiceSum PANEL
+;
+
+DESIGN userInvoice {
+    PROPERTY(VATSumUserInvoiceDetail(i)) { caption = 'Сумма НДС по документу'; }
+    PROPERTY(invoiceSumUserInvoiceDetail(i)) { caption = 'Сумма с НДС по документу'; }
+    PROPERTY(shipmentVATSum(i)) { charWidth = 13; }
+    PROPERTY(shipmentInvoiceSum(i)) { charWidth = 13; }
+}
+
+EXTEND FORM invoices
+    PROPERTIES(i) READONLY BACKGROUND background(i) shipmentVATSum, shipmentInvoiceSum
+    PROPERTIES(d) READONLY shipmentVATSum, shipmentInvoiceSum
+;
+
+shipmentVATSum 'Сумма НДС поставлено' = ABSTRACT NUMERIC[18,4] (PurchaseLedger) CHARWIDTH 8 PATTERN '#,##0.00##';
+shipmentInvoiceSum 'Сумма с НДС поставлено' = ABSTRACT NUMERIC[18,4] (PurchaseLedger) CHARWIDTH 9 PATTERN '#,##0.00##';
+
+shipmentVATSum[PurchaseLedger] (InvoiceDetail d) += shipmentVATSum(d AS UserInvoiceDetail);
+shipmentInvoiceSum[PurchaseLedger] (InvoiceDetail d) += shipmentInvoiceSum(d AS UserInvoiceDetail);
+
+EXTEND FORM purchaseLedger
+    PROPERTIES(s) READONLY shipmentVATSum, shipmentInvoiceSum
+;

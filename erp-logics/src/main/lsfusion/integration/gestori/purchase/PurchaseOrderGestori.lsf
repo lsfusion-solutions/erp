@@ -1,6 +1,7 @@
 MODULE PurchaseOrderGestori;
 
-REQUIRE PurchaseOrderStatus, SaleReportsRu, ReportFileNameGestori, PurchaseReturnOrder, PurchaseReturnInvoice;
+REQUIRE PurchaseOrderStatus, SaleReportsRu, ReportFileNameGestori, PurchaseReturnOrder, PurchaseReturnInvoice,
+        PurchaseInvoiceGestori;
 
 NAMESPACE Purchase;
 
@@ -91,8 +92,8 @@ specPrice 'Цена из спецификации' (Purchase.OrderDetail d) =
 
 orderSum 'Сумма заказа (с НДС)' (Purchase.OrderDetail d) = invoiceSum(d);
 
-receivedSum 'Сумма из приходной накладной (с НДС)' (Purchase.OrderDetail d) =
-    shipped(d) * receivedPrice(d);
+receivedSum 'Сумма из приходной накладной (с НДС)' =
+    GROUP SUM shipmentInvoiceSum(invoiceDetail(Purchase.ShipmentDetail sd)) IF isPosted(sd) BY orderDetail(sd);
 
 dateConfirmed 'Дата подтверждения' = DATA DATE (Purchase.Order);
 dateConfirmed 'Дата подтверждения' (Purchase.OrderDetail d) = dateConfirmed(order(d));
@@ -139,9 +140,9 @@ discrepancyConfirmReceived 'Расхождение подтв./приход' (Pu
 
 numberInvoiceDetail 'Номер накладной' (Purchase.InvoiceDetail id) = number(invoice(id));
 dateInvoiceDetail 'Дата накладной' (Purchase.InvoiceDetail id) = date(invoice(id));
-quantityInvoiceDetail 'Кол-во в накладной' (Purchase.InvoiceDetail id) = quantity(id);
+quantityInvoiceDetail 'Кол-во в накладной (поставлено)' (Purchase.InvoiceDetail id) = shipmentQuantity(id);
 priceInvoiceDetail 'Цена в накладной (с НДС)' (Purchase.InvoiceDetail id) = invoicePrice(id);
-sumInvoiceDetail 'Сумма в накладной (с НДС)' (Purchase.InvoiceDetail id) = invoiceSum(id);
+sumInvoiceDetail 'Сумма в накладной (с НДС)' (Purchase.InvoiceDetail id) = shipmentInvoiceSum(id);
 
 reportDateFrom 'Дата с' = DATA LOCAL DATE();
 reportDateTo 'Дата по' = DATA LOCAL DATE();
@@ -602,7 +603,7 @@ orderReceiptReconSummary 'Акт сверки (сводная)' () {
     priceContract(Sku sk, LegalEntity l, Stock st) <-
     prevPriceA(priceListType(lastOrderDetail(sk, l, st)), sk, st, l, dateTime(lastOrderDetail(sk, l, st)));
 
-    sumPurchase(Sku sk, LegalEntity l, Stock st) <- GROUP SUM invoiceSum(Purchase.InvoiceDetail d) IF
+    sumPurchase(Sku sk, LegalEntity l, Stock st) <- GROUP SUM shipmentInvoiceSum(Purchase.InvoiceDetail d) IF
         sku(d) = sk AND supplier(d) = l AND customerStock(d) = st AND
             inReportDateFromOrder(d) AND inReportDateToOrder(d) AND
             inReportSupplierFilterOrder(d) AND inReportStockFilterOrder(d) AND inReportSkuFilterOrder(d);

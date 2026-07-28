@@ -1,6 +1,6 @@
 MODULE PurchaseInvoiceAgreementGestori;
 
-REQUIRE PurchaseInvoiceAgreement, InventoryGestori;
+REQUIRE PurchaseInvoiceAgreement, InventoryGestori, PurchaseInvoiceGestori;
 
 NAMESPACE Purchase;
 
@@ -12,11 +12,14 @@ priceByAgreement 'Цена по соглашению' (InvoiceDetail d) =
 priceForComparison 'Цена из накладной' (InvoiceDetail d) =
     IF includeVAT(priceListType(d)) THEN invoicePrice(d) ELSE price(d);
 
+quantityShipped 'Количество (поставлено)' (InvoiceDetail d) = shipmentQuantity(d);
+
 sumForComparison 'Сумма из накладной' (InvoiceDetail d) =
-    IF includeVAT(priceListType(d)) THEN invoiceSum(d) ELSE sum(d);
+    IF includeVAT(priceListType(d)) THEN shipmentInvoiceSum(d)
+    ELSE NUMERIC[18,4](round(price(d) * shipmentQuantity(d), currency(d)));
 
 sumByAgreement 'Сумма по цене соглашения' (InvoiceDetail d) =
-    NUMERIC[18,4](round2(quantity(d) * priceByAgreement(d)));
+    NUMERIC[18,4](round2(shipmentQuantity(d) * priceByAgreement(d)));
 
 priceDiff 'Расхождение цен' (InvoiceDetail d) =
     NUMERIC[16,4](priceForComparison(d) (-) priceByAgreement(d));
@@ -92,7 +95,7 @@ FORM priceCheckGestori 'Сверка цен по приходным наклад
         idSku(d),
         nameSku = nameSku(d),
         idBarcodeSku(d),
-        quantity(d),
+        quantityShipped(d),
         priceForComparison(d),
         sumForComparison(d),
         priceByAgreement(d),
@@ -171,7 +174,7 @@ priceByOrder 'Цена из заказа' (InvoiceDetail d) =
     IF includeVAT(priceListType(d)) THEN invoicePrice(orderDetail(d)) ELSE price(orderDetail(d));
 
 sumByOrder 'Сумма по цене заказа' (InvoiceDetail d) =
-    NUMERIC[18,4](round2(quantity(d) * priceByOrder(d)));
+    NUMERIC[18,4](round2(shipmentQuantity(d) * priceByOrder(d)));
 
 priceDiffOrder 'Расхождение цен заказ-приход' (InvoiceDetail d) =
     NUMERIC[16,4](priceForComparison(d) (-) priceByOrder(d));
@@ -231,7 +234,7 @@ FORM priceCheckByOrderGestori 'Сверка цен по приходным на�
         idSku(d),
         nameSku = nameSku(d),
         idBarcodeSku(d),
-        quantity(d),
+        quantityShipped(d),
         priceForComparison(d),
         sumForComparison(d),
         priceByOrder(d),
