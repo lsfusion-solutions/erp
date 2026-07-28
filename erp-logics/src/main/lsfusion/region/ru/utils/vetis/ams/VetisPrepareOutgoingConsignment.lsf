@@ -33,11 +33,25 @@ GROUP consignee EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2
 GROUP consigneeBusinessEntity EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:businessEntity' : consignee;
 GROUP consigneeEnterprise EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:enterprise' : consignee;
 
-GROUP unit EXTID 'vd:unit'; 
-GROUP sourceStockEntry EXTID 'vd:sourceStockEntry'; 
+GROUP unit EXTID 'vd:unit';
+GROUP sourceStockEntry EXTID 'vd:sourceStockEntry';
+
+GROUP dateOfProductionOutgoing EXTID 'vd:dateOfProduction';
+GROUP dateOfProductionFirstDateOutgoing EXTID 'vd:firstDate' : dateOfProductionOutgoing;
 
 GROUP transportInfo EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:transportInfo';
 GROUP transportNumber EXTID 'vd:transportNumber' : transportInfo;
+
+// смена владельца без перевозки: меняется хозяйствующий субъект, но площадка остаётся прежней — блок vd:transportInfo не передаётся
+withoutTransport 'Без перевозки' (OutgoingConsignment c) =
+    TRUE IF consignorEnterprise(c) = consigneeEnterprise(c) AND consignorBusinessEntity(c) != consigneeBusinessEntity(c);
+
+// документ-основание (vd:relatedDocument): номер в произвольной форме, тип 16 и вид связи 1
+relatedDocumentNumber 'Номер документа-основания' = ABSTRACT STRING (OutgoingConsignment);
+relatedDocumentDate 'Дата документа-основания' = ABSTRACT DATE (OutgoingConsignment);
+
+// формировать отдельную заявку на каждую исходящую партию (по умолчанию — одна заявка на тип хранения)
+requestPerOutgoingConsignment = ABSTRACT BOOLEAN ();
 
 FORM prepareOutgoingConsignmentRequest FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:prepareOutgoingConsignmentRequest'
     OBJECTS r = PrepareOutgoingConsignmentRequest PANEL
@@ -56,17 +70,26 @@ FORM prepareOutgoingConsignmentRequest FORMEXTID 'merc=http://api.vetrf.ru/schem
                =guid(consigneeEnterprise(d)) IN consigneeEnterprise EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
 
     OBJECTS c = OutgoingConsignment EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:consignment'
-    PROPERTIES = 'id' + STRING(c) EXTID 'id' ATTR
-    
+    // при отдельной заявке на каждую партию идентификатор не нужен — привязка ВСД идёт по единственной партии заявки
+    PROPERTIES = ('id' + STRING(c)) IF NOT requestPerOutgoingConsignment() EXTID 'id' ATTR
+
     PROPERTIES volume(c) EXTID 'vd:volume',
-               =guid(unit(stockEntry(c))) IN unit EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
-               = 'false' IF c IS OutgoingConsignment EXTID 'vd:lowGradeCargo',
+               =guid(unit(stockEntry(c))) IN unit EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
+
+    PROPERTIES IN dateOfProductionFirstDateOutgoing
+               = extractYear(dateOfProduction(stockEntry(c))) EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:year',
+               = extractMonthNumber(dateOfProduction(stockEntry(c))) EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:month',
+               = extractDay(dateOfProduction(stockEntry(c))) EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:day',
+               = dateOfProductionHour(stockEntry(c)) EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:hour'
+
+    PROPERTIES = 'false' IF c IS OutgoingConsignment EXTID 'vd:lowGradeCargo',
                =guidStockEntry(c) IN sourceStockEntry EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
 
     FILTERS c = d
-    
-    PROPERTIES = 1 IF d IS OutgoingConsignment EXTID 'vd:transportType' IN transportInfo,
-               = sid(truck(d)) EXTID 'vd:vehicleNumber' IN transportNumber 
+
+    PROPERTIES = 1 IF d IS OutgoingConsignment AND NOT withoutTransport(d) EXTID 'vd:transportType' IN transportInfo,
+               = sid(truck(d)) IF NOT withoutTransport(d) EXTID 'vd:vehicleNumber' IN transportNumber,
+               = trailer(truck(d)) IF NOT withoutTransport(d) EXTID 'vd:trailerNumber' IN transportNumber
                
     PROPERTIES = transportStorageType(d) EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:transportStorageType'
     
@@ -80,14 +103,14 @@ FORM prepareOutgoingConsignmentRequest FORMEXTID 'merc=http://api.vetrf.ru/schem
                = guid(OVERRIDE dataPurpose(d), lastPurpose(stockEntry(d))) IN authenticationPurpose EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid', 
                = 'false' IF d IS OutgoingConsignment EXTID 'vd:cargoInspected',
                = 'VSEFULL' IF d IS OutgoingConsignment EXTID 'vd:cargoExpertized',
-               = 'Местность благополучна' IF d IS OutgoingConsignment EXTID 'vd:locationProsperity'
-               
+               = 'Благополучна.' IF d IS OutgoingConsignment EXTID 'vd:locationProsperity'
+
     PROPERTIES IN relatedDocument
                //updSeries = waybillSeries(d) EXTID 'vd:issueSeries',
-               = waybillNumber(d) IF waybillType(d)=23 EXTID 'vd:issueNumber',
-               = toDateISO(waybillDate(d)) IF waybillType(d)=23 EXTID 'vd:issueDate',
-               = waybillType(d) IF waybillType(d)=23 EXTID 'vd:type',
-               = 1 IF d IS OutgoingConsignment AND waybillType(d)=23 EXTID 'vd:relationshipType'             
+               = OVERRIDE relatedDocumentNumber(d), (waybillNumber(d) IF waybillType(d)=23) EXTID 'vd:issueNumber',
+               = toDateISO(OVERRIDE relatedDocumentDate(d), (waybillDate(d) IF waybillType(d)=23)) EXTID 'vd:issueDate',
+               = OVERRIDE (16 IF relatedDocumentNumber(d)), (waybillType(d) IF waybillType(d)=23) EXTID 'vd:type',
+               = 1 IF relatedDocumentNumber(d) OR waybillType(d)=23 EXTID 'vd:relationshipType'
 ;
 
 in 'Вкл' = DATA LOCAL BOOLEAN (OutgoingConsignment);
@@ -108,9 +131,6 @@ in = GROUP SUM 1 IF in(OutgoingConsignment c) BY transportStorageType(c);
 // проверка отмеченных партий перед отправкой (реализации могут запретить отправку с сообщением)
 cancelProcessOutgoingConsignment = DATA LOCAL BOOLEAN ();
 beforeProcessOutgoingConsignment ABSTRACT LIST ();
-
-// формировать отдельную заявку на каждую исходящую партию (по умолчанию — одна заявка на тип хранения)
-requestPerOutgoingConsignment = ABSTRACT BOOLEAN ();
 
 processOutgoingConsignment () {
     cancelProcessOutgoingConsignment() <- NULL;
@@ -198,8 +218,15 @@ process (PrepareOutgoingConsignmentRequest r) + {
 //            uuid(d) <- stockEntryVetDocumentUuid(i);
 //        }
        
-        FOR in(r, OutgoingConsignment c) AND ('id' + STRING(c)) = stockEntryQualifier(INTEGER i) DO
-            vetDocument(c) <- vetDocument(stockEntryVetDocumentUuid(i));
+        // без атрибута id в запросе сопоставлять не по чему — заявка сформирована на единственную партию
+        IF requestPerOutgoingConsignment() THEN {
+            FOR in(r, OutgoingConsignment c) DO
+                vetDocument(c) <- GROUP LAST vetDocument(stockEntryVetDocumentUuid(INTEGER i)) ORDER i
+                                      WHERE vetDocument(stockEntryVetDocumentUuid(i));
+        } ELSE {
+            FOR in(r, OutgoingConsignment c) AND ('id' + STRING(c)) = stockEntryQualifier(INTEGER i) DO
+                vetDocument(c) <- vetDocument(stockEntryVetDocumentUuid(i));
+        }
 
         processed(r) <- TRUE;
         APPLY;

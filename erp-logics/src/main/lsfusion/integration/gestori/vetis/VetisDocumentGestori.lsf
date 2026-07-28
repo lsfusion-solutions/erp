@@ -1032,14 +1032,30 @@ DESIGN outgoingConsignments {
 
 // ---- Отправка транспортной партии: проверки перед отправкой (все пути отправки идут через processOutgoingConsignment) ----
 // рейс (машина) исходящей партии = truck(trip(накладной)); без него в запрос не попадёт номер ТС
+// обязательные данные запроса оформления транспортной партии, которых не хватает в исходящей партии
+missingDataOutgoingGestori 'Не заполнены данные' (OutgoingConsignment oc) = CONCAT ', ',
+    'объем продукции' IF NOT volume(oc),
+    'GUID записи журнала' IF NOT guidStockEntry(oc),
+    'единица измерения записи журнала' IF NOT guid(unit(stockEntry(oc))),
+    'дата выработки продукции' IF NOT dateOfProduction(stockEntry(oc)),
+    'назначение груза' IF NOT (OVERRIDE dataPurpose(oc), lastPurpose(stockEntry(oc))),
+    'способ хранения при перевозке' IF NOT transportStorageType(oc);
+
 beforeProcessOutgoingConsignment() + {
-    FOR in(OutgoingConsignment oc) AND (NOT truck(oc) OR NOT sid(truck(oc))) DO {
+    // при смене владельца без перевозки (площадка не меняется) транспорт не передаётся и рейс не нужен
+    FOR in(OutgoingConsignment oc) AND NOT withoutTransport(oc) AND (NOT truck(oc) OR NOT sid(truck(oc))) DO {
         MESSAGE 'Нельзя отправить транспортную партию: по накладной не указан рейс или госномер транспортного средства.';
         cancelProcessOutgoingConsignment() <- TRUE;
         RETURN;
     }
-    FOR in(OutgoingConsignment oc) AND NOT isValidVehicleNumberGestori(sid(truck(oc))) DO {
+    FOR in(OutgoingConsignment oc) AND NOT withoutTransport(oc) AND NOT isValidVehicleNumberGestori(sid(truck(oc))) DO {
         MESSAGE 'Нельзя отправить транспортную партию: некорректный номер транспортного средства «' + sid(truck(oc)) + '».';
+        cancelProcessOutgoingConsignment() <- TRUE;
+        RETURN;
+    }
+    FOR in(OutgoingConsignment oc) AND missingDataOutgoingGestori(oc) DO {
+        MESSAGE 'Нельзя отправить транспортную партию по записи журнала «' + (OVERRIDE number(stockEntry(oc)), guidStockEntry(oc), '') +
+            '»: не заполнены обязательные данные (' + missingDataOutgoingGestori(oc) + ').';
         cancelProcessOutgoingConsignment() <- TRUE;
         RETURN;
     }
@@ -1053,6 +1069,11 @@ beforeProcessOutgoingConsignment() + {
 
 // каждая исходящая партия отправляется отдельной заявкой
 requestPerOutgoingConsignment() += TRUE;
+
+// документ-основание ВСД: серия и номер накладной, номер строки
+relatedDocumentNumber (OutgoingConsignment c) += CONCAT ' ',
+    waybillSeries(c), waybillNumber(c), ('стр. ' + STRING(detailIndex(c))) IF detailIndex(c);
+relatedDocumentDate (OutgoingConsignment c) += waybillDate(c);
 
 EXTEND FORM trucks
     PROPERTIES(t) READONLYIF isReadonly() sidGestori = sid BACKGROUND (RGB(255,200,200) IF invalidSidTruckGestori(t)) BEFORE nameTruckModel(t),

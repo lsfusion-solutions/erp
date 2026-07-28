@@ -59,6 +59,9 @@ waybillDate 'Дата документа' = ABSTRACT DATE (OutgoingConsignment);
 waybillType 'Тип документа' = ABSTRACT INTEGER (OutgoingConsignment);
 nameWaybillType 'Тип документа' = ABSTRACT STRING (OutgoingConsignment) CHARWIDTH 10;
 
+// номер строки документа поставки — используется в номере документа-основания
+detailIndex 'Номер строки документа' = ABSTRACT INTEGER (OutgoingConsignment);
+
 FORM outgoingConsignments 'Исходящие партии'
     OBJECTS c = OutgoingConsignment
     PROPERTIES(c) READONLY 
@@ -120,6 +123,8 @@ META defineDocumentOutgoingConsignment (doc, consignor, consignee, caption)
     overWaybillDate = ABSTRACT DATE (###doc##OutgoingConsignment);
     waybillDate(###doc##OutgoingConsignment c) += OVERRIDE overWaybillDate(c), date(doc##Detail(c));
        
+    detailIndex(###doc##OutgoingConsignment c) += index(doc##Detail(c));
+
     overWaybillName = ABSTRACT STRING (###doc##OutgoingConsignment);
     nameWaybillType(###doc##OutgoingConsignment c) += OVERRIDE overWaybillName(c), 'ТТН' IF c IS ###doc##OutgoingConsignment;
     

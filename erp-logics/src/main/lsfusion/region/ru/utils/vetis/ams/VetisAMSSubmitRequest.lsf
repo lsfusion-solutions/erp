@@ -68,6 +68,20 @@ submit(ApplicationRequest r, FILE f) {
     submit(r);
 }
 
+hasAdminRole () = GROUP SUM 1 IF has(currentUser(), UserRole role) AND sid(role) = 'admin';
+
+// полный запрос вместе с SOAP-конвертом: собирается заново из тела заявки, ключ доступа в выгрузку не попадает
+exportSoapRequest 'Выгрузить запрос (SOAP)' (ApplicationRequest r) {
+    EXPORT submitApplicationRequest OBJECTS r = r XML;
+    fileToString(exportFile());
+
+    LOCAL soap = TEXT ();
+    soap() <- IF apiKey(r) THEN replace(resultString(), apiKey(r), '***') ELSE resultString();
+
+    stringToFile(soap(), 'UTF-8', 'xml');
+    open(resultFile(), 'vetisRequest' + STRING(r));
+}
+
 data = DATA LOCAL TEXT();
 createApplicationRequest 'Отправить заявку' (BusinessEntity b) {
     NEWSESSION NESTED (data[]) {
@@ -81,6 +95,8 @@ createApplicationRequest 'Отправить заявку' (BusinessEntity b) {
 }
 
 EXTEND FORM applicationRequests
+    PROPERTIES(r) exportSoapRequest TOOLBAR SHOWIF hasAdminRole()
+
     OBJECTS beo = BusinessEntity PANEL
     PROPERTIES(beo) name SELECTOR
     FILTERS own(beo)
