@@ -38,8 +38,9 @@ beforeOverReceiveMessages(INTEGER i, STRING[100] login, STRING[100] archiveDir) 
         FOR unzipped(STRING[100] s) DO {
             data(i) <- XMLFILE(unzipped(s));
         }
+        receivedFileName(i) <- id(i) + '_extarcted';
         IF archiveDir THEN {
-            WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(), 'yyyyMMdd') + '/' + id(i) + '_extarcted';
+            WRITE data(i) TO receivedPath(archiveDir, i);
         }
     }
 }
@@ -209,9 +210,10 @@ overReceiveMessagesEDN(INTEGER i, STRING[100] login, STRING[100] password, TEXT 
             
             EXTERNAL HTTP GET url +'/documents/'+id(i)+ '/content' HEADERS headers TO xmlFile;
             
+            receivedFileName(i) <- downloadFileName(i);
             IF archiveDir THEN {
-                TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
-                WRITE xmlFile() TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + downloadFileName(i);
+                TRY{ mkdir(receivedDir(archiveDir)); }
+                WRITE xmlFile() TO receivedPath(archiveDir, i);
             }
             
             IMPORT aperack XML FROM xmlFile();

@@ -107,7 +107,7 @@ overReceiveMessagesCislink (INTEGER  i, STRING url, STRING[100] archiveDir, BOOL
                         customerStock(r) <- customerStock(eOrder(ordrspOrderNumber()));
                         deliveryDateTime(r) <- DATETIME(ordrspDeliveryDateTimeFirst());
                         deliveryDateTimeSecond(r) <- DATETIME(ordrspDeliveryDateTimeSecond());
-                        XMLPath(r) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                        XMLPath(r) <- receivedPath(archiveDir, i);
                         
                         LOCAL indexSku = INTEGER (INTEGER);
                         LOCAL sku = Sku (INTEGER);
@@ -195,7 +195,7 @@ overReceiveMessagesCislink(INTEGER  i, STRING url, STRING[100] archiveDir, BOOLE
                         eOrder(a) <- eOrder(desadvOrderNumber());
                         customerStock(a) <- customerStock(eOrder(desadvOrderNumber()));
                         deliveryDateTime(a) <- desadvDeliveryDateTimeFirst();
-                        XMLPath(a) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                        XMLPath(a) <- receivedPath(archiveDir, i);
                         FOR desadvGTIN(INTEGER l) AND EOrderDespatchAdviceDetail d == eOrderDespatchAdviceDetail(desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber() + '/' + l) DO {
                             sku(d) <- OVERRIDE (GROUP MAX sku(EOrderDetail dd) IF GTINBarcode(dd) == desadvGTIN(l) AND order(dd) == eOrder(a)), skuGTIN(desadvGTIN(l));
                             dataGTIN(d) <- desadvGTIN(l);
@@ -255,7 +255,7 @@ overReceiveMessagesCislink(INTEGER  i, STRING url, STRING[100] archiveDir, BOOLE
                             code(m) <- code();
                             description(m) <- OVERRIDE description(), description(code());
                             eOrder(m) <- eOrder(documentNumber());
-                            XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                            XMLPath(m) <- receivedPath(archiveDir, i);
                             APPLY NESTED LOCAL;
                             IF canceled() THEN {
                                 IF deleteFile THEN {
@@ -299,8 +299,8 @@ importAnswer (STRING url, STRING[100] archiveDir, STRING[100] provider){
             READ url  + id(i) TO file;
             data(i) <- file();
             IF archiveDir THEN {
-                TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
-                WRITE file() TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + fileName;
+                TRY{ mkdir(receivedDir(archiveDir)); }
+                WRITE file() TO receivedPath(archiveDir, i);
             }
         } CATCH {
             MESSAGE 'Ошибка при чтении сообщения ' + id(i) +'. Обратитесь к администратору' NOWAIT;

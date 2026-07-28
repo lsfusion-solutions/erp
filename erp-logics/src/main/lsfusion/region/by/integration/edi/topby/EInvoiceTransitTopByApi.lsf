@@ -21,24 +21,14 @@ overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, 
                     description(m) <- OVERRIDE blrapnDescription(), description(blrapnCode());
                     type(m) <- EInvoiceMessageType.blrapn_blrspt;
                     overReceiveBlrapn(m, login, password, url, archiveDir, provider);
-                    XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                    XMLPath(m) <- receivedPath(archiveDir, i);
                     APPLY NESTED LOCAL;
                     IF canceled() THEN {
                         logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' failed: ' + applyMessage());
                         invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
                     } ELSE {
                         IF NOT disableConfirmation THEN {
-                            LOCAL xml = XMLFILE();
-                            EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
-                            sendRequestEDI(url, xml());
-                            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
-                            importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
-                            IF requestError() THEN {
-                                logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-                                MESSAGE  provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
-                            } ELSE {
-                                logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
-                            }
+                            confirmMessage(i, login, password, url, provider);
                         }
                         logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' succeeded');
                         invoiceMessagesSucceeded() <- invoiceMessagesSucceeded() + 1;
@@ -48,17 +38,7 @@ overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, 
         } ELSE {
             IF confirmNotFoundInvoices() THEN {
                 IF NOT disableConfirmation THEN {
-                    LOCAL xml = XMLFILE();
-                    EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
-                    sendRequestEDI(url, xml());
-                    logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
-                    importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
-                    IF requestError() THEN {
-                        logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-                        MESSAGE  provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
-                    } ELSE {
-                        logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
-                    }
+                    confirmMessage(i, login, password, url, provider);
                     messagesConfirmed() <- messagesConfirmed() + 1;
                 }
             } ELSE {
@@ -75,16 +55,7 @@ overReceiveSystemMessage(INTEGER i, STRING[100] login, STRING[100] password, TEX
     IF documentType() == 'BLRSPT' THEN {
         logToFile('edi', provider + ' (' + login + ') System Message Message ' + id(i) + ' skipped for documentType ' + documentType());
         IF NOT disableConfirmation THEN {
-            LOCAL xml = XMLFILE();
-            EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
-            sendRequestEDI(url, xml());
-            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
-            importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
-            IF requestError() THEN {
-                logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-            } ELSE {
-                logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
-            }
+            confirmMessage(i, login, password, url, provider, NULL, TRUE);
             messagesConfirmed() <- messagesConfirmed() + 1;
         }
         RETURN;

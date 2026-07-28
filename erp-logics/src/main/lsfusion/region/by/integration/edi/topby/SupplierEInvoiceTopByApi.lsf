@@ -19,17 +19,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
             IF NOT skipBlrwbr() THEN {
                 FOR EInvoice ei == eInvoiceDeliveryNoteNumber(blrwbrDeliveryNoteNumber()) DO {
                     IF NOT disableConfirmation THEN {
-                        LOCAL cxml = XMLFILE();
-                        EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO cxml;
-                        sendRequestEDI(url, cxml());
-                        logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
-                        importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
-                        IF requestError() THEN {
-                            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-                            MESSAGE provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
-                        } ELSE {
-                            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
-                        }
+                        confirmMessage(i, login, password, url, provider);
                     }
                     blrwbrCount() <- blrwbrCount() + 1;
                     NEWSESSION NESTED LOCAL {
@@ -49,7 +39,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                             dateTime(m) <- blrwbrDateTime();
                             code(m) <- blrwbrFunctionCode();
                             type(m) <- EInvoiceMessageType.blrwbr;
-                            XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                            XMLPath(m) <- receivedPath(archiveDir, i);
                         }
                         APPLY NESTED LOCAL;
                     }
@@ -76,17 +66,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
             IF NOT skipBlrdnr() THEN {
                 FOR EInvoice ei == eInvoiceDeliveryNoteNumber(blrdnrDeliveryNoteNumber()) DO {
                     IF NOT disableConfirmation THEN {
-                        LOCAL cxml = XMLFILE();
-                        EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO cxml;
-                        sendRequestEDI(url, cxml());
-                        logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
-                        importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
-                        IF requestError() THEN {
-                            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-                            MESSAGE provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
-                        } ELSE {
-                            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
-                        }
+                        confirmMessage(i, login, password, url, provider);
                     }
                     blrwbrCount() <- blrwbrCount() + 1;
                     NEWSESSION NESTED LOCAL {
@@ -106,7 +86,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                             dateTime(m) <- blrdnrDateTime();
                             code(m) <- blrdnrFunctionCode();
                             type(m) <- EInvoiceMessageType.blrdnr;
-                            XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                            XMLPath(m) <- receivedPath(archiveDir, i);
                         }
                         APPLY NESTED LOCAL;
                     }

@@ -63,17 +63,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
             IF ordersDocumentType() == 31 OR (ordersDocumentType() == 9 AND Sale.userOrder(ordersSupplierGLN() + '/' + ordersDocumentNumber())) THEN {
                 logToFile('edi', provider + ' (' + login + ') Parse Order ' + id(i) + ' skipped for documentType ' + ordersDocumentType());
                 IF NOT disableConfirmation THEN {
-                    LOCAL xml = XMLFILE();
-                    EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
-                    sendRequestEDI(url, xml());
-                    logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
-                    importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
-                    IF requestError() THEN {
-                        logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-                        MESSAGE provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
-                    } ELSE {
-                        logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
-                    }
+                    confirmMessage(i, login, password, url, provider);
                 }
                 supplierOrdersFailed() <- supplierOrdersFailed() + 1;
             } ELSE {
@@ -113,24 +103,14 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                 valueVAT(d) <- ordersTax(l);
                             }
                         }
-                        XMLPath(o) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                        XMLPath(o) <- receivedPath(archiveDir, i);
                         APPLY NESTED LOCAL;
                         IF canceled() THEN {
                             logToFile('edi', provider + ' (' + login + ') Import Order ' + id(i) + ' failed: ' + applyMessage());
                             supplierOrdersFailed() <- supplierOrdersFailed() + 1;
                         } ELSE {
                             IF NOT disableConfirmation THEN {
-                                LOCAL xml = XMLFILE();
-                                EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
-                                sendRequestEDI(url, xml());
-                                logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
-                                importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
-                                IF requestError() THEN {
-                                    logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-                                    MESSAGE provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
-                                } ELSE {
-                                    logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
-                                }
+                                confirmMessage(i, login, password, url, provider);
                             }
                             logToFile('edi', provider + ' (' + login + ') Import Order ' + id(i) + ' succeeded');
                             supplierOrdersSucceeded() <- supplierOrdersSucceeded() + 1;

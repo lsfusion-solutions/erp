@@ -153,7 +153,7 @@ overImportAperak(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, S
                     code(m) <- code();
                     description(m) <- OVERRIDE description(), description(code());
                     eOrder(m) <- eOrder(documentNumber());
-                    XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(), 'yyyyMMdd') + '/' + downloadFileName(i);
+                    XMLPath(m) <- receivedPath(archiveDir, i);
                     APPLY NESTED LOCAL;
                     IF canceled() THEN {
                         logToFile('edi', provider + ' (' + login + ') Import EOrderMessage ' + id(i) + ' failed: ' + applyMessage());
@@ -231,9 +231,10 @@ overReceiveMessagesEDN(INTEGER i, STRING[100] login, STRING[100] password, TEXT 
             
             EXTERNAL HTTP GET url +'/documents/'+id(i)+ '/content' HEADERS headers TO xmlFile;
 
+            receivedFileName(i) <- downloadFileName(i);
             IF archiveDir THEN {
-                TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
-                WRITE xmlFile() TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + downloadFileName(i);
+                TRY{ mkdir(receivedDir(archiveDir)); }
+                WRITE xmlFile() TO receivedPath(archiveDir, i);
             }
             IMPORT document_OrderResponse XML FROM xmlFile();
             
@@ -262,7 +263,7 @@ overReceiveMessagesEDN(INTEGER i, STRING[100] login, STRING[100] password, TEXT 
                         customer(r) <- customer(eOrder(ordrspOrderNumber()));
                         customerStock(r) <- customerStock(eOrder(ordrspOrderNumber()));
                         deliveryDateTime(r) <- dateTimeToDateTime(ordrspDeliveryDateTimeFirst(),ordrspDeliveryDateTimeSecond());
-                        XMLPath(r) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + downloadFileName(i);
+                        XMLPath(r) <- receivedPath(archiveDir, i);
 
                         LOCAL indexSku = INTEGER (INTEGER);
                         LOCAL sku = Sku (INTEGER);
@@ -364,11 +365,6 @@ FORM document_DespatchAdvice FORMEXTID 'Document-DespatchAdvice'
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     IF documentType(i) == 'DESADV'  THEN {
         TRY {
-            IF archiveDir THEN {
-                TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
-                WRITE xmlFile() TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + downloadFileName(i);
-            }
-            
             IMPORT desadv XML FROM data(i);
             desadvOrderNumber() <- trim(desadvOrderNumber());
             overReceiveMessageDesadv();
@@ -392,7 +388,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                         customer(a) <- OVERRIDE customer(eOrder(desadvOrderNumber())), legalEntityGLN(desadvBuyerGLN());
                         customerStock(a) <- OVERRIDE customerStock(eOrder(desadvOrderNumber())), stockGLN(desadvDestinationGLN());
                         deliveryDateTime(a) <- desadvDeliveryDateTimeFirst();
-                        XMLPath(a) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + downloadFileName(i);
+                        XMLPath(a) <- receivedPath(archiveDir, i);
                         FOR desadvGTIN(INTEGER l) AND EOrderDespatchAdviceDetail d == eOrderDespatchAdviceDetail(desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber() + '/' + l) DO {
                             sku(d) <- OVERRIDE (GROUP MAX sku(EOrderDetail dd) IF GTINBarcode(dd) == desadvGTIN(l) AND order(dd) == eOrder(a)), skuGTIN(desadvGTIN(l));
                             dataGTIN(d) <- desadvGTIN(l);
@@ -410,17 +406,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                             despatchAdvicesFailed() <- despatchAdvicesFailed() + 1;
                         } ELSE {
                             IF NOT disableConfirmation THEN {
-                                LOCAL xml = XMLFILE();
-                                EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
-                                sendRequestEDI(url, xml());
-                                logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
-                                importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
-                                IF requestError() THEN {
-                                    logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-                                    MESSAGE provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
-                                } ELSE {
-                                    logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
-                                }
+                                confirmMessage(i, login, password, url, provider);
                             }
                             logToFile('edi', provider + ' (' + login + ') Import EOrderDespatchAdvice ' + id(i) + ' succeeded');
                             despatchAdvicesSucceeded() <- despatchAdvicesSucceeded() + 1;
@@ -430,17 +416,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
             } ELSE {
                 IF confirmNotFoundOrders() THEN {
                     IF NOT disableConfirmation THEN {
-                        LOCAL xml = XMLFILE();
-                        EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
-                        sendRequestEDI(url, xml());
-                        logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
-                        importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
-                        IF requestError() THEN {
-                            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-                            MESSAGE provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
-                        } ELSE {
-                            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
-                        }
+                        confirmMessage(i, login, password, url, provider);
                         messagesConfirmed() <- messagesConfirmed() + 1;
                     }
                 } 
