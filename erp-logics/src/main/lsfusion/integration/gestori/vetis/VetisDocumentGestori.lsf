@@ -1322,9 +1322,61 @@ DESIGN PurchaseReturn.invoices {
     PROPERTY(volume(vd, se)) { caption = 'Объем по строке'; }
 }
 
+// поля записи журнала для вывода в сообщении об ошибке
+guidSEGestori 'GUID записи журнала' (StockEntry se) = guid(se);
+numberSEGestori 'Номер записи журнала' (StockEntry se) = number(se);
+volumeSEGestori 'Объем продукции' (StockEntry se) = volume(se);
+nameProductItemSEGestori 'Номенклатура' (StockEntry se) = nameProductItem(se);
+
 // суммарный объём нераспределённых в ВСД строк не должен превышать текущий остаток записи журнала
 CONSTRAINT totalVolumeSEReturnGestori(StockEntry se) > volume(se)
-    MESSAGE 'Суммарный объём по строкам, связанным с записью журнала, превышает текущий остаток записи журнала';
+    MESSAGE 'Суммарный объём по строкам, связанным с записью журнала, превышает текущий остаток записи журнала'
+    PROPERTIES se, guidSEGestori(se), numberSEGestori(se), volumeSEGestori(se), nameProductItemSEGestori(se);
+
+// ---- условия регионализации по исходящим партиям накладной закупки (возврат) ----
+
+// действия по строке исходящей партии
+processCheckRowReturnGestori 'Получить условия регионализации' (PurchaseReturn.InvoiceDetail vd, StockEntry se) {
+    processCheck(VetisPurchaseReturn.outgoingConsignment(vd, se));
+}
+
+showRegionalizationRowReturnGestori 'Показать условия регионализации' (PurchaseReturn.InvoiceDetail vd, StockEntry se) {
+    showRegionalizationConditions(VetisPurchaseReturn.outgoingConsignment(vd, se));
+}
+
+// по документу: партии, по которым нет отправленных или выполненных запросов на формирование транспортной партии
+toProcessCheckReturnGestori (PurchaseReturn.Invoice i) = GROUP SUM 1 IF
+    toProcess(VetisPurchaseReturn.outgoingConsignment(PurchaseReturn.InvoiceDetail d, StockEntry se))
+    AND toProcessCheck(VetisPurchaseReturn.outgoingConsignment(d, se)) AND PurchaseReturn.invoice(d) = i;
+
+processCheckReturnGestori 'Получить условия регионализации' (PurchaseReturn.Invoice i) {
+    in(OutgoingConsignment oc) <- TRUE WHERE toProcess(oc) AND toProcessCheck(oc) AND
+        (GROUP SUM 1 IF VetisPurchaseReturn.outgoingConsignment(PurchaseReturn.InvoiceDetail d, StockEntry se) = oc AND PurchaseReturn.invoice(d) = i);
+    IF GROUP SUM 1 IF in(OutgoingConsignment oc) THEN
+        processCheckOutgoingConsignment();
+    in(OutgoingConsignment oc) <- NULL;
+}
+
+// время/статус запроса условий и признаки доступности действий по строке партии
+issueDateCheckReturnGestori 'Время получения условий регионализации' (PurchaseReturn.InvoiceDetail vd, StockEntry se) =
+    issueDateLastCheckRequest(VetisPurchaseReturn.outgoingConsignment(vd, se));
+nameStatusCheckReturnGestori 'Статус получения условий регионализации' (PurchaseReturn.InvoiceDetail vd, StockEntry se) =
+    nameStatusLastCheckRequest(VetisPurchaseReturn.outgoingConsignment(vd, se));
+toProcessCheckRowReturnGestori (PurchaseReturn.InvoiceDetail vd, StockEntry se) =
+    toProcessCheck(VetisPurchaseReturn.outgoingConsignment(vd, se));
+hasRegionalizationRowReturnGestori (PurchaseReturn.InvoiceDetail vd, StockEntry se) =
+    hasRegionalization(VetisPurchaseReturn.outgoingConsignment(vd, se));
+
+EXTEND FORM PurchaseReturn.invoices
+    PROPERTIES(vd, se) READONLY issueDateCheckReturnGestori, nameStatusCheckReturnGestori
+    PROPERTIES(vd, se) processCheckRowReturnGestori READONLYIF NOT toProcessCheckRowReturnGestori(vd, se) GRID,
+                       showRegionalizationRowReturnGestori READONLYIF NOT hasRegionalizationRowReturnGestori(vd, se) GRID
+    PROPERTIES(i) processCheckReturnGestori DRAW vse TOOLBAR SHOWIF toProcessCheckReturnGestori(i)
+;
+
+DESIGN PurchaseReturn.invoices {
+    PROPERTY(uuidVetDocument(vd, se)) { caption = 'GUID ВСД'; }
+}
 
 // суммарный объём по связанным записям журнала не может превышать объём по строке
 CONSTRAINT VetisPurchaseReturn.volumeStockEntry(PurchaseReturn.UserInvoiceDetail d) > volumeShippedReturnGestori(d)
