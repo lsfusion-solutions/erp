@@ -1,7 +1,7 @@
 MODULE SupermagContract;
 
 REQUIRE PurchaseScheduleOrder, PurchaseScheduleOrderSeparation, PurchaseAutoOrder, PurchaseScheduleOrderContract,
-        SupermagSettings, SupermagPricelist, PriceListContract;
+        SupermagSettings, SupermagPricelist, PriceListContract, SalePack;
 
 //---------------------------------------------------------------------------------------------Договоры
 factoring 'Факторинг' = DATA BOOLEAN (UserContractSku);
@@ -190,20 +190,21 @@ importContract 'Импорт из контрактов с поставщикам
     }
     
     //
-    FOR NUMERIC[14,3] amount = [GROUP MAX (OVERRIDE packSize(INTEGER r), minQuantity(r)) BY item(idItem(r))](Item i) AND NOT packBarcode(i) DO NEW b = Barcode {
+    FOR NUMERIC[14,3] amount = [GROUP MAX (OVERRIDE packSize(INTEGER r), minQuantity(r)) BY item(idItem(r))](Item i) AND NOT Purchase.packBarcode(i) DO NEW b = Barcode {
         sku(b) <- i;
         dataUOM(b) <- UOMShortName('упак');
-        packBarcode(i) <- b;
+        Purchase.packBarcode(i) <- b;
+        Sale.packBarcode(i) <- b;
     }
 
-    FOR NUMERIC[14,3] amount = [GROUP MAX (OVERRIDE packSize(INTEGER r), minQuantity(r))  BY item(idItem(r))](Item i) AND Barcode b = packBarcode(i) DO {
+    FOR NUMERIC[14,3] amount = [GROUP MAX (OVERRIDE packSize(INTEGER r), minQuantity(r))  BY item(idItem(r))](Item i) AND Barcode b = Purchase.packBarcode(i) DO {
         amount(b) <- amount;
     }
 
     // товар есть в импорте, но количество в упаковке убрали или сделали 1 - удаляем штрихкод упаковки
     FOR [GROUP SUM 1 BY item(idItem(INTEGER r))](Item i)
         AND NOT [GROUP MAX (OVERRIDE packSize(INTEGER rr), minQuantity(rr)) BY item(idItem(rr))](i)
-        AND Barcode b = packBarcode(i) AND NOT primary(b) DO {
+        AND Barcode b = Purchase.packBarcode(i) AND NOT primary(b) DO {
         DELETE b;
     }
 
