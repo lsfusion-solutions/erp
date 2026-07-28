@@ -49,16 +49,20 @@ currentBalanceRestriction(Sku s, Stock st) += WHEN s IS Sku AND NOT passScales(s
 
 useSaleDeniedRestrictions 'Использовать запрет продаж для отрицательного остатка' = DATA BOOLEAN () PREREAD;
 exportSaleAfterTransaction 'Отправлять удаленные запреты после транзакции' = DATA BOOLEAN () PREREAD;
+useDeletePriceSaleDenied 'Запрет продаж через удаление цены (Set10)' = DATA BOOLEAN () PREREAD;
 
 EXTEND FORM integrationData
-    PROPERTIES useSaleDeniedRestrictions(), exportSaleAfterTransaction()
+    PROPERTIES useSaleDeniedRestrictions(), exportSaleAfterTransaction(), useDeletePriceSaleDenied()
 ;
 DESIGN integrationData{
     set10{
         MOVE PROPERTY (useSaleDeniedRestrictions());
         MOVE PROPERTY (exportSaleAfterTransaction());
+        MOVE PROPERTY (useDeletePriceSaleDenied());
     }
 }
+
+processSaleDeniedPriceDelete ABSTRACT LIST ();
 //
 restriction = GROUP MAX SaleDeniedRestriction r IF createdTime(r) AND NOT deleted(r) BY sku(r), stock(r);
 
@@ -199,12 +203,16 @@ getFeedback 'Получить статус' (SaleDeniedRestriction r){
 needExport(SaleDeniedRestriction r) = (NOT dateTimeExported(r) AND NOT deleted(r)) OR (deleted(r) AND NOT dateTimeDeleted(r));
 
 processDeniedRestrictions 'Обработка запретов продаж'(){
-    FOR createdTime(SaleDeniedRestriction r)  AND needExport(r) AND NOT tiExport(r) AND set10Stock(stock(r))  DO {
-        IF useESB() THEN exportSaleRestrictionWithoutTI(r);
-        ELSE exportSaleRestrictionTI(r);
-    }
-    FOR tiExport(SaleDeniedRestriction r) AND NOT useESB() DO{
-        getFeedback(r);
+    IF useDeletePriceSaleDenied() THEN {
+        processSaleDeniedPriceDelete();
+    } ELSE {
+        FOR createdTime(SaleDeniedRestriction r)  AND needExport(r) AND NOT tiExport(r) AND set10Stock(stock(r))  DO {
+            IF useESB() THEN exportSaleRestrictionWithoutTI(r);
+            ELSE exportSaleRestrictionTI(r);
+        }
+        FOR tiExport(SaleDeniedRestriction r) AND NOT useESB() DO{
+            getFeedback(r);
+        }
     }
 }
 
@@ -294,8 +302,11 @@ deleteSaleRestriction 'Удалить в SET' (SaleDeniedRestriction r) {
         }
         deleted(r) <- TRUE;
         tiExport(r) <- NULL;
+        IF useDeletePriceSaleDenied() THEN {
+            dateTimeDeleted(r) <- currentDateTime();
+        }
         APPLY;
-        IF exportSaleAfterTransaction() THEN {
+        IF NOT useDeletePriceSaleDenied() AND exportSaleAfterTransaction() THEN {
             IF useESB() THEN exportSaleRestrictionWithoutTI(r);
             ELSE exportSaleRestrictionTI(r);
         }
@@ -304,7 +315,7 @@ deleteSaleRestriction 'Удалить в SET' (SaleDeniedRestriction r) {
 
 EXTEND FORM saleDeniedRestrictions
     PROPERTIES TOOLBAR exportSaleRestrictionTI(r) SHOWIF NOT useESB(), exportSaleRestrictionWithoutTI(r) SHOWIF useESB(), getFeedback(r) SHOWIF tiExport(r)
-    PROPERTIES tiExport(r) READONLY 
+    PROPERTIES tiExport(r) READONLY
 ;
 
 in (MachineryPriceTransaction t, SaleDeniedRestriction r) = stock(t) = stock(r) AND in(t, barcode(sku(r))) AND active(r);
