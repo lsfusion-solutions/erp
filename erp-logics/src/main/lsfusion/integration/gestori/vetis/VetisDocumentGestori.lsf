@@ -1237,11 +1237,60 @@ DESIGN Sale.invoices {
     vetis { caption = 'ВЕТИС'; }
     PROPERTY(guid(se)) { caption = 'GUID записи журнала'; }
     PROPERTY(volume(vd, se)) { caption = 'Объем по строке'; }
+    PROPERTY(uuidVetDocument(vd, se)) { caption = 'GUID ВСД'; }
 }
+
+// ---- условия регионализации по исходящим партиям накладной продажи ----
+
+// действия по строке исходящей партии
+processCheckRowSaleGestori 'Получить условия регионализации' (Sale.InvoiceDetail vd, StockEntry se) {
+    processCheck(VetisSale.outgoingConsignment(vd, se));
+}
+
+showRegionalizationRowSaleGestori 'Показать условия регионализации' (Sale.InvoiceDetail vd, StockEntry se) {
+    showRegionalizationConditions(VetisSale.outgoingConsignment(vd, se));
+}
+
+// время/статус запроса условий и признаки доступности действий по строке партии
+issueDateCheckSaleGestori 'Время получения условий регионализации' (Sale.InvoiceDetail vd, StockEntry se) =
+    issueDateLastCheckRequest(VetisSale.outgoingConsignment(vd, se));
+nameStatusCheckSaleGestori 'Статус получения условий регионализации' (Sale.InvoiceDetail vd, StockEntry se) =
+    nameStatusLastCheckRequest(VetisSale.outgoingConsignment(vd, se));
+toProcessCheckRowSaleGestori (Sale.InvoiceDetail vd, StockEntry se) =
+    toProcessCheck(VetisSale.outgoingConsignment(vd, se));
+hasRegionalizationRowSaleGestori (Sale.InvoiceDetail vd, StockEntry se) =
+    hasRegionalization(VetisSale.outgoingConsignment(vd, se));
+
+// по документу: партии, по которым нет отправленных или выполненных запросов на формирование транспортной партии
+toProcessCheckSaleGestori (Sale.Invoice i) = GROUP SUM 1 IF
+    toProcess(VetisSale.outgoingConsignment(Sale.InvoiceDetail d, StockEntry se))
+    AND toProcessCheck(VetisSale.outgoingConsignment(d, se)) AND Sale.invoice(d) = i;
+
+processCheckSaleGestori 'Получить условия регионализации' (Sale.Invoice i) {
+    in(OutgoingConsignment oc) <- TRUE WHERE toProcess(oc) AND toProcessCheck(oc) AND
+        (GROUP SUM 1 IF VetisSale.outgoingConsignment(Sale.InvoiceDetail d, StockEntry se) = oc AND Sale.invoice(d) = i);
+    IF GROUP SUM 1 IF in(OutgoingConsignment oc) THEN
+        processCheckOutgoingConsignment();
+    in(OutgoingConsignment oc) <- NULL;
+}
+
+EXTEND FORM Sale.invoices
+    PROPERTIES(vd, se) READONLY issueDateCheckSaleGestori, nameStatusCheckSaleGestori
+    PROPERTIES(vd, se) processCheckRowSaleGestori READONLYIF NOT toProcessCheckRowSaleGestori(vd, se) GRID,
+                       showRegionalizationRowSaleGestori READONLYIF NOT hasRegionalizationRowSaleGestori(vd, se) GRID
+    PROPERTIES(i) processCheckSaleGestori DRAW vse TOOLBAR SHOWIF toProcessCheckSaleGestori(i)
+;
+
+// поля записи журнала для вывода в сообщении об ошибке
+guidSEGestori 'GUID записи журнала' (StockEntry se) = guid(se);
+numberSEGestori 'Номер записи журнала' (StockEntry se) = number(se);
+volumeSEGestori 'Объем продукции' (StockEntry se) = volume(se);
+nameProductItemSEGestori 'Номенклатура' (StockEntry se) = nameProductItem(se);
 
 // суммарный объём нераспределённых в ВСД строк не должен превышать текущий остаток записи журнала
 CONSTRAINT totalVolumeSEGestori(StockEntry se) > volume(se)
-    MESSAGE 'Суммарный объём по строкам, связанным с записью журнала, превышает текущий остаток записи журнала';
+    MESSAGE 'Суммарный объём по строкам, связанным с записью журнала, превышает текущий остаток записи журнала'
+    PROPERTIES se, guidSEGestori(se), numberSEGestori(se), volumeSEGestori(se), nameProductItemSEGestori(se);
 
 // суммарный объём по связанным записям журнала не может превышать объём по строке
 CONSTRAINT VetisSale.volumeStockEntry(Sale.UserInvoiceDetail d) > volumeShippedSaleGestori(d)
@@ -1321,12 +1370,6 @@ DESIGN PurchaseReturn.invoices {
     PROPERTY(guid(se)) { caption = 'GUID записи журнала'; }
     PROPERTY(volume(vd, se)) { caption = 'Объем по строке'; }
 }
-
-// поля записи журнала для вывода в сообщении об ошибке
-guidSEGestori 'GUID записи журнала' (StockEntry se) = guid(se);
-numberSEGestori 'Номер записи журнала' (StockEntry se) = number(se);
-volumeSEGestori 'Объем продукции' (StockEntry se) = volume(se);
-nameProductItemSEGestori 'Номенклатура' (StockEntry se) = nameProductItem(se);
 
 // суммарный объём нераспределённых в ВСД строк не должен превышать текущий остаток записи журнала
 CONSTRAINT totalVolumeSEReturnGestori(StockEntry se) > volume(se)
