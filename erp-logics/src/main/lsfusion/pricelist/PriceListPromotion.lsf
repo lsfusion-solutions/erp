@@ -71,6 +71,14 @@ lastPromotionPriceListDetail (Sku sk, Stock st) = GROUP LAST PriceListDetail d
                                                                            ORDER fromDateTime(d, st), d 
                                                                            BY sku(d, st) COMPLEX;
 
+// первая из ещё не закончившихся: действующая, иначе ближайшая будущая
+notEndedPromotionPriceListDetail (Sku sk, Stock st) = GROUP LAST PriceListDetail d
+                                                                           ORDER DESC fromDateTime(d, st), d
+                                                                           WHERE NOT toDateTime(d, st) < currentDateTime()
+                                                                           BY sku(d, st) COMPLEX;
+
+nearestPromotionPriceListDetail (Sku sk, Stock st) = OVERRIDE notEndedPromotionPriceListDetail(sk, st), lastPromotionPriceListDetail(sk, st);
+
 promotionPriceListDetailA (Sku sku, Stock stock) = 
     promotionPriceListDetailA(sku, stock, currentDateTime());
 prevPromotionPriceListDetailA (Sku sku, Stock stock) = PREV(promotionPriceListDetailA(sku, stock));
