@@ -78,7 +78,7 @@ public class StopListEquipmentServer {
                 }
                 slQuery.and(stopListLM.findProperty("number[StopList]").getExpr(stopListExpr).getWhere());
                 slQuery.and(stopListLM.findProperty("isPosted[StopList]").getExpr(stopListExpr).getWhere());
-                slQuery.and(stopListLM.findProperty("toExport[StopList]").getExpr(stopListExpr).getWhere());
+                slQuery.and(stopListLM.findProperty("toExportMachinery[StopList]").getExpr(stopListExpr).getWhere());
                 ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> slResult = slQuery.executeClasses(session,
                         MapFact.singletonOrder((Object) "numberStopList", false));
 

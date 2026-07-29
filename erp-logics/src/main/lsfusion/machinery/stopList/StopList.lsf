@@ -95,6 +95,10 @@ scheduled (StopList l) = useScheduledStopLists() AND fromDateTime(l) > currentDa
 
 toExport 'К загрузке' = countStocks(StopList l) AND NOT succeeded(l) AND NOT scheduled(l);  
 
+// склады без оборудования не получают succeeded никогда, поэтому их документы остаются в toExport бессрочно
+toExportMachinery 'К загрузке в оборудование' (StopList l) =
+    toExport(l) AND (GROUP SUM 1 IF in(Stock st, l) AND notSucceeded(st, l) AND inActiveGroupMachinery(st));
+
 statusSucceededStocks 'Статус загрузки' = CASE 
     WHEN succeeded(StopList l) AND isPosted(l) THEN 'Успешно загружен'
     WHEN countSucceededStocks(l) < countStocks(l)  AND isPosted(l) THEN 'Частично загружен'
@@ -128,7 +132,8 @@ count 'Вкл.' (Sku sku, StopList stopList) =  TRUE IF [GROUP SUM 1
     BY sku(StopListDetail stopListDetail), stopList(stopListDetail)](sku, stopList);    
 
 in (GroupMachinery groupMachinery, Sku sku, StopList stopList) =count(sku, stopList) AND in(groupMachinery, sku);
-in (GroupMachinery groupMachinery, StopListDetail stopListDetail) =in(groupMachinery, sku(stopListDetail), stopList(stopListDetail));                                         
+// count(sku, stopList) для строки собственного документа всегда истинен, но разворачивается в агрегат по всей спецификации
+in (GroupMachinery groupMachinery, StopListDetail stopListDetail) = in(groupMachinery, sku(stopListDetail));                                         
     
 changeValue(Sku sku, StopList stopList)  { 
     INPUT b = BOOLEAN DO
