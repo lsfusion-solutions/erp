@@ -57,6 +57,10 @@ attributes = ABSTRACT STRING (Sku);
 filterAttribut = ABSTRACT CASE BOOLEAN (Item, Attribut);
 isCatchWeight (Sku i) = IF (id(UOM(i)) = 'кг.' AND passScales(i)) OR (split(i) AND NOT passScales(i)) THEN TRUE;
 
+sliced 'Нарезной' = DATA BOOLEAN (Sku);
+sliced 'Нарезной' = DATA BOOLEAN (ItemGroup);
+overSliced(Sku s) = OVERRIDE sliced(s), sliced(itemGroup(s));
+
 FORM importItems 'Импорт товаров'
     OBJECTS t = MachineryPriceTransaction
 
@@ -135,18 +139,22 @@ dropProp = ABSTRACT CASE STRING (STRING, Item);
 
 GTINUKM5(Item i) = OVERRIDE dataGTIN(barcode(i)), GTIN(barcode(i));
 RBMark(Item i) =  UKZ(i) == TTRUE AND NOT skipUkz(i);
+requireQuantityManualUkm5(Item i) = requireQuantityManual(i) AND NOT overSliced(i);
 
 valueProp (STRING s, Item i) += WHEN s = 'GTIN' AND i IS Item THEN GTINUKM5(i);
 valueProp (STRING s, Item i) += WHEN s = 'RB_MARK' AND i IS Item AND RBMark(i) THEN 'RB_MARK';
-valueProp (STRING s, Item i) += WHEN s = 'quantity_by_hand' AND i IS Item AND requireQuantityManual(i) THEN 'quantity_by_hand';
+valueProp (STRING s, Item i) += WHEN s = 'quantity_by_hand' AND i IS Item AND requireQuantityManualUkm5(i) THEN 'quantity_by_hand';
+valueProp (STRING s, Item i) += WHEN s = 'sliced_quantitative' AND i IS Item AND overSliced(i) THEN 'sliced_quantitative';
 
 nameProp (STRING s, Item i) += WHEN s = 'GTIN' AND i IS Item THEN '';
 nameProp (STRING s, Item i) += WHEN s = 'RB_MARK' AND i IS Item AND UKZ(i) == TTRUE AND NOT skipUkz(i) THEN '';
-nameProp (STRING s, Item i) += WHEN s = 'quantity_by_hand' AND i IS Item AND requireQuantityManual(i) THEN '';
+nameProp (STRING s, Item i) += WHEN s = 'quantity_by_hand' AND i IS Item AND requireQuantityManualUkm5(i) THEN '';
+nameProp (STRING s, Item i) += WHEN s = 'sliced_quantitative' AND i IS Item AND overSliced(i) THEN '';
 
 droppedLoadedGTIN = DATA TBOOLEAN (Item);
 droppedLoadedRBMark= DATA TBOOLEAN (Item);
 droppedLoadedQuantityByHand = DATA TBOOLEAN (Item);
+droppedLoadedSlicedQuantitative = DATA TBOOLEAN (Item);
 
 WHEN DROPPED(GTINUKM5(Item i)) AND droppedLoadedGTIN(i) == TFALSE DO {
     droppedLoadedGTIN(i) <- TTRUE;
@@ -154,15 +162,19 @@ WHEN DROPPED(GTINUKM5(Item i)) AND droppedLoadedGTIN(i) == TFALSE DO {
 WHEN DROPPED(RBMark(Item i)) AND droppedLoadedRBMark(i) == TFALSE DO {
     droppedLoadedRBMark(i) <- TTRUE;
 }
-WHEN DROPPED(requireQuantityManual(Item i)) AND droppedLoadedQuantityByHand(i) == TFALSE DO {
+WHEN DROPPED(requireQuantityManualUkm5(Item i)) AND droppedLoadedQuantityByHand(i) == TFALSE DO {
     droppedLoadedQuantityByHand(i) <- TTRUE;
 }
+WHEN DROPPED(overSliced(Item i)) AND droppedLoadedSlicedQuantitative(i) == TFALSE DO {
+    droppedLoadedSlicedQuantitative(i) <- TTRUE;
+}
 
-needDropPropertiest(Item i) = droppedLoadedGTIN(i) == TTRUE OR droppedLoadedRBMark(i) == TTRUE OR droppedLoadedQuantityByHand(i) == TTRUE;
+needDropPropertiest(Item i) = droppedLoadedGTIN(i) == TTRUE OR droppedLoadedRBMark(i) == TTRUE OR droppedLoadedQuantityByHand(i) == TTRUE OR droppedLoadedSlicedQuantitative(i) == TTRUE;
 
 dropProp (STRING s, Item i) += WHEN s = 'GTIN' AND i IS Item AND droppedLoadedGTIN(i) == TTRUE THEN 'GTIN';
 dropProp (STRING s, Item i) += WHEN s = 'RB_MARK' AND i IS Item AND droppedLoadedRBMark(i) == TTRUE  THEN 'RB_MARK';
 dropProp (STRING s, Item i) += WHEN s = 'quantity_by_hand' AND i IS Item AND droppedLoadedQuantityByHand(i) == TTRUE  THEN 'quantity_by_hand';
+dropProp (STRING s, Item i) += WHEN s = 'sliced_quantitative' AND i IS Item AND droppedLoadedSlicedQuantitative(i) == TTRUE  THEN 'sliced_quantitative';
 
 FORM itemProperties 'Дополнительные свойства товаров'
     OBJECTS t = MachineryPriceTransaction
@@ -227,7 +239,7 @@ skipKppControl 'Не контролировать на КВП' = DATA BOOLEAN (I
 overSkipKppControl(Sku s) = OVERRIDE skipKppControl(s), IF isCatchWeight(s) THEN skipKppControl(itemGroup(s));
 
 EXTEND FORM itemGroup
-    PROPERTIES(g) minDelta, maxDelta, skipKppControl
+    PROPERTIES(g) minDelta, maxDelta, skipKppControl, sliced
 ;
 
 DESIGN itemGroup {
@@ -238,18 +250,20 @@ DESIGN itemGroup {
                 MOVE PROPERTY (minDelta(g));
                 MOVE PROPERTY (maxDelta(g));
                 MOVE PROPERTY (skipKppControl(g));
+                MOVE PROPERTY (sliced(g));
             }
         }
     }
 }
 
 EXTEND FORM item
-    PROPERTIES(i) minDelta, maxDelta, skipKppControl
+    PROPERTIES(i) minDelta, maxDelta, skipKppControl, sliced
 ;
 
 DESIGN item {
     itemPrimaryColumn2{
         MOVE PROPERTY (skipKppControl(i));
+        MOVE PROPERTY (sliced(i));
         MOVE PROPERTY (minDelta(i));
         MOVE PROPERTY (maxDelta(i));
     };
@@ -257,19 +271,21 @@ DESIGN item {
 
 
 weightSize (Sku s) = CASE
+    WHEN overSliced(s) THEN 5
     WHEN lowWeight(s) THEN 2
     WHEN overSkipKppControl(s) THEN 4
+    WHEN weightControlBypass(s) THEN 6
     ELSE 0
 ;
 
 
 droppedScale = DATA TBOOLEAN (Item);
 
-WHEN ([GROUP SUM 1 IF DROPPED(lowWeight(Sku s)) OR DROPPED(weightControlBypass(s)) OR DROPPED(isCatchWeight(s)) BY s](Sku sku)) AND droppedScale(sku) = TFALSE DO {
+WHEN ([GROUP SUM 1 IF DROPPED(lowWeight(Sku s)) OR DROPPED(weightControlBypass(s)) OR DROPPED(isCatchWeight(s)) OR DROPPED(overSliced(s)) BY s](Sku sku)) AND droppedScale(sku) = TFALSE DO {
     droppedScale(sku) <- TTRUE;
 }
 
-needUpdateScale(Item i) = isCatchWeight(i) OR weightSize(i) = 3 OR minDelta(i) OR maxDelta(i) OR droppedScale(i) == TTRUE;
+needUpdateScale(Item i) = isCatchWeight(i) OR weightSize(i) = 3 OR minDelta(i) OR maxDelta(i) OR droppedScale(i) == TTRUE OR overSliced(i);
 
 FORM importSecurityScale 'Импорт эталонных весов КВП и работа с типами товаров'
     OBJECTS t = MachineryPriceTransaction
@@ -281,6 +297,7 @@ FORM importSecurityScale 'Импорт эталонных весов КВП и �
         = IF isCatchWeight(elements) THEN 3 ELSE 0 EXTID 'measprec'
 
     PROPERTIES(elements) IN attributes weightSize EXTID 'weight_size_item_type'
+    PROPERTIES IN attributes = TFALSE IF elements IS Item EXTID 'noControl'
 
     PROPERTIES(elements) IN weight
     overMinDelta EXTID 'min_delta' EXTNULL,
@@ -300,6 +317,7 @@ FORM importSecurityScaleBarcode 'Импорт эталонных весов КВ
         = IF isCatchWeight(sku(elements)) THEN 3 ELSE 0 EXTID 'measprec'
 
     PROPERTIES IN attributes = weightSize(sku(elements)) EXTID 'weight_size_item_type'
+    PROPERTIES IN attributes = TFALSE IF elements IS Barcode EXTID 'noControl'
 
     PROPERTIES IN weight
     = overMinDelta(sku(elements)) EXTID 'min_delta' EXTNULL,
@@ -344,7 +362,8 @@ sendPriceTransactionAPI(CashRegisterPriceTransaction t){
         IF statusHttp() = 200 THEN {
             droppedLoadedGTIN(Item i) <- TFALSE IF GTINUKM5(i) AND skuTransaction(i, t);
             droppedLoadedRBMark(Item i) <- TFALSE IF RBMark(i) AND skuTransaction(i, t);
-            droppedLoadedQuantityByHand(Item i) <- TFALSE IF requireQuantityManual(i) AND skuTransaction(i, t);
+            droppedLoadedQuantityByHand(Item i) <- TFALSE IF requireQuantityManualUkm5(i) AND skuTransaction(i, t);
+            droppedLoadedSlicedQuantitative(Item i) <- TFALSE IF overSliced(i) AND skuTransaction(i, t);
             uploadedUkm5Properties(Item i) <- TRUE IF skuTransaction(i, t) AND NOT uploadedUkm5Properties(i);
         } ELSE {
             addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t),
@@ -362,6 +381,7 @@ sendPriceTransactionAPI(CashRegisterPriceTransaction t){
             droppedLoadedGTIN(Item i) <- NULL IF skuTransaction(i, t) AND droppedLoadedGTIN(i) == TTRUE;
             droppedLoadedRBMark(Item i) <- NULL IF skuTransaction(i, t) AND droppedLoadedGTIN(i) == TTRUE;
             droppedLoadedQuantityByHand(Item i) <- NULL IF skuTransaction(i, t) AND droppedLoadedGTIN(i) == TTRUE;
+            droppedLoadedSlicedQuantitative(Item i) <- NULL IF skuTransaction(i, t) AND droppedLoadedSlicedQuantitative(i) == TTRUE;
         } ELSE {
             addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t),
                 'Ошибка при импорте удалённых свойств товаров', resultString()));
