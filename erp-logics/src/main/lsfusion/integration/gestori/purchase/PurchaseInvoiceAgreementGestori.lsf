@@ -1,6 +1,6 @@
 MODULE PurchaseInvoiceAgreementGestori;
 
-REQUIRE PurchaseInvoiceAgreement, InventoryGestori, PurchaseInvoiceGestori;
+REQUIRE PurchaseInvoiceAgreement, InventoryGestori, PurchaseInvoiceGestori, PriceListContract;
 
 NAMESPACE Purchase;
 
@@ -8,6 +8,16 @@ inInterval (InvoiceDetail d) = dateFrom() <= date(d) AND dateTo() >= date(d);
 
 priceByAgreement 'Цена по соглашению' (InvoiceDetail d) =
     prevPriceA(priceListType(d), sku(d), customerStock(d), supplier(d), dateTime(d));
+
+// строка прайса по товару: договор — из накладной, прайс действует на дату накладной (с учетом даты окончания)
+priceListDetailContractGestori (InvoiceDetail d) = GROUP LAST PriceList.PriceListDetail pd
+    IF PriceList.contractSku(pd) = contractSku(invoice(d)) AND PriceList.sku(pd) = sku(d)
+        AND PriceList.isPosted(PriceList.priceList(pd))
+        AND PriceList.isActive(PriceList.priceList(pd), dateTime(d))
+    ORDER PriceList.fromDateTime(PriceList.priceList(pd)), pd;
+
+numberPriceListGestori 'Спецификация' (InvoiceDetail d) =
+    PriceList.seriesNumber(PriceList.priceList(priceListDetailContractGestori(d))) CHARWIDTH 15;
 
 priceForComparison 'Цена из накладной' (InvoiceDetail d) =
     IF includeVAT(priceListType(d)) THEN invoicePrice(d) ELSE price(d);
@@ -66,7 +76,11 @@ filterPassesPriceCheck (InvoiceDetail d) =
         ELSE TRUE;
 
 filterPassesStock (InvoiceDetail d) = inSaleReport(customerStock(d));
-filterPassesSupplier (InvoiceDetail d) = inSupplier(supplier(d));
+
+// поставщики не отмечены — отчет строится по всем
+anySupplierGestori () = GROUP SUM 1 IF inSupplier(LegalEntity l);
+filterPassesSupplier (InvoiceDetail d) = inSupplier(supplier(d)) OR (d IS InvoiceDetail AND NOT anySupplierGestori());
+nameSuppliersPriceCheckGestori 'Поставщики' () = OVERRIDE inSaleReportSupplier(), 'Все поставщики' CHARWIDTH 30;
 filterPassesOrder (InvoiceDetail d) = NOT filterApprovedOrdersOnly() OR (orderDetail(d) AND isPosted(orderDetail(d)));
 
 FORM priceCheckGestori 'Сверка цен по приходным накладным и соглашениям'
@@ -74,7 +88,7 @@ FORM priceCheckGestori 'Сверка цен по приходным наклад
     PROPERTIES nameStockList() READONLY SHOWIF stockList()
     PROPERTIES inSaleReportStocks 'Подразделения' = inSaleReportStocks() ON CHANGE changeStocksInventory() READONLYIF stockList()
     PROPERTIES nameLegalEntityList() READONLY SHOWIF legalEntityList()
-    PROPERTIES inSaleReportSupplier 'Поставщики' = inSaleReportSupplier() ON CHANGE { DIALOG dialogLegalEntitiesSupplier; } READONLYIF legalEntityList()
+    PROPERTIES inSaleReportSupplier 'Поставщики' = nameSuppliersPriceCheckGestori() ON CHANGE { DIALOG dialogLegalEntitiesSupplier; } READONLYIF legalEntityList()
     PROPERTIES()
     setFilterNone,
         setFilterAbove,
@@ -87,9 +101,10 @@ FORM priceCheckGestori 'Сверка цен по приходным наклад
     PROPERTIES READONLY
     idSupplier 'Код поставщика' = id(supplier(d)),
         nameSupplier(d),
+        idCustomerStock 'Код подразделения' = id(customerStock(d)),
         nameCustomerStock 'Подразделение' = nameCustomerStock(d),
         seriesNumberContract 'Номер договора' = seriesNumberContractSku(invoice(d)),
-        specName 'Спецификация' = nameAgreement(invoice(d)),
+        specName 'Спецификация' = numberPriceListGestori(d),
         invoiceNumber 'Номер накладной' = seriesNumber(invoice(d)),
         dateInvoice = date(d),
         idSku(d),
@@ -110,6 +125,7 @@ FORM priceCheckGestori 'Сверка цен по приходным наклад
 
     FILTERS isPosted(d),
         agreement(invoice(d)),
+        contractSku(invoice(d)),
         inInterval(d),
         filterPassesStock(d),
         filterPassesSupplier(d),
