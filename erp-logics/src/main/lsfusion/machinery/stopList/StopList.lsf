@@ -483,13 +483,25 @@ countDaysClearStopList 'За сколько дней хранить стоп-л�
 EXTEND FORM options PROPERTIES countDaysClearStopList();
 DESIGN options { log { MOVE PROPERTY(countDaysClearStopList());} }    
         
-lastStopListDetail (StopListDetail d) = GROUP SUM 1 IF in(Stock s, stopList(d)) AND d == lastStopListDetail(sku(d), s, currentDateTime());
+// последняя бессрочная строка, уже вступившая в силу: более ранние строки на запрет уже не влияют
+lastPermanentFromDateTime (sku, Stock stock) =
+    GROUP MAX fromDateTime(stock, StopListDetail detail)
+          IF NOT toDateTime(stock, detail) AND NOT fromDateTime(stock, detail) > currentDateTime()
+          BY sku(stock, detail) COMPLEX;
+
+// строку нельзя удалять, пока она может повлиять на запрет: хотя бы по одному складу её действие не
+// закончилось и её не перекрыла более поздняя бессрочная строка. Критерий «последняя действующая сейчас»
+// не годится: строка снятия по части складов документа им не защищается, и её удаление возвращало запрет
+actualStopListDetail (StopListDetail d) = GROUP SUM 1 IF in(Stock s, stopList(d)) AND sku(s, d)
+    AND NOT toDateTime(s, d) < currentDateTime()
+    AND NOT lastPermanentFromDateTime(sku(s, d), s) > fromDateTime(s, d);
+
 skipDelete = ABSTRACT BOOLEAN (StopListDetail);
 
 clearApplicationLog () + {
     IF countDaysClearStopList() THEN {
         NEWSESSION {    
-            DELETE StopListDetail d WHERE d IS StopListDetail AND date(d) <= subtract(currentDate(), countDaysClearStopList()) AND NOT lastStopListDetail(d) AND NOT skipDelete(d);
+            DELETE StopListDetail d WHERE d IS StopListDetail AND date(d) <= subtract(currentDate(), countDaysClearStopList()) AND NOT actualStopListDetail(d) AND NOT skipDelete(d);
             APPLY;
         }
         NEWSESSION {
