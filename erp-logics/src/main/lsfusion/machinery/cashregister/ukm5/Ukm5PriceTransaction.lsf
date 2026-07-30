@@ -222,7 +222,8 @@ GROUP attributes;
 GROUP weight;
 
 referenceWeight = DATA NUMERIC[12,3] ();
-overReferenceWeight(Sku s) = referenceWeight();
+// Для нарезных товаров эталонный вес = вес брутто; иначе — прежнее поведение.
+overReferenceWeight(Sku s) = OVERRIDE (IF overSliced(s) THEN grossWeight(s)), referenceWeight();
 
 minDelta 'Дельта отклонения от эталонного веса в меньшую сторону' = DATA NUMERIC[12,3] ();
 minDelta 'Дельта отклонения от эталонного веса в меньшую сторону' = DATA NUMERIC[12,3] (Sku);
@@ -291,8 +292,9 @@ FORM importSecurityScale 'Импорт эталонных весов КВП и �
     OBJECTS t = MachineryPriceTransaction
 
     OBJECTS elements = Item
+    // Запись уровня артикула: item_id = артикул, barcode_id = '' (см. требование УКМ5).
     PROPERTIES = OVERRIDE idBarcode(elements), '' EXTID 'item_id',
-        = OVERRIDE idBarcode(elements), '' EXTID 'barcode_id',
+        = '' EXTID 'barcode_id',
         = IF active(elements) THEN TFALSE ELSE TTRUE EXTID 'delete',
         = IF isCatchWeight(elements) THEN 3 ELSE 0 EXTID 'measprec'
 
