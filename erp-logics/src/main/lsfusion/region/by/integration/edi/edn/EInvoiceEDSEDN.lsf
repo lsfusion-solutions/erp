@@ -15,10 +15,10 @@ sendRequestEDS(FILE file, EDSService EDSService) {
     sendRequestEDI(NULL, NULL, ('http://' + host(EDSService) + ':' + port(EDSService)  + '/webservice/soap?wsdl'), file, NULL, client(EDSService) );
 }
 sendGetRequestCloud(STRING url, LegalEntity l) {
-    sendGetRequestEDI(loginEDN(l), passwordEDN(l), ('https://' + urlApiEDN(l) + url), TRUE, NULL);
+    sendGetRequestEDI(loginProfileEDN(l), passwordProfileEDN(l), (urlApiProfileEDN(l) + url), TRUE, NULL);
 }
 sendPostRequestCloud(STRING url, FILE file, LegalEntity l) {
-    sendRequestEDI(loginEDN(l), passwordEDN(l), ('https://' + urlApiEDN(l) + url), file, TRUE, NULL);
+    sendRequestEDI(loginProfileEDN(l), passwordProfileEDN(l), (urlApiProfileEDN(l) + url), file, TRUE, NULL);
 }
 
 EDSServiceCustomer(STRING[100] provider, EInvoice i) += WHEN provider == 'EDN' AND i IS EInvoice AND NOT useExternalApplication()
@@ -58,7 +58,7 @@ getSignedDocumentCustomer(STRING[100] provider, EInvoice eInvoice, FILE contentS
         }
 
         IF edsApplication(EDSService()) == EDSApplication.cloudSign THEN {
-            IF loginEDN(customer(eInvoice)) AND passwordEDN(customer(eInvoice)) AND urlApiEDN(customer(eInvoice)) THEN {
+            IF loginProfileEDN(customer(eInvoice)) AND passwordProfileEDN(customer(eInvoice)) THEN {
                 TRY {
                     sendGetRequestCloud('/document-rest-endpoint/api/sign/cloud/keys', customer(eInvoice));
                     IMPORT JSON FROM sendRequestEDIResponse() TO id = id;
@@ -124,7 +124,7 @@ getSignedDocumentSupplier(STRING[100] provider, EInvoice eInvoice, FILE contentS
         }
 
         IF edsApplication(EDSService()) == EDSApplication.cloudSign THEN {
-            IF loginEDN(supplier(eInvoice)) AND passwordEDN(supplier(eInvoice)) AND urlApiEDN(supplier(eInvoice)) THEN {
+            IF loginProfileEDN(supplier(eInvoice)) AND passwordProfileEDN(supplier(eInvoice)) THEN {
                 TRY {
                     sendGetRequestCloud('/document-rest-endpoint/api/sign/cloud/keys', supplier(eInvoice));
                     IMPORT JSON FROM sendRequestEDIResponse() TO id = id;

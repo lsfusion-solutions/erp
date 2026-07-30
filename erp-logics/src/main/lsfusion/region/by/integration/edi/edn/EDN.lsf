@@ -12,13 +12,58 @@ name(EDIProvider e) += WHEN e == EDIProvider.edn THEN 'ООО "Электрон�
 gln(EDIProvider e) += WHEN e == EDIProvider.edn THEN '4819001510007';
 EDIProvider(STRING[100] p) += WHEN p == 'EDN' THEN EDIProvider.edn;
 
+CLASS EDNProfile 'Профиль ЭДиН' : SoapProfile;
+isTest 'Тестовый контур' = DATA BOOLEAN (EDNProfile);
+extract 'Формат docudrive' = DATA BOOLEAN (EDNProfile); //тут даже не то что распаковывать а вообще обмен в формате docurive
+skipUnzip 'Сообщения не упакованы' = DATA BOOLEAN (EDNProfile);
+url(EDNProfile p) += IF isTest(p) THEN 'https://soap-test.edn.by/topby/DmcService?wsdl' ELSE 'https://soap.edn.by/topby/DmcService?wsdl';
+urlApi 'Адрес REST API' (EDNProfile p) = IF isTest(p) THEN 'https://api-test.edn.by' ELSE 'https://api.edn.by';
+
+profileEDN = DATA EDNProfile (LegalEntity);
+loginProfileEDN 'Профиль ЭДиН' (LegalEntity l) = login(profileEDN(l));
+passwordProfileEDN (LegalEntity l) = password(profileEDN(l));
+urlProfileEDN (LegalEntity l) = url(profileEDN(l));
+urlApiProfileEDN (LegalEntity l) = urlApi(profileEDN(l));
+extractProfileEDN (LegalEntity l) = extract(profileEDN(l));
+ednProfile (STRING[100] login) = GROUP MIN EDNProfile p IF p IS EDNProfile BY login(p);
+
+FORM ednProfile 'Профиль ЭДиН'
+    OBJECTS p = EDNProfile PANEL
+    PROPERTIES (p) login, password, isTest, extract, skipUnzip, url READONLY, urlApi READONLY
+
+    EDIT EDNProfile OBJECT p
+;
+
+FORM ednProfiles 'Профили ЭДиН'
+    OBJECTS p = EDNProfile
+    PROPERTIES (p) READONLY login, isTest, url, extract
+    PROPERTIES (p) NEWSESSION NEW, EDIT, DELETE
+
+    LIST EDNProfile OBJECT p
+;
+
+//параметры подключения до перехода на профили, используются только миграцией
 loginEDN 'Имя пользователя' = DATA STRING[100] (LegalEntity);
 passwordEDN 'Пароль' = DATA STRING[100] (LegalEntity) ECHO;
 hostEDN 'Хост SOAP' = DATA STRING[100] (LegalEntity);
 portEDN 'Порт' = DATA INTEGER (LegalEntity);
-urlApiEDN 'Адрес REST API' = DATA STRING[100](LegalEntity);
-extractEDN 'Формат docudrive' = DATA BOOLEAN (LegalEntity); //тут даже не то что распаковывать а вообще обмен в формате docurive
-skipUnzip 'Сообщения не упакованы' = DATA BOOLEAN (LegalEntity); 
+urlApiEDN 'Адрес REST API' = DATA STRING[100] (LegalEntity);
+extractEDN 'Формат docudrive' = DATA BOOLEAN (LegalEntity);
+skipUnzip 'Сообщения не упакованы' = DATA BOOLEAN (LegalEntity);
+
+migrateProfileEDN() {
+    FOR LegalEntity le == [GROUP MIN LegalEntity l BY loginEDN(l)](STRING[100] lg) NEW p = EDNProfile DO {
+        login(p) <- lg;
+        password(p) <- passwordEDN(le);
+        //адреса сервисов теперь фиксированные, из старых настроек берём только признак тестового контура
+        isTest(p) <- TRUE IF isSubstring(hostEDN(le), 'test');
+        extract(p) <- extractEDN(le);
+        skipUnzip(p) <- skipUnzip(le);
+    }
+    profileEDN(LegalEntity le) <- ednProfile(loginEDN(le)) WHERE loginEDN(le);
+}
+@defOnStartMigrate(migrateProfileEDN, 'Профили ЭДиН');
+
 archiveDirEDN 'Папка принятых сообщений' = DATA STRING[100] ();
 outputDirEDN 'Папка отправленных сообщений' = DATA STRING[100] ();
 disableConfirmationEDN 'Отключить подтверждение сообщений' = DATA BOOLEAN ();
@@ -28,9 +73,8 @@ document = DATA LOCAL RAWFILE();
 FORM edocument
     PROPERTIES() document;
 
-legalEntityLogin(STRING login) = GROUP MIN LegalEntity l BY loginEDN(l);
 beforeOverReceiveMessages(INTEGER i, STRING[100] login, STRING[100] archiveDir) + {
-    IF extractEDN(legalEntityLogin(login)) AND NOT skipUnzip(legalEntityLogin(login)) THEN {
+    IF extract(ednProfile(login)) AND NOT skipUnzip(ednProfile(login)) THEN {
         unzipped(STRING[100] s) <- NULL;
         IMPORT edocument FROM data(i);
         unzipping() <- file(document(), 'zip');
@@ -77,20 +121,20 @@ onStarted() + {
     }
 }
 
-overReceiveMessagesEDN ABSTRACT LIST(LegalEntity);
+overReceiveMessagesEDN ABSTRACT LIST(EDNProfile);
 receiveMessagesEDN () {
-    FOR LegalEntity le == [GROUP MIN LegalEntity l BY loginEDN(l)](STRING login) AND passwordEDN(le) DO {
+    FOR EDNProfile p IS EDNProfile AND login(p) AND password(p) DO {
         NEWSESSION {
-            lockEDN(login);
+            lockEDN(login(p));
             IF lockResultEDN() THEN {
                 TRY {
-                    overReceiveMessagesEDN(le);
-                    receiveMessages(login, passwordEDN(le), ('https://' + hostEDN(le) + (IF portEDN(le) THEN ':' + portEDN(le) ELSE '') + '/topby/DmcService?wsdl'), archiveDirEDN(), disableConfirmationEDN(), 'EDN');
+                    overReceiveMessagesEDN(p);
+                    receiveMessages(login(p), password(p), url(p), archiveDirEDN(), disableConfirmationEDN(), 'EDN');
                 } FINALLY {
-                    unlockEDN(login);
+                    unlockEDN(login(p));
                 }
             } ELSE {
-                MESSAGE 'Уже выполняется получение сообщений EDN для ' + login + '. Подождите...' NOWAIT;
+                MESSAGE 'Уже выполняется получение сообщений EDN для ' + login(p) + '. Подождите...' NOWAIT;
             }
         }
     }
@@ -168,17 +212,17 @@ receiveMessagesEDN (STRING[100] login, STRING[100] password, TEXT url, STRING[10
 }
 
 receiveMessagesEDNApi () {
-    FOR LegalEntity le == [GROUP MIN LegalEntity l BY loginEDN(l)](STRING login) AND passwordEDN(le) DO {
+    FOR EDNProfile p IS EDNProfile AND login(p) AND password(p) DO {
         NEWSESSION {
-            lockEDN(login);
+            lockEDN(login(p));
             IF lockResultEDN() THEN {
                 TRY {
-                    receiveMessagesEDN(login, passwordEDN(le), 'https://' + urlApiEDN(le), archiveDirEDN(), disableConfirmationEDN(), 'EDN');
+                    receiveMessagesEDN(login(p), password(p), urlApi(p), archiveDirEDN(), disableConfirmationEDN(), 'EDN');
                 } FINALLY {
-                    unlockEDN(login);
+                    unlockEDN(login(p));
                 }
             } ELSE {
-                MESSAGE 'Уже выполняется получение сообщений EDN для ' + login + '. Подождите...' NOWAIT;
+                MESSAGE 'Уже выполняется получение сообщений EDN для ' + login(p) + '. Подождите...' NOWAIT;
             }
         }
     }
@@ -261,7 +305,7 @@ EXTEND FORM integrationData
 
     OBJECTS lete = LegalEntity
     FILTERS isCompany(lete)
-    PROPERTIES(lete) name READONLY, loginEDN, passwordEDN, hostEDN, portEDN, urlApiEDN, extractEDN
+    PROPERTIES(lete) name READONLY, loginProfileEDN
 ;
 
 DESIGN integrationData {

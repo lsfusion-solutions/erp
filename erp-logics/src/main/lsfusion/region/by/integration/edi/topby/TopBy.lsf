@@ -12,10 +12,48 @@ name(EDIProvider e) += WHEN e == EDIProvider.topBy THEN 'ООО "Совреме�
 gln(EDIProvider e) += WHEN e == EDIProvider.topBy THEN '4814920900007';
 EDIProvider(STRING[100] p) += WHEN p == 'TopBy' THEN EDIProvider.topBy;
 
+CLASS TopByProfile 'Профиль СТТ' : SoapProfile;
+host 'Хост' = DATA STRING[100] (TopByProfile);
+port 'Порт' = DATA INTEGER (TopByProfile);
+url(TopByProfile p) += 'http://' + host(p) + ':' + port(p) + '/DmcService';
+
+profileTopBy = DATA TopByProfile (LegalEntity);
+loginProfileTopBy 'Профиль СТТ' (LegalEntity l) = login(profileTopBy(l));
+passwordProfileTopBy (LegalEntity l) = password(profileTopBy(l));
+urlProfileTopBy (LegalEntity l) = url(profileTopBy(l));
+topByProfile (STRING[100] login) = GROUP MIN TopByProfile p IF p IS TopByProfile BY login(p);
+
+FORM topByProfile 'Профиль СТТ'
+    OBJECTS p = TopByProfile PANEL
+    PROPERTIES (p) login, password, host, port, url READONLY
+
+    EDIT TopByProfile OBJECT p
+;
+
+FORM topByProfiles 'Профили СТТ'
+    OBJECTS p = TopByProfile
+    PROPERTIES (p) READONLY login, host, port, url
+    PROPERTIES (p) NEWSESSION NEW, EDIT, DELETE
+
+    LIST TopByProfile OBJECT p
+;
+
+//параметры подключения до перехода на профили, используются только миграцией
 loginTopBy 'Имя пользователя' = DATA STRING[100] (LegalEntity);
 passwordTopBy 'Пароль' = DATA STRING[100] (LegalEntity) ECHO;
 hostTopBy 'Хост' = DATA STRING[100] (LegalEntity);
 portTopBy 'Порт' = DATA INTEGER (LegalEntity);
+
+migrateProfileTopBy() {
+    FOR LegalEntity le == [GROUP MIN LegalEntity l BY loginTopBy(l)](STRING[100] lg) NEW p = TopByProfile DO {
+        login(p) <- lg;
+        password(p) <- passwordTopBy(le);
+        host(p) <- hostTopBy(le);
+        port(p) <- portTopBy(le);
+    }
+    profileTopBy(LegalEntity le) <- topByProfile(loginTopBy(le)) WHERE loginTopBy(le);
+}
+@defOnStartMigrate(migrateProfileTopBy, 'Профили СТТ');
 
 archiveDirTopBy 'Папка принятых сообщений' = DATA STRING[100] ();
 outputDirTopBy 'Папка отправленных сообщений' = DATA STRING[100] ();
@@ -55,18 +93,18 @@ onStarted()+ {
 }
 
 receiveMessagesTopBy () {
-    FOR LegalEntity le == [GROUP MIN LegalEntity l BY loginTopBy(l)](STRING login) AND passwordTopBy(le) DO {
+    FOR TopByProfile p IS TopByProfile AND login(p) AND password(p) DO {
         NEWSESSION {
-            lockTopBy(login);
+            lockTopBy(login(p));
             IF lockResultTopBy() THEN {
                 TRY {
                     newNS() <- TRUE;
-                    receiveMessages(login, passwordTopBy(le), ('http://' +  hostTopBy(le) + ':' + portTopBy(le) + '/DmcService'), archiveDirTopBy(), disableConfirmationTopBy(), 'TopBy');
+                    receiveMessages(login(p), password(p), url(p), archiveDirTopBy(), disableConfirmationTopBy(), 'TopBy');
                 } FINALLY {
-                    unlockTopBy(login);
+                    unlockTopBy(login(p));
                 }
             } ELSE {
-                MESSAGE 'Уже выполняется получение сообщений TopBy для ' + login + '. Подождите...' NOWAIT;
+                MESSAGE 'Уже выполняется получение сообщений TopBy для ' + login(p) + '. Подождите...' NOWAIT;
             }
         }
     }
@@ -78,7 +116,7 @@ receiveTopBy 'Получить сообщения' {
 }
 
 listMessagesTopBy 'Просмотр очереди' (LegalEntity le) {
-    listMessages(loginTopBy(le), passwordTopBy(le), ('http://' +  hostTopBy(le) + ':' + portTopBy(le) + '/DmcService'), archiveDirTopBy(), disableConfirmationTopBy(), 'TopBy');
+    listMessages(loginProfileTopBy(le), passwordProfileTopBy(le), urlProfileTopBy(le), archiveDirTopBy(), disableConfirmationTopBy(), 'TopBy');
 } TOOLBAR;
 
 EXTEND FORM integrationData
@@ -86,7 +124,7 @@ EXTEND FORM integrationData
     
     OBJECTS let = LegalEntity
     FILTERS isCompany(let)
-    PROPERTIES(let) name READONLY, loginTopBy, passwordTopBy, hostTopBy, portTopBy, listMessagesTopBy
+    PROPERTIES(let) name READONLY, loginProfileTopBy, listMessagesTopBy
 ;
     
 DESIGN integrationData {
