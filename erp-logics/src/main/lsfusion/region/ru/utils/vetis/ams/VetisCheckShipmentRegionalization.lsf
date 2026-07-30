@@ -397,10 +397,10 @@ GROUP condition EXTID 'vd:condition';
 EXTEND FORM  prepareOutgoingConsignmentRequest
     OBJECTS con = Condition EXTID 'vd:r13nClause' IN vetCertificateAuthentication
     PROPERTIES(con) IN condition guid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
-    FILTERS in(lastCheckRequest(d), d, con)
+    FILTERS in(lastCheckRequest(d), d, con), strict(con)
 ;
 
 // условия регионализации в возвратном сегменте запроса гашения (вставляются внутрь vd:authentication)
 r13nClauseXml (IncomingConsignment c) +=
     GROUP CONCAT ('<vd:r13nClause xmlns:vd="http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2"><vd:condition><bs:guid xmlns:bs="http://api.vetrf.ru/schema/cdm/base">' + guid(Condition con) + '</bs:guid></vd:condition></vd:r13nClause>')
-        IF in(lastCheckRequest(c), c, con), '' ORDER con;
+        IF in(lastCheckRequest(c), c, con) AND strict(con), '' ORDER con;
