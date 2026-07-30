@@ -1,0 +1,48 @@
+MODULE NumeratorGestori;
+
+REQUIRE Numerator, Item, LegalEntity, Warehouse, Bank, StockContract;
+
+NAMESPACE Numerator;
+
+useFreeNumeratorValue 'Искать следующее свободное значение нумератора' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () useFreeNumeratorValue
+;
+DESIGN options {
+    numerator {
+        MOVE PROPERTY (useFreeNumeratorValue());
+    }
+}
+
+// если код, полученный из текущего значения нумератора, уже занят, берём первый свободный от него
+META defineFreeNumeratorId(object, prefix)
+    countIdFree##object = GROUP SUM 1 IF object o IS object BY id(o);
+
+    findFreeValue##object (Numerator n) {
+        WHILE countIdFree##object(CONCAT '', series(n), curStringValue(n)) AND curValue(n) < maxValue(n) DO
+            incrementValueSession(n);
+    }
+
+    WHEN useFreeNumeratorValue() AND SET(object o IS object) AND CHANGED(id(o))
+         AND default##prefix##Numerator##object() AND countIdFree##object(id(o)) > 1 DO {
+        findFreeValue##object(default##prefix##Numerator##object());
+        id(o) <- CONCAT '', series(default##prefix##Numerator##object()), curStringValue(default##prefix##Numerator##object());
+        incrementValueSession(default##prefix##Numerator##object());
+    }
+END
+
+META defineFreeNumeratorId(object)
+    @defineFreeNumeratorId(object, );
+END
+
+@defineFreeNumeratorId(Item);
+@defineFreeNumeratorId(ItemGroup);
+@defineFreeNumeratorId(LegalEntity);
+@defineFreeNumeratorId(Warehouse);
+@defineFreeNumeratorId(Manufacturer);
+@defineFreeNumeratorId(ManufacturerGroup);
+@defineFreeNumeratorId(LegalEntityGroup);
+@defineFreeNumeratorId(WarehouseGroup);
+@defineFreeNumeratorId(Bank);
+@defineFreeNumeratorId(UserContractSku, Id);
