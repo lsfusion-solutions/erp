@@ -256,6 +256,18 @@ changeSortType() {
     formRefresh();
 }
 
+// расход и приход идут отдельными блоками, расход первым
+isExpenseLedgerGestori (SkuLedger o) = signedQuantity(o) < 0;
+nameLedgerTypeGestori 'Тип операции' (SkuLedger o) = IF isExpenseLedgerGestori(o) THEN 'РАСХОД' ELSE 'ПРИХОД';
+sortLedgerTypeGestori (SkuLedger o) = IF isExpenseLedgerGestori(o) THEN 1 ELSE 2;
+
+// у внутренних операций контрагента в документе нет — тогда им выступает само подразделение
+counterpartyGestori 'Поставщик/покупатель' (SkuLedger o) = OVERRIDE supplier(o), stockFullName(o);
+
+// подразделение и контрагент — один уровень группировки
+stockCounterpartyGestori 'Подразделение / контрагент' (SkuLedger o) =
+    CONCAT ' / ', stockFullName(o), counterpartyGestori(o);
+
 sortKey1 (SkuLedger o) = IF sortByDates() THEN STRING[200](date(o)) ELSE nameSku(o);
 sortKey2 (SkuLedger o) = IF sortByDates() THEN nameSku(o) ELSE STRING[200](date(o));
 
@@ -345,17 +357,11 @@ inSkuFilter (SkuLedger o) = NOT anySkuSelected() OR in(sku(o)) OR inSessionParen
 inSkuFilterSku (Sku s) = NOT anySkuSelected() OR in(s) OR inSessionParent(s);
 
 inOperation 'Вкл.' = DATA LOCAL BOOLEAN (Operation.Operation);
-inRetailSaleOp 'Кассовые продажи' = DATA LOCAL BOOLEAN ();
-inRetailReturnOp 'Кассовые возвраты' = DATA LOCAL BOOLEAN ();
 
 cntSelectedOps() = GROUP SUM 1 IF inOperation(Operation.Operation op);
-anyRetailOp() = inRetailSaleOp() OR inRetailReturnOp();
-allOperations() = NOT cntSelectedOps() AND NOT anyRetailOp();
+allOperations() = NOT cntSelectedOps();
 
-inOpFilter (SkuLedger o) = allOperations()
-    OR inOperation(operationDocument(o))
-    OR (inRetailSaleOp() AND isRetailSale(o))
-    OR (inRetailReturnOp() AND isRetailReturn(o));
+inOpFilter (SkuLedger o) = allOperations() OR inOperation(operationDocument(o));
 
 hasData (Operation.Operation op) = GROUP SUM 1 IF inInterval(SkuLedger o)
     AND inSaleReport(stock(o))
@@ -363,30 +369,13 @@ hasData (Operation.Operation op) = GROUP SUM 1 IF inInterval(SkuLedger o)
     AND active(o)
     AND operationDocument(o) = op;
 
-hasRetailSaleData() = GROUP SUM 1 IF inInterval(SkuLedger o)
-    AND inSaleReport(stock(o))
-    AND signedQuantity(o)
-    AND active(o)
-    AND isRetailSale(o);
 
-hasRetailReturnData() = GROUP SUM 1 IF inInterval(SkuLedger o)
-    AND inSaleReport(stock(o))
-    AND signedQuantity(o)
-    AND active(o)
-    AND isRetailReturn(o);
 
 selectedOpNames() = GROUP CONCAT name(Operation.Operation op) IF inOperation(op), ', ' ORDER name(op);
 
-inOperations 'Операции' () = IF allOperations() THEN 'ВСЕ'
-    ELSE CONCAT ', ',
-        selectedOpNames(),
-        (IF inRetailSaleOp() THEN 'Кассовые продажи'),
-        (IF inRetailReturnOp() THEN 'Кассовые возвраты');
+inOperations 'Операции' () = IF allOperations() THEN 'ВСЕ' ELSE selectedOpNames();
 
 FORM selectOperationsForm 'Выбор операций'
-    PROPERTIES() inRetailSaleOp SHOWIF hasRetailSaleData(),
-        inRetailReturnOp SHOWIF hasRetailReturnData()
-
     OBJECTS op = Operation.Operation
     PROPERTIES(op) inOperation
     PROPERTIES(op) READONLY name, nameReturn
@@ -395,11 +384,6 @@ FORM selectOperationsForm 'Выбор операций'
 
 DESIGN selectOperationsForm {
     size = (600, 400);
-    NEW retailPanel FIRST {
-        horizontal = TRUE;
-        MOVE PROPERTY(inRetailSaleOp());
-        MOVE PROPERTY(inRetailReturnOp());
-    }
 }
 
 selectOperations 'Выбрать операции' () { DIALOG selectOperationsForm; }
@@ -417,16 +401,19 @@ FORM operationReport 'Отчет по хозяйственной операци�
 
     OBJECTS o = SkuLedger
     PROPERTIES(o) READONLY idSku, nameSku, nameUOM, netWeight, stockFullName,
+        nameLedgerTypeGestori, sortLedgerTypeGestori, counterpartyGestori, stockCounterpartyGestori,
         skuGroup2Full, skuGroup3Full, skuGroup4Full,
         nameOperationEx, numberDocument, dateDocument, supplier,
         signedQuantity, netTotalWeight, cost, sumCost, accountPrice,
         sumByAccountPrice, retailPrice, sumRetail, valueVAT, sumVAT, profit,
         sortKey1, sortKey2
-    ORDERS supplier(o), stockFullName(o), skuGroup2Full(o), skuGroup3Full(o), skuGroup4Full(o), nameOperationEx(o), sortKey1(o), sortKey2(o)
+    ORDERS sortLedgerTypeGestori(o), stockCounterpartyGestori(o), nameOperationEx(o),
+        skuGroup2Full(o), skuGroup3Full(o), skuGroup4Full(o), sortKey1(o), sortKey2(o)
     FILTERS inInterval(o),
         inSaleReport(stock(o)),
         signedQuantity(o),
         active(o),
+        NOT isRetailOperation(o),
         inOpFilter(o),
         inSkuFilter(o)
     PROPERTIES title = 'Отчет по хозяйственной операции ' + titleInterval()
