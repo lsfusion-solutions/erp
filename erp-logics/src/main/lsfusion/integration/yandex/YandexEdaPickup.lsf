@@ -105,9 +105,11 @@ DESIGN integrationData {
 //YandexEda.cancelInternetOrdersPickupYandex[]
 cancelInternetOrdersPickupYandex () {
     NEWSESSION {
-        status(InternetOrder o) <- StatusInternetOrder.cancel WHERE sumMinutes(dateTimePickupStatusChanged(o), hoursToCancelPickup() * 60) < currentDateTime() AND
-            isPickupYandex(o) AND status(o) == StatusInternetOrder.picked;
-        APPLY;
+        IF hoursToCancelPickup() THEN {
+            status(InternetOrder o) <- StatusInternetOrder.cancel WHERE sumMinutes(dateTimePickupStatusChanged(o), hoursToCancelPickup() * 60) < currentDateTime() AND
+                isPickupYandex(o) AND status(o) == StatusInternetOrder.picked;
+            APPLY;
+        }
     }
 }
 
