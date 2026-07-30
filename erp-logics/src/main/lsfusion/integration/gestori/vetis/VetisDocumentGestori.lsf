@@ -1552,9 +1552,17 @@ EXTEND FORM SaleReturn.userInvoice
     PROPERTIES(vtd) READONLY issueSeriesNumberWaybillGestori AFTER issueSeriesNumberWaybill(vtd)
 ;
 
-// количество по позиции нельзя менять после проведения накладной
+// количество по позиции нельзя менять после проведения накладной либо после отправки заявки/гашения
 CONSTRAINT CHANGED(shipmentQuantity(SaleReturn.UserInvoiceDetail vd)) AND isPosted(vd) AND NOT CHANGED(isPosted(vd))
     MESSAGE 'Нельзя изменить количество: накладная проведена';
+CONSTRAINT CHANGED(shipmentQuantity(SaleReturn.UserInvoiceDetail vd)) AND vsdVolumeLockedSaleReturnGestori(vd)
+    MESSAGE 'Нельзя изменить количество: по позиции отправлена заявка в Ветис или выполнено гашение';
+
+// проведение нельзя снять, пока по позициям есть отправленные заявки или гашение
+lockedPostedSaleReturnGestori (SaleReturn.UserInvoice i) =
+    GROUP SUM 1 IF vsdVolumeLockedSaleReturnGestori(SaleReturn.UserInvoiceDetail vd) AND SaleReturn.userInvoice(vd) = i;
+CONSTRAINT DROPPED(isPosted(SaleReturn.UserInvoice i)) AND lockedPostedSaleReturnGestori(i)
+    MESSAGE 'Нельзя отменить проведение: по позициям отправлены заявки в Ветис или выполнено гашение';
 // объём по ВСД нельзя менять после отправки заявки в Ветис (кроме завершившихся ошибкой) или гашения
 CONSTRAINT CHANGED(VetisSaleReturn.volume(SaleReturn.UserInvoiceDetail vd, VetDocument vtd)) AND vsdVolumeLockedSaleReturnGestori(vd)
     MESSAGE 'Нельзя изменить объём по ВСД: отправлена заявка в Ветис или выполнено гашение';
@@ -1565,7 +1573,7 @@ CONSTRAINT VetisSaleReturn.volume(SaleReturn.UserInvoiceDetail vd, VetDocument v
 
 // число позиций накладной, связанных с данным ВСД (по объёму)
 countDetailVDSaleReturnGestori (SaleReturn.UserInvoice inv, VetDocument s) =
-    GROUP SUM 1 IF VetisSaleReturn.volume(SaleReturn.UserInvoiceDetail d, s) > 0 AND SaleReturn.userInvoice(d) = inv;
+    GROUP SUM 1 IF VetisSaleReturn.volume(SaleReturn.UserInvoiceDetail d, s) >= 0 AND SaleReturn.userInvoice(d) = inv;
 // один ВСД нельзя связывать с разными накладными
 countInvoiceVDSaleReturnGestori (VetDocument s) = GROUP SUM 1 IF countDetailVDSaleReturnGestori(SaleReturn.UserInvoice inv, s);
 CONSTRAINT countInvoiceVDSaleReturnGestori(VetDocument s) > 1
@@ -1613,6 +1621,51 @@ volumeShippedSaleReturnGestori 'Объем (поставлено)' (SaleReturn.U
 // суммарный принятый объём по всем строкам, связанным с ВСД
 totalVolumeVDSaleReturnGestori 'Объем всего' (VetDocument s) = GROUP SUM VetisSaleReturn.volume(SaleReturn.UserInvoiceDetail d, s);
 
+// свободный остаток ВСД (без учёта текущей пары) и свободный остаток строки по «Объем (поставлено)»
+freeVolumeVDSaleReturnGestori (SaleReturn.UserInvoiceDetail vd, VetDocument s) =
+    NUMERIC[16,5](MAX volume(s) (-) (totalVolumeVDSaleReturnGestori(s) (-) VetisSaleReturn.volume(vd, s)), 0.0);
+freeVolumeRowSaleReturnGestori (SaleReturn.UserInvoiceDetail vd, VetDocument s) =
+    NUMERIC[16,5](MAX volumeShippedSaleReturnGestori(vd) (-) (VetisSaleReturn.volumeVetDocument(vd) (-) VetisSaleReturn.volume(vd, s)), 0.0);
+
+// «Выбрать»: берём не больше свободного остатка ВСД и не больше непокрытого объёма строки
+fillVolumeRowSaleReturnGestori 'Выбрать' (SaleReturn.UserInvoiceDetail vd, VetDocument s) {
+    VetisSaleReturn.volume(vd, s) <- NUMERIC[16,5](MIN freeVolumeVDSaleReturnGestori(vd, s), freeVolumeRowSaleReturnGestori(vd, s));
+}
+
+numberWaybillSaleReturnGestori = DATA LOCAL STRING[200] ();
+
+// «Заполнить по номеру»: строки заполняются по очереди, каждой достаётся остаток ВСД, не превышающий её объём поставлено
+fillVolumeByNumberSaleReturnGestori 'Заполнить по номеру' (SaleReturn.UserInvoice i) {
+    DIALOG Vetis.requestWayBillNumber OBJECTS s = seriesNumber(i) INPUT DO {
+        numberWaybillSaleReturnGestori() <- s;
+        IF NOT (GROUP SUM 1 IF numberWaybillSaleReturnGestori() = issueSeriesNumberWaybill(VetDocument vtd)
+                AND status(vtd) = VetDocumentStatus.CONFIRMED
+                AND VetisSaleReturn.matches(SaleReturn.UserInvoiceDetail vd, vtd) AND SaleReturn.userInvoice(vd) = i) THEN {
+            MESSAGE 'Подтверждённые ВСД с таким номером накладной не найдены';
+            RETURN;
+        }
+        FOR SaleReturn.userInvoice(SaleReturn.UserInvoiceDetail vd) = i ORDER index(vd) DO
+            FOR VetisSaleReturn.matches(vd, VetDocument vtd)
+                AND numberWaybillSaleReturnGestori() = issueSeriesNumberWaybill(vtd)
+                AND status(vtd) = VetDocumentStatus.CONFIRMED
+                AND freeVolumeRowSaleReturnGestori(vd, vtd) > 0
+                AND freeVolumeVDSaleReturnGestori(vd, vtd) > 0
+                ORDER DESC volume(vtd), vtd DO
+                VetisSaleReturn.volume(vd, vtd) <-
+                    NUMERIC[16,5](MIN freeVolumeVDSaleReturnGestori(vd, vtd), freeVolumeRowSaleReturnGestori(vd, vtd));
+        VetisSaleReturn.fillExpiryDate(i);
+    }
+}
+
+EXTEND FORM SaleReturn.userInvoice
+    PROPERTIES(vd, vtd) fillVolumeSaleReturnGestori = fillVolumeRowSaleReturnGestori GRID
+    PROPERTIES(i) DRAW vd TOOLBAR fillVolumeByNumberSaleReturnGestori
+;
+DESIGN SaleReturn.userInvoice {
+    PROPERTY(fillVolume(vd, vtd)) { hide = TRUE; }
+    PROPERTY(fillVolume(i)) { hide = TRUE; }
+}
+
 EXTEND FORM SaleReturn.userInvoice
     PROPERTIES(vd) READONLY volumeShippedSaleReturnGestori
     PROPERTIES(vtd) READONLY totalVolumeVDSaleReturnGestori
@@ -1627,6 +1680,38 @@ DESIGN SaleReturn.userInvoice {
     PROPERTY(volume(vd, vtd)) { caption = 'Объем по строке'; }
 }
 
+// после ошибки запроса на оформление партию можно пересоздать: снимаем объём и возвращаем его обратно,
+// агрегат IncomingConsignment при этом удаляется и создаётся заново — вместе с ним обнуляется история заявок
+errorConsignmentSaleReturnGestori (SaleReturn.UserInvoiceDetail vd, VetDocument vtd) =
+    VetisSaleReturn.incomingConsignment(vd, vtd) IS Vetis.IncomingConsignment
+    AND errorLastRequest(VetisSaleReturn.incomingConsignment(vd, vtd));
+
+recreateConsignmentSaleReturnGestori 'Пересоздать партию' (SaleReturn.UserInvoiceDetail vd, VetDocument vtd) {
+    IF NOT errorConsignmentSaleReturnGestori(vd, vtd) THEN {
+        MESSAGE 'Пересоздать входящую партию можно только после ошибки запроса в Ветис';
+        RETURN;
+    }
+    LOCAL NESTED vol = NUMERIC[16,5] ();
+    vol() <- VetisSaleReturn.volume(vd, vtd);
+    ASK 'Удалить входящую партию и сформировать её заново ?' DO {
+        NEWSESSION {
+            VetisSaleReturn.volume(vd, vtd) <- NULL;
+            APPLY NESTED LOCAL;
+        }
+        NEWSESSION {
+            VetisSaleReturn.volume(vd, vtd) <- vol();
+            APPLY;
+        }
+        MESSAGE 'Входящая партия сформирована заново';
+    }
+}
+
+EXTEND FORM SaleReturn.userInvoice
+    PROPERTIES(vd, vtd) recreateConsignmentSaleReturnGestori
+        SHOWIF errorConsignmentSaleReturnGestori(vd, vtd) GRID
+;
+
 // суммарный объём по строкам ВСД не должен превышать объём продукции
 CONSTRAINT totalVolumeVDSaleReturnGestori(VetDocument s) > volume(s)
-    MESSAGE 'Суммарный объём по строкам, связанным с ВСД, превышает объём продукции';
+    MESSAGE 'Суммарный объём по строкам, связанным с ВСД, превышает объём продукции'
+    PROPERTIES uuid(s), nameProductItem(s), volume(s);
