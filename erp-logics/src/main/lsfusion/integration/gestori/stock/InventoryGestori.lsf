@@ -261,12 +261,27 @@ isExpenseLedgerGestori (SkuLedger o) = signedQuantity(o) < 0;
 nameLedgerTypeGestori 'Тип операции' (SkuLedger o) = IF isExpenseLedgerGestori(o) THEN 'РАСХОД' ELSE 'ПРИХОД';
 sortLedgerTypeGestori (SkuLedger o) = IF isExpenseLedgerGestori(o) THEN 1 ELSE 2;
 
-// у внутренних операций контрагента в документе нет — тогда им выступает само подразделение
-counterpartyGestori 'Поставщик/покупатель' (SkuLedger o) = OVERRIDE supplier(o), stockFullName(o);
+// вторая сторона документа: по расходу это покупатель, по приходу — поставщик
+counterpartyGestori 'Поставщик/покупатель' (SkuLedger o) = IF isExpenseLedgerGestori(o)
+    THEN nameCustomer[Document](stockDocumentLedger(o))
+    ELSE nameSupplier[Document](stockDocumentLedger(o));
 
-// подразделение и контрагент — один уровень группировки
-stockCounterpartyGestori 'Подразделение / контрагент' (SkuLedger o) =
-    CONCAT ' / ', stockFullName(o), counterpartyGestori(o);
+counterpartyStockGestori 'Склад контрагента' (SkuLedger o) = IF isExpenseLedgerGestori(o)
+    THEN nameCustomerStock[Document](stockDocumentLedger(o))
+    ELSE nameSupplierStock[Document](stockDocumentLedger(o));
+
+// подразделение и склад контрагента — один уровень группировки,
+// у операций без контрагента вторым идёт само подразделение
+stockCounterpartyGestori 'Подразделение / склад контрагента' (SkuLedger o) =
+    CONCAT ' / ', stockFullName(o), OVERRIDE counterpartyStockGestori(o), counterpartyGestori(o), stockFullName(o);
+
+// обороты выводятся положительными, направление задаёт блок расхода или прихода
+quantityGestori 'Количество' (SkuLedger o) = abs(signedQuantity(o));
+netTotalWeightGestori 'Вес общий' (SkuLedger o) = abs(netTotalWeight(o));
+sumCostGestori 'Сумма по бух. себест-ти' (SkuLedger o) = abs(sumCost(o));
+sumByAccountPriceGestori 'Сумма по учетной цене' (SkuLedger o) = abs(sumByAccountPrice(o));
+sumRetailGestori 'Сумма по отпускной цене' (SkuLedger o) = abs(sumRetail(o));
+sumVATGestori 'Сумма НДС' (SkuLedger o) = abs(sumVAT(o));
 
 sortKey1 (SkuLedger o) = IF sortByDates() THEN STRING[200](date(o)) ELSE nameSku(o);
 sortKey2 (SkuLedger o) = IF sortByDates() THEN nameSku(o) ELSE STRING[200](date(o));
@@ -400,15 +415,15 @@ FORM operationReport 'Отчет по хозяйственной операци�
     PROPERTIES opInSkus 'Товары' = inSkus() ON CHANGE selectSkus() READONLYIF anySkuList() OR anySkuGroup()
 
     OBJECTS o = SkuLedger
-    PROPERTIES(o) READONLY idSku, nameSku, nameUOM, netWeight, stockFullName,
+    PROPERTIES(o) READONLY idSku, nameSku, nameUOM, netWeight,
         nameLedgerTypeGestori, sortLedgerTypeGestori, counterpartyGestori, stockCounterpartyGestori,
         skuGroup2Full, skuGroup3Full, skuGroup4Full,
         nameOperationEx, numberDocument, dateDocument, supplier,
-        signedQuantity, netTotalWeight, cost, sumCost, accountPrice,
-        sumByAccountPrice, retailPrice, sumRetail, valueVAT, sumVAT, profit,
+        quantityGestori, netTotalWeightGestori, cost, sumCostGestori, accountPrice,
+        sumByAccountPriceGestori, retailPrice, sumRetailGestori, valueVAT, sumVATGestori, profit,
         sortKey1, sortKey2
     ORDERS sortLedgerTypeGestori(o), stockCounterpartyGestori(o), nameOperationEx(o),
-        skuGroup2Full(o), skuGroup3Full(o), skuGroup4Full(o), sortKey1(o), sortKey2(o)
+        skuGroup2Full(o), skuGroup3Full(o), skuGroup4Full(o), nameSku(o), sortKey1(o), sortKey2(o)
     FILTERS inInterval(o),
         inSaleReport(stock(o)),
         signedQuantity(o),
