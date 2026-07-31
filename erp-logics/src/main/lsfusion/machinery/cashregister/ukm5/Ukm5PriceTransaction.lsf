@@ -222,18 +222,17 @@ GROUP attributes;
 GROUP weight;
 
 referenceWeight = DATA NUMERIC[12,3] ();
-// Для нарезных товаров эталонный вес = вес брутто; иначе — прежнее поведение.
-overReferenceWeight(Sku s) = OVERRIDE (IF overSliced(s) THEN grossWeight(s)), referenceWeight();
 
 minDelta 'Дельта отклонения от эталонного веса в меньшую сторону' = DATA NUMERIC[12,3] ();
 minDelta 'Дельта отклонения от эталонного веса в меньшую сторону' = DATA NUMERIC[12,3] (Sku);
 minDelta 'Дельта отклонения от эталонного веса в меньшую сторону' = DATA NUMERIC[12,3] (ItemGroup);
-overMinDelta(Sku s) = OVERRIDE minDelta(s), IF isCatchWeight(s) THEN OVERRIDE minDelta(itemGroup(s)), minDelta(), 0.01;
+// Групповую/глобальную дельту читаем всегда (не только для весовых), иначе спец-типы (4/5/6) не наследуют дельты группы.
+overMinDelta(Sku s) = OVERRIDE minDelta(s), minDelta(itemGroup(s)), minDelta(), 0.01;
 
 maxDelta 'Дельта отклонения от эталонного веса в большую сторону' = DATA NUMERIC[12,3] ();
 maxDelta 'Дельта отклонения от эталонного веса в большую сторону' = DATA NUMERIC[12,3] (Sku);
 maxDelta 'Дельта отклонения от эталонного веса в большую сторону' = DATA NUMERIC[12,3] (ItemGroup);
-overmaxDelta(Sku s) = OVERRIDE maxDelta(s), IF isCatchWeight(s) THEN OVERRIDE maxDelta(itemGroup(s)), maxDelta(), 0.01;
+overmaxDelta(Sku s) = OVERRIDE maxDelta(s), maxDelta(itemGroup(s)), maxDelta(), 0.01;
 
 skipKppControl 'Не контролировать на КВП' = DATA BOOLEAN (Sku);
 skipKppControl 'Не контролировать на КВП' = DATA BOOLEAN (ItemGroup);
@@ -271,22 +270,38 @@ DESIGN item {
 }
 
 
+// Источник признака «пропуск контроля веса» (тип 6) для УКМ5.
+// По умолчанию — та же галочка ItemSSC weightControlBypass, что и у Artix.
+// Клиент может задать свой источник: useCustomWeightControlBypassUkm5() += TRUE + реализация customWeightControlBypassUkm5
+// (нужно, когда weightControlBypass уже занят другой кассой — напр. Artix у Соседей).
+useCustomWeightControlBypassUkm5 = ABSTRACT BOOLEAN ();
+customWeightControlBypassUkm5 = ABSTRACT BOOLEAN (Sku);
+weightControlBypassUkm5 'Пропуск контроля веса (УКМ5, тип 6)' (Sku s) =
+    OVERRIDE customWeightControlBypassUkm5(s), (weightControlBypass(s) IF NOT useCustomWeightControlBypassUkm5());
+
 weightSize (Sku s) = CASE
     WHEN overSliced(s) THEN 5
     WHEN lowWeight(s) THEN 2
     WHEN overSkipKppControl(s) THEN 4
-    WHEN weightControlBypass(s) THEN 6
+    WHEN weightControlBypassUkm5(s) THEN 6
     ELSE 0
 ;
+
+// Эталонный вес = вес брутто для порционных (тип 5) и переменных (тип 6); иначе — прежнее поведение.
+// Определяем после weightSize — в lsFusion свойство должно быть объявлено до использования (forward-reference недопустим).
+overReferenceWeight(Sku s) = OVERRIDE (IF weightSize(s) = 5 OR weightSize(s) = 6 THEN grossWeight(s)), referenceWeight();
 
 
 droppedScale = DATA TBOOLEAN (Item);
 
-WHEN ([GROUP SUM 1 IF DROPPED(lowWeight(Sku s)) OR DROPPED(weightControlBypass(s)) OR DROPPED(isCatchWeight(s)) OR DROPPED(overSliced(s)) BY s](Sku sku)) AND droppedScale(sku) = TFALSE DO {
+WHEN ([GROUP SUM 1 IF DROPPED(lowWeight(Sku s)) OR DROPPED(weightControlBypassUkm5(s)) OR DROPPED(isCatchWeight(s)) OR DROPPED(overSliced(s)) BY s](Sku sku)) AND droppedScale(sku) = TFALSE DO {
     droppedScale(sku) <- TTRUE;
 }
 
-needUpdateScale(Item i) = isCatchWeight(i) OR weightSize(i) = 3 OR minDelta(i) OR maxDelta(i) OR droppedScale(i) == TTRUE OR overSliced(i);
+// Запись КВП выгружаем для: весовых (isCatchWeight), нарезного хлеба (overSliced = тип 5),
+// товаров с типом 6 (weightControlBypassUkm5), либо если дельты заданы на товаре явно / менялся тип (droppedScale).
+// Дельты значений при этом наследуются от группы через overMinDelta/overmaxDelta.
+needUpdateScale(Item i) = isCatchWeight(i) OR overSliced(i) OR weightControlBypassUkm5(i) OR minDelta(i) OR maxDelta(i) OR droppedScale(i) == TTRUE;
 
 FORM importSecurityScale 'Импорт эталонных весов КВП и работа с типами товаров'
     OBJECTS t = MachineryPriceTransaction
