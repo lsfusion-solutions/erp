@@ -261,14 +261,9 @@ isExpenseLedgerGestori (SkuLedger o) = signedQuantity(o) < 0;
 nameLedgerTypeGestori 'Тип операции' (SkuLedger o) = IF isExpenseLedgerGestori(o) THEN 'РАСХОД' ELSE 'ПРИХОД';
 sortLedgerTypeGestori (SkuLedger o) = IF isExpenseLedgerGestori(o) THEN 1 ELSE 2;
 
-// вторая сторона документа: по расходу это покупатель, по приходу — поставщик
-counterpartyGestori 'Поставщик/покупатель' (SkuLedger o) = IF isExpenseLedgerGestori(o)
-    THEN nameCustomer[Document](stockDocumentLedger(o))
-    ELSE nameSupplier[Document](stockDocumentLedger(o));
-
-counterpartyStockGestori 'Склад контрагента' (SkuLedger o) = IF isExpenseLedgerGestori(o)
-    THEN nameCustomerStock[Document](stockDocumentLedger(o))
-    ELSE nameSupplierStock[Document](stockDocumentLedger(o));
+// контрагент и его склад — готовые свойства записи журнала
+counterpartyGestori 'Поставщик/покупатель' (SkuLedger o) = nameLegalEntityDocument(o);
+counterpartyStockGestori 'Склад контрагента' (SkuLedger o) = nameLegalEntityStockDocument(o);
 
 // подразделение и склад контрагента — один уровень группировки,
 // у операций без контрагента вторым идёт само подразделение
