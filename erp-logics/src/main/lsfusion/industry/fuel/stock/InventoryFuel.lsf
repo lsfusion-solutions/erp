@@ -4,6 +4,13 @@ REQUIRE Inventory, SkuLedgerFuel;
 
 NAMESPACE Inventory;
 
+@defineOperationProperty(showFuel, 'Топливо', paramsContainer);
+
+showFuel(PageInventoryDetail d) = showFuel(operation(inventory(d)));
+showFuel(CollationSheet d) = showFuel(operation(d));
+showFuel(ListInventory i) = showFuel(operation(inventory(i)));
+showFuel(Inventory i) = showFuel(operation(i));
+
 volume 'Объем, л' = DATA NUMERIC[16,5] (PageInventoryDetail) CHARWIDTH 7;
 density 'Плотность, кг/л' = DATA NUMERIC[9,5] (PageInventoryDetail) CHARWIDTH 7;
 
@@ -186,7 +193,7 @@ density (InInventorySkuDetail ledger) += density(ledger);
 
 
 EXTEND FORM collationSheetBatches
-    PROPERTIES(d) READONLY volume AFTER quantity(d)
+    PROPERTIES(d) READONLY SHOWIF showFuel(inventory(d)) volume AFTER quantity(d)
 ;
 
 volume (OutInventoryBatchDetail inventoryBatchDetail) = volumeShortage(collationSheet(inventoryBatchDetail), batch(inventoryBatchDetail));
@@ -202,52 +209,52 @@ volume (InInventoryBatchDetail ledger) += volume(ledger);
 density (InInventoryBatchDetail ledger) += density(ledger);
 
 EXTEND FORM listInventory
-    PROPERTIES(li) volumePageInventoryDetail
-    PROPERTIES(pl) volumePageInventoryDetail AFTER quantityPageInventoryDetail(pl)
-    PROPERTIES(dp) READONLYIF NOT isFuel(sku(dp)) volume AFTER quantityGrid
-    PROPERTIES(dp) READONLYIF NOT isFuel(sku(dp)) density AFTER volume(dp) ON CHANGE changeDensity(dp) ON CONTEXTMENU fillDensity15C(dp)
-    PROPERTIES(li,i) volumePageInventoryDetail AFTER quantityPageInventoryDetail(li,i)
-    PROPERTIES(li,bt) SHOWIF isBatch(li) volumePageInventoryDetail AFTER quantityPageInventoryDetail(li,bt)
+    PROPERTIES(li) SHOWIF showFuel(li) volumePageInventoryDetail
+    PROPERTIES(pl) SHOWIF showFuel(li) volumePageInventoryDetail AFTER quantityPageInventoryDetail(pl)
+    PROPERTIES(dp) READONLYIF NOT isFuel(sku(dp)) SHOWIF showFuel(dp) volume AFTER quantityGrid
+    PROPERTIES(dp) READONLYIF NOT isFuel(sku(dp)) SHOWIF showFuel(dp) density AFTER volume(dp) ON CHANGE changeDensity(dp) ON CONTEXTMENU fillDensity15C(dp)
+    PROPERTIES(li,i) SHOWIF showFuel(li) volumePageInventoryDetail AFTER quantityPageInventoryDetail(li,i)
+    PROPERTIES(li,bt) SHOWIF isBatch(li) AND showFuel(li) volumePageInventoryDetail AFTER quantityPageInventoryDetail(li,bt)
 ;
 
 EXTEND FORM inventory
-    PROPERTIES(ds,in) READONLY volumePageInventoryDetail AFTER quantityPageInventoryDetail(ds,in)
-    PROPERTIES(li) READONLY volumePageInventoryDetail AFTER quantityPageInventoryDetail(li)
-    PROPERTIES(pl) READONLY volumePageInventoryDetail AFTER quantityPageInventoryDetail(pl)
-    PROPERTIES(dp) READONLY BACKGROUND background(sku(dp),ds,in) AFTER quantity(dp) volume, density
-    PROPERTIES(li,it) READONLY volumePageInventoryDetail AFTER quantityPageInventoryDetail(li,it)
-    PROPERTIES(li,bt) READONLY SHOWIF isBatch(li) volumePageInventoryDetail AFTER quantityPageInventoryDetail(li,bt)
-    PROPERTIES(cs) AFTER quantityShortage(cs) volumePageInventoryDetail, volumeBalance, volumeShortage
-    PROPERTIES(cs,i) AFTER quantityShortage(cs,i) volumePageInventoryDetail, volumeShortage
-    PROPERTIES(cs,i) READONLYIF NOT isFuel(i) volumeBalance AFTER volumePageInventoryDetail(cs,i)
-    PROPERTIES(cs,i) READONLYIF NOT isFuel(i) densityBalance AFTER volumeBalance(cs,i) ON CHANGE changeDensityBalance(cs,i) ON CONTEXTMENU fillDensityBalance15C(cs,i)
-    PROPERTIES(cs,b) SHOWIF isBatch(cs) AFTER quantityShortage(cs,b) volumePageInventoryDetail, volumeShortage
-    PROPERTIES(cs,b) READONLYIF NOT isFuel(sku(b)) SHOWIF isBatch(cs) volumeBalance AFTER volumePageInventoryDetail(cs,b)
-    PROPERTIES(cs,b) READONLYIF NOT isFuel(sku(b)) SHOWIF isBatch(cs) densityBalance AFTER volumeBalance(cs,b) ON CHANGE changeDensityBalance(cs,b) ON CONTEXTMENU fillDensityBalance15C(cs,b)
+    PROPERTIES(ds,in) READONLY SHOWIF showFuel(in) volumePageInventoryDetail AFTER quantityPageInventoryDetail(ds,in)
+    PROPERTIES(li) READONLY SHOWIF showFuel(in) volumePageInventoryDetail AFTER quantityPageInventoryDetail(li)
+    PROPERTIES(pl) READONLY SHOWIF showFuel(in) volumePageInventoryDetail AFTER quantityPageInventoryDetail(pl)
+    PROPERTIES(dp) READONLY SHOWIF showFuel(in) BACKGROUND background(sku(dp),ds,in) AFTER quantity(dp) volume, density
+    PROPERTIES(li,it) READONLY SHOWIF showFuel(li) volumePageInventoryDetail AFTER quantityPageInventoryDetail(li,it)
+    PROPERTIES(li,bt) READONLY SHOWIF isBatch(li) AND showFuel(li) volumePageInventoryDetail AFTER quantityPageInventoryDetail(li,bt)
+    PROPERTIES(cs) SHOWIF showFuel(cs) AFTER quantityShortage(cs) volumePageInventoryDetail, volumeBalance, volumeShortage
+    PROPERTIES(cs,i) SHOWIF showFuel(cs) AFTER quantityShortage(cs,i) volumePageInventoryDetail, volumeShortage
+    PROPERTIES(cs,i) READONLYIF NOT isFuel(i) SHOWIF showFuel(cs) volumeBalance AFTER volumePageInventoryDetail(cs,i)
+    PROPERTIES(cs,i) READONLYIF NOT isFuel(i) SHOWIF showFuel(cs) densityBalance AFTER volumeBalance(cs,i) ON CHANGE changeDensityBalance(cs,i) ON CONTEXTMENU fillDensityBalance15C(cs,i)
+    PROPERTIES(cs,b) SHOWIF isBatch(cs) AND showFuel(cs) AFTER quantityShortage(cs,b) volumePageInventoryDetail, volumeShortage
+    PROPERTIES(cs,b) READONLYIF NOT isFuel(sku(b)) SHOWIF isBatch(cs) AND showFuel(cs) volumeBalance AFTER volumePageInventoryDetail(cs,b)
+    PROPERTIES(cs,b) READONLYIF NOT isFuel(sku(b)) SHOWIF isBatch(cs) AND showFuel(cs) densityBalance AFTER volumeBalance(cs,b) ON CHANGE changeDensityBalance(cs,b) ON CONTEXTMENU fillDensityBalance15C(cs,b)
 ;
 
 volumeShortage 'Объем недостачи / излишка, л' (Inventory in) = GROUP SUM volumeShortage(CollationSheet cs) BY inventory(cs);
 
 EXTEND FORM inventories
-    PROPERTIES(in) READONLY volumeShortage AFTER quantityShortage(in)
-    PROPERTIES(il) READONLY SHOWIF isSku(in) volume AFTER quantity(il)
-    PROPERTIES(ib) READONLY SHOWIF isBatch(in) volume AFTER quantity(ib)
-    PROPERTIES(li) READONLY volumePageInventoryDetail AFTER quantityPageInventoryDetail(li)
-    PROPERTIES(li,i) READONLY volumePageInventoryDetail AFTER quantityPageInventoryDetail(li,i)
-    PROPERTIES(li,b) READONLY SHOWIF isBatch(li) volumePageInventoryDetail AFTER quantityPageInventoryDetail(li,b)
-    PROPERTIES(cs) READONLY AFTER quantityShortage(cs) volumePageInventoryDetail, volumeBalance, volumeShortage
-    PROPERTIES(cs,it) READONLY AFTER quantityShortage(cs,it) volumePageInventoryDetail, volumeBalance, densityBalance, volumeShortage
-    PROPERTIES(cs,bt) READONLY SHOWIF isBatch(cs) AFTER quantityShortage(cs,bt) volumePageInventoryDetail, volumeBalance, densityBalance, volumeShortage
+    PROPERTIES(in) READONLY SHOWIF showFuel(in) volumeShortage AFTER quantityShortage(in)
+    PROPERTIES(il) READONLY SHOWIF isSku(in) AND showFuel(in) volume AFTER quantity(il)
+    PROPERTIES(ib) READONLY SHOWIF isBatch(in) AND showFuel(in) volume AFTER quantity(ib)
+    PROPERTIES(li) READONLY SHOWIF showFuel(li) volumePageInventoryDetail AFTER quantityPageInventoryDetail(li)
+    PROPERTIES(li,i) READONLY SHOWIF showFuel(li) volumePageInventoryDetail AFTER quantityPageInventoryDetail(li,i)
+    PROPERTIES(li,b) READONLY SHOWIF isBatch(li) AND showFuel(li) volumePageInventoryDetail AFTER quantityPageInventoryDetail(li,b)
+    PROPERTIES(cs) READONLY SHOWIF showFuel(cs) AFTER quantityShortage(cs) volumePageInventoryDetail, volumeBalance, volumeShortage
+    PROPERTIES(cs,it) READONLY SHOWIF showFuel(cs) AFTER quantityShortage(cs,it) volumePageInventoryDetail, volumeBalance, densityBalance, volumeShortage
+    PROPERTIES(cs,bt) READONLY SHOWIF isBatch(cs) AND showFuel(cs) AFTER quantityShortage(cs,bt) volumePageInventoryDetail, volumeBalance, densityBalance, volumeShortage
 ;
 
 batchVolume 'Расписано по партиям, л' = GROUP SUM volumePageInventoryDetail(CollationSheet cs, Batch bt) BY cs, sku(bt);
 
 EXTEND FORM inventory
-    PROPERTIES(cs,i) READONLY SHOWIF isSkuBatch(cs) batchVolume AFTER batchQuantity(cs,i)
+    PROPERTIES(cs,i) READONLY SHOWIF isSkuBatch(cs) AND showFuel(cs) batchVolume AFTER batchQuantity(cs,i)
 ;
 
 EXTEND FORM inventory 
-    PROPERTIES SHOWIF viewChange(in) PANEL IN prevInventory
+    PROPERTIES SHOWIF viewChange(in) AND showFuel(cs) PANEL IN prevInventory
                prevVP 'Объем по описям, л' = PREV(volumePageInventoryDetail(cs,i)),
                prevVB 'Объем по остаткам, л' = PREV(volumeBalance(cs,i))
 ;

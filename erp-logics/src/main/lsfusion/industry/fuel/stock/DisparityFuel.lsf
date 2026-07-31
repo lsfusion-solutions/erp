@@ -4,6 +4,13 @@ REQUIRE Disparity, SkuLedgerFuel;
 
 NAMESPACE Disparity;
 
+@defineOperationProperty(showFuel, 'Топливо', showContainer);
+
+showFuel(Disparity i) = showFuel(operation(i));
+showFuel(DisparityDetail d) = showFuel(operation(d));
+showFuel(UserDisparity i) = showFuel(operation(i));
+showFuel(UserDisparityDetail d) = showFuel(operation(d));
+
 volume 'Объем (расход), л' = ABSTRACT NUMERIC[16,5] (DisparityDetail) CHARWIDTH 7 MATERIALIZED;
 volume 'Объем (расход), л' = DATA NUMERIC[16,5] (UserDisparityDetail) CHARWIDTH 7;
 volume (UserDisparityDetail disparityDetail) += volume(disparityDetail);
@@ -87,17 +94,17 @@ volume (InputDisparityDetail ledger) += volume(ledger);
 density (InputDisparityDetail ledger) += density(ledger);
 
 EXTEND FORM disparity
-    PROPERTIES(dis) volumeDisparityDetail, inputVolumeDisparityDetail
-    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) volume AFTER quantity(d)
-    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) density AFTER volume(d) ON CHANGE changeDensity(d) ON CONTEXTMENU fillDensity15C(d) ON CONTEXTMENU fillDensityFromTable(d)
-    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) inputVolume AFTER inputQuantity(d)
-    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) inputDensity AFTER inputVolume(d) ON CHANGE changeInputDensity(d) ON CONTEXTMENU fillInputDensity15C(d)
+    PROPERTIES(dis) SHOWIF showFuel(dis) volumeDisparityDetail, inputVolumeDisparityDetail
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) SHOWIF showFuel(d) volume AFTER quantity(d)
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) SHOWIF showFuel(d) density AFTER volume(d) ON CHANGE changeDensity(d) ON CONTEXTMENU fillDensity15C(d) ON CONTEXTMENU fillDensityFromTable(d)
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) SHOWIF showFuel(d) inputVolume AFTER inputQuantity(d)
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) SHOWIF showFuel(d) inputDensity AFTER inputVolume(d) ON CHANGE changeInputDensity(d) ON CONTEXTMENU fillInputDensity15C(d)
 ;
 
 EXTEND FORM disparities
-    PROPERTIES(dis) READONLY volumeDisparityDetail AFTER quantityDisparityDetail(dis),
+    PROPERTIES(dis) SHOWIF showFuel(dis) READONLY volumeDisparityDetail AFTER quantityDisparityDetail(dis),
                              inputVolumeDisparityDetail AFTER inputQuantityDisparityDetail(dis)
-    PROPERTIES(d) READONLY volume AFTER quantity(d), inputVolume AFTER inputQuantity(d)
-    PROPERTIES(d) READONLY density AFTER volume(d), inputDensity AFTER inputVolume(d)
+    PROPERTIES(d) READONLY SHOWIF showFuel(d) volume AFTER quantity(d), inputVolume AFTER inputQuantity(d)
+    PROPERTIES(d) READONLY SHOWIF showFuel(d) density AFTER volume(d), inputDensity AFTER inputVolume(d)
 ;
 
