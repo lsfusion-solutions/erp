@@ -91,7 +91,7 @@ public class DefaultTerminalHandler {
         ediGtinLM = getLogicsInstance().getBusinessLogics().getModule("EDIGTIN");
         terminalTeamWorkLM = getLogicsInstance().getBusinessLogics().getModule("TerminalTeamWork");
         machineryPriceTransactionLM = getLogicsInstance().getBusinessLogics().getModule("MachineryPriceTransaction");
-        terminalTemplatesLM = getLogicsInstance().getBusinessLogics().getModule("TerminalDocumentTemplates");
+        terminalTemplatesLM = getLogicsInstance().getBusinessLogics().getModule("TerminalDocumentTemplate");
     }
 
     public List<Object> readHostPort(DataSession session) {
@@ -814,6 +814,8 @@ public class DefaultTerminalHandler {
                 " categories TEXT DEFAULT NULL," +
                 " promo INTEGER DEFAULT NULL," +
                 " trust_accept_percent REAL DEFAULT NULL, " +
+                " pos_date1 TEXT DEFAULT NULL, " +
+                " pos_date2 TEXT DEFAULT NULL, " +
                 " PRIMARY KEY (num, barcode))";
         statement.executeUpdate(sql);
         statement.close();
@@ -824,7 +826,7 @@ public class DefaultTerminalHandler {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO zayavki VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+                String sql = "INSERT OR REPLACE INTO zayavki VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
                 statement = connection.prepareStatement(sql);
                 for (TerminalOrder order : terminalOrderList) {
                     if (order.number != null) {
@@ -857,6 +859,8 @@ public class DefaultTerminalHandler {
                         statement.setObject(++i, order.categories);
                         statement.setObject(++i, order.promo);
                         statement.setObject(++i, order.trustAcceptPercent);
+                        statement.setObject(++i, formatValue(order.posDate1));
+                        statement.setObject(++i, formatValue(order.posDate2));
                         statement.addBatch();
                     }
                 }
@@ -1727,14 +1731,14 @@ public class DefaultTerminalHandler {
                 String[] orderDetailNames = new String[]{"idBarcodeSkuOrderDetail", "idSkuOrderDetail", "nameSkuOrderDetail", "priceOrderDetail",
                         "quantityOrderDetail", "nameManufacturerSkuOrderDetail", "isWeighSkuOrderDetail", "isSplitSkuOrderDetail", "minDeviationQuantityOrderDetail",
                         "maxDeviationQuantityOrderDetail", "minDeviationPriceOrderDetail", "maxDeviationPriceOrderDetail",
-                        "color", "headField1", "headField2", "headField3", "posField1", "posField2", "posField3",
+                        "color", "headField1", "headField2", "headField3", "posField1", "posField2", "posField3", "posDate1", "posDate2",
                         "minDeviationDate", "maxDeviationDate", "dateShipment", "extraBarcodes", "sortTerminal", "unitLoad"};
                 LP<?>[] orderDetailProperties = terminalOrderLM.findProperties("idBarcodeSku[TerminalOrderDetail]", "idSku[TerminalOrderDetail]",
                         "nameSku[TerminalOrderDetail]", "overPrice[TerminalOrderDetail]", "orderQuantity[TerminalOrderDetail]",
                         "nameManufacturerSku[TerminalOrderDetail]", "isWeighSku[TerminalOrderDetail]", "isSplitSku[TerminalOrderDetail]", "minDeviationQuantity[TerminalOrderDetail]",
                         "maxDeviationQuantity[TerminalOrderDetail]", "minDeviationPrice[TerminalOrderDetail]", "maxDeviationPrice[TerminalOrderDetail]",
                         "color[TerminalOrderDetail]", "headField1[TerminalOrderDetail]", "headField2[TerminalOrderDetail]", "headField3[TerminalOrderDetail]",
-                        "posField1[TerminalOrderDetail]", "posField2[TerminalOrderDetail]", "posField3[TerminalOrderDetail]",
+                        "posField1[TerminalOrderDetail]", "posField2[TerminalOrderDetail]", "posField3[TerminalOrderDetail]", "posDate1[TerminalOrderDetail]", "posDate2[TerminalOrderDetail]",
                         "minDeviationDate[TerminalOrderDetail]", "maxDeviationDate[TerminalOrderDetail]", "dateShipment[TerminalOrderDetail]",
                         "extraBarcodes[TerminalOrderDetail]", "sortTerminal[TerminalOrderDetail]", "unitLoad[TerminalOrderDetail]");
                 for (int i = 0; i < orderDetailProperties.length; i++) {
@@ -1787,6 +1791,8 @@ public class DefaultTerminalHandler {
                     String posField3 = (String) entry.get("posField3");
                     String minDeviationDate = formatDate((LocalDate) entry.get("minDeviationDate"));
                     String maxDeviationDate = formatDate((LocalDate) entry.get("maxDeviationDate"));
+                    String posDate1 = formatDate((LocalDate) entry.get("posDate1"));
+                    String posDate2 = formatDate((LocalDate) entry.get("posDate2"));
                     String vop = (String) entry.get("vop");
                     if (vop != null && vop.contains(",") && isOldApplication(userInfo)) {
                         vop = vop.split(",", 2)[0]; //старые ТСД не поддерживают несколько vop. грузим только первый
@@ -1813,7 +1819,8 @@ public class DefaultTerminalHandler {
                                 barcode, idItem, name, price,
                                 quantity, minQuantity, maxQuantity, minPrice, maxPrice, nameManufacturer, weight, split, color,
                                 headField1, headField2, headField3, posField1, posField2, posField3, minDeviationDate, maxDeviationDate, vop,
-                                extraBarcodeList, flags, GTIN, trustAcceptPercent, unitLoad, background_color, lotType, null, null, fileNameImage));
+                                extraBarcodeList, flags, GTIN, trustAcceptPercent, unitLoad, background_color, lotType, null, null, fileNameImage,
+                                posDate1, posDate2));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
@@ -2101,7 +2108,7 @@ public class DefaultTerminalHandler {
                             null, null, null, null, null,
                             null, extraField, null, null,  null, null,
                             null, null, vop, null, null, null,
-                            null, null, null, null, null, null, null));
+                            null, null, null, null, null, null, null, null, null));
                 }
             } catch (Exception e) {
                 throw Throwables.propagate(e);
@@ -2412,6 +2419,8 @@ public class DefaultTerminalHandler {
         public Boolean ukz;
         public String nameUkzType;
         public String fileNameImage;
+        public String posDate1;
+        public String posDate2;
         
         public TerminalOrder(LocalDate date, LocalDate dateShipment, String number, String supplier,
                              Integer labelCount, String categories, Boolean promo,
@@ -2420,7 +2429,8 @@ public class DefaultTerminalHandler {
                              BigDecimal minPrice, BigDecimal maxPrice, String manufacturer, String weight, Integer split, String color,
                              String headField1, String headField2, String headField3, String posField1, String posField2, String posField3,
                              String minDate1, String maxDate1, String vop, List<String> extraBarcodeList, Long flags, String GTIN, BigDecimal trustAcceptPercent,
-                             String unitLoad, String background_color, String lotType, Boolean ukz, String nameUkzType, String fileNameImage) {
+                             String unitLoad, String background_color, String lotType, Boolean ukz, String nameUkzType, String fileNameImage,
+                             String posDate1, String posDate2) {
             this.date = date;
             this.dateShipment = dateShipment;
             this.number = number;
@@ -2460,6 +2470,8 @@ public class DefaultTerminalHandler {
             this.ukz = ukz;
             this.nameUkzType = nameUkzType;
             this.fileNameImage = fileNameImage;
+            this.posDate1 = posDate1;
+            this.posDate2 = posDate2;
         }
     }
 
