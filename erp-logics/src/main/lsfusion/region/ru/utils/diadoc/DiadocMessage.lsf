@@ -205,7 +205,8 @@ CLASS AttachmentType 'Тип вложения' {
     deletionRestoration 'Восстановление удалённого документа',
     templateTransformation 'Информация о трансформации',
     templateRefusal 'Информация об отклонении или отзыве шаблона',
-    outerDocflow 'Информация о внешнем документообороте'
+    outerDocflow 'Информация о внешнем документообороте',
+    universalMessage 'Универсальное сообщение'
 }
 
 name 'Наименование' (AttachmentType t) = staticCaption(t);
@@ -264,6 +265,7 @@ id 'Код' (AttachmentType t) = (CASE
     WHEN t == AttachmentType.templateTransformation THEN 'TemplateTransformation'
     WHEN t == AttachmentType.templateRefusal THEN 'TemplateRefusal'
     WHEN t == AttachmentType.outerDocflow THEN 'OuterDocflow'
+    WHEN t == AttachmentType.universalMessage THEN 'UniversalMessage'
     ) MATERIALIZED;
 attachmentType (attachmentTypeId) = GROUP MAX AttachmentType attachmentType BY id(attachmentType);
 
@@ -367,6 +369,16 @@ statusDetails 'Детализация по статусу' (Entity e) = GROUP CO
 //RevocationRequestInfo
 
 comment 'Комментарий' = DATA STRING (Entity) CHARWIDTH 20;
+
+//UniversalMessageInfo
+universalMessageCodeGroup 'Группа кодов УС' = DATA STRING[50] (Entity) CHARWIDTH 15;
+universalMessageIsOutOfWorkflow 'УС вне регламента' = DATA BOOLEAN (Entity);
+universalMessageCreatorBoxId 'Ящик автора УС' = DATA STRING (Entity) CHARWIDTH 10;
+universalMessageCreatorDepartmentId 'Подразделение автора УС' = DATA STRING (Entity) CHARWIDTH 10;
+
+TABLE entityInteger (Entity, INTEGER);
+universalMessageEventText 'Текст события УС' = DATA STRING (Entity, INTEGER) CHARWIDTH 20;
+universalMessageEvents 'События УС' (Entity e) = GROUP CONCAT (STRING(INTEGER code) + ': ' + universalMessageEventText(e, code)), ', ' ORDER code CHARWIDTH 30;
 
 message = DATA Message (Entity);
 patch = DATA MessagePatch (Entity);
@@ -1103,6 +1115,17 @@ GROUP status EXTID 'Status': outerDocflow;
 statusNamedIdM 'Идентификатор статуса' = DATA LOCAL STRING[50] (INTEGER);
 statusFriendlyNameM 'Наименование статуса' = DATA LOCAL STRING[50] (INTEGER);
 outerStatusTypeM 'Тип статуса внешнего документооборота' = DATA LOCAL STRING (INTEGER);
+//UniversalMessageInfo для Message
+GROUP universalMessageInfo EXTID 'UniversalMessageInfo';
+universalMessageCodeGroupM 'Группа кодов УС' = DATA LOCAL STRING (INTEGER);
+universalMessageIsOutOfWorkflowM 'УС вне регламента' = DATA LOCAL BOOLEAN (INTEGER);
+GROUP universalMessageCreator EXTID 'UniversalMessageCreator': universalMessageInfo;
+universalMessageCreatorBoxIdM 'Ящик автора УС' = DATA LOCAL STRING (INTEGER);
+universalMessageCreatorDepartmentIdM 'Подразделение автора УС' = DATA LOCAL STRING (INTEGER);
+//Events УС для Message
+messageUMEvent = DATA LOCAL INTEGER (INTEGER);
+umStatusCodeM 'Код статуса УС' = DATA LOCAL INTEGER (INTEGER);
+umPlainTextM 'Текст УС' = DATA LOCAL STRING (INTEGER);
 //Details для Message
 messageDetails = DATA LOCAL INTEGER (INTEGER);
 codeM 'Код' = DATA LOCAL STRING (INTEGER);
@@ -1212,6 +1235,15 @@ docflowFriendlyNameP 'Наименование внешнего документ
 statusNamedIdP 'Идентификатор статуса' = DATA LOCAL STRING[50] (INTEGER);
 statusFriendlyNameP 'Наименование статуса' = DATA LOCAL STRING[50] (INTEGER);
 outerStatusTypeP 'Тип статуса внешнего документооборота' = DATA LOCAL STRING (INTEGER);
+//UniversalMessageInfo для MessagePatch
+universalMessageCodeGroupP 'Группа кодов УС' = DATA LOCAL STRING (INTEGER);
+universalMessageIsOutOfWorkflowP 'УС вне регламента' = DATA LOCAL BOOLEAN (INTEGER);
+universalMessageCreatorBoxIdP 'Ящик автора УС' = DATA LOCAL STRING (INTEGER);
+universalMessageCreatorDepartmentIdP 'Подразделение автора УС' = DATA LOCAL STRING (INTEGER);
+//Events УС для MessagePatch
+patchUMEvent = DATA LOCAL INTEGER (INTEGER);
+umStatusCodeP 'Код статуса УС' = DATA LOCAL INTEGER (INTEGER);
+umPlainTextP 'Текст УС' = DATA LOCAL STRING (INTEGER);
 //Details для MessagePatch
 patchDetails = DATA LOCAL INTEGER (INTEGER);
 codeP 'Код' = DATA LOCAL STRING (INTEGER);
@@ -1339,6 +1371,16 @@ FORM importEvents
     FILTERS messageDetails(emd) == em
     PROPERTIES(emd) codeM EXTID 'Code',
                     textM EXTID 'Text'
+    PROPERTIES(em) IN universalMessageInfo
+                   universalMessageCodeGroupM EXTID 'CodeGroup',
+                   universalMessageIsOutOfWorkflowM EXTID 'IsOutOfWorkflow'
+    PROPERTIES(em) IN universalMessageCreator
+                   universalMessageCreatorBoxIdM EXTID 'BoxId',
+                   universalMessageCreatorDepartmentIdM EXTID 'DepartmentId'
+    OBJECTS emu = INTEGER IN universalMessageInfo EXTID 'Events'
+    FILTERS messageUMEvent(emu) == em
+    PROPERTIES(emu) umStatusCodeM EXTID 'StatusCode',
+                    umPlainTextM EXTID 'PlainText'
     PROPERTIES(em) IN documentInfo // Document
                    messageIdDM EXTID 'MessageId',
                    entityIdDM EXTID 'EntityId',
@@ -1449,6 +1491,16 @@ FORM importEvents
     FILTERS patchDetails(epd) == em
     PROPERTIES(epd) codeP EXTID 'Code',
                     textP EXTID 'Text'
+    PROPERTIES(ep) IN universalMessageInfo
+                   universalMessageCodeGroupP EXTID 'CodeGroup',
+                   universalMessageIsOutOfWorkflowP EXTID 'IsOutOfWorkflow'
+    PROPERTIES(ep) IN universalMessageCreator
+                   universalMessageCreatorBoxIdP EXTID 'BoxId',
+                   universalMessageCreatorDepartmentIdP EXTID 'DepartmentId'
+    OBJECTS epu = INTEGER IN universalMessageInfo EXTID 'Events'
+    FILTERS patchUMEvent(epu) == ep
+    PROPERTIES(epu) umStatusCodeP EXTID 'StatusCode',
+                    umPlainTextP EXTID 'PlainText'
     PROPERTIES(ep) IN documentInfo // Document
                    messageIdDP EXTID 'MessageId',
                    entityIdDP EXTID 'EntityId',
@@ -1607,6 +1659,13 @@ getNewEvents 'Получить новые сообщения' (User u, Box box) 
                 FOR messageDetails(INTEGER d) == i DO {
                     statusDetail(e,codeM(d)) <- textM(d);
                 }
+                universalMessageCodeGroup(e) <- STRING[50](universalMessageCodeGroupM(i));
+                universalMessageIsOutOfWorkflow(e) <- universalMessageIsOutOfWorkflowM(i);
+                universalMessageCreatorBoxId(e) <- universalMessageCreatorBoxIdM(i);
+                universalMessageCreatorDepartmentId(e) <- universalMessageCreatorDepartmentIdM(i);
+                FOR messageUMEvent(INTEGER c) == i AND umStatusCodeM(c) DO {
+                    universalMessageEventText(e, umStatusCodeM(c)) <- OVERRIDE umPlainTextM(c), '';
+                }
                 message(e) <- message(messageId(messageEntity(i)));
                 IF size(e) > 0 THEN {
                     LOCAL data = RAWFILE ();
@@ -1722,6 +1781,13 @@ getNewEvents 'Получить новые сообщения' (User u, Box box) 
                 outerStatusType(e) <- outerStatusType(outerStatusTypeP(i));
                 FOR patchDetails(INTEGER d) == i DO {
                     statusDetail(e,codeP(d)) <- textP(d);
+                }
+                universalMessageCodeGroup(e) <- STRING[50](universalMessageCodeGroupP(i));
+                universalMessageIsOutOfWorkflow(e) <- universalMessageIsOutOfWorkflowP(i);
+                universalMessageCreatorBoxId(e) <- universalMessageCreatorBoxIdP(i);
+                universalMessageCreatorDepartmentId(e) <- universalMessageCreatorDepartmentIdP(i);
+                FOR patchUMEvent(INTEGER c) == i AND umStatusCodeP(c) DO {
+                    universalMessageEventText(e, umStatusCodeP(c)) <- OVERRIDE umPlainTextP(c), '';
                 }
                 patch(e) <- messagePatch(patchId(patchEntity(i)));
                 IF size(e) > 0 THEN {
@@ -2267,6 +2333,16 @@ FORM importMessage
     FILTERS messageDetails(emd) == em
     PROPERTIES(emd) codeM EXTID 'Code',
                     textM EXTID 'Text'
+    PROPERTIES(em) IN universalMessageInfo
+                   universalMessageCodeGroupM EXTID 'CodeGroup',
+                   universalMessageIsOutOfWorkflowM EXTID 'IsOutOfWorkflow'
+    PROPERTIES(em) IN universalMessageCreator
+                   universalMessageCreatorBoxIdM EXTID 'BoxId',
+                   universalMessageCreatorDepartmentIdM EXTID 'DepartmentId'
+    OBJECTS emu = INTEGER IN universalMessageInfo EXTID 'Events'
+    FILTERS messageUMEvent(emu) == em
+    PROPERTIES(emu) umStatusCodeM EXTID 'StatusCode',
+                    umPlainTextM EXTID 'PlainText'
     PROPERTIES(em) IN documentInfo // Document
                    messageIdDM EXTID 'MessageId',
                    entityIdDM EXTID 'EntityId',
@@ -2499,6 +2575,12 @@ isSignatures 'Подпись' = DATA LOCAL BOOLEAN (INTEGER);
 isRevocationRequests 'Предложение об аннулировании' = DATA LOCAL BOOLEAN (INTEGER);
 isXmlSignatureRejections 'Отказ от подписи/аннулировании' = DATA LOCAL BOOLEAN (INTEGER);
 isRecipientTitles 'Титул получателя' = DATA LOCAL BOOLEAN (INTEGER);
+isUniversalMessages 'Универсальное сообщение' = DATA LOCAL BOOLEAN (INTEGER);
+universalMessageCodeGroupUM 'Группа кодов УС' = DATA LOCAL STRING (INTEGER);
+GROUP universalMessageContent EXTID 'UniversalMessageContent';
+
+// Переход на универсальные сообщения (PostMessagePatch V4 + MessagePatchToPostV2)
+useUniversalMessages 'Отправлять универсальные сообщения (PostMessagePatch V4)' = DATA BOOLEAN ();
 
 FORM exportMessagePatchToPost
     PROPERTIES boxId() EXTID 'BoxId',
@@ -2557,6 +2639,71 @@ FORM exportMessagePatchToPost
     FILTERS contentDocument(rt) AND parentEntityId(rt) AND isRecipientTitles(rt)
 ;
 
+// структура MessagePatchToPostV2 для PostMessagePatch (V4) — с универсальными сообщениями
+FORM exportMessagePatchToPostV2
+    PROPERTIES boxId() EXTID 'BoxId',
+               messageId() EXTID 'MessageId'
+
+    OBJECTS r = INTEGER EXTID 'Receipts'
+    PROPERTIES(r) parentEntityId EXTID 'ParentEntityId'
+    PROPERTIES(r) IN signedContent
+                  contentDocument EXTID 'Content',
+                  signatureDocument EXTID 'Signature',
+                  signWithTestSignature EXTID 'SignWithTestSignature'
+    PROPERTIES(r) IN powerOf useDefault EXTID 'UseDefault'
+    FILTERS contentDocument(r) AND parentEntityId(r) AND isReceipts(r)
+
+    OBJECTS cr = INTEGER EXTID 'CorrectionRequests'
+    PROPERTIES(cr) parentEntityId EXTID 'ParentEntityId'
+    PROPERTIES(cr) IN signedContent
+                  contentDocument EXTID 'Content',
+                  signatureDocument EXTID 'Signature',
+                  signWithTestSignature EXTID 'SignWithTestSignature'
+    PROPERTIES(cr) IN powerOf useDefault EXTID 'UseDefault'
+    FILTERS contentDocument(cr) AND parentEntityId(cr) AND isCorrectionRequests(cr)
+
+    OBJECTS s = INTEGER EXTID 'Signatures'
+    PROPERTIES(s) parentEntityId EXTID 'ParentEntityId',
+                  signatureDocument EXTID 'Signature',
+                  signWithTestSignature EXTID 'SignWithTestSignature'
+    PROPERTIES(s) IN powerOf useDefault EXTID 'UseDefault'
+    FILTERS parentEntityId(s) AND isSignatures(s)
+
+    OBJECTS rv = INTEGER EXTID 'RevocationRequests'
+    PROPERTIES(rv) parentEntityId EXTID 'ParentEntityId'
+    PROPERTIES(rv) IN signedContent
+                   contentDocument EXTID 'Content',
+                   signatureDocument EXTID 'Signature',
+                   signWithTestSignature EXTID 'SignWithTestSignature'
+    PROPERTIES(rv) IN powerOf useDefault EXTID 'UseDefault'
+    FILTERS contentDocument(rv) AND parentEntityId(rv) AND isRevocationRequests(rv)
+
+    OBJECTS sr = INTEGER EXTID 'XmlSignatureRejections'
+    PROPERTIES(sr) parentEntityId EXTID 'ParentEntityId'
+    PROPERTIES(sr) IN signedContent
+                   contentDocument EXTID 'Content',
+                   signatureDocument EXTID 'Signature',
+                   signWithTestSignature EXTID 'SignWithTestSignature'
+    PROPERTIES(sr) IN powerOf useDefault EXTID 'UseDefault'
+    FILTERS contentDocument(sr) AND parentEntityId(sr) AND isXmlSignatureRejections(sr)
+
+    OBJECTS rt = INTEGER EXTID 'RecipientTitles'
+    PROPERTIES(rt) parentEntityId EXTID 'ParentEntityId'
+    PROPERTIES(rt) IN signedContent
+                   contentDocument EXTID 'Content',
+                   signatureDocument EXTID 'Signature',
+                   signWithTestSignature EXTID 'SignWithTestSignature'
+    PROPERTIES(rt) IN powerOf useDefault EXTID 'UseDefault'
+    FILTERS contentDocument(rt) AND parentEntityId(rt) AND isRecipientTitles(rt)
+
+    OBJECTS um = INTEGER EXTID 'UniversalMessages'
+    PROPERTIES(um) parentEntityId EXTID 'ParentEntityId',
+                   universalMessageCodeGroupUM EXTID 'CodeGroup'
+    PROPERTIES(um) IN universalMessageContent
+                   contentDocument EXTID 'Content'
+    FILTERS contentDocument(um) AND parentEntityId(um) AND isUniversalMessages(um)
+;
+
 //MessagePatch
 patchId 'Идентификатор' = DATA LOCAL STRING ();
 messageIdP 'Идентификатор сообщения' = DATA LOCAL STRING ();
@@ -2613,6 +2760,16 @@ FORM importMessagePatch
     FILTERS patchDetails(epd) == ep
     PROPERTIES(epd) codeP EXTID 'Code',
                     textP EXTID 'Text'
+    PROPERTIES(ep) IN universalMessageInfo
+                   universalMessageCodeGroupP EXTID 'CodeGroup',
+                   universalMessageIsOutOfWorkflowP EXTID 'IsOutOfWorkflow'
+    PROPERTIES(ep) IN universalMessageCreator
+                   universalMessageCreatorBoxIdP EXTID 'BoxId',
+                   universalMessageCreatorDepartmentIdP EXTID 'DepartmentId'
+    OBJECTS epu = INTEGER IN universalMessageInfo EXTID 'Events'
+    FILTERS patchUMEvent(epu) == ep
+    PROPERTIES(epu) umStatusCodeP EXTID 'StatusCode',
+                    umPlainTextP EXTID 'PlainText'
     PROPERTIES(ep) IN documentInfo // Document
                    messageIdDP EXTID 'MessageId',
                    entityIdDP EXTID 'EntityId',
@@ -2691,9 +2848,12 @@ postMessagePatch 'Отправить дополнение к сообщению'
     createdDocument() <- NULL;
     
     LOCAL result = FILE ();
-    EXPORT exportMessagePatchToPost JSON;
+    IF useUniversalMessages() THEN
+        EXPORT exportMessagePatchToPostV2 JSON;
+    ELSE
+        EXPORT exportMessagePatchToPost JSON;
     TRY {
-        EXTERNAL HTTP POST url() + '/V3/PostMessagePatch' HEADERS httpHeadersToken PARAMS exportFile() TO result;
+        EXTERNAL HTTP POST url() + (IF useUniversalMessages() THEN '/V4/PostMessagePatch' ELSE '/V3/PostMessagePatch') HEADERS httpHeadersToken PARAMS exportFile() TO result;
         IMPORT importMessagePatch JSON FROM result();
     } CATCH {
         fileToString(result(), 'UTF-8');
@@ -2745,6 +2905,13 @@ postMessagePatch 'Отправить дополнение к сообщению'
         outerStatusType(e) <- outerStatusType(outerStatusTypeP(i));
         FOR patchDetails(INTEGER d) == i DO {
             statusDetail(e,codeP(d)) <- textP(d);
+        }
+        universalMessageCodeGroup(e) <- STRING[50](universalMessageCodeGroupP(i));
+        universalMessageIsOutOfWorkflow(e) <- universalMessageIsOutOfWorkflowP(i);
+        universalMessageCreatorBoxId(e) <- universalMessageCreatorBoxIdP(i);
+        universalMessageCreatorDepartmentId(e) <- universalMessageCreatorDepartmentIdP(i);
+        FOR patchUMEvent(INTEGER c) == i AND umStatusCodeP(c) DO {
+            universalMessageEventText(e, umStatusCodeP(c)) <- OVERRIDE umPlainTextP(c), '';
         }
         patch(e) <- messagePatch(patchId());
         IF size(e) > 0 THEN {
@@ -2879,6 +3046,39 @@ DESIGN dialogSinger {
     }
 }
 
+//----------------------- GenerateUniversalMessage Универсальное сообщение -----------------------//
+// УС заменяет извещение о получении (код 1999), уведомление об уточнении (2999) и отказ в подписи (3999)
+
+universalMessageStatusCode = DATA LOCAL INTEGER ();
+universalMessagePlainText = DATA LOCAL TEXT ();
+
+// формирует УС для документа parentEntity(i) и кладёт его в UniversalMessages дополнения (индекс i)
+generateUniversalMessage (INTEGER i) {
+    LOCAL requestXml = TEXT ();
+    requestXml() <- CONCAT '',
+        '<UniversalMessage>',
+        '<UniversalMessageInfos>',
+        '<UniversalMessageInfo StatusCode="', STRING(universalMessageStatusCode()), '">',
+        (IF universalMessagePlainText() THEN CONCAT '', '<PlainText>', universalMessagePlainText(), '</PlainText>' ELSE ''),
+        '</UniversalMessageInfo>',
+        '</UniversalMessageInfos>',
+        '<Sender Position="', (OVERRIDE jobTitle(), 'Сотрудник'), '" UseDefaultPersonInfo="false">',
+        '<Fio FirstName="', (OVERRIDE firstName(), ''), '" LastName="', (OVERRIDE surname(), ''), '"',
+        (IF patronymic() THEN ' MiddleName="' + patronymic() + '"' ELSE ''), '/>',
+        '</Sender>',
+        '</UniversalMessage>';
+    stringToFile(requestXml(), 'UTF-8', 'xml');
+
+    LOCAL result = FILE ();
+    EXTERNAL HTTP POST url() + '/GenerateUniversalMessage?boxId=' + boxId() + '&messageId=' + messageId() + '&attachmentId=' + parentEntityId(i) HEADERS httpHeadersToken PARAMS resultFile() TO result;
+    contentDocument(i) <- encode(RAWFILE(result()), 'base64');
+    universalMessageCodeGroupUM(i) <- CASE
+        WHEN universalMessageStatusCode() == 1999 THEN 'Receipt'
+        WHEN universalMessageStatusCode() == 2999 THEN 'AmendmentRequest'
+        WHEN universalMessageStatusCode() == 3999 THEN 'Rejection';
+    isUniversalMessages(i) <- TRUE;
+}
+
 showMessageReceipt (Box b, Document d) = CASE
     WHEN primaryStatusText(b,d) == 'Требуется подписать извещение' THEN TRUE
     WHEN primaryStatusText(b,d) == 'Требуется уточнение. Требуется подписать извещение' THEN TRUE
@@ -2915,6 +3115,13 @@ messageReceipt 'Подписать и отправить извещение о �
                 } ELSE {
                     sign(FILE(result()), TRUE, legalEntity(organization(b)));
                     signatureDocument(0) <- encodedSignature();
+                }
+
+                IF useUniversalMessages() THEN {
+                    parentEntity(1) <- parentEntity(0);
+                    universalMessageStatusCode() <- 1999;
+                    universalMessagePlainText() <- NULL;
+                    generateUniversalMessage(1);
                 }
 
                 postMessagePatch(u);
@@ -2997,6 +3204,13 @@ messageInvoiceCorrectionRequest 'Подписать и отправить уве
                     signatureDocument(0) <- encodedSignature();
                     }
     
+                    IF useUniversalMessages() THEN {
+                        parentEntity(1) <- parentEntity(0);
+                        universalMessageStatusCode() <- 2999;
+                        universalMessagePlainText() <- errorMessage();
+                        generateUniversalMessage(1);
+                    }
+
                     postMessagePatch(u);
                 } CATCH {
                     fileToString(result(), 'UTF-8');
@@ -3131,6 +3345,13 @@ messageRevocationRejection 'Отказ от аннулирования' (User u,
                     signatureDocument(0) <- encodedSignature();
                 }
 
+                IF useUniversalMessages() THEN {
+                    parentEntity(1) <- parentEntity(0);
+                    universalMessageStatusCode() <- 3999;
+                    universalMessagePlainText() <- NULL;
+                    generateUniversalMessage(1);
+                }
+
                 postMessagePatch(u);
             } CATCH {
                 fileToString(result(), 'UTF-8');
@@ -3186,6 +3407,13 @@ messageRejection 'Отказ в подписи' (User u, Box b, Document d) {
                 } ELSE {
                     sign(FILE(result()), TRUE, legalEntity(organization(b)));
                     signatureDocument(0) <- encodedSignature();
+                }
+
+                IF useUniversalMessages() THEN {
+                    parentEntity(1) <- parentEntity(0);
+                    universalMessageStatusCode() <- 3999;
+                    universalMessagePlainText() <- NULL;
+                    generateUniversalMessage(1);
                 }
 
                 postMessagePatch(u);
@@ -3248,10 +3476,11 @@ autoCreateDocument 'Создание УПД/УКД по документу Ди�
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() autoCreateDocument
+    PROPERTIES() autoCreateDocument, useUniversalMessages
 ;
 DESIGN integrationData {
     diadocAPI {
         MOVE PROPERTY (autoCreateDocument());
+        MOVE PROPERTY (useUniversalMessages());
     }
-}    
+}
