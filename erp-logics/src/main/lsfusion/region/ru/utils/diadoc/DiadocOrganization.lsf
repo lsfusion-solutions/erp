@@ -150,6 +150,7 @@ country 'Страна (код)' = DATA STRING (Department) CHARWIDTH 10;
 address 'Текст адреса' = DATA STRING (Department) CHARWIDTH 20;
 
 addressCode 'Код ГАР' = DATA STRING (Department) CHARWIDTH 10;
+fiasId 'Код ФИАС' = DATA STRING (Department) INDEXED CHARWIDTH 10;
 
 organization = DATA Organization (Department) NONULL DELETE;
 
@@ -170,7 +171,7 @@ FORM organization 'Организация Диадока'
     
     OBJECTS d = Department
     PROPERTIES(d) departmentId, name, abbreviation, kpp, parentDepartmentName, zipCode, region, territory, city,
-                  locality, street, building, block, apartment, country, address, addressCode
+                  locality, street, building, block, apartment, country, address, addressCode, fiasId
     FILTERS organization(d) == o
     
     EDIT Organization OBJECT o
@@ -315,6 +316,8 @@ apartment 'Квартира' = DATA LOCAL STRING (INTEGER);
 GROUP foreignAddress EXTID 'ForeignAddress': address;
 country 'Страна (код)' = DATA LOCAL STRING (INTEGER);
 address 'Текст адреса' = DATA LOCAL STRING (INTEGER);
+// код ФИАС приходит в адресе ГАР, AddressCode при этом остаётся пустым
+GROUP garAddress EXTID 'GarAddress': address;
 
 organizationBox = DATA LOCAL INTEGER (INTEGER);
 boxId 'Идентификатор' = DATA LOCAL STRING (INTEGER);
@@ -330,6 +333,7 @@ abbreviation 'Наименование' = DATA LOCAL ISTRING (INTEGER);
 kppD 'КПП' = DATA LOCAL STRING[9] (INTEGER);
 
 addressCodeD 'Код ГАР' = DATA LOCAL STRING (INTEGER);
+fiasIdD 'Код ФИАС' = DATA LOCAL STRING (INTEGER);
 zipCodeD 'Почтовый Индекс' = DATA LOCAL STRING (INTEGER);
 regionD 'Регион (код)' = DATA LOCAL STRING (INTEGER);
 territoryD 'Район' = DATA LOCAL STRING (INTEGER);
@@ -408,6 +412,8 @@ FORM importOrganizations
                   addressD EXTID 'Address'
     PROPERTIES(d) IN address
                   addressCodeD EXTID 'AddressCode'
+    PROPERTIES(d) IN garAddress
+                  fiasIdD EXTID 'FiasId'
 ;
 
 // разбор импортированного ответа (GetMyOrganizations / GetOrganizationsByInnKpp) в справочник организаций
@@ -477,6 +483,7 @@ applyImportedOrganizations (User u) {
             country(d) <- countryD(i);
             address(d) <- addressD(i);
             addressCode(d) <- addressCodeD(i);
+            fiasId(d) <- fiasIdD(i);
             organization(d) <- organization(orgId(organizationDepartment(i)));
         }
 }
