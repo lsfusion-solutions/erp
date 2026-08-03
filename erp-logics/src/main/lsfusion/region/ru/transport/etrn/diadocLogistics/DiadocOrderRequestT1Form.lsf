@@ -142,10 +142,10 @@ FORM diadocOrderRequestT1 FORMEXTID 'LogisticsOrderRequestSenderTitle'
     PROPERTIES ATTR IN orSigners orSignersBoxId = diadocBoxId(shipper(o)) EXTID 'BoxId'
     PROPERTIES ATTR IN orSigner orSignerMethod = ('5' IF o IS OrderRequest) EXTID 'SignerPowersConfirmationMethod'
     PROPERTIES ATTR IN orSignerDetails
-        orSignerLast = signerLastName(shipper(o)) EXTID 'LastName',
-        orSignerFirst = signerFirstName(shipper(o)) EXTID 'FirstName',
-        orSignerMiddle = signerMiddleName(shipper(o)) EXTID 'MiddleName',
-        orSignerPos = signerPosition(shipper(o)) EXTID 'Position'
+        orSignerLast = signerLastName(o) EXTID 'LastName',
+        orSignerFirst = signerFirstName(o) EXTID 'FirstName',
+        orSignerMiddle = signerMiddleName(o) EXTID 'MiddleName',
+        orSignerPos = signerPosition(o) EXTID 'Position'
 
     // пункты маршрута (погрузка/выгрузка)
     OBJECTS ap = OrderPoint EXTID 'AddressPoint' IN orAddrPoints
@@ -183,7 +183,7 @@ FORM diadocOrderRequestT1 FORMEXTID 'LogisticsOrderRequestSenderTitle'
         cargoWidth = width(d) EXTID 'Width'
     PROPERTIES ATTR IN orCargoDeliveryPoint
         cargoLoadingPoint = firstLoadingPoint(o) EXTID 'LoadingPoint',
-        cargoUnloadingPoint = firstUnloadingPoint(o) EXTID 'UnloadingPoint',
+        cargoUnloadingPoint = (OVERRIDE pointIndex(unloadingPoint(d)), firstUnloadingPoint(o)) EXTID 'UnloadingPoint',
         cargoDeliveryPlaces = quantityPlaces(d) EXTID 'PlaceCount'
     FILTERS detailOrderRequest(d) == o
 ;

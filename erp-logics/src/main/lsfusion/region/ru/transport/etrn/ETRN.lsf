@@ -247,6 +247,30 @@ nameTrailer 'Прицеп' (ETRN e) = name(trailer(e)) CHARWIDTH 25;
 WHEN LOCAL CHANGED(truck(ETRN e)) AND NOT CHANGED(trailer(e)) DO
     trailer(e) <- defaultTrailer(truck(e));
 
+// обязательные реквизиты водителя/ТС/прицепа (проверяются перед отправкой титулов) -
+// выводятся на форму READONLY, чтобы пользователь видел, что нужно заполнить в карточках
+driverPhone 'Телефон' (ETRN e) = phone(driver(e)) CHARWIDTH 15;
+driverLicenseSeries 'ВУ: серия' (ETRN e) = licenseSeries(driver(e)) CHARWIDTH 8;
+driverLicenseNumber 'ВУ: номер' (ETRN e) = licenseNumber(driver(e)) CHARWIDTH 10;
+driverLicenseDate 'ВУ: дата' (ETRN e) = licenseDate(driver(e));
+driverInn 'ИНН' (ETRN e) = inn(driver(e)) CHARWIDTH 12;
+// реквизиты идентификации водителя не заполнены (нужно ВУ или ИНН)
+missingDriverId (ETRN e) = driver(e) AND NOT (licenseSeries(driver(e)) AND licenseNumber(driver(e)) AND licenseDate(driver(e))) AND NOT inn(driver(e));
+
+truckSid 'Рег. номер' (ETRN e) = sid(truck(e)) CHARWIDTH 10;
+truckType 'Тип' (ETRN e) = type(truck(e)) CHARWIDTH 12;
+truckModelName 'Марка' (ETRN e) = nameTruckModel(truck(e)) CHARWIDTH 15;
+truckWeight 'Грузоподъёмность, кг' (ETRN e) = weight(truck(e));
+truckCapacity 'Вместимость, м3' (ETRN e) = capacity(truck(e));
+truckOwnership 'Тип владения' (ETRN e) = nameOwnershipType(truck(e)) CHARWIDTH 15;
+
+trailerSid 'Рег. номер' (ETRN e) = sid(trailer(e)) CHARWIDTH 10;
+trailerType 'Тип' (ETRN e) = type(trailer(e)) CHARWIDTH 12;
+trailerModelName 'Марка' (ETRN e) = nameTruckModel(trailer(e)) CHARWIDTH 15;
+trailerWeight 'Грузоподъёмность, кг' (ETRN e) = weight(trailer(e));
+trailerCapacity 'Вместимость, м3' (ETRN e) = capacity(trailer(e));
+trailerOwnership 'Тип владения' (ETRN e) = nameOwnershipType(trailer(e)) CHARWIDTH 15;
+
 // данные водителя и ТС стороннего перевозчика из входящего титула Т1
 // (в справочники Водители/Машины не заводятся - там наши сотрудники и транспорт)
 incomingDriverInfo 'Водитель (данные грузоотправителя)' = DATA ISTRING[1000](ETRN) CHARWIDTH 30;
@@ -290,6 +314,13 @@ nameSupplierStock 'Склад погрузки' (ETRN e) = name(supplierStock(e)
 loadingAddress 'Адрес места погрузки' = DATA ISTRING[350](ETRN) CHARWIDTH 40;
 
 // структурный адрес места погрузки (RussianAddress: Region+ZipCode обязательны по UserDataXsd)
+
+region 'Код региона' = ABSTRACT CASE STRING[2](Stock.Stock) CHARWIDTH 4;
+zipCode 'Индекс' = ABSTRACT CASE STRING[6](Stock.Stock) CHARWIDTH 6;
+city 'Город' = ABSTRACT CASE ISTRING[255](Stock.Stock) CHARWIDTH 15;
+street 'Улица' = ABSTRACT CASE ISTRING[255](Stock.Stock) CHARWIDTH 15;
+building 'Дом' = ABSTRACT CASE ISTRING[20](Stock.Stock) CHARWIDTH 6;
+
 loadingRegion 'Код региона (погрузка)' = DATA STRING[2](ETRN) CHARWIDTH 4;
 loadingZipCode 'Индекс (погрузка)' = DATA STRING[6](ETRN) CHARWIDTH 6;
 loadingCity 'Город (погрузка)' = DATA ISTRING[255](ETRN) CHARWIDTH 15;
@@ -299,6 +330,30 @@ hasLoadingAddress (ETRN e) = loadingRegion(e) AND loadingZipCode(e);
 
 WHEN LOCAL CHANGED(supplierStock(ETRN e)) AND NOT CHANGED(loadingAddress(e)) DO
     loadingAddress(e) <- address(supplierStock(e));
+
+
+fillLoadingDiadocAddress (ETRN e) {
+    loadingRegion(e) <- region(supplierStock(e));
+    loadingZipCode(e) <- zipCode(supplierStock(e)) ;
+    loadingCity(e) <- city(supplierStock(e));
+    loadingStreet(e) <- street(supplierStock(e));
+    loadingBuilding(e) <- building(supplierStock(e));
+}
+
+// место доставки - из подразделения Диадока склада грузополучателя
+fillDeliveryDiadocAddress (ETRN e) {
+    deliveryRegion(e) <- region(customerStock(e));
+    deliveryZipCode(e) <- zipCode(customerStock(e));
+    deliveryCity(e) <- city(customerStock(e));
+    deliveryStreet(e) <- street(customerStock(e));
+    deliveryBuilding(e) <- building(customerStock(e));
+}
+
+WHEN LOCAL CHANGED(supplierStock(ETRN e)) DO
+    fillLoadingDiadocAddress(e);
+
+WHEN LOCAL CHANGED(customerStock(ETRN e)) DO
+    fillDeliveryDiadocAddress(e);
 
 acceptGrossWeight 'Масса брутто груза, кг' = DATA NUMERIC[17,3](ETRN);
 
@@ -441,6 +496,23 @@ FORM etrn 'Электронная транспортная накладная'
                   shortNameDriver BACKGROUND (backgroundMandatory(e) IF NOT driver(e)),
                   nameTruck BACKGROUND (backgroundMandatory(e) IF NOT truck(e)),
                   nameTrailer,
+                  driverPhone BACKGROUND (backgroundMandatory(e) IF driver(e) AND NOT driverPhone(e)),
+                  driverLicenseSeries BACKGROUND (backgroundMandatory(e) IF missingDriverId(e)),
+                  driverLicenseNumber BACKGROUND (backgroundMandatory(e) IF missingDriverId(e)),
+                  driverLicenseDate BACKGROUND (backgroundMandatory(e) IF missingDriverId(e)),
+                  driverInn BACKGROUND (backgroundMandatory(e) IF missingDriverId(e)),
+                  truckSid BACKGROUND (backgroundMandatory(e) IF truck(e) AND NOT truckSid(e)),
+                  truckType BACKGROUND (backgroundMandatory(e) IF truck(e) AND NOT truckType(e)),
+                  truckModelName BACKGROUND (backgroundMandatory(e) IF truck(e) AND NOT truckModelName(e)),
+                  truckWeight BACKGROUND (backgroundMandatory(e) IF truck(e) AND NOT truckWeight(e)),
+                  truckCapacity BACKGROUND (backgroundMandatory(e) IF truck(e) AND NOT truckCapacity(e)),
+                  truckOwnership BACKGROUND (backgroundMandatory(e) IF truck(e) AND NOT truckOwnership(e)),
+                  trailerSid BACKGROUND (backgroundMandatory(e) IF trailer(e) AND NOT trailerSid(e)),
+                  trailerType BACKGROUND (backgroundMandatory(e) IF trailer(e) AND NOT trailerType(e)),
+                  trailerModelName BACKGROUND (backgroundMandatory(e) IF trailer(e) AND NOT trailerModelName(e)),
+                  trailerWeight BACKGROUND (backgroundMandatory(e) IF trailer(e) AND NOT trailerWeight(e)),
+                  trailerCapacity BACKGROUND (backgroundMandatory(e) IF trailer(e) AND NOT trailerCapacity(e)),
+                  trailerOwnership BACKGROUND (backgroundMandatory(e) IF trailer(e) AND NOT trailerOwnership(e)),
                   incomingDriverInfo SHOWIF incomingDriverInfo(e), incomingVehicleInfo SHOWIF incomingVehicleInfo(e),
                   banReload, transportInstructions, deliveryDateTime, deliveryPeriod,
                   seals, speedLimits, route,
@@ -562,13 +634,47 @@ DESIGN etrn {
                         }
                         NEW carrierBox {
                             caption = 'Перевозчик';
-                            horizontal = TRUE;
-                            MOVE PROPERTY(nameCarrier(e));
-                            MOVE PROPERTY(shortNameDriver(e));
-                            MOVE PROPERTY(nameTruck(e));
-                            MOVE PROPERTY(nameTrailer(e));
-                            MOVE PROPERTY(incomingDriverInfo(e));
-                            MOVE PROPERTY(incomingVehicleInfo(e));
+                            NEW carrierRow {
+                                horizontal = TRUE;
+                                MOVE PROPERTY(nameCarrier(e));
+                                MOVE PROPERTY(shortNameDriver(e));
+                                MOVE PROPERTY(nameTruck(e));
+                                MOVE PROPERTY(nameTrailer(e));
+                            }
+                            NEW driverReqBox {
+                                caption = 'Водитель (обязательные реквизиты)';
+                                horizontal = TRUE;
+                                MOVE PROPERTY(driverPhone(e));
+                                MOVE PROPERTY(driverLicenseSeries(e));
+                                MOVE PROPERTY(driverLicenseNumber(e));
+                                MOVE PROPERTY(driverLicenseDate(e));
+                                MOVE PROPERTY(driverInn(e));
+                            }
+                            NEW truckReqBox {
+                                caption = 'Транспортное средство (обязательные реквизиты)';
+                                horizontal = TRUE;
+                                MOVE PROPERTY(truckSid(e));
+                                MOVE PROPERTY(truckType(e));
+                                MOVE PROPERTY(truckModelName(e));
+                                MOVE PROPERTY(truckWeight(e));
+                                MOVE PROPERTY(truckCapacity(e));
+                                MOVE PROPERTY(truckOwnership(e));
+                            }
+                            NEW trailerReqBox {
+                                caption = 'Прицеп (обязательные реквизиты, если указан)';
+                                horizontal = TRUE;
+                                MOVE PROPERTY(trailerSid(e));
+                                MOVE PROPERTY(trailerType(e));
+                                MOVE PROPERTY(trailerModelName(e));
+                                MOVE PROPERTY(trailerWeight(e));
+                                MOVE PROPERTY(trailerCapacity(e));
+                                MOVE PROPERTY(trailerOwnership(e));
+                            }
+                            NEW incomingInfoRow {
+                                horizontal = TRUE;
+                                MOVE PROPERTY(incomingDriverInfo(e));
+                                MOVE PROPERTY(incomingVehicleInfo(e));
+                            }
                         }
                         MOVE BOX(w) {
                             caption = 'Сведения о путевых листах';

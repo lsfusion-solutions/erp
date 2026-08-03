@@ -5,55 +5,57 @@ REQUIRE ETRNOrderRequest, ETRN;
 NAMESPACE ETRN;
 
 // ------------------------- ЭТрН на основании заказа-заявки ------------------------- //
-// Создание транспортной накладной из заказа-заявки с переносом всех заполненных полей:
-// участники, ТС/водитель, груз, адреса погрузки/выгрузки из пунктов маршрута, реквизиты заявки.
-// Связь заявка -> ЭТрН хранится в etrn(OrderRequest).
+// Создание транспортных накладных из заказа-заявки. Заявка может содержать несколько
+// пунктов выгрузки; на каждый пункт выгрузки формируется отдельная ЭТрН, в которую
+// попадают только строки груза, привязанные к этому пункту (unloadingPoint(OrderDetail)).
+// Погрузка предполагается из первого пункта погрузки маршрута.
+// Связь заявка <- ЭТрН (многие ЭТрН к одной заявке): orderRequest(ETRN).
 
-// заявка-основание для ЭТрН (обратная к etrn(OrderRequest))
-orderRequestETRN (ETRN e) = GROUP MAX OrderRequest o BY etrn(o);
-numberOrderRequestETRN 'Заказ-заявка (основание)' (ETRN e) = number(orderRequestETRN(e)) CHARWIDTH 10;
+orderRequest = DATA OrderRequest (ETRN) INDEXED;
+numberOrderRequestETRN 'Заказ-заявка (основание)' (ETRN e) = number(orderRequest(e)) CHARWIDTH 10;
 
-// адрес и время первого пункта погрузки / выгрузки заявки
+countETRN 'ЭТрН заявки' (OrderRequest o) = GROUP SUM 1 BY orderRequest(ETRN e);
+seriesNumbersETRN 'ЭТрН' (OrderRequest o) = GROUP CONCAT seriesNumber(ETRN e), ', ' ORDER e BY orderRequest(e) CHARWIDTH 20;
+
+// адрес и структурный адрес первого пункта погрузки заявки (погрузка - общая для всех ЭТрН)
 loadingPointAddress (OrderRequest o) = GROUP MAX address(OrderPoint p) IF operation(p) == OrderPointOperation.loading AND pointIndex(p) == firstLoadingPoint(orderRequest(p)) BY orderRequest(p);
 loadingPointDateTime (OrderRequest o) = GROUP MAX operationDateTime(OrderPoint p) IF operation(p) == OrderPointOperation.loading AND pointIndex(p) == firstLoadingPoint(orderRequest(p)) BY orderRequest(p);
-unloadingPointAddress (OrderRequest o) = GROUP MAX address(OrderPoint p) IF operation(p) == OrderPointOperation.unloading AND pointIndex(p) == firstUnloadingPoint(orderRequest(p)) BY orderRequest(p);
-unloadingPointDateTime (OrderRequest o) = GROUP MAX operationDateTime(OrderPoint p) IF operation(p) == OrderPointOperation.unloading AND pointIndex(p) == firstUnloadingPoint(orderRequest(p)) BY orderRequest(p);
-
-// структурный адрес первого пункта погрузки / выгрузки (обязателен в Т1)
 loadingPointRegion (OrderRequest o) = GROUP MAX region(OrderPoint p) IF operation(p) == OrderPointOperation.loading AND pointIndex(p) == firstLoadingPoint(orderRequest(p)) BY orderRequest(p);
 loadingPointZipCode (OrderRequest o) = GROUP MAX zipCode(OrderPoint p) IF operation(p) == OrderPointOperation.loading AND pointIndex(p) == firstLoadingPoint(orderRequest(p)) BY orderRequest(p);
 loadingPointCity (OrderRequest o) = GROUP MAX city(OrderPoint p) IF operation(p) == OrderPointOperation.loading AND pointIndex(p) == firstLoadingPoint(orderRequest(p)) BY orderRequest(p);
 loadingPointStreet (OrderRequest o) = GROUP MAX street(OrderPoint p) IF operation(p) == OrderPointOperation.loading AND pointIndex(p) == firstLoadingPoint(orderRequest(p)) BY orderRequest(p);
 loadingPointBuilding (OrderRequest o) = GROUP MAX building(OrderPoint p) IF operation(p) == OrderPointOperation.loading AND pointIndex(p) == firstLoadingPoint(orderRequest(p)) BY orderRequest(p);
 
-unloadingPointRegion (OrderRequest o) = GROUP MAX region(OrderPoint p) IF operation(p) == OrderPointOperation.unloading AND pointIndex(p) == firstUnloadingPoint(orderRequest(p)) BY orderRequest(p);
-unloadingPointZipCode (OrderRequest o) = GROUP MAX zipCode(OrderPoint p) IF operation(p) == OrderPointOperation.unloading AND pointIndex(p) == firstUnloadingPoint(orderRequest(p)) BY orderRequest(p);
-unloadingPointCity (OrderRequest o) = GROUP MAX city(OrderPoint p) IF operation(p) == OrderPointOperation.unloading AND pointIndex(p) == firstUnloadingPoint(orderRequest(p)) BY orderRequest(p);
-unloadingPointStreet (OrderRequest o) = GROUP MAX street(OrderPoint p) IF operation(p) == OrderPointOperation.unloading AND pointIndex(p) == firstUnloadingPoint(orderRequest(p)) BY orderRequest(p);
-unloadingPointBuilding (OrderRequest o) = GROUP MAX building(OrderPoint p) IF operation(p) == OrderPointOperation.unloading AND pointIndex(p) == firstUnloadingPoint(orderRequest(p)) BY orderRequest(p);
-
 // текстовое описание маршрута (все пункты) - чтобы не потерять промежуточные пункты в ЭТрН
 routePointsText (OrderRequest o) = GROUP CONCAT (nameOperation(OrderPoint p) + ': ' + address(p)), '; ' ORDER pointIndex(p), p BY orderRequest(p);
 
+// строки груза без указанного пункта выгрузки (при нескольких пунктах - препятствие созданию)
+unassignedCargo (OrderRequest o) = GROUP SUM 1 IF NOT unloadingPoint(OrderDetail d) BY orderRequest(d);
+
 // ------------------------- Перенос полей ------------------------- //
 
-fill (OrderRequest o, ETRN e) {
-    // шапка
+// общая часть шапки ЭТрН (одинакова для всех пунктов выгрузки заявки)
+fillHeader (OrderRequest o, ETRN e) {
+    orderRequest(e) <- o;
+
     provider(e) <- provider(o);
     currency(e) <- currency(o);
     orderNumber(e) <- number(o);
     orderDate(e) <- date(o);
 
-    // участники
     shipper(e) <- shipper(o);
     carrier(e) <- carrier(o);
 
-    // ТС и водитель (ответ перевозчика Т2)
     driver(e) <- driver(o);
     truck(e) <- truck(o);
     trailer(e) <- trailer(o);
 
-    // подача / погрузка
+    signerLastName(e) <- signerLastName(o);
+    signerFirstName(e) <- signerFirstName(o);
+    signerMiddleName(e) <- signerMiddleName(o);
+    signerPosition(e) <- signerPosition(o);
+
+    // подача / погрузка (первый пункт погрузки)
     declaredSupplyDateTime(e) <- supplyDateTime(o);
     weightMethod(e) <- weightMethod(o);
     loadingAddress(e) <- loadingPointAddress(o);
@@ -63,67 +65,98 @@ fill (OrderRequest o, ETRN e) {
     loadingStreet(e) <- loadingPointStreet(o);
     loadingBuilding(e) <- loadingPointBuilding(o);
 
-    // доставка
-    deliveryAddress(e) <- unloadingPointAddress(o);
-    deliveryDateTime(e) <- unloadingPointDateTime(o);
-    deliveryRegion(e) <- unloadingPointRegion(o);
-    deliveryZipCode(e) <- unloadingPointZipCode(o);
-    deliveryCity(e) <- unloadingPointCity(o);
-    deliveryStreet(e) <- unloadingPointStreet(o);
-    deliveryBuilding(e) <- unloadingPointBuilding(o);
     route(e) <- routePointsText(o);
+}
 
-    // строки груза
-    FOR orderRequest(OrderDetail d) == o ORDER index(d), d DO NEW nd = ETRNDetail {
-        etrn(nd) <- e;
-        cargo(nd) <- cargo(d);
-        condition(nd) <- condition(d);
-        tareType(nd) <- tareType(d);
-        quantityPlaces(nd) <- quantityPlaces(d);
-        volume(nd) <- volume(d);
-        grossWeight(nd) <- grossWeight(d);
-        height(nd) <- height(d);
-        length(nd) <- length(d);
-        width(nd) <- width(d);
+// доставка - из конкретного пункта выгрузки
+fillDelivery (ETRN e, OrderPoint up) {
+    deliveryAddress(e) <- address(up);
+    deliveryDateTime(e) <- operationDateTime(up);
+    deliveryRegion(e) <- region(up);
+    deliveryZipCode(e) <- zipCode(up);
+    deliveryCity(e) <- city(up);
+    deliveryStreet(e) <- street(up);
+    deliveryBuilding(e) <- building(up);
+}
+
+// создание ЭТрН по пункту выгрузки со своими строками груза
+createETRNForPoint (OrderRequest o, OrderPoint up) {
+    NEW e = ETRN {
+        fillHeader(o, e);
+        fillDelivery(e, up);
+        FOR orderRequest(OrderDetail d) == o AND unloadingPoint(d) == up ORDER index(d), d DO NEW nd = ETRNDetail {
+            etrn(nd) <- e;
+            cargo(nd) <- cargo(d);
+            condition(nd) <- condition(d);
+            tareType(nd) <- tareType(d);
+            quantityPlaces(nd) <- quantityPlaces(d);
+            volume(nd) <- volume(d);
+            grossWeight(nd) <- grossWeight(d);
+            height(nd) <- height(d);
+            length(nd) <- length(d);
+            width(nd) <- width(d);
+        }
     }
-
-    // обратная связь заявка -> ЭТрН
-    etrn(o) <- e;
 }
 
 // ------------------------- Действия ------------------------- //
 
 createETRNFromOrder 'Создать ЭТрН' (OrderRequest o) {
-    IF etrn(o) THEN {
-        MESSAGE CONCAT ' ', 'Для заявки уже создана ЭТрН:', seriesNumber(etrn(o));
+    IF countETRN(o) THEN {
+        MESSAGE CONCAT ' ', 'Для заявки уже созданы ЭТрН:', seriesNumbersETRN(o);
+        RETURN;
+    }
+    IF NOT firstLoadingPoint(o) THEN {
+        MESSAGE 'В заявке нет пункта погрузки';
+        RETURN;
+    }
+    IF NOT countUnloadingPoints(o) THEN {
+        MESSAGE 'В заявке нет пункта выгрузки';
+        RETURN;
+    }
+    IF unassignedCargo(o) THEN {
+        MESSAGE 'Не для всех строк груза указан пункт выгрузки';
         RETURN;
     }
     NEWSESSION {
-        NEW e = ETRN {
-            fill(o, e);
-            edit(e);
-        }
+        FOR operation(OrderPoint up) == OrderPointOperation.unloading AND orderRequest(up) == o DO
+            createETRNForPoint(o, up);
+        APPLY;
+        MESSAGE CONCAT ' ', 'Создано ЭТрН по заявке:', countETRN(o);
     }
 } IMAGE 'add.png';
 
-showETRNFromOrder 'Просмотреть ЭТрН' (OrderRequest o) {
-    SHOW etrn OBJECTS e = etrn(o) READONLY;
-}
+// список ЭТрН заявки (просмотр / редактирование)
+FORM orderRequestETRNs 'ЭТрН заявки'
+    OBJECTS o = OrderRequest PANEL
+    OBJECTS e = ETRN
+    PROPERTIES(e) READONLY seriesNumber, date, nameStage, roles, nameConsignee, deliveryAddress, cost
+    PROPERTIES(e) NEWSESSION EDIT
+    FILTERS orderRequest(e) == o
+;
 
-editETRNFromOrder 'Редактировать ЭТрН' (OrderRequest o) {
-    NEWSESSION {
-        edit(etrn(o));
-    }
-} IMAGE 'edit.png';
+showETRNFromOrder 'ЭТрН заявки' (OrderRequest o) {
+    SHOW orderRequestETRNs OBJECTS o = o;
+}
 
 // ------------------------- Формы ------------------------- //
 
 EXTEND FORM orderRequests
-    PROPERTIES(o) READONLY seriesNumberETRN
-    PROPERTIES(o) createETRNFromOrder TOOLBAR SHOWIF NOT etrn(o),
-                  editETRNFromOrder TOOLBAR SHOWIF etrn(o),
-                  showETRNFromOrder TOOLBAR SHOWIF etrn(o)
+    PROPERTIES(o) READONLY seriesNumbersETRN
+    PROPERTIES(o) createETRNFromOrder TOOLBAR SHOWIF NOT countETRN(o),
+                  showETRNFromOrder TOOLBAR SHOWIF countETRN(o)
 ;
+
+// основание (заявка) и перечень ЭТрН на форме заявки
+EXTEND FORM orderRequest
+    PROPERTIES(o) READONLY seriesNumbersETRN
+;
+
+DESIGN orderRequest {
+    headerRow {
+        MOVE PROPERTY(seriesNumbersETRN(o));
+    }
+}
 
 // основание (заявка) на форме ЭТрН
 EXTEND FORM etrn
@@ -145,9 +178,7 @@ DESIGN orderRequests {
         NEW etrnRow {
             caption = 'ЭТрН';
             MOVE PROPERTY (createETRNFromOrder(o));
-            MOVE PROPERTY (editETRNFromOrder(o));
             MOVE PROPERTY (showETRNFromOrder(o));
-
         }
     }
 }

@@ -21,9 +21,8 @@ WHEN LOCAL SET(OrderRequest o IS OrderRequest) AND NOT CHANGED(date(o)) DO date(
 
 closed 'Завершена' = DATA BOOLEAN (OrderRequest);
 
-// связь с ЭТрН (заявка предшествует накладной, необязательна)
-etrn 'ЭТрН' = DATA ETRN (OrderRequest);
-seriesNumberETRN 'ЭТрН' (OrderRequest o) = seriesNumber(etrn(o)) CHARWIDTH 12;
+// связь с ЭТрН: заявка может породить несколько ЭТрН (по одной на пункт выгрузки).
+// Связь и производные (кол-во, перечень номеров) - в модуле ETRNFromOrderRequest.
 
 // ------------------------- Участники ------------------------- //
 
@@ -37,6 +36,20 @@ roleShipper 'Мы - грузоотправитель' (OrderRequest o) = isCompa
 roleCarrier 'Мы - перевозчик' (OrderRequest o) = isCompany(carrier(o));
 roles 'Наши роли' (OrderRequest o) = CONCAT ', ', 'грузоотправитель' IF roleShipper(o),
                                                    'перевозчик' IF roleCarrier(o) CHARWIDTH 20;
+
+// подписант титула заявки (Т1 грузоотправителя) - первичные поля документа;
+// заполняются из карточки грузоотправителя, можно поправить на конкретной заявке
+signerLastName 'Подписант: фамилия' = DATA ISTRING[60](OrderRequest);
+signerFirstName 'Подписант: имя' = DATA ISTRING[60](OrderRequest);
+signerMiddleName 'Подписант: отчество' = DATA ISTRING[60](OrderRequest);
+signerPosition 'Подписант: должность' = DATA ISTRING[128](OrderRequest);
+
+WHEN LOCAL CHANGED(shipper(OrderRequest o)) DO {
+    signerLastName(o) <- signerLastName(shipper(o)) WHERE signerLastName(shipper(o));
+    signerFirstName(o) <- signerFirstName(shipper(o)) WHERE signerFirstName(shipper(o));
+    signerMiddleName(o) <- signerMiddleName(shipper(o)) WHERE signerMiddleName(shipper(o));
+    signerPosition(o) <- signerPosition(shipper(o)) WHERE signerPosition(shipper(o));
+}
 
 // ------------------------- Реквизиты заявки (Т1 грузоотправителя) ------------------------- //
 
@@ -82,6 +95,29 @@ truck 'Транспортное средство' = DATA Truck (OrderRequest);
 nameTruck 'Транспортное средство' (OrderRequest o) = name(truck(o)) CHARWIDTH 25;
 trailer 'Прицеп' = DATA Trailer (OrderRequest);
 nameTrailer 'Прицеп' (OrderRequest o) = name(trailer(o)) CHARWIDTH 25;
+
+// обязательные реквизиты водителя/ТС/прицепа (проверяются перед отправкой Т2) -
+// выводятся на форму READONLY, чтобы пользователь видел, что нужно заполнить в карточках
+driverPhone 'Телефон' (OrderRequest o) = phone(driver(o)) CHARWIDTH 15;
+driverLicenseSeries 'ВУ: серия' (OrderRequest o) = licenseSeries(driver(o)) CHARWIDTH 8;
+driverLicenseNumber 'ВУ: номер' (OrderRequest o) = licenseNumber(driver(o)) CHARWIDTH 10;
+driverLicenseDate 'ВУ: дата' (OrderRequest o) = licenseDate(driver(o));
+driverInn 'ИНН' (OrderRequest o) = inn(driver(o)) CHARWIDTH 12;
+missingDriverLicense (OrderRequest o) = driver(o) AND NOT (licenseSeries(driver(o)) AND licenseNumber(driver(o)) AND licenseDate(driver(o)));
+
+truckSid 'Рег. номер' (OrderRequest o) = sid(truck(o)) CHARWIDTH 10;
+truckType 'Тип' (OrderRequest o) = type(truck(o)) CHARWIDTH 12;
+truckModelName 'Марка' (OrderRequest o) = nameTruckModel(truck(o)) CHARWIDTH 15;
+truckWeight 'Грузоподъёмность, кг' (OrderRequest o) = weight(truck(o));
+truckCapacity 'Вместимость, м3' (OrderRequest o) = capacity(truck(o));
+truckOwnership 'Тип владения' (OrderRequest o) = nameOwnershipType(truck(o)) CHARWIDTH 15;
+
+trailerSid 'Рег. номер' (OrderRequest o) = sid(trailer(o)) CHARWIDTH 10;
+trailerType 'Тип' (OrderRequest o) = type(trailer(o)) CHARWIDTH 12;
+trailerModelName 'Марка' (OrderRequest o) = nameTruckModel(trailer(o)) CHARWIDTH 15;
+trailerWeight 'Грузоподъёмность, кг' (OrderRequest o) = weight(trailer(o));
+trailerCapacity 'Вместимость, м3' (OrderRequest o) = capacity(trailer(o));
+trailerOwnership 'Тип владения' (OrderRequest o) = nameOwnershipType(trailer(o)) CHARWIDTH 15;
 
 WHEN LOCAL CHANGED(truck(OrderRequest o)) AND NOT CHANGED(trailer(o)) DO
     trailer(o) <- defaultTrailer(truck(o));
@@ -170,12 +206,27 @@ address 'Адрес пункта (текст)' = DATA ISTRING[350](OrderPoint) C
 ownerName 'Владелец объекта инфраструктуры' = DATA ISTRING[255](OrderPoint) CHARWIDTH 20;
 ownerInn 'ИНН владельца инфраструктуры' = DATA STRING[12](OrderPoint) CHARWIDTH 12;
 
+// склад-источник адреса пункта (текстовый и структурный адрес заполняются от склада)
+stock 'Склад' = DATA Stock (OrderPoint);
+nameStock 'Склад' (OrderPoint p) = name(stock(p)) CHARWIDTH 20;
+
 // структурный адрес пункта (RussianAddress: Region+ZipCode обязательны по UserDataXsd)
 region 'Код региона' = DATA STRING[2](OrderPoint) CHARWIDTH 4;
 zipCode 'Индекс' = DATA STRING[6](OrderPoint) CHARWIDTH 6;
 city 'Город' = DATA ISTRING[255](OrderPoint) CHARWIDTH 15;
 street 'Улица' = DATA ISTRING[255](OrderPoint) CHARWIDTH 15;
 building 'Дом' = DATA ISTRING[20](OrderPoint) CHARWIDTH 6;
+
+// при выборе склада - заполнить адрес пункта из адреса склада
+// (структурный адрес - из абстракций region/zipCode/... (Stock), реализуемых источником клиента)
+WHEN LOCAL CHANGED(stock(OrderPoint p)) DO {
+    address(p) <- ISTRING[350](address(stock(p)));
+    region(p) <- region(stock(p));
+    zipCode(p) <- zipCode(stock(p));
+    city(p) <- city(stock(p));
+    street(p) <- street(stock(p));
+    building(p) <- building(stock(p));
+}
 
 // однозначные имена для доступа из других namespace
 pointIndex (OrderPoint p) = index(p);
@@ -190,6 +241,26 @@ hasPointAddress (OrderPoint p) = region(p) AND zipCode(p);
 
 firstLoadingPoint (OrderRequest o) = GROUP MIN pointIndex(OrderPoint p) IF operation(p) == OrderPointOperation.loading BY orderRequest(p);
 firstUnloadingPoint (OrderRequest o) = GROUP MIN pointIndex(OrderPoint p) IF operation(p) == OrderPointOperation.unloading BY orderRequest(p);
+
+// первый (минимальный по индексу) пункт погрузки маршрута - место и время подачи ТС
+loadingPoint (OrderRequest o) = GROUP MIN OrderPoint p IF operation(p) == OrderPointOperation.loading AND orderRequest(p)==o;
+
+// подача ТС = первый пункт погрузки: структурный адрес и дата/время заполняются из него
+supplyFromRegion (OrderRequest o) = region(loadingPoint(o));
+supplyFromZipCode (OrderRequest o) = zipCode(loadingPoint(o));
+supplyFromCity (OrderRequest o) = city(loadingPoint(o));
+supplyFromStreet (OrderRequest o) = street(loadingPoint(o));
+supplyFromBuilding (OrderRequest o) = building(loadingPoint(o));
+supplyFromDateTime (OrderRequest o) = operationDateTime(loadingPoint(o));
+supplyFromMaxDateTime (OrderRequest o) = maxOperationDateTime(loadingPoint(o));
+
+WHEN LOCAL CHANGED(supplyFromRegion(OrderRequest o)) DO supplyRegion(o) <- supplyFromRegion(o);
+WHEN LOCAL CHANGED(supplyFromZipCode(OrderRequest o)) DO supplyZipCode(o) <- supplyFromZipCode(o);
+WHEN LOCAL CHANGED(supplyFromCity(OrderRequest o)) DO supplyCity(o) <- supplyFromCity(o);
+WHEN LOCAL CHANGED(supplyFromStreet(OrderRequest o)) DO supplyStreet(o) <- supplyFromStreet(o);
+WHEN LOCAL CHANGED(supplyFromBuilding(OrderRequest o)) DO supplyBuilding(o) <- supplyFromBuilding(o);
+WHEN LOCAL CHANGED(supplyFromDateTime(OrderRequest o)) DO supplyDateTime(o) <- supplyFromDateTime(o);
+WHEN LOCAL CHANGED(supplyFromMaxDateTime(OrderRequest o)) DO maxSupplyDateTime(o) <- supplyFromMaxDateTime(o);
 
 // ------------------------- Строки груза ------------------------- //
 
@@ -219,6 +290,26 @@ width 'Ширина, м' = DATA NUMERIC[17,3](OrderDetail);
 distributable 'Возможно распределение по платформе' = DATA BOOLEAN (OrderDetail);
 divisible 'Груз делимый' = DATA BOOLEAN (OrderDetail);
 
+// пункт выгрузки строки груза (мультимаршрут: груз строки едет на этот пункт;
+// по нему выгружается связь груз-пункт в титул и формируется отдельная ЭТрН)
+unloadingPoint 'Пункт выгрузки' = DATA OrderPoint (OrderDetail);
+concatName (OrderPoint o) = CONCAT ' ', ('№' + index(o)), address(o) CHARWIDTH 20;
+
+nameUnloadingPoint 'Пункт выгрузки' (OrderDetail d) = concatName(unloadingPoint(d)) CHARWIDTH 20;
+
+CONSTRAINT unloadingPoint(OrderDetail d) AND
+    (orderRequest(unloadingPoint(d)) != orderRequest(d) OR operation(unloadingPoint(d)) != OrderPointOperation.unloading)
+    CHECKED BY unloadingPoint[OrderDetail]
+    MESSAGE 'Пункт выгрузки строки должен быть пунктом выгрузки этой же заявки';
+
+// число пунктов выгрузки заявки и единственный пункт (для автозаполнения)
+countUnloadingPoints 'Пунктов выгрузки' (OrderRequest o) = GROUP SUM 1 IF operation(OrderPoint p) == OrderPointOperation.unloading BY orderRequest(p);
+theUnloadingPoint (OrderRequest o) = GROUP LAST OrderPoint p ORDER pointIndex(p), p IF operation(p) == OrderPointOperation.unloading BY orderRequest(p);
+
+// один пункт выгрузки - проставляется в строку автоматически; несколько - выбираются вручную
+WHEN LOCAL CHANGED(orderRequest(OrderDetail d)) AND countUnloadingPoints(orderRequest(d)) == 1 AND NOT unloadingPoint(d) DO
+    unloadingPoint(d) <- theUnloadingPoint(orderRequest(d));
+
 WHEN LOCAL CHANGED(cargo(OrderDetail d)) AND NOT CHANGED(tareType(d)) DO
     tareType(d) <- tareType(cargo(d));
 
@@ -239,7 +330,8 @@ missingOrderDetailT1 (OrderDetail d) = CONCAT ', ',
     'количество грузовых мест' IF NOT quantityPlaces(d),
     'объём' IF NOT volume(d),
     'масса брутто' IF NOT grossWeight(d),
-    'габариты (высота, длина, ширина)' IF NOT (height(d) AND length(d) AND width(d));
+    'габариты (высота, длина, ширина)' IF NOT (height(d) AND length(d) AND width(d)),
+    'пункт выгрузки' IF countUnloadingPoints(orderRequest(d)) > 1 AND NOT unloadingPoint(d);
 
 missingOrderDetailsT1 (OrderRequest o) = GROUP CONCAT ('строка ' + index(OrderDetail d) + ': ' + missingOrderDetailT1(d)), '; ' ORDER d BY orderRequest(d);
 
@@ -259,7 +351,7 @@ missingOrderRequestT1 (OrderRequest o) = CONCAT ', ',
     'требуемый тип ТС' IF NOT vehicleType(o),
     'требуемая грузоподъёмность' IF NOT vehicleWeight(o),
     'требуемая вместимость' IF NOT vehicleVolume(o),
-    'подписант грузоотправителя (ФИО)' IF shipper(o) AND NOT (signerLastName(shipper(o)) AND signerFirstName(shipper(o))),
+    'подписант грузоотправителя (ФИО)' IF NOT (signerLastName(o) AND signerFirstName(o)),
     'пункт погрузки в маршруте' IF NOT firstLoadingPoint(o),
     'пункт выгрузки в маршруте' IF NOT firstUnloadingPoint(o),
     'сведения о грузе (нет ни одной строки)' IF NOT [GROUP SUM 1 BY orderRequest(OrderDetail d)](o);
@@ -324,9 +416,12 @@ acceptOrderRequestAction 'Ответить на заявку (Т2)' (OrderReques
 FORM orderRequest 'Заказ-заявка'
     OBJECTS o = OrderRequest PANEL
     PROPERTIES(o) roles, nameProvider, nameExchangeStatus READONLY, providerStatus READONLY, exchangeMessage READONLY, titleFile
-    PROPERTIES(o) number, date, seriesNumberETRN READONLY,
+    PROPERTIES(o) number, date,
                   nameShipper BACKGROUND (backgroundMandatory(o) IF NOT shipper(o)),
                   nameCarrier BACKGROUND (backgroundMandatory(o) IF NOT carrier(o)),
+                  signerLastName BACKGROUND (backgroundMandatory(o) IF NOT signerLastName(o)),
+                  signerFirstName BACKGROUND (backgroundMandatory(o) IF NOT signerFirstName(o)),
+                  signerMiddleName, signerPosition,
                   contractName, contractNumber, contractDate,
                   sanitary, food,
                   supplyDateTime BACKGROUND (backgroundMandatory(o) IF NOT supplyDateTime(o)), maxSupplyDateTime,
@@ -342,6 +437,7 @@ FORM orderRequest 'Заказ-заявка'
     PROPERTIES(op) index,
                    nameOperation BACKGROUND (backgroundMandatory(o) IF NOT operation(op)),
                    operationDateTime, maxOperationDateTime,
+                   nameStock,
                    region BACKGROUND (backgroundMandatory(o) IF NOT region(op)),
                    zipCode BACKGROUND (backgroundMandatory(o) IF NOT zipCode(op)),
                    city, street, building, address,
@@ -362,16 +458,34 @@ FORM orderRequest 'Заказ-заявка'
                   height BACKGROUND (backgroundMandatory(o) IF NOT height(d)),
                   length BACKGROUND (backgroundMandatory(o) IF NOT length(d)),
                   width BACKGROUND (backgroundMandatory(o) IF NOT width(d)),
-                  distributable, divisible
+                  distributable, divisible,
+                  nameUnloadingPoint BACKGROUND (backgroundMandatory(o) IF countUnloadingPoints(o) > 1 AND NOT unloadingPoint(d))
     PROPERTIES(d) NEW, DELETE
     ORDERS index(d)
     FILTERS orderRequest(d) = o
 
     PROPERTIES(o) carrierPhone BACKGROUND (backgroundMandatory(o) IF NOT carrierPhone(o)),
                   accepted, rejectionReason,
-                  shortNameDriver BACKGROUND (backgroundMandatory(o) IF NOT driver(o)),
+                  shortNameDriver BACKGROUND (backgroundMandatory(o) IF driver(o) AND NOT (lastName(driver(o)) AND firstName(driver(o)))),
                   nameTruck BACKGROUND (backgroundMandatory(o) IF NOT truck(o)),
                   nameTrailer,
+                  driverPhone BACKGROUND (backgroundMandatory(o) IF driver(o) AND NOT driverPhone(o)),
+                  driverLicenseSeries BACKGROUND (backgroundMandatory(o) IF missingDriverLicense(o)),
+                  driverLicenseNumber BACKGROUND (backgroundMandatory(o) IF missingDriverLicense(o)),
+                  driverLicenseDate BACKGROUND (backgroundMandatory(o) IF missingDriverLicense(o)),
+                  driverInn BACKGROUND (backgroundMandatory(o) IF driver(o) AND NOT driverInn(o)),
+                  truckSid BACKGROUND (backgroundMandatory(o) IF truck(o) AND NOT truckSid(o)),
+                  truckType BACKGROUND (backgroundMandatory(o) IF truck(o) AND NOT truckType(o)),
+                  truckModelName BACKGROUND (backgroundMandatory(o) IF truck(o) AND NOT truckModelName(o)),
+                  truckWeight BACKGROUND (backgroundMandatory(o) IF truck(o) AND NOT truckWeight(o)),
+                  truckCapacity BACKGROUND (backgroundMandatory(o) IF truck(o) AND NOT truckCapacity(o)),
+                  truckOwnership BACKGROUND (backgroundMandatory(o) IF truck(o) AND NOT truckOwnership(o)),
+                  trailerSid BACKGROUND (backgroundMandatory(o) IF trailer(o) AND NOT trailerSid(o)),
+                  trailerType BACKGROUND (backgroundMandatory(o) IF trailer(o) AND NOT trailerType(o)),
+                  trailerModelName BACKGROUND (backgroundMandatory(o) IF trailer(o) AND NOT trailerModelName(o)),
+                  trailerWeight BACKGROUND (backgroundMandatory(o) IF trailer(o) AND NOT trailerWeight(o)),
+                  trailerCapacity BACKGROUND (backgroundMandatory(o) IF trailer(o) AND NOT trailerCapacity(o)),
+                  trailerOwnership BACKGROUND (backgroundMandatory(o) IF trailer(o) AND NOT trailerOwnership(o)),
                   nameCurrency, feeNoVat, feeTaxRate, feeTotal, feeCalculations
 
     EDIT OrderRequest OBJECT o
@@ -390,7 +504,6 @@ DESIGN orderRequest {
                 MOVE PROPERTY(nameProvider(o));
                 MOVE PROPERTY(nameExchangeStatus(o));
                 MOVE PROPERTY(providerStatus(o));
-                MOVE PROPERTY(seriesNumberETRN(o));
             }
         }
         NEW pane {
@@ -403,6 +516,14 @@ DESIGN orderRequest {
                     horizontal = TRUE;
                     MOVE PROPERTY(nameShipper(o));
                     MOVE PROPERTY(nameCarrier(o));
+                }
+                NEW signerBox AFTER partiesBox {
+                    caption = 'Подписант грузоотправителя (титул Т1)';
+                    horizontal = TRUE;
+                    MOVE PROPERTY(signerLastName(o));
+                    MOVE PROPERTY(signerFirstName(o));
+                    MOVE PROPERTY(signerMiddleName(o));
+                    MOVE PROPERTY(signerPosition(o));
                 }
                 NEW contractBox {
                     caption = 'Договор перевозки (основание заявки)';
@@ -461,10 +582,41 @@ DESIGN orderRequest {
                 }
                 NEW answerVehicle {
                     caption = 'Транспорт';
-                    horizontal = TRUE;
-                    MOVE PROPERTY(shortNameDriver(o));
-                    MOVE PROPERTY(nameTruck(o));
-                    MOVE PROPERTY(nameTrailer(o));
+                    NEW answerVehicleRow {
+                        horizontal = TRUE;
+                        MOVE PROPERTY(shortNameDriver(o));
+                        MOVE PROPERTY(nameTruck(o));
+                        MOVE PROPERTY(nameTrailer(o));
+                    }
+                    NEW answerDriverReq {
+                        caption = 'Водитель (обязательные реквизиты)';
+                        horizontal = TRUE;
+                        MOVE PROPERTY(driverPhone(o));
+                        MOVE PROPERTY(driverLicenseSeries(o));
+                        MOVE PROPERTY(driverLicenseNumber(o));
+                        MOVE PROPERTY(driverLicenseDate(o));
+                        MOVE PROPERTY(driverInn(o));
+                    }
+                    NEW answerTruckReq {
+                        caption = 'Транспортное средство (обязательные реквизиты)';
+                        horizontal = TRUE;
+                        MOVE PROPERTY(truckSid(o));
+                        MOVE PROPERTY(truckType(o));
+                        MOVE PROPERTY(truckModelName(o));
+                        MOVE PROPERTY(truckWeight(o));
+                        MOVE PROPERTY(truckCapacity(o));
+                        MOVE PROPERTY(truckOwnership(o));
+                    }
+                    NEW answerTrailerReq {
+                        caption = 'Прицеп (обязательные реквизиты, если указан)';
+                        horizontal = TRUE;
+                        MOVE PROPERTY(trailerSid(o));
+                        MOVE PROPERTY(trailerType(o));
+                        MOVE PROPERTY(trailerModelName(o));
+                        MOVE PROPERTY(trailerWeight(o));
+                        MOVE PROPERTY(trailerCapacity(o));
+                        MOVE PROPERTY(trailerOwnership(o));
+                    }
                 }
                 NEW answerFee {
                     caption = 'Стоимость перевозки';

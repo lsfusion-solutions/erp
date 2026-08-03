@@ -1,0 +1,24 @@
+MODULE StockStructAddressETRN;
+
+REQUIRE ETRN;
+
+NAMESPACE ETRN;
+
+// ------------------------- Структурный адрес склада для ЭТрН (ручной ввод) ------------------------- //
+// Первичный источник структурного адреса склада (код региона, индекс, город, улица, дом),
+// реализующий абстракции region/zipCode/city/street/building(Stock.Stock) из ETRN.
+// Альтернатива провайдер-специфичному источнику (например, подразделениям Диадока в ЛЦ):
+// клиент, ведущий структурный адрес прямо на складе/отделе, подключает этот модуль
+// и модуль(и) формы - WarehouseStructAddressETRN и/или DepartmentStoreStructAddressETRN.
+
+structRegion 'Код региона' = DATA STRING[2](Stock.Stock) CHARWIDTH 4;
+structZipCode 'Индекс' = DATA STRING[6](Stock.Stock) CHARWIDTH 6;
+structCity 'Город' = DATA ISTRING[255](Stock.Stock) CHARWIDTH 15;
+structStreet 'Улица' = DATA ISTRING[255](Stock.Stock) CHARWIDTH 15;
+structBuilding 'Дом' = DATA ISTRING[20](Stock.Stock) CHARWIDTH 6;
+
+region (Stock.Stock st) += WHEN st IS Stock.Stock THEN structRegion(st);
+zipCode (Stock.Stock st) += WHEN st IS Stock.Stock THEN structZipCode(st);
+city (Stock.Stock st) += WHEN st IS Stock.Stock THEN structCity(st);
+street (Stock.Stock st) += WHEN st IS Stock.Stock THEN structStreet(st);
+building (Stock.Stock st) += WHEN st IS Stock.Stock THEN structBuilding(st);
