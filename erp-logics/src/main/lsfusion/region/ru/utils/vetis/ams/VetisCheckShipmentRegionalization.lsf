@@ -372,8 +372,11 @@ FORM regionalizationConditions 'Условия регионализации'
     FILTERS in(lastCheckRequest(c), c, con)
 ;
 
+// отдельная сессия: изменения условий сохраняются из самой формы, не дожидаясь сохранения формы-источника
 showRegionalizationConditions 'Показать условия регионализации' (OutgoingConsignment c) {
-    SHOW regionalizationConditions OBJECTS c = c;
+    NEWSESSION {
+        SHOW regionalizationConditions OBJECTS c = c MANAGESESSION;
+    }
 }
 
 EXTEND FORM outgoingConsignments PROPERTIES(c) showRegionalizationConditions DRAW c GRID READONLYIF NOT hasRegionalization(c);
@@ -390,7 +393,9 @@ FORM regionalizationConditionsIncoming 'Условия регионализац�
 ;
 
 showRegionalizationConditions 'Показать условия регионализации' (IncomingConsignment c) {
-    SHOW regionalizationConditionsIncoming OBJECTS c = c;
+    NEWSESSION {
+        SHOW regionalizationConditionsIncoming OBJECTS c = c MANAGESESSION;
+    }
 }
 
 EXTEND FORM incomingConsignments PROPERTIES(c) showRegionalizationConditions DRAW c GRID READONLYIF NOT hasRegionalization(c);
