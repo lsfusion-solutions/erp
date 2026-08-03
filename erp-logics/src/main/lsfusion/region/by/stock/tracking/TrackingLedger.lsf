@@ -14,13 +14,13 @@ stock 'Склад' = ABSTRACT Stock (InTrackingLedger) MATERIALIZED;
 nameStock 'Склад' (InTrackingLedger ledger) = name(stock(ledger)) CHARWIDTH 30;
 idStock 'Код склада' (InTrackingLedger ledger) = id(stock(ledger)) CHARWIDTH 10;
 
-quantity 'Количество' = ABSTRACT NUMERIC[16,5] (InTrackingLedger) MATERIALIZED;
+quantity 'Количество' = ABSTRACT NUMERIC[16,5] (InTrackingLedger) MATERIALIZED IN id;
 
 batch 'Партия' = ABSTRACT Batch (InTrackingLedger) MATERIALIZED;
 nameBatch 'Партия' (InTrackingLedger ledger) = name(batch(ledger)) CHARWIDTH 30;
 idBatch 'Код партии' (InTrackingLedger ledger) = id(batch(ledger)) CHARWIDTH 15;
 
-description 'Основание' = ABSTRACT STRING[250] (InTrackingLedger) MATERIALIZED;
+description 'Основание' = ABSTRACT STRING[250] (InTrackingLedger) MATERIALIZED IN id;
 
 deliveryTypePrev 'Тип приходного документа' = ABSTRACT INTEGER (InTrackingLedger) MATERIALIZED;
 deliveryNotePrev 'Номер приходного документа' = ABSTRACT STRING[70] (InTrackingLedger) MATERIALIZED;
@@ -44,7 +44,7 @@ inTrackingLedger 'Приход прослеживаемого товара' = AB
 
 outQuantity 'Количество (расход)' (InTrackingLedger i) = GROUP SUM quantity(OutTrackingLedger o) BY inTrackingLedger(o);
 balanceTracking 'Остаток' (InTrackingLedger i) = quantity(i) (-) outQuantity(i) MATERIALIZED;
-prevBalanceTracking 'Остаток (предыдущий)' (InTrackingLedger i) = PREV(balanceTracking(i));
+prevBalanceTracking 'Остаток (предыдущий)' (InTrackingLedger i) = PREV(balanceTracking(i)) IN id;
 
 CONSTRAINT balanceTracking(InTrackingLedger i) < 0 AND NOT notCheckBalanceTracking()
     MESSAGE 'Остаток прослеживаемого товара по приходу не может быть отрицательным';
