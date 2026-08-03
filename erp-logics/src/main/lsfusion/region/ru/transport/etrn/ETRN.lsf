@@ -102,17 +102,22 @@ overBackgroundMandatory = ABSTRACT CASE COLOR (ETRN);
 backgroundMandatory (ETRN e) = OVERRIDE overBackgroundMandatory(e), (RGB(255, 236, 240) IF e IS ETRN);
 
 // способ упаковки по умолчанию - подставляется в строки груза ЭТрН, если у груза он не задан
-defaultPackageWay 'Способ упаковки по умолчанию' = DATA PackageWay ();
-nameDefaultPackageWay 'Способ упаковки по умолчанию' = name(defaultPackageWay());
+defaultPackageWay 'Способ упаковки (ЭТрН)' = DATA PackageWay ();
+nameDefaultPackageWay 'Способ упаковки (ЭТрН)' = name(defaultPackageWay());
+
+defaultTareType 'Вид тары (ЭТрН)' = DATA TareType ();
+nameDefaultTareType 'Вид тары (ЭТрН)' = name(defaultTareType());
 
 EXTEND FORM options
-    PROPERTIES() controlStageEditETRN, nameDefaultPackageWay
+    PROPERTIES() controlStageEditETRN, nameConditionIntact, nameDefaultPackageWay, nameDefaultTareType
 ;
 
 DESIGN options {
     tranport {
         MOVE PROPERTY(controlStageEditETRN());
+        MOVE PROPERTY(nameConditionIntact());
         MOVE PROPERTY(nameDefaultPackageWay());
+        MOVE PROPERTY(nameDefaultTareType());
     }
 }
 
@@ -423,7 +428,7 @@ nameTareType 'Вид тары' (ETRNDetail d) = name(tareType(d)) CHARWIDTH 15;
 WHEN LOCAL CHANGED(cargo(ETRNDetail d))  AND NOT CHANGED(packageWay(d)) DO
     packageWay(d) <- OVERRIDE packageWay(cargo(d)), defaultPackageWay();
 WHEN LOCAL CHANGED(cargo(ETRNDetail d)) AND NOT CHANGED(tareType(d)) DO
-    tareType(d) <- tareType(cargo(d));
+    tareType(d) <- OVERRIDE tareType(cargo(d)), defaultTareType();
 
 density 'Плотность груза, кг/м3' = DATA NUMERIC[5,2](ETRNDetail);
 condition = DATA CargoCondition (ETRNDetail);
