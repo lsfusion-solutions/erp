@@ -4,7 +4,8 @@ REQUIRE VetisDocument, VetisStock, VetisStockEntry, VetisIncomingConsignment,
         VetisProcessIncomingConsignment, VetisWithdrawVetDocument, VetisItem,
         VetisDocumentImport, VetisPurchaseShipment, VetisStockEntryGestori,
         VetisEnterpriseGestori, VetisProductItemGestori, VetisPurposeImport,
-        VetisSaleReturnInvoice, VetisSaleReturnShipment, VetisSaleShipment, VetisPurchaseReturnShipment;
+        VetisSaleReturnInvoice, VetisSaleReturnShipment, VetisSaleShipment, VetisPurchaseReturnShipment,
+        SalePurchaseInvoice;
 
 NAMESPACE Vetis;
 
@@ -1715,3 +1716,45 @@ EXTEND FORM SaleReturn.userInvoice
 CONSTRAINT totalVolumeVDSaleReturnGestori(VetDocument s) > volume(s)
     MESSAGE 'Суммарный объём по строкам, связанным с ВСД, превышает объём продукции'
     PROPERTIES uuid(s), nameProductItem(s), volume(s);
+
+// ---- Накладные продажи компании: ВСД в связанную накладную закупки ----
+
+// объём ВСД, оформленных по исходящим партиям строки накладной продажи
+volumeVDSaleInvoiceGestori (Sale.InvoiceDetail sd, VetDocument vtd) =
+    GROUP SUM VetisSale.volume(sd, StockEntry se) IF vetDocument(VetisSale.outgoingConsignment(sd, se)) = vtd;
+
+// количество поставлено по строке накладной закупки
+shipmentQuantitySaleInvoiceGestori (SalePurchaseInvoice.PurchaseInvoiceDetail pd) = Purchase.shipmentQuantity(pd);
+
+// вес единицы товара в единицах измерения ВСД
+factorSaleInvoiceGestori (SalePurchaseInvoice.PurchaseInvoiceDetail pd, VetDocument vtd) =
+    OVERRIDE factor(Purchase.sku(pd), unit(vtd)), 1.0;
+
+// в накладной закупки, созданной из накладной продажи, связь с ВСД заполняется автоматически и не редактируется:
+// объём считается от фактически принятого количества и не превышает оформленного по накладной продажи
+VetisPurchase.volume(SalePurchaseInvoice.PurchaseInvoiceDetail pd, VetDocument vtd) += NUMERIC[16,5](
+    (PARTITION UNGROUP shipmentQuantitySaleInvoiceGestori
+        LIMIT STRICT volumeVDSaleInvoiceGestori(SalePurchaseInvoice.invoiceDetail(pd), vtd) / factorSaleInvoiceGestori(pd, vtd)
+        ORDER DESC volumeVDSaleInvoiceGestori(SalePurchaseInvoice.invoiceDetail(pd), vtd), vtd BY pd)
+    * factorSaleInvoiceGestori(pd, vtd));
+
+// накладная закупки, созданная по накладной продажи
+purchaseInvoiceSaleGestori (Sale.Invoice i) = SalePurchaseInvoice.purchaseInvoice(i);
+
+// поставка по накладной закупки: без неё входящую партию оформлять нельзя
+hasPurchaseShipmentSaleGestori (Sale.Invoice i) = GROUP SUM 1 IF
+    Purchase.invoiceShipmentDetail(Purchase.InvoiceDetail pd) AND Purchase.invoice(pd) = purchaseInvoiceSaleGestori(i);
+
+toProcessIncomingSaleGestori (Sale.Invoice i) = VetisPurchase.toProcess(purchaseInvoiceSaleGestori(i));
+
+processIncomingSaleGestori 'Оформить входящую партию' (Sale.Invoice i) {
+    IF NOT hasPurchaseShipmentSaleGestori(i) THEN {
+        MESSAGE 'Оформить входящую партию можно только после создания поставки по накладной закупки';
+        RETURN;
+    }
+    VetisPurchase.process(purchaseInvoiceSaleGestori(i));
+}
+
+EXTEND FORM Sale.invoices
+    PROPERTIES(i) processIncomingSaleGestori DRAW vse TOOLBAR SHOWIF toProcessIncomingSaleGestori(i)
+;
