@@ -320,6 +320,9 @@ process (CheckShipmentRegionalization r) + {
         }
         FOR INTEGER k = [GROUP MAX INTEGER i IF imported(i) AND guid1(i) AND NOT condition(guid1(i)) BY guid1(i)](STRING guid) DO NEW c = Condition {
             guid(c) <- guid;
+        }
+        // свойства условия обновляем при каждом импорте: у ранее заведённых условий обязательность соблюдения могла остаться незаполненной
+        FOR INTEGER k = [GROUP MAX INTEGER i IF imported(i) AND guid1(i) BY guid1(i)](STRING guid) AND Condition c == condition(guid) DO {
             name(c) <- text(k);
             active(c) <- TRUE IF active1(k) == 'true';
             createDate(c) <- DATETIME(createDate(k));

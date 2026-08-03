@@ -1,6 +1,6 @@
 MODULE VetisAMSGestori;
 
-REQUIRE VetisAMSReceiveResponse, VetisGetVDList, VetisGetSEList, VetisStock,
+REQUIRE VetisAMSReceiveResponse, VetisAMSSubmitRequest, VetisGetVDList, VetisGetSEList, VetisStock,
         VetisProcessIncomingConsignment, VetisPurchaseShipment,
         VetisDocumentGestori, VetisStockEntryGestori, VetisProductItemGestori;
 
@@ -284,4 +284,30 @@ guidEnterpriseRequest 'GUID площадки' (ApplicationRequest r) = guid(ente
 
 EXTEND FORM applicationRequests
     PROPERTIES(r) READONLY nameEnterpriseRequest, guidEnterpriseRequest
+;
+
+// --- Повторный запрос по заявке, завершившейся ошибкой ---
+
+// ответ не получен: заявка завершилась ошибкой и итогового статуса у неё нет
+toRetryRequestGestori (ApplicationRequest r) = error(r) AND NOT status(r);
+
+retryRequestGestori 'Повторить запрос' (ApplicationRequest r) {
+    IF NOT toRetryRequestGestori(r) THEN RETURN;
+    NEWSESSION {
+        error(r) <- NULL;
+        APPLY;
+    }
+    IF id(r) THEN
+        // заявка принята Ветисом — запрашиваем ответ заново
+        receiveApplicationRequest(r);
+    ELSE
+        // Ветис заявку не принял — отправляем её повторно
+        NEWSESSION {
+            submit(r);
+            APPLY;
+        }
+}
+
+EXTEND FORM applicationRequests
+    PROPERTIES(r) retryRequestGestori DRAW r TOOLBAR SHOWIF toRetryRequestGestori(r)
 ;
