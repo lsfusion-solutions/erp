@@ -1122,7 +1122,7 @@ CONSTRAINT CHANGED(VetisPurchase.volume(Purchase.UserInvoiceDetail vd, VetDocume
 
 // принятый вес по позиции не может превышать вес в ВСД
 CONSTRAINT VetisPurchase.volume(Purchase.UserInvoiceDetail vd, VetDocument vtd) > volume(vtd)
-    MESSAGE 'Количество по позиции в пересчёте на вес превышает вес в ВСД';
+    MESSAGE 'Связанный со строкой объем превышен объем продукции по ВСД';
 
 // число позиций накладной, связанных с данным ВСД (по объёму)
 countDetailVDInvoiceGestori (Purchase.UserInvoice inv, VetDocument s) =
@@ -1568,6 +1568,12 @@ CONSTRAINT DROPPED(isPosted(SaleReturn.UserInvoice i)) AND lockedPostedSaleRetur
 // объём по ВСД нельзя менять после отправки заявки в Ветис (кроме завершившихся ошибкой) или гашения
 CONSTRAINT CHANGED(VetisSaleReturn.volume(SaleReturn.UserInvoiceDetail vd, VetDocument vtd)) AND vsdVolumeLockedSaleReturnGestori(vd)
     MESSAGE 'Нельзя изменить объём по ВСД: отправлена заявка в Ветис или выполнено гашение';
+
+// позицию нельзя удалить, пока накладная проведена либо по позиции отправлена заявка или выполнено гашение
+CONSTRAINT DROPPED(vd IS SaleReturn.UserInvoiceDetail) AND isPosted(PREV(SaleReturn.userInvoice[SaleReturn.UserInvoiceDetail](vd)))
+    MESSAGE 'Нельзя удалить позицию: накладная проведена';
+CONSTRAINT DROPPED(vd IS SaleReturn.UserInvoiceDetail) AND PREV(vsdVolumeLockedSaleReturnGestori(vd))
+    MESSAGE 'Нельзя удалить позицию: по ней отправлена заявка в Ветис или выполнено гашение';
 
 // связанный со строкой объём не может превышать объём продукции по ВСД
 uuidVDMessageGestori 'UUID ВСД' (VetDocument s) = uuid(s);

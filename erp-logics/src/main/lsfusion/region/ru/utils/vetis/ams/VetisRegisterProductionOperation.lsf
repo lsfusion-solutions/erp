@@ -54,7 +54,8 @@ FORM registerProductionOperationRequest FORMEXTID 'merc=http://api.vetrf.ru/sche
         PROPERTIES(se) IN sourceStockEntry guid EXTID 'bs:guid'
         PROPERTIES(d, se) volume EXTID 'vd:volume'
         PROPERTIES IN unit =guid(unit(se)) EXTID 'bs:guid'
-    FILTERS order(d) = productionOrder(r) AND matches(d, se)
+    // в запрос попадают только записи журнала, связанные с компонентами по объёму
+    FILTERS order(d) = productionOrder(r) AND volume(d, se)
     
     OBJECTS productiveBatch= (pd = ProductDetail, pi = ProductItem) EXTID 'vd:productiveBatch' IN productionOperation
 //
@@ -96,13 +97,20 @@ registerProductionOperationRequest 'Заказ производство' (Order 
     }
 }
 
+showIfVetis (Order p) = NOT GROUP SUM 1 IF productionOrder(RegisterProductionOperationRequest r) = p AND 
+    status(r) != ApplicationRequestStatus.REJECTED;
+
 EXTEND FORM orders
-    PROPERTIES(o) TOOLBAR registerProductionOperationRequest 
+    PROPERTIES(o) TOOLBAR SHOWIF showIfVetis(o) registerProductionOperationRequest 
 ;
 
 DESIGN orders{
-    actionContainer{
-        MOVE PROPERTY (registerProductionOperationRequest(o));
+    documentDetail{
+        NEW vetisContainer {
+            caption = 'Ветис';
+            horizontal = TRUE;
+            MOVE PROPERTY (registerProductionOperationRequest(o));
+        }
     }
 }
 

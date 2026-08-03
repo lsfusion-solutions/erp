@@ -1,0 +1,89 @@
+MODULE VetisProductionOrderGestori;
+
+REQUIRE VetisProductionOrder, VetisRegisterProductionOperation, VetisStockEntryGestori;
+
+PRIORITY Production;
+
+NAMESPACE Vetis;
+
+// --- Заявка Ветис по производственному заказу ---
+
+lastRequestProductionGestori (Production.Order o) =
+    GROUP LAST RegisterProductionOperationRequest r ORDER r WHERE productionOrder(r) = o;
+issueDateLastRequestProductionGestori 'Время заявки' (Production.Order o) = issueDate(lastRequestProductionGestori(o));
+nameStatusLastRequestProductionGestori 'Статус заявки' (Production.Order o) = nameStatus(lastRequestProductionGestori(o));
+errorLastRequestProductionGestori 'Ошибка заявки' (Production.Order o) = error(lastRequestProductionGestori(o));
+
+fillVolumeApplyProductionGestori 'Заполнить' (Production.Order o) {
+    VetisSale.fillVolume(o);
+    APPLY;
+}
+
+hasProductItemProductionGestori (Production.Order o) =
+    GROUP SUM 1 IF in(sku(Production.ComponentDetail vd), ProductItem pi) AND Production.order(vd) = o;
+
+// --- Форма редактирования производственного заказа: вкладка ВЕТИС ---
+
+// объём по строке в пересчёте на вес нетто товара
+volumeShippedProductionGestori 'Объем (поставлено)' (Production.ComponentDetail d) =
+    NUMERIC[16,5](bruttoQuantity(d) * netWeight[Stock.Sku](sku(d)));
+
+// суммарный объём по строкам, связанным с записью журнала
+totalVolumeSEProductionGestori 'Объем всего' (StockEntry se) =
+    GROUP SUM VetisSale.volume(Production.ComponentDetail d, se);
+
+// заявки Ветис по производственному заказу
+filterProductionOrderRequestGestori = DATA LOCAL Production.Order ();
+
+EXTEND FORM applicationRequests
+    FILTERS NOT filterProductionOrderRequestGestori() OR productionOrder(r AS RegisterProductionOperationRequest) = filterProductionOrderRequestGestori()
+;
+
+showVetisRequestsProductionGestori 'Заявки ВЕТИС' (Production.Order o) {
+    filterProductionOrderRequestGestori() <- o;
+    SHOW applicationRequests;
+}
+
+EXTEND FORM Production.order
+    PROPERTIES(vd) READONLY volumeShippedProductionGestori
+    PROPERTIES(se) READONLY totalVolumeSEProductionGestori
+    PROPERTIES showVetisRequestsProductionGestori(o) DRAW vd TOOLBAR
+;
+
+DESIGN Production.order {
+    vetis { caption = 'ВЕТИС'; }
+    PROPERTY(volumeStockEntry(vd)) { caption = 'Объем по строке'; }
+    PROPERTY(guid(se)) { caption = 'GUID записи журнала'; }
+    PROPERTY(volume(vd, se)) { caption = 'Объем по строке'; }
+}
+
+// --- Вкладка ВЕТИС на списке производственных заказов ---
+
+EXTEND FORM Production.orders
+    OBJECTS vse = (vd = Production.ComponentDetail, se = StockEntry)
+    PROPERTIES(vd) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku
+    PROPERTIES(se) READONLY guid, number, nameProductItem
+    PROPERTIES(vd, se) READONLY volume
+    ORDERS index(vd)
+    FILTERS Production.order(vd) = o, VetisSale.volume(vd, se)
+
+    PROPERTIES(o) fillVolumeApplyProductionGestori DRAW vse TOOLBAR SHOWIF hasProductItemProductionGestori(o)
+
+    PROPERTIES(o) READONLY issueDateLastRequestProductionGestori PANEL, nameStatusLastRequestProductionGestori PANEL,
+                           errorLastRequestProductionGestori PANEL
+;
+
+DESIGN Production.orders {
+    vetisContainer {
+        caption = 'ВЕТИС';
+        horizontal = FALSE;
+        MOVE BOX(vse) { fill = 1; }
+        MOVE PROPERTY(issueDateLastRequestProductionGestori(o));
+        MOVE PROPERTY(nameStatusLastRequestProductionGestori(o));
+        MOVE PROPERTY(errorLastRequestProductionGestori(o)) {
+            alignment = STRETCH;
+            panelCaptionVertical = TRUE;
+        }
+        MOVE PROPERTY(registerProductionOperationRequest(o)) { caption = 'Отправить в Ветис'; }
+    }
+}
