@@ -377,14 +377,27 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
         String nameCustomer = trim((String) findProperty("consignee[EVAT]").read(context, evatObject));
 
         Element senderReceiverElement = new Element("senderReceiver");
-        Element consignorsElement = new Element("consignors", namespace);
-        consignorsElement.addContent(createLegalEntityElement("consignor", countryCodeSupplier, unpSupplier, nameSupplier, addressSupplier, namespace));
-        senderReceiverElement.addContent(consignorsElement);
-        Element consigneesElement = new Element("consignees", namespace);
-        consigneesElement.addContent(createLegalEntityElement("consignee", countryCodeCustomer, unpCustomer, nameCustomer, addressCustomer, namespace));
-        senderReceiverElement.addContent(consigneesElement);
+        //без реквизитов блок не выгружается: пустой грузоотправитель / грузополучатель на портале требует корректировки ЭСЧФ перед подписанием
+        if (notEmpty(countryCodeSupplier, unpSupplier, nameSupplier, addressSupplier)) {
+            Element consignorsElement = new Element("consignors", namespace);
+            consignorsElement.addContent(createLegalEntityElement("consignor", countryCodeSupplier, unpSupplier, nameSupplier, addressSupplier, namespace));
+            senderReceiverElement.addContent(consignorsElement);
+        }
+        if (notEmpty(countryCodeCustomer, unpCustomer, nameCustomer, addressCustomer)) {
+            Element consigneesElement = new Element("consignees", namespace);
+            consigneesElement.addContent(createLegalEntityElement("consignee", countryCodeCustomer, unpCustomer, nameCustomer, addressCustomer, namespace));
+            senderReceiverElement.addContent(consigneesElement);
+        }
         senderReceiverElement.setNamespace(namespace);
         return senderReceiverElement;
+    }
+
+    private boolean notEmpty(String... values) {
+        for (String value : values) {
+            if (notNullNorEmpty(value))
+                return true;
+        }
+        return false;
     }
 
     //parent: rootElement
