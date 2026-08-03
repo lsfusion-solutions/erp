@@ -2118,6 +2118,11 @@ proxyDepartment = DATA LOCAL Department ();
 proxyDepartmentId 'Идентификатор подразделения промежуточного получателя' () = departmentId(proxyDepartment());
 proxyDepartmentName 'Подразделение промежуточного получателя' () = name(proxyDepartment());
 
+// пользователь Диадока, от имени которого реально уходит сообщение: если отправка идет под сервисным пользователем
+// (задается реализацией overPostUser), то он, иначе - пользователь Диадока текущего пользователя
+overPostUser = ABSTRACT User ();
+postUser 'Пользователь Диадока отправителя сообщения' () = OVERRIDE overPostUser(), userDiadoc(currentUser());
+
 contentDocument 'Подписываемые данные' = DATA LOCAL TEXT (INTEGER);
 signatureDocument 'Электронная подпись' = DATA LOCAL TEXT (INTEGER);
 signWithTestSignature 'Сформировать тестовую ЭП' = DATA LOCAL BOOLEAN (INTEGER);
@@ -2162,7 +2167,7 @@ FORM exportMessageToPost
     FILTERS contentDocument(d)
 ;
 
-CONSTRAINT fromBox() AND NOT isEmployee(organization(fromBox()),userDiadoc(currentUser()))
+CONSTRAINT fromBox() AND NOT isEmployee(organization(fromBox()),postUser())
     CHECKED BY fromBox[] MESSAGE 'Для сообщения выбран ящик отправителя к которому нет доступа для пользователя';
 CONSTRAINT toBox() AND NOT counteragentStatus(organization(fromBox()),organization(toBox())) == CounteragentStatus.isMyCounteragent
     CHECKED BY toBox[] MESSAGE 'Для сообщения выбран ящик получателя с организацией которого не действует отношение партнерства';
@@ -2188,7 +2193,7 @@ FORM dialogMessageToPost 'Сообщение к отправке через Ди
             MESSAGE 'Не задан ящик отправителя' NOWAIT;
             beforeCanceled() <- TRUE;
         }
-        IF fromBox() AND NOT isEmployee(organization(fromBox()),userDiadoc(currentUser())) THEN {
+        IF fromBox() AND NOT isEmployee(organization(fromBox()),postUser()) THEN {
             MESSAGE 'Выбран ящик отправителя к которому нет доступа для пользователя' NOWAIT;
             beforeCanceled() <- TRUE;
         }
