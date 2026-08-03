@@ -288,6 +288,14 @@ EXTEND FORM applicationRequests
 
 // --- Повторный запрос по заявке, завершившейся ошибкой ---
 
+// заявка, принятая Ветисом, остаётся в ожидании ответа и после ошибки его получения:
+// иначе она считается завершённой и по той же входящей партии можно отправить дубль запроса
+overToReceive(ApplicationRequest r) += TRUE IF error(r) AND NOT status(r) AND id(r);
+
+// площадка записи журнала из связанного ВСД — когда партии-основания уже нет и площадка при импорте не заполнилась
+WHEN (SETCHANGED(in(StockEntry se, VetDocument vd)) OR SETCHANGED(consigneeEnterprise(vd))) AND in(se, vd) AND NOT enterprise(se) DO
+    enterprise(se) <- consigneeEnterprise(vd);
+
 // ответ не получен: заявка завершилась ошибкой и итогового статуса у неё нет
 toRetryRequestGestori (ApplicationRequest r) = error(r) AND NOT status(r);
 

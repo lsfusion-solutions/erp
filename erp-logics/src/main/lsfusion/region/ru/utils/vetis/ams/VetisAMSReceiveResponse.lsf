@@ -51,7 +51,10 @@ nameStatus 'Статус' (ApplicationRequest r) = name(status(r));
 
 succeeded 'Успешна' (ApplicationRequest r) = status(r) = ApplicationRequestStatus.COMPLETED; 
 
-toReceive 'Ожидается ответ' (ApplicationRequest r) = (r IS ApplicationRequest AND NOT status(r) AND NOT error(r)) OR status(r) = ApplicationRequestStatus.IN_PROCESS MATERIALIZED INDEXED;
+// реализации могут расширить условие ожидания ответа (например, не считать завершённой заявку с ошибкой его получения)
+overToReceive = ABSTRACT BOOLEAN (ApplicationRequest);
+
+toReceive 'Ожидается ответ' (ApplicationRequest r) = (r IS ApplicationRequest AND NOT status(r) AND NOT error(r)) OR status(r) = ApplicationRequestStatus.IN_PROCESS OR overToReceive(r) MATERIALIZED INDEXED;
 
 receiveApplicationRequest 'Получить заявку' (ApplicationRequest r) {
     NEWSESSION {
