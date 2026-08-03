@@ -1,0 +1,149 @@
+MODULE CashierUKM;
+
+REQUIRE EmployeeCashier, EmployeeStock, CashRegister, SQLUtils;
+
+NAMESPACE Machinery;
+
+// роли заводятся в УКМ (таблица role), в ERP хранится только ссылка на них
+CLASS RoleUKM 'Роль кассира (УКМ)';
+
+id 'Ид. роли' = DATA INTEGER (RoleUKM) IN id;
+name 'Наименование' = DATA ISTRING[100] (RoleUKM) IN id;
+roleUKM = GROUP AGGR RoleUKM r BY id(r);
+
+FORM rolesUKM 'Роли кассиров (УКМ)'
+    OBJECTS r = RoleUKM
+    PROPERTIES(r) id, name, NEW, DELETE
+
+    LIST RoleUKM OBJECT r
+;
+
+NAVIGATOR {
+    cashRegisterNavigator {
+        NEW rolesUKM;
+    }
+}
+
+isUKM (GroupCashRegister g) = TRUE IF sidModel(g) == 'Ukm4-mysql';
+connectionStringUKM (GroupCashRegister g) = STRING[200](getWord(directory(g), ';', 1));
+
+dataIdCashier 'Ид. кассира (УКМ)' = DATA INTEGER (Employee);
+// продажи из УКМ создают сотрудника с кодом вида <секция>_<ид. кассира>, поэтому по умолчанию ид. берётся из кода
+idCashierUKM 'Ид. кассира (УКМ)' (Employee e) = OVERRIDE dataIdCashier(e),
+    INTEGER(substring(substrFrom(id(e), strpos(id(e), '_') + 1), r'^[0-9]{1,9}$'));
+
+sectionCodeUKM (Employee e) = STRING[100](left(id(e), strpos(id(e), '_') - 1)) IF strpos(id(e), '_') > 0;
+sectionStockUKM (Employee e) = GROUP MIN section(GroupCashRegister g)
+    IF isUKM(g) AND active(g) AND stock(g) == stock(e);
+// у сотрудников, созданных приёмом продаж, склад не заполнен, поэтому секция определяется в первую очередь по коду
+sectionUKM 'Секция (УКМ)' (Employee e) = OVERRIDE sectionCodeUKM(e), sectionStockUKM(e);
+
+codeUKM 'Код кассира (УКМ)' (Employee e) = STRING[100](sectionUKM(e) + '_' + STRING(idCashierUKM(e)));
+
+roleUKM 'Роль (УКМ)' = DATA RoleUKM (Employee);
+nameRoleUKM 'Роль (УКМ)' (Employee e) = name(roleUKM(e));
+
+passwordCashierUKM 'Пароль кассира (УКМ)' = DATA STRING[40] (Employee);
+
+// признак выгрузки — заполненные роль и пароль: без явно заданного пароля выгрузка затёрла бы пароль кассира на кассе
+cashierUKM (Employee e) = roleUKM(e) AND idCashierUKM(e) AND passwordCashierUKM(e);
+exportCashierUKM (Employee e, GroupCashRegister g) = cashierUKM(e) AND sectionUKM(e) == section(g);
+countCashiersUKM (GroupCashRegister g) = GROUP SUM 1 IF exportCashierUKM(Employee e, g);
+
+// в УКМ кассир уникален в рамках магазина
+employeeUKM = GROUP AGGR Employee e WHERE cashierUKM(e) BY sectionUKM(e), idCashierUKM(e);
+
+EXTEND FORM employee
+    PROPERTIES(e) dataIdCashier, nameRoleUKM, passwordCashierUKM, codeUKM READONLY
+;
+
+DESIGN employee {
+    authentication {
+        NEW ukmCashier {
+            caption = 'Данные кассира (УКМ)';
+            MOVE PROPERTY(dataIdCashier(e));
+            MOVE PROPERTY(nameRoleUKM(e));
+            MOVE PROPERTY(passwordCashierUKM(e));
+            MOVE PROPERTY(codeUKM(e));
+        }
+    }
+}
+
+oldPasswordUKM = DATA LOCAL STRING[16] ();
+calcOldPasswordUKM INTERNAL 'lsfusion.erp.machinery.cashregister.ukm.OldPasswordUKMAction' (STRING);
+
+passwordUKM = DATA LOCAL STRING[16] (Employee);
+
+fillPasswordsUKM () {
+    passwordUKM(Employee e) <- NULL;
+    FOR cashierUKM(Employee e) DO {
+        calcOldPasswordUKM(passwordCashierUKM(e));
+        passwordUKM(e) <- oldPasswordUKM();
+    }
+}
+
+quoteUKM (STRING s) = '\'' + replace(replace(s, '\\', '\\\\'), '\'', '\'\'') + '\'';
+
+valueCashierUKM (Employee e, GroupCashRegister g, INTEGER version) =
+    '(' + quoteUKM(section(g))
+        + ',' + STRING(idCashierUKM(e))
+        + ',' + quoteUKM(STRING(left(trim(shortName(e)), 40)))
+        + ',' + quoteUKM(passwordUKM(e))
+        + ',' + STRING(id(roleUKM(e)))
+        + ',' + STRING(version)
+        + ',' + (IF inactive(e) THEN '1' ELSE '0') + ')';
+
+valuesCashiersUKM (STRING[200] connectionString, INTEGER version) = GROUP CONCAT
+    valueCashierUKM(Employee e, GroupCashRegister g, version)
+        IF exportCashierUKM(e, g) AND isUKM(g) AND active(g) AND connectionStringUKM(g) == connectionString,
+    ',\n' ORDER g, e;
+
+insertCashiersUKM (STRING[200] connectionString, INTEGER version) =
+    'INSERT INTO users (store, id, name, password, role_id, version, deleted) VALUES\n'
+        + valuesCashiersUKM(connectionString, version)
+        + '\nON DUPLICATE KEY UPDATE name=VALUES(name), password=VALUES(password), role_id=VALUES(role_id), '
+        + 'version=VALUES(version), deleted=VALUES(deleted);';
+
+exportCashiersUKM 'Выгрузить кассиров в УКМ' (STRING[200] connectionString) {
+    fillPasswordsUKM();
+
+    NEWCONNECTION {
+        LOCAL versionLoc = INTEGER (INTEGER);
+        LOCAL newVersionLoc = INTEGER ();
+        LOCAL queryLoc = TEXT ();
+
+        setAutoCommit(connectionString, NULL);
+        EXTERNAL SQL connectionString EXEC 'begin;';
+
+        // версия читается и занимается в той же транзакции, что и запись, чтобы не пересечься с сервером оборудования
+        EXTERNAL SQL connectionString EXEC 'SELECT MAX(version) FROM `signal` FOR UPDATE;' TO file;
+        IMPORT TABLE FROM file() TO versionLoc;
+        newVersionLoc() <- (OVERRIDE (GROUP MAX versionLoc(INTEGER i)), 0) + 1;
+
+        queryLoc() <- insertCashiersUKM(connectionString, newVersionLoc());
+        IF queryLoc() THEN {
+            EXTERNAL SQL connectionString EXEC queryLoc();
+            EXTERNAL SQL connectionString EXEC 'INSERT INTO `signal` (`signal`, version) VALUES (\'incr\', '
+                + STRING(newVersionLoc()) + ') ON DUPLICATE KEY UPDATE `signal`=VALUES(`signal`);';
+        }
+
+        EXTERNAL SQL connectionString EXEC 'COMMIT;';
+    }
+}
+
+exportCashiersUKM 'Выгрузить кассиров в УКМ' () {
+    // код кассира в ERP должен совпадать с тем, с которым его продажи вернутся из УКМ
+    NEWSESSION {
+        Employee.id(Employee e) <- codeUKM(e) WHERE cashierUKM(e) AND codeUKM(e) AND NOT Employee.id(e) == codeUKM(e);
+        APPLY;
+    }
+
+    FOR [GROUP SUM 1 IF isUKM(GroupCashRegister g) AND active(g) AND countCashiersUKM(g)
+            BY connectionStringUKM(g)](STRING[200] connectionString) DO {
+        exportCashiersUKM(connectionString);
+    }
+}
+
+EXTEND FORM employees
+    PROPERTIES() exportCashiersUKM DRAW e TOOLBAR
+;
