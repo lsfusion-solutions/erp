@@ -84,6 +84,7 @@ beforeOverReceiveMessages(INTEGER i, STRING[100] login, STRING[100] archiveDir) 
         }
         receivedFileName(i) <- id(i) + '_extracted';
         IF archiveDir THEN {
+            TRY { mkdir((OVERRIDE receivedDir(ediFile(id(i))), receivedDir(archiveDir))); }
             WRITE data(i) TO receivedPath(archiveDir, i);
         }
     }
@@ -189,6 +190,8 @@ receiveMessagesEDN (STRING[100] login, STRING[100] password, TEXT url, STRING[10
                 fillStartParams();
                 IF (GROUP SUM 1 IF documentType(INTEGER i)) > 0 THEN textMessage() <- CONCAT '\n', textMessage(), provider + '(' + login + ') Сообщений в очереди: ' + (GROUP SUM 1 IF documentType(INTEGER i));
                 logToFile('edi', provider + ' (' + login + ') ReceiveMessages count: ' + (GROUP SUM 1 IF documentType(INTEGER i)));
+
+                registerEDIFiles(login, archiveDir, provider);
 
                 FOR documentType(INTEGER i) ORDER processedDateTime(i) DO {
                     logToFile('edi', provider + ' (' + login + ') Check Message type:' + documentType(i) + ' id:' + id(i));

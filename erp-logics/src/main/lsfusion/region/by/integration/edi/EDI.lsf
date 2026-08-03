@@ -216,10 +216,75 @@ documentType = DATA LOCAL NESTED STRING (INTEGER);
 documentDate = DATA LOCAL NESTED DATETIME (INTEGER);
 data = DATA LOCAL NESTED XMLFILE(INTEGER);
 
+//очередь принятых сообщений: объект создаётся при первом приёме id и хранит тело до успешной обработки
+CLASS EDIFile 'Файл EDI';
+TABLE ediFile(EDIFile);
+
+id 'Идентификатор' = DATA STRING (EDIFile) IN id CHARWIDTH 40;
+TABLE ediFileId(STRING) NODEFAULT;
+ediFile (id) = GROUP AGGR EDIFile f BY id(f) MATERIALIZED TABLE ediFileId;
+
+documentType 'Тип документа' = DATA STRING (EDIFile);
+referenceDocumentType 'Относится к' = DATA STRING (EDIFile);
+documentDate 'Дата документа' = DATA DATETIME (EDIFile);
+receivedDateTime 'Получен' = DATA DATETIME (EDIFile);
+lastReceivedDateTime 'Получен повторно' = DATA DATETIME (EDIFile);
+data = DATA FILE (EDIFile);
+receivedDir = DATA STRING (EDIFile);
+receivedPath 'Файл в архиве' (EDIFile f) = receivedDir(f) + '/' + id(f) CHARWIDTH 60;
+
+countDaysClearEDIFileData 'За сколько дней хранить тела сообщений EDI (пусто - 30)' = DATA INTEGER ();
+
+EXTEND FORM options PROPERTIES countDaysClearEDIFileData();
+DESIGN options { log { MOVE PROPERTY(countDaysClearEDIFileData()); } }
+
+clearApplicationLog () + {
+    NEWSESSION {
+        data(EDIFile f) <- NULL WHERE data(f) AND DATE(receivedDateTime(f)) <= subtract(currentDate(), (OVERRIDE countDaysClearEDIFileData(), 30));
+        APPLY;
+    }
+}
+
+open 'Открыть' (EDIFile f) {
+    IF data(f) THEN {
+        open(data(f));
+    } ELSE {
+        LOCAL file = FILE();
+        TRY { READ 'file://' + receivedPath(f) TO file; }
+        IF file() THEN {
+            open(file());
+        } ELSE {
+            MESSAGE 'Файл не найден: ' + (OVERRIDE receivedPath(f), 'путь не задан');
+        }
+    }
+} TOOLBAR;
+
+//повторно полученные сообщения — вероятно, не обработаны и не подтверждены; при появлении признака обработки добавить зелёный приоритетом выше
+background (EDIFile f) = RGB(255, 243, 205) IF lastReceivedDateTime(f);
+
+EXTEND FORM integrationData
+    OBJECTS ef = EDIFile FIRST
+    PROPERTIES(ef) BACKGROUND background(ef) READONLY id, documentType, referenceDocumentType, documentDate, receivedDateTime, lastReceivedDateTime, receivedPath
+    PROPERTIES open(ef)
+    ORDERS receivedDateTime(ef) DESC
+;
+
+DESIGN integrationData {
+    edi {
+        NEW filesEDI {
+            caption = 'Файлы';
+            MOVE BOX(ef);
+        }
+    }
+}
+
 //имя файла в архиве, если отличается от id: распакованное сообщение, имя файла провайдера
 receivedFileName = DATA LOCAL NESTED STRING (INTEGER);
 receivedDir (STRING[100] archiveDir) = archiveDir + '/received/' + toChar(currentDate(), 'yyyyMMdd');
-receivedPath (STRING[100] archiveDir, INTEGER i) = receivedDir(archiveDir) + '/' + (OVERRIDE receivedFileName(i), id(i));
+//путь зарегистрированного сообщения зафиксирован при первом приёме, для прочих строится от текущей даты
+receivedPath (STRING[100] archiveDir, INTEGER i) =
+    OVERRIDE (receivedDir(ediFile(id(i))) + '/' + (OVERRIDE receivedFileName(i), id(i))),
+        receivedDir(archiveDir) + '/' + (OVERRIDE receivedFileName(i), id(i));
 
 textMessage = DATA LOCAL TEXT();
 sendRecipientErrorFailed = DATA LOCAL NESTED INTEGER();

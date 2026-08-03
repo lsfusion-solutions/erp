@@ -26,10 +26,72 @@ login 'Имя пользователя' = DATA STRING[100] (SoapProfile) IN id;
 password 'Пароль' = DATA STRING[100] (SoapProfile) ECHO;
 url 'Адрес сервиса' = ABSTRACT STRING[250] (SoapProfile) CHARWIDTH 40;
 
+soapProfile (STRING[100] login) = GROUP MIN SoapProfile p BY login(p);
+profile = DATA SoapProfile (EDIFile);
+
 skipImportOrders = DATA LOCAL NESTED BOOLEAN ();
 
 beforeOverReceiveMessages ABSTRACT LIST (INTEGER, STRING[100], STRING[100]);
 overReceiveMessages ABSTRACT LIST (INTEGER, STRING[100], STRING[100], TEXT, STRING[100], BOOLEAN, STRING[100]);
+
+//наполнение записи журнала из принятого сообщения; ссылочный тип есть только в содержимом
+fillEDIFile (EDIFile f, INTEGER i, STRING[100] archiveDir) {
+    IF data(i) THEN {
+        IF lower(documentType(i)) = 'blrapn' THEN {
+            TRY { IMPORT importBlrapn XML FROM data(i); }
+        }
+        IF lower(documentType(i)) = 'systemmessage' OR lower(documentType(i)) = 'aperak' THEN {
+            TRY { IMPORT systemMessage XML FROM data(i); }
+        }
+        referenceDocumentType(f) <- STRING(CASE
+            WHEN lower(documentType(i)) = 'blrapn' THEN blrapnReferenceDocumentType()
+            WHEN lower(documentType(i)) = 'systemmessage' OR lower(documentType(i)) = 'aperak' THEN documentType());
+        data(f) <- FILE(data(i));
+        IF archiveDir THEN {
+            receivedDir(f) <- OVERRIDE receivedDir(f), receivedDir(archiveDir);
+            TRY { mkdir(receivedDir(f)); }
+            WRITE data(i) TO receivedPath(archiveDir, i);
+        }
+    }
+}
+
+//регистрация принятого пакета одной сессией: объекты и файлы в архиве создаются при первом приёме id,
+//повторный приём отмечается датой последнего получения
+registerEDIFiles (STRING[100] login, STRING[100] archiveDir, STRING[100] provider) {
+    LOCAL new = INTEGER ();
+    LOCAL start = LONG ();
+    TRY {
+        toMilliseconds(currentDateTimeMillis());
+        start() <- resultMilliseconds();
+        new() <- GROUP SUM 1 IF documentType(INTEGER i) AND NOT ediFile(id(i));
+        NEWSESSION NESTED LOCAL {
+            FOR documentType(INTEGER i) AND EDIFile f = ediFile(id(i)) AND NOT login(profile(f)) = login DO
+                logToFile('edi', provider + ' (' + login + ') Register file ' + id(i) + ' warning: already received by ' + (OVERRIDE login(profile(f)), 'NULL'));
+            lastReceivedDateTime(EDIFile f) <- currentDateTime() WHERE [GROUP SUM 1 IF documentType(INTEGER i) BY id(i)](id(f));
+            //REST-маршрут регистрирует без тела, SOAP-проход той же очереди приносит его позже — дозаполняем пустое
+            FOR documentType(INTEGER i) AND data(i) AND EDIFile f = ediFile(id(i)) AND NOT data(f) DO
+                fillEDIFile(f, i, archiveDir);
+            FOR documentType(INTEGER i) AND NOT ediFile(id(i)) DO {
+                NEW f = EDIFile {
+                    id(f) <- id(i);
+                    profile(f) <- soapProfile(login);
+                    documentType(f) <- documentType(i);
+                    documentDate(f) <- documentDate(i);
+                    receivedDateTime(f) <- currentDateTime();
+                    fillEDIFile(f, i, archiveDir);
+                }
+            }
+            APPLY NESTED LOCAL;
+        }
+        toMilliseconds(currentDateTimeMillis());
+        logToFile('edi', CONCAT ' ', provider + ' (' + login + ') Register files:', 'new ' + (OVERRIDE new(), 0) + ',', 'total ' + (OVERRIDE (GROUP SUM 1 IF documentType(INTEGER i)), 0) + ',', (resultMilliseconds() (-) start()) + ' ms');
+        IF new() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), provider + '(' + login + ') Новых файлов в журнале: ' + new();
+    } CATCH {
+        logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Register files error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
+        //прерывание пользователем должно останавливать весь приём, а не только регистрацию
+        IF isSubstring(messageCaughtException(), 'interrupted') THEN throwException(messageCaughtException());
+    }
+}
 
 receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) {
     TRY {
@@ -54,11 +116,9 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
                 IF (GROUP SUM 1 IF documentType(INTEGER i)) > 0 THEN textMessage() <- CONCAT '\n', textMessage(), provider + '(' + login + ') Сообщений в очереди: ' + (GROUP SUM 1 IF documentType(INTEGER i));
                 logToFile('edi', provider + ' (' + login + ') ReceiveMessages count: ' + (GROUP SUM 1 IF documentType(INTEGER i)));
                 
+                registerEDIFiles(login, archiveDir, provider);
+                
                 FOR documentType(INTEGER i) ORDER documentDate(i), i DO {
-                    IF archiveDir THEN {
-                        TRY{ mkdir(receivedDir(archiveDir)); }
-                        WRITE data(i) TO receivedPath(archiveDir, i);
-                    }
                     logToFile('edi', CONCAT ' ', provider + ' (' + login + ') Check Message type:' + documentType(i) + ' id:' + id(i), 'DocumentDate:' + documentDate(i));
                     beforeOverReceiveMessages(i, login, archiveDir);
                     overReceiveMessages(i, login, password, url, archiveDir, disableConfirmation, provider);
@@ -295,3 +355,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
         }
     }
 }
+
+EXTEND FORM integrationData
+    PROPERTIES READONLY loginProfile 'Профиль' = login(profile(ef)) BACKGROUND background(ef) AFTER id(ef)
+;

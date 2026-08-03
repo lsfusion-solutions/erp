@@ -365,7 +365,15 @@ FORM document_DespatchAdvice FORMEXTID 'Document-DespatchAdvice'
 overReceiveMessagesEDN(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     IF documentType(i) == 'DESADV'  THEN {
         TRY {
-            IMPORT desadv XML FROM data(i);
+            EXTERNAL HTTP GET url +'/documents/'+id(i)+ '/content' HEADERS headers TO xmlFile;
+
+            receivedFileName(i) <- downloadFileName(i);
+            IF archiveDir THEN {
+                TRY{ mkdir(receivedDir(archiveDir)); }
+                WRITE xmlFile() TO receivedPath(archiveDir, i);
+            }
+            IMPORT document_DespatchAdvice XML FROM xmlFile();
+
             desadvOrderNumber() <- trim(desadvOrderNumber());
             overReceiveMessageDesadv();
             IF eOrder(desadvOrderNumber()) THEN {
