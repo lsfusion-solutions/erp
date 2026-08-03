@@ -432,6 +432,13 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                     iField = idBatchField;
                 }
 
+                // временный диагностический лог
+                ERPLoggers.importLogger.info("=== importUserInvoices keyType=" + keyType + " replaceField=" + replaceField + " size=" + userInvoiceDetailsList.size() + " skuImportCodeLM=" + (skuImportCodeLM != null));
+                for (PurchaseInvoiceDetail dbg : userInvoiceDetailsList) {
+                    ERPLoggers.importLogger.info("===   detail: barcodeItem=" + dbg.getFieldValue("barcodeItem") + " idItem=" + dbg.getFieldValue("idItem")
+                            + " idImportCode=" + dbg.getFieldValue("idImportCode") + " captionItem=" + dbg.getFieldValue("captionItem"));
+                }
+
                 ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
                         iGroupAggr.getMapping(iField));
                 keys.add(itemKey);

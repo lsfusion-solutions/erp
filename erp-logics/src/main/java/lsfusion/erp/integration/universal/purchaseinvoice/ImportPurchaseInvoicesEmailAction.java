@@ -182,9 +182,13 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
 
                                         try {
 
+                                            logOrphanBarcodes(newContext, "start (before makeImport)");
+
                                             boolean ignoreInvoicesAfterDocumentsClosedDate = findProperty("ignoreInvoicesAfterDocumentsClosedDate[]").read(context) != null;
                                             int importResult = makeImport(newContext, invoiceObject, importTypeObject, file, fileExtension, settings, staticNameImportType, staticCaptionImportType,
                                                     completeIdItemAsEAN, allowIncorrectBarcode, checkInvoiceExistence, ignoreInvoicesAfterDocumentsClosedDate);
+
+                                            logOrphanBarcodes(newContext, "after makeImport");
 
                                             if(invoiceObject != null) {
                                                 findProperty("original[Purchase.Invoice]").change(new DataObject(new FileData(file.second, fileExtension), DynamicFormatFileClass.get()), newContext, invoiceObject);
@@ -197,7 +201,11 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
                                                 cancelSession = findProperty("cancelSession[]").read(newContext) != null;
                                             }
 
+                                            logOrphanBarcodes(newContext, "after executeScript");
+
                                             findAction("executeLocalEvents[TEXT]").execute(newContext, new DataObject("Purchase.UserInvoice"));
+
+                                            logOrphanBarcodes(newContext, "after executeLocalEvents (before apply)");
 
                                             if (importResult >= IMPORT_RESULT_OK) {
                                                 String result;
@@ -268,7 +276,27 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
             newContext.apply();
         }
     }
-    
+
+    // временный диагностический лог: считает штрихкоды без sku в текущей сессии
+    private void logOrphanBarcodes(ExecutionContext<ClassPropertyInterface> context, String stage) {
+        try {
+            KeyExpr barcodeExpr = new KeyExpr("barcode");
+            ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("barcode", barcodeExpr);
+            QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
+            query.addProperty("idBarcode", findProperty("id[Barcode]").getExpr(context.getModifier(), barcodeExpr));
+            query.and(findProperty("id[Barcode]").getExpr(context.getModifier(), barcodeExpr).getWhere());
+            query.and(findProperty("sku[Barcode]").getExpr(context.getModifier(), barcodeExpr).getWhere().not());
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context);
+            StringBuilder sb = new StringBuilder();
+            for (ImMap<Object, Object> entry : result.valueIt()) {
+                sb.append(entry.get("idBarcode")).append("; ");
+            }
+            ERPLoggers.importLogger.info("=== ORPHAN BARCODES [" + stage + "]: count=" + result.size() + " ids=[" + sb + "]");
+        } catch (Exception e) {
+            ERPLoggers.importLogger.error("=== ORPHAN BARCODES [" + stage + "] check failed: ", e);
+        }
+    }
+
     private List<Pair<String, RawFileData>> unpackRARFile(RawFileData fileBytes, String extensionFilter) {
 
         List<Pair<String, RawFileData>> result = new ArrayList<>();
