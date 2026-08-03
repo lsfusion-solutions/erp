@@ -969,11 +969,14 @@ initSalesAndStocksReports () {
 
 passesSalesAndStocksModeFilter (SaleLedger l) = IF isSalesAndStocksRetailMode() THEN isRetailLedger(l) ELSE active(l);
 
+passesSalesAndStocksSupplierFilter (Sku s, Stock st) = NOT inSaleReportSupplier()
+    OR inSupplier(supplierSku(s)) OR inSupplier(supplierLastOrderBatch(s, st));
+
 passesSalesAndStocksAll (SaleLedger l) =
     active(l)
     AND inSalesReportInterval(l)
     AND passesReportStockFilter(l)
-    AND passesReportSupplierFilter(l)
+    AND passesSalesAndStocksSupplierFilter(sku(l), stock(l))
     AND passesReportSkuFilter(l)
     AND passesSalesAndStocksModeFilter(l)
     AND NOT skipSaleReport(sku(l), stock(l));
@@ -982,20 +985,31 @@ sasQty 'Количество продаж' (Sku s, Stock st) =
     GROUP SUM quantity(SaleLedger l) IF sku(l) = s AND stock(l) = st AND passesSalesAndStocksAll(l);
 
 sasFullSum 'Сумма продаж по отпускной' (Sku s, Stock st) =
-    GROUP SUM (price(SaleLedger l) * quantity(l)) IF sku(l) = s AND stock(l) = st AND passesSalesAndStocksAll(l);
+    GROUP SUM sum(SaleLedger l) IF sku(l) = s AND stock(l) = st AND passesSalesAndStocksAll(l);
 
 sasAccountSum 'Сумма продаж по учётной' (Sku s, Stock st) =
     GROUP SUM (priceSku(sku(SaleLedger l), stock(l), date(l)) * quantity(l))
         IF sku(l) = s AND stock(l) = st AND passesSalesAndStocksAll(l);
 
-sasGross 'Валовый доход' (Sku s, Stock st) = sasAccountSum(s, st) (-) sasFullSum(s, st);
+sasGross 'Валовый доход' (Sku s, Stock st) = sasFullSum(s, st) (-) sasAccountSum(s, st);
 
-sasMarkup 'Маржа, %' (Sku s, Stock st) = sasGross(s, st) * 100 / sasAccountSum(s, st);
+sasMarkup 'Маржа, %' (Sku s, Stock st) = sasGross(s, st) * 100 / sasFullSum(s, st);
 
 sasBalanceB 'Остаток' (Sku s, Stock st) = balanceB(s, st, datePriceSupplier());
 
+sasAccountPrice 'Учётная цена' (Sku s, Stock st) = priceSku(s, st, datePriceSupplier());
+
+sasRetailPrice 'Отп.цена на дату расчета остатков' (Sku s, Stock st) =
+    prevPriceB(retailPriceListType(st), s, st, DATETIME(datePriceSupplier()));
+
 sasBalanceSumSku 'Сумма остатка в учётных ценах' (Sku s, Stock st) =
-    sasBalanceB(s, st) * priceSku(s, st, datePriceSupplier());
+    sasBalanceB(s, st) * sasAccountPrice(s, st);
+
+sasBalanceSumRetail 'Сумма остатка в отпускных ценах' (Sku s, Stock st) =
+    sasBalanceB(s, st) * sasRetailPrice(s, st);
+
+sasMarkupBalance 'Маржа, % остатка' (Sku s, Stock st) =
+    (sasBalanceSumRetail(s, st) (-) sasBalanceSumSku(s, st)) * 100 / sasBalanceSumRetail(s, st);
 
 sasLastSaleLedger = GROUP LAST SaleLedger ledger
     ORDER date(ledger), ledger
@@ -1021,7 +1035,7 @@ sasDaysInPeriod () = daysBetweenDates(filterFrom(), filterTo()) + 1;
 sasTurnoverDaysSku 'Оборачиваемость (дни)' (Sku s, Stock st) =
     NUMERIC[30,2](sasBalanceB(s, st) * sasDaysInPeriod() / sasQty(s, st));
 
-sasShowRow (Sku s, Stock st) = sasQty(s, st) > 0;
+sasShowRow (Sku s, Stock st) = sasQty(s, st);
 
 FORM salesAndStocksReports 'Продажи и остатки'
     PROPERTIES() filterFrom, filterTo
@@ -1041,17 +1055,19 @@ FORM salesAndStocksReports 'Продажи и остатки'
     PROPERTIES(s) READONLY idSupplierSku, nameSupplierSku
     PROPERTIES READONLY skuCode 'Код товара' = id(s)
     PROPERTIES READONLY skuName 'Наименование товара' = name(s)
-    PROPERTIES(s) READONLY shortNameUOM, idBarcode
+    PROPERTIES(s) READONLY articleRu, shortNameUOM, idBarcode
+    PROPERTIES READONLY skuAmountPack 'Кол-во в упаковке' = Sale.amountPack(s)
     PROPERTIES (s, st) READONLY sasBalanceB, sasBalanceSumSku
-    PROPERTIES READONLY colAccountPrice 'Учётная цена' = priceSku(s, st, datePriceSupplier())
-    PROPERTIES READONLY colRetailPrice 'Отп.цена на дату расчета остатков' = prevPriceB(retailPriceListType(st), s, st, DATETIME(datePriceSupplier()))
-    PROPERTIES (s, st) READONLY sasQty, sasFullSum, sasAccountSum, sasGross, sasMarkup,
-        sasTurnoverDaysSku, sasOrderQty, sasLastSaleDate, sasLastPurchaseDate
+    PROPERTIES READONLY colAccountPrice 'Учётная цена' = sasAccountPrice(s, st)
+    PROPERTIES READONLY colRetailPrice 'Отп.цена на дату расчета остатков' = sasRetailPrice(s, st)
+    PROPERTIES (s, st) READONLY sasQty, sasFullSum, sasAccountSum, sasGross, sasMarkup, sasMarkupBalance,
+        sasTurnoverDaysSku, sasOrderQty, idSupplierLastOrderBatch, nameSupplierLastOrderBatch,
+        sasLastSaleDate, sasLastPurchaseDate
 
     ORDERS stockColumn, skuName
     FILTERS passesReportStockFilterStock(st),
         passesReportSkuFilterSku(s),
-        passesReportSupplierFilterSku(s),
+        passesSalesAndStocksSupplierFilter(s, st),
         sasShowRow(s, st),
         NOT skipSaleReport(s, st)
 
