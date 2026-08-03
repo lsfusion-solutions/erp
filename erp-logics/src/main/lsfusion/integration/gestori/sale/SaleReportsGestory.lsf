@@ -173,6 +173,8 @@ passesReportCustomerFilter (SaleLedger l) = NOT inSaleReportCustomer() OR inCust
 passesReportSkuFilter (SaleLedger l) = passesReportSkuFilterSku(sku(l));
 passesReportSupplierFilter (SaleLedger l) = passesReportSupplierFilterSku(sku(l));
 
+shipmentShowRow (SaleLedger l) = isPosted(l) AND (NOT skip(l) OR customerStock(l));
+
 shipmentIsOwnTransfer (SaleLedger l) = isCompany(customer(l));
 shipmentTransferKind 'Тип расхода' (SaleLedger l) = CASE
     WHEN NOT shipmentIsOwnTransfer(l) THEN 'Сторонний покупатель'
@@ -208,7 +210,7 @@ FORM shipmentStatementGestori 'Ведомость отгрузок'
     PROPERTIES READONLY skuGroup4 'Подгруппа' = CONCAT ' ', idSkuGroup4(sku(l)), nameSkuGroup4(sku(l))
 
     ORDERS idStock(l), date(l), nameCustomer(l), nameSku(l)
-    FILTERS active(l),
+    FILTERS shipmentShowRow(l),
         inSalesReportInterval(l),
         NOT isRetailLedger(l),
         passesReportStockFilter(l),
