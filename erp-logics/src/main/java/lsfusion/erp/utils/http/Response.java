@@ -1,6 +1,6 @@
 package lsfusion.erp.utils.http;
 
-import org.jdom.Document;
+import org.jdom2.Document;
 
 public class Response {
     public String error;
