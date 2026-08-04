@@ -67,8 +67,18 @@ nameOwnershipType 'Тип владения' (Truck t) = staticCaption(ownershipT
 sts 'Номер СТС' = DATA STRING[10](Truck);
 vin 'VIN номер' = DATA STRING[17](Truck);
 
+// документ-основание владения при аренде/лизинге (ОснАрЛиз титула Т1: реквизиты + ИНН арендодателя)
+needRentGround (Truck t) = ownershipType(t) == TruckOwnershipType.rent OR ownershipType(t) == TruckOwnershipType.leasing;
+rentDocName 'Основание владения: наименование документа' = DATA ISTRING[255](Truck) CHARWIDTH 20;
+rentDocNumber 'Основание владения: номер' = DATA ISTRING[255](Truck) CHARWIDTH 12;
+rentDocDate 'Основание владения: дата' = DATA DATE (Truck);
+rentLessorInn 'ИНН арендодателя' = DATA STRING[12](Truck) CHARWIDTH 12;
+hasRentGround (Truck t) = rentDocName(t) AND rentDocNumber(t) AND rentDocDate(t) AND rentLessorInn(t);
+
 EXTEND FORM truck
-    PROPERTIES(t) type, capacity, nameOwnershipType, sts, vin
+    PROPERTIES(t) type, capacity, nameOwnershipType, sts, vin,
+                  rentDocName SHOWIF needRentGround(t), rentDocNumber SHOWIF needRentGround(t),
+                  rentDocDate SHOWIF needRentGround(t), rentLessorInn SHOWIF needRentGround(t)
 ;
 
 DESIGN truck {
@@ -81,6 +91,14 @@ DESIGN truck {
             MOVE PROPERTY(nameOwnershipType(t));
             MOVE PROPERTY(sts(t));
             MOVE PROPERTY(vin(t));
+        }
+        NEW rentGround {
+            caption = 'Документ-основание владения (аренда/лизинг)';
+            lines = 2;
+            MOVE PROPERTY(rentDocName(t));
+            MOVE PROPERTY(rentDocNumber(t));
+            MOVE PROPERTY(rentDocDate(t));
+            MOVE PROPERTY(rentLessorInn(t));
         }
     }
 }
@@ -110,9 +128,19 @@ vin 'VIN номер' = DATA STRING[17](Trailer);
 inactive 'Неактивный' = DATA BOOLEAN (Trailer);
 active 'Активный' (Trailer t) = t IS Trailer AND NOT inactive(t);
 
+// документ-основание владения при аренде/лизинге (ОснАрЛиз титула Т1)
+needRentGround (Trailer t) = ownershipType(t) == TruckOwnershipType.rent OR ownershipType(t) == TruckOwnershipType.leasing;
+rentDocName 'Основание владения: наименование документа' = DATA ISTRING[255](Trailer) CHARWIDTH 20;
+rentDocNumber 'Основание владения: номер' = DATA ISTRING[255](Trailer) CHARWIDTH 12;
+rentDocDate 'Основание владения: дата' = DATA DATE (Trailer);
+rentLessorInn 'ИНН арендодателя' = DATA STRING[12](Trailer) CHARWIDTH 12;
+hasRentGround (Trailer t) = rentDocName(t) AND rentDocNumber(t) AND rentDocDate(t) AND rentLessorInn(t);
+
 FORM trailer 'Прицеп'
     OBJECTS t = Trailer PANEL
-    PROPERTIES(t) sid, type, nameTruckModel, weight, capacity, nameOwnershipType, sts, vin, inactive
+    PROPERTIES(t) sid, type, nameTruckModel, weight, capacity, nameOwnershipType, sts, vin, inactive,
+                  rentDocName SHOWIF needRentGround(t), rentDocNumber SHOWIF needRentGround(t),
+                  rentDocDate SHOWIF needRentGround(t), rentLessorInn SHOWIF needRentGround(t)
 
     EDIT Trailer OBJECT t
 ;
@@ -131,6 +159,14 @@ DESIGN trailer {
             MOVE PROPERTY(sts(t));
             MOVE PROPERTY(vin(t));
             MOVE PROPERTY(inactive(t));
+        }
+        NEW rentGround {
+            caption = 'Документ-основание владения (аренда/лизинг)';
+            lines = 2;
+            MOVE PROPERTY(rentDocName(t));
+            MOVE PROPERTY(rentDocNumber(t));
+            MOVE PROPERTY(rentDocDate(t));
+            MOVE PROPERTY(rentLessorInn(t));
         }
     }
 }

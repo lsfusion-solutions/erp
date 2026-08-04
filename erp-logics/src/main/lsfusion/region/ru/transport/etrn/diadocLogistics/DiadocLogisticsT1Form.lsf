@@ -44,6 +44,16 @@ GROUP t1Vehicle EXTID 'Vehicle' : t1VehicleInfo;
 GROUP t1Trailers EXTID 'Trailers' : t1VehicleInfo;
 GROUP t1TrailerG EXTID 'Trailer' : t1Trailers;
 
+// документ-основание владения при аренде/лизинге (ОснАрЛиз; обязателен при Ownership 3/4)
+GROUP t1VehicleLeasings EXTID 'LeasingOrRentGrounds' : t1Vehicle;
+GROUP t1VehicleLeasing EXTID 'LeasingOrRentGround' : t1VehicleLeasings;
+GROUP t1VehicleLeasingParties EXTID 'PartiesRequisites' : t1VehicleLeasing;
+GROUP t1VehicleLeasingParty EXTID 'PartiesRequisite' : t1VehicleLeasingParties;
+GROUP t1TrailerLeasings EXTID 'LeasingOrRentGrounds' : t1TrailerG;
+GROUP t1TrailerLeasing EXTID 'LeasingOrRentGround' : t1TrailerLeasings;
+GROUP t1TrailerLeasingParties EXTID 'PartiesRequisites' : t1TrailerLeasing;
+GROUP t1TrailerLeasingParty EXTID 'PartiesRequisite' : t1TrailerLeasingParties;
+
 GROUP t1LoadingInfo EXTID 'LoadingInfo' : t1WaybillInfo;
 GROUP t1LoadingAddress EXTID 'ActualLoadingAddress' : t1LoadingInfo;
 GROUP t1LoadingAddressL EXTID 'AddressLogisticsWaybill' : t1LoadingAddress;
@@ -51,9 +61,13 @@ GROUP t1LoadingAddressRF EXTID 'RussianAddress' : t1LoadingAddressL;
 GROUP t1LoadingParty EXTID 'LoadingPartyDetails' : t1LoadingInfo;
 GROUP t1LoadingPartyReq EXTID 'Requisites' : t1LoadingParty;
 GROUP t1LoadingPartyOrg EXTID 'OrganizationDetails' : t1LoadingPartyReq;
+// идентифицирующий реквизит ГО (обязателен при MatchingShipper=1)
+GROUP t1LoadingPartyReqShipper EXTID 'RequisitesShipper' : t1LoadingParty;
 GROUP t1LoadingOwner EXTID 'LoadingOwnerDetails' : t1LoadingInfo;
 GROUP t1LoadingOwnerReq EXTID 'Requisites' : t1LoadingOwner;
 GROUP t1LoadingOwnerOrg EXTID 'OrganizationDetails' : t1LoadingOwnerReq;
+// идентифицирующий реквизит ГО (обязателен при Type=1)
+GROUP t1LoadingOwnerReqShipper EXTID 'RequisitesShipper' : t1LoadingOwner;
 
 GROUP t1Signer EXTID 'Signer';
 GROUP t1SignerDetails EXTID 'SignerDetails' : t1Signer;
@@ -73,19 +87,19 @@ GROUP t1ItemMarks EXTID 'Marks';
 FORM diadocT1UserData FORMEXTID 'LogisticsWaybillConsignorTitle'
     OBJECTS e = ETRN PANEL
     PROPERTIES ATTR
-        t1Number = number(e) EXTID 'Number',
+        t1Number = (OVERRIDE seriesNumber(e), 'Без номера') EXTID 'Number',
         t1Date = diadocDate(date(e)) EXTID 'Date',
         t1OrderNumber = (OVERRIDE orderNumber(e), 'Без номера') EXTID 'OrderNumber',
         t1OrderDate = diadocDate(orderDate(e)) EXTID 'OrderDate'
 
     // наблюдатель (иной получатель документа) - ящик Диадока
-    PROPERTIES IN t1OtherRecipients t1ObserverBoxId = diadocBoxId(diadocObserver(e)) EXTID 'OtherRecipientId'
+    PROPERTIES IN t1OtherRecipients t1ObserverBoxId = diadocBoxIdGuid(diadocObserver(e)) EXTID 'OtherRecipientId'
 
     PROPERTIES ATTR IN t1ShipperInfo t1IsFreightForwarder = (IF forwarder(e) THEN '1' ELSE '0') EXTID 'IsFreightForwarder'
-    PROPERTIES ATTR IN t1ShipperRef t1ShipperBoxId = diadocBoxId(shipper(e)) EXTID 'BoxId'
+    PROPERTIES ATTR IN t1ShipperRef t1ShipperBoxId = diadocBoxIdGuid(shipper(e)) EXTID 'BoxId'
     PROPERTIES IN t1ShipperPhones t1ShipperPhone = phone(shipper(e)) EXTID 'Phone'
 
-    PROPERTIES ATTR IN t1ConsigneeRef t1ConsigneeBoxId = diadocBoxId(consignee(e)) EXTID 'BoxId'
+    PROPERTIES ATTR IN t1ConsigneeRef t1ConsigneeBoxId = diadocBoxIdGuid(consignee(e)) EXTID 'BoxId'
     PROPERTIES IN t1ConsigneePhones t1ConsigneePhone = phone(consignee(e)) EXTID 'Phone'
     // структурный адрес места доставки (выгружается при наличии Region+ZipCode)
     PROPERTIES ATTR IN t1DeliveryAddressRF
@@ -100,7 +114,7 @@ FORM diadocT1UserData FORMEXTID 'LogisticsWaybillConsignorTitle'
     PROPERTIES ATTR IN t1ReaddressDetails t1AccountableSide = (IF redirectPerson(e) == ETRNRedirectPerson.consignee THEN 'Consignee' ELSE 'Consignor') EXTID 'AccountableSide'
     PROPERTIES IN t1ReaddressPhones t1ReaddressPhone = redirectPhone(e) EXTID 'Phone'
 
-    PROPERTIES ATTR IN t1CarrierRef t1CarrierBoxId = diadocBoxId(carrier(e)) EXTID 'BoxId'
+    PROPERTIES ATTR IN t1CarrierRef t1CarrierBoxId = diadocBoxIdGuid(carrier(e)) EXTID 'BoxId'
     PROPERTIES IN t1CarrierPhones t1CarrierPhone = phone(carrier(e)) EXTID 'Phone'
 
     // водитель (в первой версии один)
@@ -121,6 +135,13 @@ FORM diadocT1UserData FORMEXTID 'LogisticsWaybillConsignorTitle'
         t1VehicleModel = nameTruckModel(truck(e)) EXTID 'Model',
         t1VehicleMaxWeight = NUMERIC[5,2](weight(truck(e)) / 1000) EXTID 'MaxWeight',
         t1VehicleCapacity = NUMERIC[4,2](capacity(truck(e))) EXTID 'Capacity'
+    // документ-основание владения ТС при аренде/лизинге (ОснАрЛиз)
+    PROPERTIES ATTR IN t1VehicleLeasing
+        t1VehLeaseDocName = (rentDocName(truck(e)) IF needRentGround(truck(e))) EXTID 'DocumentName',
+        t1VehLeaseDocNumber = (rentDocNumber(truck(e)) IF needRentGround(truck(e))) EXTID 'DocumentNumber',
+        t1VehLeaseDocDate = (diadocDate(rentDocDate(truck(e))) IF needRentGround(truck(e))) EXTID 'DocumentDate'
+    PROPERTIES ATTR IN t1VehicleLeasingParty
+        t1VehLeasePartyInn = (rentLessorInn(truck(e)) IF needRentGround(truck(e))) EXTID 'Inn'
     // прицеп (при наличии)
     PROPERTIES ATTR IN t1TrailerG
         t1TrailerNumber = sid(trailer(e)) EXTID 'Number',
@@ -129,6 +150,13 @@ FORM diadocT1UserData FORMEXTID 'LogisticsWaybillConsignorTitle'
         t1TrailerModel = nameTruckModel(trailer(e)) EXTID 'Model',
         t1TrailerMaxWeight = NUMERIC[5,2](weight(trailer(e)) / 1000) EXTID 'MaxWeight',
         t1TrailerCapacity = NUMERIC[4,2](capacity(trailer(e))) EXTID 'Capacity'
+    // документ-основание владения прицепом при аренде/лизинге
+    PROPERTIES ATTR IN t1TrailerLeasing
+        t1TrlLeaseDocName = (rentDocName(trailer(e)) IF needRentGround(trailer(e))) EXTID 'DocumentName',
+        t1TrlLeaseDocNumber = (rentDocNumber(trailer(e)) IF needRentGround(trailer(e))) EXTID 'DocumentNumber',
+        t1TrlLeaseDocDate = (diadocDate(rentDocDate(trailer(e))) IF needRentGround(trailer(e))) EXTID 'DocumentDate'
+    PROPERTIES ATTR IN t1TrailerLeasingParty
+        t1TrlLeasePartyInn = (rentLessorInn(trailer(e)) IF needRentGround(trailer(e))) EXTID 'Inn'
 
     PROPERTIES ATTR IN t1LoadingInfo
         t1StatedArrival = diadocDateTime(declaredSupplyDateTime(e)) EXTID 'StatedArrivalDateTime',
@@ -148,6 +176,8 @@ FORM diadocT1UserData FORMEXTID 'LogisticsWaybillConsignorTitle'
         t1LoadingStreet = (loadingStreet(e) IF hasLoadingAddress(e)) EXTID 'Street',
         t1LoadingBuilding = (loadingBuilding(e) IF hasLoadingAddress(e)) EXTID 'Building'
     PROPERTIES ATTR IN t1LoadingParty t1LoaderMatchingShipper = (IF loaderIsShipper(e) THEN '1' ELSE '2') EXTID 'MatchingShipper'
+    // идентифицирующий реквизит ГО (обязателен при MatchingShipper=1)
+    PROPERTIES ATTR IN t1LoadingPartyReqShipper t1LoaderShipperInn = (inn(shipper(e)) IF loaderIsShipper(e)) EXTID 'Inn'
     // реквизиты лица, осуществляющего погрузку (когда не грузоотправитель)
     PROPERTIES ATTR IN t1LoadingPartyOrg
         t1LoaderOrgType = (diadocOrgType(loader(e)) IF NOT loaderIsShipper(e)) EXTID 'OrgType',
@@ -157,6 +187,8 @@ FORM diadocT1UserData FORMEXTID 'LogisticsWaybillConsignorTitle'
     PROPERTIES ATTR IN t1LoadingOwner
         t1OwnerType = (IF infrastructureOwnerIsShipper(e) THEN '1' ELSE IF infrastructureOwnerUnknown(e) THEN '3' ELSE '2') EXTID 'Type',
         t1OwnerNoInfo = (infrastructureOwnerNoInfo(e) IF infrastructureOwnerUnknown(e)) EXTID 'OwnerInfoAbsenceReason'
+    // идентифицирующий реквизит ГО (обязателен при Type=1)
+    PROPERTIES ATTR IN t1LoadingOwnerReqShipper t1OwnerShipperInn = (inn(shipper(e)) IF infrastructureOwnerIsShipper(e)) EXTID 'Inn'
     // реквизиты владельца объекта инфраструктуры (когда не грузоотправитель и известен)
     PROPERTIES ATTR IN t1LoadingOwnerOrg
         t1OwnerOrgType = (diadocOrgType(infrastructureOwner(e)) IF NOT (infrastructureOwnerIsShipper(e) OR infrastructureOwnerUnknown(e))) EXTID 'OrgType',

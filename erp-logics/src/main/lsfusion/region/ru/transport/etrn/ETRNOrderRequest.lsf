@@ -30,6 +30,9 @@ shipper = DATA LegalEntity (OrderRequest);
 nameShipper 'Грузоотправитель' (OrderRequest o) = name(shipper(o)) CHARWIDTH 30;
 carrier = DATA LegalEntity (OrderRequest);
 nameCarrier 'Перевозчик' (OrderRequest o) = name(carrier(o)) CHARWIDTH 30;
+// телефон организации-перевозчика (Phones обязателен в титуле Т1; из карточки, при отправке
+// в титул подставляется и телефон представителя из ответа перевозчика, если карточка пуста)
+carrierOrgPhone 'Телефон' (OrderRequest o) = phone(carrier(o)) CHARWIDTH 15;
 
 // наши роли в заявке (по тому, кто из участников - наша компания)
 roleShipper 'Мы - грузоотправитель' (OrderRequest o) = isCompany(shipper(o));
@@ -344,8 +347,12 @@ missingOrderPoint (OrderPoint p) = CONCAT ', ',
 missingOrderPoints (OrderRequest o) = GROUP CONCAT ('пункт ' + index(OrderPoint p) + ': ' + missingOrderPoint(p)), '; ' ORDER p BY orderRequest(p);
 
 missingOrderRequestT1 (OrderRequest o) = CONCAT ', ',
+    'номер заявки' IF NOT number(o),
     'грузоотправитель' IF NOT shipper(o),
     'перевозчик' IF NOT carrier(o),
+    'телефон перевозчика' IF carrier(o) AND NOT (phone(carrier(o)) OR carrierPhone(o)),
+    'санитарные требования' IF NOT sanitary(o),
+    'требования к перевозке пищевой продукции' IF NOT food(o),
     'дата и время подачи ТС' IF NOT supplyDateTime(o),
     'адрес пункта подачи (код региона, индекс)' IF NOT hasSupplyAddress(o),
     'требуемый тип ТС' IF NOT vehicleType(o),
@@ -416,14 +423,16 @@ acceptOrderRequestAction 'Ответить на заявку (Т2)' (OrderReques
 FORM orderRequest 'Заказ-заявка'
     OBJECTS o = OrderRequest PANEL
     PROPERTIES(o) roles, nameProvider, nameExchangeStatus READONLY, providerStatus READONLY, exchangeMessage READONLY, titleFile
-    PROPERTIES(o) number, date,
+    PROPERTIES(o) number BACKGROUND (backgroundMandatory(o) IF NOT number(o)), date,
                   nameShipper BACKGROUND (backgroundMandatory(o) IF NOT shipper(o)),
                   nameCarrier BACKGROUND (backgroundMandatory(o) IF NOT carrier(o)),
+                  carrierOrgPhone BACKGROUND (backgroundMandatory(o) IF carrier(o) AND NOT (carrierOrgPhone(o) OR carrierPhone(o))),
                   signerLastName BACKGROUND (backgroundMandatory(o) IF NOT signerLastName(o)),
                   signerFirstName BACKGROUND (backgroundMandatory(o) IF NOT signerFirstName(o)),
                   signerMiddleName, signerPosition,
                   contractName, contractNumber, contractDate,
-                  sanitary, food,
+                  sanitary BACKGROUND (backgroundMandatory(o) IF NOT sanitary(o)),
+                  food BACKGROUND (backgroundMandatory(o) IF NOT food(o)),
                   supplyDateTime BACKGROUND (backgroundMandatory(o) IF NOT supplyDateTime(o)), maxSupplyDateTime,
                   supplyRegion BACKGROUND (backgroundMandatory(o) IF NOT supplyRegion(o)),
                   supplyZipCode BACKGROUND (backgroundMandatory(o) IF NOT supplyZipCode(o)),
@@ -516,6 +525,7 @@ DESIGN orderRequest {
                     horizontal = TRUE;
                     MOVE PROPERTY(nameShipper(o));
                     MOVE PROPERTY(nameCarrier(o));
+                    MOVE PROPERTY(carrierOrgPhone(o));
                 }
                 NEW signerBox AFTER partiesBox {
                     caption = 'Подписант грузоотправителя (титул Т1)';

@@ -281,6 +281,24 @@ trailerWeight 'Грузоподъёмность, кг' (ETRN e) = weight(trailer
 trailerCapacity 'Вместимость, м3' (ETRN e) = capacity(trailer(e));
 trailerOwnership 'Тип владения' (ETRN e) = nameOwnershipType(trailer(e)) CHARWIDTH 15;
 
+// телефоны участников (Phones обязательны в титуле у всех трёх организаций)
+shipperPhone 'Телефон' (ETRN e) = phone(shipper(e)) CHARWIDTH 15;
+consigneePhone 'Телефон' (ETRN e) = phone(consignee(e)) CHARWIDTH 15;
+carrierPhone 'Телефон' (ETRN e) = phone(carrier(e)) CHARWIDTH 15;
+
+// документ-основание владения при аренде/лизинге (обязателен в титуле при Ownership 3/4)
+needRentGroundTruck (ETRN e) = needRentGround(truck(e));
+truckRentDocName 'Основание владения: наименование' (ETRN e) = rentDocName(truck(e)) CHARWIDTH 20;
+truckRentDocNumber 'Основание владения: номер' (ETRN e) = rentDocNumber(truck(e)) CHARWIDTH 12;
+truckRentDocDate 'Основание владения: дата' (ETRN e) = rentDocDate(truck(e));
+truckRentLessorInn 'ИНН арендодателя' (ETRN e) = rentLessorInn(truck(e)) CHARWIDTH 12;
+
+needRentGroundTrailer (ETRN e) = needRentGround(trailer(e));
+trailerRentDocName 'Основание владения: наименование' (ETRN e) = rentDocName(trailer(e)) CHARWIDTH 20;
+trailerRentDocNumber 'Основание владения: номер' (ETRN e) = rentDocNumber(trailer(e)) CHARWIDTH 12;
+trailerRentDocDate 'Основание владения: дата' (ETRN e) = rentDocDate(trailer(e));
+trailerRentLessorInn 'ИНН арендодателя' (ETRN e) = rentLessorInn(trailer(e)) CHARWIDTH 12;
+
 // данные водителя и ТС стороннего перевозчика из входящего титула Т1
 // (в справочники Водители/Машины не заводятся - там наши сотрудники и транспорт)
 incomingDriverInfo 'Водитель (данные грузоотправителя)' = DATA ISTRING[1000](ETRN) CHARWIDTH 30;
@@ -492,18 +510,21 @@ FORM etrn 'Электронная транспортная накладная'
     OBJECTS e = ETRN PANEL
     PROPERTIES(e) nameStage, roles
     PROPERTIES(e) READONLYIF readonlyT1(e)
-                  series, number, date, time, orderNumber,
+                  series, number BACKGROUND (backgroundMandatory(e) IF NOT number(e)), date, time, orderNumber,
                   orderDate BACKGROUND (backgroundMandatory(e) IF NOT orderDate(e)),
                   nameCurrency, note,
                   nameShipper BACKGROUND (backgroundMandatory(e) IF NOT shipper(e)),
+                  shipperPhone BACKGROUND (backgroundMandatory(e) IF shipper(e) AND NOT shipperPhone(e)),
                   forwarder,
                   nameConsignee BACKGROUND (backgroundMandatory(e) IF NOT consignee(e)),
+                  consigneePhone BACKGROUND (backgroundMandatory(e) IF consignee(e) AND NOT consigneePhone(e)),
                   nameCustomerStock,
                   deliveryAddress BACKGROUND (backgroundMandatory(e) IF NOT deliveryAddress(e)),
                   deliveryRegion BACKGROUND (backgroundMandatory(e) IF NOT deliveryRegion(e)),
                   deliveryZipCode BACKGROUND (backgroundMandatory(e) IF NOT deliveryZipCode(e)),
                   deliveryCity, deliveryStreet, deliveryBuilding,
                   nameCarrier BACKGROUND (backgroundMandatory(e) IF NOT carrier(e)),
+                  carrierPhone BACKGROUND (backgroundMandatory(e) IF carrier(e) AND NOT carrierPhone(e)),
                   shortNameDriver BACKGROUND (backgroundMandatory(e) IF NOT driver(e)),
                   nameTruck BACKGROUND (backgroundMandatory(e) IF NOT truck(e)),
                   nameTrailer,
@@ -518,12 +539,20 @@ FORM etrn 'Электронная транспортная накладная'
                   truckWeight BACKGROUND (backgroundMandatory(e) IF truck(e) AND NOT truckWeight(e)),
                   truckCapacity BACKGROUND (backgroundMandatory(e) IF truck(e) AND NOT truckCapacity(e)),
                   truckOwnership BACKGROUND (backgroundMandatory(e) IF truck(e) AND NOT truckOwnership(e)),
+                  truckRentDocName SHOWIF needRentGroundTruck(e) BACKGROUND (backgroundMandatory(e) IF NOT truckRentDocName(e)),
+                  truckRentDocNumber SHOWIF needRentGroundTruck(e) BACKGROUND (backgroundMandatory(e) IF NOT truckRentDocNumber(e)),
+                  truckRentDocDate SHOWIF needRentGroundTruck(e) BACKGROUND (backgroundMandatory(e) IF NOT truckRentDocDate(e)),
+                  truckRentLessorInn SHOWIF needRentGroundTruck(e) BACKGROUND (backgroundMandatory(e) IF NOT truckRentLessorInn(e)),
                   trailerSid BACKGROUND (backgroundMandatory(e) IF trailer(e) AND NOT trailerSid(e)),
                   trailerType BACKGROUND (backgroundMandatory(e) IF trailer(e) AND NOT trailerType(e)),
                   trailerModelName BACKGROUND (backgroundMandatory(e) IF trailer(e) AND NOT trailerModelName(e)),
                   trailerWeight BACKGROUND (backgroundMandatory(e) IF trailer(e) AND NOT trailerWeight(e)),
                   trailerCapacity BACKGROUND (backgroundMandatory(e) IF trailer(e) AND NOT trailerCapacity(e)),
                   trailerOwnership BACKGROUND (backgroundMandatory(e) IF trailer(e) AND NOT trailerOwnership(e)),
+                  trailerRentDocName SHOWIF needRentGroundTrailer(e) BACKGROUND (backgroundMandatory(e) IF NOT trailerRentDocName(e)),
+                  trailerRentDocNumber SHOWIF needRentGroundTrailer(e) BACKGROUND (backgroundMandatory(e) IF NOT trailerRentDocNumber(e)),
+                  trailerRentDocDate SHOWIF needRentGroundTrailer(e) BACKGROUND (backgroundMandatory(e) IF NOT trailerRentDocDate(e)),
+                  trailerRentLessorInn SHOWIF needRentGroundTrailer(e) BACKGROUND (backgroundMandatory(e) IF NOT trailerRentLessorInn(e)),
                   incomingDriverInfo SHOWIF incomingDriverInfo(e), incomingVehicleInfo SHOWIF incomingVehicleInfo(e),
                   banReload, transportInstructions, deliveryDateTime, deliveryPeriod,
                   seals, speedLimits, route,
@@ -626,11 +655,13 @@ DESIGN etrn {
                             caption = 'Грузоотправитель';
                             horizontal = TRUE;
                             MOVE PROPERTY(nameShipper(e));
+                            MOVE PROPERTY(shipperPhone(e));
                             MOVE PROPERTY(forwarder(e));
                         }
                         NEW consigneeBox {
                             caption = 'Грузополучатель';
                             MOVE PROPERTY(nameConsignee(e));
+                            MOVE PROPERTY(consigneePhone(e));
                             MOVE PROPERTY(nameCustomerStock(e));
                             MOVE PROPERTY(deliveryAddress(e));
                             NEW deliveryStructAddress {
@@ -648,6 +679,7 @@ DESIGN etrn {
                             NEW carrierRow {
                                 horizontal = TRUE;
                                 MOVE PROPERTY(nameCarrier(e));
+                                MOVE PROPERTY(carrierPhone(e));
                                 MOVE PROPERTY(shortNameDriver(e));
                                 MOVE PROPERTY(nameTruck(e));
                                 MOVE PROPERTY(nameTrailer(e));
@@ -671,6 +703,14 @@ DESIGN etrn {
                                 MOVE PROPERTY(truckCapacity(e));
                                 MOVE PROPERTY(truckOwnership(e));
                             }
+                            NEW truckRentBox {
+                                caption = 'ТС: документ-основание владения (аренда/лизинг)';
+                                horizontal = TRUE;
+                                MOVE PROPERTY(truckRentDocName(e));
+                                MOVE PROPERTY(truckRentDocNumber(e));
+                                MOVE PROPERTY(truckRentDocDate(e));
+                                MOVE PROPERTY(truckRentLessorInn(e));
+                            }
                             NEW trailerReqBox {
                                 caption = 'Прицеп (обязательные реквизиты, если указан)';
                                 horizontal = TRUE;
@@ -680,6 +720,14 @@ DESIGN etrn {
                                 MOVE PROPERTY(trailerWeight(e));
                                 MOVE PROPERTY(trailerCapacity(e));
                                 MOVE PROPERTY(trailerOwnership(e));
+                            }
+                            NEW trailerRentBox {
+                                caption = 'Прицеп: документ-основание владения (аренда/лизинг)';
+                                horizontal = TRUE;
+                                MOVE PROPERTY(trailerRentDocName(e));
+                                MOVE PROPERTY(trailerRentDocNumber(e));
+                                MOVE PROPERTY(trailerRentDocDate(e));
+                                MOVE PROPERTY(trailerRentLessorInn(e));
                             }
                             NEW incomingInfoRow {
                                 horizontal = TRUE;
