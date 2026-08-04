@@ -161,17 +161,30 @@ providerStatus 'Статус документооборота (провайде�
 titleFile 'Файл титула (XML)' = DATA FILE (OrderRequest);
 titleImportedDateTime 'Дата/время загрузки данных титула' = DATA DATETIME (OrderRequest);
 
+// файл титула Т2 (ответ перевозчика, ЗАКЗВПЕР) и признак загрузки его данных
+t2File 'Файл титула Т2 (XML)' = DATA FILE (OrderRequest);
+t2ImportedDateTime 'Дата/время загрузки ответа (Т2)' = DATA DATETIME (OrderRequest);
+
 // абстракции обмена (реализуются модулями провайдеров);
 // действия-обёртки с проверкой обязательных полей - ниже, после объявлений пунктов и строк
 sendOrderRequest 'Подписать и отправить заявку (Т1)' ABSTRACT CASE (OrderRequest);          // грузоотправитель
 acceptOrderRequest 'Подписать и отправить ответ на заявку (Т2)' ABSTRACT CASE (OrderRequest);  // перевозчик
 importOrderRequestData 'Загрузить данные титула' ABSTRACT CASE (OrderRequest);   // скачивание XML титула Т1 + разбор (реализация - у провайдера)
+importOrderRequestT2Data 'Загрузить ответ перевозчика (Т2)' ABSTRACT CASE (OrderRequest);   // скачивание XML титула Т2 + разбор (реализация - у провайдера)
 
 // загрузка полного состава входящих заявок из титула Т1 - для планировщика / кнопки
 // (реализация провайдера сама ставит titleImportedDateTime при успешной загрузке)
 processIncomingOrderRequests 'Загрузить данные входящих заявок' () {
     FOR OrderRequest o IS OrderRequest AND NOT roleShipper(o) AND NOT titleImportedDateTime(o) AND provider(o) DO
         importOrderRequestData(o);
+}
+
+// загрузка ответов перевозчиков (Т2) по нашим заявкам с завершённым документооборотом -
+// для планировщика / кнопки (реализация провайдера ставит t2ImportedDateTime при успешной загрузке)
+processOrderRequestsT2 'Загрузить ответы перевозчиков (Т2)' () {
+    FOR OrderRequest o IS OrderRequest AND roleShipper(o) AND NOT t2ImportedDateTime(o) AND
+        exchangeStatus(o) == ETRNExchangeStatus.completed AND provider(o) DO
+        importOrderRequestT2Data(o);
 }
 
 // ------------------------- Пункты маршрута ------------------------- //
@@ -654,8 +667,9 @@ FORM orderRequests 'Заказы-заявки'
     PROPERTIES(o) READONLY number, date, roles, nameShipper, nameCarrier,
                            accepted, feeTotal, nameProvider, nameExchangeStatus, providerStatus, closed
     PROPERTIES(o) sendOrderRequestAction SHOWIF roleShipper(o),
-                  acceptOrderRequestAction SHOWIF roleCarrier(o)
-    PROPERTIES processIncomingOrderRequests() DRAW o
+                  acceptOrderRequestAction SHOWIF roleCarrier(o),
+                  importOrderRequestT2Data SHOWIF roleShipper(o)
+    PROPERTIES processIncomingOrderRequests() DRAW o, processOrderRequestsT2() DRAW o
     PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
     ORDERS date(o) DESC
 
@@ -695,7 +709,9 @@ DESIGN orderRequests {
             horizontal = TRUE;
             MOVE PROPERTY(sendOrderRequestAction(o));
             MOVE PROPERTY(acceptOrderRequestAction(o));
+            MOVE PROPERTY(importOrderRequestT2Data(o));
             MOVE PROPERTY(processIncomingOrderRequests());
+            MOVE PROPERTY(processOrderRequestsT2());
         }
     }
 }

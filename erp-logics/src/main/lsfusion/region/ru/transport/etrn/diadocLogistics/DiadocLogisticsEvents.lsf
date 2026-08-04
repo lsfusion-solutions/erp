@@ -31,6 +31,8 @@ docFunction 'Функция документа' = DATA STRING[20](ETRN.ETRNEvent
 titleAuthorStatus 'Статус титула' = DATA STRING[50](ETRN.ETRNEvent, INTEGER);
 // отказ участника от подписания титула (TitleParticipantResponseStatusSignatureRejected)
 titleRejected 'Отказ по титулу' = DATA BOOLEAN (ETRN.ETRNEvent, INTEGER);
+// ИД сущности титула по слоту - для скачивания контента ответных титулов (GetEntityContent)
+titleEntityId 'ИД сущности титула' = DATA STRING[100](ETRN.ETRNEvent, INTEGER);
 
 // привязка события к заказу-заявке (аналог etrn(ETRNEvent) для ЭТрН)
 orderRequest = DATA ETRN.OrderRequest (ETRN.ETRNEvent);
@@ -120,6 +122,7 @@ valueCDE = DATA LOCAL STRING (INTEGER);
 // титулы (Docflow.Titles)
 eventTitleE = DATA LOCAL INTEGER (INTEGER);         // титул -> событие
 titleIndexE = DATA LOCAL INTEGER (INTEGER);
+titleEntityIdE = DATA LOCAL STRING (INTEGER);       // ИД сущности титула (для GetEntityContent)
 authorStatusE = DATA LOCAL STRING (INTEGER);        // TitleAuthorStatusV5
 authorFinishedE = DATA LOCAL BOOLEAN (INTEGER);
 
@@ -157,7 +160,8 @@ FORM importDocflowEvents
 
     OBJECTS tt = INTEGER IN evDocflow EXTID 'Titles'
     FILTERS eventTitleE(tt) == ev
-    PROPERTIES(tt) titleIndexE EXTID 'TitleIndex'
+    // TODO: имя поля ИД сущности титула (EntityId) сверить на тестовой площадке
+    PROPERTIES(tt) titleIndexE EXTID 'TitleIndex', titleEntityIdE EXTID 'EntityId'
     PROPERTIES(tt) IN tAuthorSigning authorStatusE EXTID 'Status', authorFinishedE EXTID 'IsFinished'
 
     OBJECTS pr = INTEGER EXTID 'ParticipantDocflows'
@@ -250,6 +254,7 @@ importDocflowEventsPage (User u, Box b) {
             FOR eventTitleE(INTEGER tt) == i DO {
                 titleAuthorStatus(ev, titleIndexE(tt)) <- STRING[50](authorStatusE(tt));
                 titleRejected(ev, titleIndexE(tt)) <- TRUE IF titleRejectedE(tt);
+                titleEntityId(ev, titleIndexE(tt)) <- STRING[100](titleEntityIdE(tt));
             }
         }
 

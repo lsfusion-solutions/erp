@@ -49,3 +49,53 @@ ETRN.importOrderRequestData (ETRN.OrderRequest o) + WHEN ETRN.provider(o) == ETR
         diadocImportOrderRequestData(o);
     }
 }
+
+// ------------------------- Ответ перевозчика (титул Т2, ЗАКЗВПЕР) ------------------------- //
+// ИД сущности титула Т2 (слот 1) - из журнала docflow-событий заявки
+
+orderT2EntityId (ETRN.OrderRequest o) = GROUP LAST titleEntityId(ETRN.ETRNEvent ev, 1) ORDER ETRN.dateTime(ev), ev BY orderRequest(ev);
+
+diadocImportOrderRequestT2Data (ETRN.OrderRequest o) {
+    IF NOT orderDocMessageId(o) THEN {
+        MESSAGE 'Нет документа заказа-заявки в Диадоке (события не получены)';
+        RETURN;
+    }
+    IF NOT orderT2EntityId(o) THEN {
+        MESSAGE 'Не известен ИД титула Т2 (ответа перевозчика) - выполните приём и обработку событий ЭПД';
+        RETURN;
+    }
+    IF NOT orderBoxId(o) THEN {
+        MESSAGE 'Не найден ящик Диадока нашей организации-участника заявки';
+        RETURN;
+    }
+
+    FOR User u == userDiadocETRN() DO {
+        getToken(u);
+
+        // XML титула Т2 заявки (формат приказа ФНС, ЗАКЗВПЕР)
+        LOCAL data = RAWFILE ();
+        TRY {
+            EXTERNAL HTTP GET url() + '/GetEntityContent?boxId=' + orderBoxId(o) +
+                '&messageId=' + orderDocMessageId(o) + '&entityId=' + orderT2EntityId(o)
+                HEADERS httpHeadersToken TO data;
+        } CATCH {
+            fileToString(FILE(data()), 'UTF-8');
+            MESSAGE 'Ошибка получения контента титула Т2 (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+            RETURN;
+        }
+
+        ETRN.t2File(o) <- file(data(), 'xml');
+
+        // разбор ответа перевозчика в поля заявки (parseOrderRequestT2Xml выполняет свой APPLY)
+        ETRN.parseOrderRequestT2Xml(o);
+
+        ETRN.t2ImportedDateTime(o) <- currentDateTime();
+        APPLY;
+    }
+}
+
+ETRN.importOrderRequestT2Data (ETRN.OrderRequest o) + WHEN ETRN.provider(o) == ETRN.ETRNProvider.diadoc THEN {
+    NEWSESSION {
+        diadocImportOrderRequestT2Data(o);
+    }
+}

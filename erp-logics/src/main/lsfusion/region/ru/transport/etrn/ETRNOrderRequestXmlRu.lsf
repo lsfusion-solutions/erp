@@ -255,14 +255,214 @@ parseOrderRequestTitleXml 'Импортировать титул заявки и
     APPLY;
 }
 
+// ------------------------- Разбор титула Т2 (ЗАКЗВПЕР, ответ перевозчика) ------------------------- //
+// Заполняет ответную часть нашей заявки: принятие/отказ, телефон представителя, водителя,
+// ТС, прицеп и стоимость перевозки. Водитель ищется по ВУ либо ИНН, ТС/прицеп - по рег. номеру;
+// не найденные создаются в справочниках с реквизитами из титула.
+// Провайдер кладёт входящий XML в t2File(OrderRequest) и вызывает parseOrderRequestT2Xml.
+
+// СодИнфПрв
+impR2Oper = DATA LOCAL STRING ();       // СодОпер
+impR2Reject = DATA LOCAL STRING ();     // ПричОтк
+
+// СвЛицОргПрвз (представитель перевозчика)
+impR2OrgPhone = DATA LOCAL STRING ();
+
+// СвВодит
+impR2VodPhone = DATA LOCAL STRING ();
+impR2VodLast = DATA LOCAL STRING ();
+impR2VodFirst = DATA LOCAL STRING ();
+impR2VodMiddle = DATA LOCAL STRING ();
+impR2VodSer = DATA LOCAL STRING ();
+impR2VodNum = DATA LOCAL STRING ();
+impR2VodDate = DATA LOCAL STRING ();
+impR2VodInn = DATA LOCAL STRING ();
+
+// ТС / Прицеп (ПараметрыТСТип)
+impR2TSReg = DATA LOCAL STRING ();
+impR2TSVlad = DATA LOCAL STRING ();
+impR2TSType = DATA LOCAL STRING ();
+impR2TSBrand = DATA LOCAL STRING ();
+impR2TSGruzopod = DATA LOCAL STRING ();
+impR2TSVmest = DATA LOCAL STRING ();
+impR2TSSts = DATA LOCAL STRING ();
+impR2TSVin = DATA LOCAL STRING ();
+impR2PrReg = DATA LOCAL STRING ();
+impR2PrVlad = DATA LOCAL STRING ();
+impR2PrType = DATA LOCAL STRING ();
+impR2PrBrand = DATA LOCAL STRING ();
+impR2PrGruzopod = DATA LOCAL STRING ();
+impR2PrVmest = DATA LOCAL STRING ();
+impR2PrSts = DATA LOCAL STRING ();
+impR2PrVin = DATA LOCAL STRING ();
+
+// РазмПлатРасчет (стоимость перевозки)
+impR2FeeNoVat = DATA LOCAL STRING ();
+impR2FeeRate = DATA LOCAL STRING ();
+impR2FeeTotal = DATA LOCAL STRING ();
+impR2FeeCalc = DATA LOCAL STRING ();
+
+GROUP impR2Doc EXTID 'Документ';
+GROUP impR2Content EXTID 'СодИнфПрв' : impR2Doc;
+GROUP impR2Org EXTID 'СвЛицОргПрвз' : impR2Content;
+GROUP impR2Vodit EXTID 'СвВодит' : impR2Content;
+GROUP impR2VoditFIO EXTID 'ФИО' : impR2Vodit;
+GROUP impR2TS EXTID 'СвТС' : impR2Content;
+GROUP impR2TSTS EXTID 'ТС' : impR2TS;
+GROUP impR2Pricep EXTID 'Прицеп' : impR2TS;
+GROUP impR2Pay EXTID 'РазмПлатРасчет' : impR2Content;
+
+FORM orderRequestT2XmlImport
+    PROPERTIES IN impR2Content
+        impR2Oper() EXTID 'СодОпер' ATTR,
+        impR2Reject() EXTID 'ПричОтк' ATTR
+
+    PROPERTIES IN impR2Org impR2OrgPhone() EXTID 'Тлф'
+
+    PROPERTIES IN impR2Vodit
+        impR2VodPhone() EXTID 'Тлф',
+        impR2VodSer() EXTID 'СерВУ' ATTR,
+        impR2VodNum() EXTID 'НомВУ' ATTR,
+        impR2VodDate() EXTID 'ДатаВыдВУ' ATTR,
+        impR2VodInn() EXTID 'ИННФЛ' ATTR
+    PROPERTIES IN impR2VoditFIO
+        impR2VodLast() EXTID 'Фамилия' ATTR,
+        impR2VodFirst() EXTID 'Имя' ATTR,
+        impR2VodMiddle() EXTID 'Отчество' ATTR
+
+    PROPERTIES IN impR2TSTS
+        impR2TSReg() EXTID 'РегНомер' ATTR,
+        impR2TSVlad() EXTID 'ТипВлад' ATTR,
+        impR2TSType() EXTID 'Тип' ATTR,
+        impR2TSBrand() EXTID 'Марка' ATTR,
+        impR2TSGruzopod() EXTID 'Грузопод' ATTR,
+        impR2TSVmest() EXTID 'Вместим' ATTR,
+        impR2TSSts() EXTID 'НомСТС' ATTR,
+        impR2TSVin() EXTID 'НомерВИН' ATTR
+    PROPERTIES IN impR2Pricep
+        impR2PrReg() EXTID 'РегНомер' ATTR,
+        impR2PrVlad() EXTID 'ТипВлад' ATTR,
+        impR2PrType() EXTID 'Тип' ATTR,
+        impR2PrBrand() EXTID 'Марка' ATTR,
+        impR2PrGruzopod() EXTID 'Грузопод' ATTR,
+        impR2PrVmest() EXTID 'Вместим' ATTR,
+        impR2PrSts() EXTID 'НомСТС' ATTR,
+        impR2PrVin() EXTID 'НомерВИН' ATTR
+
+    PROPERTIES IN impR2Pay
+        impR2FeeNoVat() EXTID 'СтТовБезНДС' ATTR,
+        impR2FeeRate() EXTID 'НалСт' ATTR,
+        impR2FeeTotal() EXTID 'СтТовУчНал' ATTR,
+        impR2FeeCalc() EXTID 'Расчет' ATTR
+;
+
+// поиск в справочниках
+truckBySid = GROUP MAX Truck t BY sid(t);
+trailerBySid = GROUP MAX Trailer t BY sid(t);
+driverByLicense = GROUP MAX Driver d BY licenseSeries(d), licenseNumber(d);
+driverByInn = GROUP MAX Driver d BY inn(d);
+truckModelByName = GROUP MAX TruckModel m BY name(m);
+
+parseOrderRequestT2Xml 'Импортировать ответ перевозчика из файла' (OrderRequest o) {
+    IF NOT t2File(o) THEN {
+        MESSAGE 'К заявке не приложен файл титула Т2 (XML)';
+        RETURN;
+    }
+
+    NEWSESSION {
+        IMPORT orderRequestT2XmlImport XML FROM t2File(o);
+
+        // принятие / отказ, телефон представителя
+        accepted(o) <- TRUE IF NOT impR2Reject();
+        rejectionReason(o) <- ISTRING[1000](impR2Reject());
+        carrierPhone(o) <- ISTRING[100](OVERRIDE impR2OrgPhone(), impR2VodPhone());
+
+        // стоимость перевозки
+        feeNoVat(o) <- NUMERIC[18,2](impR2FeeNoVat());
+        feeTaxRate(o) <- ISTRING[20](impR2FeeRate());
+        feeTotal(o) <- NUMERIC[18,2](impR2FeeTotal());
+        feeCalculations(o) <- ISTRING[255](impR2FeeCalc());
+
+        // водитель: поиск по ВУ либо ИНН, при отсутствии - создание
+        IF impR2VodLast() THEN {
+            LOCAL foundDriver = Driver ();
+            foundDriver() <- OVERRIDE driverByLicense(STRING[20](impR2VodSer()), STRING[20](impR2VodNum())),
+                             driverByInn(STRING[12](impR2VodInn()));
+            IF NOT foundDriver() THEN NEW nd = Driver {
+                foundDriver() <- nd;
+            }
+            FOR Driver dr == foundDriver() DO {
+                lastName(dr) <- BPISTRING[100](impR2VodLast());
+                firstName(dr) <- BPISTRING[100](CONCAT ' ', impR2VodFirst(), impR2VodMiddle());
+                licenseSeries(dr) <- STRING[20](impR2VodSer());
+                licenseNumber(dr) <- STRING[20](impR2VodNum());
+                licenseDate(dr) <- DATE(toDateFormat(impR2VodDate(), 'DD.MM.YYYY'));
+                inn(dr) <- STRING[12](impR2VodInn());
+                phone(dr) <- STRING[100](impR2VodPhone()) WHERE impR2VodPhone();
+                driver(o) <- dr;
+            }
+        }
+
+        // транспортное средство: поиск по рег. номеру, при отсутствии - создание
+        IF impR2TSReg() THEN {
+            IF impR2TSBrand() AND NOT truckModelByName(ISTRING[50](impR2TSBrand())) THEN NEW m = TruckModel {
+                name(m) <- ISTRING[50](impR2TSBrand());
+            }
+            LOCAL foundTruck = Truck ();
+            foundTruck() <- truckBySid(ISTRING[20](impR2TSReg()));
+            IF NOT foundTruck() THEN NEW nt = Truck {
+                foundTruck() <- nt;
+                sid(nt) <- ISTRING[20](impR2TSReg());
+            }
+            FOR Truck tr == foundTruck() DO {
+                truckModel(tr) <- truckModelByName(ISTRING[50](impR2TSBrand())) WHERE impR2TSBrand();
+                type(tr) <- ISTRING[100](impR2TSType());
+                ownershipType(tr) <- truckOwnershipType(INTEGER(impR2TSVlad())) WHERE impR2TSVlad();
+                weight(tr) <- NUMERIC[16,4](impR2TSGruzopod()) * 1000;   // Грузопод - в тоннах, храним в кг
+                capacity(tr) <- NUMERIC[16,5](impR2TSVmest());
+                sts(tr) <- STRING[10](impR2TSSts());
+                vin(tr) <- STRING[17](impR2TSVin());
+                truck(o) <- tr;
+            }
+        }
+
+        // прицеп: поиск по рег. номеру, при отсутствии - создание
+        IF impR2PrReg() THEN {
+            IF impR2PrBrand() AND NOT truckModelByName(ISTRING[50](impR2PrBrand())) THEN NEW m = TruckModel {
+                name(m) <- ISTRING[50](impR2PrBrand());
+            }
+            LOCAL foundTrailer = Trailer ();
+            foundTrailer() <- trailerBySid(ISTRING[9](impR2PrReg()));
+            IF NOT foundTrailer() THEN NEW ntr = Trailer {
+                foundTrailer() <- ntr;
+                sid(ntr) <- ISTRING[9](impR2PrReg());
+            }
+            FOR Trailer tl == foundTrailer() DO {
+                truckModel(tl) <- truckModelByName(ISTRING[50](impR2PrBrand())) WHERE impR2PrBrand();
+                type(tl) <- ISTRING[100](impR2PrType());
+                ownershipType(tl) <- truckOwnershipType(INTEGER(impR2PrVlad())) WHERE impR2PrVlad();
+                weight(tl) <- NUMERIC[16,4](impR2PrGruzopod()) * 1000;
+                capacity(tl) <- NUMERIC[16,5](impR2PrVmest());
+                sts(tl) <- STRING[10](impR2PrSts());
+                vin(tl) <- STRING[17](impR2PrVin());
+                trailer(o) <- tl;
+            }
+        }
+
+        APPLY;
+    }
+}
+
 // кнопка ручного импорта из файла (по аналогии с parseETRNTitleXml на списке ЭТрН)
 EXTEND FORM orderRequests
-    PROPERTIES(o) READONLY titleImportedDateTime
-    PROPERTIES(o) parseOrderRequestTitleXml SHOWIF (roleCarrier(o) AND titleFile(o))
+    PROPERTIES(o) READONLY titleImportedDateTime, t2ImportedDateTime
+    PROPERTIES(o) parseOrderRequestTitleXml SHOWIF (roleCarrier(o) AND titleFile(o)),
+                  parseOrderRequestT2Xml SHOWIF (roleShipper(o) AND t2File(o))
 ;
 
 DESIGN orderRequests {
     actionsTab {
         MOVE PROPERTY(parseOrderRequestTitleXml(o));
+        MOVE PROPERTY(parseOrderRequestT2Xml(o));
     }
 }
