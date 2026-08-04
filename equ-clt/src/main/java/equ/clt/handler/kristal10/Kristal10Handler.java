@@ -9,11 +9,11 @@ import lsfusion.base.Pair;
 import lsfusion.base.file.RawFileData;
 import lsfusion.base.file.WriteUtils;
 import org.apache.commons.io.FileUtils;
-import org.jdom.Document;
-import org.jdom.Element;
-import org.jdom.input.SAXBuilder;
-import org.jdom.output.Format;
-import org.jdom.output.XMLOutputter;
+import org.jdom2.Document;
+import org.jdom2.Element;
+import org.jdom2.input.SAXBuilder;
+import org.jdom2.output.Format;
+import org.jdom2.output.XMLOutputter;
 import org.json.JSONObject;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
