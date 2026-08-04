@@ -45,10 +45,10 @@ signerMiddleName 'Подписант: отчество' = DATA ISTRING[60](Order
 signerPosition 'Подписант: должность' = DATA ISTRING[128](OrderRequest);
 
 WHEN LOCAL CHANGED(shipper(OrderRequest o)) DO {
-    signerLastName(o) <- signerLastName(shipper(o)) WHERE signerLastName(shipper(o));
-    signerFirstName(o) <- signerFirstName(shipper(o)) WHERE signerFirstName(shipper(o));
-    signerMiddleName(o) <- signerMiddleName(shipper(o)) WHERE signerMiddleName(shipper(o));
-    signerPosition(o) <- signerPosition(shipper(o)) WHERE signerPosition(shipper(o));
+    signerLastName(o) <- overSignerLastName(shipper(o)) WHERE overSignerLastName(shipper(o));
+    signerFirstName(o) <- overSignerFirstName(shipper(o)) WHERE overSignerFirstName(shipper(o));
+    signerMiddleName(o) <- overSignerMiddleName(shipper(o)) WHERE overSignerMiddleName(shipper(o));
+    signerPosition(o) <- overSignerPosition(shipper(o)) WHERE overSignerPosition(shipper(o));
 }
 
 // ------------------------- Реквизиты заявки (Т1 грузоотправителя) ------------------------- //
@@ -292,10 +292,10 @@ divisible 'Груз делимый' = DATA BOOLEAN (OrderDetail);
 
 // пункт выгрузки строки груза (мультимаршрут: груз строки едет на этот пункт;
 // по нему выгружается связь груз-пункт в титул и формируется отдельная ЭТрН)
-unloadingPoint 'Пункт выгрузки' = DATA OrderPoint (OrderDetail);
+unloadingPoint 'Маршрут' = DATA OrderPoint (OrderDetail);
 concatName (OrderPoint o) = CONCAT ' ', ('№' + index(o)), address(o) CHARWIDTH 20;
 
-nameUnloadingPoint 'Пункт выгрузки' (OrderDetail d) = concatName(unloadingPoint(d)) CHARWIDTH 20;
+nameUnloadingPoint 'Маршрут' (OrderDetail d) = concatName(unloadingPoint(d)) CHARWIDTH 20;
 
 CONSTRAINT unloadingPoint(OrderDetail d) AND
     (orderRequest(unloadingPoint(d)) != orderRequest(d) OR operation(unloadingPoint(d)) != OrderPointOperation.unloading)
@@ -386,7 +386,7 @@ missingOrderRequestT2 (OrderRequest o) = CONCAT ', ',
     'марка прицепа' IF trailer(o) AND NOT truckModel(trailer(o)),
     'грузоподъёмность прицепа' IF trailer(o) AND NOT weight(trailer(o)),
     'вместимость прицепа' IF trailer(o) AND NOT capacity(trailer(o)),
-    'подписант перевозчика (ФИО)' IF carrier(o) AND NOT (signerLastName(carrier(o)) AND signerFirstName(carrier(o)));
+    'подписант перевозчика (ФИО)' IF carrier(o) AND NOT (overSignerLastName(carrier(o)) AND overSignerFirstName(carrier(o)));
 
 checkOrderRequestT2 (OrderRequest o) {
     IF missingOrderRequestT2(o) THEN

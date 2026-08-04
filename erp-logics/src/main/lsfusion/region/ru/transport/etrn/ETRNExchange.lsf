@@ -83,11 +83,25 @@ nextActionOur (ETRN e) = OVERRIDE overNextActionOur(e), nextActionOurFlow(e);
 
 backgroundNextAction (ETRN e) = RGB(255, 246, 205) IF nextActionOur(e);
 
-// подписант организации (справочное значение - источник по умолчанию для документов)
+// подписант организации (справочное значение - источник по умолчанию для документов):
+// выбирается из сотрудников; первичные поля позволяют поправить реквизиты вручную -
+// ручное значение приоритетнее данных выбранного сотрудника (OVERRIDE)
+signer 'Подписант ЭПД (сотрудник)' = DATA Employee (LegalEntity);
+nameSigner 'Подписант ЭПД (сотрудник)' (LegalEntity l) = shortName(signer(l)) CHARWIDTH 20;
+
 signerLastName 'Подписант: фамилия' = DATA ISTRING[60](LegalEntity);
 signerFirstName 'Подписант: имя' = DATA ISTRING[60](LegalEntity);
 signerMiddleName 'Подписант: отчество' = DATA ISTRING[60](LegalEntity);
 signerPosition 'Подписант: должность' = DATA ISTRING[128](LegalEntity);
+
+// итоговые реквизиты подписанта; отчество - второе слово поля "Имя" сотрудника.
+// Имя нормализуется по пробелам: между словами могут ввести два-три пробела
+normalizedFirstNameSigner (LegalEntity l) = regexpReplace(trim(firstName(signer(l))), ' +', ' ', 'g');
+
+overSignerLastName 'Подписант: фамилия' (LegalEntity l) = OVERRIDE signerLastName(l), ISTRING[60](lastName(signer(l)));
+overSignerFirstName 'Подписант: имя' (LegalEntity l) = OVERRIDE signerFirstName(l), ISTRING[60](getWord(normalizedFirstNameSigner(l), ' ', 1));
+overSignerMiddleName 'Подписант: отчество' (LegalEntity l) = OVERRIDE signerMiddleName(l), ISTRING[60](getWord(normalizedFirstNameSigner(l), ' ', 2));
+overSignerPosition 'Подписант: должность' (LegalEntity l) = OVERRIDE signerPosition(l), ISTRING[128](namePosition(signer(l)));
 
 // подписант титулов документа (первичные поля; заполняются из карточки грузоотправителя,
 // можно поправить на конкретной ЭТрН - используются в наших титулах Т1/Т3/Т6)
@@ -97,14 +111,14 @@ signerMiddleName 'Подписант: отчество' = DATA ISTRING[60](ETRN)
 signerPosition 'Подписант: должность' = DATA ISTRING[128](ETRN);
 
 WHEN LOCAL CHANGED(shipper(ETRN e)) DO {
-    signerLastName(e) <- signerLastName(shipper(e)) WHERE signerLastName(shipper(e));
-    signerFirstName(e) <- signerFirstName(shipper(e)) WHERE signerFirstName(shipper(e));
-    signerMiddleName(e) <- signerMiddleName(shipper(e)) WHERE signerMiddleName(shipper(e));
-    signerPosition(e) <- signerPosition(shipper(e)) WHERE signerPosition(shipper(e));
+    signerLastName(e) <- overSignerLastName(shipper(e)) WHERE overSignerLastName(shipper(e));
+    signerFirstName(e) <- overSignerFirstName(shipper(e)) WHERE overSignerFirstName(shipper(e));
+    signerMiddleName(e) <- overSignerMiddleName(shipper(e)) WHERE overSignerMiddleName(shipper(e));
+    signerPosition(e) <- overSignerPosition(shipper(e)) WHERE overSignerPosition(shipper(e));
 }
 
 EXTEND FORM legalEntity
-    PROPERTIES(l) signerLastName, signerFirstName, signerMiddleName, signerPosition
+    PROPERTIES(l) nameSigner, overSignerLastName, overSignerFirstName, overSignerMiddleName, overSignerPosition
 ;
 
 DESIGN legalEntity {
@@ -113,10 +127,11 @@ DESIGN legalEntity {
             caption = 'ЭТрН';
             fill = 1;
             lines = 2;
-            MOVE PROPERTY(signerLastName(l));
-            MOVE PROPERTY(signerFirstName(l));
-            MOVE PROPERTY(signerMiddleName(l));
-            MOVE PROPERTY(signerPosition(l));
+            MOVE PROPERTY(nameSigner(l));
+            MOVE PROPERTY(overSignerLastName(l));
+            MOVE PROPERTY(overSignerFirstName(l));
+            MOVE PROPERTY(overSignerMiddleName(l));
+            MOVE PROPERTY(overSignerPosition(l));
         }
     }
 }
