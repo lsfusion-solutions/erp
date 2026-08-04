@@ -143,8 +143,8 @@ importProductItemsGestori 'Импорт номенклатуры Ветис' () 
         itemLocalGuidFirmProducer, itemLocalGuidFirmOwner,
         itemLocalName, itemLocalCode, itemLocalGtin, itemLocalCodGood;
 
-    FOR itemLocalGuidItemProd(INTEGER i) AND NOT productItem(itemLocalGuidItemProd(i)) DO NEW p = ProductItem {
-        guid(p) <- itemLocalGuidItemProd(i);
+    FOR [GROUP MIN INTEGER i BY itemLocalGuidItemProd(i)](STRING str) AND NOT productItem(str) DO NEW p = ProductItem {
+        guid(p) <- str;
     }
 
     skipOwnConstraint() <- TRUE;
@@ -199,16 +199,16 @@ importStockEntriesGestori 'Импорт записей журнала Ветис
     APPLY;
 }
 
+vetisVsdDateFrom 'Дата ВСД (с)' = DATA DATE ();
+
 // --- Блок 8: ВСД из MercVetDoc ---
-// Внимание: имена столбцов (GuidConsignorFirm и т.д.) — предположения,
-// уточните по фактической схеме Pub.MercVetDoc.
 
 importVetDocumentsGestori 'Импорт ВСД Ветис' () {
     LOCAL file = FILE();
 
     EXTERNAL SQL vetisDbUrl()
         EXEC 'SELECT UuidDoc, DocIssueDate, DocStatus, DocType, ' +
-             'GuidConsignorFirm, GuidConsignorArea, GuidConsigneeFirm, GuidConsigneeArea, ' +
+             'GuidFirmConsignor, GuidAreaConsignor, GuidFirmConsignee, GuidAreaConsignee, ' +
              'GuidItemProd, Volume, GuidStockEntry, DocSeries, DocNumber ' +
              'FROM Pub.MercVetDoc'
         TO file;
@@ -255,6 +255,138 @@ importVetDocumentsGestori 'Импорт ВСД Ветис' () {
     }
 
     APPLY;
+}
+
+importFilteredVetDocumentsGestori 'Импорт ВСД Ветис (по дате)' () {
+    IF NOT vetisVsdDateFrom() THEN {
+        MESSAGE 'Укажите дату ВСД (с)';
+        RETURN;
+    }
+
+    LOCAL file = FILE();
+
+    EXTERNAL SQL vetisDbUrl()
+        EXEC 'SELECT UuidDoc, DocIssueDate, DocStatus, DocType, ' +
+             'GuidFirmConsignor, GuidAreaConsignor, GuidFirmConsignee, GuidAreaConsignee, ' +
+             'GuidItemProd, Volume, GuidStockEntry, DocSeries, DocNumber ' +
+             'FROM Pub.MercVetDoc ' +
+             'WHERE DocIssueDate >= DATE \'' + toChar(vetisVsdDateFrom(), 'yyyy-MM-dd') + '\''
+        TO file;
+
+    IMPORT TABLE FROM file() TO
+        vetLocalUuid, vetLocalIssueDate, vetLocalStatus, vetLocalType,
+        vetLocalGuidConsignorFirm, vetLocalGuidConsignorArea,
+        vetLocalGuidConsigneeFirm, vetLocalGuidConsigneeArea,
+        vetLocalGuidItemProd, vetLocalVolume, vetLocalGuidStockEntry,
+        vetLocalDocSeries, vetLocalDocNumber;
+
+    FOR vetLocalUuid(INTEGER i) AND NOT vetDocument(vetLocalUuid(i)) DO NEW d = VetDocument {
+        uuid(d) <- vetLocalUuid(i);
+    }
+    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) DO {
+        issueDate(d) <- vetLocalIssueDate(i);
+        status(d) <- vetDocumentStatus(vetLocalStatus(i));
+        type(d) <- vetDocumentType(vetLocalType(i));
+        consignorBusinessEntity(d) <- businessEntity(vetLocalGuidConsignorFirm(i));
+        consignorEnterprise(d) <- enterprise(vetLocalGuidConsignorArea(i));
+        consigneeBusinessEntity(d) <- businessEntity(vetLocalGuidConsigneeFirm(i));
+        consigneeEnterprise(d) <- enterprise(vetLocalGuidConsigneeArea(i));
+        productItem(d) <- productItem(vetLocalGuidItemProd(i));
+        volume(d) <- vetLocalVolume(i);
+    }
+
+    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) AND
+        vetLocalGuidStockEntry(i) AND StockEntry s = stockEntry(vetLocalGuidStockEntry(i))
+    DO
+        in(s, d) <- TRUE;
+
+    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) AND
+        (vetLocalDocSeries(i) OR vetLocalDocNumber(i)) AND
+        NOT vetReferenceDocument(d, CONCAT ';', vetLocalDocSeries(i), vetLocalDocNumber(i), vetLocalIssueDate(i), 1, 1)
+    DO NEW rd = VetReferenceDocument {
+        vetDocument(rd) <- d;
+        issueSeries(rd) <- vetLocalDocSeries(i);
+        issueNumber(rd) <- vetLocalDocNumber(i);
+        issueDate(rd) <- vetLocalIssueDate(i);
+        type(rd) <- 1;
+        relationshipType(rd) <- 1;
+    }
+
+    APPLY;
+
+    MESSAGE 'Импортировано ' + (GROUP SUM 1 IF vetLocalUuid(INTEGER i)) + ' ВСД';
+}
+
+importFilteredVetDocumentsForShopGestori 'Импорт ВСД Ветис (по магазину)' () {
+    IF NOT vetisVsdDateFrom() THEN {
+        MESSAGE 'Укажите дату ВСД (с)';
+        RETURN;
+    }
+
+    LOCAL filterStock = Stock ();
+    DIALOG companysStock OBJECTS s = filterStock() CHANGE;
+    IF NOT filterStock() THEN RETURN;
+
+    LOCAL shopGuid = STRING ();
+    shopGuid() <- guid(enterprise(filterStock()));
+    IF NOT shopGuid() THEN {
+        MESSAGE 'У выбранного склада не задана площадка Ветис';
+        RETURN;
+    }
+
+    LOCAL file = FILE();
+
+    EXTERNAL SQL vetisDbUrl()
+        EXEC 'SELECT UuidDoc, DocIssueDate, DocStatus, DocType, ' +
+             'GuidFirmConsignor, GuidAreaConsignor, GuidFirmConsignee, GuidAreaConsignee, ' +
+             'GuidItemProd, Volume, GuidStockEntry, DocSeries, DocNumber ' +
+             'FROM Pub.MercVetDoc ' +
+             'WHERE DocIssueDate >= DATE \'' + toChar(vetisVsdDateFrom(), 'yyyy-MM-dd') + '\' AND ' +
+             'GuidAreaConsignee = \'' + shopGuid() + '\''
+        TO file;
+
+    IMPORT TABLE FROM file() TO
+        vetLocalUuid, vetLocalIssueDate, vetLocalStatus, vetLocalType,
+        vetLocalGuidConsignorFirm, vetLocalGuidConsignorArea,
+        vetLocalGuidConsigneeFirm, vetLocalGuidConsigneeArea,
+        vetLocalGuidItemProd, vetLocalVolume, vetLocalGuidStockEntry,
+        vetLocalDocSeries, vetLocalDocNumber;
+
+    FOR vetLocalUuid(INTEGER i) AND NOT vetDocument(vetLocalUuid(i)) DO NEW d = VetDocument {
+        uuid(d) <- vetLocalUuid(i);
+    }
+    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) DO {
+        issueDate(d) <- vetLocalIssueDate(i);
+        status(d) <- vetDocumentStatus(vetLocalStatus(i));
+        type(d) <- vetDocumentType(vetLocalType(i));
+        consignorBusinessEntity(d) <- businessEntity(vetLocalGuidConsignorFirm(i));
+        consignorEnterprise(d) <- enterprise(vetLocalGuidConsignorArea(i));
+        consigneeBusinessEntity(d) <- businessEntity(vetLocalGuidConsigneeFirm(i));
+        consigneeEnterprise(d) <- enterprise(vetLocalGuidConsigneeArea(i));
+        productItem(d) <- productItem(vetLocalGuidItemProd(i));
+        volume(d) <- vetLocalVolume(i);
+    }
+
+    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) AND
+        vetLocalGuidStockEntry(i) AND StockEntry s = stockEntry(vetLocalGuidStockEntry(i))
+    DO
+        in(s, d) <- TRUE;
+
+    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) AND
+        (vetLocalDocSeries(i) OR vetLocalDocNumber(i)) AND
+        NOT vetReferenceDocument(d, CONCAT ';', vetLocalDocSeries(i), vetLocalDocNumber(i), vetLocalIssueDate(i), 1, 1)
+    DO NEW rd = VetReferenceDocument {
+        vetDocument(rd) <- d;
+        issueSeries(rd) <- vetLocalDocSeries(i);
+        issueNumber(rd) <- vetLocalDocNumber(i);
+        issueDate(rd) <- vetLocalIssueDate(i);
+        type(rd) <- 1;
+        relationshipType(rd) <- 1;
+    }
+
+    APPLY;
+
+    MESSAGE 'Импортировано ' + (GROUP SUM 1 IF vetLocalUuid(INTEGER i)) + ' ВСД';
 }
 
 // --- Блок 9: Настройки обмена из MercObject ---
@@ -321,6 +453,108 @@ importUserShopsGestori 'Импорт привязок пользователей
     APPLY;
 }
 
+// --- Блок 7а: Отбор актуальных записей журнала по ВСД с учётом типа магазина ---
+
+// Локальные переменные для фильтрованного импорта MercRestShop
+seFilGuidShop    = DATA LOCAL STRING(INTEGER);
+seFilGuid        = DATA LOCAL STRING(INTEGER);
+seFilNumber      = DATA LOCAL STRING(INTEGER);
+seFilVolume      = DATA LOCAL NUMERIC[16,5](INTEGER);
+seFilCodGood     = DATA LOCAL NUMERIC[13,0](INTEGER);
+seFilDateExpiry  = DATA LOCAL DATE(INTEGER);
+
+importFilteredStockEntriesGestori 'Импорт актуальных записей журнала' () {
+    IF NOT vetisVsdDateFrom() THEN {
+        MESSAGE 'Укажите дату ВСД (с)';
+        RETURN;
+    }
+
+    LOCAL file = FILE();
+
+    EXTERNAL SQL vetisDbUrl()
+        EXEC 'SELECT j.GuidShop, j.GuidStockEntry, j.NumStockEntry, j.Volume, j.cod_good, v.DateExpiry ' +
+             'FROM Pub.MercRestShop j ' +
+             'JOIN Pub.MercVetDoc v ON v.GuidStockEntry = j.GuidStockEntry ' +
+             'WHERE (v.DateExpiry >= CURRENT_DATE) AND ' +
+             '(v.DocIssueDate >= DATE \'' + toChar(vetisVsdDateFrom(), 'yyyy-MM-dd') + '\')'
+        TO file;
+
+    IMPORT TABLE FROM file() TO
+        seFilGuidShop, seFilGuid, seFilNumber, seFilVolume, seFilCodGood, seFilDateExpiry;
+
+    FOR seFilGuid(INTEGER i) AND NOT stockEntry(seFilGuid(i)) DO NEW s = StockEntry {
+        guid(s) <- seFilGuid(i);
+    }
+    FOR StockEntry s = stockEntry(seFilGuid(INTEGER i)) DO {
+        number(s)     <- seFilNumber(i);
+        volume(s)     <- seFilVolume(i);
+        enterprise(s) <- enterprise(seFilGuidShop(i));
+        active(s)     <- TRUE;
+        expiryDate(s) <- seFilDateExpiry(i);
+    }
+
+    FOR StockEntry s = stockEntry(seFilGuid(INTEGER i)) AND seFilCodGood(i) AND
+        ProductItem p = (GROUP MIN ProductItem pi IF in(item(TEXT(seFilCodGood(i))), pi))
+    DO
+        in(s, p) <- TRUE;
+
+    APPLY;
+
+    MESSAGE 'Импортировано ' + (GROUP SUM 1 IF seFilGuid(INTEGER i)) + ' актуальных записей журнала';
+}
+
+importFilteredStockEntriesForShopGestori 'Импорт актуальных записей журнала (по магазину)' () {
+    IF NOT vetisVsdDateFrom() THEN {
+        MESSAGE 'Укажите дату ВСД (с)';
+        RETURN;
+    }
+
+    LOCAL filterStock = Stock ();
+    DIALOG companysStock OBJECTS s = filterStock() CHANGE;
+    IF NOT filterStock() THEN RETURN;
+
+    LOCAL shopGuid = STRING ();
+    shopGuid() <- guid(enterprise(filterStock()));
+    IF NOT shopGuid() THEN {
+        MESSAGE 'У выбранного склада не задана площадка Ветис';
+        RETURN;
+    }
+
+    LOCAL file = FILE();
+
+    EXTERNAL SQL vetisDbUrl()
+        EXEC 'SELECT j.GuidShop, j.GuidStockEntry, j.NumStockEntry, j.Volume, j.cod_good, v.DateExpiry ' +
+             'FROM Pub.MercRestShop j ' +
+             'JOIN Pub.MercVetDoc v ON v.GuidStockEntry = j.GuidStockEntry ' +
+             'WHERE (v.DateExpiry >= CURRENT_DATE) AND ' +
+             '(v.DocIssueDate >= DATE \'' + toChar(vetisVsdDateFrom(), 'yyyy-MM-dd') + '\') AND ' +
+             '(j.GuidShop = \'' + shopGuid() + '\')'
+        TO file;
+
+    IMPORT TABLE FROM file() TO
+        seFilGuidShop, seFilGuid, seFilNumber, seFilVolume, seFilCodGood, seFilDateExpiry;
+
+    FOR seFilGuid(INTEGER i) AND NOT stockEntry(seFilGuid(i)) DO NEW s = StockEntry {
+        guid(s) <- seFilGuid(i);
+    }
+    FOR StockEntry s = stockEntry(seFilGuid(INTEGER i)) DO {
+        number(s)     <- seFilNumber(i);
+        volume(s)     <- seFilVolume(i);
+        enterprise(s) <- enterprise(seFilGuidShop(i));
+        active(s)     <- TRUE;
+        expiryDate(s) <- seFilDateExpiry(i);
+    }
+
+    FOR StockEntry s = stockEntry(seFilGuid(INTEGER i)) AND seFilCodGood(i) AND
+        ProductItem p = (GROUP MIN ProductItem pi IF in(item(TEXT(seFilCodGood(i))), pi))
+    DO
+        in(s, p) <- TRUE;
+
+    APPLY;
+
+    MESSAGE 'Импортировано ' + (GROUP SUM 1 IF seFilGuid(INTEGER i)) + ' актуальных записей журнала';
+}
+
 // --- Мастер-действие ---
 
 importAllVetisGestori 'Импорт начальных данных Ветис' () {
@@ -338,7 +572,9 @@ importAllVetisGestori 'Импорт начальных данных Ветис' 
 EXTEND FORM integrationData
     PROPERTIES() importAllVetisGestori,
                  importFirmGestori, importAreaGestori, importProductItemsGestori,
-                 importStockEntriesGestori, importVetDocumentsGestori,
+                 importStockEntriesGestori,
+                 vetisVsdDateFrom, importFilteredStockEntriesGestori, importFilteredStockEntriesForShopGestori,
+                 importVetDocumentsGestori, importFilteredVetDocumentsGestori, importFilteredVetDocumentsForShopGestori,
                  importObjectSettingsGestori, importUsersGestori, importUserShopsGestori
 ;
 
@@ -351,7 +587,12 @@ DESIGN integrationData {
             MOVE PROPERTY(importAreaGestori());
             MOVE PROPERTY(importProductItemsGestori());
             MOVE PROPERTY(importStockEntriesGestori());
+            MOVE PROPERTY(vetisVsdDateFrom());
+            MOVE PROPERTY(importFilteredStockEntriesGestori());
+            MOVE PROPERTY(importFilteredStockEntriesForShopGestori());
             MOVE PROPERTY(importVetDocumentsGestori());
+            MOVE PROPERTY(importFilteredVetDocumentsGestori());
+            MOVE PROPERTY(importFilteredVetDocumentsForShopGestori());
             MOVE PROPERTY(importObjectSettingsGestori());
             MOVE PROPERTY(importUsersGestori());
             MOVE PROPERTY(importUserShopsGestori());
