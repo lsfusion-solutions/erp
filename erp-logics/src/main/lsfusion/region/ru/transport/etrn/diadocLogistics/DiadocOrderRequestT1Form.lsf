@@ -28,8 +28,7 @@ GROUP orShipperAddrRF EXTID 'RussianAddress' : orShipperAddr;
 GROUP orCarrier EXTID 'Carrier' : orRequest;
 GROUP orCarrierOrg EXTID 'OrganizationDetails' : orCarrier;
 GROUP orCarrierPhones EXTID 'Phones' : orCarrierOrg;
-GROUP orCarrierAddr EXTID 'Address' : orCarrierOrg;
-GROUP orCarrierAddrRF EXTID 'RussianAddress' : orCarrierAddr;
+// адрес у OrganizationDetails перевозчика схемой не предусмотрен (допустимы только Phones)
 
 GROUP orSupply EXTID 'SupplyPoint' : orRequest;
 // адрес пункта подачи: SupplyPoint/Address(CustomAddress)/Address(AddressInfo)/RussianAddress
@@ -99,7 +98,7 @@ FORM diadocOrderRequestT1 FORMEXTID 'LogisticsOrderRequestSenderTitle'
         orShipperBlock = (diadocOrgBlock(shipper(o)) IF hasDiadocOrgAddress(shipper(o))) EXTID 'Block',
         orShipperApartment = (diadocOrgApartment(shipper(o)) IF hasDiadocOrgAddress(shipper(o))) EXTID 'Apartment'
 
-    // перевозчик
+    // перевозчик (адрес у OrganizationDetails перевозчика схемой не предусмотрен)
     PROPERTIES ATTR IN orCarrierOrg
         orCarrierOgrn = ogrn(carrier(o)) EXTID 'Ogrn',
         orCarrierName = name(carrier(o)) EXTID 'OrgName',
@@ -107,17 +106,8 @@ FORM diadocOrderRequestT1 FORMEXTID 'LogisticsOrderRequestSenderTitle'
         orCarrierKpp = kpp(carrier(o)) EXTID 'Kpp',
         orCarrierFns = diadocFnsParticipantId(carrier(o)) EXTID 'FnsParticipantId',
         orCarrierType = diadocOrgType(carrier(o)) EXTID 'OrgType'   // 1 - ИП, 2 - ЮЛ (по длине ИНН)
-    PROPERTIES IN orCarrierPhones orCarrierPhoneOrg = phone(carrier(o)) EXTID 'Phone'
-    PROPERTIES ATTR IN orCarrierAddrRF
-        orCarrierZip = (diadocOrgZipCode(carrier(o)) IF hasDiadocOrgAddress(carrier(o))) EXTID 'ZipCode',
-        orCarrierRegion = (diadocOrgRegion(carrier(o)) IF hasDiadocOrgAddress(carrier(o))) EXTID 'Region',
-        orCarrierTerritory = (diadocOrgTerritory(carrier(o)) IF hasDiadocOrgAddress(carrier(o))) EXTID 'Territory',
-        orCarrierCity = (diadocOrgCity(carrier(o)) IF hasDiadocOrgAddress(carrier(o))) EXTID 'City',
-        orCarrierLocality = (diadocOrgLocality(carrier(o)) IF hasDiadocOrgAddress(carrier(o))) EXTID 'Locality',
-        orCarrierStreet = (diadocOrgStreet(carrier(o)) IF hasDiadocOrgAddress(carrier(o))) EXTID 'Street',
-        orCarrierBuilding = (diadocOrgBuilding(carrier(o)) IF hasDiadocOrgAddress(carrier(o))) EXTID 'Building',
-        orCarrierBlock = (diadocOrgBlock(carrier(o)) IF hasDiadocOrgAddress(carrier(o))) EXTID 'Block',
-        orCarrierApartment = (diadocOrgApartment(carrier(o)) IF hasDiadocOrgAddress(carrier(o))) EXTID 'Apartment'
+    // Phones у перевозчика обязателен: из карточки организации, иначе телефон представителя из заявки
+    PROPERTIES IN orCarrierPhones orCarrierPhoneOrg = (OVERRIDE phone(carrier(o)), carrierPhone(o)) EXTID 'Phone'
 
     // пункт подачи ТС
     // TODO: структурный адрес пункта подачи (GarAddress) - на тестовой площадке
@@ -138,21 +128,22 @@ FORM diadocOrderRequestT1 FORMEXTID 'LogisticsOrderRequestSenderTitle'
         orVehWeight = vehicleWeight(o) EXTID 'WeightCapacity',
         orVehVolume = vehicleVolume(o) EXTID 'VolumeCapacity'
 
-    // подписант (грузоотправитель)
-    PROPERTIES ATTR IN orSigners orSignersBoxId = diadocBoxId(shipper(o)) EXTID 'BoxId'
-    PROPERTIES ATTR IN orSigner orSignerMethod = ('5' IF o IS OrderRequest) EXTID 'SignerPowersConfirmationMethod'
+    // подписант (грузоотправитель); BoxId - чистый GUID (без @diadoc.ru)
+    PROPERTIES ATTR IN orSigners orSignersBoxId = diadocBoxIdGuid(shipper(o)) EXTID 'BoxId'
     PROPERTIES ATTR IN orSignerDetails
         orSignerLast = signerLastName(o) EXTID 'LastName',
         orSignerFirst = signerFirstName(o) EXTID 'FirstName',
         orSignerMiddle = signerMiddleName(o) EXTID 'MiddleName',
-        orSignerPos = signerPosition(o) EXTID 'Position'
+        orSignerPos = signerPosition(o) EXTID 'Position',
+        orSignerInn = inn(shipper(o)) EXTID 'Inn'
 
     // пункты маршрута (погрузка/выгрузка)
     OBJECTS ap = OrderPoint EXTID 'AddressPoint' IN orAddrPoints
     PROPERTIES ATTR
         apOrder = pointIndex(ap) EXTID 'PointOrder',
         apOperation = idOperationPoint(ap) EXTID 'OperationAtPoint',
-        apDate = diadocDateTime(operationDateTime(ap)) EXTID 'OperationDate'
+        apDate = diadocDateTime(operationDateTime(ap)) EXTID 'OperationDate',
+        apZone = ('Specified' IF operationDateTime(ap)) EXTID 'OperationDateTimeZone'
     // структурный адрес пункта (выгружается при наличии Region+ZipCode)
     PROPERTIES ATTR IN orPointAddrRF
         apRegion = (pointRegion(ap) IF hasPointAddress(ap)) EXTID 'Region',
@@ -160,9 +151,11 @@ FORM diadocOrderRequestT1 FORMEXTID 'LogisticsOrderRequestSenderTitle'
         apCity = (pointCity(ap) IF hasPointAddress(ap)) EXTID 'City',
         apStreet = (pointStreet(ap) IF hasPointAddress(ap)) EXTID 'Street',
         apBuilding = (pointBuilding(ap) IF hasPointAddress(ap)) EXTID 'Building'
+    // владелец объекта: обязателен для пункта погрузки (по умолчанию - грузоотправитель),
+    // для пункта выгрузки должен отсутствовать
     PROPERTIES ATTR IN orPointOwner
-        apOwnerName = ownerName(ap) EXTID 'Name',
-        apOwnerInn = ownerInn(ap) EXTID 'Inn'
+        apOwnerName = ((OVERRIDE ownerName(ap), ISTRING[255](name(shipper(o)))) IF operation(ap) == OrderPointOperation.loading) EXTID 'Name',
+        apOwnerInn = ((OVERRIDE ownerInn(ap), inn(shipper(o))) IF operation(ap) == OrderPointOperation.loading) EXTID 'Inn'
     FILTERS pointOrderRequest(ap) == o
 
     // строки груза
@@ -172,7 +165,7 @@ FORM diadocOrderRequestT1 FORMEXTID 'LogisticsOrderRequestSenderTitle'
         cargoCondition = nameCondition(d) EXTID 'Condition',
         cargoContainerType = (OVERRIDE detailTareCode(d), '00') EXTID 'ContainerType',
         cargoPlaceCount = quantityPlaces(d) EXTID 'PlaceCount',
-        cargoWeighingMethod = (OVERRIDE idWeightMethod(weightMethod(o)), '01') EXTID 'WeighingMethod',
+        cargoWeighingMethod = ((OVERRIDE idWeightMethod(weightMethod(o)), '01') IF d IS OrderDetail) EXTID 'WeighingMethod',
         cargoVolume = volume(d) EXTID 'Volume',
         cargoDistribution = detailDistribution(d) EXTID 'DistributionAlongPlatform',
         cargoDivisibility = detailDivisibility(d) EXTID 'Divisibility'
@@ -182,8 +175,8 @@ FORM diadocOrderRequestT1 FORMEXTID 'LogisticsOrderRequestSenderTitle'
         cargoLength = length(d) EXTID 'Length',
         cargoWidth = width(d) EXTID 'Width'
     PROPERTIES ATTR IN orCargoDeliveryPoint
-        cargoLoadingPoint = firstLoadingPoint(o) EXTID 'LoadingPoint',
-        cargoUnloadingPoint = (OVERRIDE pointIndex(unloadingPoint(d)), firstUnloadingPoint(o)) EXTID 'UnloadingPoint',
+        cargoLoadingPoint = (firstLoadingPoint(o) IF d IS OrderDetail) EXTID 'LoadingPoint',
+        cargoUnloadingPoint = (OVERRIDE pointIndex(unloadingPoint(d)), firstUnloadingPoint(o) IF d IS OrderDetail) EXTID 'UnloadingPoint',
         cargoDeliveryPlaces = quantityPlaces(d) EXTID 'PlaceCount'
     FILTERS detailOrderRequest(d) == o
 ;

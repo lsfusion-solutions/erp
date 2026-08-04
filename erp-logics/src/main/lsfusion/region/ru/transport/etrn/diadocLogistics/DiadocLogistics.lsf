@@ -98,6 +98,14 @@ deliveryEntityId (ETRN.ETRN e) = entityId(diadocDeliveryDocument(e));
 // ящик Диадока нашей организации-участника
 diadocBox (LegalEntity l) = GROUP LAST Box b IF legalEntity(organization(b)) == l ORDER b;
 diadocBoxId (LegalEntity l) = boxId(diadocBox(l));
+// BoxId в Signers ожидается чистым GUID с дефисами (8-4-4-4-12): убираем суффикс адреса
+// ящика и форматируем 32-символьный идентификатор
+diadocBoxIdRaw (LegalEntity l) = replace(diadocBoxId(l), '@diadoc.ru', '');
+diadocBoxIdGuid (LegalEntity l) = IF length(diadocBoxIdRaw(l)) == 32
+    THEN CONCAT '-', substr(diadocBoxIdRaw(l), 1, 8), substr(diadocBoxIdRaw(l), 9, 4),
+                     substr(diadocBoxIdRaw(l), 13, 4), substr(diadocBoxIdRaw(l), 17, 4),
+                     substr(diadocBoxIdRaw(l), 21, 12)
+    ELSE diadocBoxIdRaw(l);
 
 // идентификатор участника документооборота СФ (ФНС) - для OrganizationDetails заказа-заявки
 diadocFnsParticipantId (LegalEntity l) = fnsParticipantId(organization(diadocBox(l)));
