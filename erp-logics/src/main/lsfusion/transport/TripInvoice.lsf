@@ -18,13 +18,15 @@ invoiceSum 'Сумма с НДС накладных' (trip) = GROUP SUM invoiceS
 grossWeightInvoiced 'Суммарный вес накладных' (trip) = GROUP SUM sumGrossWeightInvoiceDetail(Invoice invoice) BY trip(invoice);
 netWeightInvoiced 'Суммарный вес накладных (нетто)' (trip) = GROUP SUM sumNetWeightInvoiceDetail(Invoice invoice) BY trip(invoice);
 
+backgroundTripInvoice 'Цвет' = ABSTRACT CASE COLOR (Invoice);
+
 EXTEND FORM trip
 
     PROPERTIES (t) READONLY grossWeightInvoiced, invoiceSum
 
     OBJECTS i=Invoice
     PROPERTIES (t, i) in
-    PROPERTIES (i) READONLY number, series, date, nameFrom, nameFromStock, nameTo, 
+    PROPERTIES (i) READONLY BACKGROUND backgroundTripInvoice(i) number, series, date, nameFrom, nameFromStock, nameTo,
                    nameToStock, invoiceSumInvoiceDetail, sumGrossWeightInvoiceDetail, sumNetWeightInvoiceDetail
     PROPERTIES (i) NEWSESSION editT = EDIT SHOWIF isOpened(i)
     FILTERGROUP filterDateInvoice
@@ -65,7 +67,7 @@ DESIGN trip {
 EXTEND FORM trips
     PROPERTIES (t) READONLY grossWeightInvoiced, invoiceSum
     OBJECTS i=Invoice
-    PROPERTIES (i) READONLY number, series, date, nameFrom, nameFromStock, nameTo, nameToStock, invoiceSumInvoiceDetail
+    PROPERTIES (i) READONLY BACKGROUND backgroundTripInvoice(i) number, series, date, nameFrom, nameFromStock, nameTo, nameToStock, invoiceSumInvoiceDetail
     FILTERS in(t, i)
 ;
 
