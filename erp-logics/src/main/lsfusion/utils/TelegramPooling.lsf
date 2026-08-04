@@ -226,13 +226,18 @@ fillNewAccountChats 'Обновить чаты' (Account a) {
     }
 } TOOLBAR;
 
+skipAccountMessage 'Не отправлять общие сообщения' = DATA BOOLEAN (Chat);
+EXTEND FORM messengers
+    PROPERTIES (c) skipAccountMessage FIRST
+;
+
 errorSend = DATA LOCAL BOOLEAN (Account);
 
 sendMessageTelegram(Account a, STRING message) {
     errorSend(a) <- NULL;
     LOCAL NESTED errorSend = BOOLEAN (Chat);
     errorSend(Chat ch) <- NULL WHERE account(ch) = a;
-    FOR Chat c IS Chat AND account(c) = a DO {
+    FOR Chat c IS Chat AND account(c) = a AND NOT skipAccountMessage(c) DO {
         TRY {
             sendMessage(c, message);
         } CATCH {
