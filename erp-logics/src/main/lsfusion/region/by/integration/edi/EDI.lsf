@@ -229,6 +229,7 @@ referenceDocumentType 'Относится к' = DATA STRING (EDIFile);
 documentDate 'Дата документа' = DATA DATETIME (EDIFile);
 receivedDateTime 'Получен' = DATA DATETIME (EDIFile);
 lastReceivedDateTime 'Получен повторно' = DATA DATETIME (EDIFile);
+confirmedDateTime 'Подтверждён' = DATA DATETIME (EDIFile);
 data = DATA FILE (EDIFile);
 receivedDir = DATA STRING (EDIFile);
 receivedPath 'Файл в архиве' (EDIFile f) = receivedDir(f) + '/' + id(f) CHARWIDTH 60;
@@ -242,6 +243,17 @@ clearApplicationLog () + {
     NEWSESSION {
         data(EDIFile f) <- NULL WHERE data(f) AND DATE(receivedDateTime(f)) <= subtract(currentDate(), (OVERRIDE countDaysClearEDIFileData(), 30));
         APPLY;
+    }
+}
+
+//подтверждение снимает сообщение с очереди провайдера; тело в БД больше не нужно, если файл записан на диск
+confirmEDIFile (STRING id) {
+    NEWSESSION {
+        FOR EDIFile f = ediFile(id) DO {
+            confirmedDateTime(f) <- currentDateTime();
+            IF receivedDir(f) THEN data(f) <- NULL;
+            APPLY;
+        }
     }
 }
 
@@ -259,12 +271,12 @@ open 'Открыть' (EDIFile f) {
     }
 } TOOLBAR;
 
-//повторно полученные сообщения — вероятно, не обработаны и не подтверждены; при появлении признака обработки добавить зелёный приоритетом выше
-background (EDIFile f) = RGB(255, 243, 205) IF lastReceivedDateTime(f);
+//зелёный — подтверждён провайдеру, янтарный — получен повторно (вероятно, не обработан и не подтверждён)
+background (EDIFile f) = OVERRIDE (RGB(212, 237, 218) IF confirmedDateTime(f)), (RGB(255, 243, 205) IF lastReceivedDateTime(f));
 
 EXTEND FORM integrationData
     OBJECTS ef = EDIFile FIRST
-    PROPERTIES(ef) BACKGROUND background(ef) READONLY id, documentType, referenceDocumentType, documentDate, receivedDateTime, lastReceivedDateTime, receivedPath
+    PROPERTIES(ef) BACKGROUND background(ef) READONLY id, documentType, referenceDocumentType, documentDate, receivedDateTime, lastReceivedDateTime, confirmedDateTime, receivedPath
     PROPERTIES open(ef)
     ORDERS receivedDateTime(ef) DESC
 ;

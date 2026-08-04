@@ -163,6 +163,7 @@ confirmMessage (INTEGER i, STRING[100] login, STRING[100] password, TEXT url, ST
             MESSAGE provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
     } ELSE {
         logToFile('edi', confirmLog(provider, login, label, i) + ': request succeeded');
+        confirmEDIFile(id(i));
     }
 }
 
@@ -195,6 +196,7 @@ open 'Просмотреть' (INTEGER r) {
 confirmDocumentSoap 'Подтвердить получение' (INTEGER r, STRING login, STRING password, STRING url) {
     EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(r) XML TO xmlFile;
     sendRequestEDI(url, xmlFile());
+    confirmEDIFile(id(r));
     id(r) <- NULL;
 } CONFIRM TOOLBAR;
 
