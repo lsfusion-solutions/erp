@@ -1007,7 +1007,7 @@ sasBalanceB 'Остаток' (Sku s, Stock st) = balanceB(s, st, datePriceSuppli
 sasAccountPrice 'Учётная цена' (Sku s, Stock st) = priceSku(s, st, datePriceSupplier());
 
 sasRetailPrice 'Отп.цена на дату расчета остатков' (Sku s, Stock st) =
-    prevPriceB(retailPriceListType(st), s, st, DATETIME(datePriceSupplier()));
+    priceB(retailPriceListType(st), s, st, DATETIME(datePriceSupplier()));
 
 sasLastPurchasePrice 'Последняя зак. цена' (Sku s, Stock st) = lastPriceSupplierSku(s, st, datePriceSupplier());
 
@@ -1073,21 +1073,20 @@ sasTurnoverDaysSku 'Оборачиваемость (дни)' (Sku s, Stock st) =
 
 sasShowRow (Sku s, Stock st) = sasQty(s, st);
 
-sasSupplierRow (Sku s, Stock st, LegalEntity le) = sasSupplier(s) == le
-    AND passesReportSkuFilterSku(s) AND NOT skipSaleReport(s, st);
-
 sasSupplierFullSum 'Сумма продаж по отпускной цене' (LegalEntity le, Stock st) =
-    GROUP SUM sum(SaleLedger l) IF sasSupplier(sku(l)) == le AND stock(l) == st AND passesSalesAndStocksAll(l);
+    GROUP SUM sum(SaleLedger l) IF passesSalesAndStocksAll(l) BY sasSupplier(sku(l)), stock(l);
 
 sasSupplierAccountSum 'Сумма продаж по учётной цене' (LegalEntity le, Stock st) =
-    GROUP SUM (priceSku(sku(SaleLedger l), stock(l), date(l)) * quantity(l))
-        IF sasSupplier(sku(l)) == le AND stock(l) == st AND passesSalesAndStocksAll(l);
+    GROUP SUM (priceSku(sku(SaleLedger l), stock(l), date(l)) * quantity(l)) IF passesSalesAndStocksAll(l)
+        BY sasSupplier(sku(l)), stock(l);
 
 sasSupplierBalanceSum 'Сумма остатка в учётных ценах' (LegalEntity le, Stock st) =
-    GROUP SUM sasBalanceSumSku(Sku s, st) IF sasSupplierRow(s, st, le);
+    GROUP SUM sasBalanceSumSku(Sku s, Stock sst) IF passesReportSkuFilterSku(s) AND NOT skipSaleReport(s, sst)
+        BY sasSupplier(s), sst;
 
 sasSupplierBalanceSumRetail 'Сумма остатка в отпускных ценах' (LegalEntity le, Stock st) =
-    GROUP SUM sasBalanceSumRetail(Sku s, st) IF sasSupplierRow(s, st, le);
+    GROUP SUM sasBalanceSumRetail(Sku s, Stock sst) IF passesReportSkuFilterSku(s) AND NOT skipSaleReport(s, sst)
+        BY sasSupplier(s), sst;
 
 sasSupplierGross 'Валовый доход' (LegalEntity le, Stock st) =
     sasSupplierFullSum(le, st) (-) sasSupplierAccountSum(le, st);
