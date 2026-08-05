@@ -1,7 +1,8 @@
 MODULE SaleReportsGestory;
 
 REQUIRE SaleReportsRu, Item, SaleShipment, PurchaseShipment, AccountDocument,
-        ZReportReceiptTime, SaleReports, SkuList, ReceiptDetailReport, InventoryGestori, SalePurchaseInvoice;
+        ZReportReceiptTime, SaleReports, SkuList, ReceiptDetailReport, InventoryGestori, SalePurchaseInvoice,
+        PriceListContract;
 
 NAMESPACE SaleReports;
 
@@ -971,8 +972,12 @@ initSalesAndStocksReports () {
 
 passesSalesAndStocksModeFilter (SaleLedger l) = IF isSalesAndStocksRetailMode() THEN isRetailLedger(l) ELSE active(l);
 
+sasCardSupplier = ABSTRACT LegalEntity (Sku);
+
+sasSupplier 'Поставщик' (Sku s) = OVERRIDE sasCardSupplier(s), supplierSku(s) MATERIALIZED;
+
 passesSalesAndStocksSupplierFilter (Sku s, Stock st) = NOT inSaleReportSupplier()
-    OR inSupplier(supplierSku(s)) OR inSupplier(supplierLastOrderBatch(s, st));
+    OR inSupplier(sasSupplier(s)) OR inSupplier(supplierLastOrderBatch(s, st));
 
 passesSalesAndStocksAll (SaleLedger l) =
     active(l)
@@ -1004,6 +1009,35 @@ sasAccountPrice 'Учётная цена' (Sku s, Stock st) = priceSku(s, st, da
 sasRetailPrice 'Отп.цена на дату расчета остатков' (Sku s, Stock st) =
     prevPriceB(retailPriceListType(st), s, st, DATETIME(datePriceSupplier()));
 
+sasLastPurchasePrice 'Последняя зак. цена' (Sku s, Stock st) = lastPriceSupplierSku(s, st, datePriceSupplier());
+
+sasPurchasePrice 'Закупочная цена' (Sku s) =
+    GROUP MAX sasLastPurchasePrice(s, Stock st) IF passesReportStockFilterStock(st);
+
+sasSalePrice 'Отпускная цена' (Sku s) =
+    GROUP MAX sasRetailPrice(s, Stock st) IF passesReportStockFilterStock(st);
+
+sasSpecificationDetail = GROUP LAST PriceListDetail d
+    ORDER fromDateTime(d), d
+    WHERE isPosted(d) AND fromDateTime(d) <= DATETIME dateTime AND in(priceList(d), Stock st)
+    BY sku(d), st, dateTime, operation(priceList(d));
+
+sasSpecification (Sku s, Stock st, PriceList.Operation o) =
+    sasSpecificationDetail(s, st, DATETIME(datePriceSupplier()), o);
+
+sasSpecificationPrice (Sku s, Stock st, PriceList.Operation o) =
+    price(sasSpecification(s, st, o), dataPriceListType('supplier'));
+
+sasSpecPrice 'Цена в последней спецификации' (Sku s, Stock st) =
+    sasSpecificationPrice(s, st, PriceList.operation('supplier'));
+
+sasPromoSpecPrice 'Цена в последней акционной спецификации' (Sku s, Stock st) =
+    sasSpecificationPrice(s, st, PriceList.operation('promo_zak'));
+
+sasSpecNumber 'Номер спецификации и договора' (Sku s, Stock st) = CONCAT ' / ',
+    number(priceList(sasSpecification(s, st, PriceList.operation('supplier')))),
+    seriesNumberContractSku(sasSpecification(s, st, PriceList.operation('supplier')));
+
 sasBalanceSumSku 'Сумма остатка в учётных ценах' (Sku s, Stock st) =
     sasBalanceB(s, st) * sasAccountPrice(s, st);
 
@@ -1025,19 +1059,47 @@ sasLastPurchaseLedger = GROUP LAST PurchaseLedger ledger
     WHERE date(ledger) <= DATE date
     BY sku(ledger), stock(ledger), date;
 
-sasLastPurchaseDate 'Дата последнего прихода' (Sku s, Stock st) = date(sasLastPurchaseLedger(s, st, filterTo()));
+sasLastPurchaseDate 'Дата последнего прихода' (Sku s, Stock st) = date(sasLastPurchaseLedger(s, st, datePriceSupplier()));
 
 sasOrderQty 'Количество заказа' (Sku s, Stock st) =
     GROUP SUM quantity(Purchase.OrderDetail d)
         IF date(d) >= filterFrom() AND date(d) <= filterTo()
             AND sku(d) = s AND customerStock(d) = st;
 
-sasDaysInPeriod () = daysBetweenDates(filterFrom(), filterTo()) + 1;
+sasDaysInPeriod () = daysInclBetweenDates(filterFrom(), filterTo());
 
 sasTurnoverDaysSku 'Оборачиваемость (дни)' (Sku s, Stock st) =
     NUMERIC[30,2](sasBalanceB(s, st) * sasDaysInPeriod() / sasQty(s, st));
 
 sasShowRow (Sku s, Stock st) = sasQty(s, st);
+
+sasSupplierRow (Sku s, Stock st, LegalEntity le) = sasSupplier(s) == le
+    AND passesReportSkuFilterSku(s) AND NOT skipSaleReport(s, st);
+
+sasSupplierFullSum 'Сумма продаж по отпускной цене' (LegalEntity le, Stock st) =
+    GROUP SUM sum(SaleLedger l) IF sasSupplier(sku(l)) == le AND stock(l) == st AND passesSalesAndStocksAll(l);
+
+sasSupplierAccountSum 'Сумма продаж по учётной цене' (LegalEntity le, Stock st) =
+    GROUP SUM (priceSku(sku(SaleLedger l), stock(l), date(l)) * quantity(l))
+        IF sasSupplier(sku(l)) == le AND stock(l) == st AND passesSalesAndStocksAll(l);
+
+sasSupplierBalanceSum 'Сумма остатка в учётных ценах' (LegalEntity le, Stock st) =
+    GROUP SUM sasBalanceSumSku(Sku s, st) IF sasSupplierRow(s, st, le);
+
+sasSupplierBalanceSumRetail 'Сумма остатка в отпускных ценах' (LegalEntity le, Stock st) =
+    GROUP SUM sasBalanceSumRetail(Sku s, st) IF sasSupplierRow(s, st, le);
+
+sasSupplierGross 'Валовый доход' (LegalEntity le, Stock st) =
+    sasSupplierFullSum(le, st) (-) sasSupplierAccountSum(le, st);
+
+sasSupplierMarkup 'Маржа, %' (LegalEntity le, Stock st) =
+    sasSupplierGross(le, st) * 100 / sasSupplierFullSum(le, st);
+
+sasSupplierMarkupBalance 'Маржа, % остатка' (LegalEntity le, Stock st) =
+    (sasSupplierBalanceSumRetail(le, st) (-) sasSupplierBalanceSum(le, st)) * 100 / sasSupplierBalanceSumRetail(le, st);
+
+sasSupplierTurnoverDays 'Количество дней запаса' (LegalEntity le, Stock st) =
+    NUMERIC[30,2](sasSupplierBalanceSum(le, st) * sasDaysInPeriod() / sasSupplierAccountSum(le, st));
 
 FORM salesAndStocksReports 'Продажи и остатки'
     PROPERTIES() filterFrom, filterTo
@@ -1054,14 +1116,17 @@ FORM salesAndStocksReports 'Продажи и остатки'
     OBJECTS (st = Stock, s = Sku)
     PROPERTIES READONLY stockColumn 'Подразделение' = CONCAT ' - ', id(st), name(st)
     PROPERTIES(s) READONLY idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4
-    PROPERTIES(s) READONLY idSupplierSku, nameSupplierSku
+    PROPERTIES READONLY skuSupplierCode 'Код поставщика' = id(sasSupplier(s))
+    PROPERTIES READONLY skuSupplierName 'Наименование поставщика' = name(sasSupplier(s))
     PROPERTIES READONLY skuCode 'Код товара' = id(s)
     PROPERTIES READONLY skuName 'Наименование товара' = name(s)
-    PROPERTIES(s) READONLY articleRu, shortNameUOM, idBarcode
+    PROPERTIES(s) READONLY shortNameUOM, idBarcode
     PROPERTIES READONLY skuAmountPack 'Кол-во в упаковке' = Sale.amountPack(s)
+    PROPERTIES(s) READONLY sasPurchasePrice, sasSalePrice, banPurchase
     PROPERTIES (s, st) READONLY sasBalanceB, sasBalanceSumSku
     PROPERTIES READONLY colAccountPrice 'Учётная цена' = sasAccountPrice(s, st)
     PROPERTIES READONLY colRetailPrice 'Отп.цена на дату расчета остатков' = sasRetailPrice(s, st)
+    PROPERTIES (s, st) READONLY sasLastPurchasePrice, sasSpecPrice, sasPromoSpecPrice, sasSpecNumber
     PROPERTIES (s, st) READONLY sasQty, sasFullSum, sasAccountSum, sasGross, sasMarkup, sasMarkupBalance,
         sasTurnoverDaysSku, sasOrderQty, idSupplierLastOrderBatch, nameSupplierLastOrderBatch,
         sasLastSaleDate, sasLastPurchaseDate
@@ -1103,10 +1168,60 @@ DESIGN salesAndStocksReports {
     }
 }
 
+FORM salesAndStocksSuppliers 'Продажи и остатки по поставщикам'
+    PROPERTIES() filterFrom, filterTo
+    PROPERTIES() nameSalesAndStocksMode
+    PROPERTIES() datePriceSupplier
+    PROPERTIES nameStockList() READONLY SHOWIF stockList()
+    PROPERTIES inSuppliersReportStocks 'Подразделения' = inSaleReportStocks() ON CHANGE changeStocksInventory() READONLYIF stockList()
+    PROPERTIES nameSkuLists() READONLY SHOWIF anySkuList()
+    PROPERTIES suppliersSelectedSkuGroups 'Товарные группы' = selectedSkuGroups() READONLY SHOWIF anySkuGroup()
+    PROPERTIES suppliersSkus 'Товары' = inSkus() ON CHANGE selectSkus() READONLYIF anySkuList() OR anySkuGroup()
+
+    OBJECTS (st = Stock, le = LegalEntity)
+    PROPERTIES READONLY supplierStockColumn 'Подразделение' = CONCAT ' - ', id(st), name(st)
+    PROPERTIES READONLY supplierCode 'Код поставщика' = id(le)
+    PROPERTIES READONLY supplierName 'Наименование поставщика' = name(le)
+    PROPERTIES (le, st) READONLY sasSupplierAccountSum, sasSupplierFullSum, sasSupplierGross, sasSupplierMarkup,
+        sasSupplierMarkupBalance, sasSupplierBalanceSum, sasSupplierTurnoverDays
+
+    ORDERS supplierStockColumn, supplierName
+    FILTERS passesReportStockFilterStock(st),
+        sasSupplierFullSum(le, st)
+
+    EVENTS ON INIT initSalesAndStocksReports()
+;
+
+@definePrintReport(salesAndStocksSuppliers, 'Продажи и остатки по поставщикам');
+
+EXTEND FORM salesAndStocksSuppliers
+    PROPERTIES() DISABLEIF NOT filterFrom() OR NOT filterTo() salesAndStocksSuppliers
+;
+
+DESIGN salesAndStocksSuppliers {
+    NEW filters FIRST {
+        alignment = STRETCH;
+        NEW topRow {
+            horizontal = TRUE;
+            MOVE PROPERTY(filterFrom());
+            MOVE PROPERTY(filterTo());
+            MOVE PROPERTY(nameSalesAndStocksMode()) { valueClass = 'btn-info'; charWidth = 22; }
+            MOVE PROPERTY(datePriceSupplier());
+            MOVE PROPERTY(salesAndStocksSuppliers()) { valueClass = 'btn-primary'; }
+        }
+        MOVE PROPERTY(nameStockList()) { alignment = STRETCH; }
+        MOVE PROPERTY(inSuppliersReportStocks) { alignment = STRETCH; }
+        MOVE PROPERTY(nameSkuLists()) { alignment = STRETCH; }
+        MOVE PROPERTY(suppliersSelectedSkuGroups) { alignment = STRETCH; }
+        MOVE PROPERTY(suppliersSkus) { alignment = STRETCH; }
+    }
+}
+
 NAVIGATOR {
     saleNavigator {
         salesReports {
             NEW salesAndStocksReports;
+            NEW salesAndStocksSuppliers;
         }
     }
 }
