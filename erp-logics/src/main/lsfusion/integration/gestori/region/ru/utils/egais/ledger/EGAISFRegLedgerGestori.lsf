@@ -121,3 +121,16 @@ DESIGN balanceReg {
     PROPERTY (id(r)) {caption = 'Справка Б';}
     PROPERTY (descriptionClient(r)) {caption = 'Адрес организации';}
 }
+
+dateTimeTicket 'Дата и время по ЕГАИС' (OutDoc o) =
+    OVERRIDE operationDate(lastOperationTicket(o)), conclusionDate(lastTicket(o));
+
+dateTimeOutDoc = ABSTRACT DATETIME (FRegLedger);
+
+dateTimeEGAIS 'Дата и время по ЕГАИС' (FRegLedger l) =
+    OVERRIDE dateTimeOutDoc(l), DATETIME(date(l)) MATERIALIZED INDEXED;
+
+quantityAfter (F2Reg r, DATETIME dt) =
+    GROUP SUM quantity(FRegLedger l) IF posted(l) AND dateTimeEGAIS(l) > dt BY f2Reg(l);
+
+balanceDateTime 'Остаток на момент' (F2Reg r, DATETIME dt) = currentBalance(r) (-) quantityAfter(r, dt);

@@ -1,0 +1,275 @@
+MODULE EGAISRestsGestori;
+
+REQUIRE EGAISQueryRestsv2Gestori, EGAISFRegLedgerGestori, EGAISActChargeOnExchange,
+        EGAISItem, LotType;
+
+NAMESPACE EGAIS;
+
+CLASS EGAISRests 'Остатки ЕГАИС';
+TABLE rests(EGAISRests);
+
+number 'Номер' = DATA STRING (EGAISRests) IN id;
+number(EGAISRests r) <- STRING(r) WHEN SET(r IS EGAISRests);
+
+dateTime 'Дата и время' = DATA DATETIME (EGAISRests) IN id;
+date 'Дата' (EGAISRests r) = DATE(dateTime(r));
+
+client = DATA Client (EGAISRests) INDEXED;
+idClient 'Код организации' (EGAISRests r) = id(client(r)) IN id;
+shortNameClient 'Организация' (EGAISRests r) = shortName(client(r)) IN id;
+
+utm = DATA UTM (EGAISRests);
+nameUtm 'УТМ' (EGAISRests r) = name(utm(r));
+
+inDoc = DATA InDoc (EGAISRests) INDEXED;
+
+CLASS EGAISRestsPosition 'Позиция остатков ЕГАИС';
+TABLE restsPosition(EGAISRestsPosition);
+
+rests 'Остатки ЕГАИС' = DATA EGAISRests (EGAISRestsPosition) INDEXED NONULL DELETE;
+
+f2Reg = DATA F2Reg (EGAISRestsPosition) INDEXED;
+product (EGAISRestsPosition p) = product(f2Reg(p));
+idF2Reg 'Справка Б' (EGAISRestsPosition p) = id(f2Reg(p));
+idF1Reg 'Справка А' (EGAISRestsPosition p) = idF1Reg(f2Reg(p));
+idProduct 'Код продукции' (EGAISRestsPosition p) = idProduct(f2Reg(p));
+fullNameProduct 'Продукция' (EGAISRestsPosition p) = fullNameProduct(f2Reg(p));
+
+quantity 'Кол-во (ЕГАИС)' = DATA NUMERIC[16,5] (EGAISRestsPosition);
+balance 'Остаток в системе' = DATA NUMERIC[16,5] (EGAISRestsPosition);
+fromReplyEGAIS 'Из ответа ЕГАИС' = DATA BOOLEAN (EGAISRestsPosition);
+diff 'Расхождение' (EGAISRestsPosition p) = quantity(p) (-) balance(p);
+
+countPositions 'Кол-во позиций' (EGAISRests r) = GROUP SUM 1 IF rests(EGAISRestsPosition p) = r;
+countReplyPositions 'Кол-во из ответа ЕГАИС' (EGAISRests r) = GROUP SUM 1 IF rests(EGAISRestsPosition p) = r AND fromReplyEGAIS(p);
+countDiffPositions 'Кол-во расхождений' (EGAISRests r) = GROUP SUM 1 IF rests(EGAISRestsPosition p) = r AND diff(p);
+
+countDiffPlus (EGAISRests r, Product pr) =
+    GROUP SUM 1 IF diff(EGAISRestsPosition p) > 0 BY rests(p), product(p);
+countDiffMinus (EGAISRests r, Product pr) =
+    GROUP SUM 1 IF diff(EGAISRestsPosition p) < 0 BY rests(p), product(p);
+
+isDisparity 'Пересортица по справкам' (EGAISRestsPosition p) =
+    TRUE IF diff(p)
+        AND countDiffPlus(rests(p), product(p)) AND countDiffMinus(rests(p), product(p));
+
+countDisparityPositions 'Кол-во пересортицы' (EGAISRests r) = GROUP SUM 1 IF rests(EGAISRestsPosition p) = r AND isDisparity(p);
+
+checkDateTime 'Остаток пересчитан' = DATA DATETIME (EGAISRests);
+
+countRestsPosition (EGAISRests r, F2Reg f) = GROUP SUM 1 IF rests(EGAISRestsPosition p) = r AND f2Reg(p) = f;
+
+addBalancePositions (EGAISRests r) {
+    FOR balanceDateTime(F2Reg f, dateTime(r))
+        AND client(f) == client(r)
+        AND NOT countRestsPosition(r, f)
+        NEW p = EGAISRestsPosition DO {
+        rests(p) <- r;
+        f2Reg(p) <- f;
+        quantity(p) <- 0.0;
+        balance(p) <- balanceDateTime(f, dateTime(r));
+    }
+}
+
+processReplyRests_v2(InDoc d) + {
+    IF NOT restsDate() THEN RETURN;
+
+    NEW r = EGAISRests {
+        dateTime(r) <- restsDate();
+        utm(r) <- utm(d);
+        client(r) <- OVERRIDE client(outDoc(d)), (GROUP MAX Client c IF utm(c) == utm(d) AND own(c));
+        inDoc(r) <- d;
+
+        FOR informF2RegId(INTEGER i) NEW p = EGAISRestsPosition DO {
+            rests(p) <- r;
+            fromReplyEGAIS(p) <- TRUE;
+            f2Reg(p) <- f2Reg(informF2RegId(i));
+            quantity(p) <- quantity(i);
+            balance(p) <- balanceDateTime(f2Reg(informF2RegId(i)), dateTime(r));
+        }
+        addBalancePositions(r);
+        checkDateTime(r) <- currentDateTime();
+    }
+}
+
+check 'Сверить' (EGAISRests r) {
+    NEWSESSION {        
+        DELETE EGAISRestsPosition p WHERE rests(p) == r AND NOT fromReplyEGAIS(p);
+        balance(EGAISRestsPosition p) <- balanceDateTime(f2Reg(p), dateTime(r)) WHERE rests(p) == r;
+        addBalancePositions(r);
+        checkDateTime(r) <- currentDateTime();
+        APPLY;
+    }
+    MESSAGE 'Расхождений: ' + (OVERRIDE countDiffPositions(r), 0) + ' из ' + countPositions(r);
+} TOOLBAR;
+
+restsActChargeOn 'Остатки ЕГАИС' = DATA EGAISRests (ActChargeOn) INDEXED;
+actChargeOnRests (EGAISRests r) = GROUP MAX ActChargeOn a BY restsActChargeOn(a);
+
+aligned 'Выровнен' (EGAISRests r) = GROUP MAX TRUE IF restsActChargeOn(ActChargeOn a) = r AND posted(a);
+numberActChargeOn 'Документ выравнивания' (EGAISRests r) =
+    GROUP CONCAT number(ActChargeOn a) IF restsActChargeOn(a) = r, ', ' ORDER a;
+
+lotTypePosition (EGAISRestsPosition p) = lotType(minItem(product(p)));
+countDiffLot (EGAISRests r) =
+    GROUP SUM 1 IF rests(EGAISRestsPosition p) = r AND diff(p) AND lotTypePosition(p);
+countDiffNotLot (EGAISRests r) =
+    GROUP SUM 1 IF rests(EGAISRestsPosition p) = r AND diff(p) AND NOT lotTypePosition(p);
+
+countOutdatedPositions (EGAISRests r) = GROUP SUM 1 IF rests(EGAISRestsPosition p) = r
+    AND NOT (OVERRIDE balance(p), 0.0) == (OVERRIDE balanceDateTime(f2Reg(p), dateTime(r)), 0.0);
+
+align 'Выровнять остатки' (EGAISRests r) {
+    IF actChargeOnRests(r) THEN {
+        MESSAGE 'По документу уже сформирован документ выравнивания № ' + numberActChargeOn(r);
+        RETURN;
+    }
+    
+    IF countOutdatedPositions(r) THEN {
+        MESSAGE 'Учётный остаток изменился после последней сверки (позиций: ' + countOutdatedPositions(r)
+              + '). Необходима сверка';
+        RETURN;
+    }
+    
+    IF NOT countDiffPositions(r) THEN {
+        MESSAGE 'Расхождений нет, выравнивание не требуется';
+        RETURN;
+    }
+    
+    ASK 'Выровнять учёт регистра 1 по данным ЕГАИС, позиций ' + countDiffPositions(r) + '?\n' + 
+        'Проверьте, что документы проведены и смены закрыты' DO {
+        NEWSESSION {
+            IF countDiffLot(r) THEN NEW a = ActChargeOn {
+                restsActChargeOn(a) <- r;
+                client(a) <- client(r);
+                dateTime(a) <- dateTime(r);
+                note(a) <- 'Выравнивание по остаткам ЕГАИС № ' + number(r) + ', маркированная';
+
+                FOR rests(EGAISRestsPosition p) == r AND diff(p) AND lotTypePosition(p)
+                    NEW pos = ActChargeOnPosition DO {
+                    actChargeOn(pos) <- a;
+                    product(pos) <- product(p);
+                    f2Reg(pos) <- f2Reg(p);
+                    quantity(pos) <- diff(p);
+                }
+                posted(a) <- TRUE;
+            }
+
+            IF countDiffNotLot(r) THEN NEW a = ActChargeOn {
+                restsActChargeOn(a) <- r;
+                client(a) <- client(r);
+                dateTime(a) <- dateTime(r);
+                note(a) <- 'Выравнивание по остаткам ЕГАИС № ' + number(r) + ', немаркированная';
+
+                FOR rests(EGAISRestsPosition p) == r AND diff(p) AND NOT lotTypePosition(p)
+                    NEW pos = ActChargeOnPosition DO {
+                    actChargeOn(pos) <- a;
+                    product(pos) <- product(p);
+                    f2Reg(pos) <- f2Reg(p);
+                    quantity(pos) <- diff(p);
+                }
+                posted(a) <- TRUE;
+            }
+            APPLY;
+        }
+    }
+} TOOLBAR;
+
+checkConditions(ActChargeOn a) += 'Акт сформирован выравниванием остатков ЕГАИС и отправке не подлежит'
+    IF restsActChargeOn(a);
+
+FORM restsDoc 'Остатки ЕГАИС'
+    OBJECTS o = EGAISRests PANEL
+    PROPERTIES(o) READONLY number, dateTime, idClient, shortNameClient, nameUtm,
+                           countPositions, countReplyPositions, countDiffPositions, countDisparityPositions, checkDateTime
+
+    OBJECTS dp = EGAISRestsPosition
+    PROPERTIES(dp) READONLY idF2Reg, idF1Reg, idProduct, fullNameProduct, quantity, balance, diff, isDisparity
+    FILTERS rests(dp) = o
+    
+    OBJECTS l = FRegLedger
+    PROPERTIES(l) READONLY objectClassName, date, dateTimeEGAIS, number, quantity
+    FILTERS posted(l), f2Reg(l) = f2Reg(dp)
+
+    EDIT EGAISRests OBJECT o
+;
+
+DESIGN restsDoc {
+    OBJECTS {
+        NEW headerBox {
+            horizontal = FALSE;
+            alignment = STRETCH;
+            MOVE PROPERTY(number(o));
+            MOVE PROPERTY(dateTime(o));
+            MOVE PROPERTY(idClient(o));
+            MOVE PROPERTY(shortNameClient(o));
+            MOVE PROPERTY(nameUtm(o));
+            MOVE PROPERTY(countPositions(o));
+            MOVE PROPERTY(countReplyPositions(o));
+            MOVE PROPERTY(countDiffPositions(o));
+            MOVE PROPERTY(countDisparityPositions(o));
+            MOVE PROPERTY(checkDateTime(o));
+        }
+        NEW detailBox {
+            horizontal = FALSE;
+            fill = 1;
+            MOVE BOX(dp) { caption = 'Остатки'; fill = 0.6; }
+            MOVE BOX(l) { caption = 'Движения'; fill = 0.4; }
+        }
+    }
+}
+
+show 'Просмотреть' (EGAISRests r) {
+    NEWSESSION {
+        SHOW restsDoc OBJECTS o = r DOCKED READONLY;
+    }
+} TOOLBAR;
+
+edit(EGAISRests r) + {
+    show(r);
+}
+
+hideDelete = ABSTRACT VALUE BOOLEAN (EGAISRests);
+hideDelete(EGAISRests r) += TRUE IF actChargeOnRests(r);
+
+FORM rests 'Остатки'
+    OBJECTS r = EGAISRests
+    PROPERTIES(r) READONLY number, dateTime, idClient, shortNameClient, nameUtm, countPositions, countDiffPositions,
+                           countDisparityPositions, checkDateTime, aligned, numberActChargeOn
+    PROPERTIES show(r)
+    PROPERTIES(r) NEWSESSION DELETE SHOWIF NOT hideDelete(r)
+    PROPERTIES() queryRestsv2 DRAW r TOOLBAR
+    PROPERTIES(r) check, align SHOWIF NOT actChargeOnRests(r)
+    ORDERS dateTime(r) DESC
+    
+    OBJECTS p = EGAISRestsPosition
+    PROPERTIES(p) READONLY idF2Reg, idF1Reg, idProduct, fullNameProduct, quantity, balance, diff, isDisparity
+    FILTERS rests(p) = r
+
+    FILTERGROUP filterDiff
+        FILTER 'С расхождениями' countDiffPositions(r)
+
+    FILTERGROUP filterDiffPosition
+        FILTER 'Только расхождения' diff(p)
+        FILTER 'Только пересортица' isDisparity(p)
+;
+
+DESIGN rests {
+    OBJECTS {
+        NEW tabPane {
+            tabbed = TRUE;
+            fill = 1;
+            MOVE BOX(p) { caption = 'Остатки'; }
+        }
+    }
+}
+
+DESIGN balanceReg {
+    REMOVE PROPERTY(queryRestsv2());
+}
+
+NAVIGATOR {
+    EGAISDocuments {
+        NEW rests;
+    }
+}
