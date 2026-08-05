@@ -157,10 +157,6 @@ exchangeMessage 'Сообщение обмена' = DATA TEXT (OrderRequest);
 // статус документооборота у провайдера (сырой код), обновляется при приёме статусов
 providerStatus 'Статус документооборота (провайдер)' = DATA STRING[100](OrderRequest);
 
-// файл титула Т1 заявки (XML формата приказа) и признак загрузки полного состава
-titleFile 'Файл титула (XML)' = DATA FILE (OrderRequest);
-titleImportedDateTime 'Дата/время загрузки данных титула' = DATA DATETIME (OrderRequest);
-
 // файл титула Т2 (ответ перевозчика, ЗАКЗВПЕР) и признак загрузки его данных
 t2File 'Файл титула Т2 (XML)' = DATA FILE (OrderRequest);
 t2ImportedDateTime 'Дата/время загрузки ответа (Т2)' = DATA DATETIME (OrderRequest);
@@ -168,16 +164,7 @@ t2ImportedDateTime 'Дата/время загрузки ответа (Т2)' = D
 // абстракции обмена (реализуются модулями провайдеров);
 // действия-обёртки с проверкой обязательных полей - ниже, после объявлений пунктов и строк
 sendOrderRequest 'Подписать и отправить заявку (Т1)' ABSTRACT CASE (OrderRequest);          // грузоотправитель
-acceptOrderRequest 'Подписать и отправить ответ на заявку (Т2)' ABSTRACT CASE (OrderRequest);  // перевозчик
-importOrderRequestData 'Загрузить данные титула' ABSTRACT CASE (OrderRequest);   // скачивание XML титула Т1 + разбор (реализация - у провайдера)
 importOrderRequestT2Data 'Загрузить ответ перевозчика (Т2)' ABSTRACT CASE (OrderRequest);   // скачивание XML титула Т2 + разбор (реализация - у провайдера)
-
-// загрузка полного состава входящих заявок из титула Т1 - для планировщика / кнопки
-// (реализация провайдера сама ставит titleImportedDateTime при успешной загрузке)
-processIncomingOrderRequests 'Загрузить данные входящих заявок' () {
-    FOR OrderRequest o IS OrderRequest AND NOT roleShipper(o) AND NOT titleImportedDateTime(o) AND provider(o) DO
-        importOrderRequestData(o);
-}
 
 // загрузка ответов перевозчиков (Т2) по нашим заявкам с завершённым документооборотом -
 // для планировщика / кнопки (реализация провайдера ставит t2ImportedDateTime при успешной загрузке)
@@ -384,35 +371,6 @@ checkOrderRequestT1 (OrderRequest o) {
                 missingOrderRequestT1(o), missingOrderDetailsT1(o), missingOrderPoints(o);
 }
 
-// Т2: у водителя обязательны все реквизиты сразу (в отличие от ЭТрН, где ВУ или ИНН)
-missingOrderRequestT2 (OrderRequest o) = CONCAT ', ',
-    'перевозчик' IF NOT carrier(o),
-    'телефон представителя перевозчика' IF NOT carrierPhone(o),
-    'водитель' IF NOT driver(o),
-    'ФИО водителя' IF driver(o) AND NOT (lastName(driver(o)) AND firstName(driver(o))),
-    'телефон водителя' IF driver(o) AND NOT phone(driver(o)),
-    'ВУ водителя (серия, номер, дата выдачи)' IF driver(o) AND NOT (licenseSeries(driver(o)) AND licenseNumber(driver(o)) AND licenseDate(driver(o))),
-    'ИНН водителя' IF driver(o) AND NOT inn(driver(o)),
-    'транспортное средство' IF NOT truck(o),
-    'рег. номер ТС' IF truck(o) AND NOT sid(truck(o)),
-    'тип владения ТС' IF truck(o) AND NOT ownershipType(truck(o)),
-    'тип ТС' IF truck(o) AND NOT type(truck(o)),
-    'марка ТС' IF truck(o) AND NOT truckModel(truck(o)),
-    'грузоподъёмность ТС' IF truck(o) AND NOT weight(truck(o)),
-    'вместимость ТС' IF truck(o) AND NOT capacity(truck(o)),
-    'рег. номер прицепа' IF trailer(o) AND NOT sid(trailer(o)),
-    'тип владения прицепа' IF trailer(o) AND NOT ownershipType(trailer(o)),
-    'тип прицепа' IF trailer(o) AND NOT type(trailer(o)),
-    'марка прицепа' IF trailer(o) AND NOT truckModel(trailer(o)),
-    'грузоподъёмность прицепа' IF trailer(o) AND NOT weight(trailer(o)),
-    'вместимость прицепа' IF trailer(o) AND NOT capacity(trailer(o)),
-    'подписант перевозчика (ФИО)' IF carrier(o) AND NOT (overSignerLastName(carrier(o)) AND overSignerFirstName(carrier(o)));
-
-checkOrderRequestT2 (OrderRequest o) {
-    IF missingOrderRequestT2(o) THEN
-        MESSAGE CONCAT '\n', 'Не заполнены обязательные поля ответа на заявку Т2:', missingOrderRequestT2(o);
-}
-
 sendOrderRequestAction 'Отправить заявку (Т1)' (OrderRequest o) {
     IF NOT provider(o) THEN { MESSAGE 'Для заказа-заявки не задан провайдер ЭПД'; RETURN; }
     IF NOT skipFieldCheckETRN() THEN {
@@ -422,20 +380,11 @@ sendOrderRequestAction 'Отправить заявку (Т1)' (OrderRequest o) 
     sendOrderRequest(o);
 } IMAGE 'apply.png';
 
-acceptOrderRequestAction 'Ответить на заявку (Т2)' (OrderRequest o) {
-    IF NOT provider(o) THEN { MESSAGE 'Для заказа-заявки не задан провайдер ЭПД'; RETURN; }
-    IF NOT skipFieldCheckETRN() THEN {
-        checkOrderRequestT2(o);
-        IF missingOrderRequestT2(o) THEN RETURN;
-    }
-    acceptOrderRequest(o);
-} IMAGE 'apply.png';
-
 // ------------------------- Форма документа ------------------------- //
 
 FORM orderRequest 'Заказ-заявка'
     OBJECTS o = OrderRequest PANEL
-    PROPERTIES(o) roles, nameProvider, nameExchangeStatus READONLY, providerStatus READONLY, exchangeMessage READONLY, titleFile
+    PROPERTIES(o) roles, nameProvider, nameExchangeStatus READONLY, providerStatus READONLY, exchangeMessage READONLY
     PROPERTIES(o) number BACKGROUND (backgroundMandatory(o) IF NOT number(o)), date,
                   nameShipper BACKGROUND (backgroundMandatory(o) IF NOT shipper(o)),
                   nameCarrier BACKGROUND (backgroundMandatory(o) IF NOT carrier(o)),
@@ -655,7 +604,6 @@ DESIGN orderRequest {
         NEW exchangeInfo {
             horizontal = TRUE;
             MOVE PROPERTY(exchangeMessage(o));
-            MOVE PROPERTY(titleFile(o));
         }
     }
 }
@@ -667,9 +615,8 @@ FORM orderRequests 'Заказы-заявки'
     PROPERTIES(o) READONLY number, date, roles, nameShipper, nameCarrier,
                            accepted, feeTotal, nameProvider, nameExchangeStatus, providerStatus, closed
     PROPERTIES(o) sendOrderRequestAction SHOWIF roleShipper(o),
-                  acceptOrderRequestAction SHOWIF roleCarrier(o),
                   importOrderRequestT2Data SHOWIF roleShipper(o)
-    PROPERTIES processIncomingOrderRequests() DRAW o, processOrderRequestsT2() DRAW o
+    PROPERTIES processOrderRequestsT2() DRAW o
     PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
     ORDERS date(o) DESC
 
@@ -708,9 +655,7 @@ DESIGN orderRequests {
             caption = 'Действия';
             horizontal = TRUE;
             MOVE PROPERTY(sendOrderRequestAction(o));
-            MOVE PROPERTY(acceptOrderRequestAction(o));
             MOVE PROPERTY(importOrderRequestT2Data(o));
-            MOVE PROPERTY(processIncomingOrderRequests());
             MOVE PROPERTY(processOrderRequestsT2());
         }
     }

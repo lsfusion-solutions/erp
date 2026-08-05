@@ -352,16 +352,10 @@ processETRNEvent (ETRN.ETRNEvent ev) {
     }
 }
 
+// событие по неизвестной заявке игнорируется: входящие заявки не создаём (мы - только грузоотправитель)
 processOrderRequestEvent (ETRN.ETRNEvent ev) {
     LOCAL o = ETRN.OrderRequest ();
     o() <- OVERRIDE orderRequest(ev), orderByEntity(entityId(ev));
-
-    // новая входящая заявка (мы - перевозчик)
-    IF NOT o() THEN NEW no = ETRN.OrderRequest {
-        o() <- no;
-        ETRN.provider(no) <- ETRN.ETRNProvider.diadoc;
-        // TODO: заполнить участников/груз/маршрут - разбор титула заявки (ParseTitleXml)
-    }
 
     FOR ETRN.OrderRequest or == o() DO {
         orderRequest(ev) <- or;

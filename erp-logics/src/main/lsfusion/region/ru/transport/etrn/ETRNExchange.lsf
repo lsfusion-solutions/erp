@@ -333,6 +333,10 @@ importETRNEvents 'Получить события ЭПД' () {
 // отметка обработки не ставится - событие повторит попытку в следующий запуск
 processedMessage 'Ошибка обработки' = DATA STRING[1000](ETRNEvent) CHARWIDTH 50;
 
+// дозагрузка данных по документу события после его успешной обработки
+// (например, ответ перевозчика Т2 по завершённой заявке - реализация у провайдера)
+onProcessedEvent ABSTRACT LIST (ETRNEvent);
+
 processETRNEvents 'Обработать события ЭПД' () {
     LOCAL NESTED applyError = STRING[1000] ();
     FOR ETRNEvent ev IS ETRNEvent AND NOT processedDateTime(ev) ORDER dateTime(ev), ev DO {
@@ -349,6 +353,8 @@ processETRNEvents 'Обработать события ЭПД' () {
             processedMessage(ev) <- applyError();
             APPLY;
         }
+        ELSE
+            onProcessedEvent(ev);
     }
 }
 
