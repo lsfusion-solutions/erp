@@ -229,6 +229,7 @@ referenceDocumentType 'Относится к' = DATA STRING (EDIFile);
 documentDate 'Дата документа' = DATA DATETIME (EDIFile);
 receivedDateTime 'Получен' = DATA DATETIME (EDIFile);
 lastReceivedDateTime 'Получен повторно' = DATA DATETIME (EDIFile);
+processedDateTime 'Обработан' = DATA DATETIME (EDIFile);
 confirmedDateTime 'Подтверждён' = DATA DATETIME (EDIFile);
 data = DATA FILE (EDIFile);
 receivedDir = DATA STRING (EDIFile);
@@ -246,11 +247,13 @@ clearApplicationLog () + {
     }
 }
 
-//подтверждение снимает сообщение с очереди провайдера; тело в БД больше не нужно, если файл записан на диск
+//подтверждение уходит провайдеру в ходе обработки, поэтому отмечает и её; при появлении
+//подтверждения-на-получении даты разнести. Тело в БД больше не нужно, если файл записан на диск
 confirmEDIFile (STRING id) {
     NEWSESSION {
         FOR EDIFile f = ediFile(id) DO {
             confirmedDateTime(f) <- currentDateTime();
+            processedDateTime(f) <- currentDateTime();
             IF receivedDir(f) THEN data(f) <- NULL;
             APPLY;
         }
@@ -271,12 +274,12 @@ open 'Открыть' (EDIFile f) {
     }
 } TOOLBAR;
 
-//зелёный — подтверждён провайдеру, янтарный — получен повторно (вероятно, не обработан и не подтверждён)
-background (EDIFile f) = OVERRIDE (RGB(212, 237, 218) IF confirmedDateTime(f)), (RGB(255, 243, 205) IF lastReceivedDateTime(f));
+//зелёный — обработан, янтарный — получен повторно (вероятно, не обработан и не подтверждён)
+background (EDIFile f) = OVERRIDE (RGB(212, 237, 218) IF processedDateTime(f)), (RGB(255, 243, 205) IF lastReceivedDateTime(f));
 
 EXTEND FORM integrationData
     OBJECTS ef = EDIFile FIRST
-    PROPERTIES(ef) BACKGROUND background(ef) READONLY id, documentType, referenceDocumentType, documentDate, receivedDateTime, lastReceivedDateTime, confirmedDateTime, receivedPath
+    PROPERTIES(ef) BACKGROUND background(ef) READONLY id, documentType, referenceDocumentType, documentDate, receivedDateTime, lastReceivedDateTime, processedDateTime, confirmedDateTime, receivedPath
     PROPERTIES open(ef)
     ORDERS receivedDateTime(ef) DESC
 ;

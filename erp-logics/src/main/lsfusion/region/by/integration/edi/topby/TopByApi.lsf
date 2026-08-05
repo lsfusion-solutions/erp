@@ -25,6 +25,11 @@ TABLE soapProfile(SoapProfile);
 login 'Имя пользователя' = DATA STRING[100] (SoapProfile) IN id;
 password 'Пароль' = DATA STRING[100] (SoapProfile) ECHO;
 url 'Адрес сервиса' = ABSTRACT STRING[250] (SoapProfile) CHARWIDTH 40;
+//общие параметры обмена, определяемые провайдером профиля
+provider = ABSTRACT STRING[100] (SoapProfile);
+newNS = ABSTRACT BOOLEAN (SoapProfile);
+archiveDir = ABSTRACT STRING[100] (SoapProfile);
+disableConfirmation = ABSTRACT BOOLEAN (SoapProfile);
 
 soapProfile (STRING[100] login) = GROUP MIN SoapProfile p BY login(p);
 profile = DATA SoapProfile (EDIFile);
@@ -170,6 +175,37 @@ confirmMessage (INTEGER i, STRING[100] login, STRING[100] password, TEXT url, ST
 confirmMessage (INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] provider) {
     confirmMessage(i, login, password, url, provider, NULL, NULL);
 }
+
+//обработка из журнала: локали пакета заполняются из объекта, дальше стандартные ветки приёма
+processEDIFile 'Обработать' (EDIFile f) {
+    NEWSESSION {
+        IF NOT profile(f) THEN {
+            MESSAGE 'Не задан профиль подключения у сообщения ' + id(f) NOWAIT;
+            RETURN;
+        }
+        IF data(f) THEN {
+            data(0) <- XMLFILE(data(f));
+        } ELSE {
+            LOCAL file = FILE();
+            TRY { READ 'file://' + receivedPath(f) TO file; }
+            data(0) <- XMLFILE(file());
+        }
+        IF NOT data(0) THEN {
+            MESSAGE 'Не найдено тело сообщения ' + id(f) + (' в файле ' + receivedPath(f) IF receivedPath(f)) NOWAIT;
+            RETURN;
+        }
+        id(0) <- id(f);
+        documentType(0) <- documentType(f);
+        documentDate(0) <- documentDate(f);
+        newNS() <- newNS(profile(f));
+        fillStartParams();
+        logToFile('edi', provider(profile(f)) + ' (' + login(profile(f)) + ') Process file ' + id(f));
+        beforeOverReceiveMessages(0, login(profile(f)), archiveDir(profile(f)));
+        overReceiveMessages(0, login(profile(f)), password(profile(f)), url(profile(f)), archiveDir(profile(f)), disableConfirmation(profile(f)), provider(profile(f)));
+        fillEndParams();
+        MESSAGE (OVERRIDE textMessage(), 'Сообщение ' + id(f) + ' обработано') NOWAIT;
+    }
+} CONFIRM TOOLBAR;
 
 FORM queryDocuments
     PROPERTIES ATTR = IF newNS() THEN 'http://softclub.by/' ELSE 'http://topby.by/' EXTID 'xmlns:top'
@@ -360,4 +396,5 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
 
 EXTEND FORM integrationData
     PROPERTIES READONLY loginProfile 'Профиль' = login(profile(ef)) BACKGROUND background(ef) AFTER id(ef)
+    PROPERTIES processEDIFile(ef)
 ;
