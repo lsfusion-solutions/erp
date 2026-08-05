@@ -3,11 +3,15 @@ package lsfusion.erp.integration;
 import lsfusion.erp.ERPLoggers;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.language.ScriptingLogicsModule;
-import okhttp3.FormBody;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
 import org.apache.commons.io.FileUtils;
+import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.ParseException;
+import org.apache.hc.core5.http.io.entity.EntityUtils;
+import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.jdom2.*;
 import org.jdom2.output.Format;
 import org.jdom2.output.XMLOutputter;
@@ -17,6 +21,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Writer;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -90,7 +95,14 @@ public class DefaultExportXMLAction extends DefaultExportAction {
     }
 
     protected String sendRequest(String url, String xml) throws IOException {
-        Request request = new Request.Builder().url(url).post(FormBody.create(MediaType.parse("application/xml"), xml)).build();
-        return new OkHttpClient().newCall(request).execute().body().string();
+        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
+            HttpPost httpPost = new HttpPost(url);
+            httpPost.setEntity(new StringEntity(xml, ContentType.create("application/xml")));
+            try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
+                return EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
+            }
+        } catch (ParseException e) {
+            throw new IOException(e);
+        }
     }
 }
