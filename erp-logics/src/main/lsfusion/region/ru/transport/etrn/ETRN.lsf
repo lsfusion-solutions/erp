@@ -85,17 +85,26 @@ is (ETRN e) = e IS ETRN;
 stage 'Этап' = DATA ETRNStage (ETRN);
 nameStage 'Этап' (ETRN e) = name(stage(e));
 
-closed 'Завершена' = DATA BOOLEAN (ETRN);
+isClosed 'Закрыт' = DATA BOOLEAN (ETRN);
+isOpened 'Открыт' (ETRN e) = e IS ETRN AND NOT isClosed(e);
+
+close 'Закрыть' (ETRN e)  {
+    NEWSESSION { isClosed(e) <- TRUE; apply(); }
+} TOOLBAR CONFIRM;
+
+open 'Открыть' (ETRN e)  {
+    NEWSESSION { isClosed(e) <- NULL; apply(); }
+} TOOLBAR CONFIRM;
 
 // доступность данных титулов для редактирования по этапам:
 // данные титула можно менять, пока документ не ушел дальше соответствующего этапа.
 // при выключенном контроле этапов (настройка) все данные редактируемы на любой стадии
 controlStageEditETRN 'Контролировать этап при редактировании ЭТрН' = DATA BOOLEAN ();
 
-readonlyT1 (ETRN e) = (closed(e) OR id(stage(e)) > 1) AND controlStageEditETRN();
-readonlyT2 (ETRN e) = (closed(e) OR id(stage(e)) > 2) AND controlStageEditETRN();
-readonlyT3 (ETRN e) = (closed(e) OR id(stage(e)) > 3) AND controlStageEditETRN();
-readonlyT4 (ETRN e) = closed(e) AND controlStageEditETRN();
+readonlyT1 (ETRN e) = (isClosed(e) OR id(stage(e)) > 1) AND controlStageEditETRN();
+readonlyT2 (ETRN e) = (isClosed(e) OR id(stage(e)) > 2) AND controlStageEditETRN();
+readonlyT3 (ETRN e) = (isClosed(e) OR id(stage(e)) > 3) AND controlStageEditETRN();
+readonlyT4 (ETRN e) = isClosed(e) AND controlStageEditETRN();
 
 // подсветка незаполненных обязательных полей; цвет перегружается через overBackgroundMandatory
 overBackgroundMandatory = ABSTRACT CASE COLOR (ETRN);
@@ -857,7 +866,8 @@ DESIGN etrn {
 FORM etrns 'Электронные транспортные накладные'
     OBJECTS e = ETRN
     PROPERTIES(e) READONLY seriesNumber, date, time, nameStage, roles, orderNumber,
-                           nameShipper, nameConsignee, nameCarrier, deliveryAddress, cost, note, closed
+                           nameShipper, nameConsignee, nameCarrier, deliveryAddress, cost, note, isClosed
+    PROPERTIES(e) close SHOWIF isOpened(e), open SHOWIF isClosed(e)
     PROPERTIES(e) NEWSESSION NEW, EDIT, DELETE
     ORDERS date(e) DESC, time(e) DESC
 
@@ -867,7 +877,7 @@ FORM etrns 'Электронные транспортные накладные'
     ORDERS index(d)
     FILTERS etrn(d) = e
 
-    FILTERGROUP active FILTER 'В работе' NOT closed(e) 'F6' DEFAULT
+    FILTERGROUP active FILTER 'Открытые' isOpened(e) 'F6' DEFAULT
 
     LIST ETRN OBJECT e
 ;

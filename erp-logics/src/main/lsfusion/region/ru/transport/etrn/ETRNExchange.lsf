@@ -59,7 +59,7 @@ overNextAction = ABSTRACT CASE STRING[100] (ETRN);
 overNextActionOur = ABSTRACT CASE BOOLEAN (ETRN);
 
 nextActionFlow (ETRN e) = CASE
-    WHEN closed(e) OR exchangeStatus(e) == ETRNExchangeStatus.completed OR id(stage(e)) == 4 THEN 'Завершено'
+    WHEN isClosed(e) OR exchangeStatus(e) == ETRNExchangeStatus.completed OR id(stage(e)) == 4 THEN 'Завершено'
     WHEN exchangeStatus(e) == ETRNExchangeStatus.rejected THEN 'Отказ в подписи - разобраться (мы)'
     WHEN exchangeStatus(e) == ETRNExchangeStatus.invalid THEN 'Ошибка в документообороте - разобраться (мы)'
     WHEN id(stage(e)) == 3 THEN 'Ожидается Т4 (перевозчик)'
@@ -74,7 +74,7 @@ nextAction 'Следующий шаг' (ETRN e) = OVERRIDE overNextAction(e), ne
 
 // ход за нами - для подсветки в списке
 nextActionOurFlow (ETRN e) = TRUE IF
-    NOT (closed(e) OR exchangeStatus(e) == ETRNExchangeStatus.completed OR id(stage(e)) == 4) AND
+    NOT (isClosed(e) OR exchangeStatus(e) == ETRNExchangeStatus.completed OR id(stage(e)) == 4) AND
     ((exchangeStatus(e) == ETRNExchangeStatus.rejected OR exchangeStatus(e) == ETRNExchangeStatus.invalid) OR
      (id(stage(e)) == 2 AND roleConsignee(e)) OR
      (id(stage(e)) == 1 AND roleShipper(e) AND NOT (exchangeStatus(e) == ETRNExchangeStatus.signed)));

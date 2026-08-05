@@ -19,7 +19,16 @@ is (OrderRequest o) = o IS OrderRequest;
 
 WHEN LOCAL SET(OrderRequest o IS OrderRequest) AND NOT CHANGED(date(o)) DO date(o) <- currentDate();
 
-closed 'Завершена' = DATA BOOLEAN (OrderRequest);
+isClosed 'Закрыт' = DATA BOOLEAN (OrderRequest);
+isOpened 'Открыт' (OrderRequest o) = o IS OrderRequest AND NOT isClosed(o);
+
+close 'Закрыть' (OrderRequest o)  {
+    NEWSESSION { isClosed(o) <- TRUE; apply(); }
+} TOOLBAR CONFIRM;
+
+open 'Открыть' (OrderRequest o)  {
+    NEWSESSION { isClosed(o) <- NULL; apply(); }
+} TOOLBAR CONFIRM;
 
 // связь с ЭТрН: заявка может породить несколько ЭТрН (по одной на пункт выгрузки).
 // Связь и производные (кол-во, перечень номеров) - в модуле ETRNFromOrderRequest.
@@ -613,9 +622,10 @@ DESIGN orderRequest {
 FORM orderRequests 'Заказы-заявки'
     OBJECTS o = OrderRequest
     PROPERTIES(o) READONLY number, date, roles, nameShipper, nameCarrier,
-                           accepted, feeTotal, nameProvider, nameExchangeStatus, providerStatus, closed
+                           accepted, feeTotal, nameProvider, nameExchangeStatus, providerStatus, isClosed
     PROPERTIES(o) sendOrderRequestAction SHOWIF roleShipper(o),
-                  importOrderRequestT2Data SHOWIF roleShipper(o)
+                  importOrderRequestT2Data SHOWIF roleShipper(o),
+                  close SHOWIF isOpened(o), open SHOWIF isClosed(o)
     PROPERTIES processOrderRequestsT2() DRAW o
     PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
     ORDERS date(o) DESC
@@ -632,7 +642,7 @@ FORM orderRequests 'Заказы-заявки'
     ORDERS index(op)
     FILTERS orderRequest(op) = o
 
-    FILTERGROUP active FILTER 'В работе' NOT closed(o) 'F6' DEFAULT
+    FILTERGROUP active FILTER 'Открытые' isOpened(o) 'F6' DEFAULT
 
     LIST OrderRequest OBJECT o
 ;
