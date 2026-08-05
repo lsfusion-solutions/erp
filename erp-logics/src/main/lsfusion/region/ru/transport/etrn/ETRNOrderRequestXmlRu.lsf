@@ -167,7 +167,8 @@ parseOrderRequestTitleXml 'Импортировать титул заявки и
         RETURN;
     }
 
-    IMPORT orderRequestTitleXmlImport XML FROM titleFile(o);
+    // файлы приказа - windows-1251, как правило без XML-декларации
+    IMPORT orderRequestTitleXmlImport XML CHARSET 'windows-1251' FROM titleFile(o);
 
     // шапка и требования
     number(o) <- STRING[48](impOrNumber());
@@ -369,8 +370,9 @@ parseOrderRequestT2Xml 'Импортировать ответ перевозчи
         RETURN;
     }
 
-    NEWSESSION {
-        IMPORT orderRequestT2XmlImport XML FROM t2File(o);
+    // разбор выполняется в текущей сессии (файл может быть записан, но ещё не сохранён);
+    // APPLY - на вызывающей стороне. Файлы приказа - windows-1251 без XML-декларации
+    IMPORT orderRequestT2XmlImport XML CHARSET 'windows-1251' FROM t2File(o);
 
         // принятие / отказ, телефон представителя
         accepted(o) <- TRUE IF NOT impR2Reject();
@@ -448,9 +450,6 @@ parseOrderRequestT2Xml 'Импортировать ответ перевозчи
                 trailer(o) <- tl;
             }
         }
-
-        APPLY;
-    }
 }
 
 // кнопка ручного импорта из файла (по аналогии с parseETRNTitleXml на списке ЭТрН)

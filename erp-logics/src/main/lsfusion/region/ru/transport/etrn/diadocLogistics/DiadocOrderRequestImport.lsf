@@ -51,17 +51,53 @@ ETRN.importOrderRequestData (ETRN.OrderRequest o) + WHEN ETRN.provider(o) == ETR
 }
 
 // ------------------------- Ответ перевозчика (титул Т2, ЗАКЗВПЕР) ------------------------- //
-// ИД сущности титула Т2 (слот 1) - из журнала docflow-событий заявки
+// ИД сущности титула Т2 (слот 1) - из журнала docflow-событий заявки;
+// fallback - запрос состава сообщения (GetMessage): Т2 - XML-сущность с родителем-титулом Т1
 
 orderT2EntityId (ETRN.OrderRequest o) = GROUP LAST titleEntityId(ETRN.ETRNEvent ev, 1) ORDER ETRN.dateTime(ev), ev BY orderRequest(ev);
+
+// состав сообщения (V3/GetMessage): сущности с типом (Attachment/Signature), родителем и именем файла
+gmEntityId = DATA LOCAL STRING (INTEGER);
+gmParentEntityId = DATA LOCAL STRING (INTEGER);
+gmEntityType = DATA LOCAL STRING (INTEGER);
+gmFileName = DATA LOCAL STRING (INTEGER);
+
+FORM diadocGetMessageEntities
+    OBJECTS en = INTEGER EXTID 'Entities'
+    PROPERTIES(en) gmEntityId EXTID 'EntityId', gmParentEntityId EXTID 'ParentEntityId',
+                   gmEntityType EXTID 'EntityType', gmFileName EXTID 'FileName'
+;
+
+gmResult = DATA LOCAL FILE ();
+foundT2EntityId = DATA LOCAL STRING ();
+
+// поиск ИД сущности Т2 через состав сообщения: приоритетно - по имени файла титула
+// (ON_ZAKZVPER* по приказу), иначе - XML-вложение с родителем-титулом Т1
+diadocFindT2Entity (ETRN.OrderRequest o) {
+    foundT2EntityId() <- NULL;
+    TRY {
+        EXTERNAL HTTP GET url() + '/V3/GetMessage?boxId=' + orderBoxId(o) + '&messageId=' + orderDocMessageId(o)
+            HEADERS httpHeadersToken TO gmResult;
+        IMPORT diadocGetMessageEntities JSON FROM gmResult();
+    } CATCH {
+        fileToString(gmResult(), 'UTF-8');
+        MESSAGE 'Ошибка получения состава сообщения заявки (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+        RETURN;
+    }
+    foundT2EntityId() <- OVERRIDE
+        (GROUP LAST gmEntityId(INTEGER en) ORDER en IF upper(gmFileName(en)) LIKE 'ON_ZAKZVPER%'),
+        (GROUP LAST gmEntityId(INTEGER en) ORDER en IF gmParentEntityId(en) == orderDocEntityId(o) AND
+            gmEntityType(en) == 'Attachment' AND upper(gmFileName(en)) LIKE '%.XML');
+
+    // диагностика: если титул не найден - показать состав сообщения
+    IF NOT foundT2EntityId() THEN
+        MESSAGE CONCAT '\n', 'Не удалось определить титул Т2 в сообщении заявки. Состав сообщения (ИД | тип | родитель | файл):',
+            (GROUP CONCAT (CONCAT ' | ', gmEntityId(INTEGER en), gmEntityType(en), gmParentEntityId(en), gmFileName(en)), '\n' ORDER en);
+}
 
 diadocImportOrderRequestT2Data (ETRN.OrderRequest o) {
     IF NOT orderDocMessageId(o) THEN {
         MESSAGE 'Нет документа заказа-заявки в Диадоке (события не получены)';
-        RETURN;
-    }
-    IF NOT orderT2EntityId(o) THEN {
-        MESSAGE 'Не известен ИД титула Т2 (ответа перевозчика) - выполните приём и обработку событий ЭПД';
         RETURN;
     }
     IF NOT orderBoxId(o) THEN {
@@ -72,11 +108,17 @@ diadocImportOrderRequestT2Data (ETRN.OrderRequest o) {
     FOR User u == userDiadocETRN() DO {
         getToken(u);
 
+        // ИД сущности Т2: приоритетно - по составу сообщения (имя файла ON_ZAKZVPER детерминировано),
+        // журнал docflow-событий - лишь запасной источник (ИД титулов ленты не сверен с площадкой)
+        diadocFindT2Entity(o);
+        foundT2EntityId() <- orderT2EntityId(o) WHERE NOT foundT2EntityId();
+        IF NOT foundT2EntityId() THEN RETURN;   // диагностика показана в diadocFindT2Entity
+
         // XML титула Т2 заявки (формат приказа ФНС, ЗАКЗВПЕР)
         LOCAL data = RAWFILE ();
         TRY {
             EXTERNAL HTTP GET url() + '/GetEntityContent?boxId=' + orderBoxId(o) +
-                '&messageId=' + orderDocMessageId(o) + '&entityId=' + orderT2EntityId(o)
+                '&messageId=' + orderDocMessageId(o) + '&entityId=' + foundT2EntityId()
                 HEADERS httpHeadersToken TO data;
         } CATCH {
             fileToString(FILE(data()), 'UTF-8');
@@ -86,7 +128,7 @@ diadocImportOrderRequestT2Data (ETRN.OrderRequest o) {
 
         ETRN.t2File(o) <- file(data(), 'xml');
 
-        // разбор ответа перевозчика в поля заявки (parseOrderRequestT2Xml выполняет свой APPLY)
+        // разбор ответа перевозчика в поля заявки (в текущей сессии)
         ETRN.parseOrderRequestT2Xml(o);
 
         ETRN.t2ImportedDateTime(o) <- currentDateTime();
