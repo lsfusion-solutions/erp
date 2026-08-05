@@ -1,8 +1,8 @@
 package equ.clt.handler.dreamkas;
 
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.json.JSONTokener;
 
 import java.io.FileReader;
 
@@ -11,7 +11,6 @@ public class JsonReadProcess {
     public String eMessage = "";
     public int nCount = 0;
     public int nSize = 0;
-    private JSONParser parser = new JSONParser();
     private Object ojs = null;
     //  Возвращаемые типы
     public String cResult = "";            // Строка всегда
@@ -25,19 +24,21 @@ public class JsonReadProcess {
             ojs = null;
             nCount = 0;
             nSize = 0;
-            parser.reset();
-            ojs = parser.parse(cJson);
+            JSONTokener tokener = new JSONTokener(cJson);
+            ojs = tokener.nextValue();
+            if (tokener.nextClean() != 0) // unlike json-simple's parser, nextValue() alone doesn't require consuming the whole input
+                throw new org.json.JSONException("Unexpected trailing characters after JSON value");
             tResult = getObjType(ojs);
             if (tResult.equals("Array")) {
                 JSONArray ob = (JSONArray) ojs;
-                nCount = ob.size();
+                nCount = ob.length();
                 nSize = nCount;
             } else {
                 if (!tResult.equals("Object")) {
                     lRet = errBox("Ошибка структуры JSON");
                 } else {
                     JSONObject ob = (JSONObject) ojs;
-                    nSize = ob.size();
+                    nSize = ob.length();
                 }
             }
         } catch (Exception e) {
@@ -80,8 +81,8 @@ public class JsonReadProcess {
             for (Object o : ob.keySet()) {
                 cKey = (String) o;
                 if (sResult.length() > 0) sResult.append(",");
-                o1 = ob.get(cKey);
-                if (o1 == null) return errBox("Неизвестное значение " + cKey);
+                o1 = ob.opt(cKey);
+                if (o1 == null || o1 == JSONObject.NULL) return errBox("Неизвестное значение " + cKey);
                 c_type = getObjType(o1);
                 switch (c_type) {
                     case "Array":
@@ -115,7 +116,7 @@ public class JsonReadProcess {
         try {
             JSONArray oa = (JSONArray) ojs;
             JSONObject ob = (JSONObject) oa.get(nPos);
-            cResult = ob.toJSONString();
+            cResult = ob.toString();
         } catch (Exception e) {
             lRet = errBox("Ошибка выбора объект из массива\n" + e.getMessage());
         }
@@ -142,20 +143,20 @@ public class JsonReadProcess {
                 pos = getNPos(part);
                 nCount = -1;
                 if (pos > -1) part = getPartName(part);
-                o1 = ob.get(part);
-                if (o1 == null) return errBox("Неизвестный значение в имени пути: " + part + cPath);
+                o1 = ob.opt(part);
+                if (o1 == null || o1 == JSONObject.NULL) return errBox("Неизвестный значение в имени пути: " + part + cPath);
                 c_type = getObjType(o1);
                 if (c_type.equals("Array")) {
-                    JSONArray oa = (JSONArray) ob.get(part);
-                    nCount = oa.size();
+                    JSONArray oa = (JSONArray) ob.opt(part);
+                    nCount = oa.length();
                     nSize = nCount;
                     if (pos > nCount - 1) return errBox("Неверный индекс массива " + part + cPath);
                     if (pos > -1) {
                         ob = (JSONObject) oa.get(pos);
-                        nSize = ob.size();
+                        nSize = ob.length();
                     } else {
                         if (i == i_max) {
-                            cResult = oa.toJSONString();
+                            cResult = oa.toString();
                             return true;
                         } else {
                             return errBox("Индекс массива " + part + " не определен");
@@ -163,10 +164,10 @@ public class JsonReadProcess {
                     }
                 } else if (c_type.equals("Object")) {
                     ob = (JSONObject) o1;
-                    nSize = ob.size();
+                    nSize = ob.length();
                 }
                 if (i == i_max) {
-                    cResult = ob.toJSONString();
+                    cResult = ob.toString();
                     return true;
                 }
             }
@@ -211,18 +212,20 @@ public class JsonReadProcess {
                 pos = getNPos(part);
                 nCount = -1;
                 if (pos > -1) part = getPartName(part);
-                o1 = ob.get(part);
-                if (o1 == null) return errBox("Неизвестный значение в имени пути: " + part + cPath);
+                o1 = ob.opt(part);
+                if (o1 == null || o1 == JSONObject.NULL) return errBox("Неизвестный значение в имени пути: " + part + cPath);
                 c_type = getObjType(o1);
                 switch (c_type) {
                     case "Array":
-                        JSONArray oa = (JSONArray) ob.get(part);
-                        nCount = oa.size();
+                        JSONArray oa = (JSONArray) ob.opt(part);
+                        nCount = oa.length();
                         tResult = c_type;
                         if (pos > nCount - 1) return errBox("Неверный индекс массива " + part + cPath);
                         if (i == i_max) {
                             if (nFlag == 1) {
-                                cResult = oa.get(pos).toString();
+                                Object oScalar = oa.get(pos);
+                                if (oScalar == JSONObject.NULL) return errBox("Неизвестный значение в имени пути: " + part + cPath);
+                                cResult = oScalar.toString();
                                 return true;
                             }
                             if (nFlag == 2) return true;            // Если ищем размер массива (nCount)
