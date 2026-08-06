@@ -1,20 +1,33 @@
 MODULE PurchaseStatementGestori;
 
-REQUIRE PurchaseLedger, PurchaseInvoice, PurchaseReturnInvoice, SaleReportsGestory, PriceListContract;
+REQUIRE PurchaseLedger, PurchaseInvoice, PurchaseReturnInvoice, PurchaseInvoiceGestori, SaleReportsGestory, PriceListContract;
 
 NAMESPACE Purchase;
 
+CLASS IncomeDateMode 'Период считать' {
+    document 'По дате документа',
+    invoice 'По дате накладной'
+}
+name 'Период считать' (IncomeDateMode o) = staticCaption(o) IF o IS IncomeDateMode CHARWIDTH 20;
+
+incomeDateMode 'Период считать' = DATA LOCAL IncomeDateMode ();
+incomeDateModeOrDefault = OVERRIDE incomeDateMode(), IncomeDateMode.document;
+nameIncomeDateMode 'Период считать' = name(incomeDateModeOrDefault());
+
 incomeIsReturn (PurchaseLedger l) = l IS PurchaseReturn.InvoiceDetail;
 
-incomeQuantity 'Количество закупаемого товара' (PurchaseLedger l) = quantity(l) IF NOT incomeIsReturn(l);
-incomeSum 'Сумма прихода по закупочной цене' (PurchaseLedger l) = sum(l) IF NOT incomeIsReturn(l);
-incomeCostSum 'Сумма прихода по бух. себестоимости' (PurchaseLedger l) =
-    NUMERIC[18,4](SaleReports.priceSku(sku(l), stock(l), date(l)) * quantity(l)) IF NOT incomeIsReturn(l);
+incomeInternalNumber = ABSTRACT STRING[48] (PurchaseLedger);
+incomeInvoiceNumber 'Номер накладной' (PurchaseLedger l) = incomeInternalNumber(l);
 
-returnQuantity 'Количество возврата поставщику' (PurchaseLedger l) = quantity(l) IF incomeIsReturn(l);
-returnSum 'Сумма возврата по цене возврата' (PurchaseLedger l) = sum(l) IF incomeIsReturn(l);
+incomeQuantity 'Количество закупаемого товара' (PurchaseLedger l) = shipmentQuantity(l) IF NOT incomeIsReturn(l);
+incomeSum 'Сумма прихода по закупочной цене' (PurchaseLedger l) = shipmentInvoiceSum(l) IF NOT incomeIsReturn(l);
+incomeCostSum 'Сумма прихода по бух. себестоимости' (PurchaseLedger l) =
+    NUMERIC[18,4](SaleReports.priceSku(sku(l), stock(l), date(l)) * shipmentQuantity(l)) IF NOT incomeIsReturn(l);
+
+returnQuantity 'Количество возврата поставщику' (PurchaseLedger l) = shipmentQuantity(l) IF incomeIsReturn(l);
+returnSum 'Сумма возврата по цене возврата' (PurchaseLedger l) = shipmentInvoiceSum(l) IF incomeIsReturn(l);
 returnSumWtVAT 'Сумма возврата по цене возврата без НДС' (PurchaseLedger l) =
-    (sum(l) (-) sumVAT(l)) IF incomeIsReturn(l);
+    (shipmentInvoiceSum(l) (-) shipmentVATSum(l)) IF incomeIsReturn(l);
 
 incomeSpecificationDetail = GROUP LAST PriceListDetail d
     ORDER fromDateTime(d), d
@@ -30,7 +43,11 @@ incomeContractNumber 'Номер договора' (PurchaseLedger l) = seriesNu
 
 incomeShowRow (PurchaseLedger l) = isPosted(l) AND (l IS Purchase.InvoiceDetail OR incomeIsReturn(l));
 
-incomeInterval (PurchaseLedger l) = SaleReports.filterFrom() <= date(l) AND SaleReports.filterTo() >= date(l);
+incomeDateFilter 'Дата отбора' (PurchaseLedger l) =
+    IF incomeDateModeOrDefault() == IncomeDateMode.invoice THEN shipmentDate(l) ELSE date(l);
+
+incomeInterval (PurchaseLedger l) =
+    SaleReports.filterFrom() <= incomeDateFilter(l) AND SaleReports.filterTo() >= incomeDateFilter(l);
 
 incomePassesStock (PurchaseLedger l) = SaleReports.passesReportStockFilterStock(stock(l));
 incomePassesSku (PurchaseLedger l) = SaleReports.passesReportSkuFilterSku(sku(l));
@@ -39,10 +56,12 @@ incomePassesSupplier (PurchaseLedger l) = NOT SaleReports.inSaleReportSupplier()
 initIncomeStatement() {
     SaleReports.filterFrom() <- currentDate();
     SaleReports.filterTo() <- currentDate();
+    incomeDateMode() <- IncomeDateMode.document;
 }
 
 FORM incomeStatementGestori 'Ведомость приходов'
     PROPERTIES incomeDateFrom 'Дата (с)' = SaleReports.filterFrom(), incomeDateTo 'Дата (по)' = SaleReports.filterTo()
+    PROPERTIES() nameIncomeDateMode
     PROPERTIES incomeStockList = SaleReports.nameStockList() READONLY SHOWIF SaleReports.stockList()
     PROPERTIES incomeStocks 'Подразделения' = SaleReports.inSaleReportStocks() ON CHANGE Inventory.changeStocksInventory() READONLYIF SaleReports.stockList()
     PROPERTIES incomeLegalEntityList = SaleReports.nameLegalEntityList() READONLY SHOWIF SaleReports.legalEntityList()
@@ -52,7 +71,7 @@ FORM incomeStatementGestori 'Ведомость приходов'
     PROPERTIES incomeSkus 'Товары' = Inventory.inSkus() ON CHANGE Inventory.selectSkus() READONLYIF Inventory.anySkuList() OR Inventory.anySkuGroup()
 
     OBJECTS l = PurchaseLedger
-    PROPERTIES(l) READONLY numberDocument, date, seriesNumberDocument, shipmentDate
+    PROPERTIES(l) READONLY numberDocument, date, incomeInvoiceNumber, shipmentDate
     PROPERTIES READONLY codeNameSupplier 'Код и наименование поставщика' = (CONCAT ' ', id(supplier(l)), nameSupplier(l)),
         idStockIncome 'Код подразделения' = id(stock(l))
     PROPERTIES(l) READONLY incomeContractNumber, incomeSpecNumber, incomeSpecName, idSku, nameSku
@@ -85,6 +104,7 @@ DESIGN incomeStatementGestori {
             horizontal = TRUE;
             MOVE PROPERTY(incomeDateFrom);
             MOVE PROPERTY(incomeDateTo);
+            MOVE PROPERTY(nameIncomeDateMode()) { valueClass = 'btn-info'; charWidth = 22; }
             MOVE PROPERTY(incomeStatementGestori()) { valueClass = 'btn-primary'; }
         }
         MOVE PROPERTY(incomeStockList) { alignment = STRETCH; }
