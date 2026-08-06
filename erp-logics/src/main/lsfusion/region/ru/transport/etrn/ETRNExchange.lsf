@@ -366,10 +366,18 @@ importIncomingETRN 'Получить входящие перевозки ЭПД'
         importIncoming(p);
 }
 
-// 2. загрузка полного состава данных входящих ЭТрН из титула Т1 - для планировщика
+// 2. загрузка полного состава данных входящих ЭТрН из титула Т1 - запасное действие
 // (реализация провайдера сама ставит titleImportedDateTime при успешной загрузке, чтобы неудача повторилась)
 processIncomingETRN 'Загрузить данные входящих ЭТрН' () {
     FOR ETRN e IS ETRN AND transportationId(e) AND NOT roleShipper(e) AND NOT titleImportedDateTime(e) AND provider(e) DO
+        importFullData(e);
+}
+
+// автозагрузка данных входящей перевозки сразу при обработке события: как только по событию
+// создан (или найден) документ, где мы не грузоотправитель, - скачиваем титул Т1
+// (участники, груз, адреса, указания), не дожидаясь отдельного запуска
+onProcessedEvent (ETRNEvent ev) + {
+    FOR ETRN e == etrn(ev) AND NOT roleShipper(e) AND NOT titleImportedDateTime(e) AND provider(e) DO
         importFullData(e);
 }
 
