@@ -89,6 +89,10 @@ changePrimary(Barcode barcode, Size s)  {
 
 barcodePrimary 'Штрихкод' (Size s) = GROUP MAX id(Barcode b) IF size(b) == s AND primary(b);
 
+sendAllBarcodes 'Передавать все штрихкоды при создании карточки' = DATA BOOLEAN ();
+
+isPrimaryBarcodeERP (Barcode b) = Barcode.primary(Barcode.barcode(STRING[15](id(b))));
+
 CLASS ABSTRACT Attribute 'Атрибут';
 TABLE attribute (Attribute) FULL;
 
@@ -1996,7 +2000,7 @@ uploadItems 'Создание новых карточек' () {
                 resultString() <- replace(resultString(), '"g.item":', '');
 
                 FOR index(Item i) > exported() AND index(i) <= exported() + uploadItemsLimit() AND itemWB(Size s) == i AND hasSizes(i) AND skus(s) NOINLINE DO {
-                    resultString() <- replace(resultString(), '"' + skus(s) + '"', '[' + (GROUP CONCAT '"' + id(Barcode b) + '"' IF size(b) == s, ',' ORDER b) + ']');
+                    resultString() <- replace(resultString(), '"' + skus(s) + '"', '[' + (GROUP CONCAT '"' + id(Barcode b) + '"' IF size(b) == s AND (sendAllBarcodes() OR isPrimaryBarcodeERP(b)), ',' ORDER b) + ']');
                 }
 
                 resultString() <- ltrim(rtrim(resultString(), '\}'), '\{');
@@ -2070,7 +2074,7 @@ uploadItem 'Создание новой карточки' (Item item) {
             resultString() <- replace(resultString(), '"g.item":', '');
 
             FOR isNew(Item i) AND itemWB(Size s) == i AND skus(s) AND hasSizes(i) NOINLINE DO {
-                resultString() <- replace(resultString(), '"' + skus(s) + '"', '[' + (GROUP CONCAT '"' + id(Barcode b) + '"' IF size(b) == s, ',' ORDER b) + ']');
+                resultString() <- replace(resultString(), '"' + skus(s) + '"', '[' + (GROUP CONCAT '"' + id(Barcode b) + '"' IF size(b) == s AND (sendAllBarcodes() OR isPrimaryBarcodeERP(b)), ',' ORDER b) + ']');
             }
 
             resultString() <- ltrim(rtrim(resultString(), '\}'), '\{');
@@ -2460,8 +2464,8 @@ DESIGN masterData {
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() postItemsLimit, postTrashItemsLimit, postTransferItemsLimit, postRecoverItemsLimit, updateItemsLimit, 
-        uploadItemsLimit
+    PROPERTIES() postItemsLimit, postTrashItemsLimit, postTransferItemsLimit, postRecoverItemsLimit, updateItemsLimit,
+        uploadItemsLimit, sendAllBarcodes
 ;
 
 DESIGN integrationData {
@@ -2472,6 +2476,7 @@ DESIGN integrationData {
         MOVE PROPERTY (postRecoverItemsLimit());
         MOVE PROPERTY (updateItemsLimit());
         MOVE PROPERTY (uploadItemsLimit());
+        MOVE PROPERTY (sendAllBarcodes());
     }
 }
 
