@@ -281,6 +281,14 @@ filledT1 (ETRN e) = e IS ETRN AND NOT missingT1(e) AND NOT missingDetailsT1(e);
 sendSignedETRN 'Подписать и отправить Т1' (ETRN e) {
     checkProvider(e);
     IF NOT provider(e) THEN RETURN;
+    // номер накладной присваивается при отправке: до этого момента ЭТрН может быть
+    // черновиком, а номер должен уйти в титул. Сохраняем сразу - реализация провайдера
+    // работает в своей сессии и несохранённый номер не увидит
+    IF NOT number(e) THEN NEWSESSION {
+        numerator(e) <- defaultNumeratorETRN() WHERE NOT numerator(e);
+        generateSeriesNumber(e);
+        APPLY;
+    }
     IF NOT skipFieldCheckETRN() THEN {
         checkT1(e);
         IF NOT filledT1(e) THEN RETURN;

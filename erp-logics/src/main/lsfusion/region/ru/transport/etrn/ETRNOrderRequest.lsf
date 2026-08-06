@@ -56,11 +56,13 @@ signerFirstName 'Подписант: имя' = DATA ISTRING[60](OrderRequest) CH
 signerMiddleName 'Подписант: отчество' = DATA ISTRING[60](OrderRequest) CHARWIDTH 15;
 signerPosition 'Подписант: должность' = DATA ISTRING[128](OrderRequest) CHARWIDTH 15;
 
-WHEN LOCAL CHANGED(shipper(OrderRequest o)) DO {
-    signerLastName(o) <- overSignerLastName(shipper(o)) WHERE overSignerLastName(shipper(o));
-    signerFirstName(o) <- overSignerFirstName(shipper(o)) WHERE overSignerFirstName(shipper(o));
-    signerMiddleName(o) <- overSignerMiddleName(shipper(o)) WHERE overSignerMiddleName(shipper(o));
-    signerPosition(o) <- overSignerPosition(shipper(o)) WHERE overSignerPosition(shipper(o));
+// подписант заполняется из карточки грузоотправителя, если не заполнен иначе
+skipSetSigner = DATA BOOLEAN  ()PREREAD;
+WHEN LOCAL CHANGED(shipper(OrderRequest o)) AND NOT skipSetSigner() DO {
+    signerLastName(o) <- overSignerLastName(shipper(o)) WHERE overSignerLastName(shipper(o)) AND NOT signerLastName(o);
+    signerFirstName(o) <- overSignerFirstName(shipper(o)) WHERE overSignerFirstName(shipper(o)) AND NOT signerFirstName(o);
+    signerMiddleName(o) <- overSignerMiddleName(shipper(o)) WHERE overSignerMiddleName(shipper(o)) AND NOT signerMiddleName(o);
+    signerPosition(o) <- overSignerPosition(shipper(o)) WHERE overSignerPosition(shipper(o)) AND NOT signerPosition(o);
 }
 
 // ------------------------- Реквизиты заявки (Т1 грузоотправителя) ------------------------- //
@@ -297,6 +299,8 @@ grossWeight 'Масса брутто, кг' = DATA NUMERIC[17,3](OrderDetail);
 height 'Высота, м' = DATA NUMERIC[17,3](OrderDetail);
 length 'Длина, м' = DATA NUMERIC[17,3](OrderDetail);
 width 'Ширина, м' = DATA NUMERIC[17,3](OrderDetail);
+// стоимость груза строки - переносится в ЭТрН (в титуле заявки не выгружается)
+cost 'Стоимость груза (с НДС)' = DATA NUMERIC[19,2](OrderDetail);
 
 // обязательные по UserDataXsd признаки груза
 distributable 'Возможно распределение по платформе' = DATA BOOLEAN (OrderDetail);
@@ -438,6 +442,7 @@ FORM orderRequest 'Заказ-заявка'
                   height BACKGROUND (backgroundMandatory(o) IF NOT height(d)),
                   length BACKGROUND (backgroundMandatory(o) IF NOT length(d)),
                   width BACKGROUND (backgroundMandatory(o) IF NOT width(d)),
+                  cost,
                   distributable, divisible,
                   nameUnloadingPoint BACKGROUND (backgroundMandatory(o) IF countUnloadingPoints(o) > 1 AND NOT unloadingPoint(d))
     PROPERTIES(d) NEW, DELETE
@@ -632,7 +637,7 @@ FORM orderRequests 'Заказы-заявки'
 
     OBJECTS d = OrderDetail
     PROPERTIES(d) READONLY index, nameCargo, nameCondition, nameTareType, quantityPlaces,
-                           volume, grossWeight, height, length, width
+                           volume, grossWeight, height, length, width, cost
     ORDERS index(d)
     FILTERS orderRequest(d) = o
 
