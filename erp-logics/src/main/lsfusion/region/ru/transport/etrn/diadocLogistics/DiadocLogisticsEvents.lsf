@@ -285,6 +285,12 @@ ETRN.importEvents (ETRN.ETRNProvider p) + WHEN p == ETRN.ETRNProvider.diadoc THE
 // здесь - диадок-специфика: cost-документ (Т5 + Т6) для ответных патчей
 diadocCostDocument = DATA Document (ETRN.ETRN);
 
+// привязка по документу события (по журналу уже привязанных событий): пара MessageId+EntityId
+// ленты идентифицирует документ, все его события относятся к одной перевозке. Нужна для входящих:
+// первые reception-события приходят без ИД перевозки (он присваивается позже, при регистрации
+// в ГИС ЭПД), и без этого ключа каждое такое событие создавало бы свою ЭТрН
+etrnByEventEntity (STRING id) = GROUP MAX ETRN.etrn(ETRN.ETRNEvent ev) IF ETRN.etrn(ev) BY entityId(ev);
+
 // привязка по документу Диадока (приоритетнее kl-id: kl-id может отсутствовать при отправке Т1)
 etrnByReceptionEntity (STRING id) = GROUP MAX ETRN.ETRN e BY entityId(entity(diadocReceptionDocument(e)));
 etrnByDeliveryEntity (STRING id) = GROUP MAX ETRN.ETRN e BY entityId(entity(diadocDeliveryDocument(e)));
@@ -306,11 +312,14 @@ processETRNEvent (ETRN.ETRNEvent ev) {
                     etrnByReceptionEntity(entityId(ev)),
                     etrnByDeliveryEntity(entityId(ev)),
                     etrnByCostEntity(entityId(ev)),
-                    ETRN.etrn(ETRN.transportationId(ev));
+                    ETRN.etrn(ETRN.transportationId(ev)),
+                    etrnByEventEntity(entityId(ev));
 
     // новая входящая перевозка (мы - грузополучатель) - только по reception-документу (Т1);
-    // условные документы (cost/readdress/relay) новую перевозку не создают - ждут привязки по kl-id
-    IF NOT e() AND docFunction(ev) == 'reception' THEN NEW ne = ETRN.ETRN {
+    // условные документы (cost/readdress/relay) новую перевозку не создают - ждут привязки по kl-id.
+    // событие без координат (ни документа, ни ИД перевозки) документ не создаёт - привязать его
+    // к последующим событиям было бы нечем
+    IF NOT e() AND docFunction(ev) == 'reception' AND (entityId(ev) OR ETRN.transportationId(ev)) THEN NEW ne = ETRN.ETRN {
         e() <- ne;
         ETRN.provider(ne) <- ETRN.ETRNProvider.diadoc;
         diadocKlId(ne) <- ETRN.transportationId(ev);

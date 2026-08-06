@@ -1,6 +1,6 @@
 MODULE DiadocLogisticsT3;
 
-REQUIRE DiadocLogistics, DiadocLogisticsT3Form;
+REQUIRE DiadocLogistics, DiadocLogisticsT3Form, DiadocLogisticsEvents;
 
 NAMESPACE Diadoc;
 
@@ -9,13 +9,19 @@ NAMESPACE Diadoc;
 // (PostMessage), связь с reception-документом (Т1/Т2) - через letterId/documentId в GenerateTitleXml.
 // Т4 затем отправляется как patch к созданному delivery-документу.
 
+// координаты reception-документа - через receptionDoc* (для входящих перевозок своего
+// объекта Document у нас нет, идентификаторы берутся из журнала docflow-событий)
 diadocSendT3 (ETRN.ETRN e) {
-    IF NOT diadocReceptionDocument(e) THEN {
-        MESSAGE 'Нет reception-документа перевозки (Т1) в Диадоке';
+    IF NOT (receptionDocMessageId(e) AND receptionDocEntityId(e)) THEN {
+        MESSAGE 'Нет reception-документа перевозки (Т1) в Диадоке (события не получены)';
         RETURN;
     }
     IF NOT diadocBox(ETRN.consignee(e)) THEN {
         MESSAGE 'Не найден ящик Диадока грузополучателя';
+        RETURN;
+    }
+    IF NOT diadocBox(ETRN.carrier(e)) THEN {
+        MESSAGE 'Не найден ящик Диадока перевозчика (получатель титула Т3)';
         RETURN;
     }
 
@@ -31,7 +37,7 @@ diadocSendT3 (ETRN.ETRN e) {
             EXTERNAL HTTP POST url() + '/GenerateTitleXml?boxId=' + fromBoxId() +
                 '&documentTypeNamedId=' + logisticsTypeNamedId() +
                 '&documentFunction=delivery&documentVersion=' + logisticsVersion() +
-                '&titleIndex=2&letterId=' + receptionMessageId(e) + '&documentId=' + receptionEntityId(e)
+                '&titleIndex=2&letterId=' + receptionDocMessageId(e) + '&documentId=' + receptionDocEntityId(e)
                 HEADERS httpHeadersToken PARAMS exportFile() TO result;
 
             typeNamedIdDocument(0) <- logisticsTypeNamedId();
@@ -52,6 +58,8 @@ diadocSendT3 (ETRN.ETRN e) {
                 diadocDeliveryDocument(e) <- createdDocument();
                 ETRN.exchangeStatus(e) <- ETRN.ETRNExchangeStatus.signed;
                 ETRN.exchangeMessage(e) <- NULL;
+                // наш титул оформлен - продвигаем этап сразу, не дожидаясь события ленты
+                ETRN.stage(e) <- ETRN.ETRNStage.acceptance WHERE NOT ETRN.id(ETRN.stage(e)) >= 3;
             } ELSE
                 ETRN.exchangeMessage(e) <- 'Т3 не отправлен (Диадок): ошибка PostMessage';
         } CATCH {
