@@ -147,7 +147,6 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
             //rootElement.addNamespaceDeclaration(xsi);
             setAttribute(rootElement, "sender", unpSender);
             Document doc = new Document(rootElement);
-            doc.setRootElement(rootElement);
 
             Namespace namespace = rootElement.getNamespace();
 
