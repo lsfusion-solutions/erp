@@ -41,9 +41,11 @@ prefixCSIAPI 'Префикс ШК' = DATA STRING () CHARWIDTH 10;
 prefixPieceCSIAPI 'Префикс ШК (шт)' = DATA STRING () CHARWIDTH 10;
 overPrefixCSIAPI (Item i) = IF istartsWith(shortNameUOM(barcode(i)), 'шт') THEN prefixPieceCSIAPI() ELSE prefixCSIAPI();
 
-contentBarcode (Item i) = CONCAT '', overPrefixCSIAPI(i) IF usePrefixCSIAPI() AND passScales(i) AND (length(idBarcode(i)) <= 8), idBarcode(i);
+overContentBarcode = ABSTRACT STRING (Item);
+contentBarcode (Item i) = OVERRIDE overContentBarcode(i), (CONCAT '', overPrefixCSIAPI(i) IF usePrefixCSIAPI() AND passScales(i) AND (length(idBarcode(i)) <= 8), idBarcode(i));
 escapeNameAPI (STRING s) = replace(replace(replace(replace(replace(s, '\\', '/'), '"', '\''), '\t', ' '), '\r', ''), '\n', '');
-replaceNameAPI (Item i) = escapeNameAPI(Stock.name(i));
+overNameAPI = ABSTRACT STRING (Item);
+replaceNameAPI (Item i) = OVERRIDE overNameAPI(i), escapeNameAPI(Stock.name(i));
 content (Item i, DepartmentStore ds) = IF idBarcode(i) AND in(i, ds) THEN '\{' + (CONCAT ',' ,
     '"index": ' + (indexItemExt(i, ds) - 1),
     '"name": "' + replaceNameAPI(i) + '"',
@@ -118,6 +120,62 @@ contentCalc (CustomGroupType gt, DepartmentStore ds) = '\{' + (CONCAT ',' ,
     ) + '\}';
 content  = ABSTRACT  CASE STRING (CustomGroupType, DepartmentStore);
 content (CustomGroupType t, DepartmentStore ds) += WHEN t IS CustomGroupType AND ds IS DepartmentStore THEN STRING (contentCalc(t,ds));
+
+overOrderSCO = ABSTRACT INTEGER (Item);
+orderSCO (Item i) = OVERRIDE overOrderSCO(i), 0;
+
+contentSCO (Item i, DepartmentStore ds) = IF idBarcode(i) AND in(i, ds) THEN '\{' + (CONCAT ',' ,
+    '"name": "' + replaceNameAPI(i) + '"',
+    '"barcode": "' + contentBarcode(i) + '"',
+    '"sku": "' + overSet10Id(i, ds) + '"'
+    ) + '\}';
+
+contentPageSCO4 (CustomGroup g, DepartmentStore ds) = IF in(g, ds) THEN '\{' + (CONCAT ',' ,
+    '"name": "' + escapeNameAPI(Stock.name(g)) + '"',
+    '"sortType": null',
+    '"tiles": [' + (OVERRIDE (GROUP CONCAT contentSCO(Item i, ds) IF in(g, i) == g, ', ' ORDER orderSCO(i), Stock.name(i), i), '') + ']'
+    ) + '\}';
+
+contentPageSCO3 (CustomGroup g, DepartmentStore ds) = IF in(g, ds) THEN '\{' + (CONCAT ',' ,
+    '"name": "' + escapeNameAPI(Stock.name(g)) + '"',
+    '"sortType": null',
+    '"tiles": [' + (OVERRIDE
+        (CONCAT ',',
+            (GROUP CONCAT contentPageSCO4(CustomGroup cg, ds) IF parent(cg) = g AND level(g) == 3 AND in(cg, ds), ', ' ORDER orderGroup(cg), cg),
+            (GROUP CONCAT contentSCO(Item i, ds) IF in(g, i) == g, ', ' ORDER orderSCO(i), Stock.name(i), i)
+        ), '')
+    + ']'
+    ) + '\}';
+
+contentPageSCO2 (CustomGroup g, DepartmentStore ds) = IF in(g, ds) THEN '\{' + (CONCAT ',' ,
+    '"name": "' + escapeNameAPI(Stock.name(g)) + '"',
+    '"sortType": null',
+    '"tiles": [' + (OVERRIDE
+        (CONCAT ',',
+            (GROUP CONCAT contentPageSCO3(CustomGroup cg, ds) IF parent(cg) = g AND level(g) == 2 AND in(cg, ds), ', ' ORDER orderGroup(cg), cg),
+            (GROUP CONCAT contentSCO(Item i, ds) IF in(g, i) == g, ', ' ORDER orderSCO(i), Stock.name(i), i)
+        ), '')
+    + ']'
+    ) + '\}';
+
+contentPageSCO1 (CustomGroup g, DepartmentStore ds) = IF in(g, ds) THEN '\{' + (CONCAT ',' ,
+    '"name": "' + escapeNameAPI(Stock.name(g)) + '"',
+    '"sortType": null',
+    '"tiles": [' + (OVERRIDE
+        (CONCAT ',',
+            (GROUP CONCAT contentPageSCO2(CustomGroup cg, ds) IF parent(cg) = g AND level(g) == 1 AND in(cg, ds), ', ' ORDER orderGroup(cg), cg),
+            (GROUP CONCAT contentSCO(Item i, ds) IF in(g, i) == g, ', ' ORDER orderSCO(i), Stock.name(i), i)
+        ), '')
+    + ']'
+    ) + '\}';
+
+contentCalcSCO (CustomGroupType gt, DepartmentStore ds) = '\{' + (CONCAT ',' ,
+    '"sortType": null',
+    '"tiles": [' + (OVERRIDE (GROUP CONCAT contentPageSCO1(CustomGroup cg, ds) IF groupType(cg) = gt AND NOT parent(cg) AND in(cg, ds), ', ' ORDER orderGroup(cg), cg), '') + ']'
+    ) + '\}';
+
+contentSCO = ABSTRACT CASE STRING (CustomGroupType, DepartmentStore);
+contentSCO (CustomGroupType t, DepartmentStore ds) += WHEN t IS CustomGroupType AND ds IS DepartmentStore THEN STRING (contentCalcSCO(t, ds));
 
 templateGuid 'GUID шаблона пиклиста' = DATA STRING ();
 cashTemplates 'Код шаблона касс' = DATA STRING ();
