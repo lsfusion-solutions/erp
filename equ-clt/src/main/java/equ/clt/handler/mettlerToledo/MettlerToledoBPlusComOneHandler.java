@@ -35,7 +35,6 @@ public class MettlerToledoBPlusComOneHandler extends MultithreadScalesHandler {
 
         Element rootElement = new Element("Message");
         Document doc = new Document(rootElement);
-        doc.setRootElement(rootElement);
 
         Element artsCommonHeaderElement = new Element("ARTSCommonHeader");
         artsCommonHeaderElement.setAttribute("MessageType", "Request");
@@ -57,7 +56,6 @@ public class MettlerToledoBPlusComOneHandler extends MultithreadScalesHandler {
 
         Element rootElement = new Element("Message");
         Document doc = new Document(rootElement);
-        doc.setRootElement(rootElement);
 
         Element artsCommonHeaderElement = new Element("ARTSCommonHeader");
         artsCommonHeaderElement.setAttribute("MessageType", "Request");

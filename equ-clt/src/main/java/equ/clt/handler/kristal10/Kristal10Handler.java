@@ -112,7 +112,6 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
                     Element rootElement = new Element("goods-catalog");
                     Document doc = new Document(rootElement);
-                    doc.setRootElement(rootElement);
 
                     Map<String, String> deleteBarcodeMap = deleteBarcodeDirectoryMap.get(directory);
                     DeleteBarcode usedDeleteBarcodes = new DeleteBarcode(transaction.nppGroupMachinery, directory);
@@ -449,7 +448,6 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
             Element rootElement = new Element("goods-catalog");
             Document doc = new Document(rootElement);
-            doc.setRootElement(rootElement);
 
             if (!stopListInfo.exclude) {
                 processStopListLogger.info(getLogPrefix() + " found " + stopListInfo.stopListItemMap.size() + " items");
