@@ -22,17 +22,17 @@ docflowIndexKey 'IndexKey ленты docflow-событий' = DATA STRING (Box)
 // Общий журнал (ETRNExchange): id, dateTime, type, status, transportationId, mintransId, etrn.
 // Диадоку дополнительно нужны координаты документа и срез статусов титулов.
 
-messageId 'ИД сообщения' = DATA STRING[100](ETRN.ETRNEvent);
-entityId 'ИД сущности (титул 0)' = DATA STRING[100](ETRN.ETRNEvent);
-typeNamedId 'Тип документа' = DATA STRING[100](ETRN.ETRNEvent);
-docFunction 'Функция документа' = DATA STRING[20](ETRN.ETRNEvent);
+messageId 'ИД сообщения' = DATA STRING[100](ETRN.ETRNEvent) CHARWIDTH 15;
+entityId 'ИД сущности (титул 0)' = DATA STRING[100](ETRN.ETRNEvent) CHARWIDTH 15;
+typeNamedId 'Тип документа' = DATA STRING[100](ETRN.ETRNEvent) CHARWIDTH 15;
+docFunction 'Функция документа' = DATA STRING[20](ETRN.ETRNEvent) CHARWIDTH 15;
 
 // статус автора титула по слоту (TitleAuthorStatusV5)
-titleAuthorStatus 'Статус титула' = DATA STRING[50](ETRN.ETRNEvent, INTEGER);
+titleAuthorStatus 'Статус титула' = DATA STRING[50](ETRN.ETRNEvent, INTEGER) CHARWIDTH 15;
 // отказ участника от подписания титула (TitleParticipantResponseStatusSignatureRejected)
 titleRejected 'Отказ по титулу' = DATA BOOLEAN (ETRN.ETRNEvent, INTEGER);
 // ИД сущности титула по слоту - для скачивания контента ответных титулов (GetEntityContent)
-titleEntityId 'ИД сущности титула' = DATA STRING[100](ETRN.ETRNEvent, INTEGER);
+titleEntityId 'ИД сущности титула' = DATA STRING[100](ETRN.ETRNEvent, INTEGER) CHARWIDTH 15;
 
 // привязка события к заказу-заявке (аналог etrn(ETRNEvent) для ЭТрН)
 orderRequest = DATA ETRN.OrderRequest (ETRN.ETRNEvent);
@@ -349,6 +349,17 @@ processETRNEvent (ETRN.ETRNEvent ev) {
                 WHEN docFunction(ev) == 'delivery' AND signedTitle(ev, 1) THEN ETRN.ETRNExchangeStatus.completed
                 WHEN signedTitle(ev, 0) OR signedTitle(ev, 1) THEN ETRN.ETRNExchangeStatus.signed
                 ELSE ETRN.exchangeStatus(et);
+
+        // этап - по состоянию титулов документа события (статусы KlMt на практике приходят
+        // числовыми кодами, diadocStage по ним не срабатывает); этап только продвигается вперёд.
+        // Т2 подписан (reception, слот 1, либо присвоен QR) - Погрузка;
+        // Т3 (delivery, слот 0) - Приемка; Т4 (delivery, слот 1) - Разгрузка
+        IF (docFunction(ev) == 'reception' AND signedTitle(ev, 1)) OR ETRN.status(ev) == 'QR' THEN
+            ETRN.stage(et) <- ETRN.ETRNStage.loading WHERE NOT id(ETRN.stage(et)) >= 2;
+        IF docFunction(ev) == 'delivery' AND signedTitle(ev, 0) THEN
+            ETRN.stage(et) <- ETRN.ETRNStage.acceptance WHERE NOT id(ETRN.stage(et)) >= 3;
+        IF docFunction(ev) == 'delivery' AND signedTitle(ev, 1) THEN
+            ETRN.stage(et) <- ETRN.ETRNStage.unloading;
     }
 }
 

@@ -36,7 +36,7 @@ CLASS ETRNWeightMethod 'Метод определения массы груза'
     calculated 'Расчетная масса груза'
 }
 TABLE ETRNWeightMethod (ETRNWeightMethod);
-name 'Наименование' (ETRNWeightMethod m) = staticCaption(m) IF m IS ETRNWeightMethod CHARWIDTH 25;
+name 'Наименование' (ETRNWeightMethod m) = staticCaption(m) IF m IS ETRNWeightMethod CHARWIDTH 15;
 id 'Код' (ETRNWeightMethod m) = CASE
     WHEN m == ETRNWeightMethod.total THEN '01'
     WHEN m == ETRNWeightMethod.axial THEN '02'
@@ -83,7 +83,7 @@ is (ETRN e) = e IS ETRN;
 // -- Параметры документа
 
 stage 'Этап' = DATA ETRNStage (ETRN);
-nameStage 'Этап' (ETRN e) = name(stage(e));
+nameStage 'Этап' (ETRN e) = name(stage(e)) CHARWIDTH 15;
 
 isClosed 'Закрыт' = DATA BOOLEAN (ETRN);
 isOpened 'Открыт' (ETRN e) = e IS ETRN AND NOT isClosed(e);
@@ -130,11 +130,11 @@ DESIGN options {
     }
 }
 
-orderNumber 'Номер заказа (заявки)' = DATA STRING[100](ETRN);
+orderNumber 'Номер заказа (заявки)' = DATA STRING[100](ETRN) CHARWIDTH 10;
 orderDate 'Дата заказа (заявки)' = DATA DATE (ETRN);
 orderDate(e) <- date(e) WHEN CHANGED(date(e));
 
-note 'Примечание' = DATA ISTRING[250](ETRN) CHARWIDTH 30;
+note 'Примечание' = DATA ISTRING[250](ETRN) CHARWIDTH 15;
 
 currency 'Валюта стоимости' = DATA Currency (ETRN);
 nameCurrency 'Валюта стоимости' (ETRN e) = name(currency(e)) CHARWIDTH 10;
@@ -148,7 +148,7 @@ WHEN LOCAL SET(ETRN e IS ETRN) INLINE DO {
 // -- Грузоотправитель
 
 shipper = DATA LegalEntity (ETRN);
-nameShipper 'Грузоотправитель' (ETRN e) = name(shipper(e)) CHARWIDTH 30;
+nameShipper 'Грузоотправитель' (ETRN e) = name(shipper(e)) CHARWIDTH 15;
 
 //CONSTRAINT shipper(ETRN e) AND NOT isSupplier(shipper(e))
 //    CHECKED BY shipper[ETRN] MESSAGE 'Грузоотправитель ЭТрН должен быть с признаком "Явл. поставщиком"';
@@ -158,16 +158,16 @@ forwarder 'Является экспедитором' = DATA BOOLEAN (ETRN); // 
 // -- Грузополучатель
 
 consignee = DATA LegalEntity (ETRN);
-nameConsignee 'Грузополучатель' (ETRN e) = name(consignee(e)) CHARWIDTH 30;
+nameConsignee 'Грузополучатель' (ETRN e) = name(consignee(e)) CHARWIDTH 15;
 
 //CONSTRAINT consignee(ETRN e) = LegalEntity l AND NOT isBuyer(l)
 //    CHECKED BY consignee[ETRN]
 //    MESSAGE 'Грузополучатель ЭТрН должен быть покупателем или компанией';
 
 customerStock 'Склад грузополучателя' = DATA Stock (ETRN);
-nameCustomerStock 'Склад грузополучателя' (ETRN e) = name(customerStock(e)) CHARWIDTH 20;
+nameCustomerStock 'Склад грузополучателя' (ETRN e) = name(customerStock(e)) CHARWIDTH 15;
 
-deliveryAddress 'Адрес места доставки груза' = DATA ISTRING[350](ETRN) CHARWIDTH 40;
+deliveryAddress 'Адрес места доставки груза' = DATA ISTRING[350](ETRN) CHARWIDTH 15;
 
 // структурный адрес места доставки (RussianAddress: Region+ZipCode обязательны по UserDataXsd)
 deliveryRegion 'Код региона (доставка)' = DATA STRING[2](ETRN) CHARWIDTH 4;
@@ -183,12 +183,12 @@ WHEN LOCAL CHANGED(customerStock(ETRN e)) AND NOT CHANGED(deliveryAddress(e)) DO
 // -- Указания грузоотправителя
 
 banReload 'Запрещение перегрузки' = DATA BOOLEAN (ETRN);
-transportInstructions 'Указания в отношении выполнения норм перевозки' = DATA ISTRING[2000](ETRN) CHARWIDTH 40;
+transportInstructions 'Указания в отношении выполнения норм перевозки' = DATA ISTRING[2000](ETRN) CHARWIDTH 15;
 deliveryDateTime 'Дата и время доставки' = DATA DATETIME (ETRN);
-deliveryPeriod 'Срок доставки груза' = DATA ISTRING[100](ETRN) CHARWIDTH 20;
-seals 'Сведения о запорно-пломбировочных устройствах' = DATA ISTRING[2000](ETRN) CHARWIDTH 30;
-speedLimits 'Указания об ограничениях скорости движения' = DATA ISTRING[2000](ETRN) CHARWIDTH 30;
-route 'Сведения о маршруте перевозки' = DATA ISTRING[2000](ETRN) CHARWIDTH 40;
+deliveryPeriod 'Срок доставки груза' = DATA ISTRING[100](ETRN) CHARWIDTH 15;
+seals 'Сведения о запорно-пломбировочных устройствах' = DATA ISTRING[2000](ETRN) CHARWIDTH 15;
+speedLimits 'Указания об ограничениях скорости движения' = DATA ISTRING[2000](ETRN) CHARWIDTH 15;
+route 'Сведения о маршруте перевозки' = DATA ISTRING[2000](ETRN) CHARWIDTH 15;
 
 // климатический режим перевозки
 temperatureFrom 'Нижний предел температуры, °C' = DATA NUMERIC[7,2](ETRN);
@@ -199,34 +199,34 @@ humidityTo 'Верхний предел влажности, %' = DATA NUMERIC[5,
 // -- Сведения о процедуре переадресовки
 
 redirectPerson 'Лицо, по указанию которого может осуществляться переадресовка' = DATA ETRNRedirectPerson (ETRN);
-nameRedirectPerson 'Лицо, по указанию которого может осуществляться переадресовка' (ETRN e) = name(redirectPerson(e));
+nameRedirectPerson 'Лицо, по указанию которого может осуществляться переадресовка' (ETRN e) = name(redirectPerson(e)) CHARWIDTH 15;
 
 // по умолчанию переадресовка - по указанию грузоотправителя (типовой случай)
 WHEN LOCAL SET(ETRN e IS ETRN) AND NOT CHANGED(redirectPerson(e)) INLINE DO
     redirectPerson(e) <- ETRNRedirectPerson.shipper;
 
-redirectMethod 'Способ передачи указания на переадресовку' = DATA ISTRING[255](ETRN) CHARWIDTH 40;
+redirectMethod 'Способ передачи указания на переадресовку' = DATA ISTRING[255](ETRN) CHARWIDTH 15;
 
 WHEN LOCAL SET(ETRN e IS ETRN) AND NOT CHANGED(redirectMethod(e)) INLINE DO
     redirectMethod(e) <- 'Электронное уведомление перевозчика о переадресовке';
 
 // контакты лица, по указанию которого может осуществляться переадресовка
-redirectPhone 'Номер контактного телефона/факс' = DATA ISTRING[255](ETRN) CHARWIDTH 20;
+redirectPhone 'Номер контактного телефона/факс' = DATA ISTRING[255](ETRN) CHARWIDTH 15;
 
 // телефон по умолчанию - из карточки выбранного лица (грузоотправитель/грузополучатель)
 WHEN LOCAL (CHANGED(redirectPerson(ETRN e)) OR CHANGED(shipper(e)) OR CHANGED(consignee(e))) AND NOT CHANGED(redirectPhone(e)) DO
     redirectPhone(e) <- ISTRING[255](IF redirectPerson(e) == ETRNRedirectPerson.consignee
                                      THEN phone(consignee(e))
                                      ELSE phone(shipper(e)));
-redirectEmail 'Адрес электронной почты' = DATA ISTRING[255](ETRN) CHARWIDTH 20;
-redirectContacts 'Иные контактные данные' = DATA ISTRING[255](ETRN) CHARWIDTH 20;
+redirectEmail 'Адрес электронной почты' = DATA ISTRING[255](ETRN) CHARWIDTH 15;
+redirectContacts 'Иные контактные данные' = DATA ISTRING[255](ETRN) CHARWIDTH 15;
 
 // реквизиты документа, подтверждающего передачу полномочий по переадресовке грузополучателю
-redirectDocName 'Наименование документа' = DATA ISTRING[255](ETRN) CHARWIDTH 25;
+redirectDocName 'Наименование документа' = DATA ISTRING[255](ETRN) CHARWIDTH 15;
 redirectDocNumber 'Номер документа' = DATA ISTRING[255](ETRN) CHARWIDTH 15;
 redirectDocDate 'Дата документа' = DATA DATE (ETRN);
-redirectDocFileId 'Идентификатор файла документа' = DATA ISTRING[255](ETRN) CHARWIDTH 25;
-redirectDocInfo 'Дополнительные сведения' = DATA ISTRING[1000](ETRN) CHARWIDTH 30;
+redirectDocFileId 'Идентификатор файла документа' = DATA ISTRING[255](ETRN) CHARWIDTH 15;
+redirectDocInfo 'Дополнительные сведения' = DATA ISTRING[1000](ETRN) CHARWIDTH 15;
 
 // идентифицирующие реквизиты сторон, составивших документ передачи полномочий
 CLASS ETRNRedirectDocParty 'Сторона документа передачи полномочий';
@@ -236,12 +236,12 @@ etrn = DATA ETRN (ETRNRedirectDocParty) NONULL DELETE INDEXED;
 
 innLegal 'ИНН юридического лица' = DATA STRING[10](ETRNRedirectDocParty);
 innPhysical 'ИНН физического лица' = DATA STRING[12](ETRNRedirectDocParty);
-authority 'Краткое наименование органа исполнительной власти, выдавшего документ' = DATA ISTRING[255](ETRNRedirectDocParty) CHARWIDTH 30;
+authority 'Краткое наименование органа исполнительной власти, выдавшего документ' = DATA ISTRING[255](ETRNRedirectDocParty) CHARWIDTH 15;
 
 // -- Перевозчик
 
 carrier = DATA LegalEntity (ETRN);
-nameCarrier 'Перевозчик' (ETRN e) = name(carrier(e)) CHARWIDTH 30;
+nameCarrier 'Перевозчик' (ETRN e) = name(carrier(e)) CHARWIDTH 15;
 
 // роли нашей организации в перевозке - определяются тем, кто из участников является
 // нашей компанией (не взаимоисключающие: доставка собственным транспортом -
@@ -252,16 +252,16 @@ roleCarrier 'Мы - перевозчик' (ETRN e) = isCompany(carrier(e));
 
 roles 'Наши роли' (ETRN e) = CONCAT ', ', 'Грузоотправитель' IF roleShipper(e),
                                           'Грузополучатель' IF roleConsignee(e),
-                                          'Перевозчик' IF roleCarrier(e) CHARWIDTH 25;
+                                          'Перевозчик' IF roleCarrier(e) CHARWIDTH 15;
 
 driver 'Водитель' = DATA Driver (ETRN);
-shortNameDriver 'Водитель' (ETRN e) = shortName(driver(e)) CHARWIDTH 20;
+shortNameDriver 'Водитель' (ETRN e) = shortName(driver(e)) CHARWIDTH 15;
 
 truck 'Транспортное средство' = DATA Truck (ETRN);
-nameTruck 'Транспортное средство' (ETRN e) = name(truck(e)) CHARWIDTH 25;
+nameTruck 'Транспортное средство' (ETRN e) = name(truck(e)) CHARWIDTH 15;
 
 trailer 'Прицеп' = DATA Trailer (ETRN);
-nameTrailer 'Прицеп' (ETRN e) = name(trailer(e)) CHARWIDTH 25;
+nameTrailer 'Прицеп' (ETRN e) = name(trailer(e)) CHARWIDTH 15;
 
 WHEN LOCAL CHANGED(truck(ETRN e)) AND NOT CHANGED(trailer(e)) DO
     trailer(e) <- defaultTrailer(truck(e));
@@ -297,21 +297,21 @@ carrierPhone 'Телефон' (ETRN e) = phone(carrier(e)) CHARWIDTH 15;
 
 // документ-основание владения при аренде/лизинге (обязателен в титуле при Ownership 3/4)
 needRentGroundTruck (ETRN e) = needRentGround(truck(e));
-truckRentDocName 'Основание владения: наименование' (ETRN e) = rentDocName(truck(e)) CHARWIDTH 20;
+truckRentDocName 'Основание владения: наименование' (ETRN e) = rentDocName(truck(e)) CHARWIDTH 15;
 truckRentDocNumber 'Основание владения: номер' (ETRN e) = rentDocNumber(truck(e)) CHARWIDTH 12;
 truckRentDocDate 'Основание владения: дата' (ETRN e) = rentDocDate(truck(e));
 truckRentLessorInn 'ИНН арендодателя' (ETRN e) = rentLessorInn(truck(e)) CHARWIDTH 12;
 
 needRentGroundTrailer (ETRN e) = needRentGround(trailer(e));
-trailerRentDocName 'Основание владения: наименование' (ETRN e) = rentDocName(trailer(e)) CHARWIDTH 20;
+trailerRentDocName 'Основание владения: наименование' (ETRN e) = rentDocName(trailer(e)) CHARWIDTH 15;
 trailerRentDocNumber 'Основание владения: номер' (ETRN e) = rentDocNumber(trailer(e)) CHARWIDTH 12;
 trailerRentDocDate 'Основание владения: дата' (ETRN e) = rentDocDate(trailer(e));
 trailerRentLessorInn 'ИНН арендодателя' (ETRN e) = rentLessorInn(trailer(e)) CHARWIDTH 12;
 
 // данные водителя и ТС стороннего перевозчика из входящего титула Т1
 // (в справочники Водители/Машины не заводятся - там наши сотрудники и транспорт)
-incomingDriverInfo 'Водитель (данные грузоотправителя)' = DATA ISTRING[1000](ETRN) CHARWIDTH 30;
-incomingVehicleInfo 'ТС (данные грузоотправителя)' = DATA ISTRING[500](ETRN) CHARWIDTH 30;
+incomingDriverInfo 'Водитель (данные грузоотправителя)' = DATA ISTRING[1000](ETRN) CHARWIDTH 15;
+incomingVehicleInfo 'ТС (данные грузоотправителя)' = DATA ISTRING[500](ETRN) CHARWIDTH 15;
 
 // сведения о путевом листе
 CLASS ETRNWaybill 'Путевой лист';
@@ -319,16 +319,16 @@ TABLE etrnWaybill(ETRNWaybill);
 
 etrn = DATA ETRN (ETRNWaybill) NONULL DELETE INDEXED;
 
-docName 'Наименование документа' = DATA ISTRING[255](ETRNWaybill) CHARWIDTH 25;
+docName 'Наименование документа' = DATA ISTRING[255](ETRNWaybill) CHARWIDTH 15;
 number 'Номер документа' = DATA ISTRING[255](ETRNWaybill) CHARWIDTH 15;
 date 'Дата документа' = DATA DATE (ETRNWaybill);
-fileId 'Идентификатор файла документа' = DATA ISTRING[255](ETRNWaybill) CHARWIDTH 25;
-info 'Дополнительные сведения' = DATA ISTRING[1000](ETRNWaybill) CHARWIDTH 30;
+fileId 'Идентификатор файла документа' = DATA ISTRING[255](ETRNWaybill) CHARWIDTH 15;
+info 'Дополнительные сведения' = DATA ISTRING[1000](ETRNWaybill) CHARWIDTH 15;
 
 // идентифицирующие реквизиты стороны, составившей документ (ИдРекСост, обязателен по формату)
 innLegal 'ИНН юридического лица' = DATA STRING[10](ETRNWaybill);
 innPhysical 'ИНН физического лица' = DATA STRING[12](ETRNWaybill);
-authority 'Орган исполнительной власти, выдавший документ' = DATA ISTRING[255](ETRNWaybill) CHARWIDTH 25;
+authority 'Орган исполнительной власти, выдавший документ' = DATA ISTRING[255](ETRNWaybill) CHARWIDTH 15;
 
 // -- Сведения о приеме груза перевозчиком
 
@@ -346,9 +346,9 @@ WHEN LOCAL CHANGED(arrivalDateTime(ETRN e)) AND NOT CHANGED(departureDateTime(e)
     departureDateTime(e) <- arrivalDateTime(e);
 
 supplierStock 'Склад погрузки' = DATA Stock (ETRN);
-nameSupplierStock 'Склад погрузки' (ETRN e) = name(supplierStock(e)) CHARWIDTH 20;
+nameSupplierStock 'Склад погрузки' (ETRN e) = name(supplierStock(e)) CHARWIDTH 15;
 
-loadingAddress 'Адрес места погрузки' = DATA ISTRING[350](ETRN) CHARWIDTH 40;
+loadingAddress 'Адрес места погрузки' = DATA ISTRING[350](ETRN) CHARWIDTH 15;
 
 // структурный адрес места погрузки (RussianAddress: Region+ZipCode обязательны по UserDataXsd)
 
@@ -395,7 +395,7 @@ WHEN LOCAL CHANGED(customerStock(ETRN e)) DO
 acceptGrossWeight 'Масса брутто груза, кг' = DATA NUMERIC[17,3](ETRN);
 
 weightMethod 'Метод определения массы груза' = DATA ETRNWeightMethod (ETRN);
-nameWeightMethod 'Метод определения массы груза' (ETRN e) = name(weightMethod(e));
+nameWeightMethod 'Метод определения массы груза' (ETRN e) = name(weightMethod(e)) CHARWIDTH 15;
 
 // по умолчанию - расчетная масса груза
 WHEN LOCAL SET(ETRN e IS ETRN) AND NOT CHANGED(weightMethod(e)) INLINE DO
@@ -403,25 +403,25 @@ WHEN LOCAL SET(ETRN e IS ETRN) AND NOT CHANGED(weightMethod(e)) INLINE DO
 
 acceptQuantityPlaces 'Количество грузовых мест' = DATA INTEGER (ETRN);
 
-containerCondition 'Фактическое состояние тары' = DATA ISTRING[255](ETRN) CHARWIDTH 25;
-packageCondition 'Фактическое состояние упаковки' = DATA ISTRING[255](ETRN) CHARWIDTH 25;
-bodyCondition 'Фактическое состояние кузова' = DATA ISTRING[255](ETRN) CHARWIDTH 25;
+containerCondition 'Фактическое состояние тары' = DATA ISTRING[255](ETRN) CHARWIDTH 15;
+packageCondition 'Фактическое состояние упаковки' = DATA ISTRING[255](ETRN) CHARWIDTH 15;
+bodyCondition 'Фактическое состояние кузова' = DATA ISTRING[255](ETRN) CHARWIDTH 15;
 
 // лицо, осуществляющее погрузку груза (СвЛицПогрГр): признак СовпГОП -
 // совпадает с грузоотправителем (типовой случай) либо реквизиты отдельного лица
 loaderIsShipper 'Погрузку осуществляет грузоотправитель' = DATA BOOLEAN (ETRN);
 loader 'Лицо, осуществляющее погрузку груза' = DATA LegalEntity (ETRN);
-nameLoader 'Лицо, осуществляющее погрузку груза' (ETRN e) = name(loader(e)) CHARWIDTH 30;
-loaderInfo 'Сведения о лице, осуществляющем погрузку' = DATA ISTRING[500](ETRN) CHARWIDTH 30;
+nameLoader 'Лицо, осуществляющее погрузку груза' (ETRN e) = name(loader(e)) CHARWIDTH 15;
+loaderInfo 'Сведения о лице, осуществляющем погрузку' = DATA ISTRING[500](ETRN) CHARWIDTH 15;
 
 // владелец объекта инфраструктуры пункта погрузки (ВладИнфр): признак СовпГОВ -
 // совпадает с грузоотправителем / отдельное лицо / неизвестен
 infrastructureOwnerIsShipper 'Владелец инфраструктуры - грузоотправитель' = DATA BOOLEAN (ETRN);
 infrastructureOwnerUnknown 'Владелец инфраструктуры неизвестен' = DATA BOOLEAN (ETRN);
 infrastructureOwner 'Владелец объекта инфраструктуры пункта погрузки' = DATA LegalEntity (ETRN);
-nameInfrastructureOwner 'Владелец объекта инфраструктуры пункта погрузки' (ETRN e) = name(infrastructureOwner(e)) CHARWIDTH 30;
-infrastructureOwnerInfo 'Сведения о владельце объекта инфраструктуры' = DATA ISTRING[500](ETRN) CHARWIDTH 30;
-infrastructureOwnerNoInfo 'Обстоятельства отсутствия информации о владельце' = DATA ISTRING[1000](ETRN) CHARWIDTH 30;
+nameInfrastructureOwner 'Владелец объекта инфраструктуры пункта погрузки' (ETRN e) = name(infrastructureOwner(e)) CHARWIDTH 15;
+infrastructureOwnerInfo 'Сведения о владельце объекта инфраструктуры' = DATA ISTRING[500](ETRN) CHARWIDTH 15;
+infrastructureOwnerNoInfo 'Обстоятельства отсутствия информации о владельце' = DATA ISTRING[1000](ETRN) CHARWIDTH 15;
 
 CONSTRAINT infrastructureOwnerIsShipper(ETRN e) AND infrastructureOwnerUnknown(e)
     MESSAGE 'Признаки владельца инфраструктуры «грузоотправитель» и «неизвестен» не могут быть установлены одновременно';
@@ -442,7 +442,7 @@ defaultIndex '№' (ETRNDetail d) = PARTITION SUM 1 IF d IS ETRNDetail ORDER d B
 index 'N' (ETRNDetail d) = OVERRIDE dataIndex(d), defaultIndex(d) IN id;
 
 cargo = DATA Cargo (ETRNDetail);
-nameCargo 'Груз' (ETRNDetail d) = name(cargo(d)) CHARWIDTH 30;
+nameCargo 'Груз' (ETRNDetail d) = name(cargo(d)) CHARWIDTH 15;
 
 isContainer (ETRNDetail d) = container(cargo(d));
 
@@ -479,7 +479,7 @@ nameMarking 'Маркировка' (ETRNDetail d) = name(marking(d)) CHARWIDTH 1
 // по умолчанию - «Отсутствует» (Марк обязателен по формату)
 WHEN LOCAL SET(ETRNDetail d IS ETRNDetail) AND NOT CHANGED(marking(d)) DO
     marking(d) <- markingAbsent();
-otherInfo 'Другая информация' = DATA ISTRING[1000](ETRNDetail) CHARWIDTH 20;
+otherInfo 'Другая информация' = DATA ISTRING[1000](ETRNDetail) CHARWIDTH 15;
 
 cost 'Стоимость груза (с НДС)' (ETRN e) = GROUP SUM cost(ETRNDetail d) BY etrn(d);
 
@@ -506,7 +506,7 @@ TABLE etrnDetailContainer(ETRNDetailContainer);
 detail = DATA ETRNDetail (ETRNDetailContainer) NONULL DELETE INDEXED;
 
 quantity 'Количество контейнеров' = DATA INTEGER (ETRNDetailContainer);
-number 'Идентификационный номер контейнера' = DATA ISTRING[255](ETRNDetailContainer) CHARWIDTH 25;
+number 'Идентификационный номер контейнера' = DATA ISTRING[255](ETRNDetailContainer) CHARWIDTH 15;
 
 countContainers (ETRNDetail d) = GROUP SUM 1 IF detail(ETRNDetailContainer c) = d;
 
@@ -864,12 +864,12 @@ DESIGN etrn {
 // ------------------------- Форма списка ------------------------- //
 
 FORM etrns 'Электронные транспортные накладные'
-    OBJECTS e = ETRN
-    PROPERTIES(e) READONLY seriesNumber, date, time, nameStage, roles, orderNumber,
-                           nameShipper, nameConsignee, nameCarrier, deliveryAddress, cost, note, isClosed
+    OBJECTS e = ETRN LAST
+    PROPERTIES(e) READONLY isClosed, series, number, date, time, nameStage, roles, orderNumber,
+                           nameShipper, nameConsignee, nameCarrier, deliveryAddress, cost, note
     PROPERTIES(e) close SHOWIF isOpened(e), open SHOWIF isClosed(e)
     PROPERTIES(e) NEWSESSION NEW, EDIT, DELETE
-    ORDERS date(e) DESC, time(e) DESC
+    //ORDERS date(e) DESC, time(e) DESC
 
     OBJECTS d = ETRNDetail
     PROPERTIES(d) READONLY index, nameCargo, namePackageWay, nameTareType, nameCondition,

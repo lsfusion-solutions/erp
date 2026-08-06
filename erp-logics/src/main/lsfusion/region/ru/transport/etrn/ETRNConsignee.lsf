@@ -24,13 +24,13 @@ FORM etrnAcceptResults 'Итог приемки груза'
 // -- Шапка: итог приемки
 
 acceptResult 'Итог приемки' = DATA ETRNAcceptResult (ETRN);
-nameAcceptResult 'Итог приемки' (ETRN e) = name(acceptResult(e));
+nameAcceptResult 'Итог приемки' (ETRN e) = name(acceptResult(e)) CHARWIDTH 15;
 
 // по умолчанию - груз принят (типовой случай)
 WHEN LOCAL SET(ETRN e IS ETRN) AND NOT CHANGED(acceptResult(e)) INLINE DO
     acceptResult(e) <- ETRNAcceptResult.accepted;
 
-rejectReason 'Причина отказа в приеме груза' = DATA ISTRING[2000](ETRN) CHARWIDTH 40;
+rejectReason 'Причина отказа в приеме груза' = DATA ISTRING[2000](ETRN) CHARWIDTH 15;
 
 CONSTRAINT acceptResult(ETRN e) = ETRNAcceptResult.rejected AND NOT rejectReason(e)
     MESSAGE 'При отказе в приеме груза должна быть указана причина отказа';
@@ -42,12 +42,12 @@ unloadingArrivalDateTime 'Фактические дата и время приб
 unloadingDepartureDateTime 'Фактические дата и время убытия' = DATA DATETIME (ETRN);
 
 unloadingWeightMethod 'Метод определения массы груза' = DATA ETRNWeightMethod (ETRN);
-nameUnloadingWeightMethod 'Метод определения массы груза' (ETRN e) = name(unloadingWeightMethod(e));
+nameUnloadingWeightMethod 'Метод определения массы груза' (ETRN e) = name(unloadingWeightMethod(e)) CHARWIDTH 15;
 
 acceptedQuantityPlaces 'Общее количество принятых грузовых мест' = DATA INTEGER (ETRN);
 quantityPlacesETRNDetail = GROUP SUM quantityPlaces(ETRNDetail d) BY etrn(d);
 acceptedQuantityPlaces(ETRN e) <- quantityPlacesETRNDetail(e) WHEN CHANGED(quantityPlacesETRNDetail(e));
-acceptedCondition 'Общие сведения о фактическом состоянии груза, тары, упаковки, маркировки и опломбирования' = DATA STRING (ETRN) CHARWIDTH 40;
+acceptedCondition 'Общие сведения о фактическом состоянии груза, тары, упаковки, маркировки и опломбирования' = DATA STRING (ETRN) CHARWIDTH 15;
 acceptedCondition(ETRN e) <- 'Новое' WHEN SET(e IS ETRN);
 grossWeightETRNDetail = GROUP SUM grossWeight(ETRNDetail d) BY etrn(d);
 acceptedGrossWeight 'Масса брутто принятого груза, кг' = DATA NUMERIC[17,3](ETRN);
@@ -55,14 +55,14 @@ acceptedGrossWeight(ETRN e) <- grossWeightETRNDetail(e) WHEN CHANGED(grossWeight
 acceptedNetWeight 'Масса нетто принятого груза, кг' = DATA NUMERIC[17,3](ETRN);
 acceptedVolume 'Объем грузовых мест, м3' = DATA NUMERIC[17,3](ETRN);
 
-unloadingAddress 'Адрес места выгрузки' = DATA ISTRING[350](ETRN) CHARWIDTH 40;
+unloadingAddress 'Адрес места выгрузки' = DATA ISTRING[350](ETRN) CHARWIDTH 15;
 
 WHEN LOCAL CHANGED(deliveryAddress(ETRN e)) AND NOT CHANGED(unloadingAddress(e)) DO
     unloadingAddress(e) <- deliveryAddress(e);
 
 // -- Строки: сведения о принятом грузе по отгрузочным наименованиям (СвПринПоНаим)
 
-acceptedCondition 'Состояние груза, тары, упаковки, маркировки и опломбирования' = DATA STRING (ETRNDetail) CHARWIDTH 25;
+acceptedCondition 'Состояние груза, тары, упаковки, маркировки и опломбирования' = DATA STRING (ETRNDetail) CHARWIDTH 15;
 acceptedQuantityPlaces 'Принято грузовых мест' = DATA INTEGER (ETRNDetail);
 acceptedVolume 'Принятый объем, м3' = DATA NUMERIC[17,3](ETRNDetail);
 acceptedNetWeight 'Принятая масса нетто, кг' = DATA NUMERIC[17,3](ETRNDetail);

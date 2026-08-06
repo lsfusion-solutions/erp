@@ -36,9 +36,9 @@ open 'Открыть' (OrderRequest o)  {
 // ------------------------- Участники ------------------------- //
 
 shipper = DATA LegalEntity (OrderRequest);
-nameShipper 'Грузоотправитель' (OrderRequest o) = name(shipper(o)) CHARWIDTH 30;
+nameShipper 'Грузоотправитель' (OrderRequest o) = name(shipper(o)) CHARWIDTH 15;
 carrier = DATA LegalEntity (OrderRequest);
-nameCarrier 'Перевозчик' (OrderRequest o) = name(carrier(o)) CHARWIDTH 30;
+nameCarrier 'Перевозчик' (OrderRequest o) = name(carrier(o)) CHARWIDTH 15;
 // телефон организации-перевозчика (Phones обязателен в титуле Т1; из карточки, при отправке
 // в титул подставляется и телефон представителя из ответа перевозчика, если карточка пуста)
 carrierOrgPhone 'Телефон' (OrderRequest o) = phone(carrier(o)) CHARWIDTH 15;
@@ -47,14 +47,14 @@ carrierOrgPhone 'Телефон' (OrderRequest o) = phone(carrier(o)) CHARWIDTH 
 roleShipper 'Мы - грузоотправитель' (OrderRequest o) = isCompany(shipper(o));
 roleCarrier 'Мы - перевозчик' (OrderRequest o) = isCompany(carrier(o));
 roles 'Наши роли' (OrderRequest o) = CONCAT ', ', 'грузоотправитель' IF roleShipper(o),
-                                                   'перевозчик' IF roleCarrier(o) CHARWIDTH 20;
+                                                   'перевозчик' IF roleCarrier(o) CHARWIDTH 15;
 
 // подписант титула заявки (Т1 грузоотправителя) - первичные поля документа;
 // заполняются из карточки грузоотправителя, можно поправить на конкретной заявке
-signerLastName 'Подписант: фамилия' = DATA ISTRING[60](OrderRequest);
-signerFirstName 'Подписант: имя' = DATA ISTRING[60](OrderRequest);
-signerMiddleName 'Подписант: отчество' = DATA ISTRING[60](OrderRequest);
-signerPosition 'Подписант: должность' = DATA ISTRING[128](OrderRequest);
+signerLastName 'Подписант: фамилия' = DATA ISTRING[60](OrderRequest) CHARWIDTH 15;
+signerFirstName 'Подписант: имя' = DATA ISTRING[60](OrderRequest) CHARWIDTH 15;
+signerMiddleName 'Подписант: отчество' = DATA ISTRING[60](OrderRequest) CHARWIDTH 15;
+signerPosition 'Подписант: должность' = DATA ISTRING[128](OrderRequest) CHARWIDTH 15;
 
 WHEN LOCAL CHANGED(shipper(OrderRequest o)) DO {
     signerLastName(o) <- overSignerLastName(shipper(o)) WHERE overSignerLastName(shipper(o));
@@ -66,13 +66,13 @@ WHEN LOCAL CHANGED(shipper(OrderRequest o)) DO {
 // ------------------------- Реквизиты заявки (Т1 грузоотправителя) ------------------------- //
 
 // договор перевозки - основание заявки
-contractName 'Договор перевозки: наименование' = DATA ISTRING[255](OrderRequest) CHARWIDTH 20;
+contractName 'Договор перевозки: наименование' = DATA ISTRING[255](OrderRequest) CHARWIDTH 15;
 contractNumber 'Договор перевозки: номер' = DATA ISTRING[255](OrderRequest) CHARWIDTH 12;
 contractDate 'Договор перевозки: дата' = DATA DATE (OrderRequest);
 
 // требования к перевозке
-sanitary 'Санитарные требования' = DATA ISTRING[1000](OrderRequest) CHARWIDTH 25;
-food 'Требования к перевозке пищевой продукции' = DATA ISTRING[1000](OrderRequest) CHARWIDTH 25;
+sanitary 'Санитарные требования' = DATA ISTRING[1000](OrderRequest) CHARWIDTH 15;
+food 'Требования к перевозке пищевой продукции' = DATA ISTRING[1000](OrderRequest) CHARWIDTH 15;
 
 // подача транспортного средства
 supplyDateTime 'Дата и время подачи ТС' = DATA DATETIME (OrderRequest);
@@ -93,20 +93,20 @@ vehicleVolume 'Требуемая вместимость, м3' = DATA NUMERIC[10
 
 // метод определения массы груза (ETRNWeightMethod - общий справочник)
 weightMethod 'Метод определения массы груза' = DATA ETRNWeightMethod (OrderRequest);
-nameWeightMethod 'Метод определения массы груза' (OrderRequest o) = name(weightMethod(o));
+nameWeightMethod 'Метод определения массы груза' (OrderRequest o) = name(weightMethod(o)) CHARWIDTH 15;
 
 // ------------------------- Ответ перевозчика (Т2) ------------------------- //
 
 carrierPhone 'Телефон представителя перевозчика' = DATA ISTRING[100](OrderRequest) CHARWIDTH 15;
 accepted 'Заявка принята перевозчиком' = DATA BOOLEAN (OrderRequest);
-rejectionReason 'Причина отказа в приёме заявки' = DATA ISTRING[1000](OrderRequest) CHARWIDTH 25;
+rejectionReason 'Причина отказа в приёме заявки' = DATA ISTRING[1000](OrderRequest) CHARWIDTH 15;
 
 driver 'Водитель' = DATA Driver (OrderRequest);
-shortNameDriver 'Водитель' (OrderRequest o) = shortName(driver(o)) CHARWIDTH 20;
+shortNameDriver 'Водитель' (OrderRequest o) = shortName(driver(o)) CHARWIDTH 15;
 truck 'Транспортное средство' = DATA Truck (OrderRequest);
-nameTruck 'Транспортное средство' (OrderRequest o) = name(truck(o)) CHARWIDTH 25;
+nameTruck 'Транспортное средство' (OrderRequest o) = name(truck(o)) CHARWIDTH 15;
 trailer 'Прицеп' = DATA Trailer (OrderRequest);
-nameTrailer 'Прицеп' (OrderRequest o) = name(trailer(o)) CHARWIDTH 25;
+nameTrailer 'Прицеп' (OrderRequest o) = name(trailer(o)) CHARWIDTH 15;
 
 // обязательные реквизиты водителя/ТС/прицепа (проверяются перед отправкой Т2) -
 // выводятся на форму READONLY, чтобы пользователь видел, что нужно заполнить в карточках
@@ -140,7 +140,7 @@ nameCurrency 'Валюта' (OrderRequest o) = name(currency(o)) CHARWIDTH 10;
 feeNoVat 'Стоимость перевозки без НДС' = DATA NUMERIC[18,2](OrderRequest);
 feeTaxRate 'Налоговая ставка' = DATA ISTRING[20](OrderRequest) CHARWIDTH 8;
 feeTotal 'Стоимость перевозки с НДС' = DATA NUMERIC[18,2](OrderRequest);
-feeCalculations 'Порядок расчётов' = DATA ISTRING[255](OrderRequest) CHARWIDTH 20;
+feeCalculations 'Порядок расчётов' = DATA ISTRING[255](OrderRequest) CHARWIDTH 15;
 
 WHEN LOCAL SET(OrderRequest o IS OrderRequest) INLINE DO {
     sanitary(o) <- 'Отсутствует';
@@ -151,20 +151,20 @@ WHEN LOCAL SET(OrderRequest o IS OrderRequest) INLINE DO {
 // ------------------------- Обмен с провайдером ЭПД ------------------------- //
 
 provider 'Провайдер ЭПД' = DATA ETRNProvider (OrderRequest);
-nameProvider 'Провайдер ЭПД' (OrderRequest o) = name(provider(o));
+nameProvider 'Провайдер ЭПД' (OrderRequest o) = name(provider(o)) CHARWIDTH 15;
 
 WHEN LOCAL SET(OrderRequest o IS OrderRequest) AND NOT CHANGED(provider(o)) INLINE DO
     provider(o) <- defaultProvider();
 
 exchangeStatus 'Статус обмена' = DATA ETRNExchangeStatus (OrderRequest);
-nameExchangeStatus 'Статус обмена' (OrderRequest o) = name(exchangeStatus(o));
+nameExchangeStatus 'Статус обмена' (OrderRequest o) = name(exchangeStatus(o)) CHARWIDTH 15;
 
 // подсветка незаполненных обязательных полей (аналогично ЭТрН)
 backgroundMandatory (OrderRequest o) = RGB(255, 236, 240) IF o IS OrderRequest;
 exchangeMessage 'Сообщение обмена' = DATA TEXT (OrderRequest);
 
 // статус документооборота у провайдера (сырой код), обновляется при приёме статусов
-providerStatus 'Статус документооборота (провайдер)' = DATA STRING[100](OrderRequest);
+providerStatus 'Статус документооборота (провайдер)' = DATA STRING[100](OrderRequest) CHARWIDTH 15;
 
 // файл титула Т2 (ответ перевозчика, ЗАКЗВПЕР) и признак загрузки его данных
 t2File 'Файл титула Т2 (XML)' = DATA FILE (OrderRequest);
@@ -211,16 +211,16 @@ defaultIndex '№' (OrderPoint p) = PARTITION SUM 1 IF p IS OrderPoint ORDER p B
 index 'N' (OrderPoint p) = OVERRIDE dataIndex(p), defaultIndex(p) IN id;
 
 operation 'Операция' = DATA OrderPointOperation (OrderPoint);
-nameOperation 'Операция' (OrderPoint p) = name(operation(p));
+nameOperation 'Операция' (OrderPoint p) = name(operation(p)) CHARWIDTH 15;
 operationDateTime 'Дата и время операции' = DATA DATETIME (OrderPoint);
 maxOperationDateTime 'Предельные дата и время операции' = DATA DATETIME (OrderPoint);
-address 'Адрес пункта (текст)' = DATA ISTRING[350](OrderPoint) CHARWIDTH 25;
-ownerName 'Владелец объекта инфраструктуры' = DATA ISTRING[255](OrderPoint) CHARWIDTH 20;
+address 'Адрес пункта (текст)' = DATA ISTRING[350](OrderPoint) CHARWIDTH 15;
+ownerName 'Владелец объекта инфраструктуры' = DATA ISTRING[255](OrderPoint) CHARWIDTH 15;
 ownerInn 'ИНН владельца инфраструктуры' = DATA STRING[12](OrderPoint) CHARWIDTH 12;
 
 // склад-источник адреса пункта (текстовый и структурный адрес заполняются от склада)
 stock 'Склад' = DATA Stock (OrderPoint);
-nameStock 'Склад' (OrderPoint p) = name(stock(p)) CHARWIDTH 20;
+nameStock 'Склад' (OrderPoint p) = name(stock(p)) CHARWIDTH 15;
 
 // структурный адрес пункта (RussianAddress: Region+ZipCode обязательны по UserDataXsd)
 region 'Код региона' = DATA STRING[2](OrderPoint) CHARWIDTH 4;
@@ -285,7 +285,7 @@ defaultIndex '№' (OrderDetail d) = PARTITION SUM 1 IF d IS OrderDetail ORDER d
 index 'N' (OrderDetail d) = OVERRIDE dataIndex(d), defaultIndex(d) IN id;
 
 cargo = DATA Cargo (OrderDetail);
-nameCargo 'Груз' (OrderDetail d) = name(cargo(d)) CHARWIDTH 30;
+nameCargo 'Груз' (OrderDetail d) = name(cargo(d)) CHARWIDTH 15;
 condition = DATA CargoCondition (OrderDetail);
 nameCondition 'Состояние груза' (OrderDetail d) = name(condition(d)) CHARWIDTH 15;
 condition(OrderDetail d) <- conditionName('Целый') WHEN SET(d IS OrderDetail);
@@ -305,9 +305,9 @@ divisible 'Груз делимый' = DATA BOOLEAN (OrderDetail);
 // пункт выгрузки строки груза (мультимаршрут: груз строки едет на этот пункт;
 // по нему выгружается связь груз-пункт в титул и формируется отдельная ЭТрН)
 unloadingPoint 'Маршрут' = DATA OrderPoint (OrderDetail);
-concatName (OrderPoint o) = CONCAT ' ', ('№' + index(o)), address(o) CHARWIDTH 20;
+concatName (OrderPoint o) = CONCAT ' ', ('№' + index(o)), address(o) CHARWIDTH 15;
 
-nameUnloadingPoint 'Маршрут' (OrderDetail d) = concatName(unloadingPoint(d)) CHARWIDTH 20;
+nameUnloadingPoint 'Маршрут' (OrderDetail d) = concatName(unloadingPoint(d)) CHARWIDTH 15;
 
 CONSTRAINT unloadingPoint(OrderDetail d) AND
     (orderRequest(unloadingPoint(d)) != orderRequest(d) OR operation(unloadingPoint(d)) != OrderPointOperation.unloading)
@@ -620,15 +620,15 @@ DESIGN orderRequest {
 // ------------------------- Форма списка ------------------------- //
 
 FORM orderRequests 'Заказы-заявки'
-    OBJECTS o = OrderRequest
-    PROPERTIES(o) READONLY number, date, roles, nameShipper, nameCarrier,
-                           accepted, feeTotal, nameProvider, nameExchangeStatus, providerStatus, isClosed
+    OBJECTS o = OrderRequest LAST 
+    PROPERTIES(o) READONLY isClosed, number, date, roles, nameShipper, nameCarrier,
+                           accepted, feeTotal, nameProvider, nameExchangeStatus, providerStatus
     PROPERTIES(o) sendOrderRequestAction SHOWIF roleShipper(o),
                   importOrderRequestT2Data SHOWIF roleShipper(o),
                   close SHOWIF isOpened(o), open SHOWIF isClosed(o)
     PROPERTIES processOrderRequestsT2() DRAW o
     PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
-    ORDERS date(o) DESC
+    //ORDERS date(o) DESC
 
     OBJECTS d = OrderDetail
     PROPERTIES(d) READONLY index, nameCargo, nameCondition, nameTareType, quantityPlaces,

@@ -6,13 +6,13 @@ NAMESPACE Transport;
 
 // ------------------------- Водители: реквизиты для ЭПД (ЭТрН) ------------------------- //
 
-licenseSeries 'Серия водительского удостоверения' = DATA STRING[20](Driver);
-licenseNumber 'Номер водительского удостоверения' = DATA STRING[20](Driver);
+licenseSeries 'Серия водительского удостоверения' = DATA STRING[20](Driver) CHARWIDTH 15;
+licenseNumber 'Номер водительского удостоверения' = DATA STRING[20](Driver) CHARWIDTH 15;
 licenseDate 'Дата выдачи водительского удостоверения' = DATA DATE (Driver);
 inn 'ИНН физического лица' = DATA STRING[12](Driver);
-signMethod 'Способ идентификации простой подписи' = DATA ISTRING[255](Driver);
+signMethod 'Способ идентификации простой подписи' = DATA ISTRING[255](Driver) CHARWIDTH 15;
 //phone 'Номер телефона' = DATA STRING[20](Driver);
-email 'E-mail' = DATA STRING[100](Driver) CHARWIDTH 25;
+email 'E-mail' = DATA STRING[100](Driver) CHARWIDTH 15;
 
 EXTEND FORM driver
     PROPERTIES(e) licenseSeries, licenseNumber, licenseDate, inn, phone, email, signMethod
@@ -60,16 +60,16 @@ idOwnershipType 'Код типа владения' (TruckOwnershipType t) = id(t
 
 truckOwnershipType (id) = GROUP MAX TruckOwnershipType t BY id(t);
 
-type 'Тип' = DATA ISTRING[100](Truck);
+type 'Тип' = DATA ISTRING[100](Truck) CHARWIDTH 15;
 capacity 'Вместимость, м3' = DATA NUMERIC[16,5](Truck);
 ownershipType 'Тип владения' = DATA TruckOwnershipType (Truck);
-nameOwnershipType 'Тип владения' (Truck t) = staticCaption(ownershipType(t));
+nameOwnershipType 'Тип владения' (Truck t) = staticCaption(ownershipType(t)) CHARWIDTH 15;
 sts 'Номер СТС' = DATA STRING[10](Truck);
-vin 'VIN номер' = DATA STRING[17](Truck);
+vin 'VIN номер' = DATA STRING[17](Truck) CHARWIDTH 15;
 
 // документ-основание владения при аренде/лизинге (ОснАрЛиз титула Т1: реквизиты + ИНН арендодателя)
 needRentGround (Truck t) = ownershipType(t) == TruckOwnershipType.rent OR ownershipType(t) == TruckOwnershipType.leasing;
-rentDocName 'Основание владения: наименование документа' = DATA ISTRING[255](Truck) CHARWIDTH 20;
+rentDocName 'Основание владения: наименование документа' = DATA ISTRING[255](Truck) CHARWIDTH 15;
 rentDocNumber 'Основание владения: номер' = DATA ISTRING[255](Truck) CHARWIDTH 12;
 rentDocDate 'Основание владения: дата' = DATA DATE (Truck);
 rentLessorInn 'ИНН арендодателя' = DATA STRING[12](Truck) CHARWIDTH 12;
@@ -114,23 +114,23 @@ CLASS Trailer 'Прицеп';
 TABLE trailer(Trailer);
 
 sid 'Рег. номер' = DATA ISTRING[9](Trailer) IN id;
-type 'Тип' = DATA ISTRING[100](Trailer);
+type 'Тип' = DATA ISTRING[100](Trailer) CHARWIDTH 15;
 truckModel = DATA TruckModel (Trailer);
-nameTruckModel 'Марка' (Trailer t) = name(truckModel(t));
+nameTruckModel 'Марка' (Trailer t) = name(truckModel(t)) CHARWIDTH 15;
 name 'Наименование' (Trailer t) = ISTRING[120](CONCAT ', ', nameTruckModel(t), 'рег. зн. ' + sid(t)) IN id;
 weight 'Грузоподъёмность (кг)' = DATA NUMERIC[16,4](Trailer);
 capacity 'Вместимость, м3' = DATA NUMERIC[16,5](Trailer);
 ownershipType 'Тип владения' = DATA TruckOwnershipType (Trailer);
-nameOwnershipType 'Тип владения' (Trailer t) = staticCaption(ownershipType(t));
+nameOwnershipType 'Тип владения' (Trailer t) = staticCaption(ownershipType(t)) CHARWIDTH 15;
 sts 'Номер СТС' = DATA STRING[10](Trailer);
-vin 'VIN номер' = DATA STRING[17](Trailer);
+vin 'VIN номер' = DATA STRING[17](Trailer) CHARWIDTH 15;
 
 inactive 'Неактивный' = DATA BOOLEAN (Trailer);
 active 'Активный' (Trailer t) = t IS Trailer AND NOT inactive(t);
 
 // документ-основание владения при аренде/лизинге (ОснАрЛиз титула Т1)
 needRentGround (Trailer t) = ownershipType(t) == TruckOwnershipType.rent OR ownershipType(t) == TruckOwnershipType.leasing;
-rentDocName 'Основание владения: наименование документа' = DATA ISTRING[255](Trailer) CHARWIDTH 20;
+rentDocName 'Основание владения: наименование документа' = DATA ISTRING[255](Trailer) CHARWIDTH 15;
 rentDocNumber 'Основание владения: номер' = DATA ISTRING[255](Trailer) CHARWIDTH 12;
 rentDocDate 'Основание владения: дата' = DATA DATE (Trailer);
 rentLessorInn 'ИНН арендодателя' = DATA STRING[12](Trailer) CHARWIDTH 12;
@@ -182,7 +182,7 @@ FORM trailers 'Прицепы'
 
 // прицеп по умолчанию у машины
 defaultTrailer = DATA Trailer (Truck);
-nameDefaultTrailer 'Прицеп (справочник)' (Truck t) = name(defaultTrailer(t));
+nameDefaultTrailer 'Прицеп (справочник)' (Truck t) = name(defaultTrailer(t)) CHARWIDTH 15;
 
 // обратная совместимость: базовое текстовое поле trailer у Truck (используется в печатных
 // формах и прочей логике) синхронизируется с рег. номером прицепа из справочника

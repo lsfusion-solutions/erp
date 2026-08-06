@@ -22,14 +22,14 @@ onStarted()+{
 // ------------------------- Настройки формата и обмена ЭПД ------------------------- //
 // Значения по умолчанию проставляются на onStarted, если ещё не заданы; редактируются в «Интеграция».
 
-logisticsTypeNamedId 'Тип документа ЭТрН' = DATA STRING[50] ();
-logisticsVersion 'Версия формата ЭТрН' = DATA STRING[50] ();
+logisticsTypeNamedId 'Тип документа ЭТрН' = DATA STRING[50] () CHARWIDTH 15;
+logisticsVersion 'Версия формата ЭТрН' = DATA STRING[50] () CHARWIDTH 15;
 // заказ-заявка (LogisticsOrderRequest): двухтитульный документ Т1 (грузоотправитель) + Т2 (перевозчик)
-orderRequestTypeNamedId 'Тип документа заказа-заявки' = DATA STRING[50] ();
-orderRequestVersion 'Версия формата заказа-заявки' = DATA STRING[50] ();
-orderRequestFunction 'Функция документа заказа-заявки' = DATA STRING[20] ();
+orderRequestTypeNamedId 'Тип документа заказа-заявки' = DATA STRING[50] () CHARWIDTH 15;
+orderRequestVersion 'Версия формата заказа-заявки' = DATA STRING[50] () CHARWIDTH 15;
+orderRequestFunction 'Функция документа заказа-заявки' = DATA STRING[20] () CHARWIDTH 15;
 // идентификатор documentflow статусов ГИС ЭПД (ЭТрН и заказ-заявка)
-klMtDocflowNamedId 'Идентификатор docflow ГИС ЭПД' = DATA STRING[50] ();
+klMtDocflowNamedId 'Идентификатор docflow ГИС ЭПД' = DATA STRING[50] () CHARWIDTH 15;
 // смещение часового пояса (для datetimeutc/timeutc, формат ±ЧЧ:ММ); по умолчанию МСК
 diadocTimeZoneOffset 'Смещение часового пояса ЭПД (±ЧЧ:ММ)' = DATA STRING[6] ();
 
@@ -77,7 +77,7 @@ DESIGN integrationData {
 // Т3+Т4 - отдельный двухтитульный (delivery). Все документы одной перевозки связаны через kl-id.
 
 // идентификаторы перевозки (kl-id - внутренний ид Диадока, mt-id - УИД Минтранса / ГИС ЭПД)
-diadocKlId 'kl-id (перевозка Диадок)' = DATA STRING[36](ETRN.ETRN) INDEXED;
+diadocKlId 'kl-id (перевозка Диадок)' = DATA STRING[36](ETRN.ETRN) INDEXED CHARWIDTH 15;
 etrnByKlId (STRING[36] klId) = GROUP MAX ETRN.ETRN e BY diadocKlId(e);
 
 // документы перевозки в Диадоке
@@ -136,7 +136,7 @@ diadocOrgType (LegalEntity l) = (IF length(inn(l)) == 12 THEN '1' ELSE '2') IF l
 // наблюдатель документооборота ЭТрН (иной получатель документа, OtherRecipientIds титула Т1):
 // например, поставщик при самовывозе - не участник перевозки, но получает документ в свой ящик
 diadocObserver = DATA LegalEntity (ETRN.ETRN);
-nameDiadocObserver 'Наблюдатель (иной получатель)' (ETRN.ETRN e) = name(diadocObserver(e)) CHARWIDTH 30;
+nameDiadocObserver 'Наблюдатель (иной получатель)' (ETRN.ETRN e) = name(diadocObserver(e)) CHARWIDTH 15;
 
 EXTEND FORM etrn
     PROPERTIES(e) nameDiadocObserver

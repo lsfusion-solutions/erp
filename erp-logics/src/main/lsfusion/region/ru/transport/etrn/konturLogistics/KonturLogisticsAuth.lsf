@@ -27,12 +27,12 @@ konturUrl () = IF konturStaging() THEN 'https://logist-api-staging.kontur.ru'
 
 // OpenID Connect (одно приложение-интегратор на систему)
 konturOidcUrl 'URL OpenID провайдера' = DATA STRING[255](); // напр. https://auth.kontur.ru
-konturClientId 'client_id приложения' = DATA STRING[255]();
-konturClientSecret 'client_secret приложения' = DATA STRING[255]() ECHO;
+konturClientId 'client_id приложения' = DATA STRING[255]() CHARWIDTH 15;
+konturClientSecret 'client_secret приложения' = DATA STRING[255]() ECHO CHARWIDTH 15;
 
 // Системные настройки по умолчанию (обратная совместимость: один ящик/ключ без мультибокс)
-konturApiKeySystem 'API-Key (по умолчанию)' = DATA STRING[255]() ECHO;
-konturBoxIdSystem 'ID ящика по умолчанию' = DATA STRING[36]();
+konturApiKeySystem 'API-Key (по умолчанию)' = DATA STRING[255]() ECHO CHARWIDTH 15;
+konturBoxIdSystem 'ID ящика по умолчанию' = DATA STRING[36]() CHARWIDTH 15;
 
 // ------------------------- Способ авторизации ------------------------- //
 
@@ -40,24 +40,24 @@ CLASS KonturAuthMode 'Способ авторизации Контур' {
     apiKey 'API-Key',
     oidc 'OpenID Connect'
 }
-name 'Наименование' (KonturAuthMode m) = staticCaption(m) IF m IS KonturAuthMode;
+name 'Наименование' (KonturAuthMode m) = staticCaption(m) IF m IS KonturAuthMode CHARWIDTH 15;
 
 // ------------------------- Ящик Контур.Логистика ------------------------- //
 
 CLASS KonturBox 'Ящик Контур.Логистика';
 TABLE konturBox (KonturBox);
 
-boxId 'ID ящика (Диадок)' = DATA STRING[36](KonturBox) IN id;
+boxId 'ID ящика (Диадок)' = DATA STRING[36](KonturBox) IN id CHARWIDTH 15;
 konturBox (STRING[36] boxId) = GROUP AGGR KonturBox b BY boxId(b);
 
 legalEntity 'Организация' = DATA LegalEntity (KonturBox);
-nameLegalEntity 'Организация' (KonturBox b) = name(legalEntity(b)) CHARWIDTH 25;
+nameLegalEntity 'Организация' (KonturBox b) = name(legalEntity(b)) CHARWIDTH 15;
 name 'Наименование' (KonturBox b) = OVERRIDE nameLegalEntity(b), boxId(b);
 
 authMode 'Способ авторизации' = DATA KonturAuthMode (KonturBox);
-nameAuthMode 'Способ авторизации' (KonturBox b) = staticCaption(authMode(b));
+nameAuthMode 'Способ авторизации' (KonturBox b) = staticCaption(authMode(b)) CHARWIDTH 15;
 
-apiKey 'API-Key' = DATA STRING[255](KonturBox) ECHO;
+apiKey 'API-Key' = DATA STRING[255](KonturBox) ECHO CHARWIDTH 15;
 accessToken = DATA STRING (KonturBox);
 refreshToken 'Refresh token' = DATA STRING (KonturBox) ECHO;
 tokenExpiresAt 'Токен действителен до' = DATA DATETIME (KonturBox);

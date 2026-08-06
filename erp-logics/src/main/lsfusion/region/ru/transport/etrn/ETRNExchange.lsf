@@ -10,7 +10,7 @@ NAMESPACE ETRN;
 
 CLASS ETRNProvider 'Провайдер ЭПД' : StaticObject;
 
-name 'Наименование' (ETRNProvider p) = staticCaption(p) IF p IS ETRNProvider CHARWIDTH 20;
+name 'Наименование' (ETRNProvider p) = staticCaption(p) IF p IS ETRNProvider CHARWIDTH 15;
 
 defaultProvider = DATA ETRNProvider ();
 nameDefaultProvider 'Провайдер ЭПД по умолчанию' = name(defaultProvider());
@@ -31,7 +31,7 @@ DESIGN options {
 // ------------------------- Провайдер и состояние обмена на документе ------------------------- //
 
 provider 'Провайдер ЭПД' = DATA ETRNProvider (ETRN);
-nameProvider 'Провайдер ЭПД' (ETRN e) = name(provider(e));
+nameProvider 'Провайдер ЭПД' (ETRN e) = name(provider(e)) CHARWIDTH 15;
 
 WHEN LOCAL SET(ETRN e IS ETRN) AND NOT CHANGED(provider(e)) INLINE DO
     provider(e) <- defaultProvider();
@@ -46,10 +46,10 @@ CLASS ETRNExchangeStatus 'Статус обмена ЭТрН' {
     invalid 'Ошибка в документообороте'
 }
 
-name 'Наименование' (ETRNExchangeStatus s) = staticCaption(s) IF s IS ETRNExchangeStatus CHARWIDTH 25;
+name 'Наименование' (ETRNExchangeStatus s) = staticCaption(s) IF s IS ETRNExchangeStatus CHARWIDTH 15;
 
 exchangeStatus 'Статус обмена' = DATA ETRNExchangeStatus (ETRN);
-nameExchangeStatus 'Статус обмена' (ETRN e) = name(exchangeStatus(e));
+nameExchangeStatus 'Статус обмена' (ETRN e) = name(exchangeStatus(e)) CHARWIDTH 15;
 
 // ------------------------- Следующий шаг документооборота ------------------------- //
 // подсказка по этапу, статусу обмена и нашим ролям: чей сейчас ход;
@@ -70,7 +70,7 @@ nextActionFlow (ETRN e) = CASE
     WHEN id(stage(e)) == 1 AND roleShipper(e) THEN 'Ожидается подпись Т1 (мы)'
     WHEN id(stage(e)) == 1 THEN 'Ожидается Т2 (перевозчик)';
 
-nextAction 'Следующий шаг' (ETRN e) = OVERRIDE overNextAction(e), nextActionFlow(e) CHARWIDTH 30;
+nextAction 'Следующий шаг' (ETRN e) = OVERRIDE overNextAction(e), nextActionFlow(e) CHARWIDTH 15;
 
 // ход за нами - для подсветки в списке
 nextActionOurFlow (ETRN e) = TRUE IF
@@ -87,12 +87,12 @@ backgroundNextAction (ETRN e) = RGB(255, 246, 205) IF nextActionOur(e);
 // выбирается из сотрудников; первичные поля позволяют поправить реквизиты вручную -
 // ручное значение приоритетнее данных выбранного сотрудника (OVERRIDE)
 signer 'Подписант ЭПД (сотрудник)' = DATA Employee (LegalEntity);
-nameSigner 'Подписант ЭПД (сотрудник)' (LegalEntity l) = shortName(signer(l)) CHARWIDTH 20;
+nameSigner 'Подписант ЭПД (сотрудник)' (LegalEntity l) = shortName(signer(l)) CHARWIDTH 15;
 
-signerLastName 'Подписант: фамилия' = DATA ISTRING[60](LegalEntity);
-signerFirstName 'Подписант: имя' = DATA ISTRING[60](LegalEntity);
-signerMiddleName 'Подписант: отчество' = DATA ISTRING[60](LegalEntity);
-signerPosition 'Подписант: должность' = DATA ISTRING[128](LegalEntity);
+signerLastName 'Подписант: фамилия' = DATA ISTRING[60](LegalEntity) CHARWIDTH 15;
+signerFirstName 'Подписант: имя' = DATA ISTRING[60](LegalEntity) CHARWIDTH 15;
+signerMiddleName 'Подписант: отчество' = DATA ISTRING[60](LegalEntity) CHARWIDTH 15;
+signerPosition 'Подписант: должность' = DATA ISTRING[128](LegalEntity) CHARWIDTH 15;
 
 // итоговые реквизиты подписанта; отчество - второе слово поля "Имя" сотрудника.
 // Имя нормализуется по пробелам: между словами могут ввести два-три пробела
@@ -105,10 +105,10 @@ overSignerPosition 'Подписант: должность' (LegalEntity l) = OV
 
 // подписант титулов документа (первичные поля; заполняются из карточки грузоотправителя,
 // можно поправить на конкретной ЭТрН - используются в наших титулах Т1/Т3/Т6)
-signerLastName 'Подписант: фамилия' = DATA ISTRING[60](ETRN);
-signerFirstName 'Подписант: имя' = DATA ISTRING[60](ETRN);
-signerMiddleName 'Подписант: отчество' = DATA ISTRING[60](ETRN);
-signerPosition 'Подписант: должность' = DATA ISTRING[128](ETRN);
+signerLastName 'Подписант: фамилия' = DATA ISTRING[60](ETRN) CHARWIDTH 15;
+signerFirstName 'Подписант: имя' = DATA ISTRING[60](ETRN) CHARWIDTH 15;
+signerMiddleName 'Подписант: отчество' = DATA ISTRING[60](ETRN) CHARWIDTH 15;
+signerPosition 'Подписант: должность' = DATA ISTRING[128](ETRN) CHARWIDTH 15;
 
 WHEN LOCAL CHANGED(shipper(ETRN e)) DO {
     signerLastName(e) <- overSignerLastName(shipper(e)) WHERE overSignerLastName(shipper(e));
@@ -136,16 +136,18 @@ DESIGN legalEntity {
     }
 }
 
-transportationId 'ИД перевозки у провайдера' = DATA STRING[36](ETRN) INDEXED;
+transportationId 'ИД перевозки у провайдера' = DATA STRING[36](ETRN) INDEXED CHARWIDTH 15;
 etrn (STRING[36] transportationId) = GROUP MAX ETRN e BY transportationId(e);
 
-mintransId 'УИД Минтранса (ГИС ЭПД)' = DATA STRING[255](ETRN);
-providerStatus 'Статус перевозки (провайдер)' = DATA STRING[100](ETRN);
+mintransId 'УИД Минтранса (ГИС ЭПД)' = DATA STRING[255](ETRN) CHARWIDTH 15;
+providerStatus 'Статус перевозки (провайдер)' = DATA STRING[100](ETRN) CHARWIDTH 15;
 exchangeMessage 'Сообщение обмена' = DATA TEXT (ETRN);
 
 titleFile 'Файл титула (XML)' = DATA FILE (ETRN);
 printForm 'Печатная форма (PDF)' = DATA FILE (ETRN);
-qrCode 'QR-код перевозки' = DATA FILE (ETRN); // GIF; обновляется провайдером после подписания Т7/Т8
+// QR-код перевозки не запрашиваем: мы не перевозчик, водитель получает QR в своём приложении
+// (функционал оставлен закомментированным на случай возврата)
+//qrCode 'QR-код перевозки' = DATA FILE (ETRN); // GIF; обновляется провайдером после подписания Т7/Т8
 
 // полнота данных входящего документа: загружен ли полный состав из титула Т1
 titleImportedDateTime 'Дата/время загрузки данных титула' = DATA DATETIME (ETRN);
@@ -156,31 +158,31 @@ CLASS ETRNEvent 'Событие ЭПД';
 TABLE etrnEvent(ETRNEvent);
 
 provider = DATA ETRNProvider (ETRNEvent);
-nameProvider 'Провайдер' (ETRNEvent ev) = name(provider(ev));
+nameProvider 'Провайдер' (ETRNEvent ev) = name(provider(ev)) CHARWIDTH 15;
 
-id 'ИД события' = DATA STRING[100](ETRNEvent) IN id;
+id 'ИД события' = DATA STRING[100](ETRNEvent) IN id CHARWIDTH 15;
 event = GROUP AGGR ETRNEvent ev WHERE ev IS ETRNEvent BY provider(ev), id(ev);
 
 dateTime 'Дата/время (UTC)' = DATA DATETIME (ETRNEvent);
-type 'Тип события' = DATA STRING[100](ETRNEvent);
-status 'Новый статус перевозки' = DATA STRING[100](ETRNEvent);
-transportationId 'ИД перевозки' = DATA STRING[36](ETRNEvent);
+type 'Тип события' = DATA STRING[100](ETRNEvent) CHARWIDTH 15;
+status 'Новый статус перевозки' = DATA STRING[100](ETRNEvent) CHARWIDTH 15;
+transportationId 'ИД перевозки' = DATA STRING[36](ETRNEvent) CHARWIDTH 15;
 
-mintransId 'УИД Минтранса (из события)' = DATA STRING[255](ETRNEvent);
+mintransId 'УИД Минтранса (из события)' = DATA STRING[255](ETRNEvent) CHARWIDTH 15;
 
 etrn = DATA ETRN (ETRNEvent) INDEXED;
 seriesNumberETRN 'ЭТрН' (ETRNEvent ev) = seriesNumber(etrn(ev));
 
 processedDateTime 'Дата/время обработки' = DATA DATETIME (ETRNEvent);
 
-lastEventId 'ИД последнего полученного события' = DATA STRING[100](ETRNProvider);
+lastEventId 'ИД последнего полученного события' = DATA STRING[100](ETRNProvider) CHARWIDTH 15;
 
 // ------------------------- Абстракции обмена (реализуются модулями провайдеров) ------------------------- //
 
 // черновики / передача на подпись / согласование водителем - специфика Контур.Логистики (модуль KonturLogistics)
 sendSigned 'Подписать и отправить Т1' ABSTRACT CASE (ETRN);   // формирование XML Т1 + подпись КЭП + отправка (POST documents)
 importPrintForm 'Получить печатную форму' ABSTRACT CASE (ETRN);
-importQR 'Получить QR-код' ABSTRACT CASE (ETRN);
+//importQR 'Получить QR-код' ABSTRACT CASE (ETRN);   // QR не запрашиваем - водитель получает его в своём приложении
 importEvents 'Получить события' ABSTRACT CASE (ETRNProvider);   // приём новых событий в журнал (без продвижения документов)
 processEvent 'Обработать событие' ABSTRACT CASE (ETRNEvent);   // продвижение документа по событию (реализация - у провайдера)
 
@@ -291,35 +293,35 @@ showPrintForm 'Печатная форма' (ETRN e) {
     IF printForm(e) THEN open(printForm(e));
 } IMAGE 'print.png';
 
-showQR 'QR-код перевозки' (ETRN e) {
-    // QR может обновляться на стороне провайдера (переадресовка, замена водителя/ТС) - запрашиваем всегда
-    IF provider(e) THEN importQR(e);
-    IF qrCode(e) THEN open(qrCode(e));
-    ELSE MESSAGE 'QR-код перевозки не получен';
-}
-
-sendQRToDriver 'Отправить QR-код водителю' (ETRN e) {
-    IF NOT driver(e) THEN {
-        MESSAGE 'В ЭТрН не указан водитель';
-        RETURN;
-    }
-    IF NOT email(driver(e)) THEN {
-        MESSAGE 'У водителя не задан e-mail (карточка водителя, блок «Реквизиты для ЭПД»)';
-        RETURN;
-    }
-    IF provider(e) THEN importQR(e); // актуальный QR перед отправкой
-    IF NOT qrCode(e) THEN {
-        MESSAGE 'QR-код перевозки не получен';
-        RETURN;
-    }
-
-    EMAIL SUBJECT 'QR-код перевозки ЭТрН ' + seriesNumber(e)
-        TO email(driver(e))
-        BODY (CONCAT ' ', 'QR-код перевозки ЭТрН', seriesNumber(e), 'во вложении. Предъявляется при проверке.')
-        ATTACH qrCode(e) NAME ('qr_' + seriesNumber(e));
-
-    MESSAGE 'QR-код отправлен водителю на ' + email(driver(e));
-}
+//showQR 'QR-код перевозки' (ETRN e) {
+//    // QR может обновляться на стороне провайдера (переадресовка, замена водителя/ТС) - запрашиваем всегда
+//    IF provider(e) THEN importQR(e);
+//    IF qrCode(e) THEN open(qrCode(e));
+//    ELSE MESSAGE 'QR-код перевозки не получен';
+//}
+//
+//sendQRToDriver 'Отправить QR-код водителю на email' (ETRN e) {
+//    IF NOT driver(e) THEN {
+//        MESSAGE 'В ЭТрН не указан водитель';
+//        RETURN;
+//    }
+//    IF NOT email(driver(e)) THEN {
+//        MESSAGE 'У водителя не задан e-mail (карточка водителя, блок «Реквизиты для ЭПД»)';
+//        RETURN;
+//    }
+//    IF provider(e) THEN importQR(e); // актуальный QR перед отправкой
+//    IF NOT qrCode(e) THEN {
+//        MESSAGE 'QR-код перевозки не получен';
+//        RETURN;
+//    }
+//
+//    EMAIL SUBJECT 'QR-код перевозки ЭТрН ' + seriesNumber(e)
+//        TO email(driver(e))
+//        BODY (CONCAT ' ', 'QR-код перевозки ЭТрН', seriesNumber(e), 'во вложении. Предъявляется при проверке.')
+//        ATTACH qrCode(e) NAME ('qr_' + seriesNumber(e));
+//
+//    MESSAGE 'QR-код отправлен водителю на ' + email(driver(e));
+//}
 
 // 1. приём новых событий в журнал (без продвижения документов) - для планировщика
 importETRNEvents 'Получить события ЭПД' () {
@@ -331,7 +333,7 @@ importETRNEvents 'Получить события ЭПД' () {
 // Каждое событие обрабатывается в своей сессии: ошибка применения по одному документу
 // (констрейнт и т.п.) не мешает обработке остальных; ошибка записывается в событие,
 // отметка обработки не ставится - событие повторит попытку в следующий запуск
-processedMessage 'Ошибка обработки' = DATA STRING[1000](ETRNEvent) CHARWIDTH 50;
+processedMessage 'Ошибка обработки' = DATA STRING[1000](ETRNEvent) CHARWIDTH 15;
 
 // дозагрузка данных по документу события после его успешной обработки
 // (например, ответ перевозчика Т2 по завершённой заявке - реализация у провайдера)
@@ -426,8 +428,8 @@ EXTEND FORM etrns
     PROPERTIES(e) READONLY nameProvider, nameExchangeStatus, providerStatus,
                            nextAction BACKGROUND backgroundNextAction(e)
     PROPERTIES(e) sendSignedETRN SHOWIF (roleShipper(e) AND NOT readonlyT1(e)),
-                  showPrintForm, showQR,
-                  sendQRToDriver SHOWIF driver(e)
+                  showPrintForm
+                  //, showQR, sendQRToDriver SHOWIF driver(e) - QR не запрашиваем: водитель получает его в своём приложении
     PROPERTIES importIncomingETRN() DRAW e, processIncomingETRN() DRAW e,
                importETRNEvents() DRAW e, processETRNEvents() DRAW e
 ;
@@ -444,8 +446,8 @@ DESIGN etrns {
             NEW actionsCommon {
                 caption = 'Провайдер';
                 MOVE PROPERTY(showPrintForm(e));
-                MOVE PROPERTY(showQR(e));
-                MOVE PROPERTY(sendQRToDriver(e));
+                //MOVE PROPERTY(showQR(e));
+                //MOVE PROPERTY(sendQRToDriver(e));
                 MOVE PROPERTY(importIncomingETRN());
                 MOVE PROPERTY(processIncomingETRN());
                 MOVE PROPERTY(importETRNEvents());

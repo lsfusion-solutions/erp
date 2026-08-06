@@ -10,7 +10,7 @@ CLASS TareType 'Вид тары';
 TABLE tareType(TareType);
 
 id 'Код' = DATA STRING[2](TareType) IN id CHARWIDTH 3;
-name 'Наименование' = DATA ISTRING[255](TareType) IN id CHARWIDTH 30;
+name 'Наименование' = DATA ISTRING[255](TareType) IN id CHARWIDTH 15;
 // однозначное имя для доступа из других namespace (id перегружен в namespace ETRN)
 idTareType 'Код вида тары' (TareType t) = id(t);
 
@@ -48,7 +48,7 @@ onStarted() + {
 
 CLASS PackageWay 'Способ упаковки';
 TABLE packageWayD(PackageWay);
-name 'Наименование' = DATA ISTRING[255](PackageWay) IN id CHARWIDTH 20;
+name 'Наименование' = DATA ISTRING[255](PackageWay) IN id CHARWIDTH 15;
 packageWayName = GROUP MAX PackageWay p BY name(p);
 
 FORM packageWay 'Способ упаковки'
@@ -66,12 +66,12 @@ FORM packageWays 'Способы упаковки'
 
 CLASS CargoCondition 'Состояние груза';
 TABLE cargoCondition(CargoCondition);
-name 'Наименование' = DATA ISTRING[255](CargoCondition) IN id CHARWIDTH 20;
+name 'Наименование' = DATA ISTRING[255](CargoCondition) IN id CHARWIDTH 15;
 conditionName = GROUP MAX CargoCondition c BY name(c);
 
 // статический элемент «Целый» - состояние груза по умолчанию для строк ЭТрН
 conditionIntact = DATA CargoCondition ();
-nameConditionIntact 'Состояние груза (ЭТрН)' () = name(conditionIntact());
+nameConditionIntact 'Состояние груза (ЭТрН)' () = name(conditionIntact()) CHARWIDTH 15;
 
 onStarted() + {
     IF NOT conditionIntact() THEN NEWSESSION {
@@ -98,7 +98,7 @@ FORM cargoConditions 'Состояния груза'
 
 CLASS CargoMarking 'Маркировка';
 TABLE cargoMarking(CargoMarking);
-name 'Наименование' = DATA ISTRING[1000](CargoMarking) IN id CHARWIDTH 20;
+name 'Наименование' = DATA ISTRING[1000](CargoMarking) IN id CHARWIDTH 15;
 markingName = GROUP MAX CargoMarking m BY name(m);
 
 // статический элемент «Отсутствует» - маркировка по умолчанию для строк груза
@@ -132,11 +132,11 @@ FORM cargoMarkings 'Маркировки'
 CLASS Cargo 'Груз';
 TABLE cargo(Cargo);
 
-name 'Отгрузочное наименование груза' = DATA ISTRING[255](Cargo) IN id CHARWIDTH 30;
+name 'Отгрузочное наименование груза' = DATA ISTRING[255](Cargo) IN id CHARWIDTH 15;
 packageWay = DATA PackageWay (Cargo);
-namePackageWay 'Способ упаковки' (Cargo c) = name(packageWay(c)) CHARWIDTH 20;
+namePackageWay 'Способ упаковки' (Cargo c) = name(packageWay(c)) CHARWIDTH 15;
 tareType 'Вид тары' = DATA TareType (Cargo);
-nameTareType 'Вид тары' (Cargo c) = name(tareType(c)) CHARWIDTH 20;
+nameTareType 'Вид тары' (Cargo c) = name(tareType(c)) CHARWIDTH 15;
 tnved 'Код товарной номенклатуры' = DATA STRING[4](Cargo);
 
 cargoContainer = DATA Cargo();
@@ -188,7 +188,7 @@ dataCargo = DATA Cargo (SkuGroup);
 nearestCargo (SkuGroup child) = GROUP LAST dataCargo(SkuGroup parent) ORDER DESC level(child, parent) WHERE dataCargo(parent);
 
 cargo (SkuGroup skuGroup) = OVERRIDE dataCargo(skuGroup), nearestCargo(skuGroup) MATERIALIZED;
-nameCargo 'Груз (ЭПД)' (SkuGroup skuGroup) = name(cargo(skuGroup)) IN paramsItemGroup;
+nameCargo 'Груз (ЭПД)' (SkuGroup skuGroup) = name(cargo(skuGroup)) IN paramsItemGroup CHARWIDTH 15;
 
 EXTEND FORM itemGroup PROPERTIES(g) nameCargo;
 EXTEND FORM itemGroups PROPERTIES(g) READONLYIF isReadonly() nameCargo BACKGROUND RGB(190,190,190) IF dataCargo(g);
@@ -197,7 +197,7 @@ EXTEND FORM itemGroups PROPERTIES(g) READONLYIF isReadonly() nameCargo BACKGROUN
 
 dataCargo = DATA Cargo (Sku);
 cargo (Sku s) = OVERRIDE dataCargo(s), cargo(skuGroup(s)) MATERIALIZED;
-nameCargo 'Груз (ЭПД)' (Sku s) = name(cargo(s)) IN itemBase;
+nameCargo 'Груз (ЭПД)' (Sku s) = name(cargo(s)) IN itemBase CHARWIDTH 15;
 
 // поиск груза по отгрузочному наименованию (для разбора входящих титулов)
 cargoName = GROUP MAX Cargo c BY name(c);

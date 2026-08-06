@@ -16,7 +16,7 @@ konturResult = DATA LOCAL FILE ();
 
 // ------------------------- FNSId участников ------------------------- //
 
-fnsId 'FNSId (ЭПД)' = DATA STRING[46](LegalEntity);
+fnsId 'FNSId (ЭПД)' = DATA STRING[46](LegalEntity) CHARWIDTH 15;
 
 konturImportRequisites 'Получить FNSId (Контур)' (LegalEntity l) {
     IF NOT konturBoxId() THEN setKonturAuthDefault();   // из кнопки - системный ящик; из титулов - контекст уже установлен
@@ -487,6 +487,8 @@ konturSendSignedT3 (ETRN e) {
 
         exchangeStatus(e) <- ETRNExchangeStatus.signed;
         exchangeMessage(e) <- NULL;
+        // наш титул оформлен - продвигаем этап сразу, не дожидаясь статуса перевозки
+        stage(e) <- ETRNStage.acceptance WHERE NOT id(stage(e)) >= 3;
         APPLY;
     } CATCH {
         fileToString(konturResult(), 'UTF-8');
@@ -504,24 +506,24 @@ konturStage (STRING[100] status) = CASE
     WHEN status LIKE 'WaybillDeliveryWaitCarrier%' THEN ETRNStage.unloading
     WHEN status = 'Completed' THEN ETRNStage.unloading;
 
-// QR-код перевозки (GIF; для предъявления при проверках)
-konturImportQR (ETRN e) {
-    setKonturAuth(konturOurParty(e));
-    IF NOT transportationId(e) THEN {
-        MESSAGE 'Для ЭТрН не получен идентификатор перевозки у провайдера';
-        RETURN;
-    }
-    TRY {
-        EXTERNAL HTTP GET konturUrl() + '/v1/transportations/' + transportationId(e) + '/qr' +
-            (OVERRIDE '?diadocBoxId=' + konturBoxId(), '')
-            HEADERS konturHeaders TO konturResult;
-        qrCode(e) <- konturResult();
-        APPLY;
-    } CATCH {
-        fileToString(konturResult(), 'UTF-8');
-        MESSAGE CONCAT ' ', 'Ошибка получения QR-кода:', statusHttp(), resultString(), messageCaughtException();
-    }
-}
+// QR-код перевозки не запрашиваем: мы не перевозчик, водитель получает QR в своём приложении
+//konturImportQR (ETRN e) {
+//    setKonturAuth(konturOurParty(e));
+//    IF NOT transportationId(e) THEN {
+//        MESSAGE 'Для ЭТрН не получен идентификатор перевозки у провайдера';
+//        RETURN;
+//    }
+//    TRY {
+//        EXTERNAL HTTP GET konturUrl() + '/v1/transportations/' + transportationId(e) + '/qr' +
+//            (OVERRIDE '?diadocBoxId=' + konturBoxId(), '')
+//            HEADERS konturHeaders TO konturResult;
+//        qrCode(e) <- konturResult();
+//        APPLY;
+//    } CATCH {
+//        fileToString(konturResult(), 'UTF-8');
+//        MESSAGE CONCAT ' ', 'Ошибка получения QR-кода:', statusHttp(), resultString(), messageCaughtException();
+//    }
+//}
 
 // ------------------------- Импорт данных перевозки ------------------------- //
 // GET /v2/transportations/{id}: участники (Participants.V2: inn, kpp, name, role) и
@@ -733,14 +735,14 @@ GROUP konturImpEventDetails EXTID 'details';
 // тип титула из деталей события (события DocumentSignedBySender/Recipient: ConsignorTitle=Т1,
 // CarrierReceptionTitle=Т2, ConsigneeTitle=Т3, CarrierDeliveryTitle=Т4, CarrierPaymentTitle=Т5,
 // ConsignorPaymentTitle=Т6, RedirectTitle=Т7, RelayTitle=Т8, ConsignorReaddressTitle=Т9, RejectTitle=отказ)
-konturDocumentType 'Тип титула (Контур)' = DATA STRING[100](ETRNEvent);
-konturDocumentId 'ИД титула (Контур)' = DATA STRING[100](ETRNEvent);
-konturRejectionReason 'Причина отказа (Контур)' = DATA STRING[1000](ETRNEvent);
+konturDocumentType 'Тип титула (Контур)' = DATA STRING[100](ETRNEvent) CHARWIDTH 15;
+konturDocumentId 'ИД титула (Контур)' = DATA STRING[100](ETRNEvent) CHARWIDTH 15;
+konturRejectionReason 'Причина отказа (Контур)' = DATA STRING[1000](ETRNEvent) CHARWIDTH 15;
 
 // ИД подписанных титулов перевозки (из событий) - для получения файлов титулов (/titles/{titleId})
-konturT1TitleId 'ИД титула Т1 (Контур)' = DATA STRING[100](ETRN);
-konturT3TitleId 'ИД титула Т3 (Контур)' = DATA STRING[100](ETRN);
-konturT5TitleId 'ИД титула Т5 (Контур)' = DATA STRING[100](ETRN);
+konturT1TitleId 'ИД титула Т1 (Контур)' = DATA STRING[100](ETRN) CHARWIDTH 15;
+konturT3TitleId 'ИД титула Т3 (Контур)' = DATA STRING[100](ETRN) CHARWIDTH 15;
+konturT5TitleId 'ИД титула Т5 (Контур)' = DATA STRING[100](ETRN) CHARWIDTH 15;
 
 // контур-поля в журнале: на списке - при провайдере по умолчанию Контур, на карточке - по провайдеру события
 isKonturETRN () = defaultProvider() == ETRNProvider.kontur;
@@ -839,7 +841,7 @@ FORM konturImportEvents
 ;
 
 // курсор ленты событий - по ящику (мультибокс) либо по провайдеру (системный)
-lastEventId 'ИД последнего события' = DATA STRING[100](KonturBox);
+lastEventId 'ИД последнего события' = DATA STRING[100](KonturBox) CHARWIDTH 15;
 getLastEventId (ETRNProvider p, KonturBox b) = IF b THEN lastEventId(b) ELSE lastEventId(p);
 
 konturImportEventsBox (ETRNProvider p, KonturBox box) {
@@ -1020,11 +1022,11 @@ importPrintForm (ETRN e) + WHEN provider(e) = ETRNProvider.kontur THEN {
     }
 }
 
-importQR (ETRN e) + WHEN provider(e) = ETRNProvider.kontur THEN {
-    NEWSESSION {
-        konturImportQR(e);
-    }
-}
+//importQR (ETRN e) + WHEN provider(e) = ETRNProvider.kontur THEN {
+//    NEWSESSION {
+//        konturImportQR(e);
+//    }
+//}
 
 importEvents (ETRNProvider p) + WHEN p = ETRNProvider.kontur THEN {
     NEWSESSION {
