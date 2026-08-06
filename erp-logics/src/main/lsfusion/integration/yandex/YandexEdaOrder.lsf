@@ -291,7 +291,8 @@ deleteOrder(FILE f){
     }
     ELSE {
         LOCAL order = STRING ();
-        order() <- replace(servletPath() + pathInfo(), TEXT('/exec/order/'), TEXT (''));
+        order() <- replace(replace(servletPath() + pathInfo(), TEXT('/exec/v1/order/'), TEXT ('')), '/exec/order/', '');
+        logToFile('yandex', CONCAT ' : ', 'Delete order', order());
         IF NOT order() THEN { orderNotFound(); RETURN; }
         IF internetOrderByUuid(order()) THEN{
             IMPORT closeOrder FROM f;
@@ -301,9 +302,11 @@ deleteOrder(FILE f){
             IF canceled() THEN {
                 statusHttpTo() <- 500;
                 EXPORT JSON FROM result = 'error', description = applyMessage();
+                RETURN;
             }
             EXPORT JSON FROM order = uuid(internetOrderByUuid(order())), status = 'Отменён';
         }
+        ELSE orderNotFound();
     }
 }
 
