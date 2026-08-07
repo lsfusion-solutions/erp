@@ -135,8 +135,10 @@ META defineDocumentProduct(doc, capt)
     
     CONSTRAINT client(###doc d) AND NOT own(client(d))
         CHECKED BY client[###doc]
-        MESSAGE 'Для документа ЕГАИС выбрана не собственная организация'; 
-        
+        MESSAGE 'Для документа ЕГАИС выбрана не собственная организация';
+
+    @defineChangeInnerClient(###doc, client);
+
     note 'Примечание' = DATA STRING (###doc);
     
     // position
@@ -162,7 +164,8 @@ META defineDocumentProduct(doc, capt)
     FORM doc capt##' ЕГАИС'
         OBJECTS d = ###doc PANEL
         PROPERTIES(d) posted, number, dateTime,
-                      shortNameClient, descriptionClient, note
+                      shortNameClient ON CHANGE changeInnerClient(d),
+                      descriptionClient ON CHANGE changeInnerClient(d), note
         
         OBJECTS p = ###doc##Position
         PROPERTIES(p) idProduct, fullNameProduct, quantity, 

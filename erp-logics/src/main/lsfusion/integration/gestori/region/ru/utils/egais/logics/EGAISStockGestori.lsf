@@ -1,15 +1,35 @@
 MODULE EGAISStockGestori;
 
-REQUIRE EGAISStock, LegalEntityRu;
+REQUIRE EGAISStock, LegalEntityRu, EmployeeStock;
 
 NAMESPACE EGAIS;
 
-existStock'Связан со складами' (Client c) = TRUE IF stock(c);
+existStock 'Связан со складами' (Client c) = TRUE IF stock(c);
+
+countSupplierStock (Client c) = GROUP SUM 1 IF client(Stock s) = c AND isSupplier(s) AND NOT isCompany(s);
+countAccessStock (Client c) = GROUP SUM 1 IF client(Stock s) = c AND isCompany(s) AND accessCompany(s);
+
+hideInnerClient(Client c) += TRUE IF NOT countAccessStock(c);
+hasAccess 'Доступ разрешен' (Client c) = TRUE IF countAccessStock(c) OR countSupplierStock(c);
+
+showOnlyAccessClients = DATA LOCAL NESTED BOOLEAN ();
+onlyAccessClients 'Только организации с доступом' = DATA LOCAL NESTED BOOLEAN ();
+
+overChangeOuterClient() + {
+    showOnlyAccessClients() <- TRUE;
+}
+
+overChangeInnerClient() + {
+    showOnlyAccessClients() <- NULL;
+}
 
 EXTEND FORM dialogClients
     OBJECTS s = Stock
     PROPERTIES (s) READONLY id, name
-    FILTERS client(s) == o    
+    FILTERS client(s) == o
+
+    PROPERTIES() onlyAccessClients SHOWIF showOnlyAccessClients()
+    FILTERS hasAccess(o) OR NOT (showOnlyAccessClients() AND onlyAccessClients())
 ;
 
 DESIGN dialogClients {
@@ -21,7 +41,11 @@ DESIGN dialogClients {
             MOVE BOX(s);
         }
     }
+    TOOLBARRIGHT(o) {
+        MOVE PROPERTY(onlyAccessClients()) BEFORE TOOLBAR(o);
+    }
 }
+
 
 EXTEND FORM clients
     PROPERTIES(o) READONLY existStock AFTER nameStock(o)    

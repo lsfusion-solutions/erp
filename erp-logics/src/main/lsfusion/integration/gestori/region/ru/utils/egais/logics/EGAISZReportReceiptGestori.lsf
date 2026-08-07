@@ -17,6 +17,11 @@ CONSTRAINT NOT own(actClient()) AND actClient() IS Client
     CHECKED BY actClient[]
     MESSAGE 'Для списаний/постановок ЕГАИС по кассам доступны только собственные организации';
 
+changeActClient () {
+    overChangeInnerClient();
+    DIALOG dialogClients OBJECTS o = actClient() CHANGE FILTERS NOT hideInnerClient(o);
+}
+
 createByReceipt 'Создать по кассовым отчётам' (DATE dFrom, DATE dTo) {
     IF receiptSale() AND receiptLot() THEN createActWriteOff(actClient(), dFrom, dTo, writeOffType('Розничная продажа')); // списание крепкого
     IF receiptSale() AND receiptNotLot() THEN createActWriteOff(actClient(), dFrom, dTo, writeOffType('Реализация')); // списание пива
@@ -28,7 +33,7 @@ META defineReceiptActionsForm(form)
     EXTEND FORM form
         OBJECTS datesReceipt = (dFromReceipt = DATE, dToReceipt = DATE) PANEL
         PROPERTIES fromReceipt 'Дата с' = VALUE(dFromReceipt), toReceipt 'Дата по' = VALUE(dToReceipt)
-        PROPERTIES () actClientName, receiptSale, receiptReturn, receiptLot, receiptNotLot
+        PROPERTIES () actClientName ON CHANGE changeActClient(), receiptSale, receiptReturn, receiptLot, receiptNotLot
         PROPERTIES (dFromReceipt, dToReceipt) createByReceipt
 //        PROPERTIES () sendReceiptEGAIS
     ;

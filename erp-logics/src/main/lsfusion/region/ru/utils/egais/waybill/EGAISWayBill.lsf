@@ -181,11 +181,15 @@ bottlingDate 'Дата розлива' = DATA DATE (WayBillPosition);
 lastBottlingDate 'Дата розлива' = GROUP LAST bottlingDate(WayBillPosition p) ORDER date(wayBill(p)), p BY f1Reg(p);
 lastBottlingDate 'Дата розлива' (F2Reg f) = lastBottlingDate(f1Reg(f));//GROUP LAST bottlingDate(WayBillPosition p) ORDER date(wayBill(p)), p BY f2Reg(p);
 
+@defineChangeOuterClient(WayBill, shipper);
+@defineChangeOuterClient(WayBill, consignee);
+
 FORM wayBill 'ТТН ЕГАИС'
     OBJECTS w = WayBill PANEL
-    PROPERTIES(w) accepted, canceled, skipOutLedger, 
+    PROPERTIES(w) accepted, canceled, skipOutLedger,
                   id, number, date, shippingDate, regId,
-                  shortNameShipper, descriptionShipper, shortNameConsignee, descriptionConsignee, 
+                  shortNameShipper ON CHANGE changeOuterShipper(w), descriptionShipper ON CHANGE changeOuterShipper(w),
+                  shortNameConsignee ON CHANGE changeOuterConsignee(w), descriptionConsignee ON CHANGE changeOuterConsignee(w),
                   base, note,
                   
                   tranType, changeOwnership, 

@@ -119,6 +119,27 @@ FORM dialogClients 'Организации'
     LIST Client OBJECT o
 ;
 
+hideInnerClient = ABSTRACT VALUE BOOLEAN (Client);
+hideOuterClient = ABSTRACT VALUE BOOLEAN (Client);
+
+overChangeInnerClient ABSTRACT LIST ();
+overChangeOuterClient ABSTRACT LIST ();
+
+META defineChangeInnerClient(class, prop)
+    changeInner###prop (class d) {
+        overChangeInnerClient();
+        DIALOG dialogClients OBJECTS o = prop(d) CHANGE FILTERS NOT hideInnerClient(o);
+    }
+END
+
+
+META defineChangeOuterClient(class, prop)
+    changeOuter###prop (class d) {
+        overChangeOuterClient();
+        DIALOG dialogClients OBJECTS o = prop(d) CHANGE FILTERS NOT hideOuterClient(o);
+    }
+END
+
 NAVIGATOR {
     EGAISMasterData {
         NEW clients;
