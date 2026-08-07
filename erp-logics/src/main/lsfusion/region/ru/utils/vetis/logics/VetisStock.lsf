@@ -84,6 +84,9 @@ EXTEND FORM vetDocuments
 ;
 
 // META 
+// подконтрольная продукция: строки с такими товарами показываются в подборе ВСД/записей журнала безусловно
+controlledProduct 'Подконтрольная продукция' = ABSTRACT BOOLEAN (Sku);
+
 META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, container)
     noConsignorEnterprise 'Отсутствует площадка отправителя' = ABSTRACT BOOLEAN (###doc) PREREAD;
     
@@ -164,7 +167,7 @@ META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, contai
                                 uuidVetDocument, volumeVetDocument
         ORDERS index(vd)
         FILTERS doc(vd) = obj,
-            [GROUP SUM 1 IF in(sku(###doc##Detail vd1), ProductItem pi) BY vd1](vd) OR volumeVetDocument(vd)
+            [GROUP SUM 1 IF in(sku(###doc##Detail vd1), ProductItem pi) BY vd1](vd) OR volumeVetDocument(vd) OR controlledProduct(sku(vd))
 
         PROPERTIES(obj) DRAW vd TOOLBAR fillVolume, fillVolumeDate
         
@@ -224,7 +227,7 @@ META defineDocumentStockEntry (doc, stock, quantity, obj, container)
                                 numberStockEntry, volumeStockEntry
         ORDERS index(vd)
         FILTERS doc(vd) = obj,
-            [GROUP SUM 1 IF in(sku(###doc##Detail vd1), ProductItem pi) BY vd1](vd) OR volumeStockEntry(vd)
+            [GROUP SUM 1 IF in(sku(###doc##Detail vd1), ProductItem pi) BY vd1](vd) OR volumeStockEntry(vd) OR controlledProduct(sku(vd))
         
         PROPERTIES(obj) fillVolume DRAW vd TOOLBAR
         
@@ -264,7 +267,7 @@ META defineChangeOutgoingConsignmentDialog (doc)
         numberStockEntry, volumeStockEntry
         ORDERS index(vd)
         FILTERS user###doc(vd) = i,
-        [GROUP SUM 1 IF in(sku(###doc##Detail vd1), ProductItem pi) BY vd1](vd) OR volumeStockEntry(vd)
+        [GROUP SUM 1 IF in(sku(###doc##Detail vd1), ProductItem pi) BY vd1](vd) OR volumeStockEntry(vd) OR controlledProduct(sku(vd))
     
         PROPERTIES(i) fillVolume DRAW vd TOOLBAR
     
