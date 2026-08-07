@@ -5,7 +5,7 @@ REQUIRE VetisDocument, VetisStock, VetisStockEntry, VetisIncomingConsignment,
         VetisDocumentImport, VetisPurchaseShipment, VetisStockEntryGestori,
         VetisEnterpriseGestori, VetisProductItemGestori, VetisPurposeImport,
         VetisSaleReturnInvoice, VetisSaleReturnShipment, VetisSaleShipment, VetisPurchaseReturnShipment,
-        SalePurchaseInvoice;
+        SalePurchaseInvoice, Store, Warehouse;
 
 NAMESPACE Vetis;
 
@@ -1788,3 +1788,39 @@ processIncomingSaleGestori 'Оформить входящую партию' (Sal
 EXTEND FORM Sale.invoices
     PROPERTIES(i) processIncomingSaleGestori DRAW vse TOOLBAR SHOWIF toProcessIncomingSaleGestori(i)
 ;
+
+// ---- Запреты работы с ВЕТИС по складу ----
+
+forbidReturnVetDocumentGestori 'Запрет оформления возвратных ВСД' = DATA BOOLEAN (Stock);
+forbidVetisGestori 'Запрет работы с ВЕТИС' = DATA BOOLEAN (Stock);
+
+EXTEND FORM departmentStore
+    PROPERTIES(d) forbidReturnVetDocumentGestori, forbidVetisGestori
+;
+EXTEND FORM warehouse
+    PROPERTIES(w) forbidReturnVetDocumentGestori, forbidVetisGestori
+;
+
+// возвратное гашение (принято меньше объёма ВСД) на площадку, связанную со складом с запретом
+forbidReturnIncomingGestori (IncomingConsignment c) = GROUP SUM 1 IF in(Stock st, consigneeEnterprise(vetDocument(c))) AND forbidReturnVetDocumentGestori(st);
+
+beforeProcessIncomingConsignment(IncomingConsignment c) + {
+    IF returnedDelivery(c) AND forbidReturnIncomingGestori(c) THEN {
+        MESSAGE 'Запрещено оформление входящей партии с возвратом: на складе площадки установлен «Запрет оформления возвратных ВСД»';
+        cancelProcessIncomingConsignment() <- TRUE;
+    }
+}
+
+CONSTRAINT SET(ProcessIncomingConsignmentRequest r IS ProcessIncomingConsignmentRequest) AND
+    returnedDelivery(incomingConsignment(r)) AND forbidReturnIncomingGestori(incomingConsignment(r))
+    MESSAGE 'Запрещено оформление входящей партии с возвратом: на складе площадки установлен «Запрет оформления возвратных ВСД»';
+
+// полное отключение ВЕТИС в документе — скрытие вкладки по складу документа
+DESIGN Purchase.userInvoice { vetis { showIf = NOT forbidVetisGestori(Purchase.customerStock(i)); } }
+DESIGN Purchase.invoices { vetis { showIf = NOT forbidVetisGestori(Purchase.customerStock(i)); } }
+DESIGN Sale.userInvoice { vetis { showIf = NOT forbidVetisGestori(Sale.supplierStock(i)); } }
+DESIGN Sale.invoices { vetis { showIf = NOT forbidVetisGestori(Sale.supplierStock(i)); } }
+DESIGN PurchaseReturn.userInvoice { vetis { showIf = NOT forbidVetisGestori(PurchaseReturn.customerStock(i)); } }
+DESIGN PurchaseReturn.invoices { vetis { showIf = NOT forbidVetisGestori(PurchaseReturn.customerStock(i)); } }
+DESIGN SaleReturn.userInvoice { vetis { showIf = NOT forbidVetisGestori(SaleReturn.supplierStock(i)); } }
+DESIGN SaleReturn.invoices { vetis { showIf = NOT forbidVetisGestori(SaleReturn.supplierStock(i)); } }
