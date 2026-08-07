@@ -14,6 +14,17 @@ incomeDateMode 'Период считать' = DATA LOCAL IncomeDateMode ();
 incomeDateModeOrDefault = OVERRIDE incomeDateMode(), IncomeDateMode.document;
 nameIncomeDateMode 'Период считать' = name(incomeDateModeOrDefault());
 
+CLASS IncomeReturnMode 'Возвраты' {
+    separate 'Отдельно',
+    together 'Вместе'
+}
+name 'Возвраты' (IncomeReturnMode o) = staticCaption(o) IF o IS IncomeReturnMode CHARWIDTH 20;
+
+incomeReturnMode 'Возвраты' = DATA LOCAL IncomeReturnMode ();
+incomeReturnModeOrDefault = OVERRIDE incomeReturnMode(), IncomeReturnMode.separate;
+nameIncomeReturnMode 'Возвраты' = name(incomeReturnModeOrDefault());
+incomeReturnTogether () = incomeReturnModeOrDefault() == IncomeReturnMode.together;
+
 incomeIsReturn (PurchaseLedger l) = l IS PurchaseReturn.InvoiceDetail;
 
 incomeInternalNumber = ABSTRACT STRING[48] (PurchaseLedger);
@@ -23,11 +34,6 @@ incomeQuantity 'Количество закупаемого товара' (Purch
 incomeSum 'Сумма прихода по закупочной цене' (PurchaseLedger l) = shipmentInvoiceSum(l) IF NOT incomeIsReturn(l);
 incomeCostSum 'Сумма прихода по бух. себестоимости' (PurchaseLedger l) =
     NUMERIC[18,4](SaleReports.priceSku(sku(l), stock(l), date(l)) * shipmentQuantity(l)) IF NOT incomeIsReturn(l);
-
-returnQuantity 'Количество возврата поставщику' (PurchaseLedger l) = shipmentQuantity(l) IF incomeIsReturn(l);
-returnSum 'Сумма возврата по цене возврата' (PurchaseLedger l) = shipmentInvoiceSum(l) IF incomeIsReturn(l);
-returnSumWtVAT 'Сумма возврата по цене возврата без НДС' (PurchaseLedger l) =
-    (shipmentInvoiceSum(l) (-) shipmentVATSum(l)) IF incomeIsReturn(l);
 
 incomeSpecificationDetail = GROUP LAST PriceListDetail d
     ORDER fromDateTime(d), d
@@ -41,8 +47,6 @@ incomeSpecNumber 'Номер спецификации' (PurchaseLedger l) = numb
 incomeSpecName 'Наименование спецификации' (PurchaseLedger l) = nameOperation(priceList(incomeSpecification(l)));
 incomeContractNumber 'Номер договора' (PurchaseLedger l) = seriesNumberContractSku(incomeSpecification(l));
 
-incomeShowRow (PurchaseLedger l) = isPosted(l) AND (l IS Purchase.InvoiceDetail OR incomeIsReturn(l));
-
 incomeDateFilter 'Дата отбора' (PurchaseLedger l) =
     IF incomeDateModeOrDefault() == IncomeDateMode.invoice THEN shipmentDate(l) ELSE date(l);
 
@@ -53,15 +57,45 @@ incomePassesStock (PurchaseLedger l) = SaleReports.passesReportStockFilterStock(
 incomePassesSku (PurchaseLedger l) = SaleReports.passesReportSkuFilterSku(sku(l));
 incomePassesSupplier (PurchaseLedger l) = NOT SaleReports.inSaleReportSupplier() OR SaleReports.inSupplier(supplier(l));
 
+incomePassesFilters (PurchaseLedger l) = incomeInterval(l) AND incomePassesStock(l) AND incomePassesSku(l) AND incomePassesSupplier(l);
+
+incomeReturnBase (PurchaseReturn.InvoiceDetail r) = PurchaseReturn.invoiceDetail(r);
+incomeReturnInBase (PurchaseReturn.InvoiceDetail r) = incomePassesFilters(incomeReturnBase(r)) AND isPosted(incomeReturnBase(r));
+
+incomeRowReturnQuantity (PurchaseReturn.InvoiceDetail r) = -PurchaseLedger.shipmentQuantity(r);
+incomeRowReturnSum (PurchaseReturn.InvoiceDetail r) = -shipmentInvoiceSum(r);
+incomeRowReturnSumWtVAT (PurchaseReturn.InvoiceDetail r) = -(shipmentInvoiceSum(r) (-) shipmentVATSum(r));
+
+incomeBaseReturnQuantity (Purchase.InvoiceDetail d) = GROUP SUM incomeRowReturnQuantity(PurchaseReturn.InvoiceDetail r)
+    IF incomeReturnBase(r) == d AND isPosted(r) AND incomePassesFilters(r);
+incomeBaseReturnSum (Purchase.InvoiceDetail d) = GROUP SUM incomeRowReturnSum(PurchaseReturn.InvoiceDetail r)
+    IF incomeReturnBase(r) == d AND isPosted(r) AND incomePassesFilters(r);
+incomeBaseReturnSumWtVAT (Purchase.InvoiceDetail d) = GROUP SUM incomeRowReturnSumWtVAT(PurchaseReturn.InvoiceDetail r)
+    IF incomeReturnBase(r) == d AND isPosted(r) AND incomePassesFilters(r);
+
+returnQuantity 'Количество возврата поставщику' (PurchaseLedger l) = IF incomeReturnTogether()
+    THEN incomeBaseReturnQuantity(l AS Purchase.InvoiceDetail)
+    ELSE incomeRowReturnQuantity(l AS PurchaseReturn.InvoiceDetail);
+returnSum 'Сумма возврата по цене возврата' (PurchaseLedger l) = IF incomeReturnTogether()
+    THEN incomeBaseReturnSum(l AS Purchase.InvoiceDetail)
+    ELSE incomeRowReturnSum(l AS PurchaseReturn.InvoiceDetail);
+returnSumWtVAT 'Сумма возврата по цене возврата без НДС' (PurchaseLedger l) = IF incomeReturnTogether()
+    THEN incomeBaseReturnSumWtVAT(l AS Purchase.InvoiceDetail)
+    ELSE incomeRowReturnSumWtVAT(l AS PurchaseReturn.InvoiceDetail);
+
+incomeShowRow (PurchaseLedger l) = isPosted(l) AND (l IS Purchase.InvoiceDetail
+    OR (incomeIsReturn(l) AND NOT (incomeReturnTogether() AND incomeReturnInBase(l AS PurchaseReturn.InvoiceDetail))));
+
 initIncomeStatement() {
     SaleReports.filterFrom() <- currentDate();
     SaleReports.filterTo() <- currentDate();
     incomeDateMode() <- IncomeDateMode.document;
+    incomeReturnMode() <- IncomeReturnMode.separate;
 }
 
 FORM incomeStatementGestori 'Ведомость приходов'
     PROPERTIES incomeDateFrom 'Дата (с)' = SaleReports.filterFrom(), incomeDateTo 'Дата (по)' = SaleReports.filterTo()
-    PROPERTIES() nameIncomeDateMode
+    PROPERTIES() nameIncomeDateMode, nameIncomeReturnMode
     PROPERTIES incomeStockList = SaleReports.nameStockList() READONLY SHOWIF SaleReports.stockList()
     PROPERTIES incomeStocks 'Подразделения' = SaleReports.inSaleReportStocks() ON CHANGE Inventory.changeStocksInventory() READONLYIF SaleReports.stockList()
     PROPERTIES incomeLegalEntityList = SaleReports.nameLegalEntityList() READONLY SHOWIF SaleReports.legalEntityList()
@@ -105,6 +139,7 @@ DESIGN incomeStatementGestori {
             MOVE PROPERTY(incomeDateFrom);
             MOVE PROPERTY(incomeDateTo);
             MOVE PROPERTY(nameIncomeDateMode()) { valueClass = 'btn-info'; charWidth = 22; }
+            MOVE PROPERTY(nameIncomeReturnMode()) { valueClass = 'btn-info'; charWidth = 12; }
             MOVE PROPERTY(incomeStatementGestori()) { valueClass = 'btn-primary'; }
         }
         MOVE PROPERTY(incomeStockList) { alignment = STRETCH; }
