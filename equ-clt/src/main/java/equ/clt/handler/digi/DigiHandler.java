@@ -37,9 +37,6 @@ public class DigiHandler extends MultithreadScalesHandler {
     protected static short fileKeyAssignment = 0x41;
     protected static short fileDF = 0xDF;
 
-    //включить для вывода в лог отправляемых запросов
-    private boolean debugMode = false;
-
     protected FileSystemXmlApplicationContext springContext;
 
     public DigiHandler(FileSystemXmlApplicationContext springContext) {
@@ -113,7 +110,7 @@ public class DigiHandler extends MultithreadScalesHandler {
     }
 
     private int sendCommand(DataSocket socket, byte[] bytes) throws IOException {
-        if(debugMode)
+        if(getSettings().isDebugMode())
             processTransactionLogger.info(Hex.encodeHexString(bytes));
         socket.outputStream.write(bytes);
         socket.outputStream.flush();
@@ -123,7 +120,9 @@ public class DigiHandler extends MultithreadScalesHandler {
     private int receiveReply(DataSocket socket) {
         try {
             byte[] buffer = new byte[10];
-            socket.inputStream.read(buffer);
+            int read = socket.inputStream.read(buffer);
+            if(getSettings().isDebugMode())
+                processTransactionLogger.info(getLogPrefix() + "reply: " + Hex.encodeHexString(read > 0 ? Arrays.copyOf(buffer, read) : new byte[0]));
             return buffer[0] == 6 ? 0 : buffer[0]; //это либо байт ошибки, либо первый байт хвоста (:)
         } catch (Exception e) {
             processTransactionLogger.error(getLogPrefix() + "ReceiveReply Error: ", e);

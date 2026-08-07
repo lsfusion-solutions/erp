@@ -22,6 +22,9 @@ public class DigiSettings implements Serializable{
     //поддержка стоп-листов. По умолчанию false
     private boolean enableStopList;
 
+    //вывод в лог отправляемых пакетов и ответов весов. По умолчанию false
+    private boolean debugMode;
+
     public DigiSettings() {
     }
 
@@ -71,5 +74,13 @@ public class DigiSettings implements Serializable{
 
     public void setEnableStopList(boolean enableStopList) {
         this.enableStopList = enableStopList;
+    }
+
+    public boolean isDebugMode() {
+        return debugMode;
+    }
+
+    public void setDebugMode(boolean debugMode) {
+        this.debugMode = debugMode;
     }
 }
