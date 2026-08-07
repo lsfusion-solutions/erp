@@ -511,6 +511,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             Integer enableQuantityScales = null;
             Integer fuzzyweight = null;
             Integer ignoremarking = null;
+            String ntin = null;
 
             if (infoJSON != null) {
                 if(infoJSON.has("requiresalerestrict")) {
@@ -537,15 +538,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
                 hasQuantityOptions = infoJSON.optBoolean("hasquantityoptions");
 
-                String ntin = trimToNull(infoJSON.optString("ntin"));
-                if(ntin != null) {
-                    inventObject.put("ntin", ntin);
-                } else {
-                    String gtin = extraInfo != null ? trimToNull(extraInfo.optString("gtin")) : null;
-                    if(gtin != null) {
-                        inventObject.put("ntin", gtin);
-                    }
-                }
+                ntin = trimToNull(infoJSON.optString("ntin"));
 
                 String age = trimToNull(infoJSON.optString("age"));
                 if(age != null) {
@@ -611,6 +604,15 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
                 if (defaultQuantity != null) {
                     inventObject.put("defaultquantity", defaultQuantity);
+                }
+            }
+
+            if(ntin != null) {
+                inventObject.put("ntin", ntin);
+            } else {
+                String gtin = extraInfo != null ? trimToNull(extraInfo.optString("gtin")) : null;
+                if(gtin != null) {
+                    inventObject.put("ntin", gtin);
                 }
             }
 
