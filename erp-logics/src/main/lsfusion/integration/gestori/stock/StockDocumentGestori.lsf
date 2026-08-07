@@ -191,21 +191,32 @@ isInc 'Приход' (StockDocumentLedger l) = l IS IncStockDocumentLedger;
 
 idStock 'Код подразделения' (StockDocumentLedger l) = id(stock(l));
 
-docSortOrder(StockDocumentLedger l) = CASE
-    WHEN operation(l) IS Inventory.Operation THEN 300
-    WHEN l IS IncStockDocumentLedger AND operation(l) IS Purchase.Operation THEN 101
-    WHEN l IS OutStockDocumentLedger AND isReturn(l) THEN 102
-    WHEN l IS OutStockDocumentLedger AND operation(l) IS WriteOff.Operation THEN 103
-    WHEN l IS IncStockDocumentLedger THEN 199
-    WHEN l IS OutStockDocumentLedger AND operation(l) IS Sale.Operation THEN 201
-    WHEN l IS IncStockDocumentLedger AND isReturn(l) THEN 202
-    WHEN l IS OutStockDocumentLedger AND NOT operation(l) THEN 203
-    WHEN l IS OutStockDocumentLedger THEN 299
-    ELSE 999;
-
 sumBaseAcc 'Сумма в баз.в. (уч.ц.)' (StockDocumentLedger l) = sum(l);
 sumNatAcc 'Сумма в нац.в. (уч.ц.)' (StockDocumentLedger l) =
     NUMERIC[18,4](round2(sum(l) * rateNat(date(l))));
+
+docSortOrder(StockDocumentLedger l) = CASE
+    WHEN operation(l) IS Inventory.Operation AND sumBaseAcc(l) > 0 THEN 102
+    WHEN operation(l) IS Inventory.Operation THEN 203
+    WHEN l IS IncStockDocumentLedger AND operation(l) IS Purchase.Operation THEN 101
+    WHEN l IS IncStockDocumentLedger AND operation(l) IS Disparity.Operation THEN 103
+    WHEN l IS IncStockDocumentLedger AND operation(l) IS Sale.Operation THEN 104
+    WHEN l IS IncStockDocumentLedger AND operation(l) IS WriteOff.Operation THEN 105
+    WHEN l IS IncStockDocumentLedger THEN 199
+    WHEN l IS OutStockDocumentLedger AND operation(l) IS Sale.Operation THEN 201
+    WHEN l IS OutStockDocumentLedger AND operation(l) IS Purchase.Operation THEN 202
+    WHEN l IS OutStockDocumentLedger AND operation(l) IS Disparity.Operation THEN 204
+    WHEN l IS OutStockDocumentLedger AND operation(l) IS WriteOff.Operation THEN 205
+    WHEN l IS OutStockDocumentLedger AND NOT operation(l) THEN 206
+    WHEN l IS OutStockDocumentLedger THEN 299
+    ELSE 999;
+
+nameDirection 'Раздел' (StockDocumentLedger l) = CASE
+    WHEN docSortOrder(l) < 200 THEN 'Приход'
+    WHEN docSortOrder(l) < 300 THEN 'Расход'
+    ELSE 'Прочее';
+
+nameOperationReport 'Операция' (StockDocumentLedger l) = OVERRIDE nameOperation(l), objectClassName(l);
 
 isSaleReturnType(StockDocumentLedger l) =
     (operation(l) IS Sale.Operation) OR isReturn(l) OR
@@ -351,7 +362,7 @@ FORM printStockDocGestori 'Отчет'
 
     OBJECTS dl = StockDocumentLedger
     PROPERTIES(dl) READONLY isInc, idStock, date, nameStock, objectClassName, description,
-        nameOperation, nameLegalEntity, nameLegalEntityStock,
+        nameOperation, nameOperationReport, nameDirection, nameLegalEntity, nameLegalEntityStock,
         seriesNumber, sumBaseAcc, sumNatAcc, sumBaseRel, sumNatRel, sumBaseCost, sumNatCost, docSortOrder
     PROPERTIES balBaseAccBStock(dl, dtFrom), balNatAccBStock(dl, dtFrom),
         balBaseAccAStock(dl, dtTo), balNatAccAStock(dl, dtTo),
@@ -363,7 +374,7 @@ FORM printStockDocGestori 'Отчет'
         stock(dl) = st,
         date(dl) >= dtFrom,
         date(dl) <= dtTo
-    ORDERS docSortOrder(dl), nameOperation(dl), date(dl)
+    ORDERS docSortOrder(dl), nameOperationReport(dl), date(dl)
 ;
 
 FORM printStockDocGestoriEmpty 'Отчет (без движений)'
@@ -429,16 +440,16 @@ EXTEND FORM sumStockDocumentLedger
     PROPERTIES balNatCostAForm 'Исх. остаток (нац.в., себест.)' = balNatCostA(dtFrom, dtTo) READONLY
 
     OBJECTS dl = StockDocumentLedger
-    PROPERTIES(dl) READONLY docSortOrder SHOWIF NULL, isClosed, isPosted, isInc, idStock, date, nameStock,
+    PROPERTIES(dl) READONLY docSortOrder SHOWIF NULL, isClosed, isPosted, isInc, nameDirection, idStock, date, nameStock,
         objectClassName, description,
-        nameOperation, nameLegalEntity, nameLegalEntityStock,
+        nameOperation, nameOperationReport SHOWIF NULL, nameLegalEntity, nameLegalEntityStock,
         seriesNumber, sumBaseAcc, sumNatAcc, sumBaseRel, sumNatRel, sumBaseCost, sumNatCost
     PROPERTIES(dl) EDIT SHOWIF allowedEdit(dl) NEWSESSION, close SHOWIF isOpened(dl)
     FILTERS active(dl),
         inSaleReport(stock(dl)),
         date(dl) >= dtFrom,
         date(dl) <= dtTo
-    ORDERS docSortOrder(dl), nameOperation(dl), date(dl)
+    ORDERS docSortOrder(dl), nameOperationReport(dl), date(dl)
 
     FILTERGROUP directionFilter
         FILTER 'Приход' isInc(dl) 'F7'
