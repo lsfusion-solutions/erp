@@ -164,6 +164,10 @@ FORM documentsEDN
 // /documents/new
 GROUP headers;
 
+//заголовки исходящих запросов: системное headers в действии, вызванном по HTTP (внешняя система,
+//eval), уже содержит заголовки входящего запроса, и они целиком уходят в исходящий вызов
+headersEDN = DATA LOCAL NESTED TEXT (TEXT);
+
 downloadFileName = DATA LOCAL STRING(INTEGER);
 processedDateTime = DATA LOCAL ZDATETIME(INTEGER);
 
@@ -174,12 +178,22 @@ FORM getDocumentsEDN
 
 overReceiveMessagesEDN ABSTRACT LIST (INTEGER, STRING[100], STRING[100], TEXT, STRING[100], BOOLEAN, STRING[100]);
 
+//содержимое сообщения формата docuway провайдер отдаёт отдельным запросом; при приёме оно складывается
+//в очередь, поэтому обработка (в том числе повторная из журнала) к провайдеру не обращается
+fillContentEDN (INTEGER i, TEXT url) {
+    IF NOT data(i) THEN {
+        EXTERNAL HTTP GET url + '/documents/' + id(i) + '/content' HEADERS headersEDN TO xmlFile;
+        data(i) <- xmlFile();
+        receivedFileName(i) <- OVERRIDE receivedFileName(i), downloadFileName(i);
+    }
+}
+
 receiveMessagesEDN (STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) {
     TRY {
         IF login AND password THEN {
 
-            headers('Authorization') <- 'Basic ' + encodeText(login + ':' + password, 'base64');
-            EXTERNAL HTTP GET url +'/documents/new' HEADERS headers TO sendRequestEDIResponse;
+            headersEDN('Authorization') <- 'Basic ' + encodeText(login + ':' + password, 'base64');
+            EXTERNAL HTTP GET url +'/documents/new' HEADERS headersEDN TO sendRequestEDIResponse;
             logToFile('edi', provider + ' (' + login + ') ReceiveMessages request sent' + url +'/documents/new');
             
             sendRequestEDIStatus() <- statusHttp();
@@ -194,6 +208,19 @@ receiveMessagesEDN (STRING[100] login, STRING[100] password, TEXT url, STRING[10
                 fillStartParams();
                 IF (GROUP SUM 1 IF documentType(INTEGER i)) > 0 THEN textMessage() <- CONCAT '\n', textMessage(), provider + '(' + login + ') Сообщений в очереди: ' + (GROUP SUM 1 IF documentType(INTEGER i));
                 logToFile('edi', provider + ' (' + login + ') ReceiveMessages count: ' + (GROUP SUM 1 IF documentType(INTEGER i)));
+
+                FOR documentType(INTEGER i) DO {
+                    receivedFileName(i) <- downloadFileName(i);
+                    IF data(ediFile(id(i))) THEN {
+                        data(i) <- XMLFILE(data(ediFile(id(i))));
+                    } ELSE {
+                        TRY {
+                            fillContentEDN(i, url);
+                        } CATCH {
+                            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Download content ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException() IF enableJavaStackEDN(), lsfStackTraceCaughtException());
+                        }
+                    }
+                }
 
                 registerEDIFiles(login, archiveDir, provider);
 
@@ -257,17 +284,11 @@ overImportAperak(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, S
 
 overReceiveMessagesEDN(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     IF documentType(i) == 'APERAK' THEN {
+        processedEDIFile() <- TRUE;
         TRY {
-            
-            EXTERNAL HTTP GET url +'/documents/'+id(i)+ '/content' HEADERS headers TO xmlFile;
-            
-            receivedFileName(i) <- downloadFileName(i);
-            IF archiveDir THEN {
-                TRY{ mkdir(receivedDir(archiveDir)); }
-                WRITE xmlFile() TO receivedPath(archiveDir, i);
-            }
-            
-            IMPORT aperack XML FROM xmlFile();
+            fillContentEDN(i, url);
+
+            IMPORT aperack XML FROM data(i);
             
             overImportAperak(i, login, password, url, archiveDir, disableConfirmation, provider);
             
@@ -280,17 +301,27 @@ overReceiveMessagesEDN(INTEGER i, STRING[100] login, STRING[100] password, TEXT 
 }
 
 confirmDocument(INTEGER i, STRING[100] login, STRING[100] password, TEXT url) {
-    headers('Authorization') <- 'Basic ' + encodeText(login + ':' + password, 'base64');
-    EXTERNAL HTTP url +'/documents/'+id(i)+ '/mark-downloaded' HEADERS headers;
-    logToFile('edi', 'END (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
+    headersEDN('Authorization') <- 'Basic ' + encodeText(login + ':' + password, 'base64');
+    EXTERNAL HTTP url +'/documents/'+id(i)+ '/mark-downloaded' HEADERS headersEDN;
+    logToFile('edi', 'EDN (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
 
     importRequestResult();
     IF requestError() THEN {
-        logToFile('edi', 'END (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-        MESSAGE 'END (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+        logToFile('edi', 'EDN (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+        MESSAGE 'EDN (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
     } ELSE {
-        logToFile('edi', 'END (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+        logToFile('edi', 'EDN (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
         confirmEDIFile(id(i));
+    }
+}
+
+//порядок как в receiveEDN: сначала ветки ЭДиН (заказы в формате docuway), остальное разбирают ветки СТТ
+overProcessEDIFile(EDIFile f, INTEGER i) + {
+    IF useDocuway() THEN {
+        FOR EDNProfile p == profile(f) DO {
+            headersEDN('Authorization') <- 'Basic ' + encodeText(login(p) + ':' + password(p), 'base64');
+            overReceiveMessagesEDN(i, login(p), password(p), urlApi(p), archiveDir(p), disableConfirmation(p), provider(p));
+        }
     }
 }
 

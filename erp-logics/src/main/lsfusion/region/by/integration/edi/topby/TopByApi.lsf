@@ -42,6 +42,8 @@ overReceiveMessages ABSTRACT LIST (INTEGER, STRING[100], STRING[100], TEXT, STRI
 //наполнение записи журнала из принятого сообщения; ссылочный тип есть только в содержимом
 fillEDIFile (EDIFile f, INTEGER i, STRING[100] archiveDir) {
     IF data(i) THEN {
+        blrapnReferenceDocumentType() <- NULL;
+        documentType() <- NULL;
         IF lower(documentType(i)) = 'blrapn' THEN {
             TRY { IMPORT importBlrapn XML FROM data(i); }
         }
@@ -52,6 +54,7 @@ fillEDIFile (EDIFile f, INTEGER i, STRING[100] archiveDir) {
             WHEN lower(documentType(i)) = 'blrapn' THEN blrapnReferenceDocumentType()
             WHEN lower(documentType(i)) = 'systemmessage' OR lower(documentType(i)) = 'aperak' THEN documentType());
         data(f) <- FILE(data(i));
+        receivedFileName(f) <- receivedFileName(i);
         IF archiveDir THEN {
             receivedDir(f) <- OVERRIDE receivedDir(f), receivedDir(archiveDir);
             TRY { mkdir(receivedDir(f)); }
@@ -176,7 +179,12 @@ confirmMessage (INTEGER i, STRING[100] login, STRING[100] password, TEXT url, ST
     confirmMessage(i, login, password, url, provider, NULL, NULL);
 }
 
-//обработка из журнала: локали пакета заполняются из объекта, дальше стандартные ветки приёма
+//ветки провайдера, работающие с другим форматом файлов (заказы ЭДиН в docuway): как и при приёме,
+//отрабатывают до веток СТТ; взявшая сообщение ветка выставляет processedEDIFile
+overProcessEDIFile ABSTRACT LIST (EDIFile, INTEGER);
+processedEDIFile = DATA LOCAL BOOLEAN ();
+
+//обработка из журнала: локальные свойства пакета заполняются из записи, дальше обычные ветки приёма
 processEDIFile 'Обработать' (EDIFile f) {
     NEWSESSION {
         IF NOT profile(f) THEN {
@@ -190,18 +198,23 @@ processEDIFile 'Обработать' (EDIFile f) {
             TRY { READ 'file://' + receivedPath(f) TO file; }
             data(0) <- XMLFILE(file());
         }
-        IF NOT data(0) THEN {
-            MESSAGE 'Не найдено тело сообщения ' + id(f) + (' в файле ' + receivedPath(f) IF receivedPath(f)) NOWAIT;
-            RETURN;
-        }
         id(0) <- id(f);
         documentType(0) <- documentType(f);
         documentDate(0) <- documentDate(f);
+        receivedFileName(0) <- receivedFileName(f);
         newNS() <- newNS(profile(f));
         fillStartParams();
         logToFile('edi', provider(profile(f)) + ' (' + login(profile(f)) + ') Process file ' + id(f));
-        beforeOverReceiveMessages(0, login(profile(f)), archiveDir(profile(f)));
-        overReceiveMessages(0, login(profile(f)), password(profile(f)), url(profile(f)), archiveDir(profile(f)), disableConfirmation(profile(f)), provider(profile(f)));
+        processedEDIFile() <- NULL;
+        overProcessEDIFile(f, 0);
+        IF NOT processedEDIFile() THEN {
+            IF NOT data(0) THEN {
+                MESSAGE 'Не найдено тело сообщения ' + id(f) + (' в файле ' + receivedPath(f) IF receivedPath(f)) NOWAIT;
+                RETURN;
+            }
+            beforeOverReceiveMessages(0, login(profile(f)), archiveDir(profile(f)));
+            overReceiveMessages(0, login(profile(f)), password(profile(f)), url(profile(f)), archiveDir(profile(f)), disableConfirmation(profile(f)), provider(profile(f)));
+        }
         fillEndParams();
         MESSAGE (OVERRIDE textMessage(), 'Сообщение ' + id(f) + ' обработано') NOWAIT;
     }

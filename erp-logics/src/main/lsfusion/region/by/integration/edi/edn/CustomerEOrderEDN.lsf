@@ -227,16 +227,11 @@ FORM document_OrderResponse FORMEXTID 'Document-OrderResponse'
     
 overReceiveMessagesEDN(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     IF documentType(i) == 'ORDRSP' THEN {
+        processedEDIFile() <- TRUE;
         TRY {
-            
-            EXTERNAL HTTP GET url +'/documents/'+id(i)+ '/content' HEADERS headers TO xmlFile;
+            fillContentEDN(i, url);
 
-            receivedFileName(i) <- downloadFileName(i);
-            IF archiveDir THEN {
-                TRY{ mkdir(receivedDir(archiveDir)); }
-                WRITE xmlFile() TO receivedPath(archiveDir, i);
-            }
-            IMPORT document_OrderResponse XML FROM xmlFile();
+            IMPORT document_OrderResponse XML FROM data(i);
             
             ordrspOrderNumber() <- trim(ordrspOrderNumber());
             IF eOrder(ordrspOrderNumber()) THEN {
@@ -364,15 +359,11 @@ FORM document_DespatchAdvice FORMEXTID 'Document-DespatchAdvice'
 
 overReceiveMessagesEDN(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     IF documentType(i) == 'DESADV'  THEN {
+        processedEDIFile() <- TRUE;
         TRY {
-            EXTERNAL HTTP GET url +'/documents/'+id(i)+ '/content' HEADERS headers TO xmlFile;
+            fillContentEDN(i, url);
 
-            receivedFileName(i) <- downloadFileName(i);
-            IF archiveDir THEN {
-                TRY{ mkdir(receivedDir(archiveDir)); }
-                WRITE xmlFile() TO receivedPath(archiveDir, i);
-            }
-            IMPORT document_DespatchAdvice XML FROM xmlFile();
+            IMPORT document_DespatchAdvice XML FROM data(i);
 
             desadvOrderNumber() <- trim(desadvOrderNumber());
             overReceiveMessageDesadv();
@@ -414,7 +405,7 @@ overReceiveMessagesEDN(INTEGER i, STRING[100] login, STRING[100] password, TEXT 
                             despatchAdvicesFailed() <- despatchAdvicesFailed() + 1;
                         } ELSE {
                             IF NOT disableConfirmation THEN {
-                                confirmMessage(i, login, password, url, provider);
+                                confirmDocument(i, login, password, url);
                             }
                             logToFile('edi', provider + ' (' + login + ') Import EOrderDespatchAdvice ' + id(i) + ' succeeded');
                             despatchAdvicesSucceeded() <- despatchAdvicesSucceeded() + 1;
@@ -424,7 +415,7 @@ overReceiveMessagesEDN(INTEGER i, STRING[100] login, STRING[100] password, TEXT 
             } ELSE {
                 IF confirmNotFoundOrders() THEN {
                     IF NOT disableConfirmation THEN {
-                        confirmMessage(i, login, password, url, provider);
+                        confirmDocument(i, login, password, url);
                         messagesConfirmed() <- messagesConfirmed() + 1;
                     }
                 } 
