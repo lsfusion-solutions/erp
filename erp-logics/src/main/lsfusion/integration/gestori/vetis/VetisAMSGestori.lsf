@@ -1,7 +1,7 @@
 MODULE VetisAMSGestori;
 
 REQUIRE VetisAMSReceiveResponse, VetisAMSSubmitRequest, VetisGetVDList, VetisGetSEList, VetisStock,
-        VetisProcessIncomingConsignment, VetisPurchaseShipment,
+        VetisProcessIncomingConsignment, VetisPurchaseShipment, VetisRegisterProductionOperation,
         VetisDocumentGestori, VetisStockEntryGestori, VetisProductItemGestori;
 
 NAMESPACE Vetis;
@@ -19,7 +19,8 @@ EXTEND FORM applicationRequests
 
 // --- Площадка заявки (все типы запросов) ---
 // запросы списков/по UUID/по GUID — своя площадка; оформление входящей партии — площадка-получатель ВСД;
-// создание номенклатуры — площадка производства; оформление транспортной партии/условия регионализации — площадка-отправитель
+// создание номенклатуры — площадка производства; оформление транспортной партии/условия регионализации — площадка-отправитель;
+// оформление производственной партии — площадка склада продукции производственного заказа (как в запросе)
 enterpriseRequestGestori (ApplicationRequest r) = OVERRIDE
     enterprise(r AS VetDocumentListRequest),
     enterprise(r AS StockEntryListRequest),
@@ -28,7 +29,8 @@ enterpriseRequestGestori (ApplicationRequest r) = OVERRIDE
     consigneeEnterprise(vetDocument(incomingConsignment(r AS ProcessIncomingConsignmentRequest))),
     (GROUP MIN Enterprise e IF in(productItem(r AS ProductItemRequest), e)),
     (GROUP MAX consignorEnterprise(OutgoingConsignment oc) IF in(r AS PrepareOutgoingConsignmentRequest, oc)),
-    (GROUP MAX consignorEnterprise(OutgoingConsignment oc) IF in(r AS CheckShipmentRegionalization, oc));
+    (GROUP MAX consignorEnterprise(OutgoingConsignment oc) IF in(r AS CheckShipmentRegionalization, oc)),
+    enterprise(Production.productsStock(productionOrder(r AS RegisterProductionOperationRequest)));
 
 // --- Фильтр по площадке ---
 

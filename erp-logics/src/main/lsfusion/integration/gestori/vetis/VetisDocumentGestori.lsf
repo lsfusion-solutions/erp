@@ -1200,6 +1200,24 @@ DESIGN Purchase.invoices {
     PROPERTY(volume(vd, vtd)) { caption = 'Объем по строке'; }
 }
 
+// расхождение объёма продукции по ВСД с объёмом, связанным со строкой (только для связанных пар)
+diffVolumeVDInvoiceGestori (Purchase.UserInvoiceDetail d, VetDocument vtd) =
+    VetisPurchase.volume(d, vtd) != volume(vtd);
+
+// «Объем продукции» с подсветкой расхождения — базовая колонка скрывается
+volumeVDInvoiceGestori 'Объем продукции' (VetDocument s) = volume(s);
+
+EXTEND FORM Purchase.invoices
+    PROPERTIES READONLY volumeVDListInvoiceGestori = volumeVDInvoiceGestori(vtd)
+        BACKGROUND (RGB(255,200,200) IF diffVolumeVDInvoiceGestori(vd, vtd)) BEFORE volume(vd, vtd)
+
+    FILTERGROUP diffVDListInvoiceGestori
+        FILTER 'Расхождение объемов' diffVolumeVDInvoiceGestori(vd, vtd)
+;
+DESIGN Purchase.invoices {
+    PROPERTY(volume(vtd)) { hide = TRUE; }
+}
+
 // ---- условия регионализации по входящим партиям накладной закупки ----
 
 // по партии будет оформлен возврат (частичный или полный): принято меньше, чем объём продукции по ВСД
@@ -1222,22 +1240,28 @@ issueDateCheckInvoiceGestori 'Время получения условий ре�
 nameStatusCheckInvoiceGestori 'Статус получения условий регионализации' (Purchase.InvoiceDetail vd, VetDocument vtd) =
     nameStatusLastCheckRequest(VetisPurchase.incomingConsignment(vd, vtd));
 
+// получение условий регионализации (в т.ч. повторное — актуализация уже полученных) запрещено, только пока:
+// отправлен/выполнен запрос на оформление входящей партии (гашение), ВСД погашен,
+// либо предыдущий запрос условий ещё в обработке
+lockedCheckIncomingGestori (IncomingConsignment c) = TRUE IF
+    notCompleted(lastRequest(c)) OR succeeded(lastRequest(c))
+    OR status(vetDocument(c)) = VetDocumentStatus.UTILIZED
+    OR notCompleted(lastCheckRequest(c));
+
 toProcessCheckRowInvoiceGestori (Purchase.InvoiceDetail vd, VetDocument vtd) =
-    toProcessCheck(VetisPurchase.incomingConsignment(vd, vtd))
-    AND returnIncomingGestori(VetisPurchase.incomingConsignment(vd, vtd));
+    returnIncomingGestori(VetisPurchase.incomingConsignment(vd, vtd))
+    AND NOT lockedCheckIncomingGestori(VetisPurchase.incomingConsignment(vd, vtd));
 
 hasRegionalizationRowInvoiceGestori (Purchase.InvoiceDetail vd, VetDocument vtd) =
     hasRegionalization(VetisPurchase.incomingConsignment(vd, vtd))
     AND returnIncomingGestori(VetisPurchase.incomingConsignment(vd, vtd));
 
-// по документу: партии с возвратом, по которым нет отправленных или выполненных запросов на гашение
+// по документу: партии с возвратом, по которым получение условий не заблокировано
 toProcessCheckInvoiceGestori (Purchase.Invoice i) = GROUP SUM 1 IF
-    toProcessCheckRowInvoiceGestori(Purchase.InvoiceDetail d, VetDocument vtd)
-    AND toProcess(VetisPurchase.incomingConsignment(d, vtd)) AND Purchase.invoice(d) = i;
+    toProcessCheckRowInvoiceGestori(Purchase.InvoiceDetail d, VetDocument vtd) AND Purchase.invoice(d) = i;
 
 processCheckInvoiceGestori 'Получить условия регионализации' (Purchase.Invoice i) {
-    FOR toProcessCheckRowInvoiceGestori(Purchase.InvoiceDetail d, VetDocument vtd)
-        AND toProcess(VetisPurchase.incomingConsignment(d, vtd)) AND Purchase.invoice(d) = i DO
+    FOR toProcessCheckRowInvoiceGestori(Purchase.InvoiceDetail d, VetDocument vtd) AND Purchase.invoice(d) = i DO
         processCheck(VetisPurchase.incomingConsignment(d, vtd));
 }
 
@@ -1256,9 +1280,24 @@ volumeShippedGestori 'Объем (поставлено)' (Purchase.UserInvoiceDe
 // суммарный принятый объём по всем строкам, связанным с ВСД
 totalVolumeVDGestori 'Объем всего' (VetDocument s) = GROUP SUM VetisPurchase.volume(Purchase.UserInvoiceDetail d, s);
 
+// расхождение объёма поставлено с объёмом по строке (пустые значения считаются нулём)
+diffVolumeShippedInvoiceGestori (Purchase.UserInvoiceDetail d) =
+    (OVERRIDE volumeShippedGestori(d), 0.0) != (OVERRIDE VetisPurchase.volumeVetDocument(d), 0.0);
+
 EXTEND FORM Purchase.userInvoice
-    PROPERTIES(vd) READONLY volumeShippedGestori
+    PROPERTIES(vd) READONLY volumeShippedGestori BACKGROUND (RGB(255,200,200) IF diffVolumeShippedInvoiceGestori(vd))
     PROPERTIES(vtd) READONLY totalVolumeVDGestori
+
+    FILTERGROUP diffShippedInvoiceGestori
+        FILTER 'Расхождение объемов' diffVolumeShippedInvoiceGestori(vd)
+    FILTERGROUP diffVDInvoiceGestori
+        FILTER 'Расхождение объемов' diffVolumeVDInvoiceGestori(vd, vtd)
+;
+
+// «Объем продукции» с подсветкой расхождения — базовая колонка скрывается
+EXTEND FORM Purchase.userInvoice
+    PROPERTIES READONLY volumeVDCardInvoiceGestori = volumeVDInvoiceGestori(vtd)
+        BACKGROUND (RGB(255,200,200) IF diffVolumeVDInvoiceGestori(vd, vtd)) BEFORE expiryDate(vtd)
 ;
 
 DESIGN Purchase.userInvoice {
@@ -1266,6 +1305,7 @@ DESIGN Purchase.userInvoice {
     PROPERTY(uuidVetDocument(vd)) { caption = 'UUID ВСД'; }
     PROPERTY(volumeVetDocument(vd)) { caption = 'Объем по строке'; }
     PROPERTY(volume(vd, vtd)) { caption = 'Объем по строке'; }
+    PROPERTY(volume(vtd)) { hide = TRUE; }
 }
 
 // суммарный объём по строкам ВСД не должен превышать объём продукции
@@ -1351,7 +1391,7 @@ nameStatusCheckSaleGestori 'Статус получения условий ре�
 // получение условий регионализации (в т.ч. повторное — актуализация уже полученных) запрещено, только пока:
 // отправлен запрос на оформление транспортной партии либо партия оформлена и ВСД не аннулирован,
 // отправлен запрос на аннуляцию ВСД, либо предыдущий запрос условий ещё в обработке
-lockedCheckSaleGestori (OutgoingConsignment oc) = TRUE IF
+lockedCheckOutgoingGestori (OutgoingConsignment oc) = TRUE IF
     notCompleted(lastRequest(oc))
     OR ((succeeded(lastRequest(oc)) OR vetDocument(oc) IS VetDocument) AND NOT (status(vetDocument(oc)) = VetDocumentStatus.WITHDRAWN))
     OR (GROUP SUM 1 IF notCompleted(WithdrawVetDocumentRequest wr) AND vetDocument(wr) = vetDocument(oc))
@@ -1359,17 +1399,17 @@ lockedCheckSaleGestori (OutgoingConsignment oc) = TRUE IF
 
 toProcessCheckRowSaleGestori (Sale.InvoiceDetail vd, StockEntry se) =
     VetisSale.outgoingConsignment(vd, se) IS OutgoingConsignment
-    AND NOT lockedCheckSaleGestori(VetisSale.outgoingConsignment(vd, se));
+    AND NOT lockedCheckOutgoingGestori(VetisSale.outgoingConsignment(vd, se));
 hasRegionalizationRowSaleGestori (Sale.InvoiceDetail vd, StockEntry se) =
     hasRegionalization(VetisSale.outgoingConsignment(vd, se));
 
 // по документу: партии, по которым получение условий не заблокировано
 toProcessCheckSaleGestori (Sale.Invoice i) = GROUP SUM 1 IF
     VetisSale.outgoingConsignment(Sale.InvoiceDetail d, StockEntry se) IS OutgoingConsignment
-    AND NOT lockedCheckSaleGestori(VetisSale.outgoingConsignment(d, se)) AND Sale.invoice(d) = i;
+    AND NOT lockedCheckOutgoingGestori(VetisSale.outgoingConsignment(d, se)) AND Sale.invoice(d) = i;
 
 processCheckSaleGestori 'Получить условия регионализации' (Sale.Invoice i) {
-    in(OutgoingConsignment oc) <- TRUE WHERE NOT lockedCheckSaleGestori(oc) AND
+    in(OutgoingConsignment oc) <- TRUE WHERE NOT lockedCheckOutgoingGestori(oc) AND
         (GROUP SUM 1 IF VetisSale.outgoingConsignment(Sale.InvoiceDetail d, StockEntry se) = oc AND Sale.invoice(d) = i);
     IF GROUP SUM 1 IF in(OutgoingConsignment oc) THEN
         processCheckOutgoingConsignment();
@@ -1469,9 +1509,24 @@ seVolumeLockedReturnGestori (PurchaseReturn.UserInvoiceDetail d) = GROUP SUM 1 I
     AND (notCompleted(lastRequest(VetisPurchaseReturn.outgoingConsignment(d, se))) OR succeeded(lastRequest(VetisPurchaseReturn.outgoingConsignment(d, se)))
          OR vetDocument(VetisPurchaseReturn.outgoingConsignment(d, se)));
 
+// расхождение объёма поставлено с объёмом по строке (пустые значения считаются нулём)
+diffVolumeShippedReturnGestori (PurchaseReturn.UserInvoiceDetail d) =
+    (OVERRIDE volumeShippedReturnGestori(d), 0.0) != (OVERRIDE VetisPurchaseReturn.volumeStockEntry(d), 0.0);
+// на списке «Объем по строке» — объём связки с записью журнала
+diffVolumeShippedRowReturnGestori (PurchaseReturn.UserInvoiceDetail d, StockEntry se) =
+    (OVERRIDE volumeShippedReturnGestori(d), 0.0) != (OVERRIDE VetisPurchaseReturn.volume(d, se), 0.0);
+// расхождение объёма продукции записи журнала с объёмом по строке (только для связанных пар)
+diffVolumeSEReturnGestori (PurchaseReturn.UserInvoiceDetail d, StockEntry se) =
+    VetisPurchaseReturn.volume(d, se) != volume(se);
+
 EXTEND FORM PurchaseReturn.userInvoice
-    PROPERTIES(vd) READONLY volumeShippedReturnGestori
+    PROPERTIES(vd) READONLY volumeShippedReturnGestori BACKGROUND (RGB(255,200,200) IF diffVolumeShippedReturnGestori(vd))
     PROPERTIES(se) READONLY totalVolumeSEReturnGestori
+
+    FILTERGROUP diffShippedReturnGestori
+        FILTER 'Расхождение объемов' diffVolumeShippedReturnGestori(vd)
+    FILTERGROUP diffSEReturnGestori
+        FILTER 'Расхождение объемов' diffVolumeSEReturnGestori(vd, se)
 ;
 
 DESIGN PurchaseReturn.userInvoice {
@@ -1484,7 +1539,10 @@ DESIGN PurchaseReturn.userInvoice {
 // ---- Список накладных закупки (возврат), вкладка ВЕТИС ----
 
 EXTEND FORM PurchaseReturn.invoices
-    PROPERTIES(vd) READONLY volumeShippedReturnGestori
+    PROPERTIES(vd) READONLY volumeShippedReturnGestori BACKGROUND (RGB(255,200,200) IF diffVolumeShippedRowReturnGestori(vd, se))
+
+    FILTERGROUP diffShippedRowReturnGestori
+        FILTER 'Расхождение объемов' diffVolumeShippedRowReturnGestori(vd, se)
 ;
 
 DESIGN PurchaseReturn.invoices {
@@ -1498,6 +1556,15 @@ CONSTRAINT totalVolumeSEReturnGestori(StockEntry se) > volume(se)
     MESSAGE 'Суммарный объём по строкам, связанным с записью журнала, превышает текущий остаток записи журнала'
     PROPERTIES se, guidSEGestori(se), numberSEGestori(se), volumeSEGestori(se), nameProductItemSEGestori(se);
 
+// «Объем продукции» с подсветкой расхождения — базовая колонка скрывается
+EXTEND FORM PurchaseReturn.userInvoice
+    PROPERTIES READONLY volumeSECardReturnGestori = volumeSEGestori(se)
+        BACKGROUND (RGB(255,200,200) IF diffVolumeSEReturnGestori(vd, se)) BEFORE expiryDate(se)
+;
+DESIGN PurchaseReturn.userInvoice {
+    PROPERTY(volume(se)) { hide = TRUE; }
+}
+
 // ---- условия регионализации по исходящим партиям накладной закупки (возврат) ----
 
 // действия по строке исходящей партии
@@ -1509,13 +1576,13 @@ showRegionalizationRowReturnGestori 'Показать условия регио�
     showRegionalizationConditions(VetisPurchaseReturn.outgoingConsignment(vd, se));
 }
 
-// по документу: партии, по которым нет отправленных или выполненных запросов на формирование транспортной партии
+// по документу: партии, по которым получение условий не заблокировано (в т.ч. повторное — актуализация)
 toProcessCheckReturnGestori (PurchaseReturn.Invoice i) = GROUP SUM 1 IF
-    toProcess(VetisPurchaseReturn.outgoingConsignment(PurchaseReturn.InvoiceDetail d, StockEntry se))
-    AND toProcessCheck(VetisPurchaseReturn.outgoingConsignment(d, se)) AND PurchaseReturn.invoice(d) = i;
+    VetisPurchaseReturn.outgoingConsignment(PurchaseReturn.InvoiceDetail d, StockEntry se) IS OutgoingConsignment
+    AND NOT lockedCheckOutgoingGestori(VetisPurchaseReturn.outgoingConsignment(d, se)) AND PurchaseReturn.invoice(d) = i;
 
 processCheckReturnGestori 'Получить условия регионализации' (PurchaseReturn.Invoice i) {
-    in(OutgoingConsignment oc) <- TRUE WHERE toProcess(oc) AND toProcessCheck(oc) AND
+    in(OutgoingConsignment oc) <- TRUE WHERE NOT lockedCheckOutgoingGestori(oc) AND
         (GROUP SUM 1 IF VetisPurchaseReturn.outgoingConsignment(PurchaseReturn.InvoiceDetail d, StockEntry se) = oc AND PurchaseReturn.invoice(d) = i);
     IF GROUP SUM 1 IF in(OutgoingConsignment oc) THEN
         processCheckOutgoingConsignment();
@@ -1528,7 +1595,8 @@ issueDateCheckReturnGestori 'Время получения условий рег
 nameStatusCheckReturnGestori 'Статус получения условий регионализации' (PurchaseReturn.InvoiceDetail vd, StockEntry se) =
     nameStatusLastCheckRequest(VetisPurchaseReturn.outgoingConsignment(vd, se));
 toProcessCheckRowReturnGestori (PurchaseReturn.InvoiceDetail vd, StockEntry se) =
-    toProcessCheck(VetisPurchaseReturn.outgoingConsignment(vd, se));
+    VetisPurchaseReturn.outgoingConsignment(vd, se) IS OutgoingConsignment
+    AND NOT lockedCheckOutgoingGestori(VetisPurchaseReturn.outgoingConsignment(vd, se));
 hasRegionalizationRowReturnGestori (PurchaseReturn.InvoiceDetail vd, StockEntry se) =
     hasRegionalization(VetisPurchaseReturn.outgoingConsignment(vd, se));
 
