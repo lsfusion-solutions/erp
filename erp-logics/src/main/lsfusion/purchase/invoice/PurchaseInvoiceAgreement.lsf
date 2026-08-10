@@ -291,9 +291,9 @@ EXTEND FORM userOrder
 ;
 
 @defineOperationProperty(forbidMinSumSupplierAgreement, 'Запретить проведение заказов с суммой, ниже минимальной по соглашению', constraintContainer);
-
-CONSTRAINT (SET(isPosted(UserOrder o)) OR CHANGED(sumUserOrderDetail(o)) OR SETCHANGED(operation(o))) AND isPosted(o)
-    AND minSumSupplier(o) AND NOT minSumSupplier(o) <= sumUserOrderDetail(o) AND forbidMinSumSupplierAgreement(operation(o))
+minSumSupplierSkip = ABSTRACT VALUE BOOLEAN (UserOrder);
+CONSTRAINT (SET(isPosted(UserOrder o)) OR CHANGED(sumUserOrderDetail(o)) OR SETCHANGED(operation(o)) OR CHANGED(minSumSupplierSkip(o))) AND isPosted(o)
+    AND minSumSupplier(o) AND NOT minSumSupplier(o) <= sumUserOrderDetail(o) AND forbidMinSumSupplierAgreement(operation(o)) AND NOT minSumSupplierSkip(o)
     MESSAGE 'Запрещено проведение заказов с суммой, ниже минимальной по соглашению';
 
 maxDeviationQuantityOrder 'Макс. к-во' (InvoiceDetail d) = maxDeviationQuantity(orderDetail(d));
