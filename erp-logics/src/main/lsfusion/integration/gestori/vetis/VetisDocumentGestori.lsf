@@ -1122,7 +1122,7 @@ CONSTRAINT CHANGED(VetisPurchase.volume(Purchase.UserInvoiceDetail vd, VetDocume
 
 // принятый вес по позиции не может превышать вес в ВСД
 CONSTRAINT VetisPurchase.volume(Purchase.UserInvoiceDetail vd, VetDocument vtd) > volume(vtd)
-    MESSAGE 'Связанный со строкой объем превышен объем продукции по ВСД';
+    MESSAGE 'Связанный со строкой объем превышает объем продукции по ВСД';
 
 // число позиций накладной, связанных с данным ВСД (по объёму)
 countDetailVDInvoiceGestori (Purchase.UserInvoice inv, VetDocument s) =
@@ -1570,8 +1570,18 @@ CONSTRAINT CHANGED(VetisSaleReturn.volume(SaleReturn.UserInvoiceDetail vd, VetDo
     MESSAGE 'Нельзя изменить объём по ВСД: отправлена заявка в Ветис или выполнено гашение';
 
 // позицию нельзя удалить, пока накладная проведена либо по позиции отправлена заявка или выполнено гашение
+// поля удаляемой позиции для таблицы в сообщении — значения на момент до удаления
+// параметры не типизированы: класс проверяется в PREV, иначе для удалённого объекта значения были бы NULL
+numberDroppedSaleReturnGestori 'Номер' (vd) = SaleReturn.number(PREV(SaleReturn.userInvoice[SaleReturn.UserInvoiceDetail](vd)));
+seriesDroppedSaleReturnGestori 'Серия' (vd) = SaleReturn.series(PREV(SaleReturn.userInvoice[SaleReturn.UserInvoiceDetail](vd)));
+indexDroppedSaleReturnGestori 'Номер строки' (vd) = PREV(SaleReturn.index[SaleReturn.UserInvoiceDetail](vd));
+idSkuDroppedSaleReturnGestori 'Код' (vd) = PREV(SaleReturn.idSku[SaleReturn.UserInvoiceDetail](vd));
+nameSkuDroppedSaleReturnGestori 'Наименование' (vd) = PREV(SaleReturn.nameSku[SaleReturn.UserInvoiceDetail](vd));
+
 CONSTRAINT DROPPED(vd IS SaleReturn.UserInvoiceDetail) AND isPosted(PREV(SaleReturn.userInvoice[SaleReturn.UserInvoiceDetail](vd)))
-    MESSAGE 'Нельзя удалить позицию: накладная проведена';
+    MESSAGE 'Нельзя удалить позицию: накладная проведена'
+    PROPERTIES numberDroppedSaleReturnGestori(vd), seriesDroppedSaleReturnGestori(vd), indexDroppedSaleReturnGestori(vd),
+        idSkuDroppedSaleReturnGestori(vd), nameSkuDroppedSaleReturnGestori(vd);
 CONSTRAINT DROPPED(vd IS SaleReturn.UserInvoiceDetail) AND PREV(vsdVolumeLockedSaleReturnGestori(vd))
     MESSAGE 'Нельзя удалить позицию: по ней отправлена заявка в Ветис или выполнено гашение';
 
@@ -1586,7 +1596,7 @@ idSkuSaleReturnGestori 'Код товара' (SaleReturn.UserInvoiceDetail vd) =
 nameSkuSaleReturnGestori 'Наименование товара' (SaleReturn.UserInvoiceDetail vd) = SaleReturn.nameSku(vd);
 
 CONSTRAINT VetisSaleReturn.volume(SaleReturn.UserInvoiceDetail vd, VetDocument vtd) > volume(vtd)
-    MESSAGE 'Связанный со строкой объем превышен объем продукции по ВСД'
+    MESSAGE 'Связанный со строкой объем превышает объем продукции по ВСД'
     PROPERTIES nameOperationSaleReturnGestori(vd), seriesSaleReturnGestori(vd), numberSaleReturnGestori(vd),
         indexSaleReturnGestori(vd), idSkuSaleReturnGestori(vd), nameSkuSaleReturnGestori(vd),
         uuidVDMessageGestori(vtd), volume(vtd), volumeRowSaleReturnGestori(vd, vtd);
@@ -1609,12 +1619,25 @@ WHEN CHANGED(shipmentQuantity(SaleReturn.UserInvoiceDetail vd)) AND VetisSaleRet
         AND NOT vsdVolumeLockedSaleReturnGestori(vd) DO
     VetisSaleReturn.fillVolume(vd, vtd);
 
+// расхождение объёма продукции по ВСД с объёмом, связанным со строкой (только для связанных пар)
+diffVolumeVDSaleReturnGestori (SaleReturn.UserInvoiceDetail vd, VetDocument vtd) =
+    VetisSaleReturn.volume(vd, vtd) != volume(vtd);
+
+// «Объем продукции» с подсветкой расхождения — базовая колонка скрывается
+volumeVDSaleReturnGestori 'Объем продукции' (VetDocument s) = volume(s);
+
 // список накладных продажи (возврат): время/статус/ошибка заявки по ВСД — одинаковы для всех строк этого ВСД
 EXTEND FORM SaleReturn.invoices
     PROPERTIES READONLY issueDateVDSaleReturnGestori = issueDateLastRequestVetDocument(vtd),
                         nameStatusVDSaleReturnGestori = nameStatusLastRequestVetDocument(vtd)
     PROPERTIES READONLY errorVDSaleReturnGestori = errorLastRequestVetDocument(vtd) PANEL
     PROPERTIES processRowVDSaleReturnGestori = processVDGestori(vtd) READONLYIF NOT toProcessVetDocument(vtd) GRID
+
+    PROPERTIES READONLY volumeVDListSaleReturnGestori = volumeVDSaleReturnGestori(vtd)
+        BACKGROUND (RGB(255,200,200) IF diffVolumeVDSaleReturnGestori(vd, vtd)) BEFORE volume(vd, vtd)
+
+    FILTERGROUP diffVDListSaleReturnGestori
+        FILTER 'Расхождение объемов' diffVolumeVDSaleReturnGestori(vd, vtd)
 ;
 
 DESIGN SaleReturn.invoices {
@@ -1631,6 +1654,7 @@ DESIGN SaleReturn.invoices {
     PROPERTY(process(vd, vtd)) { hide = TRUE; }
     PROPERTY(uuid(vtd)) { caption = 'UUID ВСД'; }
     PROPERTY(volume(vd, vtd)) { caption = 'Объем по строке'; }
+    PROPERTY(volume(vtd)) { hide = TRUE; }
 }
 
 // ---- Форма накладной продажи (возврат), вкладка ВЕТИС ----
@@ -1697,9 +1721,24 @@ DESIGN SaleReturn.userInvoice {
     PROPERTY(fillVolume(i)) { hide = TRUE; }
 }
 
+// расхождение объёма поставлено с объёмом, связанным с ВСД по строке (пустые значения считаются нулём)
+diffVolumeShippedSaleReturnGestori (SaleReturn.UserInvoiceDetail vd) =
+    (OVERRIDE volumeShippedSaleReturnGestori(vd), 0.0) != (OVERRIDE VetisSaleReturn.volumeVetDocument(vd), 0.0);
+
 EXTEND FORM SaleReturn.userInvoice
-    PROPERTIES(vd) READONLY volumeShippedSaleReturnGestori
+    PROPERTIES(vd) READONLY volumeShippedSaleReturnGestori BACKGROUND (RGB(255,200,200) IF diffVolumeShippedSaleReturnGestori(vd))
     PROPERTIES(vtd) READONLY totalVolumeVDSaleReturnGestori
+
+    FILTERGROUP diffShippedSaleReturnGestori
+        FILTER 'Расхождение объемов' diffVolumeShippedSaleReturnGestori(vd)
+;
+
+EXTEND FORM SaleReturn.userInvoice
+    PROPERTIES READONLY volumeVDCardSaleReturnGestori = volumeVDSaleReturnGestori(vtd)
+        BACKGROUND (RGB(255,200,200) IF diffVolumeVDSaleReturnGestori(vd, vtd)) BEFORE expiryDate(vtd)
+
+    FILTERGROUP diffVDSaleReturnGestori
+        FILTER 'Расхождение объемов' diffVolumeVDSaleReturnGestori(vd, vtd)
 ;
 
 DESIGN SaleReturn.userInvoice {
@@ -1709,6 +1748,7 @@ DESIGN SaleReturn.userInvoice {
     PROPERTY(uuidVetDocument(vd)) { caption = 'UUID ВСД'; }
     PROPERTY(volumeVetDocument(vd)) { caption = 'Объем по строке'; }
     PROPERTY(volume(vd, vtd)) { caption = 'Объем по строке'; }
+    PROPERTY(volume(vtd)) { hide = TRUE; }
 }
 
 // после ошибки запроса на оформление партию можно пересоздать: снимаем объём и возвращаем его обратно,
