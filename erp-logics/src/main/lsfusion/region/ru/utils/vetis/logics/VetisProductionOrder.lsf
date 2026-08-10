@@ -15,11 +15,25 @@ bruttoQuantity (ComponentDetail vd, StockEntry s) = volume(s) / OVERRIDE factor(
 
 matches (ComponentDetail vd, StockEntry s) = in(componentsStock(vd), enterprise(s)) AND in(s, GROUP MIN ProductItem pi IF in(sku(vd), pi)) AND active(s);
 
-calcQuantity(ComponentDetail vd, StockEntry s) = 
-    PARTITION UNGROUP bruttoQuantity LIMIT bruttoQuantity(vd, s) IF matches(vd, s) ORDER expiryDate(s), s BY vd;
+// подбор с учётом свободного остатка записи журнала: объём продукции минус распределённое строками других документов
+usedVolumeOtherLocal = DATA LOCAL NUMERIC[16,5] (StockEntry);
+remainderVolumeLocal = DATA LOCAL NUMERIC[16,5] (StockEntry);
+assignedVolumeLocal = DATA LOCAL NUMERIC[16,5] (ComponentDetail, StockEntry);
+
+freeQuantity (ComponentDetail vd, StockEntry s) = (volume(s) (-) usedVolumeOtherLocal(s)) / (OVERRIDE factor(sku(vd), unit(s)), 1.0);
+
+calcQuantity(ComponentDetail vd, StockEntry s) =
+    PARTITION UNGROUP bruttoQuantity LIMIT freeQuantity(vd, s) IF matches(vd, s) ORDER expiryDate(s), s BY vd;
 
 fillVolume 'Заполнить' (Order d) {
-    volume(ComponentDetail vd, StockEntry s) <- NUMERIC[16,5](calcQuantity(vd, s) * OVERRIDE factor(sku(vd), unit(s)), 1.0) WHERE order(vd) = d;
+    usedVolumeOtherLocal(StockEntry s) <- GROUP SUM volume(ComponentDetail vd, s) IF NOT order(vd) == d;
+    volume(ComponentDetail vd, StockEntry s) <- NUMERIC[16,5](calcQuantity(vd, s) * (OVERRIDE factor(sku(vd), unit(s)), 1.0)) WHERE order(vd) = d;
+    // суммарно по записи журнала не больше свободного остатка: излишек снимается с последних строк
+    assignedVolumeLocal(ComponentDetail vd, StockEntry s) <- volume(vd, s) WHERE order(vd) == d AND volume(vd, s) > 0;
+    remainderVolumeLocal(StockEntry s) <- NUMERIC[16,5](volume(s) (-) usedVolumeOtherLocal(s));
+    volume(ComponentDetail vd, StockEntry s) <-
+        PARTITION UNGROUP remainderVolumeLocal LIMIT STRICT (assignedVolumeLocal(vd, s)) ORDER index(vd), vd BY s
+        WHERE order(vd) == d AND assignedVolumeLocal(vd, s);
 }
 
 numberStockEntry 'Номер складского журнала' (ComponentDetail d) =

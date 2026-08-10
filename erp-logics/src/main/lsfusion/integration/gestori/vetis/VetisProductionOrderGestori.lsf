@@ -57,6 +57,64 @@ DESIGN Production.order {
     PROPERTY(volume(vd, se)) { caption = 'Объем по строке'; }
 }
 
+// --- Связь строк с производственными ВСД: последняя заявка с участием пары строка × запись журнала ---
+
+lastRequestComponentGestori (Production.ComponentDetail d, StockEntry se) =
+    GROUP LAST RegisterProductionOperationRequest r ORDER r WHERE volume(r, d, se);
+uuidVetDocumentComponentGestori 'GUID ВСД' (Production.ComponentDetail d, StockEntry se) = uuid(vetDocument(lastRequestComponentGestori(d, se)));
+nameStatusVetDocumentComponentGestori 'Статус ВСД' (Production.ComponentDetail d, StockEntry se) = nameStatus(vetDocument(lastRequestComponentGestori(d, se)));
+
+// --- Скрытие кнопок, когда весь состав отправлен (созданы ВСД или отправлены запросы) ---
+
+toProcessProductionGestori (Production.Order o) =
+    GROUP SUM 1 IF VetisSale.volume(Production.ComponentDetail d, StockEntry se) AND NOT requested(d, se) AND Production.order(d) == o;
+coveredAllProductionGestori (Production.Order o) =
+    (GROUP SUM 1 IF VetisSale.volume(Production.ComponentDetail d, StockEntry se) AND Production.order(d) == o) AND NOT toProcessProductionGestori(o);
+
+showIfVetisOverride(Production.Order o) += TRUE IF toProcessProductionGestori(o);
+
+showFillVolumeProductionGestori (Production.Order o) = hasProductItemProductionGestori(o) AND NOT coveredAllProductionGestori(o);
+
+// кнопка отправки в тулбаре таблицы строк (рядом с «Заполнить»); базовая кнопка формы скрывается
+sendVetisProductionGestori 'Отправить в Ветис' (Production.Order o) {
+    registerProductionOperationRequest(o);
+}
+
+// --- Запрет редактирования после отправки запросов в Ветис ---
+
+lockedComponentGestori (Production.ComponentDetail d) =
+    GROUP SUM 1 IF volume(RegisterProductionOperationRequest r, d, StockEntry se) AND (notCompleted(r) OR succeeded(r));
+
+CONSTRAINT CHANGED(Production.quantity(Production.ComponentDetail d)) AND lockedComponentGestori(d)
+    MESSAGE 'Запрещено изменять количество по строке производственного заказа: по строке отправлен запрос в Ветис';
+
+CONSTRAINT CHANGED(VetisSale.volume(Production.ComponentDetail d, StockEntry se)) AND lockedComponentGestori(d)
+    MESSAGE 'Запрещено изменять объём по записям журнала: по строке отправлен запрос в Ветис';
+
+lockedProductGestori (Production.ProductDetail d) =
+    GROUP SUM 1 IF volume(RegisterProductionOperationRequest r, d) AND ((notCompleted(r) OR succeeded(r)) OR vetDocument(r));
+
+CONSTRAINT CHANGED(Production.quantity(Production.ProductDetail d)) AND lockedProductGestori(d)
+    MESSAGE 'Запрещено изменять количество по позиции: по ней отправлен запрос в Ветис или создан производственный ВСД';
+
+// --- Остатки записей журнала ---
+
+// сумма объёмов по строкам, по которым ещё не созданы ВСД
+totalVolumeNoVSDSEGestori (StockEntry se) =
+    GROUP SUM VetisSale.volume(Production.ComponentDetail d, se) IF NOT vetDocument(lastRequestComponentGestori(d, se));
+
+guidSEProductionGestori 'GUID записи журнала' (StockEntry se) = guid(se);
+numberSEProductionGestori 'Номер записи журнала' (StockEntry se) = number(se);
+volumeSEProductionGestori 'Объем продукции' (StockEntry se) = volume(se);
+nameProductItemSEProductionGestori 'Номенклатура' (StockEntry se) = nameProductItem(se);
+
+CONSTRAINT totalVolumeNoVSDSEGestori(StockEntry se) > volume(se)
+    MESSAGE 'Суммарный объём по строкам, связанным с записью журнала, превышает текущий остаток записи журнала'
+    PROPERTIES se, guidSEProductionGestori(se), numberSEProductionGestori(se), volumeSEProductionGestori(se), nameProductItemSEProductionGestori(se);
+
+CONSTRAINT VetisSale.volumeStockEntry(Production.ComponentDetail d) > volumeShippedProductionGestori(d)
+    MESSAGE 'Суммарный объём по связанным со строкой записям журнала превышает объём по строке';
+
 // --- Вкладка ВЕТИС на списке производственных заказов ---
 
 EXTEND FORM Production.orders
@@ -64,13 +122,15 @@ EXTEND FORM Production.orders
     PROPERTIES(vd) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku
     PROPERTIES(se) READONLY guid, number, nameProductItem
     PROPERTIES(vd, se) READONLY volume
+    PROPERTIES(vd, se) READONLY uuidVetDocumentComponentGestori, nameStatusVetDocumentComponentGestori
     ORDERS index(vd)
     FILTERS Production.order(vd) = o, VetisSale.volume(vd, se)
 
-    PROPERTIES(o) fillVolumeApplyProductionGestori DRAW vse TOOLBAR SHOWIF hasProductItemProductionGestori(o)
+    PROPERTIES(o) fillVolumeApplyProductionGestori DRAW vse TOOLBAR SHOWIF showFillVolumeProductionGestori(o)
+    PROPERTIES(o) sendVetisProductionGestori DRAW vse TOOLBAR SHOWIF showIfVetis(o)
 
-    PROPERTIES(o) READONLY issueDateLastRequestProductionGestori PANEL, nameStatusLastRequestProductionGestori PANEL,
-                           errorLastRequestProductionGestori PANEL
+    PROPERTIES(o) READONLY issueDateLastRequestProductionGestori DRAW vse, nameStatusLastRequestProductionGestori DRAW vse
+    PROPERTIES(o) READONLY errorLastRequestProductionGestori PANEL
 ;
 
 DESIGN Production.orders {
@@ -78,12 +138,13 @@ DESIGN Production.orders {
         caption = 'ВЕТИС';
         horizontal = FALSE;
         MOVE BOX(vse) { fill = 1; }
-        MOVE PROPERTY(issueDateLastRequestProductionGestori(o));
-        MOVE PROPERTY(nameStatusLastRequestProductionGestori(o));
         MOVE PROPERTY(errorLastRequestProductionGestori(o)) {
             alignment = STRETCH;
             panelCaptionVertical = TRUE;
         }
-        MOVE PROPERTY(registerProductionOperationRequest(o)) { caption = 'Отправить в Ветис'; }
     }
+    PROPERTY(registerProductionOperationRequest(o)) { hide = TRUE; }
+    PROPERTY(nameSku(vd)) { caption = 'Наименование'; }
+    PROPERTY(guid(se)) { caption = 'GUID записи журнала'; }
+    PROPERTY(volume(vd, se)) { caption = 'Объем по строке'; }
 }

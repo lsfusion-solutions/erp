@@ -1,6 +1,6 @@
 MODULE VetisRegisterProductionOperation;
 
-REQUIRE VetisAMSReceiveResponse, VetisIncomingConsignment, VetisStockEntryImport, VetisDocumentImport, VetisProductionOrder;
+REQUIRE VetisAMSReceiveResponse, VetisIncomingConsignment, VetisOutgoingConsignment, VetisStockEntryImport, VetisDocumentImport, VetisProductionOrder;
 
 NAMESPACE Vetis;
 
@@ -9,6 +9,41 @@ CLASS RegisterProductionOperationRequest 'Производство' : Applicatio
 productionOrder = DATA Order (RegisterProductionOperationRequest) INDEXED NONULL;
 
 localTransactionId (RegisterProductionOperationRequest r) = LONG(r AS RegisterProductionOperationRequest);
+
+// состав заявки на момент отправки: сырьё (строка компонента × запись журнала) и изделия
+volume 'Объем' = DATA NUMERIC[16,5] (RegisterProductionOperationRequest, ComponentDetail, StockEntry);
+volume 'Объем' = DATA NUMERIC[16,5] (RegisterProductionOperationRequest, ProductDetail);
+
+// производственный ВСД, созданный по заявке (из ответа)
+vetDocument = DATA VetDocument (RegisterProductionOperationRequest) INDEXED;
+
+// пара строка × запись журнала уже включена в незавершённую или успешную заявку
+requestedData = GROUP SUM 1 IF volume(RegisterProductionOperationRequest r, ComponentDetail d, StockEntry se) AND (notCompleted(r) OR succeeded(r)) BY d, se;
+
+// заявка без зафиксированного состава (создана до его появления) покрывает все строки своего заказа
+hasLegacyRequest (Order o) = GROUP SUM 1 IF productionOrder(RegisterProductionOperationRequest r) == o AND (notCompleted(r) OR succeeded(r))
+    AND NOT (GROUP SUM 1 IF volume(r, ComponentDetail d, StockEntry se));
+
+requested (ComponentDetail d, StockEntry se) = requestedData(d, se) OR hasLegacyRequest(order(d));
+
+// исходящая партия производства: списание сырьевой записи журнала заявкой
+CLASS ProductionOutgoingConsignment 'Исходящая партия (ветис) на основе производства' : OutgoingConsignment;
+TABLE productionOutgoingConsignment (ProductionOutgoingConsignment);
+productionOutgoingConsignment = AGGR ProductionOutgoingConsignment WHERE volume(RegisterProductionOperationRequest request, ComponentDetail componentDetail, StockEntry stockEntry) MATERIALIZED INDEXED;
+stockEntry(ProductionOutgoingConsignment c) += stockEntry(c);
+volume(ProductionOutgoingConsignment c) += volume(request(c), componentDetail(c), stockEntry(c));
+deliveryDate(ProductionOutgoingConsignment c) += issueDate(request(c));
+consignorEnterprise(ProductionOutgoingConsignment c) += enterprise(stockEntry(c));
+waybillNumber(ProductionOutgoingConsignment c) += number(order(componentDetail(c)));
+waybillDate(ProductionOutgoingConsignment c) += date(order(componentDetail(c)));
+
+// входящая партия производства: строка изделия × производственный ВСД заявки
+CLASS ProductionIncomingConsignment 'Входящая партия (ветис) на основе производства' : IncomingConsignment;
+TABLE productionIncomingConsignment (ProductionIncomingConsignment);
+productionIncomingConsignment = AGGR ProductionIncomingConsignment WHERE volume(RegisterProductionOperationRequest request, ProductDetail productDetail) MATERIALIZED INDEXED;
+vetDocument(ProductionIncomingConsignment c) += vetDocument(request(c));
+volume(ProductionIncomingConsignment c) += volume(request(c), productDetail(c));
+deliveryDate(ProductionIncomingConsignment c) += issueDate(request(c));
 
 GROUP data EXTID 'apl:data';
 GROUP enterprise EXTID 'merc:enterprise';
@@ -52,10 +87,10 @@ FORM registerProductionOperationRequest FORMEXTID 'merc=http://api.vetrf.ru/sche
     OBJECTS rawBatch = (d = ComponentDetail, se = StockEntry) EXTID 'vd:rawBatch' IN productionOperation
 
         PROPERTIES(se) IN sourceStockEntry guid EXTID 'bs:guid'
-        PROPERTIES(d, se) volume EXTID 'vd:volume'
+        PROPERTIES(r, d, se) volume EXTID 'vd:volume'
         PROPERTIES IN unit =guid(unit(se)) EXTID 'bs:guid'
-    // в запрос попадают только записи журнала, связанные с компонентами по объёму
-    FILTERS order(d) = productionOrder(r) AND volume(d, se)
+    // в запрос попадает зафиксированный состав заявки (снапшот на момент отправки)
+    FILTERS volume(r, d, se)
     
     OBJECTS productiveBatch= (pd = ProductDetail, pi = ProductItem) EXTID 'vd:productiveBatch' IN productionOperation
 //
@@ -90,6 +125,10 @@ registerProductionOperationRequest 'Заказ производство' (Order 
             cargoExpertized(r) <- 'VSEFULL';
             businessEntity(r) <- businessEntity(legalEntity(productsStock(o)));
 
+            // фиксируем состав заявки: сырьё — только пары, не включённые в незавершённые/успешные заявки
+            volume(r, ComponentDetail d, StockEntry se) <- volume(d, se) WHERE order(d) == o AND volume(d, se) AND NOT requested(d, se);
+            volume(r, ProductDetail pd) <- NUMERIC[16,5](quantity(pd) * netWeight(sku(pd))) WHERE order(pd) == o AND (GROUP SUM 1 IF in(sku(pd), ProductItem pi));
+
             EXPORT registerProductionOperationRequest OBJECTS r=r XML;
             submit(r, exportFile());
         }
@@ -97,8 +136,9 @@ registerProductionOperationRequest 'Заказ производство' (Order 
     }
 }
 
-showIfVetis (Order p) = NOT GROUP SUM 1 IF productionOrder(RegisterProductionOperationRequest r) = p AND 
-    status(r) != ApplicationRequestStatus.REJECTED;
+showIfVetisOverride = ABSTRACT BOOLEAN (Order);
+showIfVetis (Order p) = OVERRIDE showIfVetisOverride(p), (NOT GROUP SUM 1 IF productionOrder(RegisterProductionOperationRequest r) = p AND
+    status(r) != ApplicationRequestStatus.REJECTED);
 
 EXTEND FORM orders
     PROPERTIES(o) TOOLBAR SHOWIF showIfVetis(o) registerProductionOperationRequest 
@@ -322,6 +362,8 @@ process (RegisterProductionOperationRequest r) + {
         }
 
         FOR uuid(VetDocument d) = vetDocumentUuidR() DO {
+            vetDocument(r) <- d;
+
             issueDate(d) <- toDateFormat(issueDateR(), 'YYYY-MM-DD');
 
             type(d) <- vetDocumentType(vetDTypeR());
@@ -375,6 +417,14 @@ process (RegisterProductionOperationRequest r) + {
 //
             in(d, ProductItem pi) <- TRUE IF pi = productItem(guid3R(i));
         }
+
+        // ВСД на исходящих производственных партиях (движение по сырьевым записям журнала)
+        vetDocument(ProductionOutgoingConsignment c) <- vetDocument(r) WHERE request(c) == r;
+
+        // списание остатка сырьевых записей журнала объёмами заявки
+        LOCAL usedVolume = NUMERIC[16,5] (StockEntry);
+        usedVolume(StockEntry se) <- [GROUP SUM volume(RegisterProductionOperationRequest rr, ComponentDetail d, StockEntry s) BY rr, s](r, se);
+        volume(StockEntry se) <- NUMERIC[16,5](volume(se) (-) usedVolume(se)) WHERE usedVolume(se);
 //
         APPLY;
 //        processed(r) <- TRUE;
