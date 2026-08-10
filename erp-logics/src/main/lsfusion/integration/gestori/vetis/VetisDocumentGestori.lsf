@@ -1200,9 +1200,13 @@ DESIGN Purchase.invoices {
     PROPERTY(volume(vd, vtd)) { caption = 'Объем по строке'; }
 }
 
-// расхождение объёма продукции по ВСД с объёмом, связанным со строкой (только для связанных пар)
+// суммарный принятый объём по всем строкам, связанным с ВСД
+totalVolumeVDGestori 'Объем всего' (VetDocument s) = GROUP SUM VetisPurchase.volume(Purchase.UserInvoiceDetail d, s);
+
+// связь «многие ко многим»: ВСД не сходится, если суммарный объём связанных с ним строк отличается от объёма продукции;
+// расхождение показывается на связанных парах
 diffVolumeVDInvoiceGestori (Purchase.UserInvoiceDetail d, VetDocument vtd) =
-    VetisPurchase.volume(d, vtd) != volume(vtd);
+    VetisPurchase.volume(d, vtd) AND (OVERRIDE totalVolumeVDGestori(vtd), 0.0) != volume(vtd);
 
 // «Объем продукции» с подсветкой расхождения — базовая колонка скрывается
 volumeVDInvoiceGestori 'Объем продукции' (VetDocument s) = volume(s);
@@ -1277,9 +1281,6 @@ EXTEND FORM Purchase.invoices
 // объём (поставлено) по строке = фактическое количество × вес единицы товара
 volumeShippedGestori 'Объем (поставлено)' (Purchase.UserInvoiceDetail d) = NUMERIC[16,5](shipmentQuantity(d) * netWeight(sku(d)));
 
-// суммарный принятый объём по всем строкам, связанным с ВСД
-totalVolumeVDGestori 'Объем всего' (VetDocument s) = GROUP SUM VetisPurchase.volume(Purchase.UserInvoiceDetail d, s);
-
 // расхождение объёма поставлено с объёмом по строке (пустые значения считаются нулём)
 diffVolumeShippedInvoiceGestori (Purchase.UserInvoiceDetail d) =
     (OVERRIDE volumeShippedGestori(d), 0.0) != (OVERRIDE VetisPurchase.volumeVetDocument(d), 0.0);
@@ -1332,9 +1333,10 @@ seVolumeLockedSaleGestori (Sale.UserInvoiceDetail d) = GROUP SUM 1 IF VetisSale.
 // расхождение объёма поставлено с объёмом по строке (пустые значения считаются нулём)
 diffVolumeShippedSaleGestori (Sale.UserInvoiceDetail d) =
     (OVERRIDE volumeShippedSaleGestori(d), 0.0) != (OVERRIDE VetisSale.volumeStockEntry(d), 0.0);
-// на списке «Объем по строке» — объём связки с записью журнала
+// связь «многие ко многим»: строка не сходится, если объём поставлено отличается от суммарного объёма
+// связок по всем её записям журнала; расхождение показывается на связанных парах
 diffVolumeShippedRowSaleGestori (Sale.UserInvoiceDetail d, StockEntry se) =
-    (OVERRIDE volumeShippedSaleGestori(d), 0.0) != (OVERRIDE VetisSale.volume(d, se), 0.0);
+    VetisSale.volume(d, se) AND diffVolumeShippedSaleGestori(d);
 // расхождение объёма продукции записи журнала с объёмом по строке (только для связанных пар)
 diffVolumeSESaleGestori (Sale.UserInvoiceDetail d, StockEntry se) =
     VetisSale.volume(d, se) != volume(se);
@@ -1512,9 +1514,10 @@ seVolumeLockedReturnGestori (PurchaseReturn.UserInvoiceDetail d) = GROUP SUM 1 I
 // расхождение объёма поставлено с объёмом по строке (пустые значения считаются нулём)
 diffVolumeShippedReturnGestori (PurchaseReturn.UserInvoiceDetail d) =
     (OVERRIDE volumeShippedReturnGestori(d), 0.0) != (OVERRIDE VetisPurchaseReturn.volumeStockEntry(d), 0.0);
-// на списке «Объем по строке» — объём связки с записью журнала
+// связь «многие ко многим»: строка не сходится, если объём поставлено отличается от суммарного объёма
+// связок по всем её записям журнала; расхождение показывается на связанных парах
 diffVolumeShippedRowReturnGestori (PurchaseReturn.UserInvoiceDetail d, StockEntry se) =
-    (OVERRIDE volumeShippedReturnGestori(d), 0.0) != (OVERRIDE VetisPurchaseReturn.volume(d, se), 0.0);
+    VetisPurchaseReturn.volume(d, se) AND diffVolumeShippedReturnGestori(d);
 // расхождение объёма продукции записи журнала с объёмом по строке (только для связанных пар)
 diffVolumeSEReturnGestori (PurchaseReturn.UserInvoiceDetail d, StockEntry se) =
     VetisPurchaseReturn.volume(d, se) != volume(se);
@@ -1722,9 +1725,13 @@ WHEN CHANGED(shipmentQuantity(SaleReturn.UserInvoiceDetail vd)) AND VetisSaleRet
         AND NOT vsdVolumeLockedSaleReturnGestori(vd) DO
     VetisSaleReturn.fillVolume(vd, vtd);
 
-// расхождение объёма продукции по ВСД с объёмом, связанным со строкой (только для связанных пар)
+// суммарный принятый объём по всем строкам, связанным с ВСД
+totalVolumeVDSaleReturnGestori 'Объем всего' (VetDocument s) = GROUP SUM VetisSaleReturn.volume(SaleReturn.UserInvoiceDetail d, s);
+
+// связь «многие ко многим»: ВСД не сходится, если суммарный объём связанных с ним строк отличается от объёма продукции;
+// расхождение показывается на связанных парах
 diffVolumeVDSaleReturnGestori (SaleReturn.UserInvoiceDetail vd, VetDocument vtd) =
-    VetisSaleReturn.volume(vd, vtd) != volume(vtd);
+    VetisSaleReturn.volume(vd, vtd) AND (OVERRIDE totalVolumeVDSaleReturnGestori(vtd), 0.0) != volume(vtd);
 
 // «Объем продукции» с подсветкой расхождения — базовая колонка скрывается
 volumeVDSaleReturnGestori 'Объем продукции' (VetDocument s) = volume(s);
@@ -1764,9 +1771,6 @@ DESIGN SaleReturn.invoices {
 
 // объём (поставлено) по строке = фактическое количество × вес единицы товара
 volumeShippedSaleReturnGestori 'Объем (поставлено)' (SaleReturn.UserInvoiceDetail d) = NUMERIC[16,5](shipmentQuantity(d) * netWeight(sku(d)));
-
-// суммарный принятый объём по всем строкам, связанным с ВСД
-totalVolumeVDSaleReturnGestori 'Объем всего' (VetDocument s) = GROUP SUM VetisSaleReturn.volume(SaleReturn.UserInvoiceDetail d, s);
 
 // свободный остаток ВСД (без учёта текущей пары) и свободный остаток строки по «Объем (поставлено)»
 freeVolumeVDSaleReturnGestori (SaleReturn.UserInvoiceDetail vd, VetDocument s) =
