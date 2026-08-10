@@ -194,9 +194,11 @@ skipLastTransaction 'Не учитывать для определения те�
 
 // INDEX groupInMachineryPriceTransactionBarcode + barcode 
 groupIn = groupMachinery(MachineryPriceTransaction transaction) IF in(transaction, Barcode barcode) 
+    AND NOT canceled(transaction)
     AND NOT skipLastTransaction(groupMachinery(transaction)) AND NOT skipLastTransaction(transaction) MATERIALIZED;
 
 dateTimeIn = dateTime(MachineryPriceTransaction transaction) IF in(transaction, Barcode barcode) 
+    AND NOT canceled(transaction)
     AND NOT skipLastTransaction(groupMachinery(transaction)) AND NOT skipLastTransaction(transaction) MATERIALIZED;
     
 INDEX groupIn(MachineryPriceTransaction t, Barcode b), b, dateTimeIn(t,b), t;
@@ -204,8 +206,18 @@ INDEX groupIn(MachineryPriceTransaction t, Barcode b), b, dateTimeIn(t,b), t;
 lastTransaction (Barcode barcode, groupMachinery) = 
     GROUP LAST MachineryPriceTransaction transaction
           ORDER dateTimeIn(transaction, barcode), transaction
-          WHERE NOT canceled(transaction) 
+          WHERE groupIn(transaction, barcode)
           BY groupIn(transaction, barcode) MATERIALIZED;
+
+INDEX lastTransaction(Barcode b, GroupMachinery g), b;
+
+// раньше отмена учитывалась в lastTransaction, поэтому в groupIn и dateTimeIn остались значения по отменённым загрузкам
+canceledGroupInMigrate() {
+    RECALCULATE groupIn(MachineryPriceTransaction t, Barcode b) WHERE canceled(t) AND in(t, b);
+    RECALCULATE dateTimeIn(MachineryPriceTransaction t, Barcode b) WHERE canceled(t) AND in(t, b);
+}
+@defOnStartMigrate(canceledGroupInMigrate);
+
 prevLastTransaction (Barcode b, GroupMachinery g) = lastTransaction(b, g);
 
 lastTransaction (sku, stock) =
@@ -653,6 +665,18 @@ skipMachineryPriceTransaction 'Запретить загрузку в обору
 skipMachineryPriceTransaction 'Не загружать в оборудование' = DATA BOOLEAN (Barcode);
 skip(GroupMachinery groupMachinery, Barcode barcode) += WHEN groupMachinery IS GroupMachinery AND skipMachineryPriceTransaction(barcode) THEN TRUE;
 skip(GroupMachinery groupMachinery, Barcode barcode) += WHEN barcode IS Barcode AND skipMachineryPriceTransaction(groupMachinery) THEN TRUE;
+
+// по таким позициям текущая цена в оборудовании не нужна, поэтому удаляется и последняя загрузка, но только за пределами срока хранения
+overClearMachineryPriceTransaction() + {
+    NEWSESSION {
+        APPLY {
+            in(MachineryPriceTransaction t, Barcode b) <- NULL WHERE in(t, b)
+                AND (inactive(sku(b)) OR inactive(stock(groupMachinery(t)))
+                     OR skipMachineryPriceTransaction(sku(b), stock(groupMachinery(t)), currentDateTime()))
+                AND date(t) <= subtract(currentDate(), countDaysClearMachineryPriceTransaction());
+        }
+    }
+}
 
 // Перезагрузка целиком
 snapshotAttribute  ABSTRACT LIST ( MachineryPriceTransaction, GroupMachinery);
