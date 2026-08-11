@@ -17,6 +17,10 @@ NAMESPACE ETRN;
 etrnWeightMethod (STRING[2] code) = GROUP MAX ETRNWeightMethod m BY id(m);
 etrnRedirectPerson (ISTRING[15] name) = GROUP MAX ETRNRedirectPerson p BY name(p);
 
+// участник входящего титула не найден по ИНН - расширение (роль: shipper/consignee/carrier);
+// реализация может завести контрагента (например, по данным провайдера)
+overResolveParticipant ABSTRACT LIST (STRING[12], STRING[10]);
+
 // ------------------------- Локальные свойства ------------------------- //
 
 // СодИнфГО (шапка)
@@ -34,8 +38,14 @@ impT1GPName = DATA LOCAL STRING ();
 impT1PerInn = DATA LOCAL STRING ();
 impT1PerName = DATA LOCAL STRING ();
 
+// участники-ИП (СвИП с ИННФЛ вместо СвЮЛУч)
+impT1GOInnIP = DATA LOCAL STRING ();
+impT1GPInnIP = DATA LOCAL STRING ();
+impT1PerInnIP = DATA LOCAL STRING ();
+
 // АдресДостГр
 impT1GPAddrText = DATA LOCAL STRING ();
+impT1GPAddrInfText = DATA LOCAL STRING ();   // АдресИнф - адрес свободным текстом
 impT1GPIndex = DATA LOCAL STRING ();
 impT1GPDistrict = DATA LOCAL STRING ();
 impT1GPCity = DATA LOCAL STRING ();
@@ -95,6 +105,7 @@ impT1PgMass = DATA LOCAL STRING ();
 impT1PgMet = DATA LOCAL STRING ();
 impT1PgKolMest = DATA LOCAL STRING ();
 impT1PgAddrText = DATA LOCAL STRING ();
+impT1PgAddrInfText = DATA LOCAL STRING ();   // АдресИнф - адрес свободным текстом
 impT1PgIndex = DATA LOCAL STRING ();
 impT1PgCity = DATA LOCAL STRING ();
 impT1PgStreet = DATA LOCAL STRING ();
@@ -130,10 +141,12 @@ GROUP impT1GO EXTID 'СвГО' : impT1Content;
 GROUP impT1GORek EXTID 'РекИдентГО' : impT1GO;
 GROUP impT1GOIdSv EXTID 'ИдСв' : impT1GORek;
 GROUP impT1GOUL EXTID 'СвЮЛУч' : impT1GOIdSv;
+GROUP impT1GOIP EXTID 'СвИП' : impT1GOIdSv;
 GROUP impT1GP EXTID 'СвГП' : impT1Content;
 GROUP impT1GPRek EXTID 'РекИдентГП' : impT1GP;
 GROUP impT1GPIdSv EXTID 'ИдСв' : impT1GPRek;
 GROUP impT1GPUL EXTID 'СвЮЛУч' : impT1GPIdSv;
+GROUP impT1GPIP EXTID 'СвИП' : impT1GPIdSv;
 GROUP impT1GPAddr EXTID 'АдресДостГр' : impT1GP;
 GROUP impT1GPAddrRF EXTID 'АдресРФ' : impT1GPAddr;
 GROUP impT1GPAddrInf EXTID 'АдресИнф' : impT1GPAddr;
@@ -149,6 +162,7 @@ GROUP impT1Klim EXTID 'КлимРеж' : impT1Ukaz;
 GROUP impT1Per EXTID 'СвПер' : impT1Content;
 GROUP impT1PerIdSv EXTID 'ИдСв' : impT1Per;
 GROUP impT1PerUL EXTID 'СвЮЛУч' : impT1PerIdSv;
+GROUP impT1PerIP EXTID 'СвИП' : impT1PerIdSv;
 GROUP impT1VodFIO EXTID 'ФИО';
 GROUP impT1TS EXTID 'СвТС' : impT1Content;
 GROUP impT1TSTS EXTID 'ТС' : impT1TS;
@@ -168,9 +182,12 @@ FORM etrnTitleXmlImport
 
     PROPERTIES IN impT1GO impT1GOExp() EXTID 'ГОЭксп' ATTR
     PROPERTIES IN impT1GOUL impT1GOInn() EXTID 'ИННЮЛ' ATTR, impT1GOName() EXTID 'НаимОрг' ATTR
+    PROPERTIES IN impT1GOIP impT1GOInnIP() EXTID 'ИННФЛ' ATTR
 
     PROPERTIES IN impT1GPUL impT1GPInn() EXTID 'ИННЮЛ' ATTR, impT1GPName() EXTID 'НаимОрг' ATTR
+    PROPERTIES IN impT1GPIP impT1GPInnIP() EXTID 'ИННФЛ' ATTR
     PROPERTIES IN impT1GPAddr impT1GPAddrText() EXTID 'АдрКоммент' ATTR
+    PROPERTIES IN impT1GPAddrInf impT1GPAddrInfText() EXTID 'АдрТекст' ATTR
     PROPERTIES IN impT1GPAddrRF
         impT1GPIndex() EXTID 'Индекс' ATTR,
         impT1GPDistrict() EXTID 'Район' ATTR,
@@ -182,6 +199,7 @@ FORM etrnTitleXmlImport
         impT1GPFlat() EXTID 'Кварт' ATTR
 
     PROPERTIES IN impT1PerUL impT1PerInn() EXTID 'ИННЮЛ' ATTR, impT1PerName() EXTID 'НаимОрг' ATTR
+    PROPERTIES IN impT1PerIP impT1PerInnIP() EXTID 'ИННФЛ' ATTR
 
     PROPERTIES IN impT1Ukaz
         impT1Zapr() EXTID 'ЗапрПерегруз' ATTR,
@@ -237,6 +255,7 @@ FORM etrnTitleXmlImport
         impT1PgMet() EXTID 'МетОпрМасс' ATTR,
         impT1PgKolMest() EXTID 'КолМестПрием' ATTR
     PROPERTIES IN impT1PgAddr impT1PgAddrText() EXTID 'АдрКоммент' ATTR
+    PROPERTIES IN impT1PgAddrInf impT1PgAddrInfText() EXTID 'АдрТекст' ATTR
     PROPERTIES IN impT1PgAddrRF
         impT1PgIndex() EXTID 'Индекс' ATTR,
         impT1PgCity() EXTID 'Город' ATTR,
@@ -288,22 +307,31 @@ parseETRNTitleXml 'Импортировать титул Т1 из файла' (E
     orderNumber(e) <- STRING[100](impT1OrderNumber());
     orderDate(e) <- DATE(toDateFormat(impT1OrderDate(), 'DD.MM.YYYY'));
 
+    // участник титула не найден в справочнике организаций - точка расширения
+    // (например, автосоздание контрагента по данным Диадока - решение клиента)
+    FOR STRING[12] pInn == STRING[12](OVERRIDE impT1GOInn(), impT1GOInnIP()) AND NOT legalEntityInn(pInn) DO
+        overResolveParticipant(pInn, 'shipper');
+    FOR STRING[12] pInn == STRING[12](OVERRIDE impT1GPInn(), impT1GPInnIP()) AND NOT legalEntityInn(pInn) DO
+        overResolveParticipant(pInn, 'consignee');
+    FOR STRING[12] pInn == STRING[12](OVERRIDE impT1PerInn(), impT1PerInnIP()) AND NOT legalEntityInn(pInn) DO
+        overResolveParticipant(pInn, 'carrier');
+
     // участники (поиск по ИНН; наши роли вычислятся автоматически)
-    shipper(e) <- legalEntityInn(STRING[12](impT1GOInn())) WHERE legalEntityInn(STRING[12](impT1GOInn()));
+    shipper(e) <- legalEntityInn(STRING[12](OVERRIDE impT1GOInn(), impT1GOInnIP())) WHERE legalEntityInn(STRING[12](OVERRIDE impT1GOInn(), impT1GOInnIP()));
     forwarder(e) <- TRUE IF impT1GOExp() = '1';
-    consignee(e) <- legalEntityInn(STRING[12](impT1GPInn())) WHERE legalEntityInn(STRING[12](impT1GPInn()));
-    carrier(e) <- legalEntityInn(STRING[12](impT1PerInn())) WHERE legalEntityInn(STRING[12](impT1PerInn()));
+    consignee(e) <- legalEntityInn(STRING[12](OVERRIDE impT1GPInn(), impT1GPInnIP())) WHERE legalEntityInn(STRING[12](OVERRIDE impT1GPInn(), impT1GPInnIP()));
+    carrier(e) <- legalEntityInn(STRING[12](OVERRIDE impT1PerInn(), impT1PerInnIP())) WHERE legalEntityInn(STRING[12](OVERRIDE impT1PerInn(), impT1PerInnIP()));
 
     LOCAL missingParticipants = STRING ();
     missingParticipants() <- CONCAT '; ',
-        (CONCAT ' ', impT1GOName(), 'ИНН ' + impT1GOInn()) IF impT1GOInn() AND NOT legalEntityInn(STRING[12](impT1GOInn())),
-        (CONCAT ' ', impT1GPName(), 'ИНН ' + impT1GPInn()) IF impT1GPInn() AND NOT legalEntityInn(STRING[12](impT1GPInn())),
-        (CONCAT ' ', impT1PerName(), 'ИНН ' + impT1PerInn()) IF impT1PerInn() AND NOT legalEntityInn(STRING[12](impT1PerInn()));
+        (CONCAT ' ', impT1GOName(), 'ИНН ' + (OVERRIDE impT1GOInn(), impT1GOInnIP())) IF (OVERRIDE impT1GOInn(), impT1GOInnIP()) AND NOT legalEntityInn(STRING[12](OVERRIDE impT1GOInn(), impT1GOInnIP())),
+        (CONCAT ' ', impT1GPName(), 'ИНН ' + (OVERRIDE impT1GPInn(), impT1GPInnIP())) IF (OVERRIDE impT1GPInn(), impT1GPInnIP()) AND NOT legalEntityInn(STRING[12](OVERRIDE impT1GPInn(), impT1GPInnIP())),
+        (CONCAT ' ', impT1PerName(), 'ИНН ' + (OVERRIDE impT1PerInn(), impT1PerInnIP())) IF (OVERRIDE impT1PerInn(), impT1PerInnIP()) AND NOT legalEntityInn(STRING[12](OVERRIDE impT1PerInn(), impT1PerInnIP()));
     IF missingParticipants() THEN
         MESSAGE CONCAT ' ', 'Участники титула не найдены в справочнике организаций:', missingParticipants();
 
     // адрес доставки: комментарий/структурный адрес РФ
-    deliveryAddress(e) <- ISTRING[350](OVERRIDE impT1GPAddrText(),
+    deliveryAddress(e) <- ISTRING[350](OVERRIDE impT1GPAddrText(), impT1GPAddrInfText(),
         (CONCAT ', ', impT1GPIndex(), impT1GPDistrict(), impT1GPCity(), impT1GPLocality(), impT1GPStreet(), impT1GPHouse(), impT1GPCorpus(), impT1GPFlat()));
 
     // указания грузоотправителя
@@ -336,7 +364,7 @@ parseETRNTitleXml 'Импортировать титул Т1 из файла' (E
     acceptGrossWeight(e) <- NUMERIC[17,3](impT1PgMass());
     weightMethod(e) <- etrnWeightMethod(STRING[2](impT1PgMet()));
     acceptQuantityPlaces(e) <- INTEGER(impT1PgKolMest());
-    loadingAddress(e) <- ISTRING[350](OVERRIDE impT1PgAddrText(),
+    loadingAddress(e) <- ISTRING[350](OVERRIDE impT1PgAddrText(), impT1PgAddrInfText(),
         (CONCAT ', ', impT1PgIndex(), impT1PgCity(), impT1PgStreet(), impT1PgHouse()));
 
     // водители и ТС стороннего перевозчика - информационно

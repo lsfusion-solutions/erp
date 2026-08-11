@@ -20,9 +20,62 @@ ETRN.importIncoming (ETRN.ETRNProvider p) + WHEN p == ETRN.ETRNProvider.diadoc T
     ETRN.processETRNEvents();    // 2. обработать необработанные события (создаст входящие ЭТрН)
 }
 
+// ------------------------- Титул Т1 в fwd-сообщениях ------------------------- //
+// Трансляция титулов грузополучателю (fwd): документооборот ведут грузоотправитель
+// и перевозчик, нам приходят fwd-сообщения с копиями титулов - отдельное сообщение
+// на каждый титул (Т1 - вложение ON_TRNACLGROT, Т2 - ON_TRNACLPPRIN) с подписями.
+// Поиск: по каждому fwd-сообщению перевозки состав (V3/GetMessage), берётся вложение
+// с именем файла титула Т1; координаты сохраняются в документ (fwdT1MessageId/EntityId)
+// и используются общими receptionDoc*-координатами как запасной путь
+
+fwdEntityId = DATA LOCAL STRING (INTEGER);
+fwdEntityType = DATA LOCAL STRING (INTEGER);
+fwdFileName = DATA LOCAL STRING (INTEGER);
+
+FORM diadocFwdMessageEntities
+    OBJECTS en = INTEGER EXTID 'Entities'
+    PROPERTIES(en) fwdEntityId EXTID 'EntityId', fwdEntityType EXTID 'EntityType', fwdFileName EXTID 'FileName'
+;
+
+fwdResult = DATA LOCAL FILE ();
+
+diadocFindFwdT1 (ETRN.ETRN e) {
+    FOR [GROUP MAX TRUE IF docFunction(ETRN.ETRNEvent ev) == 'fwd' AND ETRN.etrn(ev) == e BY messageId(ev)](STRING[100] msg) DO {
+        IF NOT fwdT1EntityId(e) THEN {
+            // очистка результатов предыдущего импорта: если в этом сообщении сущностей меньше,
+            // в "хвосте" локальных свойств остались бы строки прошлого сообщения
+            fwdEntityId(INTEGER i) <- NULL WHERE fwdEntityId(i);
+            fwdEntityType(INTEGER i) <- NULL WHERE fwdEntityType(i);
+            fwdFileName(INTEGER i) <- NULL WHERE fwdFileName(i);
+            TRY {
+                EXTERNAL HTTP GET url() + '/V3/GetMessage?boxId=' + receptionBoxId(e) + '&messageId=' + msg
+                    HEADERS httpHeadersToken TO fwdResult;
+                IMPORT diadocFwdMessageEntities JSON FROM fwdResult();
+            } CATCH {
+                fileToString(fwdResult(), 'UTF-8');
+                MESSAGE 'Ошибка получения состава fwd-сообщения (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+                RETURN;
+            }
+            FOR STRING id == [GROUP LAST fwdEntityId(INTEGER en) ORDER en
+                    IF fwdEntityType(en) == 'Attachment' AND upper(fwdFileName(en)) LIKE 'ON_TRNACLGROT%']() DO {
+                fwdT1MessageId(e) <- STRING[100](msg);
+                fwdT1EntityId(e) <- STRING[100](id);
+            }
+        }
+    }
+}
+
 // ------------------------- Полный состав из титула Т1 ------------------------- //
 
 diadocImportFullData (ETRN.ETRN e) {
+    // основной путь - reception-документ; для fwd-перевозок (трансляция) Т1 ищется
+    // по вложениям fwd-сообщений и попадает в те же координаты запасным значением
+    IF NOT (receptionDocMessageId(e) AND receptionDocEntityId(e)) THEN {
+        FOR User u == userDiadocETRN() DO {
+            getToken(u);
+            diadocFindFwdT1(e);
+        }
+    }
     IF NOT (receptionDocMessageId(e) AND receptionDocEntityId(e)) THEN {
         MESSAGE 'Нет reception-документа перевозки в Диадоке (события не получены)';
         RETURN;

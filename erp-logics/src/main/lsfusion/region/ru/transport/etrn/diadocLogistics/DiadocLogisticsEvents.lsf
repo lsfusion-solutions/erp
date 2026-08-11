@@ -315,15 +315,19 @@ processETRNEvent (ETRN.ETRNEvent ev) {
                     ETRN.etrn(ETRN.transportationId(ev)),
                     etrnByEventEntity(entityId(ev));
 
-    // новая входящая перевозка (мы - грузополучатель) - только по reception-документу (Т1);
+    // новая входящая перевозка (мы - грузополучатель) - по reception-документу (Т1) либо
+    // по fwd-документу (трансляция титулов: документооборот ведут грузоотправитель и перевозчик,
+    // а нам пересылаются копии титулов с подписями - отдельное fwd-сообщение на каждый титул);
     // условные документы (cost/readdress/relay) новую перевозку не создают - ждут привязки по kl-id.
     // событие без координат (ни документа, ни ИД перевозки) документ не создаёт - привязать его
     // к последующим событиям было бы нечем
-    IF NOT e() AND docFunction(ev) == 'reception' AND (entityId(ev) OR ETRN.transportationId(ev)) THEN NEW ne = ETRN.ETRN {
+    IF NOT e() AND (docFunction(ev) == 'reception' OR docFunction(ev) == 'fwd') AND (entityId(ev) OR ETRN.transportationId(ev)) THEN NEW ne = ETRN.ETRN {
         e() <- ne;
         ETRN.provider(ne) <- ETRN.ETRNProvider.diadoc;
         diadocKlId(ne) <- ETRN.transportationId(ev);
-        ETRN.stage(ne) <- ETRN.ETRNStage.acceptance;
+        // fwd-трансляция начинается после подписания титулов - перевозка уже в пути,
+        // этап "Погрузка" (следующий шаг - наша приёмка, Т3)
+        ETRN.stage(ne) <- IF docFunction(ev) == 'fwd' THEN ETRN.ETRNStage.loading ELSE ETRN.ETRNStage.acceptance;
         // TODO: заполнить участников/груз - разбор титула Т1 (ParseTitleXml + GetEntityContent)
     }
 
@@ -408,8 +412,13 @@ ETRN.processEvent (ETRN.ETRNEvent ev) + WHEN ETRN.provider(ev) == ETRN.ETRNProvi
 lastReceptionMessageId (ETRN.ETRN e) = GROUP LAST messageId(ETRN.ETRNEvent ev) IF docFunction(ev) == 'reception' ORDER ETRN.dateTime(ev), ev BY ETRN.etrn(ev);
 lastReceptionEntityId (ETRN.ETRN e) = GROUP LAST entityId(ETRN.ETRNEvent ev) IF docFunction(ev) == 'reception' ORDER ETRN.dateTime(ev), ev BY ETRN.etrn(ev);
 
-receptionDocMessageId (ETRN.ETRN e) = OVERRIDE receptionMessageId(e), lastReceptionMessageId(e);
-receptionDocEntityId (ETRN.ETRN e) = OVERRIDE receptionEntityId(e), lastReceptionEntityId(e);
+// координаты титула Т1 в fwd-сообщениях (трансляция титулов грузополучателю: своего
+// reception-документа у нас нет, Т1 ищется по вложению ON_TRNACLGROT - DiadocLogisticsT1Import)
+fwdT1MessageId = DATA STRING[100](ETRN.ETRN);
+fwdT1EntityId = DATA STRING[100](ETRN.ETRN);
+
+receptionDocMessageId (ETRN.ETRN e) = OVERRIDE receptionMessageId(e), lastReceptionMessageId(e), fwdT1MessageId(e);
+receptionDocEntityId (ETRN.ETRN e) = OVERRIDE receptionEntityId(e), lastReceptionEntityId(e), fwdT1EntityId(e);
 
 // наш ящик - участник документооборота (по роли нашей компании в перевозке)
 ourLegalEntity (ETRN.ETRN e) = OVERRIDE (ETRN.shipper(e) IF isCompany(ETRN.shipper(e))),
@@ -419,7 +428,8 @@ ourLegalEntity (ETRN.ETRN e) = OVERRIDE (ETRN.shipper(e) IF isCompany(ETRN.shipp
 // ящик для запросов по перевозке: по роли, fallback - ящик приёма события
 // (для входящих участники известны только после разбора титула)
 lastReceptionBox (ETRN.ETRN e) = GROUP LAST eventBox(ETRN.ETRNEvent ev) IF docFunction(ev) == 'reception' ORDER ETRN.dateTime(ev), ev BY ETRN.etrn(ev);
-receptionBoxId (ETRN.ETRN e) = OVERRIDE diadocBoxId(ourLegalEntity(e)), boxId(lastReceptionBox(e));
+lastFwdBox (ETRN.ETRN e) = GROUP LAST eventBox(ETRN.ETRNEvent ev) IF docFunction(ev) == 'fwd' ORDER ETRN.dateTime(ev), ev BY ETRN.etrn(ev);
+receptionBoxId (ETRN.ETRN e) = OVERRIDE diadocBoxId(ourLegalEntity(e)), boxId(lastReceptionBox(e)), boxId(lastFwdBox(e));
 
 // ------------------------- Координаты документа заказа-заявки ------------------------- //
 

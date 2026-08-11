@@ -103,18 +103,22 @@ overSignerFirstName 'Подписант: имя' (LegalEntity l) = OVERRIDE sign
 overSignerMiddleName 'Подписант: отчество' (LegalEntity l) = OVERRIDE signerMiddleName(l), ISTRING[60](getWord(normalizedFirstNameSigner(l), ' ', 2));
 overSignerPosition 'Подписант: должность' (LegalEntity l) = OVERRIDE signerPosition(l), ISTRING[128](namePosition(signer(l)));
 
-// подписант титулов документа (первичные поля; заполняются из карточки грузоотправителя,
-// можно поправить на конкретной ЭТрН - используются в наших титулах Т1/Т3/Т6)
+// подписант титулов документа (первичные поля; можно поправить на конкретной ЭТрН -
+// используются в наших титулах Т1/Т3/Т6). Заполняется от карточки НАШЕЙ стороны:
+// исходящие (мы - грузоотправитель, подписываем Т1) - от грузоотправителя;
+// входящие (мы - грузополучатель, подписываем Т3) - от грузополучателя
 signerLastName 'Подписант: фамилия' = DATA ISTRING[60](ETRN) CHARWIDTH 15;
 signerFirstName 'Подписант: имя' = DATA ISTRING[60](ETRN) CHARWIDTH 15;
 signerMiddleName 'Подписант: отчество' = DATA ISTRING[60](ETRN) CHARWIDTH 15;
 signerPosition 'Подписант: должность' = DATA ISTRING[128](ETRN) CHARWIDTH 15;
 
-WHEN LOCAL CHANGED(shipper(ETRN e)) DO {
-    signerLastName(e) <- overSignerLastName(shipper(e)) WHERE overSignerLastName(shipper(e));
-    signerFirstName(e) <- overSignerFirstName(shipper(e)) WHERE overSignerFirstName(shipper(e));
-    signerMiddleName(e) <- overSignerMiddleName(shipper(e)) WHERE overSignerMiddleName(shipper(e));
-    signerPosition(e) <- overSignerPosition(shipper(e)) WHERE overSignerPosition(shipper(e));
+signerParty (ETRN e) = IF isCompany(shipper(e)) THEN shipper(e) ELSE (consignee(e) IF isCompany(consignee(e)));
+
+WHEN LOCAL (CHANGED(shipper(ETRN e)) OR CHANGED(consignee(e))) DO {
+    signerLastName(e) <- overSignerLastName(signerParty(e)) WHERE overSignerLastName(signerParty(e));
+    signerFirstName(e) <- overSignerFirstName(signerParty(e)) WHERE overSignerFirstName(signerParty(e));
+    signerMiddleName(e) <- overSignerMiddleName(signerParty(e)) WHERE overSignerMiddleName(signerParty(e));
+    signerPosition(e) <- overSignerPosition(signerParty(e)) WHERE overSignerPosition(signerParty(e));
 }
 
 EXTEND FORM legalEntity
