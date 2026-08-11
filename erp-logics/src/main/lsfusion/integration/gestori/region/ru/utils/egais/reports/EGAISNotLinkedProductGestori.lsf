@@ -1,0 +1,212 @@
+MODULE EGAISNotLinkedProductGestori;
+
+REQUIRE EGAISItemGestori, EGAISWayBillGestory, EGAISF1RegImport, EGAISStockGestori,
+        LegalEntityRu, StockList, Scheduler, Email;
+
+NAMESPACE EGAIS;
+
+legalEntity 'Организация системы' (Client c) = legalEntityInn(INN(c));
+idLegalEntity 'Код организации системы' (Client c) = id(legalEntity(c));
+
+inReport 'Вкл.' = DATA LOCAL NESTED BOOLEAN (Stock);
+inReportDialog 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
+
+countInReport() = GROUP SUM 1 IF inReport(Stock s);
+
+stockListReport = DATA LOCAL NESTED StockList ();
+nameStockListReport 'Список подразделений' () = name(stockListReport());
+
+nameStocksReport 'Подразделения' () =
+    GROUP CONCAT (CONCAT ' ', id(Stock s), name(s)) IF inReport(s), ', ' ORDER s CHARWIDTH 30;
+
+dateFromReport 'Дата с' = DATA LOCAL NESTED DATE ();
+dateToReport 'Дата по' = DATA LOCAL NESTED DATE ();
+
+inReport (WayBillPosition p) = TRUE IF NOT existItem(product(p))
+    AND (inReport(stock(consignee(wayBill(p)))) OR NOT countInReport())
+    AND date(wayBill(p)) >= dateFromReport() AND date(wayBill(p)) <= dateToReport();
+
+inReport (Product pr) = GROUP MIN TRUE IF inReport(WayBillPosition p) BY product(p);
+
+importer 'Организация-импортер ЕГАИС' (Product pr) =
+    GROUP LAST originalClient(f1Reg(WayBillPosition p))
+    IF inReport(p) AND originalClient(f1Reg(p)) ORDER p BY product(p);
+
+idItem 'Код товара по системе' (Product pr) = id(minItem(pr));
+
+sidCountryProducer 'Код страны' (Product pr) = sidCountry(producer(pr));
+nameCountryProducer 'Страна производства' (Product pr) = nameCountry(producer(pr));
+idLegalEntityProducer 'Код организации-производителя по системе' (Product pr) = idLegalEntity(producer(pr));
+
+idImporter 'Код организации-импортера ЕГАИС' (Product pr) = id(importer(pr));
+shortNameImporter 'Наименование организации-импортера' (Product pr) = shortName(importer(pr));
+idLegalEntityImporter 'Код организации-импортера по системе' (Product pr) = idLegalEntity(importer(pr));
+
+FORM printNotLinkedProducts 'Номенклатура ЕГАИС без связи с кодами системы'
+    PROPERTIES() nameStocksReport, dateFromReport, dateToReport
+
+    OBJECTS pr = Product
+    PROPERTIES(pr) READONLY 
+        'Код товара по системе' = idItem, 
+        'Код товара ЕГАИС' = id, 
+        'Наименование' = fullName, 
+        'Объем' = capacity, 
+        'Процент алкоголя' = alcVolume, 
+        'Код страны' = sidCountryProducer, 
+        'Страна производства' = nameCountryProducer, 
+        'Код организации-производителя по системе' = idLegalEntityProducer, 
+        'Код организации-производителя ЕГАИС' = idProducer, 
+        'Наименование организации-производителя' = shortNameProducer, 
+        'Код организации-импортера по системе' = idLegalEntityImporter, 
+        'Код организации-импортера ЕГАИС' = idImporter, 
+        'Наименование организации-импортера' = shortNameImporter
+    FILTERS inReport(pr)
+    ORDERS fullName(pr)
+;
+
+changeStockListReport 'Список подразделений' () {
+    DIALOG stockLists OBJECTS o INPUT NULL DO {
+        stockListReport() <- o;                
+        inReportDialog(Stock s) <- in(o, s);
+    }
+}
+
+deleteStockListReport 'Сбросить список' () {
+    stockListReport() <- NULL;
+    inReportDialog(Stock s) <- NULL;
+} ASON CONTEXTMENU nameStockListReport;
+
+FORM dialogStocksNotLinkedProduct 'Выбор подразделений'
+    PROPERTIES() nameStockListReport ON CHANGE changeStockListReport() TOOLBAR
+    
+    OBJECTS s = Stock
+    PROPERTIES(s) READONLY id, name
+    PROPERTIES(s) inReportDialog READONLYIF stockListReport()
+    FILTERS isCompany(s)
+    ORDERS name(s)
+;
+
+DESIGN dialogStocksNotLinkedProduct {
+    OBJECTS {
+        NEW stockList {            
+            alignment = STRETCH;
+            MOVE PROPERTY(nameStockListReport());
+        }
+
+        MOVE BOX(s);
+    }
+}
+
+changeStocksReport 'Подразделения' () {
+    inReportDialog(Stock s) <- inReport(s);
+    DIALOG dialogStocksNotLinkedProduct DO {        
+        inReport(Stock s) <- inReportDialog(s);
+    }
+}
+
+// ------------------------- запуск вручную -------------------------
+
+printNotLinkedProducts 'Печать' () {
+    PRINT printNotLinkedProducts XLSX;
+} TOOLBAR;
+
+emailsReport 'Получатели' = DATA LOCAL NESTED STRING[400] () CHARWIDTH 30;
+
+sendNotLinkedProducts 'Отправить' (STRING[400] emails) {
+    LOCAL reportFile = FILE ();
+    
+    IF NOT emails THEN {
+        MESSAGE 'Не указаны получатели';
+        RETURN;
+    }
+
+    IF NOT (smtpHost(defaultInboxAccount()) AND smtpPort(defaultInboxAccount()) AND fromAddress(defaultInboxAccount())) THEN {
+        MESSAGE 'Заданы не все параметры e-mail аккаунта';
+        RETURN;
+    }
+
+    PRINT printNotLinkedProducts XLSX TO reportFile;
+    
+    TRY {
+        EMAIL
+            SUBJECT 'Не связанные товары ЕГАИС'
+            TO emails
+            ATTACH reportFile() 
+            NAME 'Не связанные товары ЕГАИС';
+
+        MESSAGE 'Отправка отчета "Не связанные товары ЕГАИС" произведена' NOWAIT;
+    } CATCH {
+        MESSAGE (CONCAT '\n', 'Ошибка отправки почты', messageCaughtException()) NOWAIT;
+    }
+}
+
+sendNotLinkedProducts 'Отправить' () {    
+    sendNotLinkedProducts(emailsReport());
+} TOOLBAR;
+
+FORM notLinkedProductReport 'Не связанные товары ЕГАИС'
+    PROPERTIES() dateFromReport, dateToReport,
+                nameStocksReport ON CHANGE changeStocksReport(),
+                printNotLinkedProducts, 
+                emailsReport, sendNotLinkedProducts
+
+    OBJECTS pr = Product
+    PROPERTIES(pr) READONLY
+        'Код товара по системе' = idItem,
+        'Код товара ЕГАИС' = id,
+        'Наименование' = fullName,
+        'Объем' = capacity,
+        'Процент алкоголя' = alcVolume,
+//        'Код страны' = sidCountryProducer,
+        'Страна производства' = nameCountryProducer,
+        'Код организации-производителя по системе' = idLegalEntityProducer,
+        'Код организации-производителя ЕГАИС' = idProducer,
+        'Наименование организации-производителя' = shortNameProducer,
+        'Код организации-импортера по системе' = idLegalEntityImporter,
+        'Код организации-импортера ЕГАИС' = idImporter,
+        'Наименование организации-импортера' = shortNameImporter
+    FILTERS inReport(pr)
+    ORDERS fullName(pr)
+    
+    EVENTS ON INIT {
+        dateToReport() <- currentDate();
+        dateFromReport() <- sum(currentDate(), -30);
+    }
+;
+
+DESIGN notLinkedProductReport {
+    OBJECTS {
+        NEW parameters {
+            caption = 'Параметры';
+            alignment = STRETCH;
+            NEW dates {
+                MOVE PROPERTY(dateFromReport());
+                MOVE PROPERTY(dateToReport());
+            }
+            MOVE PROPERTY(nameStocksReport()) { alignment = STRETCH; }
+
+            NEW actions {
+                caption = 'Действия';
+                alignment = STRETCH;
+                MOVE PROPERTY(printNotLinkedProducts());
+
+                NEW email {
+                    horizontal = TRUE;
+                    alignment = STRETCH;
+                    MOVE PROPERTY(emailsReport()) { alignment = STRETCH; }
+                    MOVE PROPERTY(sendNotLinkedProducts());
+                }
+            }
+        }
+
+        MOVE BOX(pr);        
+    }
+}
+
+NAVIGATOR {
+    EGAISNavigator {
+        NEW FOLDER EGAISReports 'Отчеты' BEFORE EGAISMasterData {
+            NEW notLinkedProductReport;
+        }
+    }
+}
