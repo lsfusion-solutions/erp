@@ -1,7 +1,5 @@
 package lsfusion.erp.integration;
 
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Throwables;
 import io.jsonwebtoken.Jwts;
@@ -13,7 +11,7 @@ import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
-import org.apache.xerces.impl.dv.util.Base64;
+import java.util.Base64;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -53,7 +51,7 @@ public class JWTSign extends InternalAction {
             pkcs8Pem = pkcs8Pem.replaceAll("\\s+","");
 
 
-            byte [] pkcs8EncodedBytes = Base64.decode(pkcs8Pem);
+            byte [] pkcs8EncodedBytes = Base64.getDecoder().decode(pkcs8Pem);
             PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(pkcs8EncodedBytes);
             KeyFactory kf = KeyFactory.getInstance("RSA");
             PrivateKey privKey = kf.generatePrivate(keySpec);
