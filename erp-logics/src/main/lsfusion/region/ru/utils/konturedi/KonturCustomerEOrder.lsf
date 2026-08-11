@@ -263,12 +263,13 @@ sendPurchaseOrderKonturEDI 'Отправить заказ (Контур.EDI)' (E
             WRITE exportFile() TO tempPath() + nameMessage();
             LOCAL result = FILE ();
             TRY {
+                EXTERNAL HTTP POST url() + '/V1/Messages/SendMessage?boxId='+ boxId(fromBox()) +'&messageFileName=' + nameMessage() HEADERS httpHeadersTokenUser PARAMS exportFile() TO result;
+                // признаки отправки — только после успешного вызова, иначе неотправленный заказ выглядит отправленным
                 exported(o) <- TRUE;
                 isSent[Purchase.Order](o) <- TRUE;
                 isPosted[Purchase.Order](o) <- TRUE;
                 IF NOT disableDocumentLog() THEN logSendDocumentOrder[Purchase.Order](o);
                 sentDateTime[Purchase.Order](o) <- currentDateTime();
-                EXTERNAL HTTP POST url() + '/V1/Messages/SendMessage?boxId='+ boxId(fromBox()) +'&messageFileName=' + nameMessage() HEADERS httpHeadersTokenUser PARAMS exportFile() TO result;
             } CATCH {
                 fileToString(result(), 'UTF-8');
                 MESSAGE 'Ошибка отправки ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
@@ -283,7 +284,7 @@ sendPurchaseOrderKonturEDI 'Отправить заказ (Контур.EDI)' (E
 
 sendPurchaseOrderKontur 'Отправить заказ (Контур.EDI)' (EOrder o) {
     IF currentUser() IS SystemUser THEN {
-        FOR User u == (GROUP MIN User us IF us IS User) DO {
+        FOR User u == defaultSystemUserKonturEDI() DO {
             sendPurchaseOrderKonturEDI(o, u);
         }
     } ELSE {
