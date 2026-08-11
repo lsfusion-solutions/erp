@@ -222,6 +222,8 @@ createFilePickList (GroupCashRegister gm) {
 
 }
 
+@defineOption(notExportRootGroupArtixSSC, 'Не выгружать в пиклисте корневую группу (Artix)', machinery);
+
 exportPickList 'Выгрузить' (GroupCashRegister gm) {       
     IF NOT directoryPickList(gm) THEN {
         MESSAGE name(gm) +': Не задан путь выгрузки пиклиста' NOWAIT;
@@ -233,6 +235,10 @@ exportPickList 'Выгрузить' (GroupCashRegister gm) {
     
     export(CustomGroup cg) <- customGroupType(cg) == dataCustomGroupTypeArtix(gm) AND (GROUP SUM 1 IF isParent(cg, Sku s) AND idParent(s));
 
+    IF notExportRootGroupArtixSSC() THEN {
+        export(CustomGroup cg) <- NULL WHERE export(cg) AND level(cg) == 1;
+    }
+    
     exportTara(Sku s) <- TRUE IF isTara(s) AND (currentBalance(s, stock(gm)) OR skipFilterBalance(gm, s) OR skipFilterBalance()) AND active(s);
     
     beforeExport(gm);
