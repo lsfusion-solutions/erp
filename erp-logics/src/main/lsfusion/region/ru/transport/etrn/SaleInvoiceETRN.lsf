@@ -1,15 +1,15 @@
 MODULE SaleInvoiceETRN;
 
-REQUIRE SaleInvoice, ETRN;
+REQUIRE SaleInvoice, ETRNOutgoing;
 
 NAMESPACE ETRN;
 
 // ------------------------- ЭТрН на основании накладной (продажа) ------------------------- //
 
-invoice 'Накладная (основание)' = DATA Sale.Invoice (ETRN) INDEXED;
+invoice 'Накладная (основание)' = DATA Sale.Invoice (OutgoingETRN) INDEXED;
 seriesNumberInvoice 'Накладная (основание)' (ETRN e) = seriesNumber(invoice(e)) CHARWIDTH 10;
 
-etrn (Sale.Invoice i) = GROUP MAX ETRN e BY invoice(e);
+etrn (Sale.Invoice i) = GROUP MAX OutgoingETRN e BY invoice(e);
 seriesNumberETRN 'ЭТрН' (Sale.Invoice i) = seriesNumber(etrn(i)) CHARWIDTH 10;
 
 // строки накладной, сгруппированные по грузу товара
@@ -23,9 +23,9 @@ quantityNoCargo (Sale.Invoice i) = GROUP SUM quantity(Sale.InvoiceDetail d) IF N
 namesSkuNoCargo (Sale.Invoice i) = GROUP CONCAT name(sku(Sale.InvoiceDetail d)) IF NOT cargo(sku(d)), ', ' ORDER d BY invoice(d);
 
 // расширение заполнения ЭТрН из накладной (клиентские модули)
-overFill ABSTRACT LIST (Sale.Invoice, ETRN);
+overFill ABSTRACT LIST (Sale.Invoice, OutgoingETRN);
 
-fill (Sale.Invoice i, ETRN e) {
+fill (Sale.Invoice i, OutgoingETRN e) {
     invoice(e) <- i;
     shipper(e) <- supplier(i);
     consignee(e) <- customer(i);
@@ -51,7 +51,7 @@ createETRN 'Создать ЭТрН' (Sale.Invoice i) {
     }
 
     NEWSESSION {
-        NEW e = ETRN {
+        NEW e = OutgoingETRN {
             fill(i, e);
             edit(e);
         }
@@ -59,7 +59,7 @@ createETRN 'Создать ЭТрН' (Sale.Invoice i) {
 } IMAGE 'add.png';
 
 showETRN 'Просмотреть ЭТрН' (Sale.Invoice i) {
-    SHOW etrn OBJECTS e = etrn(i) READONLY;
+    SHOW outgoingEtrn OBJECTS e = etrn(i) READONLY;
 }
 
 editETRN 'Редактировать ЭТрН' (Sale.Invoice i) {
@@ -90,11 +90,11 @@ DESIGN invoices {
 
 // -- основание на форме ЭТрН
 
-EXTEND FORM etrn
+EXTEND FORM outgoingEtrn
     PROPERTIES(e) seriesNumberInvoice READONLY
 ;
 
-DESIGN etrn {
+DESIGN outgoingEtrn {
     headerRow2 {
         MOVE PROPERTY(seriesNumberInvoice(e));
     }

@@ -1,6 +1,6 @@
 MODULE ETRNTitleXmlRu;
 
-REQUIRE ETRNExchange, TransportRu, Cargo, LegalEntityRu, Utils;
+REQUIRE ETRNExchange, ETRNIncoming, TransportRu, Cargo, LegalEntityRu, Utils;
 
 NAMESPACE ETRN;
 
@@ -17,9 +17,6 @@ NAMESPACE ETRN;
 etrnWeightMethod (STRING[2] code) = GROUP MAX ETRNWeightMethod m BY id(m);
 etrnRedirectPerson (ISTRING[15] name) = GROUP MAX ETRNRedirectPerson p BY name(p);
 
-// участник входящего титула не найден по ИНН - расширение (роль: shipper/consignee/carrier);
-// реализация может завести контрагента (например, по данным провайдера)
-overResolveParticipant ABSTRACT LIST (STRING[12], STRING[10]);
 
 // ------------------------- Локальные свойства ------------------------- //
 
@@ -42,6 +39,9 @@ impT1PerName = DATA LOCAL STRING ();
 impT1GOInnIP = DATA LOCAL STRING ();
 impT1GPInnIP = DATA LOCAL STRING ();
 impT1PerInnIP = DATA LOCAL STRING ();
+impT1PerLastIP = DATA LOCAL STRING ();
+impT1PerFirstIP = DATA LOCAL STRING ();
+impT1PerMiddleIP = DATA LOCAL STRING ();
 
 // АдресДостГр
 impT1GPAddrText = DATA LOCAL STRING ();
@@ -163,6 +163,7 @@ GROUP impT1Per EXTID 'СвПер' : impT1Content;
 GROUP impT1PerIdSv EXTID 'ИдСв' : impT1Per;
 GROUP impT1PerUL EXTID 'СвЮЛУч' : impT1PerIdSv;
 GROUP impT1PerIP EXTID 'СвИП' : impT1PerIdSv;
+GROUP impT1PerIPFIO EXTID 'ФИО' : impT1PerIP;
 GROUP impT1VodFIO EXTID 'ФИО';
 GROUP impT1TS EXTID 'СвТС' : impT1Content;
 GROUP impT1TSTS EXTID 'ТС' : impT1TS;
@@ -200,6 +201,10 @@ FORM etrnTitleXmlImport
 
     PROPERTIES IN impT1PerUL impT1PerInn() EXTID 'ИННЮЛ' ATTR, impT1PerName() EXTID 'НаимОрг' ATTR
     PROPERTIES IN impT1PerIP impT1PerInnIP() EXTID 'ИННФЛ' ATTR
+    PROPERTIES IN impT1PerIPFIO
+        impT1PerLastIP() EXTID 'Фамилия' ATTR,
+        impT1PerFirstIP() EXTID 'Имя' ATTR,
+        impT1PerMiddleIP() EXTID 'Отчество' ATTR
 
     PROPERTIES IN impT1Ukaz
         impT1Zapr() EXTID 'ЗапрПерегруз' ATTR,
@@ -307,26 +312,21 @@ parseETRNTitleXml 'Импортировать титул Т1 из файла' (E
     orderNumber(e) <- STRING[100](impT1OrderNumber());
     orderDate(e) <- DATE(toDateFormat(impT1OrderDate(), 'DD.MM.YYYY'));
 
-    // участник титула не найден в справочнике организаций - точка расширения
-    // (например, автосоздание контрагента по данным Диадока - решение клиента)
-    FOR STRING[12] pInn == STRING[12](OVERRIDE impT1GOInn(), impT1GOInnIP()) AND NOT legalEntityInn(pInn) DO
-        overResolveParticipant(pInn, 'shipper');
-    FOR STRING[12] pInn == STRING[12](OVERRIDE impT1GPInn(), impT1GPInnIP()) AND NOT legalEntityInn(pInn) DO
-        overResolveParticipant(pInn, 'consignee');
-    FOR STRING[12] pInn == STRING[12](OVERRIDE impT1PerInn(), impT1PerInnIP()) AND NOT legalEntityInn(pInn) DO
-        overResolveParticipant(pInn, 'carrier');
-
-    // участники (поиск по ИНН; наши роли вычислятся автоматически)
+    // участники: грузоотправитель и грузополучатель - только наши справочные организации
+    // (поиск по ИНН, ненайденные - сообщением); перевозчик входящих - чужая сторона,
+    // в справочник не заводится: первичные строковые реквизиты
     shipper(e) <- legalEntityInn(STRING[12](OVERRIDE impT1GOInn(), impT1GOInnIP())) WHERE legalEntityInn(STRING[12](OVERRIDE impT1GOInn(), impT1GOInnIP()));
     forwarder(e) <- TRUE IF impT1GOExp() = '1';
     consignee(e) <- legalEntityInn(STRING[12](OVERRIDE impT1GPInn(), impT1GPInnIP())) WHERE legalEntityInn(STRING[12](OVERRIDE impT1GPInn(), impT1GPInnIP()));
-    carrier(e) <- legalEntityInn(STRING[12](OVERRIDE impT1PerInn(), impT1PerInnIP())) WHERE legalEntityInn(STRING[12](OVERRIDE impT1PerInn(), impT1PerInnIP()));
+
+    FOR IncomingETRN ie == e DO
+        incomingCarrierName(ie) <- ISTRING[150](OVERRIDE impT1PerName(),
+            (CONCAT ' ', 'ИП', impT1PerLastIP(), impT1PerFirstIP(), impT1PerMiddleIP()));
 
     LOCAL missingParticipants = STRING ();
     missingParticipants() <- CONCAT '; ',
         (CONCAT ' ', impT1GOName(), 'ИНН ' + (OVERRIDE impT1GOInn(), impT1GOInnIP())) IF (OVERRIDE impT1GOInn(), impT1GOInnIP()) AND NOT legalEntityInn(STRING[12](OVERRIDE impT1GOInn(), impT1GOInnIP())),
-        (CONCAT ' ', impT1GPName(), 'ИНН ' + (OVERRIDE impT1GPInn(), impT1GPInnIP())) IF (OVERRIDE impT1GPInn(), impT1GPInnIP()) AND NOT legalEntityInn(STRING[12](OVERRIDE impT1GPInn(), impT1GPInnIP())),
-        (CONCAT ' ', impT1PerName(), 'ИНН ' + (OVERRIDE impT1PerInn(), impT1PerInnIP())) IF (OVERRIDE impT1PerInn(), impT1PerInnIP()) AND NOT legalEntityInn(STRING[12](OVERRIDE impT1PerInn(), impT1PerInnIP()));
+        (CONCAT ' ', impT1GPName(), 'ИНН ' + (OVERRIDE impT1GPInn(), impT1GPInnIP())) IF (OVERRIDE impT1GPInn(), impT1GPInnIP()) AND NOT legalEntityInn(STRING[12](OVERRIDE impT1GPInn(), impT1GPInnIP()));
     IF missingParticipants() THEN
         MESSAGE CONCAT ' ', 'Участники титула не найдены в справочнике организаций:', missingParticipants();
 
@@ -367,7 +367,25 @@ parseETRNTitleXml 'Импортировать титул Т1 из файла' (E
     loadingAddress(e) <- ISTRING[350](OVERRIDE impT1PgAddrText(), impT1PgAddrInfText(),
         (CONCAT ', ', impT1PgIndex(), impT1PgCity(), impT1PgStreet(), impT1PgHouse()));
 
-    // водители и ТС стороннего перевозчика - информационно
+    // водитель и транспорт стороннего перевозчика - в первичные реквизиты входящей
+    // (водитель - первый из титула; все водители дополнительно - информационной строкой)
+    FOR IncomingETRN ie == e DO {
+        FOR INTEGER fv == [GROUP MIN INTEGER i IF impT1VodLast(i)]() DO {
+            incomingDriverName(ie) <- ISTRING[150](CONCAT ' ', impT1VodLast(fv), impT1VodFirst(fv), impT1VodMiddle(fv));
+            incomingDriverPhone(ie) <- ISTRING[100](impT1VodPhone(fv));
+            incomingDriverLicenseSeries(ie) <- STRING[20](impT1VodSer(fv));
+            incomingDriverLicenseNumber(ie) <- STRING[20](impT1VodNum(fv));
+            incomingDriverLicenseDate(ie) <- DATE(toDateFormat(impT1VodDate(fv), 'DD.MM.YYYY'));
+            incomingDriverInn(ie) <- STRING[12](impT1VodInn(fv));
+        }
+        incomingTruckSid(ie) <- ISTRING[20](impT1TSReg());
+        incomingTruckType(ie) <- ISTRING[100](impT1TSType());
+        incomingTruckModel(ie) <- ISTRING[50](impT1TSBrand());
+        incomingTruckWeight(ie) <- NUMERIC[16,4](impT1TSGruzopod()) * 1000;   // Грузопод - в тоннах
+        incomingTruckCapacity(ie) <- NUMERIC[16,5](impT1TSVmest());
+        incomingTrailerSid(ie) <- ISTRING[20](impT1PricepReg());
+    }
+
     incomingDriverInfo(e) <- ISTRING[1000](GROUP CONCAT (CONCAT ' ', impT1VodLast(INTEGER i), impT1VodFirst(i), impT1VodMiddle(i),
         'ВУ ' + (CONCAT ' ', impT1VodSer(i), impT1VodNum(i), impT1VodDate(i)), 'ИНН ' + impT1VodInn(i), 'тел. ' + impT1VodPhone(i)), '; ' ORDER i);
     incomingVehicleInfo(e) <- ISTRING[500](CONCAT ', ', impT1TSType(), impT1TSBrand(), 'рег. № ' + impT1TSReg(),

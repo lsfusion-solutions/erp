@@ -1,6 +1,6 @@
 MODULE DiadocLogisticsEvents;
 
-REQUIRE DiadocLogistics, DiadocOrderRequest, ETRNConditionalTitles;
+REQUIRE DiadocLogistics, DiadocOrderRequest, ETRNConditionalTitles, ETRNIncoming;
 
 NAMESPACE Diadoc;
 
@@ -321,7 +321,7 @@ processETRNEvent (ETRN.ETRNEvent ev) {
     // условные документы (cost/readdress/relay) новую перевозку не создают - ждут привязки по kl-id.
     // событие без координат (ни документа, ни ИД перевозки) документ не создаёт - привязать его
     // к последующим событиям было бы нечем
-    IF NOT e() AND (docFunction(ev) == 'reception' OR docFunction(ev) == 'fwd') AND (entityId(ev) OR ETRN.transportationId(ev)) THEN NEW ne = ETRN.ETRN {
+    IF NOT e() AND (docFunction(ev) == 'reception' OR docFunction(ev) == 'fwd') AND (entityId(ev) OR ETRN.transportationId(ev)) THEN NEW ne = ETRN.IncomingETRN {
         e() <- ne;
         ETRN.provider(ne) <- ETRN.ETRNProvider.diadoc;
         diadocKlId(ne) <- ETRN.transportationId(ev);
@@ -347,10 +347,12 @@ processETRNEvent (ETRN.ETRNEvent ev) {
             IF docFunction(ev) == 'cost' AND NOT diadocCostDocument(et) THEN diadocCostDocument(et) <- d;
         }
 
-        // отражение условных титулов перевозчика (после Т7/Т8 QR-код перевозки обновляется)
-        IF docFunction(ev) == 'cost' THEN ETRN.costChangeDateTime(et) <- ETRN.dateTime(ev);
-        IF docFunction(ev) == 'readdress' THEN ETRN.readdressDateTime(et) <- ETRN.dateTime(ev);
-        IF docFunction(ev) == 'relay' THEN ETRN.relayDateTime(et) <- ETRN.dateTime(ev);
+        // отражение условных титулов перевозчика (только исходящие - мы грузоотправитель)
+        FOR ETRN.OutgoingETRN oet == et DO {
+            IF docFunction(ev) == 'cost' THEN ETRN.costChangeDateTime(oet) <- ETRN.dateTime(ev);
+            IF docFunction(ev) == 'readdress' THEN ETRN.readdressDateTime(oet) <- ETRN.dateTime(ev);
+            IF docFunction(ev) == 'relay' THEN ETRN.relayDateTime(oet) <- ETRN.dateTime(ev);
+        }
 
         // статус обмена из состояния титулов - только по основным документам перевозки
         // (reception: Т1/Т2 - слоты 0/1, delivery: Т3/Т4 - слоты 2/3; в рамках документа события

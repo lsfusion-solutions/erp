@@ -1,6 +1,6 @@
 MODULE PurchaseInvoiceETRN;
 
-REQUIRE PurchaseInvoice, ETRN;
+REQUIRE PurchaseInvoice, ETRNOutgoing;
 
 NAMESPACE ETRN;
 
@@ -10,10 +10,10 @@ NAMESPACE ETRN;
 // Поставщик не участвует в документообороте ЭТрН и титулы не подписывает - он указывается
 // как лицо, осуществляющее погрузку, и владелец объекта инфраструктуры пункта погрузки.
 
-purchaseInvoice 'Закупочная накладная (основание)' = DATA Purchase.Invoice (ETRN) INDEXED;
+purchaseInvoice 'Закупочная накладная (основание)' = DATA Purchase.Invoice (OutgoingETRN) INDEXED;
 seriesNumberPurchaseInvoice 'Закупочная накладная (основание)' (ETRN e) = seriesNumber(purchaseInvoice(e)) CHARWIDTH 10;
 
-etrn (Purchase.Invoice i) = GROUP MAX ETRN e BY purchaseInvoice(e);
+etrn (Purchase.Invoice i) = GROUP MAX OutgoingETRN e BY purchaseInvoice(e);
 seriesNumberETRN 'ЭТрН' (Purchase.Invoice i) = seriesNumber(etrn(i)) CHARWIDTH 10;
 
 // строки накладной, сгруппированные по грузу товара
@@ -27,9 +27,9 @@ quantityNoCargo (Purchase.Invoice i) = GROUP SUM quantity(Purchase.InvoiceDetail
 namesSkuNoCargo (Purchase.Invoice i) = GROUP CONCAT name(sku(Purchase.InvoiceDetail d)) IF NOT cargo(sku(d)), ', ' ORDER d BY invoice(d);
 
 // расширение заполнения ЭТрН из закупочной накладной (клиентские модули)
-overFill ABSTRACT LIST (Purchase.Invoice, ETRN);
+overFill ABSTRACT LIST (Purchase.Invoice, OutgoingETRN);
 
-fill (Purchase.Invoice i, ETRN e) {
+fill (Purchase.Invoice i, OutgoingETRN e) {
     purchaseInvoice(e) <- i;
 
     // самовывоз: заказчик перевозки (покупатель) - и грузоотправитель, и грузополучатель
@@ -63,7 +63,7 @@ createETRN 'Создать ЭТрН (самовывоз)' (Purchase.Invoice i) {
     }
 
     NEWSESSION {
-        NEW e = ETRN {
+        NEW e = OutgoingETRN {
             fill(i, e);
             edit(e);
         }
@@ -71,7 +71,7 @@ createETRN 'Создать ЭТрН (самовывоз)' (Purchase.Invoice i) {
 } IMAGE 'add.png';
 
 showETRN 'Просмотреть ЭТрН' (Purchase.Invoice i) {
-    SHOW etrn OBJECTS e = etrn(i) READONLY;
+    SHOW outgoingEtrn OBJECTS e = etrn(i) READONLY;
 }
 
 editETRN 'Редактировать ЭТрН' (Purchase.Invoice i) {
@@ -103,11 +103,11 @@ DESIGN invoices {
 }
 // -- основание на форме ЭТрН
 
-EXTEND FORM etrn
+EXTEND FORM outgoingEtrn
     PROPERTIES(e) seriesNumberPurchaseInvoice READONLY
 ;
 
-DESIGN etrn {
+DESIGN outgoingEtrn {
     headerRow2 {
         MOVE PROPERTY(seriesNumberPurchaseInvoice(e));
     }

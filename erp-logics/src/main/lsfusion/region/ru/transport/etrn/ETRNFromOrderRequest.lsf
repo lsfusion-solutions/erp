@@ -1,6 +1,6 @@
 MODULE ETRNFromOrderRequest;
 
-REQUIRE ETRNOrderRequest, ETRN;
+REQUIRE ETRNOrderRequest, ETRNOutgoing;
 
 NAMESPACE ETRN;
 
@@ -11,7 +11,7 @@ NAMESPACE ETRN;
 // Погрузка предполагается из первого пункта погрузки маршрута.
 // Связь заявка <- ЭТрН (многие ЭТрН к одной заявке): orderRequest(ETRN).
 
-orderRequest = DATA OrderRequest (ETRN) INDEXED;
+orderRequest = DATA OrderRequest (OutgoingETRN) INDEXED;
 numberOrderRequestETRN 'Заказ-заявка (основание)' (ETRN e) = number(orderRequest(e)) CHARWIDTH 10;
 
 countETRN 'ЭТрН заявки' (OrderRequest o) = GROUP SUM 1 BY orderRequest(ETRN e);
@@ -35,7 +35,7 @@ unassignedCargo (OrderRequest o) = GROUP SUM 1 IF NOT unloadingPoint(OrderDetail
 // ------------------------- Перенос полей ------------------------- //
 
 // общая часть шапки ЭТрН (одинакова для всех пунктов выгрузки заявки)
-fillHeader (OrderRequest o, ETRN e) {
+fillHeader (OrderRequest o, OutgoingETRN e) {
     orderRequest(e) <- o;
 
     provider(e) <- provider(o);
@@ -83,7 +83,7 @@ fillDelivery (ETRN e, OrderPoint up) {
 
 // создание ЭТрН по пункту выгрузки со своими строками груза
 createETRNForPoint (OrderRequest o, OrderPoint up) {
-    NEW e = ETRN {
+    NEW e = OutgoingETRN {
         fillHeader(o, e);
         fillDelivery(e, up);
         FOR orderRequest(OrderDetail d) == o AND unloadingPoint(d) == up ORDER index(d), d DO NEW nd = ETRNDetail {
@@ -162,11 +162,11 @@ DESIGN orderRequest {
 }
 
 // основание (заявка) на форме ЭТрН
-EXTEND FORM etrn
+EXTEND FORM outgoingEtrn
     PROPERTIES(e) numberOrderRequestETRN READONLY
 ;
 
-DESIGN etrn {
+DESIGN outgoingEtrn {
     headerRow2 {
         MOVE PROPERTY(numberOrderRequestETRN(e));
     }

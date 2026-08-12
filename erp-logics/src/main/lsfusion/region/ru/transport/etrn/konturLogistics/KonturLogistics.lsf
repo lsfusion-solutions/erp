@@ -1,6 +1,6 @@
 MODULE KonturLogistics;
 
-REQUIRE ETRNExchange, ETRNConsignee, ETRNConditionalTitles, LegalEntityRu, Utils, CryptoProLegalEntity, KonturLogisticsAuth;
+REQUIRE ETRNExchange, ETRNConsignee, ETRNConditionalTitles, ETRNIncoming, LegalEntityRu, Utils, CryptoProLegalEntity, KonturLogisticsAuth;
 
 NAMESPACE ETRN;
 
@@ -131,7 +131,7 @@ GROUP konturT1Cargo EXTID 'cargoDetails';
 GROUP konturT1Directives EXTID 'consignorDirectives';
 
 FORM konturT1Export
-    OBJECTS e = ETRN PANEL
+    OBJECTS e = OutgoingETRN PANEL
 
     PROPERTIES IN konturT1ReceptionInfo
         t1WaybillNumber = (OVERRIDE seriesNumber(e), 'Без номера') EXTID 'waybillNumber',
@@ -253,7 +253,7 @@ FORM konturT1Export
         dirRoute = route(e) EXTID 'route'
 ;
 
-buildKonturT1 (ETRN e) {
+buildKonturT1 (OutgoingETRN e) {
     EXPORT konturT1Export OBJECTS e = e JSON TO konturT1;
 }
 
@@ -597,7 +597,9 @@ konturImportTransportation 'Получить данные перевозки (К
     // участники по ролям (поиск организаций по ИНН)
     shipper(e) <- [GROUP MAX legalEntityInn(importedPartInn(INTEGER i)) IF importedPartRole(i) = 'Consignor']() WHERE [GROUP MAX legalEntityInn(importedPartInn(INTEGER i)) IF importedPartRole(i) = 'Consignor']();
     consignee(e) <- [GROUP MAX legalEntityInn(importedPartInn(INTEGER i)) IF importedPartRole(i) = 'Consignee']() WHERE [GROUP MAX legalEntityInn(importedPartInn(INTEGER i)) IF importedPartRole(i) = 'Consignee']();
-    carrier(e) <- [GROUP MAX legalEntityInn(importedPartInn(INTEGER i)) IF importedPartRole(i) = 'Carrier']() WHERE [GROUP MAX legalEntityInn(importedPartInn(INTEGER i)) IF importedPartRole(i) = 'Carrier']();
+    // перевозчик входящей - чужая сторона: строковое наименование, в справочник не заводится
+    FOR IncomingETRN ie == e DO
+        incomingCarrierName(ie) <- ISTRING[150]([GROUP MAX importedPartName(INTEGER i) IF importedPartRole(i) = 'Carrier']());
 
     // участники, не найденные в справочнике организаций
     LOCAL missingParticipants = STRING ();
@@ -677,7 +679,7 @@ konturImportIncomingBox (ETRNProvider p, KonturBox box) {
         total() <- OVERRIDE importedIncomingTotal(), 0;
 
         // новые перевозки (входящие): создание документа и полный импорт данных
-        FOR importedIncomingId(INTEGER i) AND NOT etrn(importedIncomingId(i)) ORDER i NEW e = ETRN DO {
+        FOR importedIncomingId(INTEGER i) AND NOT etrn(importedIncomingId(i)) ORDER i NEW e = IncomingETRN DO {
             provider(e) <- p;
             transportationId(e) <- importedIncomingId(i);
             providerStatus(e) <- importedIncomingStatus(i);
@@ -1057,18 +1059,21 @@ processEvent (ETRNEvent ev) + WHEN provider(ev) = ETRNProvider.kontur THEN {
         IF type(ev) = 'DocumentSignedBySender' OR type(ev) = 'DocumentSignedByRecipient' THEN {
             IF konturDocumentType(ev) = 'ConsignorTitle' THEN konturT1TitleId(e) <- konturDocumentId(ev);        // Т1
             IF konturDocumentType(ev) = 'ConsigneeTitle' THEN konturT3TitleId(e) <- konturDocumentId(ev);        // Т3
-            IF konturDocumentType(ev) = 'CarrierPaymentTitle' THEN {                                             // Т5
-                costChangeDateTime(e) <- dateTime(ev);
-                konturT5TitleId(e) <- konturDocumentId(ev);
+            FOR OutgoingETRN oe == e DO {   // условные титулы - только на исходящих (мы грузоотправитель)
+                IF konturDocumentType(ev) = 'CarrierPaymentTitle' THEN {                                         // Т5
+                    costChangeDateTime(oe) <- dateTime(ev);
+                    konturT5TitleId(oe) <- konturDocumentId(ev);
+                }
+                IF konturDocumentType(ev) = 'ConsignorPaymentTitle' THEN costConfirmedDateTime(oe) <- dateTime(ev);   // Т6
+                IF konturDocumentType(ev) = 'RedirectTitle' OR konturDocumentType(ev) = 'ConsignorReaddressTitle' THEN
+                    readdressDateTime(oe) <- dateTime(ev);                                                       // Т7 / Т9
+                IF konturDocumentType(ev) = 'RelayTitle' THEN relayDateTime(oe) <- dateTime(ev);                 // Т8
             }
-            IF konturDocumentType(ev) = 'ConsignorPaymentTitle' THEN costConfirmedDateTime(e) <- dateTime(ev);   // Т6
-            IF konturDocumentType(ev) = 'RedirectTitle' OR konturDocumentType(ev) = 'ConsignorReaddressTitle' THEN
-                readdressDateTime(e) <- dateTime(ev);                                                            // Т7 / Т9
-            IF konturDocumentType(ev) = 'RelayTitle' THEN relayDateTime(e) <- dateTime(ev);                      // Т8
         }
         // страховка: статус перевозки прямо говорит, что ожидается подпись Т6 грузоотправителя
-        IF status(ev) LIKE 'WaitConsignorCost%' AND NOT costChangeDateTime(e) THEN
-            costChangeDateTime(e) <- dateTime(ev);
+        FOR OutgoingETRN oe == e DO
+            IF status(ev) LIKE 'WaitConsignorCost%' AND NOT costChangeDateTime(oe) THEN
+                costChangeDateTime(oe) <- dateTime(ev);
     }
 }
 

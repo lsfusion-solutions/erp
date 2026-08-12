@@ -8,7 +8,7 @@ NAMESPACE Diadoc;
 // Форма UserDataXml (diadocT1UserData) - в модуле DiadocLogisticsT1Form (namespace ETRN).
 // Здесь: GenerateTitleXml (Диадок строит полный XML по приказу), подпись КЭП, PostMessage.
 
-diadocSendT1 (ETRN.ETRN e) {
+diadocSendT1 (ETRN.OutgoingETRN e) {
     IF NOT diadocBox(ETRN.shipper(e)) THEN {
         MESSAGE 'Не найден ящик Диадока грузоотправителя';
         RETURN;
@@ -66,5 +66,6 @@ diadocSendT1 (ETRN.ETRN e) {
 
 // реализация абстракции подписанной отправки Т1 для провайдера Диадок
 ETRN.sendSigned (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvider.diadoc THEN {
-    diadocSendT1(e);
+    FOR ETRN.OutgoingETRN oe == e DO
+        diadocSendT1(oe);
 }

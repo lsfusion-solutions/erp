@@ -23,39 +23,39 @@ FORM etrnAcceptResults 'Итог приемки груза'
 
 // -- Шапка: итог приемки
 
-acceptResult 'Итог приемки' = DATA ETRNAcceptResult (ETRN);
+acceptResult 'Итог приемки' = ABSTRACT ETRNAcceptResult (ETRN);
 nameAcceptResult 'Итог приемки' (ETRN e) = name(acceptResult(e)) CHARWIDTH 15;
 
 // по умолчанию - груз принят (типовой случай)
 WHEN LOCAL SET(ETRN e IS ETRN) AND NOT CHANGED(acceptResult(e)) INLINE DO
     acceptResult(e) <- ETRNAcceptResult.accepted;
 
-rejectReason 'Причина отказа в приеме груза' = DATA ISTRING[2000](ETRN) CHARWIDTH 15;
+rejectReason 'Причина отказа в приеме груза' = ABSTRACT ISTRING[2000](ETRN) CHARWIDTH 15;
 
 CONSTRAINT acceptResult(ETRN e) = ETRNAcceptResult.rejected AND NOT rejectReason(e)
     MESSAGE 'При отказе в приеме груза должна быть указана причина отказа';
 
 // -- Сведения о приеме груза грузополучателем от перевозчика (ПриемГрузГП)
 
-unloadingDeclaredDateTime 'Заявленные дата и время прибытия под выгрузку' = DATA DATETIME (ETRN);
-unloadingArrivalDateTime 'Фактические дата и время прибытия под выгрузку' = DATA DATETIME (ETRN);
-unloadingDepartureDateTime 'Фактические дата и время убытия' = DATA DATETIME (ETRN);
+unloadingDeclaredDateTime 'Заявленные дата и время прибытия под выгрузку' = ABSTRACT DATETIME (ETRN);
+unloadingArrivalDateTime 'Фактические дата и время прибытия под выгрузку' = ABSTRACT DATETIME (ETRN);
+unloadingDepartureDateTime 'Фактические дата и время убытия' = ABSTRACT DATETIME (ETRN);
 
-unloadingWeightMethod 'Метод определения массы груза' = DATA ETRNWeightMethod (ETRN);
+unloadingWeightMethod 'Метод определения массы груза' = ABSTRACT ETRNWeightMethod (ETRN);
 nameUnloadingWeightMethod 'Метод определения массы груза' (ETRN e) = name(unloadingWeightMethod(e)) CHARWIDTH 15;
 
-acceptedQuantityPlaces 'Общее количество принятых грузовых мест' = DATA INTEGER (ETRN);
+acceptedQuantityPlaces 'Общее количество принятых грузовых мест' = ABSTRACT INTEGER (ETRN);
 quantityPlacesETRNDetail = GROUP SUM quantityPlaces(ETRNDetail d) BY etrn(d);
-acceptedQuantityPlaces(ETRN e) <- quantityPlacesETRNDetail(e) WHEN CHANGED(quantityPlacesETRNDetail(e));
-acceptedCondition 'Общие сведения о фактическом состоянии груза, тары, упаковки, маркировки и опломбирования' = DATA STRING (ETRN) CHARWIDTH 15;
-acceptedCondition(ETRN e) <- 'Новое' WHEN SET(e IS ETRN);
+WHEN LOCAL CHANGED(quantityPlacesETRNDetail(ETRN e)) DO acceptedQuantityPlaces(e) <- quantityPlacesETRNDetail(e);
+acceptedCondition 'Общие сведения о фактическом состоянии груза, тары, упаковки, маркировки и опломбирования' = ABSTRACT STRING (ETRN) CHARWIDTH 15;
+WHEN LOCAL SET(ETRN e IS ETRN) DO acceptedCondition(e) <- 'Новое';
 grossWeightETRNDetail = GROUP SUM grossWeight(ETRNDetail d) BY etrn(d);
-acceptedGrossWeight 'Масса брутто принятого груза, кг' = DATA NUMERIC[17,3](ETRN);
-acceptedGrossWeight(ETRN e) <- grossWeightETRNDetail(e) WHEN CHANGED(grossWeightETRNDetail(e));
-acceptedNetWeight 'Масса нетто принятого груза, кг' = DATA NUMERIC[17,3](ETRN);
-acceptedVolume 'Объем грузовых мест, м3' = DATA NUMERIC[17,3](ETRN);
+acceptedGrossWeight 'Масса брутто принятого груза, кг' = ABSTRACT NUMERIC[17,3](ETRN);
+WHEN LOCAL CHANGED(grossWeightETRNDetail(ETRN e)) DO acceptedGrossWeight(e) <- grossWeightETRNDetail(e);
+acceptedNetWeight 'Масса нетто принятого груза, кг' = ABSTRACT NUMERIC[17,3](ETRN);
+acceptedVolume 'Объем грузовых мест, м3' = ABSTRACT NUMERIC[17,3](ETRN);
 
-unloadingAddress 'Адрес места выгрузки' = DATA ISTRING[350](ETRN) CHARWIDTH 15;
+unloadingAddress 'Адрес места выгрузки' = ABSTRACT ISTRING[350](ETRN) CHARWIDTH 15;
 
 WHEN LOCAL CHANGED(deliveryAddress(ETRN e)) AND NOT CHANGED(unloadingAddress(e)) DO
     unloadingAddress(e) <- deliveryAddress(e);
@@ -107,62 +107,7 @@ sendConsigneeSignedETRN 'Подписать и отправить Т3' (ETRN e) 
 
 accepted (ETRN e) = acceptResult(e) = ETRNAcceptResult.accepted;
 
-EXTEND FORM etrn
-    PROPERTIES(e) READONLYIF readonlyT3(e)
-                  nameAcceptResult BACKGROUND (backgroundMandatory(e) IF NOT acceptResult(e)),
-                  rejectReason BACKGROUND (backgroundMandatory(e) IF acceptResult(e) = ETRNAcceptResult.rejected AND NOT rejectReason(e)),
-                  unloadingDeclaredDateTime BACKGROUND (backgroundMandatory(e) IF accepted(e) AND NOT unloadingDeclaredDateTime(e)),
-                  unloadingArrivalDateTime BACKGROUND (backgroundMandatory(e) IF accepted(e) AND NOT unloadingArrivalDateTime(e)),
-                  unloadingDepartureDateTime BACKGROUND (backgroundMandatory(e) IF accepted(e) AND NOT unloadingDepartureDateTime(e)),
-                  nameUnloadingWeightMethod,
-                  acceptedQuantityPlaces BACKGROUND (backgroundMandatory(e) IF accepted(e) AND NOT acceptedQuantityPlaces(e)),
-                  acceptedCondition BACKGROUND (backgroundMandatory(e) IF accepted(e) AND NOT acceptedCondition(e)),
-                  acceptedGrossWeight BACKGROUND (backgroundMandatory(e) IF accepted(e) AND NOT acceptedGrossWeight(e)),
-                  acceptedNetWeight, acceptedVolume,
-                  unloadingAddress BACKGROUND (backgroundMandatory(e) IF accepted(e) AND NOT unloadingAddress(e))
-    OBJECTS d3 = ETRNDetail
-    PROPERTIES(d3) READONLY index, nameCargo
-    PROPERTIES(d3) READONLYIF readonlyT3(e)
-                   acceptedCondition, acceptedQuantityPlaces, acceptedVolume,
-                   acceptedNetWeight, acceptedGrossWeight, acceptedQuantityPallets
-    ORDERS index(d3)
-    FILTERS etrn(d3) = e
-;
 
-DESIGN etrn {
-    pane {
-        NEW consigneeTab BEFORE exchangeTab {
-            caption = 'Т3: Приемка (грузополучатель)';
-            NEW acceptResultBox {
-                caption = 'Итог приемки';
-                horizontal = TRUE;
-                MOVE PROPERTY(nameAcceptResult(e));
-                MOVE PROPERTY(rejectReason(e));
-            }
-            NEW unloadingDates {
-                caption = 'Подача под выгрузку';
-                horizontal = TRUE;
-                MOVE PROPERTY(unloadingDeclaredDateTime(e));
-                MOVE PROPERTY(unloadingArrivalDateTime(e));
-                MOVE PROPERTY(unloadingDepartureDateTime(e));
-            }
-            NEW acceptParamsT3 {
-                lines = 3;
-                MOVE PROPERTY(nameUnloadingWeightMethod(e));
-                MOVE PROPERTY(acceptedQuantityPlaces(e));
-                MOVE PROPERTY(acceptedGrossWeight(e));
-                MOVE PROPERTY(acceptedNetWeight(e));
-                MOVE PROPERTY(acceptedVolume(e));
-                MOVE PROPERTY(unloadingAddress(e));
-            }
-            MOVE PROPERTY(acceptedCondition(e));
-            MOVE BOX(d3) {
-                caption = 'Принятый груз по отгрузочным наименованиям';
-                fill = 1;
-            }
-        }
-    }
-}
 
 EXTEND FORM etrns
     PROPERTIES(e) sendConsigneeSignedETRN SHOWIF (roleConsignee(e) AND NOT readonlyT3(e))

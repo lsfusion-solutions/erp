@@ -30,7 +30,7 @@ DESIGN options {
 
 // ------------------------- Провайдер и состояние обмена на документе ------------------------- //
 
-provider 'Провайдер ЭПД' = DATA ETRNProvider (ETRN);
+provider 'Провайдер ЭПД' = ABSTRACT ETRNProvider (ETRN);
 nameProvider 'Провайдер ЭПД' (ETRN e) = name(provider(e)) CHARWIDTH 15;
 
 WHEN LOCAL SET(ETRN e IS ETRN) AND NOT CHANGED(provider(e)) INLINE DO
@@ -48,7 +48,7 @@ CLASS ETRNExchangeStatus 'Статус обмена ЭТрН' {
 
 name 'Наименование' (ETRNExchangeStatus s) = staticCaption(s) IF s IS ETRNExchangeStatus CHARWIDTH 15;
 
-exchangeStatus 'Статус обмена' = DATA ETRNExchangeStatus (ETRN);
+exchangeStatus 'Статус обмена' = ABSTRACT ETRNExchangeStatus (ETRN);
 nameExchangeStatus 'Статус обмена' (ETRN e) = name(exchangeStatus(e)) CHARWIDTH 15;
 
 // ------------------------- Следующий шаг документооборота ------------------------- //
@@ -107,10 +107,10 @@ overSignerPosition 'Подписант: должность' (LegalEntity l) = OV
 // используются в наших титулах Т1/Т3/Т6). Заполняется от карточки НАШЕЙ стороны:
 // исходящие (мы - грузоотправитель, подписываем Т1) - от грузоотправителя;
 // входящие (мы - грузополучатель, подписываем Т3) - от грузополучателя
-signerLastName 'Подписант: фамилия' = DATA ISTRING[60](ETRN) CHARWIDTH 15;
-signerFirstName 'Подписант: имя' = DATA ISTRING[60](ETRN) CHARWIDTH 15;
-signerMiddleName 'Подписант: отчество' = DATA ISTRING[60](ETRN) CHARWIDTH 15;
-signerPosition 'Подписант: должность' = DATA ISTRING[128](ETRN) CHARWIDTH 15;
+signerLastName 'Подписант: фамилия' = ABSTRACT ISTRING[60](ETRN) CHARWIDTH 15;
+signerFirstName 'Подписант: имя' = ABSTRACT ISTRING[60](ETRN) CHARWIDTH 15;
+signerMiddleName 'Подписант: отчество' = ABSTRACT ISTRING[60](ETRN) CHARWIDTH 15;
+signerPosition 'Подписант: должность' = ABSTRACT ISTRING[128](ETRN) CHARWIDTH 15;
 
 signerParty (ETRN e) = IF isCompany(shipper(e)) THEN shipper(e) ELSE (consignee(e) IF isCompany(consignee(e)));
 
@@ -140,21 +140,21 @@ DESIGN legalEntity {
     }
 }
 
-transportationId 'ИД перевозки у провайдера' = DATA STRING[36](ETRN) INDEXED CHARWIDTH 15;
+transportationId 'ИД перевозки у провайдера' = ABSTRACT STRING[36](ETRN) CHARWIDTH 15;
 etrn (STRING[36] transportationId) = GROUP MAX ETRN e BY transportationId(e);
 
-mintransId 'УИД Минтранса (ГИС ЭПД)' = DATA STRING[255](ETRN) CHARWIDTH 15;
-providerStatus 'Статус перевозки (провайдер)' = DATA STRING[100](ETRN) CHARWIDTH 15;
-exchangeMessage 'Сообщение обмена' = DATA TEXT (ETRN);
+mintransId 'УИД Минтранса (ГИС ЭПД)' = ABSTRACT STRING[255](ETRN) CHARWIDTH 15;
+providerStatus 'Статус перевозки (провайдер)' = ABSTRACT STRING[100](ETRN) CHARWIDTH 15;
+exchangeMessage 'Сообщение обмена' = ABSTRACT TEXT (ETRN);
 
-titleFile 'Файл титула (XML)' = DATA FILE (ETRN);
-printForm 'Печатная форма (PDF)' = DATA FILE (ETRN);
+titleFile 'Файл титула (XML)' = ABSTRACT FILE (ETRN);
+printForm 'Печатная форма (PDF)' = ABSTRACT FILE (ETRN);
 // QR-код перевозки не запрашиваем: мы не перевозчик, водитель получает QR в своём приложении
 // (функционал оставлен закомментированным на случай возврата)
 //qrCode 'QR-код перевозки' = DATA FILE (ETRN); // GIF; обновляется провайдером после подписания Т7/Т8
 
 // полнота данных входящего документа: загружен ли полный состав из титула Т1
-titleImportedDateTime 'Дата/время загрузки данных титула' = DATA DATETIME (ETRN);
+titleImportedDateTime 'Дата/время загрузки данных титула' = ABSTRACT DATETIME (ETRN);
 
 // ------------------------- Лента событий провайдера ------------------------- //
 
@@ -193,9 +193,6 @@ processEvent 'Обработать событие' ABSTRACT CASE (ETRNEvent);   
 // титул грузополучателя (Т3); черновик / на подпись Т3 - специфика Контур.Логистики (модуль KonturLogistics)
 sendConsigneeSigned 'Подписать и отправить Т3' ABSTRACT CASE (ETRN);   // XML от consignee-delivery + подпись КЭП + POST documents
 
-// титулы перевозчика (Т2 / Т4)
-sendCarrierReception 'Отправить титул о приеме (Т2)' ABSTRACT CASE (ETRN);
-sendCarrierDelivery 'Отправить титул о выдаче (Т4)' ABSTRACT CASE (ETRN);
 
 // входящие перевозки (мы - грузополучатель или перевозчик):
 // 1. приём - создание документов с базовыми данными; 2. загрузка полного состава из титула Т1
@@ -225,80 +222,7 @@ missingDetailT1 (ETRNDetail d) = CONCAT ', ',
 
 missingDetailsT1 (ETRN e) = GROUP CONCAT ('строка ' + index(ETRNDetail d) + ': ' + missingDetailT1(d)), '; ' ORDER d BY etrn(d);
 
-missingT1 (ETRN e) = CONCAT ', ',
-    'номер документа' IF NOT seriesNumber(e),
-    'дата заказа (заявки)' IF NOT orderDate(e),
-    'грузоотправитель' IF NOT shipper(e),
-    'телефон грузоотправителя' IF shipper(e) AND NOT phone(shipper(e)),
-    'подписант титулов (ФИО)' IF NOT (signerLastName(e) AND signerFirstName(e)),
-    'подписант титулов (должность)' IF NOT signerPosition(e),
-    'грузополучатель' IF NOT consignee(e),
-    'телефон грузополучателя' IF consignee(e) AND NOT phone(consignee(e)),
-    'адрес места доставки груза' IF NOT deliveryAddress(e),
-    'код региона места доставки' IF NOT deliveryRegion(e),
-    'почтовый индекс места доставки' IF NOT deliveryZipCode(e),
-    'перевозчик' IF NOT carrier(e),
-    'телефон перевозчика' IF carrier(e) AND NOT phone(carrier(e)),
-    'водитель' IF NOT driver(e),
-    'телефон водителя' IF driver(e) AND NOT phone(driver(e)),
-    'ВУ (серия, номер, дата) или ИНН водителя' IF driver(e) AND NOT (licenseSeries(driver(e)) AND licenseNumber(driver(e)) AND licenseDate(driver(e))) AND NOT inn(driver(e)),
-    'транспортное средство' IF NOT truck(e),
-    'рег. номер ТС' IF truck(e) AND NOT sid(truck(e)),
-    'тип ТС' IF truck(e) AND NOT type(truck(e)),
-    'марка ТС' IF truck(e) AND NOT truckModel(truck(e)),
-    'грузоподъемность ТС' IF truck(e) AND NOT weight(truck(e)),
-    'вместимость ТС' IF truck(e) AND NOT capacity(truck(e)),
-    'тип владения ТС' IF truck(e) AND NOT ownershipType(truck(e)),
-    'документ-основание владения ТС (аренда/лизинг): наименование, номер, дата, ИНН арендодателя' IF needRentGround(truck(e)) AND NOT hasRentGround(truck(e)),
-    'рег. номер прицепа' IF trailer(e) AND NOT sid(trailer(e)),
-    'тип прицепа' IF trailer(e) AND NOT type(trailer(e)),
-    'марка прицепа' IF trailer(e) AND NOT truckModel(trailer(e)),
-    'грузоподъемность прицепа' IF trailer(e) AND NOT weight(trailer(e)),
-    'вместимость прицепа' IF trailer(e) AND NOT capacity(trailer(e)),
-    'тип владения прицепа' IF trailer(e) AND NOT ownershipType(trailer(e)),
-    'документ-основание владения прицепом (аренда/лизинг): наименование, номер, дата, ИНН арендодателя' IF needRentGround(trailer(e)) AND NOT hasRentGround(trailer(e)),
-    'лицо, по указанию которого может осуществляться переадресовка' IF NOT redirectPerson(e),
-    'контактный телефон лица переадресовки' IF NOT redirectPhone(e),
-    'заявленные дата и время подачи' IF NOT declaredSupplyDateTime(e),
-    'фактические дата и время прибытия' IF NOT arrivalDateTime(e),
-    'фактические дата и время убытия' IF NOT departureDateTime(e),
-    'масса брутто груза (прием перевозчиком)' IF NOT acceptGrossWeight(e),
-    'метод определения массы груза' IF NOT weightMethod(e),
-    'количество грузовых мест (прием перевозчиком)' IF NOT acceptQuantityPlaces(e),
-    'адрес места погрузки' IF NOT loadingAddress(e),
-    'код региона места погрузки' IF NOT loadingRegion(e),
-    'почтовый индекс места погрузки' IF NOT loadingZipCode(e),
-    'лицо, осуществляющее погрузку' IF NOT loaderIsShipper(e) AND NOT loader(e),
-    'владелец объекта инфраструктуры пункта погрузки' IF NOT infrastructureOwnerIsShipper(e) AND NOT infrastructureOwnerUnknown(e) AND NOT infrastructureOwner(e),
-    'обстоятельства отсутствия информации о владельце инфраструктуры' IF infrastructureOwnerUnknown(e) AND NOT infrastructureOwnerNoInfo(e),
-    'сведения о грузе (нет ни одной строки)' IF NOT [GROUP SUM 1 BY etrn(ETRNDetail d)](e);
 
-checkT1 (ETRN e) {
-    IF missingT1(e) OR missingDetailsT1(e) THEN {
-        MESSAGE CONCAT '\n', 'Не заполнены обязательные поля титула Т1:', missingT1(e), missingDetailsT1(e);
-        RETURN;
-    }
-}
-
-filledT1 (ETRN e) = e IS ETRN AND NOT missingT1(e) AND NOT missingDetailsT1(e);
-
-sendSignedETRN 'Подписать и отправить Т1' (ETRN e) {
-    checkProvider(e);
-    IF NOT provider(e) THEN RETURN;
-    // номер накладной присваивается при отправке: до этого момента ЭТрН может быть
-    // черновиком, а номер должен уйти в титул. Сохраняем сразу - реализация провайдера
-    // работает в своей сессии и несохранённый номер не увидит
-    IF NOT number(e) THEN NEWSESSION {
-        numerator(e) <- defaultNumeratorETRN() WHERE NOT numerator(e);
-        generateSeriesNumber(e);
-        APPLY;
-    }
-    IF NOT skipFieldCheckETRN() THEN {
-        checkT1(e);
-        IF NOT filledT1(e) THEN RETURN;
-    }
-    sendSigned(e);
-} IMAGE 'apply.png';
 
 showPrintForm 'Печатная форма' (ETRN e) {
     IF NOT printForm(e) AND provider(e) THEN importPrintForm(e);
@@ -395,60 +319,11 @@ onProcessedEvent (ETRNEvent ev) + {
 
 // ------------------------- Формы ------------------------- //
 
-EXTEND FORM etrn
-    PROPERTIES(e) nameProvider, nameExchangeStatus READONLY, transportationId READONLY,
-                  mintransId READONLY, providerStatus READONLY, exchangeMessage READONLY,
-                  titleFile
-    PROPERTIES(e) signerLastName BACKGROUND (backgroundMandatory(e) IF NOT signerLastName(e)),
-                  signerFirstName BACKGROUND (backgroundMandatory(e) IF NOT signerFirstName(e)),
-                  signerMiddleName,
-                  signerPosition BACKGROUND (backgroundMandatory(e) IF NOT signerPosition(e))
-
-    OBJECTS ev = ETRNEvent
-    PROPERTIES(ev) READONLY dateTime, type, status
-    ORDERS dateTime(ev) DESC
-    FILTERS etrn(ev) = e
-;
-
-DESIGN etrn {
-    // подписант - на вкладке «Стороны» титула Т1, где он впервые необходим (подписание Т1;
-    // те же данные используются в Т3 и Т6)
-    parties {
-        NEW signerBox AFTER shipperBox {
-            caption = 'Подписант титулов';
-            horizontal = TRUE;
-            MOVE PROPERTY(signerLastName(e));
-            MOVE PROPERTY(signerFirstName(e));
-            MOVE PROPERTY(signerMiddleName(e));
-            MOVE PROPERTY(signerPosition(e));
-        }
-    }
-    pane {
-        NEW exchangeTab {
-            caption = 'Обмен';
-            NEW exchangeState {
-                lines = 3;
-                MOVE PROPERTY(nameProvider(e));
-                MOVE PROPERTY(nameExchangeStatus(e));
-                MOVE PROPERTY(providerStatus(e));
-                MOVE PROPERTY(transportationId(e));
-                MOVE PROPERTY(mintransId(e));
-                MOVE PROPERTY(exchangeMessage(e));
-                MOVE PROPERTY(titleFile(e));
-            }
-            MOVE BOX(ev) {
-                caption = 'События';
-                fill = 1;
-            }
-        }
-    }
-}
 
 EXTEND FORM etrns
     PROPERTIES(e) READONLY nameProvider, nameExchangeStatus, providerStatus,
                            nextAction BACKGROUND backgroundNextAction(e)
-    PROPERTIES(e) sendSignedETRN SHOWIF (roleShipper(e) AND NOT readonlyT1(e)),
-                  showPrintForm
+    PROPERTIES(e) showPrintForm
                   //, showQR, sendQRToDriver SHOWIF driver(e) - QR не запрашиваем: водитель получает его в своём приложении
     PROPERTIES importIncomingETRN() DRAW e, processIncomingETRN() DRAW e,
                importETRNEvents() DRAW e, processETRNEvents() DRAW e
@@ -460,8 +335,7 @@ DESIGN etrns {
             caption = 'Действия';
             horizontal = TRUE;
             NEW actionsT1 {
-                caption = 'Т1: Оформление (грузоотправитель)';
-                MOVE PROPERTY(sendSignedETRN(e));
+                caption = 'Т1: Оформление (грузоотправитель)';   // кнопка отправки - в ETRNOutgoing
             }
             NEW actionsCommon {
                 caption = 'Провайдер';
@@ -476,6 +350,7 @@ DESIGN etrns {
         }
     }
 }
+
 
 // карточка события: общие поля + контейнер providerData, куда модули провайдеров
 // добавляют свои поля с SHOWIF по провайдеру события

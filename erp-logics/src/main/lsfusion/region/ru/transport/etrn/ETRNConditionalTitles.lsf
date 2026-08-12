@@ -1,6 +1,6 @@
 MODULE ETRNConditionalTitles;
 
-REQUIRE ETRNExchange, ETRNCarrier;   // ETRNCarrier - ради порядка вкладок (Т5/Т6 после Т4)
+REQUIRE ETRNExchange, ETRNOutgoing;   // условные титулы Т5-Т8 приходят по нашим (исходящим) перевозкам
 
 NAMESPACE ETRN;
 
@@ -11,11 +11,11 @@ NAMESPACE ETRN;
 // Приём и отправка - в модулях провайдеров; здесь - общие поля, проверки, абстракции и формы.
 
 // отметки полученных условных титулов (проставляются провайдером при приёме)
-costChangeDateTime 'Получено изменение стоимости (Т5)' = DATA DATETIME (ETRN);
-costConfirmedDateTime 'Изменение стоимости подтверждено (Т6)' = DATA DATETIME (ETRN);
-costRejectionReason 'Причина отказа в изменении стоимости' = DATA ISTRING[1000](ETRN) CHARWIDTH 15;
-readdressDateTime 'Переадресация (Т7)' = DATA DATETIME (ETRN);
-relayDateTime 'Замена водителя/ТС (Т8)' = DATA DATETIME (ETRN);
+costChangeDateTime 'Получено изменение стоимости (Т5)' = DATA DATETIME (OutgoingETRN);
+costConfirmedDateTime 'Изменение стоимости подтверждено (Т6)' = DATA DATETIME (OutgoingETRN);
+costRejectionReason 'Причина отказа в изменении стоимости' = DATA ISTRING[1000](OutgoingETRN) CHARWIDTH 15;
+readdressDateTime 'Переадресация (Т7)' = DATA DATETIME (OutgoingETRN);
+relayDateTime 'Замена водителя/ТС (Т8)' = DATA DATETIME (OutgoingETRN);
 
 // в Т6 по формату обязателен только подписант
 missingCostT6 (ETRN e) = CONCAT ', ',
@@ -64,13 +64,13 @@ rejectCostChangeETRN 'Отказать в изменении стоимости'
 // отдельные вкладки Т5 и Т6 на карточке ЭТрН (в ряду титулов, после Т4);
 // отметки Т7/Т8 - на вкладке Т5 (все условные титулы перевозчика)
 
-EXTEND FORM etrn
+EXTEND FORM outgoingEtrn
     PROPERTIES(e) costChangeDateTime READONLY, costConfirmedDateTime READONLY,
                   costRejectionReason,
                   readdressDateTime READONLY, relayDateTime READONLY
 ;
 
-DESIGN etrn {
+DESIGN outgoingEtrn {
     pane {
         NEW t5Tab BEFORE exchangeTab {
             caption = 'Т5: Изменение стоимости (перевозчик)';

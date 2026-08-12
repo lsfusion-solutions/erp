@@ -1,0 +1,499 @@
+MODULE ETRNIncoming;
+
+REQUIRE ETRNConsignee;   // реализует хранение и полей обмена (ETRNExchange) и приемки Т3 (ETRNConsignee)
+
+NAMESPACE ETRN;
+
+// ------------------------- ЭТрН (входящая) ------------------------- //
+// Мы - грузополучатель: документ создаётся приёмом из ЭПД, стороны чужие -
+// реквизиты перевозчика/водителя/транспорта хранятся первичными строковыми полями
+// (заполняются разбором титула Т1)
+
+CLASS IncomingETRN 'ЭТрН (входящая)' : ETRN;
+TABLE incomingEtrn(IncomingETRN);
+
+direction(IncomingETRN e) += ISTRING[10]('Входящий') IF e IS IncomingETRN;
+
+// номер и дата - из титула Т1
+number '{numerator.number.numerator}' = DATA STRING[48] (IncomingETRN) INDEXED;
+number[ETRN](IncomingETRN e) += number(e);
+date '{document.date.of} {document.of.document}' = DATA DATE (IncomingETRN) INDEXED;
+date[ETRN](IncomingETRN e) += date(e);
+time '{document.time.of} {document.of.document}' = DATA TIME (IncomingETRN);
+time[ETRN](IncomingETRN e) += time(e);
+
+// ------------------------- Хранение общих реквизитов ------------------------- //
+
+stage 'Этап' = DATA ETRNStage (IncomingETRN);
+stage[ETRN](IncomingETRN e) += stage(e);
+isClosed 'Закрыт' = DATA BOOLEAN (IncomingETRN);
+isClosed[ETRN](IncomingETRN e) += isClosed(e);
+orderNumber 'Номер заказа (заявки)' = DATA STRING[100](IncomingETRN);
+orderNumber[ETRN](IncomingETRN e) += orderNumber(e);
+orderDate 'Дата заказа (заявки)' = DATA DATE (IncomingETRN);
+orderDate[ETRN](IncomingETRN e) += orderDate(e);
+note 'Примечание' = DATA ISTRING[250](IncomingETRN);
+note[ETRN](IncomingETRN e) += note(e);
+currency 'Валюта стоимости' = DATA Currency (IncomingETRN);
+currency[ETRN](IncomingETRN e) += currency(e);
+shipper = DATA LegalEntity (IncomingETRN);
+shipper[ETRN](IncomingETRN e) += shipper(e);
+forwarder 'Является экспедитором' = DATA BOOLEAN (IncomingETRN);
+forwarder[ETRN](IncomingETRN e) += forwarder(e);
+consignee = DATA LegalEntity (IncomingETRN);
+consignee[ETRN](IncomingETRN e) += consignee(e);
+customerStock 'Склад грузополучателя' = DATA Stock (IncomingETRN);
+customerStock[ETRN](IncomingETRN e) += customerStock(e);
+deliveryAddress 'Адрес места доставки груза' = DATA ISTRING[350](IncomingETRN);
+deliveryAddress[ETRN](IncomingETRN e) += deliveryAddress(e);
+deliveryRegion 'Код региона (доставка)' = DATA STRING[2](IncomingETRN);
+deliveryRegion[ETRN](IncomingETRN e) += deliveryRegion(e);
+deliveryZipCode 'Индекс (доставка)' = DATA STRING[6](IncomingETRN);
+deliveryZipCode[ETRN](IncomingETRN e) += deliveryZipCode(e);
+deliveryCity 'Город (доставка)' = DATA ISTRING[255](IncomingETRN);
+deliveryCity[ETRN](IncomingETRN e) += deliveryCity(e);
+deliveryStreet 'Улица (доставка)' = DATA ISTRING[255](IncomingETRN);
+deliveryStreet[ETRN](IncomingETRN e) += deliveryStreet(e);
+deliveryBuilding 'Дом (доставка)' = DATA ISTRING[20](IncomingETRN);
+deliveryBuilding[ETRN](IncomingETRN e) += deliveryBuilding(e);
+banReload 'Запрещение перегрузки' = DATA BOOLEAN (IncomingETRN);
+banReload[ETRN](IncomingETRN e) += banReload(e);
+transportInstructions 'Указания в отношении выполнения норм перевозки' = DATA ISTRING[2000](IncomingETRN);
+transportInstructions[ETRN](IncomingETRN e) += transportInstructions(e);
+deliveryDateTime 'Дата и время доставки' = DATA DATETIME (IncomingETRN);
+deliveryDateTime[ETRN](IncomingETRN e) += deliveryDateTime(e);
+deliveryPeriod 'Срок доставки груза' = DATA ISTRING[100](IncomingETRN);
+deliveryPeriod[ETRN](IncomingETRN e) += deliveryPeriod(e);
+seals 'Сведения о запорно-пломбировочных устройствах' = DATA ISTRING[2000](IncomingETRN);
+seals[ETRN](IncomingETRN e) += seals(e);
+speedLimits 'Указания об ограничениях скорости движения' = DATA ISTRING[2000](IncomingETRN);
+speedLimits[ETRN](IncomingETRN e) += speedLimits(e);
+route 'Сведения о маршруте перевозки' = DATA ISTRING[2000](IncomingETRN);
+route[ETRN](IncomingETRN e) += route(e);
+temperatureFrom 'Нижний предел температуры, °C' = DATA NUMERIC[7,2](IncomingETRN);
+temperatureFrom[ETRN](IncomingETRN e) += temperatureFrom(e);
+temperatureTo 'Верхний предел температуры, °C' = DATA NUMERIC[7,2](IncomingETRN);
+temperatureTo[ETRN](IncomingETRN e) += temperatureTo(e);
+humidityFrom 'Нижний предел влажности, %' = DATA NUMERIC[5,2](IncomingETRN);
+humidityFrom[ETRN](IncomingETRN e) += humidityFrom(e);
+humidityTo 'Верхний предел влажности, %' = DATA NUMERIC[5,2](IncomingETRN);
+humidityTo[ETRN](IncomingETRN e) += humidityTo(e);
+redirectPerson 'Лицо, по указанию которого может осуществляться переадресовка' = DATA ETRNRedirectPerson (IncomingETRN);
+redirectPerson[ETRN](IncomingETRN e) += redirectPerson(e);
+redirectMethod 'Способ передачи указания на переадресовку' = DATA ISTRING[255](IncomingETRN);
+redirectMethod[ETRN](IncomingETRN e) += redirectMethod(e);
+redirectPhone 'Номер контактного телефона/факс' = DATA ISTRING[255](IncomingETRN);
+redirectPhone[ETRN](IncomingETRN e) += redirectPhone(e);
+redirectEmail 'Адрес электронной почты' = DATA ISTRING[255](IncomingETRN);
+redirectEmail[ETRN](IncomingETRN e) += redirectEmail(e);
+redirectContacts 'Иные контактные данные' = DATA ISTRING[255](IncomingETRN);
+redirectContacts[ETRN](IncomingETRN e) += redirectContacts(e);
+redirectDocName 'Наименование документа' = DATA ISTRING[255](IncomingETRN);
+redirectDocName[ETRN](IncomingETRN e) += redirectDocName(e);
+redirectDocNumber 'Номер документа' = DATA ISTRING[255](IncomingETRN);
+redirectDocNumber[ETRN](IncomingETRN e) += redirectDocNumber(e);
+redirectDocDate 'Дата документа' = DATA DATE (IncomingETRN);
+redirectDocDate[ETRN](IncomingETRN e) += redirectDocDate(e);
+redirectDocFileId 'Идентификатор файла документа' = DATA ISTRING[255](IncomingETRN);
+redirectDocFileId[ETRN](IncomingETRN e) += redirectDocFileId(e);
+redirectDocInfo 'Дополнительные сведения' = DATA ISTRING[1000](IncomingETRN);
+redirectDocInfo[ETRN](IncomingETRN e) += redirectDocInfo(e);
+declaredSupplyDateTime 'Заявленные дата и время подачи' = DATA DATETIME (IncomingETRN);
+declaredSupplyDateTime[ETRN](IncomingETRN e) += declaredSupplyDateTime(e);
+arrivalDateTime 'Фактические дата и время прибытия' = DATA DATETIME (IncomingETRN);
+arrivalDateTime[ETRN](IncomingETRN e) += arrivalDateTime(e);
+departureDateTime 'Фактические дата и время убытия' = DATA DATETIME (IncomingETRN);
+departureDateTime[ETRN](IncomingETRN e) += departureDateTime(e);
+supplierStock 'Склад погрузки' = DATA Stock (IncomingETRN);
+supplierStock[ETRN](IncomingETRN e) += supplierStock(e);
+loadingAddress 'Адрес места погрузки' = DATA ISTRING[350](IncomingETRN);
+loadingAddress[ETRN](IncomingETRN e) += loadingAddress(e);
+loadingRegion 'Код региона (погрузка)' = DATA STRING[2](IncomingETRN);
+loadingRegion[ETRN](IncomingETRN e) += loadingRegion(e);
+loadingZipCode 'Индекс (погрузка)' = DATA STRING[6](IncomingETRN);
+loadingZipCode[ETRN](IncomingETRN e) += loadingZipCode(e);
+loadingCity 'Город (погрузка)' = DATA ISTRING[255](IncomingETRN);
+loadingCity[ETRN](IncomingETRN e) += loadingCity(e);
+loadingStreet 'Улица (погрузка)' = DATA ISTRING[255](IncomingETRN);
+loadingStreet[ETRN](IncomingETRN e) += loadingStreet(e);
+loadingBuilding 'Дом (погрузка)' = DATA ISTRING[20](IncomingETRN);
+loadingBuilding[ETRN](IncomingETRN e) += loadingBuilding(e);
+acceptGrossWeight 'Масса брутто груза, кг' = DATA NUMERIC[17,3](IncomingETRN);
+acceptGrossWeight[ETRN](IncomingETRN e) += acceptGrossWeight(e);
+weightMethod 'Метод определения массы груза' = DATA ETRNWeightMethod (IncomingETRN);
+weightMethod[ETRN](IncomingETRN e) += weightMethod(e);
+acceptQuantityPlaces 'Количество грузовых мест' = DATA INTEGER (IncomingETRN);
+acceptQuantityPlaces[ETRN](IncomingETRN e) += acceptQuantityPlaces(e);
+containerCondition 'Фактическое состояние тары' = DATA ISTRING[255](IncomingETRN);
+containerCondition[ETRN](IncomingETRN e) += containerCondition(e);
+packageCondition 'Фактическое состояние упаковки' = DATA ISTRING[255](IncomingETRN);
+packageCondition[ETRN](IncomingETRN e) += packageCondition(e);
+bodyCondition 'Фактическое состояние кузова' = DATA ISTRING[255](IncomingETRN);
+bodyCondition[ETRN](IncomingETRN e) += bodyCondition(e);
+loaderIsShipper 'Погрузку осуществляет грузоотправитель' = DATA BOOLEAN (IncomingETRN);
+loaderIsShipper[ETRN](IncomingETRN e) += loaderIsShipper(e);
+loader 'Лицо, осуществляющее погрузку груза' = DATA LegalEntity (IncomingETRN);
+loader[ETRN](IncomingETRN e) += loader(e);
+loaderInfo 'Сведения о лице, осуществляющем погрузку' = DATA ISTRING[500](IncomingETRN);
+loaderInfo[ETRN](IncomingETRN e) += loaderInfo(e);
+infrastructureOwnerIsShipper 'Владелец инфраструктуры - грузоотправитель' = DATA BOOLEAN (IncomingETRN);
+infrastructureOwnerIsShipper[ETRN](IncomingETRN e) += infrastructureOwnerIsShipper(e);
+infrastructureOwnerUnknown 'Владелец инфраструктуры неизвестен' = DATA BOOLEAN (IncomingETRN);
+infrastructureOwnerUnknown[ETRN](IncomingETRN e) += infrastructureOwnerUnknown(e);
+infrastructureOwner 'Владелец объекта инфраструктуры пункта погрузки' = DATA LegalEntity (IncomingETRN);
+infrastructureOwner[ETRN](IncomingETRN e) += infrastructureOwner(e);
+infrastructureOwnerInfo 'Сведения о владельце объекта инфраструктуры' = DATA ISTRING[500](IncomingETRN);
+infrastructureOwnerInfo[ETRN](IncomingETRN e) += infrastructureOwnerInfo(e);
+infrastructureOwnerNoInfo 'Обстоятельства отсутствия информации о владельце' = DATA ISTRING[1000](IncomingETRN);
+infrastructureOwnerNoInfo[ETRN](IncomingETRN e) += infrastructureOwnerNoInfo(e);
+
+// ------------------------- Перевозчик, водитель, транспорт (из титула) ------------------------- //
+
+incomingCarrierName 'Перевозчик' = DATA ISTRING[150](IncomingETRN) CHARWIDTH 15;
+incomingCarrierPhone 'Телефон перевозчика' = DATA ISTRING[100](IncomingETRN) CHARWIDTH 15;
+incomingDriverName 'Водитель' = DATA ISTRING[150](IncomingETRN) CHARWIDTH 15;
+incomingDriverPhone 'Телефон водителя' = DATA ISTRING[100](IncomingETRN) CHARWIDTH 15;
+incomingDriverLicenseSeries 'ВУ: серия' = DATA STRING[20](IncomingETRN) CHARWIDTH 8;
+incomingDriverLicenseNumber 'ВУ: номер' = DATA STRING[20](IncomingETRN) CHARWIDTH 10;
+incomingDriverLicenseDate 'ВУ: дата' = DATA DATE (IncomingETRN);
+incomingDriverInn 'ИНН водителя' = DATA STRING[12](IncomingETRN) CHARWIDTH 12;
+incomingTruckSid 'Рег. номер ТС' = DATA ISTRING[20](IncomingETRN) CHARWIDTH 10;
+incomingTruckType 'Тип ТС' = DATA ISTRING[100](IncomingETRN) CHARWIDTH 12;
+incomingTruckModel 'Марка ТС' = DATA ISTRING[50](IncomingETRN) CHARWIDTH 15;
+incomingTruckWeight 'Грузоподъёмность ТС, кг' = DATA NUMERIC[16,4](IncomingETRN);
+incomingTruckCapacity 'Вместимость ТС, м3' = DATA NUMERIC[16,5](IncomingETRN);
+incomingTruckOwnership 'Тип владения ТС' = DATA ISTRING[50](IncomingETRN) CHARWIDTH 15;
+incomingTrailerSid 'Рег. номер прицепа' = DATA ISTRING[20](IncomingETRN) CHARWIDTH 10;
+incomingTrailerType 'Тип прицепа' = DATA ISTRING[100](IncomingETRN) CHARWIDTH 12;
+incomingTrailerModel 'Марка прицепа' = DATA ISTRING[50](IncomingETRN) CHARWIDTH 15;
+incomingTrailerWeight 'Грузоподъёмность прицепа, кг' = DATA NUMERIC[16,4](IncomingETRN);
+incomingTrailerCapacity 'Вместимость прицепа, м3' = DATA NUMERIC[16,5](IncomingETRN);
+incomingTrailerOwnership 'Тип владения прицепа' = DATA ISTRING[50](IncomingETRN) CHARWIDTH 15;
+
+
+// данные водителя и ТС стороннего перевозчика из входящего титула Т1
+// (в справочники Водители/Машины не заводятся - там наши сотрудники и транспорт)
+incomingDriverInfo 'Водитель (данные грузоотправителя)' = DATA ISTRING[1000](IncomingETRN) CHARWIDTH 15;
+incomingVehicleInfo 'ТС (данные грузоотправителя)' = DATA ISTRING[500](IncomingETRN) CHARWIDTH 15;
+
+
+// отображаемые реквизиты - реализации от первичных полей
+nameCarrier(IncomingETRN e) += incomingCarrierName(e);
+carrierPhone(IncomingETRN e) += incomingCarrierPhone(e);
+shortNameDriver(IncomingETRN e) += incomingDriverName(e);
+driverPhone(IncomingETRN e) += incomingDriverPhone(e);
+driverLicenseSeries(IncomingETRN e) += incomingDriverLicenseSeries(e);
+driverLicenseNumber(IncomingETRN e) += incomingDriverLicenseNumber(e);
+driverLicenseDate(IncomingETRN e) += incomingDriverLicenseDate(e);
+driverInn(IncomingETRN e) += incomingDriverInn(e);
+nameTruck(IncomingETRN e) += ISTRING[150](CONCAT ' ', incomingTruckModel(e), incomingTruckSid(e));
+truckSid(IncomingETRN e) += incomingTruckSid(e);
+truckType(IncomingETRN e) += incomingTruckType(e);
+truckModelName(IncomingETRN e) += incomingTruckModel(e);
+truckWeight(IncomingETRN e) += incomingTruckWeight(e);
+truckCapacity(IncomingETRN e) += incomingTruckCapacity(e);
+truckOwnership(IncomingETRN e) += incomingTruckOwnership(e);
+nameTrailer(IncomingETRN e) += ISTRING[150](CONCAT ' ', incomingTrailerModel(e), incomingTrailerSid(e));
+trailerSid(IncomingETRN e) += incomingTrailerSid(e);
+trailerType(IncomingETRN e) += incomingTrailerType(e);
+trailerModelName(IncomingETRN e) += incomingTrailerModel(e);
+trailerWeight(IncomingETRN e) += incomingTrailerWeight(e);
+trailerCapacity(IncomingETRN e) += incomingTrailerCapacity(e);
+trailerOwnership(IncomingETRN e) += incomingTrailerOwnership(e);
+
+// ------------------------- Форма документа ------------------------- //
+
+// ------------------------- Форма входящей ------------------------- //
+// Компактная карточка: стороны и транспорт (строковые реквизиты из титула Т1),
+// груз - только просмотр. Вкладки "Т3: Приемка" и "Обмен" добавляют модули
+// ETRNConsignee и ETRNExchange.
+
+FORM incomingEtrn 'Электронная транспортная накладная (входящая)'
+    OBJECTS e = IncomingETRN PANEL
+    PROPERTIES(e) nameStage, roles, number READONLY, date READONLY, orderNumber READONLY, orderDate READONLY,
+                  nameCurrency READONLY, note
+
+    PROPERTIES(e) READONLY nameShipper, shipperPhone, forwarder,
+                           nameConsignee, consigneePhone,
+                           deliveryAddress, deliveryRegion, deliveryZipCode, deliveryCity, deliveryStreet, deliveryBuilding,
+                           loadingAddress, deliveryDateTime, deliveryPeriod
+    PROPERTIES(e) nameCustomerStock
+
+    PROPERTIES(e) incomingCarrierName, incomingCarrierPhone,
+                  incomingDriverName, incomingDriverPhone,
+                  incomingDriverLicenseSeries, incomingDriverLicenseNumber, incomingDriverLicenseDate, incomingDriverInn,
+                  incomingTruckSid, incomingTruckType, incomingTruckModel,
+                  incomingTruckWeight, incomingTruckCapacity, incomingTruckOwnership,
+                  incomingTrailerSid, incomingTrailerType, incomingTrailerModel,
+                  incomingTrailerWeight, incomingTrailerCapacity, incomingTrailerOwnership,
+                  incomingDriverInfo, incomingVehicleInfo
+
+    OBJECTS d = ETRNDetail
+    PROPERTIES(d) READONLY index, nameCargo, namePackageWay, nameTareType, nameCondition,
+                           quantityPlaces, volume, netWeight, grossWeight, cost, nameMarking
+    ORDERS index(d)
+    FILTERS etrn(d) = e
+
+    EDIT IncomingETRN OBJECT e
+;
+
+DESIGN incomingEtrn {
+    size = (1100, 700);
+    OBJECTS {
+        NEW inHeader FIRST {
+            alignment = STRETCH;
+            NEW inHeaderRow {
+                horizontal = TRUE;
+                MOVE PROPERTY(number(e));
+                MOVE PROPERTY(date(e));
+                MOVE PROPERTY(nameStage(e));
+                MOVE PROPERTY(roles(e));
+                MOVE PROPERTY(orderNumber(e));
+                MOVE PROPERTY(orderDate(e));
+                MOVE PROPERTY(nameCurrency(e));
+                MOVE PROPERTY(note(e));
+            }
+        }
+        NEW inPane {
+            fill = 1;
+            tabbed = TRUE;
+            NEW inMainTab {
+                caption = 'Стороны и транспорт';
+                NEW inShipperBox {
+                    caption = 'Грузоотправитель';
+                    horizontal = TRUE;
+                    MOVE PROPERTY(nameShipper(e));
+                    MOVE PROPERTY(shipperPhone(e));
+                    MOVE PROPERTY(forwarder(e));
+                }
+                NEW inConsigneeBox {
+                    caption = 'Грузополучатель';
+                    lines = 3;
+                    MOVE PROPERTY(nameConsignee(e));
+                    MOVE PROPERTY(consigneePhone(e));
+                    MOVE PROPERTY(nameCustomerStock(e));
+                    MOVE PROPERTY(deliveryAddress(e));
+                    NEW inDeliveryStruct {
+                        caption = 'Структурный адрес доставки';
+                        horizontal = TRUE;
+                        MOVE PROPERTY(deliveryRegion(e));
+                        MOVE PROPERTY(deliveryZipCode(e));
+                        MOVE PROPERTY(deliveryCity(e));
+                        MOVE PROPERTY(deliveryStreet(e));
+                        MOVE PROPERTY(deliveryBuilding(e));
+                    }
+                    NEW inDeliveryTime {
+                        horizontal = TRUE;
+                        MOVE PROPERTY(deliveryDateTime(e));
+                        MOVE PROPERTY(deliveryPeriod(e));
+                        MOVE PROPERTY(loadingAddress(e));
+                    }
+                }
+                NEW inCarrierBox {
+                    caption = 'Перевозчик (из титула)';
+                    lines = 2;
+                    MOVE PROPERTY(incomingCarrierName(e));
+                    MOVE PROPERTY(incomingCarrierPhone(e));
+                    NEW inDriverBox {
+                        caption = 'Водитель';
+                        horizontal = TRUE;
+                        MOVE PROPERTY(incomingDriverName(e));
+                        MOVE PROPERTY(incomingDriverPhone(e));
+                        MOVE PROPERTY(incomingDriverLicenseSeries(e));
+                        MOVE PROPERTY(incomingDriverLicenseNumber(e));
+                        MOVE PROPERTY(incomingDriverLicenseDate(e));
+                        MOVE PROPERTY(incomingDriverInn(e));
+                    }
+                    NEW inTruckBox {
+                        caption = 'Транспортное средство';
+                        horizontal = TRUE;
+                        MOVE PROPERTY(incomingTruckSid(e));
+                        MOVE PROPERTY(incomingTruckType(e));
+                        MOVE PROPERTY(incomingTruckModel(e));
+                        MOVE PROPERTY(incomingTruckWeight(e));
+                        MOVE PROPERTY(incomingTruckCapacity(e));
+                        MOVE PROPERTY(incomingTruckOwnership(e));
+                    }
+                    NEW inTrailerBox {
+                        caption = 'Прицеп';
+                        horizontal = TRUE;
+                        MOVE PROPERTY(incomingTrailerSid(e));
+                        MOVE PROPERTY(incomingTrailerType(e));
+                        MOVE PROPERTY(incomingTrailerModel(e));
+                        MOVE PROPERTY(incomingTrailerWeight(e));
+                        MOVE PROPERTY(incomingTrailerCapacity(e));
+                        MOVE PROPERTY(incomingTrailerOwnership(e));
+                    }
+                    NEW inInfoBox {
+                        lines = 1;
+                        MOVE PROPERTY(incomingDriverInfo(e));
+                        MOVE PROPERTY(incomingVehicleInfo(e));
+                    }
+                }
+            }
+            NEW inCargoTab {
+                caption = 'Сведения о грузе';
+                MOVE BOX(d) { fill = 1; }
+            }
+        }
+    }
+}
+
+
+// ------------------------- Хранение полей обмена и приемки Т3 ------------------------- //
+// (объявлены ABSTRACT в модулях ETRNExchange и ETRNConsignee)
+
+provider 'Провайдер ЭПД' = DATA ETRNProvider (IncomingETRN);
+provider[ETRN](IncomingETRN e) += provider(e);
+exchangeStatus 'Статус обмена' = DATA ETRNExchangeStatus (IncomingETRN);
+exchangeStatus[ETRN](IncomingETRN e) += exchangeStatus(e);
+signerLastName 'Подписант: фамилия' = DATA ISTRING[60](IncomingETRN);
+signerLastName[ETRN](IncomingETRN e) += signerLastName(e);
+signerFirstName 'Подписант: имя' = DATA ISTRING[60](IncomingETRN);
+signerFirstName[ETRN](IncomingETRN e) += signerFirstName(e);
+signerMiddleName 'Подписант: отчество' = DATA ISTRING[60](IncomingETRN);
+signerMiddleName[ETRN](IncomingETRN e) += signerMiddleName(e);
+signerPosition 'Подписант: должность' = DATA ISTRING[128](IncomingETRN);
+signerPosition[ETRN](IncomingETRN e) += signerPosition(e);
+transportationId 'ИД перевозки у провайдера' = DATA STRING[36](IncomingETRN) INDEXED;
+transportationId[ETRN](IncomingETRN e) += transportationId(e);
+mintransId 'УИД Минтранса (ГИС ЭПД)' = DATA STRING[255](IncomingETRN);
+mintransId[ETRN](IncomingETRN e) += mintransId(e);
+providerStatus 'Статус перевозки (провайдер)' = DATA STRING[100](IncomingETRN);
+providerStatus[ETRN](IncomingETRN e) += providerStatus(e);
+exchangeMessage 'Сообщение обмена' = DATA TEXT (IncomingETRN);
+exchangeMessage[ETRN](IncomingETRN e) += exchangeMessage(e);
+titleFile 'Файл титула (XML)' = DATA FILE (IncomingETRN);
+titleFile[ETRN](IncomingETRN e) += titleFile(e);
+printForm 'Печатная форма (PDF)' = DATA FILE (IncomingETRN);
+printForm[ETRN](IncomingETRN e) += printForm(e);
+titleImportedDateTime 'Дата/время загрузки данных титула' = DATA DATETIME (IncomingETRN);
+titleImportedDateTime[ETRN](IncomingETRN e) += titleImportedDateTime(e);
+acceptResult 'Итог приемки' = DATA ETRNAcceptResult (IncomingETRN);
+acceptResult[ETRN](IncomingETRN e) += acceptResult(e);
+rejectReason 'Причина отказа в приеме груза' = DATA ISTRING[2000](IncomingETRN);
+rejectReason[ETRN](IncomingETRN e) += rejectReason(e);
+unloadingDeclaredDateTime 'Заявленные дата и время прибытия под выгрузку' = DATA DATETIME (IncomingETRN);
+unloadingDeclaredDateTime[ETRN](IncomingETRN e) += unloadingDeclaredDateTime(e);
+unloadingArrivalDateTime 'Фактические дата и время прибытия под выгрузку' = DATA DATETIME (IncomingETRN);
+unloadingArrivalDateTime[ETRN](IncomingETRN e) += unloadingArrivalDateTime(e);
+unloadingDepartureDateTime 'Фактические дата и время убытия' = DATA DATETIME (IncomingETRN);
+unloadingDepartureDateTime[ETRN](IncomingETRN e) += unloadingDepartureDateTime(e);
+unloadingWeightMethod 'Метод определения массы груза' = DATA ETRNWeightMethod (IncomingETRN);
+unloadingWeightMethod[ETRN](IncomingETRN e) += unloadingWeightMethod(e);
+acceptedQuantityPlaces 'Общее количество принятых грузовых мест' = DATA INTEGER (IncomingETRN);
+acceptedQuantityPlaces[ETRN](IncomingETRN e) += acceptedQuantityPlaces(e);
+acceptedCondition 'Общие сведения о фактическом состоянии груза, тары, упаковки, маркировки и опломбирования' = DATA STRING (IncomingETRN);
+acceptedCondition[ETRN](IncomingETRN e) += acceptedCondition(e);
+acceptedGrossWeight 'Масса брутто принятого груза, кг' = DATA NUMERIC[17,3](IncomingETRN);
+acceptedGrossWeight[ETRN](IncomingETRN e) += acceptedGrossWeight(e);
+acceptedNetWeight 'Масса нетто принятого груза, кг' = DATA NUMERIC[17,3](IncomingETRN);
+acceptedNetWeight[ETRN](IncomingETRN e) += acceptedNetWeight(e);
+acceptedVolume 'Объем грузовых мест, м3' = DATA NUMERIC[17,3](IncomingETRN);
+acceptedVolume[ETRN](IncomingETRN e) += acceptedVolume(e);
+unloadingAddress 'Адрес места выгрузки' = DATA ISTRING[350](IncomingETRN);
+unloadingAddress[ETRN](IncomingETRN e) += unloadingAddress(e);
+
+// ------------------------- Вкладка «Обмен» ------------------------- //
+
+// вкладка "Обмен" на карточке входящей
+EXTEND FORM incomingEtrn
+    PROPERTIES(e) nameProvider READONLY, nameExchangeStatus READONLY, providerStatus READONLY,
+                  transportationId READONLY, mintransId READONLY, exchangeMessage READONLY,
+                  nextAction READONLY, titleFile READONLY, titleImportedDateTime READONLY,
+                  signerLastName, signerFirstName, signerMiddleName, signerPosition
+;
+
+DESIGN incomingEtrn {
+    inPane {
+        NEW inExchangeTab {
+            caption = 'Обмен';
+            NEW inExchangeRow1 {
+                horizontal = TRUE;
+                MOVE PROPERTY(nameProvider(e));
+                MOVE PROPERTY(nameExchangeStatus(e));
+                MOVE PROPERTY(providerStatus(e));
+                MOVE PROPERTY(nextAction(e));
+            }
+            NEW inExchangeRow2 {
+                horizontal = TRUE;
+                MOVE PROPERTY(transportationId(e));
+                MOVE PROPERTY(mintransId(e));
+            }
+            NEW inSignerBox {
+                caption = 'Подписант титулов (Т3)';
+                horizontal = TRUE;
+                MOVE PROPERTY(signerLastName(e));
+                MOVE PROPERTY(signerFirstName(e));
+                MOVE PROPERTY(signerMiddleName(e));
+                MOVE PROPERTY(signerPosition(e));
+            }
+            NEW inExchangeRow3 {
+                horizontal = TRUE;
+                MOVE PROPERTY(titleFile(e));
+                MOVE PROPERTY(titleImportedDateTime(e));
+            }
+            MOVE PROPERTY(exchangeMessage(e));
+        }
+    }
+}
+
+// ------------------------- Вкладка «Т3: Приемка» ------------------------- //
+
+// вкладка Т3 на карточке входящей + кнопка отправки
+EXTEND FORM incomingEtrn
+    PROPERTIES(e) READONLYIF readonlyT3(e)
+                  nameAcceptResult BACKGROUND (backgroundMandatory(e) IF NOT acceptResult(e)),
+                  rejectReason BACKGROUND (backgroundMandatory(e) IF acceptResult(e) = ETRNAcceptResult.rejected AND NOT rejectReason(e)),
+                  unloadingDeclaredDateTime BACKGROUND (backgroundMandatory(e) IF accepted(e) AND NOT unloadingDeclaredDateTime(e)),
+                  unloadingArrivalDateTime BACKGROUND (backgroundMandatory(e) IF accepted(e) AND NOT unloadingArrivalDateTime(e)),
+                  unloadingDepartureDateTime BACKGROUND (backgroundMandatory(e) IF accepted(e) AND NOT unloadingDepartureDateTime(e)),
+                  nameUnloadingWeightMethod,
+                  acceptedQuantityPlaces BACKGROUND (backgroundMandatory(e) IF accepted(e) AND NOT acceptedQuantityPlaces(e)),
+                  acceptedCondition BACKGROUND (backgroundMandatory(e) IF accepted(e) AND NOT acceptedCondition(e)),
+                  acceptedGrossWeight BACKGROUND (backgroundMandatory(e) IF accepted(e) AND NOT acceptedGrossWeight(e)),
+                  acceptedNetWeight, acceptedVolume,
+                  unloadingAddress BACKGROUND (backgroundMandatory(e) IF accepted(e) AND NOT unloadingAddress(e))
+    OBJECTS d3 = ETRNDetail
+    PROPERTIES(d3) READONLY index, nameCargo
+    PROPERTIES(d3) READONLYIF readonlyT3(e)
+                   acceptedCondition, acceptedQuantityPlaces, acceptedVolume,
+                   acceptedNetWeight, acceptedGrossWeight, acceptedQuantityPallets
+    ORDERS index(d3)
+    FILTERS etrn(d3) = e
+;
+
+DESIGN incomingEtrn {
+    inPane {
+        NEW inConsigneeTab BEFORE inExchangeTab {
+            caption = 'Т3: Приемка (грузополучатель)';
+            NEW inAcceptResultBox {
+                caption = 'Итог приемки';
+                horizontal = TRUE;
+                MOVE PROPERTY(nameAcceptResult(e));
+                MOVE PROPERTY(rejectReason(e));
+            }
+            NEW inUnloadingDates {
+                caption = 'Подача под выгрузку';
+                horizontal = TRUE;
+                MOVE PROPERTY(unloadingDeclaredDateTime(e));
+                MOVE PROPERTY(unloadingArrivalDateTime(e));
+                MOVE PROPERTY(unloadingDepartureDateTime(e));
+            }
+            NEW inAcceptParamsT3 {
+                lines = 3;
+                MOVE PROPERTY(nameUnloadingWeightMethod(e));
+                MOVE PROPERTY(acceptedQuantityPlaces(e));
+                MOVE PROPERTY(acceptedGrossWeight(e));
+                MOVE PROPERTY(acceptedNetWeight(e));
+                MOVE PROPERTY(acceptedVolume(e));
+                MOVE PROPERTY(unloadingAddress(e));
+            }
+            MOVE PROPERTY(acceptedCondition(e));
+            MOVE BOX(d3) {
+                caption = 'Принятый груз по отгрузочным наименованиям';
+                fill = 1;
+            }
+        }
+    }
+}

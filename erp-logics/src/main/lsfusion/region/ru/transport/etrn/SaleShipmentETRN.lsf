@@ -1,16 +1,16 @@
 MODULE SaleShipmentETRN;
 
-REQUIRE SaleShipment, ETRN;
+REQUIRE SaleShipment, ETRNOutgoing;
 
 NAMESPACE ETRN;
 
 // ------------------------- ЭТрН на основании поставки (продажа) ------------------------- //
 // Для клиентов, оформляющих внутреннее перемещение (и отгрузку) поставкой без накладной.
 
-shipment 'Поставка (основание)' = DATA Sale.Shipment (ETRN) INDEXED;
+shipment 'Поставка (основание)' = DATA Sale.Shipment (OutgoingETRN) INDEXED;
 seriesNumberShipment 'Поставка (основание)' (ETRN e) = seriesNumber(shipment(e)) CHARWIDTH 10;
 
-etrn (Sale.Shipment s) = GROUP MAX ETRN e BY shipment(e);
+etrn (Sale.Shipment s) = GROUP MAX OutgoingETRN e BY shipment(e);
 seriesNumberETRN 'ЭТрН' (Sale.Shipment s) = seriesNumber(etrn(s)) CHARWIDTH 10;
 
 // строки поставки, сгруппированные по грузу товара
@@ -24,9 +24,9 @@ quantityNoCargo (Sale.Shipment s) = GROUP SUM quantity(Sale.ShipmentDetail d) IF
 namesSkuNoCargo (Sale.Shipment s) = GROUP CONCAT name(sku(Sale.ShipmentDetail d)) IF NOT cargo(sku(d)), ', ' ORDER d BY shipment(d);
 
 // расширение заполнения ЭТрН из поставки (клиентские модули)
-overFill ABSTRACT LIST (Sale.Shipment, ETRN);
+overFill ABSTRACT LIST (Sale.Shipment, OutgoingETRN);
 
-fill (Sale.Shipment s, ETRN e) {
+fill (Sale.Shipment s, OutgoingETRN e) {
     shipment(e) <- s;
     shipper(e) <- supplier(s);
     consignee(e) <- customer(s);
@@ -52,7 +52,7 @@ createETRN 'Создать ЭТрН' (Sale.Shipment s) {
     }
 
     NEWSESSION {
-        NEW e = ETRN {
+        NEW e = OutgoingETRN {
             fill(s, e);
             edit(e);
         }
@@ -60,7 +60,7 @@ createETRN 'Создать ЭТрН' (Sale.Shipment s) {
 } IMAGE 'add.png';
 
 showETRN 'Просмотреть ЭТрН' (Sale.Shipment s) {
-    SHOW etrn OBJECTS e = etrn(s) READONLY;
+    SHOW outgoingEtrn OBJECTS e = etrn(s) READONLY;
 }
 
 editETRN 'Редактировать ЭТрН' (Sale.Shipment s) {
@@ -90,11 +90,11 @@ DESIGN shipments{
 
 // -- основание на форме ЭТрН
 
-EXTEND FORM etrn
+EXTEND FORM outgoingEtrn
     PROPERTIES(e) seriesNumberShipment READONLY
 ;
 
-DESIGN etrn {
+DESIGN outgoingEtrn {
     headerRow2 {
         MOVE PROPERTY(seriesNumberShipment(e));
     }
