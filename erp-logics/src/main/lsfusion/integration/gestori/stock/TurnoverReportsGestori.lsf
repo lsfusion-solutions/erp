@@ -366,7 +366,7 @@ FORM printTurnoverDetailGestori
     FILTERS filterDetail(s,st)
 ;
 
-fillTurnoverDetailGestori 'Приходы-расходы подробно' () {
+computeTurnoverDetailGestori () {
     balanceB(Sku s, Stock st) <- NULL ;
     sumB(Sku s, Stock st) <- NULL ;
     quantityPurchaseOut(Sku s, Stock st) <- NULL ;
@@ -585,7 +585,10 @@ fillTurnoverDetailGestori 'Приходы-расходы подробно' () {
     sumSaleAll(Sku s, Stock st) <- sumSaleOut(s,st) (+) sumSaleIn(s,st) (+) sumSaleInventory(s,st) (+) sumReturnPurchase(s,st) (+)
         sumSaleDisparity(s,st) (+) sumSaleAdjustment(s,st) (+) sumSaleNaturalLoss(s,st) (+) sumSaleWriteOff(s,st) (+) sumConsumption(s,st) (+) sumRetailSale(s,st);
     quantityLosses(Sku s, Stock st) <- IF quantityRetailSale(s,st) THEN (quantitySaleWriteOff(s,st) (+) quantitySaleInventory(s,st) (-) quantityPurchaseInventory(s,st)) * 100 / quantityRetailSale(s,st);
+}
 
+fillTurnoverDetailGestori 'Приходы-расходы подробно' () {
+    computeTurnoverDetailGestori();
     PRINT printTurnoverDetailGestori XLSX TO printReportFile;
     buildPrintReportFileName('printTurnoverDetailGestori', 'Оборотная ведомость (подробно)');
     open(printReportFile(), builtPrintReportFileName());
