@@ -49,16 +49,20 @@ currentBalanceRestriction(Sku s, Stock st) += WHEN s IS Sku AND NOT passScales(s
 
 useSaleDeniedRestrictions 'Использовать запрет продаж для отрицательного остатка' = DATA BOOLEAN () PREREAD;
 exportSaleAfterTransaction 'Отправлять удаленные запреты после транзакции' = DATA BOOLEAN () PREREAD;
-useDeletePriceSaleDenied 'Запрет продаж через удаление цены (Set10)' = DATA BOOLEAN () PREREAD;
+
+// момент перехода магазина на запрет через удаление цены, до него запрет работает через SALE_DENIED
+dateTimeDeletePriceSaleDenied 'Дата перехода на запрет через удаление цены' = DATA DATETIME (Stock);
+// механизм фиксируется за записью по времени создания и не меняется при её снятии
+usePriceDelete 'Через удаление цены' (SaleDeniedRestriction r) = TRUE IF dateTimeDeletePriceSaleDenied(stock(r))
+    AND createdTime(r) >= dateTimeDeletePriceSaleDenied(stock(r));
 
 EXTEND FORM integrationData
-    PROPERTIES useSaleDeniedRestrictions(), exportSaleAfterTransaction(), useDeletePriceSaleDenied()
+    PROPERTIES useSaleDeniedRestrictions(), exportSaleAfterTransaction()
 ;
 DESIGN integrationData{
     set10{
         MOVE PROPERTY (useSaleDeniedRestrictions());
         MOVE PROPERTY (exportSaleAfterTransaction());
-        MOVE PROPERTY (useDeletePriceSaleDenied());
     }
 }
 
@@ -202,17 +206,16 @@ getFeedback 'Получить статус' (SaleDeniedRestriction r){
 
 needExport(SaleDeniedRestriction r) = (NOT dateTimeExported(r) AND NOT deleted(r)) OR (deleted(r) AND NOT dateTimeDeleted(r));
 
+// оба механизма работают параллельно, магазины переходят на новый по своей дате
 processDeniedRestrictions 'Обработка запретов продаж'(){
-    IF useDeletePriceSaleDenied() THEN {
-        processSaleDeniedPriceDelete();
-    } ELSE {
-        FOR createdTime(SaleDeniedRestriction r)  AND needExport(r) AND NOT tiExport(r) AND set10Stock(stock(r))  DO {
-            IF useESB() THEN exportSaleRestrictionWithoutTI(r);
-            ELSE exportSaleRestrictionTI(r);
-        }
-        FOR tiExport(SaleDeniedRestriction r) AND NOT useESB() DO{
-            getFeedback(r);
-        }
+    processSaleDeniedPriceDelete();
+
+    FOR createdTime(SaleDeniedRestriction r)  AND needExport(r) AND NOT tiExport(r) AND set10Stock(stock(r)) AND NOT usePriceDelete(r) DO {
+        IF useESB() THEN exportSaleRestrictionWithoutTI(r);
+        ELSE exportSaleRestrictionTI(r);
+    }
+    FOR tiExport(SaleDeniedRestriction r) AND NOT useESB() DO{
+        getFeedback(r);
     }
 }
 
@@ -302,11 +305,11 @@ deleteSaleRestriction 'Удалить в SET' (SaleDeniedRestriction r) {
         }
         deleted(r) <- TRUE;
         tiExport(r) <- NULL;
-        IF useDeletePriceSaleDenied() THEN {
+        IF usePriceDelete(r) THEN {
             dateTimeDeleted(r) <- currentDateTime();
         }
         APPLY;
-        IF NOT useDeletePriceSaleDenied() AND exportSaleAfterTransaction() THEN {
+        IF NOT usePriceDelete(r) AND exportSaleAfterTransaction() THEN {
             IF useESB() THEN exportSaleRestrictionWithoutTI(r);
             ELSE exportSaleRestrictionTI(r);
         }
@@ -315,8 +318,32 @@ deleteSaleRestriction 'Удалить в SET' (SaleDeniedRestriction r) {
 
 EXTEND FORM saleDeniedRestrictions
     PROPERTIES TOOLBAR exportSaleRestrictionTI(r) SHOWIF NOT useESB(), exportSaleRestrictionWithoutTI(r) SHOWIF useESB(), getFeedback(r) SHOWIF tiExport(r)
-    PROPERTIES tiExport(r) READONLY
+    PROPERTIES tiExport(r) READONLY, usePriceDelete(r) READONLY
+
+    OBJECTS st = Stock
+    PROPERTIES (st) READONLY name
+    PROPERTIES READONLY idStore 'Код магазина SET10' = idStoreSet(set10Stock(st))
+    PROPERTIES (st) dateTimeDeletePriceSaleDenied
+    FILTERS set10Stock(st)
 ;
+DESIGN saleDeniedRestrictions {
+    NEW tabs FIRST {
+        fill = 1;
+        tabbed = TRUE;
+        MOVE BOX(r) { caption = 'Запреты продаж'; }
+        MOVE BOX(st) { caption = 'Переход на удаление цены'; }
+    }
+}
+
+prevDateTimeDeletePriceSaleDenied (Stock st) = PREV(dateTimeDeletePriceSaleDenied(st));
+
+// смена даты переносит уже выгруженные запреты между механизмами: SALE_DENIED останется неснятым либо цена невозвращённой
+CONSTRAINT SET(dateTimeDeletePriceSaleDenied(Stock st)) AND prevDateTimeDeletePriceSaleDenied(st)
+    AND (GROUP SUM 1 IF active(SaleDeniedRestriction r) AND stock(r) = st)
+    MESSAGE 'Нельзя менять дату перехода на запрет через удаление цены: по магазину есть активные запреты продаж';
+
+CONSTRAINT SET(dateTimeDeletePriceSaleDenied(Stock st)) AND dateTimeDeletePriceSaleDenied(st) < currentDateTime()
+    MESSAGE 'Дата перехода на запрет через удаление цены не может быть в прошлом';
 
 in (MachineryPriceTransaction t, SaleDeniedRestriction r) = stock(t) = stock(r) AND in(t, barcode(sku(r))) AND active(r);
 saleDeniedRestrictions (MachineryPriceTransaction t) = GROUP SUM 1 IF in(t, SaleDeniedRestriction r);
