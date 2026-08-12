@@ -1,0 +1,777 @@
+MODULE WBSupplyFBW;
+
+REQUIRE WBItemMapping, Time;
+
+NAMESPACE WB;
+
+// ------------------------------------- Поставки FBW -------------------------------------
+// API «Поставки» — supplies-api.wildberries.ru (CategoryRequest.shipment),
+// https://dev.wildberries.ru/openapi/orders-fbw
+//
+// Все методы FBW только на чтение: поставка создаётся и наполняется товарами в личном
+// кабинете WB, в ERP она загружается для контроля приёмки. Из этого же хоста уже
+// используется GET /api/v1/acceptance/coefficients (см. getAcceptanceCoefficients в WBOrdersFBS).
+//
+// Даты приходят в ISO 8601 со смещением ('2025-07-15T17:17:45+03:00'). Смещение отбрасываем:
+// WB отдаёт московское время, в нём же планируется и приёмка на складах.
+fromWBDateTime 'Дата и время WB' (STRING dateTimeWB) = toDateTimeFormat(dateTimeWB, r'YYYY-MM-DD"T"HH24:MI:SS');
+
+// ---------------------------------- Склады FBW ------------------------------------
+
+CLASS SupplyWarehouse 'Склад FBW';
+TABLE supplyWarehouse (SupplyWarehouse);
+
+id 'ID склада' = DATA INTEGER (SupplyWarehouse) IN id INDEXED;
+supplyWarehouse (id) = GROUP AGGR SupplyWarehouse w BY id(w);
+name 'Наименование' = DATA STRING[100] (SupplyWarehouse) IN id CHARWIDTH 20;
+address 'Адрес' = DATA STRING[250] (SupplyWarehouse) IN base CHARWIDTH 30;
+workTime 'Режим работы' = DATA STRING[50] (SupplyWarehouse) IN base CHARWIDTH 10;
+isActive 'Склад назначения' = DATA BOOLEAN (SupplyWarehouse);
+isTransitActive 'Транзитный склад' = DATA BOOLEAN (SupplyWarehouse);
+
+// Склад назначения/транзита из деталей поставки может отсутствовать в /api/v1/warehouses
+// (закрытые и транзитные склады), поэтому создаём его по данным самой поставки.
+addSupplyWarehouse 'Добавить склад FBW' (INTEGER warehouseIdWB, STRING warehouseNameWB) {
+    IF warehouseIdWB AND NOT supplyWarehouse(warehouseIdWB) THEN NEW w = SupplyWarehouse {
+        id(w) <- warehouseIdWB;
+        name(w) <- STRING[100](warehouseNameWB);
+    }
+}
+
+// ---------------------------------- Статусы и типы ----------------------------------
+
+CLASS SupplyStatus 'Статус поставки FBW' {
+    notPlanned 'Не запланировано',
+    planned 'Запланировано',
+    allowUnload 'Отгрузка разрешена',
+    accepting 'Идёт приёмка',
+    accepted 'Принято',
+    unloadedOnGate 'Отгружено на воротах'
+}
+
+idSupplyStatus 'ID статуса' (SupplyStatus status) = CASE
+    WHEN status == SupplyStatus.notPlanned THEN 1
+    WHEN status == SupplyStatus.planned THEN 2
+    WHEN status == SupplyStatus.allowUnload THEN 3
+    WHEN status == SupplyStatus.accepting THEN 4
+    WHEN status == SupplyStatus.accepted THEN 5
+    WHEN status == SupplyStatus.unloadedOnGate THEN 6;
+
+supplyStatus 'Статус поставки' (INTEGER statusIdWB) = GROUP MAX SupplyStatus status IF idSupplyStatus(status) == statusIdWB;
+nameSupplyStatus 'Статус' (SupplyStatus status) = caption(status) CHARWIDTH 18;
+
+CLASS BoxType 'Тип поставки FBW' {
+    virtual 'Без коробов (виртуальная)',
+    box 'Короба',
+    monopallet 'Монопаллеты',
+    supersafe 'Суперсейф'
+}
+
+// boxTypeID: 0 — виртуальная, 1 и 2 — короба, 5 — монопаллеты, 6 — суперсейф
+boxType 'Тип поставки' (INTEGER boxTypeIdWB) = CASE
+    WHEN boxTypeIdWB == 0 THEN BoxType.virtual
+    WHEN boxTypeIdWB == 1 OR boxTypeIdWB == 2 THEN BoxType.box
+    WHEN boxTypeIdWB == 5 THEN BoxType.monopallet
+    WHEN boxTypeIdWB == 6 THEN BoxType.supersafe;
+
+CLASS VirtualType 'Тип виртуальной поставки' {
+    balanceTransfer 'Перенос остатков',
+    depersonalization 'Обезличка',
+    qrSupply 'QR-поставка',
+    additionallyAccepted 'Допринято',
+    scanAcceptance 'Скан-приёмка'
+}
+
+// virtualTypeID приходит только для поставок с boxTypeID = 0
+virtualType 'Тип виртуальной поставки' (INTEGER virtualTypeIdWB) = CASE
+    WHEN virtualTypeIdWB == 0 THEN VirtualType.balanceTransfer
+    WHEN virtualTypeIdWB == 1 THEN VirtualType.depersonalization
+    WHEN virtualTypeIdWB == 4 THEN VirtualType.qrSupply
+    WHEN virtualTypeIdWB == 5 THEN VirtualType.additionallyAccepted
+    WHEN virtualTypeIdWB == 6 THEN VirtualType.scanAcceptance;
+
+CLASS SupplyDateType 'Тип даты поставки' {
+    createDate 'Дата создания',
+    supplyDate 'Плановая дата отгрузки',
+    factDate 'Дата фактической отгрузки',
+    updatedDate 'Дата изменения'
+}
+
+nameSupplyDateType 'Тип даты' (SupplyDateType dateType) = caption(dateType) CHARWIDTH 20;
+
+FORM supplyDateTypes 'Типы даты поставки'
+    OBJECTS dt = SupplyDateType
+    PROPERTIES(dt) READONLY nameSupplyDateType
+
+    LIST SupplyDateType OBJECT dt
+;
+
+apiSupplyDateType 'Тип даты в запросе' (SupplyDateType dateType) = CASE
+    WHEN dateType == SupplyDateType.createDate THEN r'createDate'
+    WHEN dateType == SupplyDateType.supplyDate THEN r'supplyDate'
+    WHEN dateType == SupplyDateType.factDate THEN r'factDate'
+    WHEN dateType == SupplyDateType.updatedDate THEN r'updatedDate';
+
+// ---------------------------------- Поставка ----------------------------------
+
+CLASS Supply 'Поставка FBW';
+TABLE supply (Supply);
+
+id 'ID поставки' = DATA INTEGER (Supply) IN id INDEXED;
+supply (id) = GROUP AGGR Supply s BY id(s);
+
+// У незапланированной поставки supplyID пустой и идентификатором служит preorderID.
+// У виртуальных поставок preorderID = 0, поэтому ключом он может быть только без supplyID.
+preorderId 'ID заказа' = DATA INTEGER (Supply) IN id INDEXED;
+supplyPreorder 'Поставка по ID заказа' (INTEGER preorderIdWB) =
+    GROUP MAX Supply s IF preorderId(s) == preorderIdWB AND preorderIdWB > 0 AND NOT id(s);
+
+number 'Номер' (Supply s) = STRING(OVERRIDE id(s), preorderId(s)) IN id CHARWIDTH 10;
+
+phone 'Телефон создавшего поставку' = DATA STRING[30] (Supply);
+
+status 'Статус' = DATA SupplyStatus (Supply);
+nameStatus 'Статус' (Supply s) = caption(status(s)) CHARWIDTH 18;
+
+boxType 'Тип поставки' = DATA BoxType (Supply);
+nameBoxType 'Тип поставки' (Supply s) = caption(boxType(s)) CHARWIDTH 18;
+
+virtualType 'Тип виртуальной поставки' = DATA VirtualType (Supply);
+nameVirtualType 'Тип виртуальной поставки' (Supply s) = caption(virtualType(s)) CHARWIDTH 15;
+
+isBoxOnPallet 'Поштучная палета' = DATA BOOLEAN (Supply);
+
+createDate 'Дата создания' = DATA DATETIME (Supply);
+supplyDate 'Плановая дата отгрузки' = DATA DATETIME (Supply);
+factDate 'Дата фактической отгрузки' = DATA DATETIME (Supply);
+updatedDate 'Дата изменения' = DATA DATETIME (Supply);
+
+warehouse 'Склад назначения' = DATA SupplyWarehouse (Supply);
+nameWarehouse 'Склад назначения' (Supply s) = name(warehouse(s));
+
+actualWarehouse 'Склад приёмки' = DATA SupplyWarehouse (Supply);
+nameActualWarehouse 'Склад приёмки' (Supply s) = name(actualWarehouse(s));
+
+transitWarehouse 'Транзитный склад' = DATA SupplyWarehouse (Supply);
+nameTransitWarehouse 'Транзитный склад' (Supply s) = name(transitWarehouse(s));
+
+acceptanceCost 'Стоимость приёмки, ₽' = DATA NUMERIC[16,2] (Supply);
+paidAcceptanceCoefficient 'Коэффициент приёмки' = DATA NUMERIC[10,2] (Supply);
+storageCoef 'Коэффициент хранения' = DATA STRING[10] (Supply);
+deliveryCoef 'Коэффициент логистики' = DATA STRING[10] (Supply);
+rejectReason 'Причина отказа в приёмке' = DATA STRING[250] (Supply) CHARWIDTH 25;
+supplierAssignName 'Краткое название продавца' = DATA STRING[100] (Supply);
+
+quantity 'Добавлено, шт' = DATA INTEGER (Supply);
+readyForSaleQuantity 'Поступило в продажу, шт' = DATA INTEGER (Supply);
+acceptedQuantity 'Принято, шт' = DATA INTEGER (Supply);
+unloadingQuantity 'На раскладке, шт' = DATA INTEGER (Supply);
+depersonalizedQuantity 'Обезличено, шт' = DATA INTEGER (Supply);
+
+// ID для запросов деталей и товаров: поставка ищется либо по supplyID, либо по preorderID
+requestId 'ID для запроса' (Supply s) = OVERRIDE id(s), preorderId(s);
+isPreorderRequest 'Запрос по ID заказа' (Supply s) = TRUE IF s IS Supply AND NOT id(s);
+paramIsPreorderId 'Параметр isPreorderID' (Supply s) = IF isPreorderRequest(s) THEN r'true' ELSE r'false';
+
+isSelected 'Отм.' = DATA LOCAL NESTED BOOLEAN (Supply);
+
+// ---------------------------------- Товар поставки ----------------------------------
+
+CLASS SupplyDetail 'Товар поставки FBW';
+TABLE supplyDetail (SupplyDetail);
+
+supply 'Поставка' = DATA Supply (SupplyDetail) NONULL DELETE INDEXED;
+barcode 'Баркод' = DATA STRING[15] (SupplyDetail) IN id INDEXED;
+supplyDetail (Supply s, STRING barcodeWB) = GROUP AGGR SupplyDetail d BY supply(d), barcode(d);
+
+vendorCode 'Артикул продавца' = DATA STRING[100] (SupplyDetail) IN id CHARWIDTH 15;
+nmId 'Артикул WB' = DATA INTEGER (SupplyDetail) IN id;
+needKiz 'Требуется код маркировки' = DATA BOOLEAN (SupplyDetail);
+tnved 'ТН ВЭД' = DATA STRING[15] (SupplyDetail);
+techSize 'Размер' = DATA STRING[30] (SupplyDetail) CHARWIDTH 7;
+color 'Цвет' = DATA STRING[100] (SupplyDetail) CHARWIDTH 10;
+
+supplierBoxAmount 'Указано в упаковке, шт' = DATA INTEGER (SupplyDetail);
+quantity 'Указано в поставке, шт' = DATA INTEGER (SupplyDetail);
+readyForSaleQuantity 'Поступило в продажу, шт' = DATA INTEGER (SupplyDetail);
+acceptedQuantity 'Принято, шт' = DATA INTEGER (SupplyDetail);
+unloadingQuantity 'На раскладке, шт' = DATA INTEGER (SupplyDetail);
+
+// Сопоставление с номенклатурой: по баркоду — размер карточки WB, от него товар ERP,
+// артикул WB (nmID) — резервный вариант, если баркод в ERP ещё не загружен.
+barcodeWB 'Баркод WB' (SupplyDetail d) = barcode(barcode(d));
+sizeWB 'Размер карточки WB' (SupplyDetail d) = size(barcodeWB(d));
+itemWB 'Товар WB' (SupplyDetail d) = OVERRIDE itemWB(sizeWB(d)), itemNM(nmId(d));
+nameItemWB 'Товар WB' (SupplyDetail d) = name(itemWB(d)) CHARWIDTH 25;
+nameItem 'Товар ERP' (SupplyDetail d) = nameItem(sizeWB(d)) CHARWIDTH 25;
+
+// ---------------------------------- Настройки ----------------------------------
+
+dataGetSuppliesLimit = DATA INTEGER ();
+getSuppliesLimit 'Лимит поставок в запросе (FBW)' = OVERRIDE dataGetSuppliesLimit(), 1000;
+
+dataGetSupplyGoodsLimit = DATA INTEGER ();
+getSupplyGoodsLimit 'Лимит товаров поставки в запросе (FBW)' = OVERRIDE dataGetSupplyGoodsLimit(), 1000;
+
+dataSuppliesPeriod = DATA INTEGER ();
+suppliesPeriod 'Период загрузки поставок по умолчанию, дней (FBW)' = OVERRIDE dataSuppliesPeriod(), 30;
+
+// Лимит поставок — 30 запросов/мин, поэтому между запросами держим интервал в 2 секунды
+dataSuppliesRequestDelay = DATA INTEGER ();
+suppliesRequestDelay 'Пауза между запросами поставок, мс (FBW)' = OVERRIDE dataSuppliesRequestDelay(), 2000;
+
+dateFromSupplies 'Дата с' = DATA DATE ();
+dateToSupplies 'Дата по' = DATA DATE ();
+dataDateTypeSupplies = DATA SupplyDateType ();
+dateTypeSupplies 'Тип даты' () = OVERRIDE dataDateTypeSupplies(), SupplyDateType.createDate;
+nameDateTypeSupplies 'Тип даты' () = nameSupplyDateType(dateTypeSupplies());
+
+changeDateTypeSupplies 'Тип даты' () {
+    DIALOG supplyDateTypes OBJECTS dt INPUT DO {
+        dataDateTypeSupplies() <- dt;
+    }
+}
+
+selectedStatus 'Отм.' = DATA BOOLEAN (SupplyStatus);
+// Фильтр по статусам в запросе; если ни один статус не отмечен — WB отдаёт все поставки
+statusIdsSupplies 'Статусы запроса' () = GROUP CONCAT STRING(idSupplyStatus(SupplyStatus status)) IF selectedStatus(status), ','
+    ORDER idSupplyStatus(status);
+
+// ---------------------------------- Склады: загрузка ----------------------------------
+
+fbwWarehouseId = DATA LOCAL INTEGER (INTEGER);
+fbwWarehouseName = DATA LOCAL STRING[100] (INTEGER);
+fbwWarehouseAddress = DATA LOCAL STRING[250] (INTEGER);
+fbwWarehouseWorkTime = DATA LOCAL STRING[50] (INTEGER);
+fbwWarehouseIsActive = DATA LOCAL STRING[5] (INTEGER);
+fbwWarehouseIsTransitActive = DATA LOCAL STRING[5] (INTEGER);
+
+FORM importWarehousesFBW
+    OBJECTS value = INTEGER
+    PROPERTIES(value) fbwWarehouseId EXTID 'ID', fbwWarehouseName EXTID 'name',
+        fbwWarehouseAddress EXTID 'address', fbwWarehouseWorkTime EXTID 'workTime',
+        fbwWarehouseIsActive EXTID 'isActive', fbwWarehouseIsTransitActive EXTID 'isTransitActive'
+    FILTERS imported(value)
+;
+
+// GET /api/v1/warehouses — ответ массивом без обёртки. Лимит 6 запросов/мин.
+getWarehousesFBW 'Получить список складов FBW' () {
+    NEWSESSION {
+        setHttpHeadersIS(token(CategoryRequest.shipment));
+        LOCAL messageWarehouse = STRING ();
+        LOCAL response = FILE ();
+
+        logToFile('WB', 'GET: ' + url(CategoryRequest.shipment) + '/api/v1/warehouses');
+
+        TRY {
+            EXTERNAL HTTP GET url(CategoryRequest.shipment) + '/api/v1/warehouses' HEADERS httpHeaders TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            IMPORT importWarehousesFBW JSON FROM response();
+
+            FOR INTEGER i = [GROUP MAX INTEGER i1 BY fbwWarehouseId(i1)](INTEGER warehouseIdWB)
+                AND NOT supplyWarehouse(warehouseIdWB) INLINE DO NEW w = SupplyWarehouse {
+                id(w) <- warehouseIdWB;
+            }
+            FOR INTEGER i = [GROUP MAX INTEGER i1 BY fbwWarehouseId(i1)](INTEGER warehouseIdWB)
+                AND SupplyWarehouse w == supplyWarehouse(warehouseIdWB) INLINE DO {
+                name(w) <- fbwWarehouseName(i);
+                address(w) <- fbwWarehouseAddress(i);
+                workTime(w) <- fbwWarehouseWorkTime(i);
+                isActive(w) <- TRUE IF fbwWarehouseIsActive(i) == 'true';
+                isTransitActive(w) <- TRUE IF fbwWarehouseIsTransitActive(i) == 'true';
+            }
+            messageWarehouse() <- messageStatusHTTP(STRING(statusHttp()));
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 401 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 429 THEN {
+                IMPORT importError429 JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Список складов FBW не получен: ' + (OVERRIDE detail429(), title429());
+            }
+            messageWarehouse() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE '<h3>Получение списка складов FBW</h3>' NOWAIT;
+            MESSAGE messageWarehouse() NOWAIT;
+            APPLY;
+        }
+    }
+}
+
+// ---------------------------------- Поставки: список ----------------------------------
+
+fbwSupplyId = DATA LOCAL INTEGER (INTEGER);
+fbwPreorderId = DATA LOCAL INTEGER (INTEGER);
+fbwSupplyPhone = DATA LOCAL STRING[30] (INTEGER);
+fbwSupplyCreateDate = DATA LOCAL STRING[30] (INTEGER);
+fbwSupplySupplyDate = DATA LOCAL STRING[30] (INTEGER);
+fbwSupplyFactDate = DATA LOCAL STRING[30] (INTEGER);
+fbwSupplyUpdatedDate = DATA LOCAL STRING[30] (INTEGER);
+fbwSupplyStatusId = DATA LOCAL INTEGER (INTEGER);
+fbwSupplyBoxTypeId = DATA LOCAL INTEGER (INTEGER);
+fbwSupplyIsBoxOnPallet = DATA LOCAL STRING[5] (INTEGER);
+
+FORM importSuppliesFBW
+    OBJECTS value = INTEGER
+    PROPERTIES(value) fbwSupplyId EXTID 'supplyID', fbwPreorderId EXTID 'preorderID',
+        fbwSupplyPhone EXTID 'phone', fbwSupplyCreateDate EXTID 'createDate',
+        fbwSupplySupplyDate EXTID 'supplyDate', fbwSupplyFactDate EXTID 'factDate',
+        fbwSupplyUpdatedDate EXTID 'updatedDate', fbwSupplyStatusId EXTID 'statusID',
+        fbwSupplyBoxTypeId EXTID 'boxTypeID', fbwSupplyIsBoxOnPallet EXTID 'isBoxOnPallet'
+    FILTERS imported(value)
+;
+
+// POST /api/v1/supplies?limit=&offset= — фильтр по датам и статусам передаётся телом запроса,
+// ответ массивом без обёртки, по умолчанию последние 1000 поставок. Лимит 30 запросов/мин.
+getSuppliesFBW 'Загрузить поставки FBW' (DATE dateFrom, DATE dateTo, SupplyDateType dateType) {
+    NEWSESSION NESTED LOCAL {
+        setHttpHeadersIS(token(CategoryRequest.shipment));
+        LOCAL messageSupply = STRING ();
+        LOCAL response = FILE ();
+
+        LOCAL limit = INTEGER ();
+        limit() <- getSuppliesLimit();
+        IF limit() > 1000 THEN limit() <- 1000;
+
+        LOCAL NESTED offset = INTEGER ();
+        offset() <- 0;
+
+        LOCAL dateTill = DATE ();
+        dateTill() <- OVERRIDE dateTo, currentDate();
+        LOCAL dateSince = DATE ();
+        dateSince() <- OVERRIDE dateFrom, sum(dateTill(), -suppliesPeriod());
+
+        // {"dates":[{"from":"2025-07-01","till":"2025-07-30","type":"createDate"}],"statusIDs":[5,6]}
+        LOCAL bodyString = STRING ();
+        bodyString() <- CONCAT '', '\{"dates":[\{"from":"', toDateISO(dateSince()), '","till":"', toDateISO(dateTill()),
+            '","type":"', apiSupplyDateType(dateType), '"\}]', (',"statusIDs":[' + statusIdsSupplies() + ']'), '\}';
+
+        LOCAL body = FILE ();
+        stringToFile(bodyString(), 'UTF-8', 'json');
+        body() <- resultFile();
+        fileToString(body(), 'UTF-8');
+        logToFile('WB', 'POST: ' + url(CategoryRequest.shipment) + '/api/v1/supplies body: ' + resultString());
+
+        LOCAL stop = BOOLEAN ();
+
+        WHILE NOT stop() DO {
+            TRY {
+                EXTERNAL HTTP POST url(CategoryRequest.shipment) + '/api/v1/supplies?limit=' + limit() + '&offset=' + offset()
+                    HEADERS httpHeaders PARAMS body() TO response;
+                fileToString(response());
+                logToFile('WB', resultString());
+                IMPORT importSuppliesFBW JSON FROM response();
+
+                LOCAL countImported = INTEGER ();
+                countImported() <- GROUP SUM 1 IF imported(INTEGER i);
+
+                FOR INTEGER i = [GROUP MAX INTEGER i1 BY fbwSupplyId(i1)](INTEGER supplyIdWB)
+                    AND NOT supply(supplyIdWB) INLINE DO NEW s = Supply {
+                    id(s) <- supplyIdWB;
+                }
+                FOR INTEGER i = [GROUP MAX INTEGER i1 IF NOT fbwSupplyId(i1) BY fbwPreorderId(i1)](INTEGER preorderIdWB)
+                    AND preorderIdWB > 0 AND NOT supplyPreorder(preorderIdWB) INLINE DO NEW s = Supply {
+                    preorderId(s) <- preorderIdWB;
+                }
+
+                FOR imported(INTEGER i)
+                    AND Supply s == (OVERRIDE supply(fbwSupplyId(i)), supplyPreorder(fbwPreorderId(i))) INLINE DO {
+                    preorderId(s) <- fbwPreorderId(i) IF fbwPreorderId(i) > 0;
+                    phone(s) <- fbwSupplyPhone(i);
+                    status(s) <- supplyStatus(fbwSupplyStatusId(i));
+                    boxType(s) <- boxType(fbwSupplyBoxTypeId(i));
+                    isBoxOnPallet(s) <- TRUE IF fbwSupplyIsBoxOnPallet(i) == 'true';
+                    createDate(s) <- fromWBDateTime(fbwSupplyCreateDate(i));
+                    supplyDate(s) <- fromWBDateTime(fbwSupplySupplyDate(i));
+                    factDate(s) <- fromWBDateTime(fbwSupplyFactDate(i));
+                    updatedDate(s) <- fromWBDateTime(fbwSupplyUpdatedDate(i));
+                }
+
+                IF countImported() < limit() THEN
+                    stop() <- TRUE;
+                ELSE
+                    offset() <- offset() + limit();
+
+                messageSupply() <- messageStatusHTTP(STRING(statusHttp()));
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+                IF statusHttp() == 400 OR statusHttp() == 401 OR statusHttp() == 402 OR statusHttp() == 429 THEN {
+                    IMPORT importError429 JSON FROM response();
+                    extraDescriptionStatusHTTP() <- 'Список поставок FBW не получен: ' + (OVERRIDE detail429(), title429());
+                }
+                messageSupply() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                stop() <- TRUE;
+            } FINALLY {
+                afterSendRequestIS();
+                IF NOT (statusHttp() >= 200 AND statusHttp() < 300) THEN {
+                    stop() <- TRUE;
+                }
+                APPLY NESTED LOCAL;
+                IF NOT stop() THEN {
+                    sleep(LONG(suppliesRequestDelay()));
+                }
+            }
+        }
+        MESSAGE '<h3>Загрузка поставок FBW</h3>' NOWAIT;
+        MESSAGE messageSupply() NOWAIT;
+    }
+}
+
+// Отбор задаётся прямо на форме, поэтому перед загрузкой в отдельной сессии сохраняем его
+getSuppliesFBW 'Загрузить поставки FBW' () {
+    APPLY;
+    IF canceled() THEN RETURN;
+    getSuppliesFBW(dateFromSupplies(), dateToSupplies(), dateTypeSupplies());
+}
+
+// ---------------------------------- Поставка: детали ----------------------------------
+
+fbwDetailsPhone = DATA LOCAL STRING[30] ();
+fbwDetailsStatusId = DATA LOCAL INTEGER ();
+fbwDetailsVirtualTypeId = DATA LOCAL INTEGER ();
+fbwDetailsBoxTypeId = DATA LOCAL INTEGER ();
+fbwDetailsIsBoxOnPallet = DATA LOCAL STRING[5] ();
+fbwDetailsCreateDate = DATA LOCAL STRING[30] ();
+fbwDetailsSupplyDate = DATA LOCAL STRING[30] ();
+fbwDetailsFactDate = DATA LOCAL STRING[30] ();
+fbwDetailsUpdatedDate = DATA LOCAL STRING[30] ();
+fbwDetailsWarehouseId = DATA LOCAL INTEGER ();
+fbwDetailsWarehouseName = DATA LOCAL STRING[100] ();
+fbwDetailsActualWarehouseId = DATA LOCAL INTEGER ();
+fbwDetailsActualWarehouseName = DATA LOCAL STRING[100] ();
+fbwDetailsTransitWarehouseId = DATA LOCAL INTEGER ();
+fbwDetailsTransitWarehouseName = DATA LOCAL STRING[100] ();
+fbwDetailsAcceptanceCost = DATA LOCAL NUMERIC[16,2] ();
+fbwDetailsPaidAcceptanceCoefficient = DATA LOCAL NUMERIC[10,2] ();
+fbwDetailsRejectReason = DATA LOCAL STRING[250] ();
+fbwDetailsSupplierAssignName = DATA LOCAL STRING[100] ();
+fbwDetailsStorageCoef = DATA LOCAL STRING[10] ();
+fbwDetailsDeliveryCoef = DATA LOCAL STRING[10] ();
+fbwDetailsQuantity = DATA LOCAL INTEGER ();
+fbwDetailsReadyForSaleQuantity = DATA LOCAL INTEGER ();
+fbwDetailsAcceptedQuantity = DATA LOCAL INTEGER ();
+fbwDetailsUnloadingQuantity = DATA LOCAL INTEGER ();
+fbwDetailsDepersonalizedQuantity = DATA LOCAL INTEGER ();
+
+FORM importSupplyDetailsFBW
+    PROPERTIES() fbwDetailsPhone EXTID 'phone', fbwDetailsStatusId EXTID 'statusID',
+        fbwDetailsVirtualTypeId EXTID 'virtualTypeID', fbwDetailsBoxTypeId EXTID 'boxTypeID',
+        fbwDetailsIsBoxOnPallet EXTID 'isBoxOnPallet', fbwDetailsCreateDate EXTID 'createDate',
+        fbwDetailsSupplyDate EXTID 'supplyDate', fbwDetailsFactDate EXTID 'factDate',
+        fbwDetailsUpdatedDate EXTID 'updatedDate', fbwDetailsWarehouseId EXTID 'warehouseID',
+        fbwDetailsWarehouseName EXTID 'warehouseName', fbwDetailsActualWarehouseId EXTID 'actualWarehouseID',
+        fbwDetailsActualWarehouseName EXTID 'actualWarehouseName',
+        fbwDetailsTransitWarehouseId EXTID 'transitWarehouseID',
+        fbwDetailsTransitWarehouseName EXTID 'transitWarehouseName',
+        fbwDetailsAcceptanceCost EXTID 'acceptanceCost',
+        fbwDetailsPaidAcceptanceCoefficient EXTID 'paidAcceptanceCoefficient',
+        fbwDetailsRejectReason EXTID 'rejectReason', fbwDetailsSupplierAssignName EXTID 'supplierAssignName',
+        fbwDetailsStorageCoef EXTID 'storageCoef', fbwDetailsDeliveryCoef EXTID 'deliveryCoef',
+        fbwDetailsQuantity EXTID 'quantity', fbwDetailsReadyForSaleQuantity EXTID 'readyForSaleQuantity',
+        fbwDetailsAcceptedQuantity EXTID 'acceptedQuantity', fbwDetailsUnloadingQuantity EXTID 'unloadingQuantity',
+        fbwDetailsDepersonalizedQuantity EXTID 'depersonalizedQuantity'
+;
+
+// GET /api/v1/supplies/{ID}?isPreorderID= — ответ одним объектом. Лимит 30 запросов/мин.
+getSupplyFBW 'Получить детали поставки' (Supply s) {
+    NEWSESSION NESTED LOCAL {
+        IF NOT requestId(s) THEN {
+            MESSAGE 'У поставки отсутствует ID поставки и ID заказа.';
+            RETURN;
+        }
+
+        setHttpHeadersIS(token(CategoryRequest.shipment));
+        LOCAL messageSupply = STRING ();
+        LOCAL response = FILE ();
+
+        LOCAL getUrl = STRING ();
+        getUrl() <- '/api/v1/supplies/' + requestId(s) + '?isPreorderID=' + paramIsPreorderId(s);
+
+        logToFile('WB', 'GET: ' + url(CategoryRequest.shipment) + getUrl());
+
+        TRY {
+            EXTERNAL HTTP GET url(CategoryRequest.shipment) + getUrl() HEADERS httpHeaders TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            IMPORT importSupplyDetailsFBW JSON FROM response();
+
+            addSupplyWarehouse(fbwDetailsWarehouseId(), fbwDetailsWarehouseName());
+            addSupplyWarehouse(fbwDetailsActualWarehouseId(), fbwDetailsActualWarehouseName());
+            addSupplyWarehouse(fbwDetailsTransitWarehouseId(), fbwDetailsTransitWarehouseName());
+
+            phone(s) <- fbwDetailsPhone();
+            status(s) <- supplyStatus(fbwDetailsStatusId());
+            boxType(s) <- boxType(fbwDetailsBoxTypeId());
+            virtualType(s) <- virtualType(fbwDetailsVirtualTypeId()) IF fbwDetailsBoxTypeId() == 0;
+            isBoxOnPallet(s) <- TRUE IF fbwDetailsIsBoxOnPallet() == 'true';
+            createDate(s) <- fromWBDateTime(fbwDetailsCreateDate());
+            supplyDate(s) <- fromWBDateTime(fbwDetailsSupplyDate());
+            factDate(s) <- fromWBDateTime(fbwDetailsFactDate());
+            updatedDate(s) <- fromWBDateTime(fbwDetailsUpdatedDate());
+            warehouse(s) <- supplyWarehouse(fbwDetailsWarehouseId());
+            actualWarehouse(s) <- supplyWarehouse(fbwDetailsActualWarehouseId());
+            transitWarehouse(s) <- supplyWarehouse(fbwDetailsTransitWarehouseId());
+            acceptanceCost(s) <- fbwDetailsAcceptanceCost();
+            paidAcceptanceCoefficient(s) <- fbwDetailsPaidAcceptanceCoefficient();
+            storageCoef(s) <- fbwDetailsStorageCoef();
+            deliveryCoef(s) <- fbwDetailsDeliveryCoef();
+            rejectReason(s) <- fbwDetailsRejectReason();
+            supplierAssignName(s) <- fbwDetailsSupplierAssignName();
+            quantity(s) <- fbwDetailsQuantity();
+            readyForSaleQuantity(s) <- fbwDetailsReadyForSaleQuantity();
+            acceptedQuantity(s) <- fbwDetailsAcceptedQuantity();
+            unloadingQuantity(s) <- fbwDetailsUnloadingQuantity();
+            depersonalizedQuantity(s) <- fbwDetailsDepersonalizedQuantity();
+
+            messageSupply() <- messageStatusHTTP(STRING(statusHttp()));
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 400 OR statusHttp() == 401 OR statusHttp() == 402
+                OR statusHttp() == 404 OR statusHttp() == 429 THEN {
+                IMPORT importError429 JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Детали поставки FBW не получены: ' + (OVERRIDE detail429(), title429());
+            }
+            messageSupply() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE messageSupply() NOWAIT;
+            APPLY NESTED LOCAL;
+        }
+    }
+}
+
+// ---------------------------------- Поставка: товары ----------------------------------
+
+fbwGoodBarcode = DATA LOCAL STRING[15] (INTEGER);
+fbwGoodVendorCode = DATA LOCAL STRING[100] (INTEGER);
+fbwGoodNmId = DATA LOCAL INTEGER (INTEGER);
+fbwGoodNeedKiz = DATA LOCAL STRING[5] (INTEGER);
+fbwGoodTnved = DATA LOCAL STRING[15] (INTEGER);
+fbwGoodTechSize = DATA LOCAL STRING[30] (INTEGER);
+fbwGoodColor = DATA LOCAL STRING[100] (INTEGER);
+fbwGoodSupplierBoxAmount = DATA LOCAL INTEGER (INTEGER);
+fbwGoodQuantity = DATA LOCAL INTEGER (INTEGER);
+fbwGoodReadyForSaleQuantity = DATA LOCAL INTEGER (INTEGER);
+fbwGoodAcceptedQuantity = DATA LOCAL INTEGER (INTEGER);
+fbwGoodUnloadingQuantity = DATA LOCAL INTEGER (INTEGER);
+
+FORM importSupplyGoodsFBW
+    OBJECTS value = INTEGER
+    PROPERTIES(value) fbwGoodBarcode EXTID 'barcode', fbwGoodVendorCode EXTID 'vendorCode',
+        fbwGoodNmId EXTID 'nmID', fbwGoodNeedKiz EXTID 'needKiz', fbwGoodTnved EXTID 'tnved',
+        fbwGoodTechSize EXTID 'techSize', fbwGoodColor EXTID 'color',
+        fbwGoodSupplierBoxAmount EXTID 'supplierBoxAmount', fbwGoodQuantity EXTID 'quantity',
+        fbwGoodReadyForSaleQuantity EXTID 'readyForSaleQuantity',
+        fbwGoodAcceptedQuantity EXTID 'acceptedQuantity', fbwGoodUnloadingQuantity EXTID 'unloadingQuantity'
+    FILTERS imported(value)
+;
+
+// GET /api/v1/supplies/{ID}/goods?limit=&offset=&isPreorderID= — ответ массивом без обёртки.
+getSupplyGoodsFBW 'Получить товары поставки' (Supply s) {
+    NEWSESSION NESTED LOCAL {
+        IF NOT requestId(s) THEN {
+            MESSAGE 'У поставки отсутствует ID поставки и ID заказа.';
+            RETURN;
+        }
+
+        setHttpHeadersIS(token(CategoryRequest.shipment));
+        LOCAL messageSupply = STRING ();
+        LOCAL response = FILE ();
+
+        LOCAL limit = INTEGER ();
+        limit() <- getSupplyGoodsLimit();
+        IF limit() > 1000 THEN limit() <- 1000;
+
+        LOCAL NESTED offset = INTEGER ();
+        offset() <- 0;
+
+        LOCAL getUrl = STRING ();
+        getUrl() <- '/api/v1/supplies/' + requestId(s) + '/goods?isPreorderID=' + paramIsPreorderId(s);
+
+        LOCAL stop = BOOLEAN ();
+
+        WHILE NOT stop() DO {
+            logToFile('WB', 'GET: ' + url(CategoryRequest.shipment) + getUrl() + '&limit=' + limit() + '&offset=' + offset());
+            TRY {
+                EXTERNAL HTTP GET url(CategoryRequest.shipment) + getUrl() + '&limit=' + limit() + '&offset=' + offset()
+                    HEADERS httpHeaders TO response;
+                fileToString(response());
+                logToFile('WB', resultString());
+                IMPORT importSupplyGoodsFBW JSON FROM response();
+
+                LOCAL countImported = INTEGER ();
+                countImported() <- GROUP SUM 1 IF imported(INTEGER i);
+
+                FOR INTEGER i = [GROUP MAX INTEGER i1 BY fbwGoodBarcode(i1)](STRING[15] barcodeWB)
+                    AND NOT supplyDetail(s, barcodeWB) INLINE DO NEW d = SupplyDetail {
+                    supply(d) <- s;
+                    barcode(d) <- barcodeWB;
+                }
+                FOR imported(INTEGER i) AND SupplyDetail d == supplyDetail(s, fbwGoodBarcode(i)) INLINE DO {
+                    vendorCode(d) <- fbwGoodVendorCode(i);
+                    nmId(d) <- fbwGoodNmId(i);
+                    needKiz(d) <- TRUE IF fbwGoodNeedKiz(i) == 'true';
+                    tnved(d) <- fbwGoodTnved(i);
+                    techSize(d) <- fbwGoodTechSize(i);
+                    color(d) <- fbwGoodColor(i);
+                    supplierBoxAmount(d) <- fbwGoodSupplierBoxAmount(i);
+                    quantity(d) <- fbwGoodQuantity(i);
+                    readyForSaleQuantity(d) <- fbwGoodReadyForSaleQuantity(i);
+                    acceptedQuantity(d) <- fbwGoodAcceptedQuantity(i);
+                    unloadingQuantity(d) <- fbwGoodUnloadingQuantity(i);
+                }
+
+                IF countImported() < limit() THEN
+                    stop() <- TRUE;
+                ELSE
+                    offset() <- offset() + limit();
+
+                messageSupply() <- messageStatusHTTP(STRING(statusHttp()));
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+                IF statusHttp() == 400 OR statusHttp() == 401 OR statusHttp() == 402 OR statusHttp() == 429 THEN {
+                    IMPORT importError429 JSON FROM response();
+                    extraDescriptionStatusHTTP() <- 'Товары поставки FBW не получены: ' + (OVERRIDE detail429(), title429());
+                }
+                messageSupply() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                stop() <- TRUE;
+            } FINALLY {
+                afterSendRequestIS();
+                IF NOT (statusHttp() >= 200 AND statusHttp() < 300) THEN {
+                    stop() <- TRUE;
+                }
+                APPLY NESTED LOCAL;
+                IF NOT stop() THEN {
+                    sleep(LONG(suppliesRequestDelay()));
+                }
+            }
+        }
+        MESSAGE messageSupply() NOWAIT;
+    }
+}
+
+updateSupplyFBW 'Обновить поставку' (Supply s) {
+    getSupplyFBW(s);
+    sleep(LONG(suppliesRequestDelay()));
+    getSupplyGoodsFBW(s);
+}
+
+updateSuppliesFBW 'Обновить отмеченные поставки' () {
+    IF NOT (GROUP SUM 1 IF isSelected(Supply s)) THEN {
+        MESSAGE 'Не отмечена ни одна поставка.';
+        RETURN;
+    }
+    FOR isSelected(Supply s) DO {
+        updateSupplyFBW(s);
+    }
+}
+
+deleteSupplyFBW 'Удалить поставку из ERP' (Supply s) {
+    NEWSESSION {
+        ASK 'Удалить выбранную поставку FBW вместе с её товарами?' DO {
+            DELETE s WHERE s IS Supply;
+            APPLY;
+        }
+    }
+}
+
+// ---------------------------------- Формы ----------------------------------
+
+FORM suppliesFBW 'Поставки FBW'
+    PROPERTIES() dateFromSupplies, dateToSupplies, getSuppliesFBW
+    PROPERTIES() nameDateTypeSupplies ON CHANGE changeDateTypeSupplies()
+
+    OBJECTS st = SupplyStatus
+    PROPERTIES(st) selectedStatus
+    PROPERTIES(st) READONLY idSupplyStatus, nameSupplyStatus
+    ORDERS idSupplyStatus(st)
+
+    OBJECTS s = Supply
+    PROPERTIES(s) isSelected
+    PROPERTIES(s) READONLY number, nameStatus, nameBoxType, nameVirtualType, isBoxOnPallet,
+        supplyDate, factDate, createDate, updatedDate, nameWarehouse, nameActualWarehouse,
+        nameTransitWarehouse, quantity, acceptedQuantity, readyForSaleQuantity, unloadingQuantity,
+        depersonalizedQuantity, paidAcceptanceCoefficient, acceptanceCost, storageCoef, deliveryCoef,
+        supplierAssignName, phone
+    PROPERTIES(s) READONLY rejectReason PANEL
+    PROPERTIES(s) updateSupplyFBW TOOLBAR, getSupplyFBW TOOLBAR, getSupplyGoodsFBW TOOLBAR,
+        deleteSupplyFBW TOOLBAR
+    PROPERTIES() updateSuppliesFBW
+    ORDERS createDate(s)
+    FILTERGROUP notAccepted
+        FILTER 'Не принятые' NOT status(s) == SupplyStatus.accepted 'F10'
+
+    OBJECTS d = SupplyDetail
+    PROPERTIES(d) READONLY barcode, vendorCode, nmId, techSize, color, nameItemWB, nameItem,
+        tnved, needKiz, quantity, supplierBoxAmount, acceptedQuantity, readyForSaleQuantity,
+        unloadingQuantity
+    ORDERS vendorCode(d)
+    FILTERS supply(d) == s
+
+    OBJECTS w = SupplyWarehouse
+    PROPERTIES() getWarehousesFBW
+    PROPERTIES(w) READONLY id, name, address, workTime, isActive, isTransitActive
+    ORDERS name(w)
+;
+
+DESIGN suppliesFBW {
+    NEW tabContainer {
+        tabbed = TRUE;
+        fill = 1;
+        NEW containerSupplies {
+            caption = 'Поставки';
+            NEW filterContainer {
+                horizontal = TRUE;
+                caption = 'Отбор поставок';
+                MOVE PROPERTY (dateFromSupplies());
+                MOVE PROPERTY (dateToSupplies());
+                MOVE PROPERTY (nameDateTypeSupplies());
+                MOVE PROPERTY (getSuppliesFBW());
+                MOVE PROPERTY (updateSuppliesFBW());
+            }
+            MOVE BOX(s) { fill = 2; }
+            NEW detailContainer {
+                horizontal = TRUE;
+                fill = 3;
+                MOVE BOX(d) { fill = 3; }
+                NEW rejectContainer {
+                    caption = 'Причина отказа в приёмке';
+                    MOVE PROPERTY (rejectReason(s)) {
+                        caption = '';
+                        align = STRETCH;
+                        height = 50;
+                    }
+                }
+            }
+        }
+        NEW containerStatuses {
+            caption = 'Статусы запроса';
+            MOVE BOX(st) { fill = 1; }
+        }
+        NEW containerWarehouses {
+            caption = 'Склады FBW';
+            MOVE PROPERTY (getWarehousesFBW());
+            MOVE BOX(w);
+        }
+    }
+    MOVE TOOLBARBOX;
+}
+
+NAVIGATOR {
+    WBNavigator {
+        NEW suppliesFBW;
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() getSuppliesLimit, getSupplyGoodsLimit, suppliesPeriod, suppliesRequestDelay
+;
+
+DESIGN integrationData {
+    requestLimits {
+        MOVE PROPERTY (getSuppliesLimit());
+        MOVE PROPERTY (getSupplyGoodsLimit());
+        MOVE PROPERTY (suppliesPeriod());
+        MOVE PROPERTY (suppliesRequestDelay());
+    }
+}
