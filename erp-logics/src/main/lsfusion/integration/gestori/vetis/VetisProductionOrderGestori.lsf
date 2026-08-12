@@ -82,8 +82,10 @@ sendVetisProductionGestori 'Отправить в Ветис' (Production.Order 
 
 // --- Запрет редактирования после отправки запросов в Ветис ---
 
+// заявка без зафиксированного состава (создана до его появления) блокирует все строки своего заказа
 lockedComponentGestori (Production.ComponentDetail d) =
-    GROUP SUM 1 IF volume(RegisterProductionOperationRequest r, d, StockEntry se) AND (notCompleted(r) OR succeeded(r));
+    OVERRIDE (GROUP SUM 1 IF volume(RegisterProductionOperationRequest r, d, StockEntry se) AND (notCompleted(r) OR succeeded(r))),
+        hasLegacyRequest(order(d));
 
 CONSTRAINT CHANGED(Production.quantity(Production.ComponentDetail d)) AND lockedComponentGestori(d)
     MESSAGE 'Запрещено изменять количество по строке производственного заказа: по строке отправлен запрос в Ветис';
@@ -92,7 +94,8 @@ CONSTRAINT CHANGED(VetisSale.volume(Production.ComponentDetail d, StockEntry se)
     MESSAGE 'Запрещено изменять объём по записям журнала: по строке отправлен запрос в Ветис';
 
 lockedProductGestori (Production.ProductDetail d) =
-    GROUP SUM 1 IF volume(RegisterProductionOperationRequest r, d) AND ((notCompleted(r) OR succeeded(r)) OR vetDocument(r));
+    OVERRIDE (GROUP SUM 1 IF volume(RegisterProductionOperationRequest r, d) AND ((notCompleted(r) OR succeeded(r)) OR vetDocument(r))),
+        hasLegacyRequest(order(d));
 
 CONSTRAINT CHANGED(Production.quantity(Production.ProductDetail d)) AND lockedProductGestori(d)
     MESSAGE 'Запрещено изменять количество по позиции: по ней отправлен запрос в Ветис или создан производственный ВСД';

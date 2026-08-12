@@ -425,9 +425,10 @@ process (RegisterProductionOperationRequest r) + {
         LOCAL usedVolume = NUMERIC[16,5] (StockEntry);
         usedVolume(StockEntry se) <- [GROUP SUM volume(RegisterProductionOperationRequest rr, ComponentDetail d, StockEntry s) BY rr, s](r, se);
         volume(StockEntry se) <- NUMERIC[16,5](volume(se) (-) usedVolume(se)) WHERE usedVolume(se);
-//
-        APPLY;
-//        processed(r) <- TRUE;
+
+        // без флага обработки заявка остаётся «требует обработки» и обрабатывается обменом повторно
+        // (в т.ч. повторное списание остатков) — флаг обязан попасть в тот же APPLY
+        processed(r) <- TRUE;
         APPLY;
     }
 }
