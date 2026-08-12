@@ -1298,7 +1298,8 @@ dataErrors = DATA LOCAL INTEGER(INTEGER);
 objectID = DATA LOCAL NUMERIC(INTEGER);
 object = DATA LOCAL STRING(INTEGER);
 
-GROUP cursor1 : data;
+//в ответе /content/v2/cards/error/list курсор лежит в data.cursor, без EXTID группа искала бы data.cursor1
+GROUP cursor1 EXTID 'cursor' : data;
 
 GROUP brands;
 GROUP items;
@@ -1369,6 +1370,8 @@ checkErrors 'Получение ошибок' () {
 
                 message() <- messageStatusHTTP(STRING(statusHttp()));
             } CATCH {
+                //до IMPORT дело не дошло, next() остался бы с прошлой итерации и цикл крутился бы бесконечно
+                next() <- NULL;
                 logToFile('WB', messageCaughtException());
                 message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
             } FINALLY {
@@ -1377,6 +1380,7 @@ checkErrors 'Получение ошибок' () {
                 MESSAGE message() NOWAIT;
                 APPLY NESTED LOCAL;
             }
+            IF next() THEN sleep(200);
         }
     }
 }
@@ -1405,8 +1409,10 @@ postItems 'Получить список карточек товаров' () {
         LOCAL errorText = STRING ();
         LOCAL status = STRING ();
 
-        nmID(Item i) <- NULL;
-        imtID(Item i) <- NULL;
+        //nmID/imtID не сбрасываем авансом: пагинация идёт постранично с APPLY на каждой странице,
+        //и при обрыве (429 или ошибка) товары, до которых цикл не дошёл, остались бы без артикула WB.
+        //Вместо этого помечаем найденные в списке и чистим остальных после полного прохода (см. ниже)
+        LOCAL foundInList = BOOLEAN (Item);
 
         LOCAL stopOnLimit = BOOLEAN ();
 
@@ -1430,8 +1436,11 @@ postItems 'Получить список карточек товаров' () {
                 }    
                 
                 FOR INTEGER i = [GROUP MAX INTEGER i1 BY vendorCode(i1)](STRING id) AND Item item == item(id) INLINE DO {
+                    foundInList(item) <- TRUE;
                     nmID(item) <- nmID1(i);
                     imtID(item) <- imtID(i);
+                    //карточка вернулась в активном списке, значит она не в корзине (в т.ч. если её восстановили в ЛК WB)
+                    isTrash(item) <- NULL;
                     name(item) <- title(i);
                     itemSubGroup(item) <- itemSubGroup(subjectID(i));
                     length(item) <- length(i);
@@ -1518,6 +1527,17 @@ postItems 'Получить список карточек товаров' () {
                 checkErrors(); //Делаем здесь, что бы товары были созданы в БД к моменту проверки на ошибки
             }
             IF NOT stopOnLimit() THEN sleep(200);
+        }
+
+        //снимаем артикулы WB только у тех, кого WB не вернул за полный проход. При обрыве (429 или ошибка)
+        //ничего не чистим: иначе необработанные товары стали бы «новыми» и создали бы дубли при выгрузке.
+        //Карточки в корзине в /content/v2/get/cards/list не приходят, их тоже не трогаем
+        IF NOT stopOnLimit() AND NOT messageCaughtException() THEN {
+            nmID(Item i) <- NULL WHERE nmID(i) AND NOT foundInList(i) AND NOT isTrash(i);
+            imtID(Item i) <- NULL WHERE imtID(i) AND NOT foundInList(i) AND NOT isTrash(i);
+            APPLY;
+        } ELSE {
+            MESSAGE 'Загрузка списка карточек прервана, артикулы WB у необработанных товаров сохранены' NOWAIT;
         }
     }
 }
@@ -1657,7 +1677,11 @@ postTransferItemsLimit 'Лимит для переноса карточек то
 
 postTransferItems 'Перенос карточек товаров в корзину' () {
     NEWSESSION NESTED(in[Item]){
-        IF (GROUP SUM 1 IF in(Item item) AND NOT isTrash(item)) THEN {
+        IF (GROUP SUM 1 IF in(Item item) AND NOT isTrash(item) AND NOT nmID(item)) THEN
+            MESSAGE 'Пропущены товары без артикула WB: ' +
+                (GROUP CONCAT id(Item item) IF in(item) AND NOT isTrash(item) AND NOT nmID(item), ', ' ORDER item) NOWAIT;
+
+        IF (GROUP SUM 1 IF in(Item item) AND NOT isTrash(item) AND nmID(item)) THEN {
             setHttpHeadersIS();
             LOCAL message = STRING ();
             LOCAL response = FILE();
@@ -1665,7 +1689,7 @@ postTransferItems 'Перенос карточек товаров в корзи�
             LOCAL errorText = STRING ();
             LOCAL status = STRING ();
             LOCAL isTransfered = BOOLEAN (Item);
-            isTransfered(Item item) <- TRUE WHERE in(item) AND NOT isTrash(item);
+            isTransfered(Item item) <- TRUE WHERE in(item) AND NOT isTrash(item) AND nmID(item);
             
             LOCAL index = INTEGER (Item);
             index(Item i) <- PARTITION SUM 1 IF isTransfered(i) ORDER i;
@@ -1725,7 +1749,12 @@ postRecoverItemsLimit 'Лимит для восстановления карто
 
 postRecoverItems 'Восстановление карточек товаров из корзины' () {
     NEWSESSION NESTED(in[Item]){
-        IF (GROUP SUM 1 IF in(Item item) AND isTrash(item)) THEN {
+        //без nmID WB вернёт 400, поэтому такие товары пропускаем с явным сообщением
+        IF (GROUP SUM 1 IF in(Item item) AND isTrash(item) AND NOT nmID(item)) THEN
+            MESSAGE 'Пропущены товары без артикула WB: ' +
+                (GROUP CONCAT id(Item item) IF in(item) AND isTrash(item) AND NOT nmID(item), ', ' ORDER item) NOWAIT;
+
+        IF (GROUP SUM 1 IF in(Item item) AND isTrash(item) AND nmID(item)) THEN {
             setHttpHeadersIS();
             LOCAL message = STRING ();
             LOCAL response = FILE();
@@ -1733,7 +1762,7 @@ postRecoverItems 'Восстановление карточек товаров �
             LOCAL errorText = STRING ();
             LOCAL status = STRING ();
             LOCAL isRecovered = BOOLEAN (Item);
-            isRecovered(Item item) <- TRUE WHERE in(item) AND isTrash(item);
+            isRecovered(Item item) <- TRUE WHERE in(item) AND isTrash(item) AND nmID(item);
 
             LOCAL index = INTEGER (Item);
             index(Item i) <- PARTITION SUM 1 IF isRecovered(i) ORDER i;
@@ -1783,7 +1812,7 @@ postRecoverItems 'Восстановление карточек товаров �
             }
             in(Item item) <- NULL;
         } ELSE {
-            MESSAGE 'Не выбраны карточки товаров для восстановления из корзины или все выбранные товары уже не в корзине';
+            MESSAGE 'Не выбраны карточки товаров для восстановления из корзины, все выбранные товары уже не в корзине или у них не заполнен артикул WB';
         }
     }
 }
