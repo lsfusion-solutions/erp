@@ -50,10 +50,17 @@ diadocDateTime (DATETIME d) = toChar(d, 'DD.MM.YYYY"T"HH24:MI:SS') + diadocTimeZ
 
 // ------------------------- Настройки на форме «Интеграция» ------------------------- //
 
+// пользователь для фоновых заданий (планировщика): у служебной учётки планировщика
+// нет своего логина Диадока - без этой настройки фоновое получение событий
+// выполняется вхолостую (цикл не находит пользователя и не делает ни одного запроса)
+defaultUserDiadocETRN 'Пользователь Диадок для ЭПД (планировщик)' = DATA User ();
+loginDefaultUserDiadocETRN 'Пользователь Диадок для ЭПД (планировщик)' = login(defaultUserDiadocETRN()) CHARWIDTH 20;
+
+
 EXTEND FORM integrationData
     PROPERTIES() logisticsTypeNamedId, logisticsVersion,
                  orderRequestTypeNamedId, orderRequestVersion, orderRequestFunction,
-                 klMtDocflowNamedId, diadocTimeZoneOffset
+                 klMtDocflowNamedId, diadocTimeZoneOffset, loginDefaultUserDiadocETRN
 ;
 
 DESIGN integrationData {
@@ -68,6 +75,7 @@ DESIGN integrationData {
             MOVE PROPERTY(orderRequestFunction());
             MOVE PROPERTY(klMtDocflowNamedId());
             MOVE PROPERTY(diadocTimeZoneOffset());
+            MOVE PROPERTY(loginDefaultUserDiadocETRN());
         }
     }
 }
@@ -158,8 +166,7 @@ DESIGN outgoingEtrn {
 }
 
 // пользователь Диадока для авторизации (можно переопределить)
-overUserDiadocETRN = ABSTRACT User ();
-userDiadocETRN () = OVERRIDE overUserDiadocETRN(), userDiadoc(currentUser());
+userDiadocETRN () = OVERRIDE userDiadoc(currentUser()), (defaultUserDiadocETRN() IF currentUser() IS SystemUser);
 
 // ------------------------- Партнёрство с перевозчиком (контрагенты Диадока) ------------------------- //
 // Для отправки Т3 по входящей перевозке ящики грузополучателя и перевозчика должны быть
