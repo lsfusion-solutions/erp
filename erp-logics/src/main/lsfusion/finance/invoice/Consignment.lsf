@@ -118,7 +118,12 @@ GROUP invoiceConsignment 'Накладная' : base;
 GROUP sumConsignment 'Суммы' : base;
 
 contract = ABSTRACT Contract (Consignment);
-overDescription 'Описание' (Contract contract) = CONCAT '', 'Договор поставки ', description(contract);
+
+skipEmptyDescriptionContract 'Не выводить основание отпуска по договору без описания' = ABSTRACT BOOLEAN ();
+
+overDescription 'Описание' (Contract contract) = IF skipEmptyDescriptionContract()
+                                                     THEN 'Договор поставки ' + description(contract)
+                                                     ELSE CONCAT '', 'Договор поставки ', description(contract);
 
 descriptionContract = overDescription(contract(Consignment consignment));
 descriptionContractExtra = ABSTRACT STRING (Consignment);
