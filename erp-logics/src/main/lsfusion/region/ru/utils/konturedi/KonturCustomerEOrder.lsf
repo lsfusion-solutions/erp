@@ -278,6 +278,9 @@ sendPurchaseOrderKonturEDI 'Отправить заказ (Контур.EDI)' (E
             logToFile('kontur', ' SendOrder: Не все поля заполнены. ' + error());
             MESSAGE ' Заказ не выгружен: Не все поля заполнены ' + error() NOWAIT;
         }
+    } ELSE {
+        logToFile('kontur', ' SendOrder: не задан URL Контур.EDI');
+        MESSAGE 'Ошибка отправки: заказ ' + number(o) + ' НЕ отправлен. Не задан URL Контур.EDI (настройки интеграции)' NOWAIT;
     }
     APPLY NESTED LOCAL;
 }
@@ -288,6 +291,10 @@ sendPurchaseOrderKontur 'Отправить заказ (Контур.EDI)' (EOrd
             sendPurchaseOrderKonturEDI(o, u);
         }
     } ELSE {
+        IF NOT userKonturEDI(currentUser()) THEN {
+            logToFile('kontur', ' SendOrder: для пользователя ' + login(currentUser()) + ' не задан пользователь Контур.EDI');
+            MESSAGE 'Ошибка отправки: заказ ' + number(o) + ' НЕ отправлен. Для пользователя ' + name[Contact](currentUser()) + ' не задан пользователь Контур.EDI' NOWAIT;
+        }
         FOR User u == userKonturEDI(currentUser()) DO {
             sendPurchaseOrderKonturEDI(o, u);
         }
