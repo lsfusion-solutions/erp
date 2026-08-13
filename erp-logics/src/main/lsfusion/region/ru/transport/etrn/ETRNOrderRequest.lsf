@@ -172,6 +172,9 @@ providerStatus 'Статус документооборота (провайде�
 t2File 'Файл титула Т2 (XML)' = DATA FILE (OrderRequest);
 t2ImportedDateTime 'Дата/время загрузки ответа (Т2)' = DATA DATETIME (OrderRequest);
 
+hasT2File 'Есть титул Т2 XML' (OrderRequest o) = TRUE IF t2File(o);
+openT2File 'Открыть файл титула Т2' (OrderRequest o) { open(t2File(o)); } IMAGE 'open.png';
+
 // абстракции обмена (реализуются модулями провайдеров);
 // действия-обёртки с проверкой обязательных полей - ниже, после объявлений пунктов и строк
 sendOrderRequest 'Подписать и отправить заявку (Т1)' ABSTRACT CASE (OrderRequest);          // грузоотправитель
@@ -398,6 +401,7 @@ sendOrderRequestAction 'Отправить заявку (Т1)' (OrderRequest o) 
 FORM orderRequest 'Заказ-заявка'
     OBJECTS o = OrderRequest PANEL
     PROPERTIES(o) roles, nameProvider, nameExchangeStatus READONLY, providerStatus READONLY, exchangeMessage READONLY
+    PROPERTIES(o) hasT2File READONLY, openT2File SHOWIF hasT2File(o)
     PROPERTIES(o) number BACKGROUND (backgroundMandatory(o) IF NOT number(o)), date,
                   nameShipper BACKGROUND (backgroundMandatory(o) IF NOT shipper(o)),
                   nameCarrier BACKGROUND (backgroundMandatory(o) IF NOT carrier(o)),
@@ -618,6 +622,8 @@ DESIGN orderRequest {
         NEW exchangeInfo {
             horizontal = TRUE;
             MOVE PROPERTY(exchangeMessage(o));
+            MOVE PROPERTY(hasT2File(o));
+            MOVE PROPERTY(openT2File(o));
         }
     }
 }

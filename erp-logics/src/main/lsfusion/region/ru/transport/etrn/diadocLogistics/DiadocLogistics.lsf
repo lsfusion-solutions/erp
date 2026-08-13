@@ -101,6 +101,15 @@ diadocBoxId (LegalEntity l) = boxId(diadocBox(l));
 // BoxId в Signers ожидается чистым GUID с дефисами (8-4-4-4-12): убираем суффикс адреса
 // ящика и форматируем 32-символьный идентификатор
 diadocBoxIdRaw (LegalEntity l) = replace(diadocBoxId(l), '@diadoc.ru', '');
+
+// GUID из идентификатора любого ящика (для query-параметров API)
+guidBoxId (STRING b) = IF length(replace(b, '@diadoc.ru', '')) == 32
+    THEN CONCAT '-', substr(replace(b, '@diadoc.ru', ''), 1, 8), substr(replace(b, '@diadoc.ru', ''), 9, 4),
+                     substr(replace(b, '@diadoc.ru', ''), 13, 4), substr(replace(b, '@diadoc.ru', ''), 17, 4),
+                     substr(replace(b, '@diadoc.ru', ''), 21, 12)
+    ELSE replace(b, '@diadoc.ru', '');
+
+
 diadocBoxIdGuid (LegalEntity l) = IF length(diadocBoxIdRaw(l)) == 32
     THEN CONCAT '-', substr(diadocBoxIdRaw(l), 1, 8), substr(diadocBoxIdRaw(l), 9, 4),
                      substr(diadocBoxIdRaw(l), 13, 4), substr(diadocBoxIdRaw(l), 17, 4),
@@ -151,6 +160,53 @@ DESIGN outgoingEtrn {
 // пользователь Диадока для авторизации (можно переопределить)
 overUserDiadocETRN = ABSTRACT User ();
 userDiadocETRN () = OVERRIDE overUserDiadocETRN(), userDiadoc(currentUser());
+
+// ------------------------- Партнёрство с перевозчиком (контрагенты Диадока) ------------------------- //
+// Для отправки Т3 по входящей перевозке ящики грузополучателя и перевозчика должны быть
+// связаны партнёрством. Приглашение отправляется при отправке Т3 (DiadocLogisticsT3,
+// с подтверждением пользователем) методом AcquireCounteragent: при открытом ящике
+// перевозчика связь устанавливается сразу, при закрытом - после подтверждения с его
+// стороны; повторный вызов при существующих отношениях безвреден (а при InvitesMe -
+// принимает приглашение).
+
+acquireRequestedDateTime 'Приглашение в контрагенты отправлено' = DATA DATETIME (Organization);
+
+diadocAcquireOrganization 'Пригласить в контрагенты Диадока' (Organization o, STRING myBoxGuid) {
+    FOR User u == userDiadocETRN() DO {
+        getToken(u);
+        LOCAL result = FILE ();
+        EXPORT JSON FROM OrgId = STRING(orgId(o)),
+                         MessageToCounteragent = 'Приглашение для обмена электронными перевозочными документами (ЭТрН)';
+        TRY {
+            EXTERNAL HTTP POST url() + '/V3/AcquireCounteragent?myBoxId=' + myBoxGuid
+                HEADERS httpHeadersToken PARAMS exportFile() TO result;
+            acquireRequestedDateTime(o) <- currentDateTime();
+        } CATCH {
+            fileToString(result(), 'UTF-8');
+            MESSAGE 'Не удалось отправить приглашение в контрагенты Диадока: ' +
+                (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+        }
+    }
+}
+
+// статус партнёрства с ящиком контрагента (NULL - проверка не удалась)
+counteragentCurrentStatus = DATA LOCAL STRING ();
+diadocGetCounteragentStatus (STRING myBoxGuid, STRING counteragentBoxGuid) {
+    counteragentCurrentStatus() <- NULL;
+    FOR User u == userDiadocETRN() DO {
+        getToken(u);
+        LOCAL result = FILE ();
+        TRY {
+            EXTERNAL HTTP GET url() + '/V3/GetCounteragent?myBoxId=' + myBoxGuid +
+                '&counteragentBoxId=' + counteragentBoxGuid
+                HEADERS httpHeadersToken TO result;
+            IMPORT JSON FROM result() FIELDS () STRING[100] CurrentStatus DO
+                counteragentCurrentStatus() <- STRING(CurrentStatus);
+        } CATCH {
+            // сбой проверки статуса не блокирует основную операцию
+        }
+    }
+}
 
 // проверить и при необходимости догрузить реквизиты организации по API (перед отправкой титулов):
 // есть ИНН и КПП - запрос по двум параметрам; только ИНН - по одному

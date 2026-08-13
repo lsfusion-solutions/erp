@@ -11,6 +11,13 @@ NAMESPACE Diadoc;
 
 // координаты reception-документа - через receptionDoc* (для входящих перевозок своего
 // объекта Document у нас нет, идентификаторы берутся из журнала docflow-событий)
+
+// ящик перевозчика - получателя Т3: у исходящей - по карточке перевозчика из справочника
+// контрагентов, у входящей - по ИНН перевозчика из титула через справочник организаций
+// Диадока (перевозчик приглашается в контрагенты Диадока, в наш справочник не заводится)
+carrierT3Box (ETRN.ETRN e) = OVERRIDE diadocBox(ETRN.carrier(e)),
+    [GROUP LAST Box b IF organization(b) == organizationInn(ETRN.incomingCarrierInn(e)) ORDER b]();
+
 diadocSendT3 (ETRN.ETRN e) {
     IF NOT (receptionDocMessageId(e) AND receptionDocEntityId(e)) THEN {
         MESSAGE 'Нет reception-документа перевозки (Т1) в Диадоке (события не получены)';
@@ -20,14 +27,32 @@ diadocSendT3 (ETRN.ETRN e) {
         MESSAGE 'Не найден ящик Диадока грузополучателя';
         RETURN;
     }
-    IF NOT diadocBox(ETRN.carrier(e)) THEN {
-        MESSAGE 'Не найден ящик Диадока перевозчика (получатель титула Т3)';
+    IF NOT carrierT3Box(e) THEN {
+        MESSAGE 'Не найден ящик Диадока перевозчика (получатель титула Т3). Для входящей перевозки: проверьте ИНН перевозчика на документе и обновите его организацию в справочнике Диадока по ИНН';
+        RETURN;
+    }
+
+    // партнёрство ящиков с перевозчиком: без него Диадок не примет наш Т3.
+    // InvitesMe (перевозчик пригласил нас первым) - встречное приглашение подтверждает связь
+    // сразу; не контрагент - приглашение отправляется здесь же (настройка), Т3 повторяется
+    // после подтверждения перевозчиком; сбой самой проверки отправку не блокирует
+    diadocGetCounteragentStatus(guidBoxId(diadocBoxId(ETRN.consignee(e))), guidBoxId(boxId(carrierT3Box(e))));
+    IF counteragentCurrentStatus() == 'InvitesMe' THEN
+        FOR Organization o == organization(carrierT3Box(e)) DO
+            diadocAcquireOrganization(o, guidBoxId(diadocBoxId(ETRN.consignee(e))));
+    IF counteragentCurrentStatus() AND NOT (counteragentCurrentStatus() == 'IsMyCounteragent' OR counteragentCurrentStatus() == 'InvitesMe') THEN {
+        ASK 'Партнёрство с перевозчиком в Диадоке не установлено - без него Т3 не будет принят.
+Отправить перевозчику приглашение в контрагенты?' DO {
+            FOR Organization o == organization(carrierT3Box(e)) DO
+                diadocAcquireOrganization(o, guidBoxId(diadocBoxId(ETRN.consignee(e))));
+            MESSAGE 'Приглашение перевозчику отправлено. Повторите отправку Т3 после подтверждения партнёрства перевозчиком';
+        }
         RETURN;
     }
 
     FOR User u == userDiadocETRN() DO NEWSESSION {
         fromBox() <- diadocBox(ETRN.consignee(e));
-        toBox() <- diadocBox(ETRN.carrier(e));   // Т3 отправляется перевозчику (далее Т4)
+        toBox() <- carrierT3Box(e);   // Т3 отправляется перевозчику (далее Т4)
 
         getToken(u);
         EXPORT diadocT3UserData OBJECTS e = e XML;

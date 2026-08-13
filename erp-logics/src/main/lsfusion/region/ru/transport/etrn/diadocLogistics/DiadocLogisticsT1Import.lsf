@@ -65,6 +65,41 @@ diadocFindFwdT1 (ETRN.ETRN e) {
     }
 }
 
+// ------------------------- Карточка перевозчика входящей ------------------------- //
+// Перевозчик - чужая организация: карточка контрагента создаётся по официальным данным
+// справочника организаций Диадока (подтягивается по ИНН вместе с ящиками) и связывается
+// с ним; констрейнты справочника (КПП, e-mail и т.п.) не блокируют создание -
+// setNoCancelInTransaction. Приглашение в контрагенты Диадока (партнёрство ящиков
+// обязательно для Т3) отправляется в момент отправки Т3 - DiadocLogisticsT3.
+
+diadocEnsureCarrier (ETRN.IncomingETRN ie) {
+    IF ETRN.carrier(ie) THEN RETURN;
+    IF NOT ETRN.incomingCarrierInn(ie) THEN RETURN;
+
+    // организация Диадока по ИНН - при отсутствии подтягивается из API (вместе с ящиками)
+    IF NOT organizationInn(ETRN.incomingCarrierInn(ie)) THEN
+        getOrganizationsByInn(userDiadocETRN(), ETRN.incomingCarrierInn(ie));
+
+    FOR Organization o == organizationInn(ETRN.incomingCarrierInn(ie)) DO {
+        // карточка контрагента: связанная с организацией Диадока, иначе по ИНН, иначе создаётся
+        LOCAL NESTED carrierCard = LegalEntity ();
+        carrierCard() <- OVERRIDE legalEntity(o), legalEntityInn(ETRN.incomingCarrierInn(ie));
+        IF NOT carrierCard() THEN NEWSESSION NESTED (carrierCard) {
+            NEW l = LegalEntity {
+                name(l) <- ISTRING[100](OVERRIDE shortName(o), fullName(o), ETRN.incomingCarrierName(ie));
+                fullName(l) <- ISTRING[200](OVERRIDE fullName(o), shortName(o), ETRN.incomingCarrierName(ie));
+                inn(l) <- ETRN.incomingCarrierInn(ie);
+                dataKpp(l, currentDate()) <- kpp(o);   // КПП - историзируемое
+                carrierCard() <- l;
+            }
+            setNoCancelInTransaction();   // констрейнты справочника не отменяют создание
+            apply();
+        }
+        legalEntity(o) <- carrierCard() WHERE NOT legalEntity(o);
+        ETRN.carrier(ie) <- carrierCard() WHERE NOT ETRN.carrier(ie);
+    }
+}
+
 // ------------------------- Полный состав из титула Т1 ------------------------- //
 
 diadocImportFullData (ETRN.ETRN e) {
@@ -76,12 +111,17 @@ diadocImportFullData (ETRN.ETRN e) {
             diadocFindFwdT1(e);
         }
     }
+    // проблемы автозагрузки не показываются сообщениями (она выполняется фоном после каждого
+    // события, ранние попытки до появления файла Т1 - штатный переходный случай), а пишутся
+    // в «Сообщение обмена» документа; при успешной загрузке сообщение очищается
     IF NOT (receptionDocMessageId(e) AND receptionDocEntityId(e)) THEN {
-        MESSAGE 'Нет reception-документа перевозки в Диадоке (события не получены)';
+        ETRN.exchangeMessage(e) <- 'Автозагрузка: файл титула Т1 еще не получен от провайдера (загрузка повторится при следующей обработке событий)';
+        APPLY;
         RETURN;
     }
     IF NOT receptionBoxId(e) THEN {
-        MESSAGE 'Не найден ящик Диадока нашей организации-участника перевозки';
+        ETRN.exchangeMessage(e) <- 'Автозагрузка: не найден ящик Диадока нашей организации-участника перевозки';
+        APPLY;
         RETURN;
     }
 
@@ -96,7 +136,8 @@ diadocImportFullData (ETRN.ETRN e) {
                 HEADERS httpHeadersToken TO data;
         } CATCH {
             fileToString(FILE(data()), 'UTF-8');
-            MESSAGE 'Ошибка получения контента титула Т1 (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+            ETRN.exchangeMessage(e) <- STRING('Автозагрузка: ошибка получения контента титула Т1 (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException()));
+            APPLY;
             RETURN;
         }
 
@@ -105,7 +146,11 @@ diadocImportFullData (ETRN.ETRN e) {
         // полный разбор титула в поля документа (parseETRNTitleXml выполняет свой APPLY)
         ETRN.parseETRNTitleXml(e);
 
+        // карточка и партнёрство перевозчика - по ИНН из разобранного титула
+        FOR ETRN.IncomingETRN ie == e DO diadocEnsureCarrier(ie);
+
         ETRN.titleImportedDateTime(e) <- currentDateTime();
+        ETRN.exchangeMessage(e) <- NULL;
         APPLY;
     }
 }

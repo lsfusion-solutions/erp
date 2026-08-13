@@ -319,9 +319,13 @@ parseETRNTitleXml 'Импортировать титул Т1 из файла' (E
     forwarder(e) <- TRUE IF impT1GOExp() = '1';
     consignee(e) <- legalEntityInn(STRING[12](OVERRIDE impT1GPInn(), impT1GPInnIP())) WHERE legalEntityInn(STRING[12](OVERRIDE impT1GPInn(), impT1GPInnIP()));
 
-    FOR IncomingETRN ie == e DO
+    FOR IncomingETRN ie == e DO {
         incomingCarrierName(ie) <- ISTRING[150](OVERRIDE impT1PerName(),
             (CONCAT ' ', 'ИП', impT1PerLastIP(), impT1PerFirstIP(), impT1PerMiddleIP()));
+        incomingCarrierInn(ie) <- STRING[12](OVERRIDE impT1PerInn(), impT1PerInnIP());
+        // карточка перевозчика по ИНН (при отсутствии создаётся провайдерским модулем)
+        carrier(ie) <- legalEntityInn(incomingCarrierInn(ie)) WHERE legalEntityInn(incomingCarrierInn(ie)) AND NOT carrier(ie);
+    }
 
     LOCAL missingParticipants = STRING ();
     missingParticipants() <- CONCAT '; ',

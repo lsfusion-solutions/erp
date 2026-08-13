@@ -149,8 +149,15 @@ infrastructureOwnerNoInfo[ETRN](IncomingETRN e) += infrastructureOwnerNoInfo(e);
 
 // ------------------------- Перевозчик, водитель, транспорт (из титула) ------------------------- //
 
-incomingCarrierName 'Перевозчик' = DATA ISTRING[150](IncomingETRN) CHARWIDTH 15;
-incomingCarrierPhone 'Телефон перевозчика' = DATA ISTRING[100](IncomingETRN) CHARWIDTH 15;
+// перевозчик - карточка контрагента: ищется по ИНН из титула, при отсутствии создаётся
+// автоматически по данным справочника организаций Диадока (модуль DiadocLogisticsT1Import);
+// наименование и ИНН из титула сохраняются первичными полями (данные как в документе)
+carrier = DATA LegalEntity (IncomingETRN);
+carrier[ETRN](IncomingETRN e) += carrier(e);
+nameCarrierCard 'Перевозчик (карточка)' (IncomingETRN e) = name(carrier(e)) CHARWIDTH 15;
+
+incomingCarrierName 'Перевозчик (из титула)' = DATA ISTRING[150](IncomingETRN) CHARWIDTH 15;
+incomingCarrierInn 'ИНН перевозчика' = DATA STRING[12](IncomingETRN) CHARWIDTH 12;   // по нему ищутся карточка и ящик Диадока
 incomingDriverName 'Водитель' = DATA ISTRING[150](IncomingETRN) CHARWIDTH 15;
 incomingDriverPhone 'Телефон водителя' = DATA ISTRING[100](IncomingETRN) CHARWIDTH 15;
 incomingDriverLicenseSeries 'ВУ: серия' = DATA STRING[20](IncomingETRN) CHARWIDTH 8;
@@ -178,8 +185,8 @@ incomingVehicleInfo 'ТС (данные грузоотправителя)' = DAT
 
 
 // отображаемые реквизиты - реализации от первичных полей
-nameCarrier(IncomingETRN e) += incomingCarrierName(e);
-carrierPhone(IncomingETRN e) += incomingCarrierPhone(e);
+nameCarrier(IncomingETRN e) += ISTRING[150](OVERRIDE name(carrier(e)), incomingCarrierName(e));
+carrierPhone(IncomingETRN e) += ISTRING[100](phone(carrier(e))) IF e IS IncomingETRN;
 shortNameDriver(IncomingETRN e) += incomingDriverName(e);
 driverPhone(IncomingETRN e) += incomingDriverPhone(e);
 driverLicenseSeries(IncomingETRN e) += incomingDriverLicenseSeries(e);
@@ -219,7 +226,7 @@ FORM incomingEtrn 'Электронная транспортная наклад�
                            loadingAddress, deliveryDateTime, deliveryPeriod
     PROPERTIES(e) nameCustomerStock
 
-    PROPERTIES(e) incomingCarrierName, incomingCarrierPhone,
+    PROPERTIES(e) nameCarrierCard, carrierPhone READONLY, incomingCarrierName, incomingCarrierInn,
                   incomingDriverName, incomingDriverPhone,
                   incomingDriverLicenseSeries, incomingDriverLicenseNumber, incomingDriverLicenseDate, incomingDriverInn,
                   incomingTruckSid, incomingTruckType, incomingTruckModel,
@@ -292,8 +299,10 @@ DESIGN incomingEtrn {
                 NEW inCarrierBox {
                     caption = 'Перевозчик (из титула)';
                     lines = 2;
+                    MOVE PROPERTY(nameCarrierCard(e));
+                    MOVE PROPERTY(carrierPhone(e));
                     MOVE PROPERTY(incomingCarrierName(e));
-                    MOVE PROPERTY(incomingCarrierPhone(e));
+                    MOVE PROPERTY(incomingCarrierInn(e));
                     NEW inDriverBox {
                         caption = 'Водитель';
                         horizontal = TRUE;
@@ -400,8 +409,9 @@ unloadingAddress[ETRN](IncomingETRN e) += unloadingAddress(e);
 EXTEND FORM incomingEtrn
     PROPERTIES(e) nameProvider READONLY, nameExchangeStatus READONLY, providerStatus READONLY,
                   transportationId READONLY, mintransId READONLY, exchangeMessage READONLY,
-                  nextAction READONLY, titleFile READONLY, titleImportedDateTime READONLY,
+                  nextAction READONLY, hasTitleFile READONLY, titleImportedDateTime READONLY,
                   signerLastName, signerFirstName, signerMiddleName, signerPosition
+    PROPERTIES(e) openTitleFile SHOWIF hasTitleFile(e)
 ;
 
 DESIGN incomingEtrn {
@@ -430,7 +440,8 @@ DESIGN incomingEtrn {
             }
             NEW inExchangeRow3 {
                 horizontal = TRUE;
-                MOVE PROPERTY(titleFile(e));
+                MOVE PROPERTY(hasTitleFile(e));
+                MOVE PROPERTY(openTitleFile(e));
                 MOVE PROPERTY(titleImportedDateTime(e));
             }
             MOVE PROPERTY(exchangeMessage(e));
