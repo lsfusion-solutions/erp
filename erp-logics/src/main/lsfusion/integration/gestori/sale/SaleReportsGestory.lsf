@@ -976,6 +976,10 @@ sasCardSupplier = ABSTRACT LegalEntity (Sku);
 
 sasSupplier 'Поставщик' (Sku s) = OVERRIDE sasCardSupplier(s), supplierSku(s) MATERIALIZED;
 
+sasSupplierStock 'Склад поставщика' (Sku s, Stock st) = name(supplierStockLastOrderBatch(s, st));
+
+onlyExternalSuppliers 'Только внешние контрагенты' = DATA LOCAL BOOLEAN ();
+
 passesSalesAndStocksSupplierFilter (Sku s, Stock st) = NOT inSaleReportSupplier()
     OR inSupplier(sasSupplier(s)) OR inSupplier(supplierLastOrderBatch(s, st));
 
@@ -1117,6 +1121,7 @@ FORM salesAndStocksReports 'Продажи и остатки'
     PROPERTIES(s) READONLY idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4
     PROPERTIES READONLY skuSupplierCode 'Код поставщика' = id(sasSupplier(s))
     PROPERTIES READONLY skuSupplierName 'Наименование поставщика' = name(sasSupplier(s))
+    PROPERTIES (s, st) READONLY sasSupplierStock
     PROPERTIES READONLY skuCode 'Код товара' = id(s)
     PROPERTIES READONLY skuName 'Наименование товара' = name(s)
     PROPERTIES(s) READONLY shortNameUOM, idBarcode
@@ -1171,6 +1176,7 @@ FORM salesAndStocksSuppliers 'Продажи и остатки по постав
     PROPERTIES() filterFrom, filterTo
     PROPERTIES() nameSalesAndStocksMode
     PROPERTIES() datePriceSupplier
+    PROPERTIES() onlyExternalSuppliers
     PROPERTIES nameStockList() READONLY SHOWIF stockList()
     PROPERTIES inSuppliersReportStocks 'Подразделения' = inSaleReportStocks() ON CHANGE changeStocksInventory() READONLYIF stockList()
     PROPERTIES nameSkuLists() READONLY SHOWIF anySkuList()
@@ -1186,7 +1192,8 @@ FORM salesAndStocksSuppliers 'Продажи и остатки по постав
 
     ORDERS supplierStockColumn, supplierName
     FILTERS passesReportStockFilterStock(st),
-        sasSupplierFullSum(le, st)
+        sasSupplierFullSum(le, st),
+        NOT onlyExternalSuppliers() OR NOT isCompany(le)
 
     EVENTS ON INIT initSalesAndStocksReports()
 ;
@@ -1207,6 +1214,12 @@ DESIGN salesAndStocksSuppliers {
             MOVE PROPERTY(nameSalesAndStocksMode()) { valueClass = 'btn-info'; charWidth = 22; }
             MOVE PROPERTY(datePriceSupplier());
             MOVE PROPERTY(salesAndStocksSuppliers()) { valueClass = 'btn-primary'; }
+            NEW topRowRight {
+                horizontal = TRUE;
+                fill = 1;
+                childrenAlignment = END;
+                MOVE PROPERTY(onlyExternalSuppliers());
+            }
         }
         MOVE PROPERTY(nameStockList()) { alignment = STRETCH; }
         MOVE PROPERTY(inSuppliersReportStocks) { alignment = STRETCH; }
