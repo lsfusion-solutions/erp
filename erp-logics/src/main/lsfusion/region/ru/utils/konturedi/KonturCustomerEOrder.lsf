@@ -714,8 +714,11 @@ FORM recadv FORMEXTID 'eDIMessage'
     FILTERS order(i) == exportDocument(), invoiceSum(i) > 0 
 ;
 
-sendRecadvKontur 'Отправить RECADV' (EOrder o) {
-    FOR User u == userKonturEDI(currentUser()) DO NEWSESSION {
+// время успешной отправки RECADV (флаг «уведомление о получении отправлено»)
+sentRecadvKontur 'RECADV отправлен' = DATA DATETIME (EOrder);
+
+sendRecadvKontur 'Отправить RECADV' (EOrder o, User u) {
+    NEWSESSION {
         IF url() THEN {
             LOCAL error = TEXT();
             error() <- '';
@@ -734,6 +737,7 @@ sendRecadvKontur 'Отправить RECADV' (EOrder o) {
                 LOCAL result = FILE ();
                 TRY {
                     EXTERNAL HTTP POST url() + '/V1/Messages/SendMessage?boxId='+ boxId(fromBox()) +'&messageFileName=' + nameMessage() HEADERS httpHeadersTokenUser PARAMS exportFile() TO result;
+                    sentRecadvKontur(o) <- currentDateTime();
                 } CATCH {
                     fileToString(result(), 'UTF-8');
                     MESSAGE 'Ошибка отправки ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
@@ -743,8 +747,13 @@ sendRecadvKontur 'Отправить RECADV' (EOrder o) {
                 MESSAGE 'RECADV не выгружен: Не все поля заполнены ' + error() NOWAIT;
             }
         }
+        APPLY;
     }
-    APPLY;
+}
+
+sendRecadvKontur 'Отправить RECADV' (EOrder o) {
+    FOR User u == userKonturEDI(currentUser()) DO
+        sendRecadvKontur(o, u);
 }
 
 // -------------------- RETANN -------------------- //
