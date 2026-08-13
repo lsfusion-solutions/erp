@@ -277,25 +277,51 @@ processedMessage 'Ошибка обработки' = DATA STRING[1000](ETRNEvent
 // (например, ответ перевозчика Т2 по завершённой заявке - реализация у провайдера)
 onProcessedEvent ABSTRACT LIST (ETRNEvent);
 
+// защита от параллельного запуска (кнопка поверх планировщика и двойные клики):
+// блокировка захватывается атомарно (APPLY SERIALIZABLE), сбрасывается в FINALLY
+// и при старте сервера (onStarted - внутри метакода)
+@lockedObjects(processEventsETRN, STRING);
+
 processETRNEvents 'Обработать события ЭПД' () {
-    LOCAL NESTED applyError = STRING[1000] ();
-    FOR ETRNEvent ev IS ETRNEvent AND NOT processedDateTime(ev) ORDER dateTime(ev), ev DO {
-        NEWSESSION {
-            // документ мог появиться (импорт входящей перевозки) уже после приёма события
-            etrn(ev) <- etrn(transportationId(ev)) WHERE NOT etrn(ev);
-            processEvent(ev);
-            processedDateTime(ev) <- currentDateTime();
-            processedMessage(ev) <- NULL;
-            APPLY;
-            applyError() <- STRING[1000](applyMessage()) IF canceled();
+    lockProcessEventsETRN('Обработка событий ЭПД');
+    IF lockResultProcessEventsETRN() THEN {
+        TRY {
+            LOCAL NESTED applyError = STRING[1000] ();
+            FOR ETRNEvent ev IS ETRNEvent AND NOT processedDateTime(ev) ORDER dateTime(ev), ev DO {
+                NEWSESSION {
+                    // документ мог появиться (импорт входящей перевозки) уже после приёма события
+                    etrn(ev) <- etrn(transportationId(ev)) WHERE NOT etrn(ev);
+                    processEvent(ev);
+                    processedDateTime(ev) <- currentDateTime();
+                    processedMessage(ev) <- NULL;
+                    APPLY;
+                    applyError() <- STRING[1000](applyMessage()) IF canceled();
+                }
+                IF applyError() THEN NEWSESSION {
+                    processedMessage(ev) <- applyError();
+                    APPLY;
+                }
+                ELSE
+                    onProcessedEvent(ev);
+            }
+        } FINALLY {
+            unlockProcessEventsETRN('Обработка событий ЭПД');
         }
-        IF applyError() THEN NEWSESSION {
-            processedMessage(ev) <- applyError();
-            APPLY;
-        }
-        ELSE
-            onProcessedEvent(ev);
-    }
+    } ELSE
+        MESSAGE 'Обработка событий ЭПД уже выполняется. Дождитесь её завершения';
+}
+
+// обёртка для ручного запуска с кнопок: показывает итог (сколько обработано, сколько осталось),
+// чтобы холостой проход был виден сразу; планировщик вызывает processETRNEvents напрямую (без сообщений)
+countUnprocessedETRNEvents () = GROUP SUM 1 IF ETRNEvent ev IS ETRNEvent AND NOT processedDateTime(ev);
+
+processETRNEventsInteractive 'Обработать события ЭПД' () {
+    LOCAL before = INTEGER ();
+    before() <- OVERRIDE countUnprocessedETRNEvents(), 0;
+    processETRNEvents();
+    MESSAGE CONCAT '', 'Обработано событий: ' + (before() (-) (OVERRIDE countUnprocessedETRNEvents(), 0)),
+        ' из ' + before(),
+        (', осталось необработанных: ' + countUnprocessedETRNEvents()) IF countUnprocessedETRNEvents();
 }
 
 // 1. приём входящих перевозок: создание документов с базовыми данными - для планировщика
@@ -328,7 +354,7 @@ EXTEND FORM etrns
     PROPERTIES(e) showPrintForm
                   //, showQR, sendQRToDriver SHOWIF driver(e) - QR не запрашиваем: водитель получает его в своём приложении
     PROPERTIES importIncomingETRN() DRAW e, processIncomingETRN() DRAW e,
-               importETRNEvents() DRAW e, processETRNEvents() DRAW e
+               importETRNEvents() DRAW e, processETRNEventsInteractive() DRAW e
 ;
 
 DESIGN etrns {
@@ -347,7 +373,7 @@ DESIGN etrns {
                 MOVE PROPERTY(importIncomingETRN());
                 MOVE PROPERTY(processIncomingETRN());
                 MOVE PROPERTY(importETRNEvents());
-                MOVE PROPERTY(processETRNEvents());
+                MOVE PROPERTY(processETRNEventsInteractive());
             }
         }
     }
@@ -395,7 +421,7 @@ FORM etrnEvents 'События ЭПД'
     PROPERTIES(ev) READONLY dateTime, nameProvider, type, status, mintransId, transportationId, seriesNumberETRN,
                             processedDateTime, processedMessage
     PROPERTIES(ev) NEWSESSION EDIT
-    PROPERTIES TOOLBAR DRAW ev importETRNEvents(), processETRNEvents()
+    PROPERTIES TOOLBAR DRAW ev importETRNEvents(), processETRNEventsInteractive()
     ORDERS dateTime(ev) DESC
     FILTERGROUP processedFilter FILTER 'Необработанные' NOT processedDateTime(ev) 'F6'
 ;
