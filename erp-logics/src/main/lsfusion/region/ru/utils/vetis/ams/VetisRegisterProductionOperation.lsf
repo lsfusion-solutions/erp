@@ -417,10 +417,10 @@ process (RegisterProductionOperationRequest r) + {
 //            dateOfProductionHour(d) <- hourR(i);
             expiryDate(d) <- toDateFormat(year1R(i) + '-' + month1R(i)+ '-' + day1R(i), 'YYYY-MM-DD');
 //            expiryDateHour(d) <- hour1R(i);
-//
-            in(d, VetDocument vd) <- TRUE IF GROUP SUM 1 IF uuid(vd) = uuidR(i);
-//
-            in(d, ProductItem pi) <- TRUE IF pi = productItem(guid3R(i));
+            // связи только добавляются: запись без WHERE затирала бы существующие связи записи
+            // (в т.ч. с родительским ВСД у сырьевых записей, попавших в ответ)
+            in(d, VetDocument vd) <- TRUE WHERE uuid(vd) = uuidR(i);
+            in(d, ProductItem pi) <- TRUE WHERE pi = productItem(guid3R(i));
         }
 
         // ВСД на исходящих производственных партиях (движение по сырьевым записям журнала)
