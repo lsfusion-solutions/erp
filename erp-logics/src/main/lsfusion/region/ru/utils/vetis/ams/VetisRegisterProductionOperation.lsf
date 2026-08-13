@@ -137,8 +137,9 @@ registerProductionOperationRequest 'Заказ производство' (Order 
 }
 
 showIfVetisOverride = ABSTRACT BOOLEAN (Order);
+// заявка без ответа (статус ещё пуст) тоже скрывает кнопку — иначе запрос можно отправить повторно
 showIfVetis (Order p) = OVERRIDE showIfVetisOverride(p), (NOT GROUP SUM 1 IF productionOrder(RegisterProductionOperationRequest r) = p AND
-    status(r) != ApplicationRequestStatus.REJECTED);
+    NOT status(r) == ApplicationRequestStatus.REJECTED);
 
 EXTEND FORM orders
     PROPERTIES(o) TOOLBAR SHOWIF showIfVetis(o) registerProductionOperationRequest 

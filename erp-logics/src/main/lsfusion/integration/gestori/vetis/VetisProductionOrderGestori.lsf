@@ -115,9 +115,11 @@ numberSEProductionGestori 'Номер записи журнала' (StockEntry s
 volumeSEProductionGestori 'Объем продукции' (StockEntry se) = volume(se);
 nameProductItemSEProductionGestori 'Номенклатура' (StockEntry se) = nameProductItem(se);
 
-CONSTRAINT totalVolumeNoVSDSEGestori(StockEntry se) > volume(se)
+// проверка только при изменении подбора (объёма пары строка × запись): списание остатка записи
+// при обработке ответа Ветис не должно блокироваться превышениями по строкам других документов
+CONSTRAINT CHANGED(VetisSale.volume(Production.ComponentDetail d, StockEntry se)) AND totalVolumeNoVSDSEGestori(se) > volume(se)
     MESSAGE 'Суммарный объём по строкам, связанным с записью журнала, превышает текущий остаток записи журнала'
-    PROPERTIES se, guidSEProductionGestori(se), numberSEProductionGestori(se), volumeSEProductionGestori(se), nameProductItemSEProductionGestori(se);
+    PROPERTIES guidSEProductionGestori(se), numberSEProductionGestori(se), volumeSEProductionGestori(se), nameProductItemSEProductionGestori(se);
 
 CONSTRAINT VetisSale.volumeStockEntry(Production.ComponentDetail d) > volumeShippedProductionGestori(d)
     MESSAGE 'Суммарный объём по связанным со строкой записям журнала превышает объём по строке';

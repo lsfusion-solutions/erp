@@ -1442,10 +1442,11 @@ numberSEGestori 'Номер записи журнала' (StockEntry se) = numbe
 volumeSEGestori 'Объем продукции' (StockEntry se) = volume(se);
 nameProductItemSEGestori 'Номенклатура' (StockEntry se) = nameProductItem(se);
 
-// суммарный объём нераспределённых в ВСД строк не должен превышать текущий остаток записи журнала
-CONSTRAINT totalVolumeSEGestori(StockEntry se) > volume(se)
+// суммарный объём нераспределённых в ВСД строк не должен превышать текущий остаток записи журнала;
+// проверка только при изменении подбора — списание остатка при обработке ответов Ветис не блокируется
+CONSTRAINT CHANGED(VetisSale.volume(Sale.UserInvoiceDetail d, StockEntry se)) AND totalVolumeSEGestori(se) > volume(se)
     MESSAGE 'Суммарный объём по строкам, связанным с записью журнала, превышает текущий остаток записи журнала'
-    PROPERTIES se, guidSEGestori(se), numberSEGestori(se), volumeSEGestori(se), nameProductItemSEGestori(se);
+    PROPERTIES guidSEGestori(se), numberSEGestori(se), volumeSEGestori(se), nameProductItemSEGestori(se);
 
 // «Объем продукции» с подсветкой расхождения — базовая колонка скрывается
 EXTEND FORM Sale.userInvoice
@@ -1554,10 +1555,11 @@ DESIGN PurchaseReturn.invoices {
     PROPERTY(volume(vd, se)) { caption = 'Объем по строке'; }
 }
 
-// суммарный объём нераспределённых в ВСД строк не должен превышать текущий остаток записи журнала
-CONSTRAINT totalVolumeSEReturnGestori(StockEntry se) > volume(se)
+// суммарный объём нераспределённых в ВСД строк не должен превышать текущий остаток записи журнала;
+// проверка только при изменении подбора — списание остатка при обработке ответов Ветис не блокируется
+CONSTRAINT CHANGED(VetisPurchaseReturn.volume(PurchaseReturn.UserInvoiceDetail d, StockEntry se)) AND totalVolumeSEReturnGestori(se) > volume(se)
     MESSAGE 'Суммарный объём по строкам, связанным с записью журнала, превышает текущий остаток записи журнала'
-    PROPERTIES se, guidSEGestori(se), numberSEGestori(se), volumeSEGestori(se), nameProductItemSEGestori(se);
+    PROPERTIES guidSEGestori(se), numberSEGestori(se), volumeSEGestori(se), nameProductItemSEGestori(se);
 
 // «Объем продукции» с подсветкой расхождения — базовая колонка скрывается
 EXTEND FORM PurchaseReturn.userInvoice
