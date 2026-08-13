@@ -93,6 +93,10 @@ CONSTRAINT CHANGED(Production.quantity(Production.ComponentDetail d)) AND locked
 CONSTRAINT CHANGED(VetisSale.volume(Production.ComponentDetail d, StockEntry se)) AND lockedComponentGestori(d)
     MESSAGE 'Запрещено изменять объём по записям журнала: по строке отправлен запрос в Ветис';
 
+// строку нельзя удалить (в т.ч. удалением заказа), пока по ней есть незавершённые или успешные запросы
+CONSTRAINT DROPPED(d IS Production.ComponentDetail) AND PREV(lockedComponentGestori(d))
+    MESSAGE 'Запрещено удалять строку производственного заказа: по строке отправлен запрос в Ветис или создан производственный ВСД';
+
 lockedProductGestori (Production.ProductDetail d) =
     OVERRIDE (GROUP SUM 1 IF volume(RegisterProductionOperationRequest r, d) AND ((notCompleted(r) OR succeeded(r)) OR vetDocument(r))),
         hasLegacyRequest(order(d));

@@ -15,21 +15,29 @@ bruttoQuantity (ComponentDetail vd, StockEntry s) = volume(s) / OVERRIDE factor(
 
 matches (ComponentDetail vd, StockEntry s) = in(componentsStock(vd), enterprise(s)) AND in(s, GROUP MIN ProductItem pi IF in(sku(vd), pi)) AND active(s);
 
-// подбор с учётом свободного остатка записи журнала: объём продукции минус распределённое строками других документов
+// подбор с учётом свободного остатка записи журнала: объём продукции минус уже распределённое строками документов
 usedVolumeOtherLocal = DATA LOCAL NUMERIC[16,5] (StockEntry);
 remainderVolumeLocal = DATA LOCAL NUMERIC[16,5] (StockEntry);
 assignedVolumeLocal = DATA LOCAL NUMERIC[16,5] (ComponentDetail, StockEntry);
+calcVolumeLocal = DATA LOCAL NUMERIC[16,5] (ComponentDetail, StockEntry);
 
 freeQuantity (ComponentDetail vd, StockEntry s) = (volume(s) (-) usedVolumeOtherLocal(s)) / (OVERRIDE factor(sku(vd), unit(s)), 1.0);
 
+// распределяется только непокрытый остаток по строке: количество минус уже связанное с записями журнала;
+// существующие связи (в т.ч. по строкам с отправленными заявками) не перезаписываются
+assignedQuantity (ComponentDetail vd) = GROUP SUM volume(vd, StockEntry s) / (OVERRIDE factor(sku(vd), unit(s)), 1.0);
+restQuantity (ComponentDetail vd) = NUMERIC[16,5](bruttoQuantity(vd) (-) assignedQuantity(vd));
+
 calcQuantity(ComponentDetail vd, StockEntry s) =
-    PARTITION UNGROUP bruttoQuantity LIMIT freeQuantity(vd, s) IF matches(vd, s) ORDER expiryDate(s), s BY vd;
+    PARTITION UNGROUP restQuantity LIMIT freeQuantity(vd, s) IF matches(vd, s) AND NOT volume(vd, s) AND restQuantity(vd) > 0 ORDER expiryDate(s), s BY vd;
 
 fillVolume 'Заполнить' (Order d) {
-    usedVolumeOtherLocal(StockEntry s) <- GROUP SUM volume(ComponentDetail vd, s) IF NOT order(vd) == d;
-    volume(ComponentDetail vd, StockEntry s) <- NUMERIC[16,5](calcQuantity(vd, s) * (OVERRIDE factor(sku(vd), unit(s)), 1.0)) WHERE order(vd) = d;
-    // суммарно по записи журнала не больше свободного остатка: излишек снимается с последних строк
-    assignedVolumeLocal(ComponentDetail vd, StockEntry s) <- volume(vd, s) WHERE order(vd) == d AND volume(vd, s) > 0;
+    usedVolumeOtherLocal(StockEntry s) <- GROUP SUM volume(ComponentDetail vd, s);
+    // расчёт фиксируется до записи: calcQuantity зависит от текущих volume
+    calcVolumeLocal(ComponentDetail vd, StockEntry s) <- NUMERIC[16,5](calcQuantity(vd, s) * (OVERRIDE factor(sku(vd), unit(s)), 1.0)) WHERE order(vd) = d;
+    volume(ComponentDetail vd, StockEntry s) <- calcVolumeLocal(vd, s) WHERE order(vd) = d AND calcVolumeLocal(vd, s);
+    // суммарно по записи журнала не больше свободного остатка: излишек снимается с последних подобранных строк
+    assignedVolumeLocal(ComponentDetail vd, StockEntry s) <- calcVolumeLocal(vd, s) WHERE calcVolumeLocal(vd, s) > 0;
     remainderVolumeLocal(StockEntry s) <- NUMERIC[16,5](volume(s) (-) usedVolumeOtherLocal(s));
     volume(ComponentDetail vd, StockEntry s) <-
         PARTITION UNGROUP remainderVolumeLocal LIMIT STRICT (assignedVolumeLocal(vd, s)) ORDER index(vd), vd BY s
