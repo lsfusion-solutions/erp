@@ -125,14 +125,18 @@ registerProductionOperationRequest 'Заказ производство' (Order 
             cargoExpertized(r) <- 'VSEFULL';
             businessEntity(r) <- businessEntity(legalEntity(productsStock(o)));
 
-            // фиксируем состав заявки: сырьё — только пары, не включённые в незавершённые/успешные заявки
-            volume(r, ComponentDetail d, StockEntry se) <- volume(d, se) WHERE order(d) == o AND volume(d, se) AND NOT requested(d, se);
+            // фиксируем состав заявки: сырьё — только пары, не включённые в незавершённые/успешные заявки с составом
+            volume(r, ComponentDetail d, StockEntry se) <- volume(d, se) WHERE order(d) == o AND volume(d, se) AND NOT requestedData(d, se);
             volume(r, ProductDetail pd) <- NUMERIC[16,5](quantity(pd) * netWeight(sku(pd))) WHERE order(pd) == o AND (GROUP SUM 1 IF in(sku(pd), ProductItem pi));
 
-            EXPORT registerProductionOperationRequest OBJECTS r=r XML;
-            submit(r, exportFile());
+            IF (GROUP SUM volume(ComponentDetail d, StockEntry se) IF order(d) == o) AND NOT (GROUP SUM volume(r, ComponentDetail d2, StockEntry se2)) THEN {
+                MESSAGE 'Заявка не отправлена: все связи строк с записями журнала уже включены в другие заявки' NOWAIT;
+            } ELSE {
+                EXPORT registerProductionOperationRequest OBJECTS r=r XML;
+                submit(r, exportFile());
+                APPLY;
+            }
         }
-        APPLY;
     }
 }
 

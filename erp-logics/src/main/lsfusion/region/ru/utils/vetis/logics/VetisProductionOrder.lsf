@@ -29,7 +29,8 @@ assignedQuantity (ComponentDetail vd) = GROUP SUM volume(vd, StockEntry s) / (OV
 restQuantity (ComponentDetail vd) = NUMERIC[16,5](bruttoQuantity(vd) (-) assignedQuantity(vd));
 
 calcQuantity(ComponentDetail vd, StockEntry s) =
-    PARTITION UNGROUP restQuantity LIMIT freeQuantity(vd, s) IF matches(vd, s) AND NOT volume(vd, s) AND restQuantity(vd) > 0 ORDER expiryDate(s), s BY vd;
+    PARTITION UNGROUP restQuantity LIMIT freeQuantity(vd, s) IF matches(vd, s) AND NOT volume(vd, s) AND restQuantity(vd) > 0
+        AND NOT expiryDate(s) < currentDate() ORDER expiryDate(s), s BY vd;
 
 fillVolume 'Заполнить' (Order d) {
     usedVolumeOtherLocal(StockEntry s) <- GROUP SUM volume(ComponentDetail vd, s);
@@ -48,6 +49,14 @@ numberStockEntry 'Номер складского журнала' (ComponentDeta
     GROUP CONCAT number(StockEntry s) IF volume(d, s), ',' ORDER s;
 
 volumeStockEntry 'Объем в документе' (ComponentDetail d) = GROUP SUM volume(d, StockEntry s) MATERIALIZED;
+
+// связывать строки с записями журнала с истёкшим сроком годности запрещено (существующие связи не трогаются)
+CONSTRAINT CHANGED(volume(ComponentDetail d, StockEntry s)) AND volume(d, s) AND expiryDate(s) < currentDate()
+    MESSAGE 'Запрещено связывать строку производственного заказа с записью журнала с истёкшим сроком годности';
+
+// изменять количество по строке можно только после удаления связи с записями складского журнала
+CONSTRAINT CHANGED(Production.quantity(ComponentDetail d)) AND (GROUP SUM 1 IF volume(d, StockEntry s))
+    MESSAGE 'Запрещено изменять количество по строке производственного заказа: строка связана с записями складского журнала, сначала удалите связь';
 
 EXTEND FORM order
     OBJECTS vd = ComponentDetail
