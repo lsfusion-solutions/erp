@@ -14,10 +14,54 @@ CLASS OrderRequest 'Заказ-заявка';
 TABLE orderRequest(OrderRequest);
 
 number 'Номер' = DATA STRING[48] (OrderRequest) IN id CHARWIDTH 10;
+series 'Серия' = DATA BPSTRING[2] (OrderRequest) CHARWIDTH 3 NOFLEX;
 date 'Дата' = DATA DATE (OrderRequest) INDEXED;
 is (OrderRequest o) = o IS OrderRequest;
 
 WHEN LOCAL SET(OrderRequest o IS OrderRequest) AND NOT CHANGED(date(o)) DO date(o) <- currentDate();
+
+// ------------------------- Нумерация (по аналогии с ЭТрН) ------------------------- //
+// Номер присваивается нумератором при создании заявки; при отправке - подстраховка
+// (номер обязателен в титуле), дефолтный нумератор при отсутствии создаётся автоматически
+
+numerator '{numerator.id.numerator}' = DATA Numerator (OrderRequest);
+nameNumerator '{numerator.numerator}' (OrderRequest o) = name(numerator(o)) CHARWIDTH 7;
+
+generateSeriesNumber '{numerator.generate.number}' (OrderRequest o) {
+    number(o) <- STRING[48](curStringValue(numerator(o)));
+    series(o) <- series(numerator(o));
+    incrementValueSession(numerator(o));
+}
+
+WHEN SETCHANGED(numerator(OrderRequest o)) AND
+     NOT CHANGED(number(o)) AND
+     NOT CHANGED(series(o))
+     DO generateSeriesNumber(o);
+
+defaultNumeratorOrderRequest = DATA Numerator ();
+nameDefaultNumeratorOrderRequest 'Заказы-заявки на перевозку' = name(defaultNumeratorOrderRequest()) IN defaultNumerator;
+
+numerator(OrderRequest o) <- defaultNumeratorOrderRequest() WHEN SET(o IS OrderRequest);
+
+EXTEND FORM defaultNumerators
+    PROPERTIES() nameDefaultNumeratorOrderRequest = nameDefaultNumeratorOrderRequest
+;
+
+createDefaultNumeratorOrderRequest ()  {
+    NEW n = Numerator {
+        name(n) <- 'Заказы-заявки на перевозку';
+        series(n) <- 'ЗП';
+        minValue(n) <- 1L;
+        maxValue(n) <- 99999L;
+        stringLength(n) <- 5;
+
+        defaultNumeratorOrderRequest() <- n;
+    }
+}
+
+loadDefaultNumerators() + {
+    createDefaultNumeratorOrderRequest();
+}
 
 isClosed 'Закрыт' = DATA BOOLEAN (OrderRequest);
 isOpened 'Открыт' (OrderRequest o) = o IS OrderRequest AND NOT isClosed(o);
@@ -389,6 +433,15 @@ checkOrderRequestT1 (OrderRequest o) {
 
 sendOrderRequestAction 'Отправить заявку (Т1)' (OrderRequest o) {
     IF NOT provider(o) THEN { MESSAGE 'Для заказа-заявки не задан провайдер ЭПД'; RETURN; }
+    // номер обязателен в титуле: присваивается нумератором, дефолтный нумератор
+    // при отсутствии создаётся; сохраняем сразу - реализация провайдера работает
+    // в своей сессии и несохранённый номер не увидит
+    IF NOT number(o) THEN NEWSESSION {
+        IF NOT defaultNumeratorOrderRequest() THEN createDefaultNumeratorOrderRequest();
+        numerator(o) <- defaultNumeratorOrderRequest() WHERE NOT numerator(o);
+        generateSeriesNumber(o);
+        APPLY;
+    }
     IF NOT skipFieldCheckETRN() THEN {
         checkOrderRequestT1(o);
         IF NOT filledOrderRequestT1(o) THEN RETURN;
@@ -402,7 +455,7 @@ FORM orderRequest 'Заказ-заявка'
     OBJECTS o = OrderRequest PANEL
     PROPERTIES(o) roles, nameProvider, nameExchangeStatus READONLY, providerStatus READONLY, exchangeMessage READONLY
     PROPERTIES(o) hasT2File READONLY, openT2File SHOWIF hasT2File(o)
-    PROPERTIES(o) number BACKGROUND (backgroundMandatory(o) IF NOT number(o)), date,
+    PROPERTIES(o) series, number BACKGROUND (backgroundMandatory(o) IF NOT number(o)), date,
                   nameShipper BACKGROUND (backgroundMandatory(o) IF NOT shipper(o)),
                   nameCarrier BACKGROUND (backgroundMandatory(o) IF NOT carrier(o)),
                   carrierOrgPhone BACKGROUND (backgroundMandatory(o) IF carrier(o) AND NOT (carrierOrgPhone(o) OR carrierPhone(o))),
@@ -632,7 +685,7 @@ DESIGN orderRequest {
 
 FORM orderRequests 'Заказы-заявки'
     OBJECTS o = OrderRequest LAST 
-    PROPERTIES(o) READONLY isClosed, number, date, roles, nameShipper, nameCarrier,
+    PROPERTIES(o) READONLY isClosed, series, number, date, roles, nameShipper, nameCarrier,
                            accepted, feeTotal, nameProvider, nameExchangeStatus, providerStatus
     PROPERTIES(o) sendOrderRequestAction SHOWIF roleShipper(o),
                   importOrderRequestT2Data SHOWIF roleShipper(o),
