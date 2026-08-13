@@ -1,6 +1,7 @@
 MODULE NumeratorGestori;
 
-REQUIRE Numerator, Item, LegalEntity, Warehouse, Bank, StockContract;
+REQUIRE Numerator, Item, LegalEntity, Warehouse, Bank, StockContract,
+        PurchaseInvoice, SaleInvoice, PurchaseReturnInvoice, SaleReturnInvoice, PurchaseOrder, SaleOrder;
 
 NAMESPACE Numerator;
 
@@ -46,3 +47,32 @@ END
 @defineFreeNumeratorId(WarehouseGroup);
 @defineFreeNumeratorId(Bank);
 @defineFreeNumeratorId(UserContractSku, Id);
+
+// свободный номер документа: если сгенерированный нумератором номер (серия + номер) уже занят,
+// ищем первый свободный от текущего значения; срабатывает только на номера с «отпечатком» генерации
+// (номер равен предыдущему значению своего нумератора и серия совпадает) — введённые вручную
+// номера, в т.ч. совпадающие с существующими, не переписываются
+META defineFreeNumeratorNumber(class, sid)
+    countNumberFree##sid = GROUP SUM 1 IF class o IS class BY seriesNumber(o);
+
+    findFreeNumber##sid (Numerator n) {
+        WHILE countNumberFree##sid(CONCAT '', series(n), curStringValue(n)) AND curValue(n) < maxValue(n) DO
+            incrementValueSession(n);
+    }
+
+    WHEN useFreeNumeratorValue() AND SET(class o IS class) AND CHANGED(number(o)) AND numerator(o)
+         AND LONG(number(o)) == curValue(numerator(o)) - 1 AND NOT series(o) != series(numerator(o))
+         AND countNumberFree##sid(seriesNumber(o)) > 1 DO {
+        findFreeNumber##sid(numerator(o));
+        number(o) <- curStringValue(numerator(o));
+        series(o) <- series(numerator(o));
+        incrementValueSession(numerator(o));
+    }
+END
+
+@defineFreeNumeratorNumber(Purchase.UserInvoice, PurchaseInvoice);
+@defineFreeNumeratorNumber(Sale.UserInvoice, SaleInvoice);
+@defineFreeNumeratorNumber(PurchaseReturn.UserInvoice, PurchaseReturnInvoice);
+@defineFreeNumeratorNumber(SaleReturn.UserInvoice, SaleReturnInvoice);
+@defineFreeNumeratorNumber(Purchase.UserOrder, PurchaseOrder);
+@defineFreeNumeratorNumber(Sale.UserOrder, SaleOrder);
