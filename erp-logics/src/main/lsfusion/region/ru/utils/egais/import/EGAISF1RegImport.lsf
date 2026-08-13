@@ -55,6 +55,8 @@ bottlingDate 'Дата розлива' = DATA DATE (F1Reg);
 quantityBatch 'Количество (общий объем)' = DATA NUMERIC[16,5] (F1Reg);
 egaisFixNumber 'Номер фиксации ЕГАИС' = DATA STRING (F1Reg);
 egaisFixDate 'Дата фиксации ЕГАИС' = DATA DATE (F1Reg);
+gtdNumber 'Номер ГТД' = DATA STRING[50] (F1Reg);
+gtdDate 'Дата ГТД' = DATA DATE (F1Reg);
 replyProduct 'Продукция' = DATA Product(F1Reg);
 fullNameReplyProduct 'Продукция' (F1Reg r) = fullName(replyProduct(r));
 
@@ -62,7 +64,7 @@ EXTEND FORM f1Regs
     PROPERTIES(r) queryForm1 DRAW r TOOLBAR
 
     PROPERTIES(r) READONLY PANEL shortNameOriginalClient, originalDocNumber, originalDocDate, bottlingDate,
-        fullNameReplyProduct, quantityBatch, egaisFixNumber, egaisFixDate
+        fullNameReplyProduct, quantityBatch, egaisFixNumber, egaisFixDate, gtdNumber, gtdDate
 ;
 
 DESIGN f1Regs {
@@ -80,6 +82,8 @@ DESIGN f1Regs {
                 MOVE PROPERTY(quantityBatch(r));
                 MOVE PROPERTY(egaisFixNumber(r));
                 MOVE PROPERTY(egaisFixDate(r));
+                MOVE PROPERTY(gtdNumber(r));
+                MOVE PROPERTY(gtdDate(r));
             }
             NEW responseActions {
                 MOVE PROPERTY(queryForm1(r));
@@ -104,6 +108,8 @@ bottlingDate = DATA LOCAL DATE();
 quantityBatch = DATA LOCAL NUMERIC[16,5]();
 EGAISNumber = DATA LOCAL STRING();
 EGAISDate = DATA LOCAL DATE();
+gtdNumber = DATA LOCAL STRING();
+gtdDate = DATA LOCAL DATE();
 
 FORM replyForm1 FORMEXTID '=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:Documents'
     PROPERTIES() IN replyForm1 
@@ -112,9 +118,11 @@ FORM replyForm1 FORMEXTID '=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:Documents'
         originalDocDate EXTID 'rfa=http://fsrar.ru/WEGAIS/ReplyForm1:OriginalDocDate', 
         bottlingDate EXTID 'rfa=http://fsrar.ru/WEGAIS/ReplyForm1:BottlingDate',
         quantityBatch EXTID 'rfa=http://fsrar.ru/WEGAIS/ReplyForm1:Quantity', 
-        EGAISNumber EXTID 'rfa=http://fsrar.ru/WEGAIS/ReplyForm1:EGAISNumber', 
+        EGAISNumber EXTID 'rfa=http://fsrar.ru/WEGAIS/ReplyForm1:EGAISNumber',
         EGAISDate EXTID 'rfa=http://fsrar.ru/WEGAIS/ReplyForm1:EGAISDate',
-            
+        gtdNumber EXTID 'rfa=http://fsrar.ru/WEGAIS/ReplyForm1:GTDNUMBER',
+        gtdDate EXTID 'rfa=http://fsrar.ru/WEGAIS/ReplyForm1:GTDDate',
+
         replyForm1OriginalClient EXTID 'rfa=http://fsrar.ru/WEGAIS/ReplyForm1:OriginalClient',
         replyForm1Product EXTID 'rfa=http://fsrar.ru/WEGAIS/ReplyForm1:Product'
 ;
@@ -139,7 +147,9 @@ process (InDoc d) + {
                 bottlingDate(f1Reg()) <- bottlingDate();
                 quantityBatch(f1Reg()) <- quantityBatch();
                 egaisFixNumber(f1Reg()) <- EGAISNumber();
-                egaisFixDate(f1Reg()) <- EGAISDate();                
+                egaisFixDate(f1Reg()) <- EGAISDate();
+                gtdNumber(f1Reg()) <- gtdNumber();
+                gtdDate(f1Reg()) <- gtdDate();
             }
 
             processed(d) <- TRUE;

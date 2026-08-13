@@ -1,23 +1,12 @@
 MODULE EGAISNotLinkedProductGestori;
 
 REQUIRE EGAISItemGestori, EGAISWayBillGestory, EGAISF1RegImport, EGAISStockGestori,
-        LegalEntityRu, StockList, Scheduler, Email;
+        EGAISStockReportGestori, LegalEntityRu, Scheduler, Email;
 
 NAMESPACE EGAIS;
 
 legalEntity 'Организация системы' (Client c) = legalEntityInn(INN(c));
 idLegalEntity 'Код организации системы' (Client c) = id(legalEntity(c));
-
-inReport 'Вкл.' = DATA LOCAL NESTED BOOLEAN (Stock);
-inReportDialog 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
-
-countInReport() = GROUP SUM 1 IF inReport(Stock s);
-
-stockListReport = DATA LOCAL NESTED StockList ();
-nameStockListReport 'Список подразделений' () = name(stockListReport());
-
-nameStocksReport 'Подразделения' () =
-    GROUP CONCAT (CONCAT ' ', id(Stock s), name(s)) IF inReport(s), ', ' ORDER s CHARWIDTH 30;
 
 dateFromReport 'Дата с' = DATA LOCAL NESTED DATE ();
 dateToReport 'Дата по' = DATA LOCAL NESTED DATE ();
@@ -63,46 +52,6 @@ FORM printNotLinkedProducts 'Номенклатура ЕГАИС без связ
     FILTERS inReport(pr)
     ORDERS fullName(pr)
 ;
-
-changeStockListReport 'Список подразделений' () {
-    DIALOG stockLists OBJECTS o INPUT NULL DO {
-        stockListReport() <- o;                
-        inReportDialog(Stock s) <- in(o, s);
-    }
-}
-
-deleteStockListReport 'Сбросить список' () {
-    stockListReport() <- NULL;
-    inReportDialog(Stock s) <- NULL;
-} ASON CONTEXTMENU nameStockListReport;
-
-FORM dialogStocksNotLinkedProduct 'Выбор подразделений'
-    PROPERTIES() nameStockListReport ON CHANGE changeStockListReport() TOOLBAR
-    
-    OBJECTS s = Stock
-    PROPERTIES(s) READONLY id, name
-    PROPERTIES(s) inReportDialog READONLYIF stockListReport()
-    FILTERS isCompany(s)
-    ORDERS name(s)
-;
-
-DESIGN dialogStocksNotLinkedProduct {
-    OBJECTS {
-        NEW stockList {            
-            alignment = STRETCH;
-            MOVE PROPERTY(nameStockListReport());
-        }
-
-        MOVE BOX(s);
-    }
-}
-
-changeStocksReport 'Подразделения' () {
-    inReportDialog(Stock s) <- inReport(s);
-    DIALOG dialogStocksNotLinkedProduct DO {        
-        inReport(Stock s) <- inReportDialog(s);
-    }
-}
 
 // ------------------------- запуск вручную -------------------------
 
@@ -204,9 +153,7 @@ DESIGN notLinkedProductReport {
 }
 
 NAVIGATOR {
-    EGAISNavigator {
-        NEW FOLDER EGAISReports 'Отчеты' BEFORE EGAISMasterData {
-            NEW notLinkedProductReport;
-        }
+    EGAISReports {
+        NEW notLinkedProductReport;
     }
 }

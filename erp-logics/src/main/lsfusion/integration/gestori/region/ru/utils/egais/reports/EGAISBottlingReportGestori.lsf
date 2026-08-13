@@ -1,0 +1,193 @@
+MODULE EGAISBottlingDateReportGestori;
+
+REQUIRE EGAISPurchaseInvoiceGestori, EGAISF1RegImport, EGAISFRegLedger,
+        EGAISItemGestori, EGAISStockGestori, EGAISStockReportGestori, Email;
+
+NAMESPACE EGAIS;
+
+numberInternalInvoice 'Внутренний номер' = ABSTRACT STRING[48] (Purchase.Invoice);
+
+dateFromBottling 'Дата с' = DATA LOCAL NESTED DATE ();
+dateToBottling 'Дата по' = DATA LOCAL NESTED DATE ();
+
+inBottling 'Вкл.' = DATA LOCAL NESTED BOOLEAN (Item);
+countItemsBottling () = GROUP SUM 1 IF inBottling(Item i);
+nameItemsBottling 'Товары' () = GROUP CONCAT name(Item i) IF inBottling(i), ', ' ORDER name(i), i CHARWIDTH 30;
+
+inBottling 'Вкл.' = DATA LOCAL NESTED BOOLEAN (LegalEntity);
+countSuppliersBottling () = GROUP SUM 1 IF inBottling(LegalEntity l);
+nameSuppliersBottling 'Поставщики' () = GROUP CONCAT name(LegalEntity l) IF inBottling(l), ', ' ORDER name(l), l CHARWIDTH 30;
+
+showEmptyBottlingDate 'Выводить записи с незаполненной датой розлива' = DATA LOCAL NESTED BOOLEAN ();
+onlyBalanceBottling 'Только с ненулевым остатком ЕГАИС' = DATA LOCAL NESTED BOOLEAN ();
+
+inBottling (Purchase.InvoiceDetail d, WayBillPosition p) = TRUE IF quantity(d, p)
+    AND isPosted(invoice(d))
+    AND consigneeF2Reg(p)
+    AND (inBottling(supplier(invoice(d))) OR NOT countSuppliersBottling())
+    AND (inReport(customerStock(invoice(d))) OR NOT countInReport())
+    AND (inBottling(sku(d)) OR NOT countItemsBottling())
+    AND date(invoice(d)) >= dateFromBottling() AND date(invoice(d)) <= dateToBottling()
+    AND (bottlingDate(f1Reg(p)) OR showEmptyBottlingDate())
+    AND (currentBalance(consigneeF2Reg(p)) > 0 OR NOT onlyBalanceBottling());
+
+idStockBottling 'Код подразделения' (Purchase.InvoiceDetail d) = id(customerStock(invoice(d)));
+nameStockBottling 'Наименование подразделения' (Purchase.InvoiceDetail d) = name(customerStock(invoice(d)));
+
+idSkuBottling 'Код товара' (Purchase.InvoiceDetail d) = id(sku(d));
+nameSkuBottling 'Наименование товара' (Purchase.InvoiceDetail d) = name(sku(d));
+
+nameSupplierBottling 'Наименование поставщика' (Purchase.InvoiceDetail d) = name(supplier(invoice(d)));
+
+numberInvoiceBottling 'Номер документа поставщика' (Purchase.InvoiceDetail d) = number(invoice(d));
+numberInternalBottling 'Номер приходной накладной' (Purchase.InvoiceDetail d) = numberInternalInvoice(invoice(d));
+dateInvoiceBottling 'Дата накладной' (Purchase.InvoiceDetail d) = date(invoice(d));
+
+textBottlingDateWayBill 'Дата розлива' (WayBillPosition p) =
+    OVERRIDE toDateDDMMYYYY(bottlingDate(p)), 'Отсутствует' IF p IS WayBillPosition;
+
+bottlingDateBottling (WayBillPosition p) = bottlingDate(f1Reg(p));
+textBottlingDate 'Дата розлива (по данным справки А)' (WayBillPosition p) =
+    OVERRIDE toDateDDMMYYYY(bottlingDateBottling(p)), 'Отсутствует' IF p IS WayBillPosition;
+
+expiryDaysBottling (Purchase.InvoiceDetail d) = expiryDays(sku(d));
+textExpiryDays 'Срок годности в днях' (Purchase.InvoiceDetail d) =
+    OVERRIDE STRING[10](expiryDaysBottling(d)), 'Отсутствует' IF d IS Purchase.InvoiceDetail;
+
+expiryDateBottling (Purchase.InvoiceDetail d, WayBillPosition p) =
+    sum(bottlingDateBottling(p), expiryDaysBottling(d));
+
+daysToExpiryBottling (Purchase.InvoiceDetail d, WayBillPosition p) =
+    daysInclBetweenDates(currentDate(), expiryDateBottling(d, p)) - 1;
+
+textDaysToExpiry 'Кол-во дней до окончания срока годности' (Purchase.InvoiceDetail d, WayBillPosition p) =
+    CASE WHEN NOT expiryDateBottling(d, p) AND inBottling(d, p) THEN ''
+         WHEN daysToExpiryBottling(d, p) < 0 THEN 'Просрочен ' + (-daysToExpiryBottling(d, p)) + ' дней'
+         ELSE STRING[10](daysToExpiryBottling(d, p));
+
+balanceBottling 'Остаток товара по партии' (WayBillPosition p) = currentBalance(consigneeF2Reg(p));
+idF2RegBottling 'Код партии' (WayBillPosition p) = id(consigneeF2Reg(p));
+
+dateGTDBottling 'Дата ГТД (по данным справки А)' (WayBillPosition p) = gtdDate(f1Reg(p));
+numberGTDBottling 'Номер ГТД (по данным справки А)' (WayBillPosition p) = gtdNumber(f1Reg(p));
+
+FORM printBottlingDates 'По датам розлива'
+    PROPERTIES() nameStocksReport, nameItemsBottling, nameSuppliersBottling,
+                 dateFromBottling, dateToBottling
+
+    OBJECTS dp = (d = Purchase.InvoiceDetail, p = WayBillPosition)
+    PROPERTIES READONLY
+        'Код подразделения' = idStockBottling(d),
+        'Наименование подразделения' = nameStockBottling(d),
+        'Код товара' = idSkuBottling(d),
+        'Наименование товара' = nameSkuBottling(d),
+        'Наименование поставщика' = nameSupplierBottling(d),
+        'Номер документа поставщика' = numberInvoiceBottling(d),
+        'Номер приходной накладной' = numberInternalBottling(d),
+        'Дата накладной' = dateInvoiceBottling(d),
+        'Дата розлива' = textBottlingDateWayBill(p),
+        'Дата розлива (по данным справки А)' = textBottlingDate(p),
+        'Срок годности в днях' = textExpiryDays(d),
+        'Кол-во дней до окончания срока годности' = textDaysToExpiry(d, p),
+        'Остаток товара по партии' = balanceBottling(p),
+        'Код партии' = idF2RegBottling(p),
+        'Дата ГТД (по данным справки А)' = dateGTDBottling(p),
+        'Номер ГТД (по данным справки А)' = numberGTDBottling(p)
+    FILTERS inBottling(d, p)
+    ORDERS nameStockBottling(d), nameSkuBottling(d)
+;
+
+FORM dialogItemsBottling 'Выбор товаров'
+    OBJECTS i = Item
+    PROPERTIES(i) READONLY id, name
+    PROPERTIES(i) inBottling
+    ORDERS name(i)
+;
+
+changeItemsBottling 'Товары' () {
+    DIALOG dialogItemsBottling;
+}
+
+FORM dialogSuppliersBottling 'Выбор поставщиков'
+    OBJECTS l = LegalEntity
+    PROPERTIES(l) READONLY id, name
+    PROPERTIES(l) inBottling
+    FILTERS isSupplier(l)
+    ORDERS name(l)
+;
+
+changeSuppliersBottling 'Поставщики' () {
+    DIALOG dialogSuppliersBottling;
+}
+
+printBottlingDates 'Печать' () {
+    PRINT printBottlingDates XLSX;
+} TOOLBAR;
+
+FORM bottlingDateReport 'По датам розлива'
+    PROPERTIES() dateFromBottling, dateToBottling,
+                 nameStocksReport ON CHANGE changeStocksReport(),
+                 nameItemsBottling ON CHANGE changeItemsBottling(),
+                 nameSuppliersBottling ON CHANGE changeSuppliersBottling(),
+                 showEmptyBottlingDate, onlyBalanceBottling,
+                 printBottlingDates                 
+
+    OBJECTS dp = (d = Purchase.InvoiceDetail, p = WayBillPosition)
+    PROPERTIES READONLY
+        'Код подразделения' = idStockBottling(d),
+        'Наименование подразделения' = nameStockBottling(d),
+        'Код товара' = idSkuBottling(d),
+        'Наименование товара' = nameSkuBottling(d),
+        'Наименование поставщика' = nameSupplierBottling(d),
+        'Номер документа поставщика' = numberInvoiceBottling(d),
+        'Номер приходной накладной' = numberInternalBottling(d),
+        'Дата накладной' = dateInvoiceBottling(d),
+        'Дата розлива' = textBottlingDateWayBill(p),
+        'Дата розлива (по данным справки А)' = textBottlingDate(p),
+        'Срок годности в днях' = textExpiryDays(d),
+        'Кол-во дней до окончания срока годности' = textDaysToExpiry(d, p),
+        'Остаток товара по партии' = balanceBottling(p),
+        'Код партии' = idF2RegBottling(p),
+        'Дата ГТД (по данным справки А)' = dateGTDBottling(p),
+        'Номер ГТД (по данным справки А)' = numberGTDBottling(p)
+    FILTERS inBottling(d, p)
+    ORDERS nameStockBottling(d), nameSkuBottling(d)
+
+    EVENTS ON INIT {
+        dateToBottling() <- currentDate();
+        dateFromBottling() <- sum(currentDate(), -30);
+    }
+;
+
+DESIGN bottlingDateReport {
+    OBJECTS {
+        NEW parameters {
+            caption = 'Параметры';
+            alignment = STRETCH;
+            NEW dates {
+                MOVE PROPERTY(dateFromBottling());
+                MOVE PROPERTY(dateToBottling());
+            }
+            MOVE PROPERTY(nameStocksReport());
+            MOVE PROPERTY(nameItemsBottling());
+            MOVE PROPERTY(nameSuppliersBottling());
+            
+            MOVE PROPERTY(showEmptyBottlingDate());
+            MOVE PROPERTY(onlyBalanceBottling());
+
+            NEW actions {
+//                caption = 'Действия';
+                alignment = STRETCH;
+                MOVE PROPERTY(printBottlingDates());
+            }
+        }
+
+        MOVE BOX(dp);
+    }
+}
+
+NAVIGATOR {
+    EGAISReports {
+        NEW bottlingDateReport;
+    }
+}

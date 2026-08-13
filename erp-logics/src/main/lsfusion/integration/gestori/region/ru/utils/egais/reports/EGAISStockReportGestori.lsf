@@ -1,0 +1,63 @@
+MODULE EGAISStockReportGestori;
+
+REQUIRE EGAIS, StockList;
+
+NAMESPACE EGAIS;
+
+NAVIGATOR {
+    EGAISNavigator {
+        NEW FOLDER EGAISReports 'Отчеты' BEFORE EGAISMasterData;
+    }
+}
+
+inReport 'Вкл.' = DATA LOCAL NESTED BOOLEAN (Stock);
+inReportDialog 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
+
+countInReport () = GROUP SUM 1 IF inReport(Stock s);
+
+stockListReport = DATA LOCAL NESTED StockList ();
+nameStockListReport 'Список подразделений' () = name(stockListReport());
+
+nameStocksReport 'Подразделения' () = GROUP CONCAT (CONCAT ' ', id(Stock s), name(s)) IF inReport(s), ', ' ORDER id(s), s CHARWIDTH 30;
+
+changeStockListReport 'Список подразделений' () {
+    DIALOG stockLists OBJECTS o INPUT NULL DO {
+        stockListReport() <- o;
+        inReportDialog(Stock s) <- in(o, s);
+    }
+}
+
+resetStocksReport 'Сбросить' () {
+    stockListReport() <- NULL;
+    inReportDialog(Stock s) <- NULL;
+};
+
+FORM dialogStocksReport 'Выбор подразделений'
+    PROPERTIES() nameStockListReport ON CHANGE changeStockListReport() TOOLBAR
+
+    OBJECTS s = Stock
+    PROPERTIES(s) READONLY id, name
+    PROPERTIES(s) inReportDialog READONLYIF stockListReport()
+    FILTERS isCompany(s)
+    ORDERS name(s)
+
+    PROPERTIES() resetStocksReport TOOLBAR DRAW s
+;
+
+DESIGN dialogStocksReport {
+    OBJECTS {
+        NEW stockList {
+            alignment = STRETCH;
+            MOVE PROPERTY(nameStockListReport());
+        }
+
+        MOVE BOX(s);
+    }    
+}
+
+changeStocksReport 'Подразделения' () {
+    inReportDialog(Stock s) <- inReport(s);
+    DIALOG dialogStocksReport DO {
+        inReport(Stock s) <- inReportDialog(s);
+    }
+}
