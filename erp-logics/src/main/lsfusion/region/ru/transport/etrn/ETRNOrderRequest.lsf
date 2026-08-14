@@ -369,15 +369,11 @@ CONSTRAINT unloadingPoint(OrderDetail d) AND
 countUnloadingPoints 'Пунктов выгрузки' (OrderRequest o) = GROUP SUM 1 IF operation(OrderPoint p) == OrderPointOperation.unloading BY orderRequest(p);
 theUnloadingPoint (OrderRequest o) = GROUP LAST OrderPoint p ORDER pointIndex(p), p IF operation(p) == OrderPointOperation.unloading BY orderRequest(p);
 
-// первый пункт выгрузки (по порядку маршрута) - значение по умолчанию для строк груза
-firstUnloadingPointObj (OrderRequest o) = GROUP LAST OrderPoint p ORDER -pointIndex(p), p
-    IF operation(p) == OrderPointOperation.unloading BY orderRequest(p);
-
-// пункт выгрузки строки проставляется автоматически первым пунктом выгрузки маршрута
-// (при одном пункте - он и есть); при нескольких пользователь может выбрать другой.
-// Срабатывает и при заполнении маршрута после строк груза
-WHEN LOCAL (CHANGED(orderRequest(OrderDetail d)) OR CHANGED(firstUnloadingPointObj(orderRequest(d)))) AND NOT unloadingPoint(d) DO
-    unloadingPoint(d) <- firstUnloadingPointObj(orderRequest(d));
+// один пункт выгрузки - проставляется в строку автоматически (в том числе при заполнении
+// маршрута после строк груза); несколько - выбираются вручную
+WHEN LOCAL (CHANGED(orderRequest(OrderDetail d)) OR CHANGED(theUnloadingPoint(orderRequest(d)))) AND
+    countUnloadingPoints(orderRequest(d)) == 1 AND NOT unloadingPoint(d) DO
+    unloadingPoint(d) <- theUnloadingPoint(orderRequest(d));
 
 WHEN LOCAL CHANGED(cargo(OrderDetail d)) AND NOT CHANGED(tareType(d)) DO
     tareType(d) <- tareType(cargo(d));
