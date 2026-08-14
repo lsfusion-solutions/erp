@@ -1,6 +1,6 @@
 MODULE DiadocOrganization;
 
-REQUIRE DiadocAuthentication;
+REQUIRE DiadocAuthentication, LegalEntityRu;
 
 NAMESPACE Diadoc;
 
@@ -416,6 +416,11 @@ FORM importOrganizations
                   fiasIdD EXTID 'FiasId'
 ;
 
+// автопривязка организации справочника по ИНН: заполняются только пустые связи
+fillLegalEntityOrganization () {
+    legalEntity(Organization o) <- legalEntityInn(inn(o)) WHERE NOT legalEntity(o) AND legalEntityInn(inn(o));
+}
+
 // разбор импортированного ответа (GetMyOrganizations / GetOrganizationsByInnKpp) в справочник организаций
 applyImportedOrganizations (User u) {
     FOR orgId(INTEGER i) AND NOT organization(orgId(i)) NEW o = Organization DO {
@@ -486,6 +491,7 @@ applyImportedOrganizations (User u) {
             fiasId(d) <- fiasIdD(i);
             organization(d) <- organization(orgId(organizationDepartment(i)));
         }
+        fillLegalEntityOrganization();
 }
 
 getMyOrganizations 'Получить мои организации' (User u) {
@@ -811,8 +817,9 @@ getCounteragents 'Получить список контрагентов орг�
                 address(d) <- addressD(i);
                 addressCode(d) <- addressCodeD(i);
                 organization(d) <- organization(orgId(organizationDepartment(i)));
-            }            
+            }
         }
+        fillLegalEntityOrganization();
         APPLY;
     }
 }
