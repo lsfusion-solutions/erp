@@ -426,10 +426,12 @@ process (RegisterProductionOperationRequest r) + {
         // ВСД на исходящих производственных партиях (движение по сырьевым записям журнала)
         vetDocument(ProductionOutgoingConsignment c) <- vetDocument(r) WHERE request(c) == r;
 
-        // списание остатка сырьевых записей журнала объёмами заявки
+        // списание остатка сырьевых записей журнала объёмами заявки — только для записей, НЕ пришедших в ответе:
+        // по пришедшим Меркурий уже вернул актуальный остаток (записан выше), повторное вычитание уводило остаток в минус
         LOCAL usedVolume = NUMERIC[16,5] (StockEntry);
         usedVolume(StockEntry se) <- [GROUP SUM volume(RegisterProductionOperationRequest rr, ComponentDetail d, StockEntry s) BY rr, s](r, se);
-        volume(StockEntry se) <- NUMERIC[16,5](volume(se) (-) usedVolume(se)) WHERE usedVolume(se);
+        volume(StockEntry se) <- NUMERIC[16,5](volume(se) (-) usedVolume(se))
+            WHERE usedVolume(se) AND NOT [GROUP SUM 1 BY guidR(INTEGER i)](guid(se));
 
         // без флага обработки заявка остаётся «требует обработки» и обрабатывается обменом повторно
         // (в т.ч. повторное списание остатков) — флаг обязан попасть в тот же APPLY
