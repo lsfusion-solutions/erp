@@ -52,6 +52,7 @@ impT1PerMiddleIP = DATA LOCAL STRING ();
 
 // АдресДостГр
 impT1GPGln = DATA LOCAL STRING ();       // ГЛН - глобальный номер места доставки (GLN)
+impT1GPGar = DATA LOCAL STRING ();       // КодГАР - номер адреса в гос. адресном реестре (ФИАС)
 impT1GPAddrText = DATA LOCAL STRING ();
 impT1GPAddrInfText = DATA LOCAL STRING ();   // АдресИнф - адрес свободным текстом
 impT1GPRegion = DATA LOCAL STRING ();
@@ -214,7 +215,7 @@ FORM etrnTitleXmlImport
 
     PROPERTIES IN impT1GPUL impT1GPInn() EXTID 'ИННЮЛ' ATTR, impT1GPName() EXTID 'НаимОрг' ATTR
     PROPERTIES IN impT1GPIP impT1GPInnIP() EXTID 'ИННФЛ' ATTR
-    PROPERTIES IN impT1GPAddr impT1GPAddrText() EXTID 'АдрКоммент' ATTR, impT1GPGln() EXTID 'ГЛН'
+    PROPERTIES IN impT1GPAddr impT1GPAddrText() EXTID 'АдрКоммент' ATTR, impT1GPGln() EXTID 'ГЛН', impT1GPGar() EXTID 'КодГАР'
     PROPERTIES IN impT1GPAddrInf impT1GPAddrInfText() EXTID 'АдрТекст' ATTR
     PROPERTIES IN impT1GPAddrRF
         impT1GPRegion() EXTID 'КодРегион' ATTR,
@@ -335,10 +336,18 @@ FORM etrnTitleXmlImport
 countStocksByDeliveryZip (STRING[6] z) = GROUP SUM 1 IF zipCode(Stock.Stock st) == z;
 stockByDeliveryZip (STRING[6] z) = GROUP MAX Stock.Stock st IF zipCode(st) == z;
 
+// склад по коду ГАР (ФИАС) места доставки - реализация у клиента, где склады связаны
+// с подразделениями Диадока (у подразделения есть код ГАР/ФИАС адреса)
+stockByDeliveryGar = ABSTRACT CASE Stock.Stock (STRING);
+
 // индекс из текстового адреса: первые 6 символов, если все они цифры
 // (в титулах адрес начинается с индекса: '117216, Москва г, ...')
 deliveryZip (STRING text) = STRING[6](substr(trim(text), 1, 6))
     IF length(trim(text)) >= 6 AND (OVERRIDE length(regexpReplace(substr(trim(text), 1, 6), '[0-9]', '', 'g')), 0) == 0;
+
+// индекс места доставки разбираемого титула: из структурного адреса либо из текстового
+impT1DeliveryZip () = STRING[6](OVERRIDE impT1GPIndex(),
+    deliveryZip(STRING(OVERRIDE impT1GPAddrInfText(), impT1GPAddrText())));
 
 // телефон и КПП перевозчика из титула - в карточку контрагента, только незаполненные
 // (вызывается из разбора и из провайдерского модуля после автосоздания карточки)
@@ -399,15 +408,14 @@ parseETRNTitleXml 'Импортировать титул Т1 из файла' (E
         incomingDesadvNumber(ie) <- STRING[100]([GROUP LAST impT1InfValue(INTEGER i) IF impT1InfId(i) == 'DESADV' ORDER i]());
         incomingInvoicNumber(ie) <- STRING[100]([GROUP LAST impT1InfValue(INTEGER i) IF impT1InfId(i) == 'INVOIC' ORDER i]());
 
-        // автоопределение склада грузополучателя: сначала по GLN места доставки (уникален),
-        // затем по индексу адреса - из структурного адреса либо первые 6 цифр текстового
-        // (только при однозначном совпадении); дальше событие подтянет структурный адрес для Т3
+        // автоопределение склада грузополучателя (первое совпадение по приоритету):
+        // GLN места доставки -> код ГАР (подразделение Диадока склада) -> индекс адреса
+        // (только при однозначности); дальше событие подтянет структурный адрес для Т3
         IF NOT customerStock(ie) THEN
-            customerStock(ie) <- stockGLN(STRING[13](impT1GPGln())) WHERE stockGLN(STRING[13](impT1GPGln()));
-        IF NOT customerStock(ie) THEN FOR STRING[6] zip == STRING[6](OVERRIDE impT1GPIndex(),
-                deliveryZip(STRING(OVERRIDE impT1GPAddrInfText(), impT1GPAddrText()))) DO {
-            customerStock(ie) <- stockByDeliveryZip(zip) WHERE countStocksByDeliveryZip(zip) == 1;
-        }
+            customerStock(ie) <- CASE
+                WHEN stockGLN(STRING[13](impT1GPGln())) THEN stockGLN(STRING[13](impT1GPGln()))
+                WHEN stockByDeliveryGar(impT1GPGar()) THEN stockByDeliveryGar(impT1GPGar())
+                WHEN countStocksByDeliveryZip(impT1DeliveryZip()) == 1 THEN stockByDeliveryZip(impT1DeliveryZip());
     }
 
     LOCAL missingParticipants = STRING ();
