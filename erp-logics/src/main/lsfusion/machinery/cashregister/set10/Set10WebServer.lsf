@@ -173,6 +173,9 @@ skipCreateDetailLocal = DATA LOCAL BOOLEAN(INTEGER);
 createDetailsOver ABSTRACT LIST ();
 saleReceiptLocal = DATA LOCAL Receipt(INTEGER);
 
+// дополнительная обработка затронутых отчётов после приёма порции продаж/возвратов (до сохранения)
+afterImportReceipts ABSTRACT LIST ();
+
 importReceipts(STRING purchases){
     stringToFile(purchases);
     IMPORT purchasesImport XML FROM resultFile();
@@ -357,6 +360,8 @@ importReceipts(STRING purchases){
     FOR Receipt r = receipt(idReceipt(purchasePayment(INTEGER j))) AND Payment p = payment(paymenId(j)) DO{
         paymentFill(p, j);
     }
+
+    afterImportReceipts();
 
     APPLY NESTED LOCAL;
 }

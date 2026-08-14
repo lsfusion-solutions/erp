@@ -62,6 +62,13 @@ FORM reports
 idZReport(INTEGER i) = DATE(dateOperDay(i)) + '_' + shopNumber(i) + '_' + cashNumber(i) + '_' + shiftNumber(i);
 cr(INTEGER i) = GROUP MAX CashRegister c IF idStoreSet(c) = shopNumber(i) AND idCashRegisterSet(c) = cashNumber(i) AND NOT disableSales(c);
 
+// сверка итоговой суммы кассового отчёта с суммой входящих продаж/возвратов с записью итога в «Проверено»
+// (аналог проверки, выполняемой при обработке продаж через сервер оборудования)
+checkExtraZReportSet (ZReport z) {
+    IF externalSum(z) THEN
+        succeededExtraCheck(z) <- TRUE IF externalSum(z) == sumReceiptDetail(z);
+}
+
 importZReports(FILE f){
     IMPORT reports XML FROM f;
     FOR INTEGER x = [GROUP MAX INTEGER i BY idZReport(i)](STRING id) AND NOT zReport(id) AND cr(x) NEW z = ZReport DO{
@@ -74,9 +81,16 @@ importZReports(FILE f){
         number(z) <- shiftNumber(x);
         endShift(z) <- dateShiftClose(x);
         externalSum(z) <- NUMERIC[18,4](amountByPurchaseFiscal(x));
+        checkExtraZReportSet(z);
     }
     APPLY NESTED LOCAL;
 }@@noauth;
+
+// пересверка отчётов, затронутых порцией продаж/возвратов
+afterImportReceipts() + {
+    FOR ZReport z == zReportById(INTEGER i) DO
+        checkExtraZReportSet(z);
+}
 
 GROUP processZReports EXTID 'ns2=http://zreports.erpi.crystals.ru:processZReports' : bodyAnswer;
 
