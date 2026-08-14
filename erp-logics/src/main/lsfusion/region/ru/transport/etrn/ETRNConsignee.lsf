@@ -81,7 +81,10 @@ missingT3 (ETRN e) = CONCAT ', ',
     'общее количество принятых грузовых мест' IF acceptResult(e) = ETRNAcceptResult.accepted AND NOT acceptedQuantityPlaces(e),
     'общие сведения о фактическом состоянии груза' IF acceptResult(e) = ETRNAcceptResult.accepted AND NOT acceptedCondition(e),
     'масса брутто принятого груза' IF acceptResult(e) = ETRNAcceptResult.accepted AND NOT acceptedGrossWeight(e),
-    'адрес места выгрузки' IF acceptResult(e) = ETRNAcceptResult.accepted AND NOT unloadingAddress(e);
+    'адрес места выгрузки' IF acceptResult(e) = ETRNAcceptResult.accepted AND NOT unloadingAddress(e),
+    'структурный адрес места доставки: код региона и индекс (заполняются выбором склада грузополучателя)' IF acceptResult(e) = ETRNAcceptResult.accepted AND NOT hasDeliveryAddress(e),
+    'подписант титулов (ФИО)' IF NOT (signerLastName(e) AND signerFirstName(e)),
+    'подписант титулов (должность)' IF NOT signerPosition(e);
 
 checkT3 (ETRN e) {
     IF missingT3(e) THEN {
@@ -93,9 +96,24 @@ checkT3 (ETRN e) {
 // -- Отправка титула (реализации - в модулях провайдеров;
 //    черновик / на подпись Т3 - специфика Контур.Логистики, модуль KonturLogistics)
 
+// подготовка документа перед отправкой Т3 - реализации в модулях-связках
+// (например, определение склада грузополучателя по закупочной накладной)
+overPrepareT3 ABSTRACT LIST (ETRN);
+
 sendConsigneeSignedETRN 'Подписать и отправить Т3' (ETRN e) {
     checkProvider(e);
     IF NOT provider(e) THEN RETURN;
+    overPrepareT3(e);
+    // подписант Т3 - от карточки нашей стороны, если не заполнен на документе.
+    // Сохраняется сразу: реализация провайдера работает в своей сессии
+    // и несохранённые значения не увидит
+    IF NOT (signerLastName(e) AND signerFirstName(e) AND signerPosition(e)) THEN NEWSESSION {
+        signerLastName(e) <- overSignerLastName(signerParty(e)) WHERE NOT signerLastName(e) AND overSignerLastName(signerParty(e));
+        signerFirstName(e) <- overSignerFirstName(signerParty(e)) WHERE NOT signerFirstName(e) AND overSignerFirstName(signerParty(e));
+        signerMiddleName(e) <- overSignerMiddleName(signerParty(e)) WHERE NOT signerMiddleName(e) AND overSignerMiddleName(signerParty(e));
+        signerPosition(e) <- overSignerPosition(signerParty(e)) WHERE NOT signerPosition(e) AND overSignerPosition(signerParty(e));
+        APPLY;
+    }
     IF NOT skipFieldCheckETRN() THEN {
         checkT3(e);
         IF missingT3(e) THEN RETURN;

@@ -1,6 +1,6 @@
 MODULE PurchaseInvoiceETRN;
 
-REQUIRE PurchaseInvoice, ETRNOutgoing;
+REQUIRE PurchaseInvoice, ETRNOutgoing, ETRNIncoming;
 
 NAMESPACE ETRN;
 
@@ -116,3 +116,26 @@ DESIGN outgoingEtrn {
 EXTEND FORM etrns
     PROPERTIES(e) READONLY seriesNumberPurchaseInvoice
 ;
+
+
+// ------------------------- Входящая ЭТрН и закупочная накладная ------------------------- //
+// Поставщик передаёт в ИнфПол титула Т1 номер своего счета (INVOIC) - по нему находится
+// наша закупочная накладная поставки. Из неё перед отправкой Т3 берётся склад
+// грузополучателя, если он не определился по адресу доставки.
+
+purchaseInvoice 'Закупочная накладная (по INVOIC титула)' = DATA Purchase.Invoice (IncomingETRN);
+seriesNumberPurchaseInvoiceIncoming 'Закупочная накладная' (IncomingETRN e) = seriesNumber(purchaseInvoice(e)) CHARWIDTH 10;
+
+purchaseInvoiceByIncoming (IncomingETRN e) = GROUP MAX Purchase.Invoice i
+    IF number(i) == incomingInvoicNumber(e) AND supplier(i) == shipper(e);
+
+overPrepareT3 (ETRN e) + {
+    FOR IncomingETRN ie == e AND NOT (purchaseInvoice(ie) AND customerStock(ie)) AND incomingInvoicNumber(ie) DO NEWSESSION {
+        FOR Purchase.Invoice i == purchaseInvoiceByIncoming(ie) DO {
+            purchaseInvoice(ie) <- i WHERE NOT purchaseInvoice(ie);
+            // склад накладной - склад выгрузки; структурный адрес заполнится событием
+            customerStock(ie) <- customerStock(i) WHERE NOT customerStock(ie);
+        }
+        APPLY;
+    }
+}

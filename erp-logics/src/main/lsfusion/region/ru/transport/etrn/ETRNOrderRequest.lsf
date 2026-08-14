@@ -219,6 +219,9 @@ t2ImportedDateTime 'Дата/время загрузки ответа (Т2)' = D
 hasT2File 'Есть титул Т2 XML' (OrderRequest o) = TRUE IF t2File(o);
 openT2File 'Открыть файл титула Т2' (OrderRequest o) { open(t2File(o)); } IMAGE 'open.png';
 
+// привязка события ленты провайдера к заявке (аналог etrn(ETRNEvent) для ЭТрН)
+orderRequest = DATA OrderRequest (ETRNEvent) INDEXED;
+
 // абстракции обмена (реализуются модулями провайдеров);
 // действия-обёртки с проверкой обязательных полей - ниже, после объявлений пунктов и строк
 sendOrderRequest 'Подписать и отправить заявку (Т1)' ABSTRACT CASE (OrderRequest);          // грузоотправитель
@@ -532,6 +535,11 @@ FORM orderRequest 'Заказ-заявка'
                   trailerOwnership BACKGROUND (backgroundMandatory(o) IF trailer(o) AND NOT trailerOwnership(o)),
                   nameCurrency, feeNoVat, feeTaxRate, feeTotal, feeCalculations
 
+    OBJECTS ev = ETRNEvent
+    PROPERTIES(ev) READONLY dateTime, type, status
+    ORDERS dateTime(ev) DESC
+    FILTERS orderRequest(ev) = o
+
     EDIT OrderRequest OBJECT o
 ;
 
@@ -542,12 +550,10 @@ DESIGN orderRequest {
             alignment = STRETCH;
             NEW headerRow {
                 horizontal = TRUE;
+                MOVE PROPERTY(series(o));
                 MOVE PROPERTY(number(o));
                 MOVE PROPERTY(date(o));
                 MOVE PROPERTY(roles(o));
-                MOVE PROPERTY(nameProvider(o));
-                MOVE PROPERTY(nameExchangeStatus(o));
-                MOVE PROPERTY(providerStatus(o));
             }
         }
         NEW pane {
@@ -673,12 +679,22 @@ DESIGN orderRequest {
                     MOVE PROPERTY(feeCalculations(o));
                 }
             }
-        }
-        NEW exchangeInfo {
-            horizontal = TRUE;
-            MOVE PROPERTY(exchangeMessage(o));
-            MOVE PROPERTY(hasT2File(o));
-            MOVE PROPERTY(openT2File(o));
+            NEW exchangeTab {
+                caption = 'Обмен';
+                NEW exchangeState {
+                    lines = 3;
+                    MOVE PROPERTY(nameProvider(o));
+                    MOVE PROPERTY(nameExchangeStatus(o));
+                    MOVE PROPERTY(providerStatus(o));
+                    MOVE PROPERTY(exchangeMessage(o));
+                    MOVE PROPERTY(hasT2File(o));
+                    MOVE PROPERTY(openT2File(o));
+                }
+                MOVE BOX(ev) {
+                    caption = 'События';
+                    fill = 1;
+                }
+            }
         }
     }
 }
@@ -693,6 +709,7 @@ FORM orderRequests 'Заказы-заявки'
                   importOrderRequestT2Data SHOWIF roleShipper(o),
                   close SHOWIF isOpened(o), open SHOWIF isClosed(o)
     PROPERTIES processOrderRequestsT2() DRAW o
+    PROPERTIES exchangeMessagePanel = exchangeMessage(o) READONLY PANEL
     PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
     //ORDERS date(o) DESC
 
@@ -730,9 +747,17 @@ DESIGN orderRequests {
         NEW actionsTab {
             caption = 'Действия';
             horizontal = TRUE;
-            MOVE PROPERTY(sendOrderRequestAction(o));
-            MOVE PROPERTY(importOrderRequestT2Data(o));
-            MOVE PROPERTY(processOrderRequestsT2());
+            NEW actionsButtons {
+                MOVE PROPERTY(sendOrderRequestAction(o));
+                MOVE PROPERTY(importOrderRequestT2Data(o));
+                MOVE PROPERTY(processOrderRequestsT2());
+            }
+            // сообщение обмена текущей заявки - ошибка последней операции видна сразу после отправки
+            MOVE PROPERTY(exchangeMessagePanel) {
+                caption = 'Сообщение обмена';
+                fill = 1;
+                panelCaptionVertical = TRUE;
+            }
         }
     }
 }

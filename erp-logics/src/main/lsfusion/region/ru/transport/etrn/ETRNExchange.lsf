@@ -319,7 +319,7 @@ processETRNEventsInteractive 'Обработать события ЭПД' () {
     LOCAL before = INTEGER ();
     before() <- OVERRIDE countUnprocessedETRNEvents(), 0;
     processETRNEvents();
-    MESSAGE CONCAT '', 'Обработано событий: ' + (before() (-) (OVERRIDE countUnprocessedETRNEvents(), 0)),
+    MESSAGE CONCAT '', 'Обработано событий: ' + (before() - (OVERRIDE countUnprocessedETRNEvents(), 0)),
         ' из ' + before(),
         (', осталось необработанных: ' + countUnprocessedETRNEvents()) IF countUnprocessedETRNEvents();
 }
@@ -355,6 +355,7 @@ EXTEND FORM etrns
                   //, showQR, sendQRToDriver SHOWIF driver(e) - QR не запрашиваем: водитель получает его в своём приложении
     PROPERTIES importIncomingETRN() DRAW e, processIncomingETRN() DRAW e,
                importETRNEvents() DRAW e, processETRNEventsInteractive() DRAW e
+    PROPERTIES exchangeMessagePanel = exchangeMessage(e) READONLY PANEL
 ;
 
 DESIGN etrns {
@@ -374,6 +375,12 @@ DESIGN etrns {
                 MOVE PROPERTY(processIncomingETRN());
                 MOVE PROPERTY(importETRNEvents());
                 MOVE PROPERTY(processETRNEventsInteractive());
+            }
+            // сообщение обмена текущей ЭТрН - ошибка последней операции видна сразу после отправки
+            MOVE PROPERTY(exchangeMessagePanel) {
+                caption = 'Сообщение обмена';
+                fill = 1;
+                panelCaptionVertical = TRUE;
             }
         }
     }
