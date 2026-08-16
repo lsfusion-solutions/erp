@@ -1,0 +1,17 @@
+MODULE PurchaseReturnUpdDocumentLot;
+
+REQUIRE PurchaseReturnUpdDocument, ConsignmentUpdDocumentLot, PurchaseReturnShipmentLot;
+
+NAMESPACE Upd;
+
+overFill(UpdDocumentDetail d, PurchaseReturn.InvoiceDetail id) + {
+    isTabacco(d) <- TRUE IF lotType(sku(id))=LotType.tobacco OR lotType(sku(id))=LotType.tobaccoProduct;
+    FOR quantity(id, Lot lot) AND NOT volumeAccount(lot) NEW ld = UpdLotDetail DO {
+        updDocumentDetail(ld) <- d;
+        id(ld) <- left(id(lot), 31);
+    }
+    FOR quantity(id, Lot lot) AND volumeAccount(lot) NEW ld = UpdPackDetail DO {
+        updDocumentDetail(ld) <- d;
+        id(ld) <- id(lot);
+    }
+}
