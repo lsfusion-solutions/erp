@@ -221,6 +221,13 @@ openT2File 'Открыть файл титула Т2' (OrderRequest o) { open(t2
 
 // привязка события ленты провайдера к заявке (аналог etrn(ETRNEvent) для ЭТрН)
 orderRequest = DATA OrderRequest (ETRNEvent) INDEXED;
+seriesNumberOrderRequest 'Заказ-заявка' (ETRNEvent ev) =
+    CONCAT '', series(orderRequest(ev)), number(orderRequest(ev)) CHARWIDTH 10;
+
+// колонка заявки в журнале событий - после колонки ЭТрН
+EXTEND FORM etrnEvents
+    PROPERTIES(ev) READONLY seriesNumberOrderRequest AFTER seriesNumberETRN(ev)
+;
 
 // абстракции обмена (реализуются модулями провайдеров);
 // действия-обёртки с проверкой обязательных полей - ниже, после объявлений пунктов и строк
