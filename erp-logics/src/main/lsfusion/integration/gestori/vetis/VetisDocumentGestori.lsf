@@ -303,6 +303,10 @@ nameRelationshipTypeGestori 'Тип связи' (VetReferenceDocument rd) = CASE
     ELSE STRING(relationshipType(rd))
 CHARWIDTH 30;
 
+// GLN отправителя/получателя ВСД — из справочника площадок (загружается из vd:consignor/dt:globalID)
+glnConsignorGestori 'GLN отправителя' (VetDocument d) = gln(consignorEnterprise(d));
+glnConsigneeGestori 'GLN получателя' (VetDocument d) = gln(consigneeEnterprise(d));
+
 // ---- Маркировка (level 2) ----
 
 packingTypeGlobalIDGestori 'Тип упаковки' = DATA STRING (VetDocument);
@@ -351,6 +355,8 @@ EXTEND FORM vetDocuments
     PROPERTIES(o) READONLY updateDate, stateGestori
     PROPERTIES(o) READONLY packageList
     PROPERTIES(o) READONLY AFTER packageList(o) packingTypeGlobalIDGestori, productMarksClassGestori, productMarksGestori
+    PROPERTIES(o) READONLY AFTER guidConsignorEnterprise(o) glnConsignorGestori
+    PROPERTIES(o) READONLY AFTER guidConsigneeEnterprise(o) glnConsigneeGestori
     PROPERTIES(o) READONLY BEFORE expiryDateHour(o) expiryDateGestori BACKGROUND expiredBackgroundGestori(o)
 
     PROPERTIES(o) getVetDocumentByUUIDGestori DRAW o TOOLBAR
@@ -836,8 +842,8 @@ afterImportVetDocument(VetDocument d) + {
 EXTEND FORM vetDocument
     PROPERTIES(o) READONLY idTypeGestori, idStatusGestori, updateDateGestori, updateTimeGestori,
                   createdDateGestori, createdTimeGestori,
-                  guidConsignorBEGestori, idStocksConsignorGestori, nameStocksConsignorGestori,
-                  guidConsigneeBEGestori, idStocksConsigneeGestori, nameStocksConsigneeGestori,
+                  guidConsignorBEGestori, glnConsignorGestori, idStocksConsignorGestori, nameStocksConsignorGestori,
+                  guidConsigneeBEGestori, glnConsigneeGestori, idStocksConsigneeGestori, nameStocksConsigneeGestori,
                   guidStockEntryGestori, numberStockEntryGestori,
                   idProductTypeGestori, codeProductItem, globalIDProductItem2 = globalIDProductItem,
                   productMarksGestori, packingTypeGlobalIDGestori, productMarksClassGestori,

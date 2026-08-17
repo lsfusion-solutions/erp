@@ -1,6 +1,6 @@
 MODULE VetisProductionOrderGestori;
 
-REQUIRE VetisProductionOrder, VetisRegisterProductionOperation, VetisStockEntryGestori;
+REQUIRE VetisProductionOrder, VetisRegisterProductionOperation, VetisStockEntryGestori, VetisDocumentGestori;
 
 PRIORITY Production;
 
@@ -159,4 +159,43 @@ DESIGN Production.orders {
     PROPERTY(nameSku(vd)) { caption = 'Наименование'; }
     PROPERTY(guid(se)) { caption = 'GUID записи журнала'; }
     PROPERTY(volume(vd, se)) { caption = 'Объем по строке'; }
+}
+
+
+// ---- Производственный ВСД ↔ строки изделий производственных заказов ----
+// вкладка «Производственные заказы» в связанных документах системы на форме ВСД
+
+volumeProductVDGestori 'Объем' (Production.ProductDetail pd, VetDocument d) =
+    GROUP SUM volume(ProductionIncomingConsignment c) IF productDetail(c) == pd AND vetDocument(c) == d;
+
+numberOrderProductGestori 'Номер заказа' (Production.ProductDetail pd) = Production.number(Production.order(pd));
+dateOrderProductGestori 'Дата заказа' (Production.ProductDetail pd) = Production.date(Production.order(pd));
+idSkuProductGestori 'Код товара' (Production.ProductDetail pd) = Production.idSku(pd);
+nameSkuProductGestori 'Наименование товара' (Production.ProductDetail pd) = Production.nameSku(pd);
+quantityProductGestori 'Кол-во' (Production.ProductDetail pd) = Production.quantity(pd);
+
+EXTEND FORM vetDocuments
+    OBJECTS pod = Production.ProductDetail
+    PROPERTIES READONLY numberOrderProductGestori(pod), dateOrderProductGestori(pod), idSkuProductGestori(pod),
+                        nameSkuProductGestori(pod), quantityProductGestori(pod), volumeProductVDGestori(pod, o)
+    FILTERS volumeProductVDGestori(pod, o)
+;
+
+DESIGN vetDocuments {
+    systemDocsListGestori {
+        MOVE BOX(pod) { caption = 'Производственные заказы'; fill = 1; }
+    }
+}
+
+EXTEND FORM vetDocument
+    OBJECTS pod = Production.ProductDetail
+    PROPERTIES READONLY numberOrderProductGestori(pod), dateOrderProductGestori(pod), idSkuProductGestori(pod),
+                        nameSkuProductGestori(pod), quantityProductGestori(pod), volumeProductVDGestori(pod, o)
+    FILTERS volumeProductVDGestori(pod, o)
+;
+
+DESIGN vetDocument {
+    systemDocsGestori {
+        MOVE BOX(pod) { caption = 'Производственные заказы'; fill = 1; }
+    }
 }
