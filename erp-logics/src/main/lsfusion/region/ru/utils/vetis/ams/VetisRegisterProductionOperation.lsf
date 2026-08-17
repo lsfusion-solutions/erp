@@ -71,6 +71,12 @@ class = DATA LOCAL STRING(INTEGER);
 cargoExpertized = DATA LOCAL STRING(RegisterProductionOperationRequest );
 
 unit (ProductItem pi) = IF (GROUP SUM 1 IF in(Sku s, pi) AND split(s)) THEN (GROUP LAST Unit u IF name(u) = 'кг' ORDER u) ELSE (GROUP LAST Unit u IF name(u) = 'шт.' ORDER u);
+
+// единица измерения записи журнала для запроса: своя, иначе из её ВСД, иначе по номенклатуре —
+// без неё сегмент vd:unit не попадал в vd:rawBatch
+unitStockEntry (StockEntry se) = OVERRIDE unit(se),
+    unit(GROUP LAST VetDocument vd ORDER vd WHERE in(se, vd)),
+    unit(GROUP MIN ProductItem pi IF in(se, pi));
 FORM registerProductionOperationRequest FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:registerProductionOperationRequest'
     PROPERTIES ATTR
     ='http://api.vetrf.ru/schema/cdm/dictionary/v2' EXTID 'xmlns:dt',
@@ -88,7 +94,7 @@ FORM registerProductionOperationRequest FORMEXTID 'merc=http://api.vetrf.ru/sche
 
         PROPERTIES(se) IN sourceStockEntry guid EXTID 'bs:guid'
         PROPERTIES(r, d, se) volume EXTID 'vd:volume'
-        PROPERTIES IN unit =guid(unit(se)) EXTID 'bs:guid'
+        PROPERTIES IN unit =guid(unitStockEntry(se)) EXTID 'bs:guid'
     // в запрос попадает зафиксированный состав заявки (снапшот на момент отправки)
     FILTERS volume(r, d, se)
     
@@ -438,6 +444,10 @@ process (RegisterProductionOperationRequest r) + {
             // (в т.ч. с родительским ВСД у сырьевых записей, попавших в ответ)
             in(d, VetDocument vd) <- TRUE WHERE uuid(vd) = uuidR(i);
             in(d, ProductItem pi) <- TRUE WHERE pi = productItem(guid3R(i));
+
+            // если единица в ответе не пришла (или её нет в справочнике) — берём по номенклатуре,
+            // иначе у записи пустые «Единица измерения» и «Вес единицы товара»
+            unit(d) <- unit(productItem(guid3R(i))) WHERE NOT unit(d);
         }
 
         // ВСД на исходящих производственных партиях (движение по сырьевым записям журнала)
