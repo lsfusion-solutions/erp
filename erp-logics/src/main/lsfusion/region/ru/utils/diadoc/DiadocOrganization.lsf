@@ -417,8 +417,15 @@ FORM importOrganizations
 ;
 
 // автопривязка организации справочника по ИНН: заполняются только пустые связи
+// у ИНН есть основная (не-роуминговая) запись организации
+hasMainOrganizationInn (STRING[12] inn) = GROUP MAX TRUE IF inn(Organization o) == inn AND NOT isRoaming(o);
+
 fillLegalEntityOrganization () {
-    legalEntity(Organization o) <- legalEntityInn(inn(o)) WHERE NOT legalEntity(o) AND legalEntityInn(inn(o));
+    // роуминговая запись (представление организации у другого оператора ЭДО) привязывается
+    // к юрлицу только при отсутствии основной записи с тем же ИНН: иначе ящик отправителя
+    // может выбраться роуминговым, к которому нет доступа ни у одной учётки (403 при отправке)
+    legalEntity(Organization o) <- legalEntityInn(inn(o)) WHERE NOT legalEntity(o) AND legalEntityInn(inn(o)) AND
+        NOT (isRoaming(o) AND hasMainOrganizationInn(inn(o)));
 }
 
 // разбор импортированного ответа (GetMyOrganizations / GetOrganizationsByInnKpp) в справочник организаций
