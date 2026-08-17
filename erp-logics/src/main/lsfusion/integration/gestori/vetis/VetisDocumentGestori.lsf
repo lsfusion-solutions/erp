@@ -1834,6 +1834,15 @@ DESIGN SaleReturn.userInvoice {
 diffVolumeShippedSaleReturnGestori (SaleReturn.UserInvoiceDetail vd) =
     (OVERRIDE volumeShippedSaleReturnGestori(vd), 0.0) != (OVERRIDE VetisSaleReturn.volumeVetDocument(vd), 0.0);
 
+// суммарный объём по связанным со строкой ВСД не может превышать объём (поставлено) по строке
+totalVolumeRowSaleReturnGestori 'Объем по строке (сумма по ВСД)' (SaleReturn.UserInvoiceDetail vd) = VetisSaleReturn.volumeVetDocument(vd);
+
+CONSTRAINT VetisSaleReturn.volumeVetDocument(SaleReturn.UserInvoiceDetail vd) > (OVERRIDE volumeShippedSaleReturnGestori(vd), 0.0)
+    MESSAGE 'Суммарный объём по связанным со строкой ВСД превышает объём (поставлено) по строке'
+    PROPERTIES nameOperationSaleReturnGestori(vd), seriesSaleReturnGestori(vd), numberSaleReturnGestori(vd),
+        indexSaleReturnGestori(vd), idSkuSaleReturnGestori(vd), nameSkuSaleReturnGestori(vd),
+        volumeShippedSaleReturnGestori(vd), totalVolumeRowSaleReturnGestori(vd);
+
 EXTEND FORM SaleReturn.userInvoice
     PROPERTIES(vd) READONLY volumeShippedSaleReturnGestori BACKGROUND (RGB(255,200,200) IF diffVolumeShippedSaleReturnGestori(vd))
     PROPERTIES(vtd) READONLY totalVolumeVDSaleReturnGestori
