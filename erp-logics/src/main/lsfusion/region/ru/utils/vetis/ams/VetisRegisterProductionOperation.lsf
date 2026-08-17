@@ -401,6 +401,23 @@ process (RegisterProductionOperationRequest r) + {
 //            authentication(d) <- authentication();
 //            purpose(d) <- purpose(purposeGuid());
 
+            updateDate(d) <- DATE(lastUpdateDateR());
+
+            // отправитель и получатель производственного ВСД — хозяйствующий субъект заявки и площадка склада изделий
+            consignorBusinessEntity(d) <- businessEntity(r);
+            consigneeBusinessEntity(d) <- businessEntity(r);
+            consignorEnterprise(d) <- enterprise(productsStock(productionOrder(r)));
+            consigneeEnterprise(d) <- enterprise(productsStock(productionOrder(r)));
+
+            // накладная-основание — производственный заказ
+            IF NOT waybill(d) THEN NEW rd = VetReferenceDocument {
+                vetDocument(rd) <- d;
+                issueSeries(rd) <- STRING(series(productionOrder(r)));
+                issueNumber(rd) <- STRING(number(productionOrder(r)));
+                issueDate(rd) <- date(productionOrder(r));
+                type(rd) <- 1;
+                relationshipType(rd) <- 1;
+            }
         }
 
         FOR  guidR(INTEGER i) AND NOT stockEntry(guidR(i)) DO NEW d = StockEntry {
@@ -425,6 +442,11 @@ process (RegisterProductionOperationRequest r) + {
 
         // ВСД на исходящих производственных партиях (движение по сырьевым записям журнала)
         vetDocument(ProductionOutgoingConsignment c) <- vetDocument(r) WHERE request(c) == r;
+
+        // входящая партия на записях журнала изделий — для «Тип накладной»/«Номер накладной» записи
+        FOR guid(StockEntry se) == guidR(INTEGER i) AND NOT incomingConsignment(se) DO
+            incomingConsignment(se) <- GROUP LAST ProductionIncomingConsignment c ORDER c
+                WHERE request(c) == r AND (GROUP SUM 1 IF in(se, ProductItem pi) AND in(sku(productDetail(c)), pi));
 
         // списание остатка сырьевых записей журнала объёмами заявки — только для записей, НЕ пришедших в ответе:
         // по пришедшим Меркурий уже вернул актуальный остаток (записан выше), повторное вычитание уводило остаток в минус

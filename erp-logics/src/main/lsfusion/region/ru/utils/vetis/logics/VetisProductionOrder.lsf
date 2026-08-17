@@ -8,8 +8,19 @@ NAMESPACE VetisSale;
 
 volume 'Объем в документе' = DATA NUMERIC[16,5] (ComponentDetail, StockEntry);
 
-volumeDetail 'Объем в документе' (ComponentDetail vd, StockEntry s) = NUMERIC[16,5](bruttoQuantity(vd) * OVERRIDE factor(sku(vd), unit(s)), 1.0); 
-fillVolume 'Выбрать' (ComponentDetail d, StockEntry s) { volume(d, s) <- volumeDetail(d, s); }
+volumeDetail 'Объем в документе' (ComponentDetail vd, StockEntry s) = NUMERIC[16,5](bruttoQuantity(vd) * OVERRIDE factor(sku(vd), unit(s)), 1.0);
+// объём при ручном выборе: не больше непокрытого остатка строки (поставлено − связанное с записями)
+// и не больше свободного остатка записи (объём продукции − распределённое строками);
+// по уже связанной записи не выполняется, при расчётном объёме <= 0 связь не создаётся
+fillVolume 'Выбрать' (ComponentDetail d, StockEntry s) {
+    IF NOT volume(d, s) THEN {
+        LOCAL calc = NUMERIC[16,5] ();
+        calc() <- min(volumeDetail(d, s) (-) (GROUP SUM volume(d, StockEntry ss)),
+                      volume(s) (-) (GROUP SUM volume(ComponentDetail vd, s)));
+        IF calc() > 0 THEN
+            volume(d, s) <- calc();
+    }
+}
 
 bruttoQuantity (ComponentDetail vd, StockEntry s) = volume(s) / OVERRIDE factor(sku(vd), unit(s)), 1.0;
 

@@ -125,16 +125,19 @@ uuidVetDocumentRequest 'UUID ВСД' (ApplicationRequest r) =
 seriesNumberInvoiceRequest 'Номер накладной' (ApplicationRequest r) = OVERRIDE
     seriesNumber(invoice(Shipment.invoiceDetail(VetisPurchase.shipmentDetail(
         incomingConsignment(r AS ProcessIncomingConsignmentRequest) AS VetisPurchase.ShipmentIncomingConsignment)))),
-    seriesNumber[Invoice.Invoice](invoiceSaleRequestGestori(r)) MATERIALIZED;
+    seriesNumber[Invoice.Invoice](invoiceSaleRequestGestori(r)),
+    seriesNumber(productionOrder(r AS RegisterProductionOperationRequest)) MATERIALIZED;
 
 dateInvoiceRequest 'Дата накладной' (ApplicationRequest r) = OVERRIDE
     date(invoice(Shipment.invoiceDetail(VetisPurchase.shipmentDetail(
         incomingConsignment(r AS ProcessIncomingConsignmentRequest) AS VetisPurchase.ShipmentIncomingConsignment)))),
-    date[Invoice.Invoice](invoiceSaleRequestGestori(r)) MATERIALIZED;
+    date[Invoice.Invoice](invoiceSaleRequestGestori(r)),
+    date(productionOrder(r AS RegisterProductionOperationRequest)) MATERIALIZED;
 
 objectClassNameRequest 'Операция' (ApplicationRequest r) = OVERRIDE
     objectClassName(incomingConsignment(r AS ProcessIncomingConsignmentRequest)),
-    STRING(name(operation(invoiceSaleRequestGestori(r)))) MATERIALIZED;
+    STRING(name(operation(invoiceSaleRequestGestori(r)))),
+    STRING(nameOperation(productionOrder(r AS RegisterProductionOperationRequest))) MATERIALIZED;
 
 EXTEND FORM applicationRequests
     PROPERTIES(r) READONLY uuidVetDocumentRequest, seriesNumberInvoiceRequest, dateInvoiceRequest, objectClassNameRequest

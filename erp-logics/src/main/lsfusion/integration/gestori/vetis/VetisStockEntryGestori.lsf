@@ -36,8 +36,11 @@ nameConsignorEnterpriseVSD 'Площадка отправителя ВСД' (Sto
 
 nameTypeIncomingConsignment 'Тип накладной' (StockEntry s) = objectClassName(incomingConsignment(s));
 
-seriesNumberGestori 'Номер накладной' (IncomingConsignment c) =
-    seriesNumber(invoice(Shipment.invoiceDetail(VetisPurchase.shipmentDetail(c AS VetisPurchase.ShipmentIncomingConsignment))));
+// реализации могут задать номер для своих типов входящих партий (например, производственных)
+overSeriesNumberGestori = ABSTRACT STRING (IncomingConsignment);
+seriesNumberGestori 'Номер накладной' (IncomingConsignment c) = OVERRIDE
+    seriesNumber(invoice(Shipment.invoiceDetail(VetisPurchase.shipmentDetail(c AS VetisPurchase.ShipmentIncomingConsignment)))),
+    overSeriesNumberGestori(c);
 
 seriesNumberIncomingConsignment 'Номер накладной' (StockEntry s) = seriesNumberGestori(incomingConsignment(s));
 

@@ -57,6 +57,9 @@ DESIGN Production.order {
     PROPERTY(volume(vd, se)) { caption = 'Объем по строке'; }
 }
 
+// номер накладной для входящих производственных партий — номер производственного заказа
+overSeriesNumberGestori(IncomingConsignment c) += seriesNumber(order(productDetail(c AS ProductionIncomingConsignment)));
+
 // --- Связь строк с производственными ВСД: последняя заявка с участием пары строка × запись журнала ---
 
 lastRequestComponentGestori (Production.ComponentDetail d, StockEntry se) =
@@ -136,7 +139,7 @@ EXTEND FORM Production.orders
     FILTERS Production.order(vd) = o, VetisSale.volume(vd, se)
 
     PROPERTIES(o) fillVolumeApplyProductionGestori DRAW vse TOOLBAR SHOWIF showFillVolumeProductionGestori(o)
-    PROPERTIES(o) sendVetisProductionGestori DRAW vse TOOLBAR SHOWIF showIfVetis(o)
+    PROPERTIES(o) sendVetisProductionGestori DRAW vse TOOLBAR SHOWIF toProcessProductionGestori(o)
 
     PROPERTIES(o) READONLY issueDateLastRequestProductionGestori DRAW vse, nameStatusLastRequestProductionGestori DRAW vse
     PROPERTIES(o) READONLY errorLastRequestProductionGestori PANEL
