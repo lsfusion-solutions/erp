@@ -104,7 +104,12 @@ deliveryMessageId (ETRN.ETRN e) = messageId(diadocDeliveryDocument(e));
 deliveryEntityId (ETRN.ETRN e) = entityId(diadocDeliveryDocument(e));
 
 // ящик Диадока нашей организации-участника
-diadocBox (LegalEntity l) = GROUP LAST Box b IF legalEntity(organization(b)) == l ORDER b;
+// ящик юрлица: приоритет у основной (не-роуминговой) организации - роуминговое
+// представительство не может быть ящиком отправителя; для контрагентов, работающих
+// только через роуминг, роуминговый ящик остаётся единственным и используется
+diadocBox (LegalEntity l) = OVERRIDE
+    [GROUP LAST Box b IF NOT isRoaming(organization(b)) ORDER b BY legalEntity(organization(b))](l),
+    [GROUP LAST Box b ORDER b BY legalEntity(organization(b))](l);
 diadocBoxId (LegalEntity l) = boxId(diadocBox(l));
 // BoxId в Signers ожидается чистым GUID с дефисами (8-4-4-4-12): убираем суффикс адреса
 // ящика и форматируем 32-символьный идентификатор
