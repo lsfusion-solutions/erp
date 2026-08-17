@@ -140,9 +140,14 @@ getStockEntryByGuid 'Запросить запись журнала по GUID' (
 
 // --- Движение по записи журнала ---
 
+// остаток записи журнала: из Меркурия, а без него (нет связи с родительским ВСД) — по движению:
+// нет прихода, поэтому при наличии расходных партий остаток отрицательный
+volumeBalanceSEGestori 'Объем продукции' (StockEntry s) =
+    OVERRIDE volume(s), NUMERIC[16,5](0.0 (-) (GROUP SUM volume(OutgoingConsignment oc) IF stockEntry(oc) == s));
+
 FORM stockEntryMovements 'Движение по записи складского журнала'
     OBJECTS s = StockEntry PANEL
-    PROPERTIES(s) READONLY guid, number, nameEnterprise, nameProductItem, volume, nameUnit
+    PROPERTIES(s) READONLY guid, number, nameEnterprise, nameProductItem, volumeBalanceMovementsGestori = volumeBalanceSEGestori, nameUnit
 
     // входящая партия — над таблицей исходящих; связь через ВСД записи журнала (incomingConsignment(s) не заполняется)
     OBJECTS ic = IncomingConsignment
@@ -188,6 +193,7 @@ showStockEntryMovements 'Движение' (StockEntry s) {
 
 EXTEND FORM stockEntries
     PROPERTIES(s) READONLY BACKGROUND backgroundExpiryGestori(s)
+        volumeBalanceSEGestori BEFORE volume(s),
         idStockGestori BEFORE active(s),
         nameSkuGestori AFTER nameProductItem(s),
         idBarcodeSkuGestori AFTER nameProductItem(s),
@@ -209,4 +215,5 @@ DESIGN stockEntries {
     PROPERTY(guid(s)) { caption = 'GUID записи журнала'; }
     PROPERTY(guidEnterprise(s)) { caption = 'GUID площадки'; }
     PROPERTY(uuidVetDocument(s)) { caption = 'UUID ВСД'; }
+    PROPERTY(volume(s)) { hide = TRUE; }
 }
