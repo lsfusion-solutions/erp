@@ -1959,8 +1959,11 @@ EXTEND FORM warehouse
     PROPERTIES(w) forbidReturnVetDocumentGestori, forbidVetisGestori
 ;
 
-// возвратное гашение (принято меньше объёма ВСД) на площадку, связанную со складом с запретом
-forbidReturnIncomingGestori (IncomingConsignment c) = GROUP SUM 1 IF in(Stock st, consigneeEnterprise(vetDocument(c))) AND forbidReturnVetDocumentGestori(st);
+// возвратное гашение (принято меньше объёма ВСД): запрет достаточно задать на складе любой из сторон —
+// получателя (наш магазин/склад) или отправителя (поставщика)
+forbidReturnIncomingGestori (IncomingConsignment c) =
+    (GROUP SUM 1 IF in(Stock st, consigneeEnterprise(vetDocument(c))) AND forbidReturnVetDocumentGestori(st)) OR
+    (GROUP SUM 1 IF in(Stock stc, consignorEnterprise(vetDocument(c))) AND forbidReturnVetDocumentGestori(stc));
 
 beforeProcessIncomingConsignment(IncomingConsignment c) + {
     IF returnedDelivery(c) AND forbidReturnIncomingGestori(c) THEN {
@@ -1973,12 +1976,22 @@ CONSTRAINT SET(ProcessIncomingConsignmentRequest r IS ProcessIncomingConsignment
     returnedDelivery(incomingConsignment(r)) AND forbidReturnIncomingGestori(incomingConsignment(r))
     MESSAGE 'Запрещено оформление входящей партии с возвратом: на складе площадки установлен «Запрет оформления возвратных ВСД»';
 
-// полное отключение ВЕТИС в документе — скрытие вкладки по складу документа
-DESIGN Purchase.userInvoice { vetis { showIf = NOT forbidVetisGestori(Purchase.customerStock(i)); } }
-DESIGN Purchase.invoices { vetis { showIf = NOT forbidVetisGestori(Purchase.customerStock(i)); } }
-DESIGN Sale.userInvoice { vetis { showIf = NOT forbidVetisGestori(Sale.supplierStock(i)); } }
-DESIGN Sale.invoices { vetis { showIf = NOT forbidVetisGestori(Sale.supplierStock(i)); } }
-DESIGN PurchaseReturn.userInvoice { vetis { showIf = NOT forbidVetisGestori(PurchaseReturn.customerStock(i)); } }
-DESIGN PurchaseReturn.invoices { vetis { showIf = NOT forbidVetisGestori(PurchaseReturn.customerStock(i)); } }
-DESIGN SaleReturn.userInvoice { vetis { showIf = NOT forbidVetisGestori(SaleReturn.supplierStock(i)); } }
-DESIGN SaleReturn.invoices { vetis { showIf = NOT forbidVetisGestori(SaleReturn.supplierStock(i)); } }
+// полное отключение ВЕТИС в документе — скрытие вкладки, если запрет стоит хотя бы на одном складе документа:
+// складе компании (где оформляется документ) или складе контрагента (поставщика/покупателя)
+forbidVetisPurchaseGestori (Purchase.Invoice i) =
+    forbidVetisGestori(Purchase.customerStock(i)) OR forbidVetisGestori(Purchase.supplierStock(i));
+forbidVetisSaleGestori (Sale.Invoice i) =
+    forbidVetisGestori(Sale.supplierStock(i)) OR forbidVetisGestori(Sale.customerStock(i));
+forbidVetisPurchaseReturnGestori (PurchaseReturn.Invoice i) =
+    forbidVetisGestori(PurchaseReturn.customerStock(i)) OR forbidVetisGestori(PurchaseReturn.supplierStock(i));
+forbidVetisSaleReturnGestori (SaleReturn.Invoice i) =
+    forbidVetisGestori(SaleReturn.supplierStock(i)) OR forbidVetisGestori(SaleReturn.customerStock(i));
+
+DESIGN Purchase.userInvoice { vetis { showIf = NOT forbidVetisPurchaseGestori(i); } }
+DESIGN Purchase.invoices { vetis { showIf = NOT forbidVetisPurchaseGestori(i); } }
+DESIGN Sale.userInvoice { vetis { showIf = NOT forbidVetisSaleGestori(i); } }
+DESIGN Sale.invoices { vetis { showIf = NOT forbidVetisSaleGestori(i); } }
+DESIGN PurchaseReturn.userInvoice { vetis { showIf = NOT forbidVetisPurchaseReturnGestori(i); } }
+DESIGN PurchaseReturn.invoices { vetis { showIf = NOT forbidVetisPurchaseReturnGestori(i); } }
+DESIGN SaleReturn.userInvoice { vetis { showIf = NOT forbidVetisSaleReturnGestori(i); } }
+DESIGN SaleReturn.invoices { vetis { showIf = NOT forbidVetisSaleReturnGestori(i); } }
