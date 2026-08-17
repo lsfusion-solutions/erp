@@ -22,7 +22,7 @@ t5Signature 'Подпись файла Т5 (Base64)' = DATA TEXT (ETRN);
 
 konturImportT5Files 'Получить файл Т5 (Контур)' (ETRN e) {
     IF NOT konturT5TitleId(e) THEN {
-        MESSAGE 'Не известен ИД титула Т5 - выполните приём и обработку событий ЭПД';
+        MESSAGE 'Не известен ИД титула Т5 - выполните приём и обработку событий ЭПД' NOWAIT;
         RETURN;
     }
     konturImportTitleFiles(e, konturT5TitleId(e));
@@ -113,13 +113,13 @@ konturSendT6 'Отправить титул Т6 (Контур)' (ETRN e) {
     konturEnsureFnsId(shipper(e));
     konturEnsureFnsId(carrier(e));
     IF missingKonturT6(e) THEN {
-        MESSAGE CONCAT '\n', 'Отправка Т6 невозможна, не заполнено:', missingKonturT6(e);
+        MESSAGE CONCAT '\n', 'Отправка Т6 невозможна, не заполнено:', missingKonturT6(e) NOWAIT;
         RETURN;
     }
     IF NOT (t5FileName(e) AND t5FileDate(e) AND t5FileTime(e) AND t5Signature(e)) THEN
         konturImportT5Files(e);   // автозаполнение из архива титула по ИД из событий
     IF NOT (t5FileName(e) AND t5FileDate(e) AND t5FileTime(e) AND t5Signature(e)) THEN {
-        MESSAGE 'Нет данных файла титула Т5 (имя, дата, время, подпись)';
+        MESSAGE 'Нет данных файла титула Т5 (имя, дата, время, подпись)' NOWAIT;
         RETURN;
     }
 
@@ -131,7 +131,7 @@ konturSendT6 'Отправить титул Т6 (Контур)' (ETRN e) {
 
     sign(FILE(konturTitleXml()), TRUE, shipper(e));
     IF NOT signature() THEN {
-        MESSAGE 'Не удалось сформировать подпись КЭП';
+        MESSAGE 'Не удалось сформировать подпись КЭП' NOWAIT;
         RETURN;
     }
 
@@ -147,7 +147,7 @@ konturSendT6 'Отправить титул Т6 (Контур)' (ETRN e) {
     } CATCH {
         fileToString(konturResult(), 'UTF-8');
         exchangeMessage(e) <- CONCAT ' ', 'Ошибка отправки Т6:', statusHttp(), resultString(), messageCaughtException();
-        MESSAGE exchangeMessage(e);
+        MESSAGE exchangeMessage(e) NOWAIT;
     }
 }
 
@@ -162,5 +162,5 @@ sendCostConfirmation (ETRN e) + WHEN provider(e) = ETRNProvider.kontur THEN {
 rejectCostChange (ETRN e) + WHEN provider(e) = ETRNProvider.kontur THEN {
     // TODO: формализованный отказ у Контура - титул RejectTitle (УОУ/УС), формат XML требует
     // отдельной реализации; до её появления отказ выполняется в веб-интерфейсе сервиса
-    MESSAGE 'Формализованный отказ от изменения стоимости для провайдера Контур.Логистика пока не поддерживается системой. Выполните отказ в веб-интерфейсе Контур.Логистики.';
+    MESSAGE 'Формализованный отказ от изменения стоимости для провайдера Контур.Логистика пока не поддерживается системой. Выполните отказ в веб-интерфейсе Контур.Логистики.' NOWAIT;
 }

@@ -15,11 +15,11 @@ headersPrintForm = DATA LOCAL STRING (STRING);
 
 diadocImportPrintForm (ETRN.ETRN e) {
     IF NOT (receptionDocMessageId(e) AND receptionDocEntityId(e)) THEN {
-        MESSAGE 'Нет reception-документа перевозки в Диадоке (Т1 не отправлен / события не получены)';
+        MESSAGE 'Нет reception-документа перевозки в Диадоке (Т1 не отправлен / события не получены)' NOWAIT;
         RETURN;
     }
     IF NOT receptionBoxId(e) THEN {
-        MESSAGE 'Не найден ящик Диадока нашей организации-участника перевозки';
+        MESSAGE 'Не найден ящик Диадока нашей организации-участника перевозки' NOWAIT;
         RETURN;
     }
 
@@ -45,7 +45,7 @@ diadocImportPrintForm (ETRN.ETRN e) {
                     HEADERS httpHeadersToken HEADERSTO headersPrintForm TO data;
             } CATCH {
                 fileToString(FILE(data()), 'UTF-8');
-                MESSAGE 'Ошибка получения печатной формы (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+                MESSAGE 'Ошибка получения печатной формы (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException()) NOWAIT;
                 RETURN;
             }
 
@@ -59,7 +59,7 @@ diadocImportPrintForm (ETRN.ETRN e) {
         }
 
         IF NOT (done() AND data()) THEN {
-            MESSAGE 'Печатная форма перевозки ещё формируется в Диадоке, повторите позже';
+            MESSAGE 'Печатная форма перевозки ещё формируется в Диадоке, повторите позже' NOWAIT;
             RETURN;
         }
 

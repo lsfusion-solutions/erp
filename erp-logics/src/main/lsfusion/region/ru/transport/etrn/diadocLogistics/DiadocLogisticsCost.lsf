@@ -16,11 +16,11 @@ NAMESPACE Diadoc;
 // диадок-специфичные предпроверки (наличие cost-документа и ящика)
 checkCostDocument (ETRN.ETRN e) {
     IF NOT diadocCostDocument(e) THEN {
-        MESSAGE 'Нет документа изменения стоимости (Т5) в Диадоке: выполните приём событий и сообщений';
+        MESSAGE 'Нет документа изменения стоимости (Т5) в Диадоке: выполните приём событий и сообщений' NOWAIT;
         RETURN;
     }
     IF NOT diadocBox(ETRN.shipper(e)) THEN {
-        MESSAGE 'Не найден ящик Диадока грузоотправителя';
+        MESSAGE 'Не найден ящик Диадока грузоотправителя' NOWAIT;
         RETURN;
     }
 }
@@ -66,7 +66,7 @@ diadocSendT6 (ETRN.ETRN e) {
         } CATCH {
             fileToString(result(), 'UTF-8');
             ETRN.exchangeMessage(e) <- 'Ошибка отправки Т6 (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
-            MESSAGE ETRN.exchangeMessage(e);
+            MESSAGE ETRN.exchangeMessage(e) NOWAIT;
         }
         APPLY;
     }
@@ -135,7 +135,7 @@ diadocRejectT5 (ETRN.ETRN e) {
         } CATCH {
             fileToString(result(), 'UTF-8');
             ETRN.exchangeMessage(e) <- 'Ошибка отправки отказа по Т5 (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
-            MESSAGE ETRN.exchangeMessage(e);
+            MESSAGE ETRN.exchangeMessage(e) NOWAIT;
         }
         APPLY;
     }

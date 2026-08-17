@@ -21,7 +21,7 @@ fnsId 'FNSId (ЭПД)' = DATA STRING[46](LegalEntity) CHARWIDTH 15;
 konturImportRequisites 'Получить FNSId (Контур)' (LegalEntity l) {
     IF NOT konturBoxId() THEN setKonturAuthDefault();   // из кнопки - системный ящик; из титулов - контекст уже установлен
     IF NOT inn(l) THEN {
-        MESSAGE 'Для организации не задан ИНН';
+        MESSAGE 'Для организации не задан ИНН' NOWAIT;
         RETURN;
     }
     TRY {
@@ -32,7 +32,7 @@ konturImportRequisites 'Получить FNSId (Контур)' (LegalEntity l) {
         APPLY;
     } CATCH {
         fileToString(konturResult(), 'UTF-8');
-        MESSAGE CONCAT ' ', 'Ошибка получения реквизитов организации:', statusHttp(), resultString(), messageCaughtException();
+        MESSAGE CONCAT ' ', 'Ошибка получения реквизитов организации:', statusHttp(), resultString(), messageCaughtException() NOWAIT;
     }
 }
 
@@ -79,7 +79,7 @@ konturImportMyOrganizations 'Получить мои организации (К�
         IMPORT konturImportMyOrgs JSON FROM konturResult();
     } CATCH {
         fileToString(konturResult(), 'UTF-8');
-        MESSAGE CONCAT ' ', 'Ошибка получения организаций:', statusHttp(), resultString(), messageCaughtException();
+        MESSAGE CONCAT ' ', 'Ошибка получения организаций:', statusHttp(), resultString(), messageCaughtException() NOWAIT;
         RETURN;
     }
 
@@ -94,9 +94,9 @@ konturImportMyOrganizations 'Получить мои организации (К�
 
     IF (GROUP SUM 1 IF impOrgBoxId(INTEGER i)) THEN
         MESSAGE CONCAT ' ', 'Загружено организаций (ящиков):', (GROUP SUM 1 IF impOrgBoxId(INTEGER i)),
-                '. Организации без привязки заполните вручную (по ИНН не найдены в справочнике).';
+                '. Организации без привязки заполните вручную (по ИНН не найдены в справочнике).' NOWAIT;
     ELSE
-        MESSAGE 'Организации не получены: проверьте API-Key в настройках';
+        MESSAGE 'Организации не получены: проверьте API-Key в настройках' NOWAIT;
 }
 
 EXTEND FORM konturBoxes
@@ -270,7 +270,7 @@ konturGenerateT1 'Сгенерировать титул Т1 (Контур)' (ETR
     } CATCH {
         fileToString(konturResult(), 'UTF-8');
         exchangeMessage(e) <- CONCAT ' ', 'Ошибка генерации Т1:', statusHttp(), resultString(), messageCaughtException();
-        MESSAGE exchangeMessage(e);
+        MESSAGE exchangeMessage(e) NOWAIT;
     }
 }
 
@@ -300,7 +300,7 @@ konturSendDraft (ETRN e, STRING[50] draftAction) {
     } CATCH {
         fileToString(konturResult(), 'UTF-8');
         exchangeMessage(e) <- CONCAT ' ', 'Ошибка отправки черновика:', statusHttp(), resultString(), messageCaughtException();
-        MESSAGE exchangeMessage(e);
+        MESSAGE exchangeMessage(e) NOWAIT;
     }
 }
 
@@ -310,7 +310,7 @@ konturSendDraft (ETRN e, STRING[50] draftAction) {
 konturSendSignedT1 (ETRN e) {
     setKonturAuth(shipper(e));   // от имени грузоотправителя
     IF NOT keyAlias(shipper(e)) THEN {
-        MESSAGE 'Не задан ключ УКЭП грузоотправителя (справочник организаций, вкладка УКЭП)';
+        MESSAGE 'Не задан ключ УКЭП грузоотправителя (справочник организаций, вкладка УКЭП)' NOWAIT;
         RETURN;
     }
 
@@ -321,7 +321,7 @@ konturSendSignedT1 (ETRN e) {
     // 2. отсоединённая подпись XML грузоотправителем
     sign(titleFile(e), TRUE, shipper(e));
     IF NOT signature() THEN {
-        MESSAGE 'Не удалось сформировать подпись КЭП';
+        MESSAGE 'Не удалось сформировать подпись КЭП' NOWAIT;
         RETURN;
     }
 
@@ -342,7 +342,7 @@ konturSendSignedT1 (ETRN e) {
     } CATCH {
         fileToString(konturResult(), 'UTF-8');
         exchangeMessage(e) <- CONCAT ' ', 'Ошибка отправки подписанного Т1:', statusHttp(), resultString(), messageCaughtException();
-        MESSAGE exchangeMessage(e);
+        MESSAGE exchangeMessage(e) NOWAIT;
     }
 }
 
@@ -350,7 +350,7 @@ konturSendSignedT1 (ETRN e) {
 konturImportPrintForm (ETRN e) {
     setKonturAuth(konturOurParty(e));
     IF NOT transportationId(e) THEN {
-        MESSAGE 'Для ЭТрН не получен идентификатор перевозки у провайдера';
+        MESSAGE 'Для ЭТрН не получен идентификатор перевозки у провайдера' NOWAIT;
         RETURN;
     }
     TRY {
@@ -359,7 +359,7 @@ konturImportPrintForm (ETRN e) {
         APPLY;
     } CATCH {
         fileToString(konturResult(), 'UTF-8');
-        MESSAGE CONCAT ' ', 'Ошибка получения печатной формы:', statusHttp(), resultString(), messageCaughtException();
+        MESSAGE CONCAT ' ', 'Ошибка получения печатной формы:', statusHttp(), resultString(), messageCaughtException() NOWAIT;
     }
 }
 
@@ -410,7 +410,7 @@ buildKonturT3 (ETRN e) {
 konturSendT3 (ETRN e, STRING[50] draftAction) {
     setKonturAuth(consignee(e));   // от имени грузополучателя
     IF NOT transportationId(e) THEN {
-        MESSAGE 'Для отправки Т3 у ЭТрН должен быть идентификатор перевозки у провайдера';
+        MESSAGE 'Для отправки Т3 у ЭТрН должен быть идентификатор перевозки у провайдера' NOWAIT;
         RETURN;
     }
 
@@ -422,7 +422,7 @@ konturSendT3 (ETRN e, STRING[50] draftAction) {
     } CATCH {
         fileToString(konturResult(), 'UTF-8');
         exchangeMessage(e) <- CONCAT ' ', 'Ошибка генерации Т3:', statusHttp(), resultString(), messageCaughtException();
-        MESSAGE exchangeMessage(e);
+        MESSAGE exchangeMessage(e) NOWAIT;
         RETURN;
     }
 
@@ -441,7 +441,7 @@ konturSendT3 (ETRN e, STRING[50] draftAction) {
     } CATCH {
         fileToString(konturResult(), 'UTF-8');
         exchangeMessage(e) <- CONCAT ' ', 'Ошибка отправки черновика Т3:', statusHttp(), resultString(), messageCaughtException();
-        MESSAGE exchangeMessage(e);
+        MESSAGE exchangeMessage(e) NOWAIT;
     }
 }
 
@@ -451,11 +451,11 @@ konturSendT3 (ETRN e, STRING[50] draftAction) {
 konturSendSignedT3 (ETRN e) {
     setKonturAuth(consignee(e));   // от имени грузополучателя
     IF NOT transportationId(e) THEN {
-        MESSAGE 'Для отправки Т3 у ЭТрН должен быть идентификатор перевозки у провайдера';
+        MESSAGE 'Для отправки Т3 у ЭТрН должен быть идентификатор перевозки у провайдера' NOWAIT;
         RETURN;
     }
     IF NOT keyAlias(consignee(e)) THEN {
-        MESSAGE 'Не задан ключ УКЭП грузополучателя (справочник организаций, вкладка УКЭП)';
+        MESSAGE 'Не задан ключ УКЭП грузополучателя (справочник организаций, вкладка УКЭП)' NOWAIT;
         RETURN;
     }
 
@@ -467,14 +467,14 @@ konturSendSignedT3 (ETRN e) {
     } CATCH {
         fileToString(konturResult(), 'UTF-8');
         exchangeMessage(e) <- CONCAT ' ', 'Ошибка генерации Т3:', statusHttp(), resultString(), messageCaughtException();
-        MESSAGE exchangeMessage(e);
+        MESSAGE exchangeMessage(e) NOWAIT;
         RETURN;
     }
 
     // 2. отсоединённая подпись XML грузополучателем
     sign(titleFile(e), TRUE, consignee(e));
     IF NOT signature() THEN {
-        MESSAGE 'Не удалось сформировать подпись КЭП';
+        MESSAGE 'Не удалось сформировать подпись КЭП' NOWAIT;
         RETURN;
     }
 
@@ -493,7 +493,7 @@ konturSendSignedT3 (ETRN e) {
     } CATCH {
         fileToString(konturResult(), 'UTF-8');
         exchangeMessage(e) <- CONCAT ' ', 'Ошибка отправки подписанного Т3:', statusHttp(), resultString(), messageCaughtException();
-        MESSAGE exchangeMessage(e);
+        MESSAGE exchangeMessage(e) NOWAIT;
     }
 }
 
@@ -577,7 +577,7 @@ konturImportTransportation 'Получить данные перевозки (К
     // при вызове из опроса ящиков контекст уже установлен; из кнопки - по нашему участнику
     IF NOT konturBoxId() THEN setKonturAuth(konturOurParty(e));
     IF NOT transportationId(e) THEN {
-        MESSAGE 'Для ЭТрН не получен идентификатор перевозки у провайдера';
+        MESSAGE 'Для ЭТрН не получен идентификатор перевозки у провайдера' NOWAIT;
         RETURN;
     }
 
@@ -588,7 +588,7 @@ konturImportTransportation 'Получить данные перевозки (К
         IMPORT konturImportTransportation JSON FROM konturResult();
     } CATCH {
         fileToString(konturResult(), 'UTF-8');
-        MESSAGE CONCAT ' ', 'Ошибка получения данных перевозки:', statusHttp(), resultString(), messageCaughtException();
+        MESSAGE CONCAT ' ', 'Ошибка получения данных перевозки:', statusHttp(), resultString(), messageCaughtException() NOWAIT;
         RETURN;
     }
 
@@ -605,7 +605,7 @@ konturImportTransportation 'Получить данные перевозки (К
     LOCAL missingParticipants = STRING ();
     missingParticipants() <- GROUP CONCAT (CONCAT ' ', importedPartName(INTEGER i), 'ИНН ' + importedPartInn(i)) IF NOT legalEntityInn(importedPartInn(i)) AND NOT importedPartRole(i) = 'Observer', '; ' ORDER i;
     IF missingParticipants() THEN
-        MESSAGE CONCAT ' ', 'Участники перевозки не найдены в справочнике организаций (заведите и повторите импорт):', missingParticipants();
+        MESSAGE CONCAT ' ', 'Участники перевозки не найдены в справочнике организаций (заведите и повторите импорт):', missingParticipants() NOWAIT;
 
     // строки груза: пересоздаются из данных провайдера (только для входящих - когда мы не грузоотправитель)
     IF NOT roleShipper(e) THEN {
@@ -672,7 +672,7 @@ konturImportIncomingBox (ETRNProvider p, KonturBox box) {
             IMPORT konturImportIncoming JSON FROM konturResult();
         } CATCH {
             fileToString(konturResult(), 'UTF-8');
-            MESSAGE CONCAT ' ', 'Ошибка получения перевозок:', statusHttp(), resultString(), messageCaughtException();
+            MESSAGE CONCAT ' ', 'Ошибка получения перевозок:', statusHttp(), resultString(), messageCaughtException() NOWAIT;
             RETURN;
         }
 
@@ -806,7 +806,7 @@ konturImportTitleFiles (ETRN e, STRING[100] titleId) {
             HEADERS konturHeaders TO konturResult;
     } CATCH {
         fileToString(konturResult(), 'UTF-8');
-        MESSAGE CONCAT ' ', 'Ошибка получения файлов титула:', statusHttp(), resultString(), messageCaughtException();
+        MESSAGE CONCAT ' ', 'Ошибка получения файлов титула:', statusHttp(), resultString(), messageCaughtException() NOWAIT;
         RETURN;
     }
 
@@ -826,7 +826,7 @@ konturImportTitleFiles (ETRN e, STRING[100] titleId) {
     }
 
     IF NOT konturTitleFileName() THEN
-        MESSAGE 'В архиве титула не найден XML-файл';
+        MESSAGE 'В архиве титула не найден XML-файл' NOWAIT;
 }
 
 FORM konturImportEvents
@@ -870,7 +870,7 @@ konturImportEventsBox (ETRNProvider p, KonturBox box) {
             IMPORT konturImportEvents JSON FROM konturResult();
         } CATCH {
             fileToString(konturResult(), 'UTF-8');
-            MESSAGE CONCAT ' ', 'Ошибка получения событий ЭПД:', statusHttp(), resultString(), messageCaughtException();
+            MESSAGE CONCAT ' ', 'Ошибка получения событий ЭПД:', statusHttp(), resultString(), messageCaughtException() NOWAIT;
             RETURN;
         }
 

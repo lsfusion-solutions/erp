@@ -20,15 +20,15 @@ carrierT3Box (ETRN.ETRN e) = OVERRIDE diadocBox(ETRN.carrier(e)),
 
 diadocSendT3 (ETRN.ETRN e) {
     IF NOT (receptionDocMessageId(e) AND receptionDocEntityId(e)) THEN {
-        MESSAGE 'Нет reception-документа перевозки (Т1) в Диадоке (события не получены)';
+        MESSAGE 'Нет reception-документа перевозки (Т1) в Диадоке (события не получены)' NOWAIT;
         RETURN;
     }
     IF NOT diadocBox(ETRN.consignee(e)) THEN {
-        MESSAGE 'Не найден ящик Диадока грузополучателя';
+        MESSAGE 'Не найден ящик Диадока грузополучателя' NOWAIT;
         RETURN;
     }
     IF NOT carrierT3Box(e) THEN {
-        MESSAGE 'Не найден ящик Диадока перевозчика (получатель титула Т3). Для входящей перевозки: проверьте ИНН перевозчика на документе и обновите его организацию в справочнике Диадока по ИНН';
+        MESSAGE 'Не найден ящик Диадока перевозчика (получатель титула Т3). Для входящей перевозки: проверьте ИНН перевозчика на документе и обновите его организацию в справочнике Диадока по ИНН' NOWAIT;
         RETURN;
     }
 
@@ -45,7 +45,7 @@ diadocSendT3 (ETRN.ETRN e) {
 Отправить перевозчику приглашение в контрагенты?' DO {
             FOR Organization o == organization(carrierT3Box(e)) DO
                 diadocAcquireOrganization(o, guidBoxId(diadocBoxId(ETRN.consignee(e))));
-            MESSAGE 'Приглашение перевозчику отправлено. Повторите отправку Т3 после подтверждения партнёрства перевозчиком';
+            MESSAGE 'Приглашение перевозчику отправлено. Повторите отправку Т3 после подтверждения партнёрства перевозчиком' NOWAIT;
         }
         RETURN;
     }
@@ -90,7 +90,7 @@ diadocSendT3 (ETRN.ETRN e) {
         } CATCH {
             fileToString(result(), 'UTF-8');
             ETRN.exchangeMessage(e) <- 'Ошибка отправки Т3 (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
-            MESSAGE ETRN.exchangeMessage(e);
+            MESSAGE ETRN.exchangeMessage(e) NOWAIT;
         }
         APPLY;
     }

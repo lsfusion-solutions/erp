@@ -106,26 +106,26 @@ createETRNForPoint (OrderRequest o, OrderPoint up) {
 
 createETRNFromOrder 'Создать ЭТрН' (OrderRequest o) {
     IF countETRN(o) THEN {
-        MESSAGE CONCAT ' ', 'Для заявки уже созданы ЭТрН:', seriesNumbersETRN(o);
+        MESSAGE CONCAT ' ', 'Для заявки уже созданы ЭТрН:', seriesNumbersETRN(o) NOWAIT;
         RETURN;
     }
     IF NOT firstLoadingPoint(o) THEN {
-        MESSAGE 'В заявке нет пункта погрузки';
+        MESSAGE 'В заявке нет пункта погрузки' NOWAIT;
         RETURN;
     }
     IF NOT countUnloadingPoints(o) THEN {
-        MESSAGE 'В заявке нет пункта выгрузки';
+        MESSAGE 'В заявке нет пункта выгрузки' NOWAIT;
         RETURN;
     }
     IF unassignedCargo(o) THEN {
-        MESSAGE 'Не для всех строк груза указан пункт выгрузки';
+        MESSAGE 'Не для всех строк груза указан пункт выгрузки' NOWAIT;
         RETURN;
     }
     NEWSESSION {
         FOR operation(OrderPoint up) == OrderPointOperation.unloading AND orderRequest(up) == o DO
             createETRNForPoint(o, up);
         APPLY;
-        MESSAGE CONCAT ' ', 'Создано ЭТрН по заявке:', countETRN(o);
+        MESSAGE CONCAT ' ', 'Создано ЭТрН по заявке:', countETRN(o) NOWAIT;
     }
 } IMAGE 'add.png';
 

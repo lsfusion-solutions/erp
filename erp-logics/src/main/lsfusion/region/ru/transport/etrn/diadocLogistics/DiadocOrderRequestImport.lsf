@@ -35,7 +35,7 @@ diadocFindT2Entity (ETRN.OrderRequest o) {
         IMPORT diadocGetMessageEntities JSON FROM gmResult();
     } CATCH {
         fileToString(gmResult(), 'UTF-8');
-        MESSAGE 'Ошибка получения состава сообщения заявки (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+        MESSAGE 'Ошибка получения состава сообщения заявки (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException()) NOWAIT;
         RETURN;
     }
     foundT2EntityId() <- OVERRIDE
@@ -46,16 +46,16 @@ diadocFindT2Entity (ETRN.OrderRequest o) {
     // диагностика: если титул не найден - показать состав сообщения
     IF NOT foundT2EntityId() THEN
         MESSAGE CONCAT '\n', 'Не удалось определить титул Т2 в сообщении заявки. Состав сообщения (ИД | тип | родитель | файл):',
-            (GROUP CONCAT (CONCAT ' | ', gmEntityId(INTEGER en), gmEntityType(en), gmParentEntityId(en), gmFileName(en)), '\n' ORDER en);
+            (GROUP CONCAT (CONCAT ' | ', gmEntityId(INTEGER en), gmEntityType(en), gmParentEntityId(en), gmFileName(en)), '\n' ORDER en) NOWAIT;
 }
 
 diadocImportOrderRequestT2Data (ETRN.OrderRequest o) {
     IF NOT orderDocMessageId(o) THEN {
-        MESSAGE 'Нет документа заказа-заявки в Диадоке (события не получены)';
+        MESSAGE 'Нет документа заказа-заявки в Диадоке (события не получены)' NOWAIT;
         RETURN;
     }
     IF NOT orderBoxId(o) THEN {
-        MESSAGE 'Не найден ящик Диадока нашей организации-участника заявки';
+        MESSAGE 'Не найден ящик Диадока нашей организации-участника заявки' NOWAIT;
         RETURN;
     }
 
@@ -76,7 +76,7 @@ diadocImportOrderRequestT2Data (ETRN.OrderRequest o) {
                 HEADERS httpHeadersToken TO data;
         } CATCH {
             fileToString(FILE(data()), 'UTF-8');
-            MESSAGE 'Ошибка получения контента титула Т2 (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+            MESSAGE 'Ошибка получения контента титула Т2 (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException()) NOWAIT;
             RETURN;
         }
 
