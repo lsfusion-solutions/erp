@@ -1,0 +1,95 @@
+MODULE DiadocForwardingOrder;
+
+REQUIRE DiadocLogistics, DiadocForwardingOrderT1Form;
+
+NAMESPACE Diadoc;
+
+// ------------------------- Поручение экспедитору через Диадок ------------------------- //
+// Титул клиента: GenerateTitleXml titleIndex=0 -> подпись КЭП -> PostMessage
+// (создаёт документ поручения). Форма UserDataXml - DiadocForwardingOrderT1Form (namespace ETRN).
+// Титул экспедитора мы не формируем - только принимаем (DiadocForwardingOrderImport).
+
+// настройки типа документа (справочник типов Диадока - GetDocumentTypes)
+forwardingOrderTypeNamedId 'Тип документа поручения экспедитору' = DATA STRING[50] () CHARWIDTH 15;
+forwardingOrderVersion 'Версия документа поручения экспедитору' = DATA STRING[50] () CHARWIDTH 15;
+forwardingOrderFunction 'Функция документа поручения экспедитору' = DATA STRING[20] () CHARWIDTH 15;
+
+onStarted() + {
+    IF NOT forwardingOrderTypeNamedId() THEN forwardingOrderTypeNamedId() <- 'LogisticsForwardingOrder';
+    // TODO: сверить версию с GetDocumentTypes на тестовой площадке (UserContract-схема - wt3_05_02_01)
+    IF NOT forwardingOrderVersion() THEN forwardingOrderVersion() <- 'porexpklt_05_01_01';
+    IF NOT forwardingOrderFunction() THEN forwardingOrderFunction() <- 'default';
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() forwardingOrderTypeNamedId, forwardingOrderVersion, forwardingOrderFunction
+;
+
+DESIGN integrationData {
+    diadocLogisticsSettings {
+        MOVE PROPERTY(forwardingOrderTypeNamedId());
+        MOVE PROPERTY(forwardingOrderVersion());
+        MOVE PROPERTY(forwardingOrderFunction());
+    }
+}
+
+// связь поручения с документом Диадока (титул клиента + титул экспедитора - один документ)
+diadocDocument = DATA Document (ETRN.ForwardingOrder);
+
+// ------------------------- Отправка титула клиента ------------------------- //
+
+diadocSendForwardingOrder (ETRN.ForwardingOrder f) {
+    IF NOT diadocBox(ETRN.client(f)) THEN {
+        MESSAGE 'Не найден ящик Диадока клиента (нашей организации)' NOWAIT;
+        RETURN;
+    }
+    IF NOT diadocBox(ETRN.forwarder(f)) THEN {
+        MESSAGE 'Не найден ящик Диадока экспедитора (получатель поручения). Обновите организацию экспедитора в справочнике Диадока по ИНН' NOWAIT;
+        RETURN;
+    }
+
+    FOR User u == userDiadocETRN() DO NEWSESSION {
+        fromBox() <- diadocBox(ETRN.client(f));
+        toBox() <- diadocBox(ETRN.forwarder(f));
+
+        getToken(u);
+        EXPORT ETRN.diadocForwardingOrderT1 OBJECTS f = f XML;
+
+        LOCAL result = FILE ();
+        TRY {
+            EXTERNAL HTTP POST url() + '/GenerateTitleXml?boxId=' + fromBoxId() +
+                '&documentTypeNamedId=' + forwardingOrderTypeNamedId() +
+                '&documentFunction=' + forwardingOrderFunction() + '&documentVersion=' + forwardingOrderVersion() + '&titleIndex=0'
+                HEADERS httpHeadersToken PARAMS exportFile() TO result;
+
+            typeNamedIdDocument(0) <- forwardingOrderTypeNamedId();
+            functionDocument(0) <- forwardingOrderFunction();
+            versionDocument(0) <- forwardingOrderVersion();
+            contentDocument(0) <- encode(RAWFILE(result()), 'base64');
+
+            IF useTestSignature() THEN signWithTestSignature(0) <- TRUE;
+            ELSE {
+                sign(FILE(result()), TRUE, ETRN.client(f));
+                signatureDocument(0) <- encodedSignature();
+            }
+
+            postMessage(u);
+            // postMessage глотает HTTP-ошибки (MESSAGE внутри) - успех определяем по созданному документу
+            IF createdDocument() THEN {
+                diadocDocument(f) <- createdDocument();
+                ETRN.exchangeStatus(f) <- ETRN.ETRNExchangeStatus.signed;
+                ETRN.exchangeMessage(f) <- NULL;
+            } ELSE
+                ETRN.exchangeMessage(f) <- 'Поручение экспедитору не отправлено (Диадок): ошибка PostMessage';
+        } CATCH {
+            fileToString(result(), 'UTF-8');
+            ETRN.exchangeMessage(f) <- 'Ошибка отправки поручения экспедитору (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+            MESSAGE ETRN.exchangeMessage(f) NOWAIT;
+        }
+        APPLY;
+    }
+}
+
+ETRN.sendForwardingOrder (ETRN.ForwardingOrder f) + WHEN ETRN.provider(f) == ETRN.ETRNProvider.diadoc THEN {
+    diadocSendForwardingOrder(f);
+}

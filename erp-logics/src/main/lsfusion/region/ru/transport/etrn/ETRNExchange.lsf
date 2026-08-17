@@ -149,7 +149,25 @@ exchangeMessage 'Сообщение обмена' = ABSTRACT TEXT (ETRN);
 
 titleFile 'Файл титула (XML)' = ABSTRACT FILE (ETRN);
 hasTitleFile 'Есть титул XML' (ETRN e) = TRUE IF titleFile(e);
-openTitleFile 'Открыть файл титула' (ETRN e) { open(titleFile(e)); } IMAGE 'open.png';
+
+// просмотр XML титула из веб-клиента: файлы приказа - windows-1251, а веб-клиент отдаёт их
+// браузеру с charset=UTF-8 в HTTP-заголовке, который по стандарту важнее XML-декларации -
+// браузер падает с "Encoding error" на первой кириллице. Для просмотра открывается
+// UTF-8-копия с исправленной декларацией; оригинал в базе не меняется (его байты подписаны КЭП)
+openTitleXml (FILE f) {
+    fileToString(f, 'windows-1251');
+    stringToFile('<?xml version="1.0" encoding="UTF-8"?>' +
+        regexpReplace(resultString(), '^<\\?xml[^>]*\\?>', '', 'g'));
+    open(file(RAWFILE(resultFile()), 'xml'));
+}
+
+openTitleFile 'Открыть файл титула' (ETRN e) { openTitleXml(titleFile(e)); } IMAGE 'open.png';
+
+// скачивание оригинала: просмотр открывает перекодированную копию, а для передачи файла
+// (оператору, на проверку подписи) нужны исходные байты - они сохраняются диалогом как есть
+downloadTitleFile 'Скачать оригинал' (ETRN e) {
+    WRITE CLIENT DIALOG titleFile(e) TO 'Титул_' + (OVERRIDE seriesNumber(e), 'ЭТрН');
+}
 printForm 'Печатная форма (PDF)' = ABSTRACT FILE (ETRN);
 // QR-код перевозки не запрашиваем: мы не перевозчик, водитель получает QR в своём приложении
 // (функционал оставлен закомментированным на случай возврата)

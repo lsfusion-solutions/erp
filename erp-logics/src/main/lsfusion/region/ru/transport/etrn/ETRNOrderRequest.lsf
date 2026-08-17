@@ -217,7 +217,10 @@ t2File 'Файл титула Т2 (XML)' = DATA FILE (OrderRequest);
 t2ImportedDateTime 'Дата/время загрузки ответа (Т2)' = DATA DATETIME (OrderRequest);
 
 hasT2File 'Есть титул Т2 XML' (OrderRequest o) = TRUE IF t2File(o);
-openT2File 'Открыть файл титула Т2' (OrderRequest o) { open(t2File(o)); } IMAGE 'open.png';
+openT2File 'Открыть файл титула Т2' (OrderRequest o) { openTitleXml(t2File(o)); } IMAGE 'open.png';
+downloadT2File 'Скачать оригинал' (OrderRequest o) {
+    WRITE CLIENT DIALOG t2File(o) TO (OVERRIDE 'Титул_Т2_заявки_' + number(o), 'Титул_Т2_заявки');
+}
 
 // привязка события ленты провайдера к заявке (аналог etrn(ETRNEvent) для ЭТрН)
 orderRequest = DATA OrderRequest (ETRNEvent) INDEXED;
@@ -466,7 +469,7 @@ sendOrderRequestAction 'Отправить заявку (Т1)' (OrderRequest o) 
 FORM orderRequest 'Заказ-заявка'
     OBJECTS o = OrderRequest PANEL
     PROPERTIES(o) roles, nameProvider, nameExchangeStatus READONLY, providerStatus READONLY, exchangeMessage READONLY
-    PROPERTIES(o) hasT2File READONLY, openT2File SHOWIF hasT2File(o)
+    PROPERTIES(o) hasT2File READONLY, openT2File SHOWIF hasT2File(o), downloadT2File SHOWIF hasT2File(o)
     PROPERTIES(o) series, number BACKGROUND (backgroundMandatory(o) IF NOT number(o)), date,
                   nameShipper BACKGROUND (backgroundMandatory(o) IF NOT shipper(o)),
                   nameCarrier BACKGROUND (backgroundMandatory(o) IF NOT carrier(o)),
@@ -695,6 +698,7 @@ DESIGN orderRequest {
                     MOVE PROPERTY(providerStatus(o));                    
                     MOVE PROPERTY(hasT2File(o));
                     MOVE PROPERTY(openT2File(o));
+                    MOVE PROPERTY(downloadT2File(o));
                 }
                 MOVE PROPERTY(exchangeMessage(o));
 //                MOVE BOX(ev) {

@@ -1,0 +1,642 @@
+MODULE ETRNForwardingOrder;
+
+REQUIRE ETRNExchange, LegalEntity, LegalEntityRu, Cargo, Currency;
+
+NAMESPACE ETRN;
+
+// Электронное поручение экспедитору (приказ ФНС N ЕД-7-26/958@) - документ ЭПД.
+// Мы всегда выступаем клиентом (титул клиента), экспедитор отвечает своим титулом;
+// отзыв поручения (третий титул) - отдельное действие, закладывается абстракцией.
+// Упрощение ручного режима: одна партия груза на поручение (поля партии - на документе,
+// строки груза - таблицей); при необходимости нескольких партий модель расширяется.
+
+// ------------------------- Документ ------------------------- //
+
+CLASS ForwardingOrder 'Поручение экспедитору';
+TABLE forwardingOrder(ForwardingOrder);
+
+number 'Номер' = DATA STRING[48] (ForwardingOrder) IN id CHARWIDTH 10;
+series 'Серия' = DATA BPSTRING[2] (ForwardingOrder) CHARWIDTH 3 NOFLEX;
+date 'Дата' = DATA DATE (ForwardingOrder) INDEXED;
+
+WHEN LOCAL SET(ForwardingOrder f IS ForwardingOrder) AND NOT CHANGED(date(f)) DO date(f) <- currentDate();
+
+// ------------------------- Нумерация (по аналогии с заявками) ------------------------- //
+
+numerator '{numerator.id.numerator}' = DATA Numerator (ForwardingOrder);
+nameNumerator '{numerator.numerator}' (ForwardingOrder f) = name(numerator(f)) CHARWIDTH 7;
+
+generateSeriesNumber '{numerator.generate.number}' (ForwardingOrder f) {
+    number(f) <- STRING[48](curStringValue(numerator(f)));
+    series(f) <- series(numerator(f));
+    incrementValueSession(numerator(f));
+}
+
+WHEN SETCHANGED(numerator(ForwardingOrder f)) AND
+     NOT CHANGED(number(f)) AND
+     NOT CHANGED(series(f))
+     DO generateSeriesNumber(f);
+
+defaultNumeratorForwardingOrder = DATA Numerator ();
+nameDefaultNumeratorForwardingOrder 'Поручения экспедитору' = name(defaultNumeratorForwardingOrder()) IN defaultNumerator;
+
+numerator(ForwardingOrder f) <- defaultNumeratorForwardingOrder() WHEN SET(f IS ForwardingOrder);
+
+EXTEND FORM defaultNumerators
+    PROPERTIES() nameDefaultNumeratorForwardingOrder = nameDefaultNumeratorForwardingOrder
+;
+
+createDefaultNumeratorForwardingOrder () {
+    NEW n = Numerator {
+        name(n) <- 'Поручения экспедитору';
+        series(n) <- 'ПЭ';
+        minValue(n) <- 1L;
+        maxValue(n) <- 99999L;
+        stringLength(n) <- 5;
+
+        defaultNumeratorForwardingOrder() <- n;
+    }
+}
+
+loadDefaultNumerators() + {
+    createDefaultNumeratorForwardingOrder();
+}
+
+isClosed 'Закрыт' = DATA BOOLEAN (ForwardingOrder);
+isOpened 'Открыт' (ForwardingOrder f) = f IS ForwardingOrder AND NOT isClosed(f);
+
+close 'Закрыть' (ForwardingOrder f) {
+    NEWSESSION { isClosed(f) <- TRUE; apply(); }
+} TOOLBAR CONFIRM;
+
+open 'Открыть' (ForwardingOrder f) {
+    NEWSESSION { isClosed(f) <- NULL; apply(); }
+} TOOLBAR CONFIRM;
+
+// ------------------------- Участники и договор ------------------------- //
+
+client = DATA LegalEntity (ForwardingOrder);
+nameClient 'Клиент' (ForwardingOrder f) = name(client(f)) CHARWIDTH 15;
+forwarder = DATA LegalEntity (ForwardingOrder);
+nameForwarder 'Экспедитор' (ForwardingOrder f) = name(forwarder(f)) CHARWIDTH 15;
+forwarderPhone 'Телефон экспедитора' (ForwardingOrder f) = phone(forwarder(f)) CHARWIDTH 15;
+
+roleClient 'Мы - клиент' (ForwardingOrder f) = isCompany(client(f));
+
+// договор транспортной экспедиции - основание поручения (обязателен в титуле)
+contractName 'Договор ТЭ: наименование' = DATA ISTRING[255](ForwardingOrder) CHARWIDTH 15;
+contractNumber 'Договор ТЭ: номер' = DATA ISTRING[255](ForwardingOrder) CHARWIDTH 12;
+contractDate 'Договор ТЭ: дата' = DATA DATE (ForwardingOrder);
+
+// ДокГруз: признак передачи экспедитору документов, необходимых для перевозки груза
+documentsAttached 'Передаются документы для перевозки' = DATA BOOLEAN (ForwardingOrder);
+
+// подписант титула клиента - первичные поля документа, заполняются из карточки клиента
+signerLastName 'Подписант: фамилия' = DATA ISTRING[60](ForwardingOrder) CHARWIDTH 15;
+signerFirstName 'Подписант: имя' = DATA ISTRING[60](ForwardingOrder) CHARWIDTH 15;
+signerMiddleName 'Подписант: отчество' = DATA ISTRING[60](ForwardingOrder) CHARWIDTH 15;
+signerPosition 'Подписант: должность' = DATA ISTRING[128](ForwardingOrder) CHARWIDTH 15;
+
+WHEN LOCAL CHANGED(client(ForwardingOrder f)) DO {
+    signerLastName(f) <- overSignerLastName(client(f)) WHERE overSignerLastName(client(f)) AND NOT signerLastName(f);
+    signerFirstName(f) <- overSignerFirstName(client(f)) WHERE overSignerFirstName(client(f)) AND NOT signerFirstName(f);
+    signerMiddleName(f) <- overSignerMiddleName(client(f)) WHERE overSignerMiddleName(client(f)) AND NOT signerMiddleName(f);
+    signerPosition(f) <- overSignerPosition(client(f)) WHERE overSignerPosition(client(f)) AND NOT signerPosition(f);
+}
+
+// ------------------------- Партия груза (одна на поручение) ------------------------- //
+
+shipper = DATA LegalEntity (ForwardingOrder);
+nameShipper 'Грузоотправитель' (ForwardingOrder f) = name(shipper(f)) CHARWIDTH 15;
+consignee = DATA LegalEntity (ForwardingOrder);
+nameConsignee 'Грузополучатель' (ForwardingOrder f) = name(consignee(f)) CHARWIDTH 15;
+
+// грузоотправитель по умолчанию - сам клиент
+WHEN LOCAL CHANGED(client(ForwardingOrder f)) AND NOT shipper(f) DO shipper(f) <- client(f);
+
+notifyParties 'Уведомить стороны о прибытии груза' = DATA BOOLEAN (ForwardingOrder);   // ПрУведСторон
+transferToForwarder 'Прием груза во владение экспедитором' = DATA BOOLEAN (ForwardingOrder);   // ОтмПрием
+// ПрзПрвз (0/1/2) - признак перевозки по приказу 958; расшифровка кодов уточняется
+transportationSign 'Признак перевозки (код)' = DATA STRING[1](ForwardingOrder) CHARWIDTH 4;
+WHEN LOCAL SET(ForwardingOrder f IS ForwardingOrder) AND NOT CHANGED(transportationSign(f)) DO
+    transportationSign(f) <- '0';
+
+// вид транспорта - кодировка ВидТС приказа 958 (1..5)
+CLASS ForwardingVehicleKind 'Вид транспорта' {
+    automobile 'Автомобильный',
+    railway 'Железнодорожный',
+    air 'Воздушный',
+    sea 'Морской',
+    river 'Внутренний водный'
+}
+id 'Код' (ForwardingVehicleKind k) = CASE EXCLUSIVE
+    WHEN k == ForwardingVehicleKind.automobile THEN '1'
+    WHEN k == ForwardingVehicleKind.railway THEN '2'
+    WHEN k == ForwardingVehicleKind.air THEN '3'
+    WHEN k == ForwardingVehicleKind.sea THEN '4'
+    WHEN k == ForwardingVehicleKind.river THEN '5';
+
+vehicleKind 'Вид транспорта' = DATA ForwardingVehicleKind (ForwardingOrder);
+nameVehicleKind 'Вид транспорта' (ForwardingOrder f) = staticCaption(vehicleKind(f)) CHARWIDTH 15;
+WHEN LOCAL SET(ForwardingOrder f IS ForwardingOrder) AND NOT CHANGED(vehicleKind(f)) DO
+    vehicleKind(f) <- ForwardingVehicleKind.automobile;
+bodyType 'Требования к типу кузова' = DATA ISTRING[255](ForwardingOrder) CHARWIDTH 15;
+
+// готовность к отгрузке и доставка
+shipmentDateFrom 'Готовность к отгрузке: с' = DATA DATE (ForwardingOrder);
+shipmentDateTo 'Готовность к отгрузке: по' = DATA DATE (ForwardingOrder);
+shipmentTime 'Время готовности' = DATA TIME (ForwardingOrder);
+deliveryDateFrom 'Доставка: с' = DATA DATE (ForwardingOrder);
+deliveryDateTo 'Доставка: по' = DATA DATE (ForwardingOrder);
+deliveryTime 'Время доставки' = DATA TIME (ForwardingOrder);
+
+// адреса приема и выдачи груза: структурные + место; заполняются выбором складов
+// (структурный адрес склада - от подразделения Диадока, как в ЭТрН)
+pickupStock 'Склад погрузки' = DATA Stock (ForwardingOrder);
+namePickupStock 'Склад погрузки' (ForwardingOrder f) = name(pickupStock(f)) CHARWIDTH 15;
+pickupPlace 'Место приема груза' = DATA ISTRING[255](ForwardingOrder) CHARWIDTH 15;
+pickupRegion 'Код региона (прием)' = DATA STRING[2](ForwardingOrder) CHARWIDTH 4;
+pickupZipCode 'Индекс (прием)' = DATA STRING[6](ForwardingOrder) CHARWIDTH 6;
+pickupCity 'Город (прием)' = DATA ISTRING[255](ForwardingOrder) CHARWIDTH 15;
+pickupStreet 'Улица (прием)' = DATA ISTRING[255](ForwardingOrder) CHARWIDTH 15;
+pickupBuilding 'Дом (прием)' = DATA ISTRING[20](ForwardingOrder) CHARWIDTH 6;
+hasPickupAddress (ForwardingOrder f) = pickupRegion(f) AND pickupZipCode(f);
+
+dropStock 'Склад разгрузки' = DATA Stock (ForwardingOrder);
+nameDropStock 'Склад разгрузки' (ForwardingOrder f) = name(dropStock(f)) CHARWIDTH 15;
+dropPlace 'Место выдачи груза' = DATA ISTRING[255](ForwardingOrder) CHARWIDTH 15;
+dropRegion 'Код региона (выдача)' = DATA STRING[2](ForwardingOrder) CHARWIDTH 4;
+dropZipCode 'Индекс (выдача)' = DATA STRING[6](ForwardingOrder) CHARWIDTH 6;
+dropCity 'Город (выдача)' = DATA ISTRING[255](ForwardingOrder) CHARWIDTH 15;
+dropStreet 'Улица (выдача)' = DATA ISTRING[255](ForwardingOrder) CHARWIDTH 15;
+dropBuilding 'Дом (выдача)' = DATA ISTRING[20](ForwardingOrder) CHARWIDTH 6;
+hasDropAddress (ForwardingOrder f) = dropRegion(f) AND dropZipCode(f);
+
+WHEN LOCAL CHANGED(pickupStock(ForwardingOrder f)) DO {
+    pickupPlace(f) <- ISTRING[255](name(pickupStock(f)));
+    pickupRegion(f) <- region(pickupStock(f));
+    pickupZipCode(f) <- zipCode(pickupStock(f));
+    pickupCity(f) <- city(pickupStock(f));
+    pickupStreet(f) <- street(pickupStock(f));
+    pickupBuilding(f) <- building(pickupStock(f));
+}
+WHEN LOCAL CHANGED(dropStock(ForwardingOrder f)) DO {
+    dropPlace(f) <- ISTRING[255](name(dropStock(f)));
+    dropRegion(f) <- region(dropStock(f));
+    dropZipCode(f) <- zipCode(dropStock(f));
+    dropCity(f) <- city(dropStock(f));
+    dropStreet(f) <- street(dropStock(f));
+    dropBuilding(f) <- building(dropStock(f));
+}
+
+route 'Маршрут следования груза' = DATA ISTRING[2000](ForwardingOrder) CHARWIDTH 15;
+
+// особые условия перевозки (УказКлнт)
+transportInstructions 'Указания в отношении норм перевозки' = DATA ISTRING[1000](ForwardingOrder) CHARWIDTH 15;
+specialMarks 'Особые отметки' = DATA ISTRING[1000](ForwardingOrder) CHARWIDTH 15;
+speedLimits 'Ограничения скорости' = DATA ISTRING[1000](ForwardingOrder) CHARWIDTH 15;
+deliveryPeriodDays 'Срок доставки, суток' = DATA INTEGER (ForwardingOrder);
+temperatureFrom 'Температура, от °C' = DATA NUMERIC[7,2](ForwardingOrder);
+temperatureTo 'Температура, до °C' = DATA NUMERIC[7,2](ForwardingOrder);
+humidityFrom 'Влажность, от %' = DATA NUMERIC[5,2](ForwardingOrder);
+humidityTo 'Влажность, до %' = DATA NUMERIC[5,2](ForwardingOrder);
+
+// объявленная/действительная стоимость груза
+currency 'Валюта' = DATA Currency (ForwardingOrder);
+nameCurrency 'Валюта' (ForwardingOrder f) = name(currency(f)) CHARWIDTH 10;
+declaredCost 'Объявленная стоимость груза' = DATA NUMERIC[18,2](ForwardingOrder);
+actualCost 'Действительная стоимость груза' = DATA NUMERIC[18,2](ForwardingOrder);
+
+WHEN LOCAL SET(ForwardingOrder f IS ForwardingOrder) INLINE DO {
+    transportInstructions(f) <- 'Отсутствуют';
+    specialMarks(f) <- 'Отсутствуют';
+    currency(f) <- defaultCurrency();
+}
+
+// ------------------------- Строки груза ------------------------- //
+
+CLASS ForwardingOrderDetail 'Строка поручения экспедитору';
+TABLE forwardingOrderDetail(ForwardingOrderDetail);
+
+forwardingOrder = DATA ForwardingOrder (ForwardingOrderDetail) NONULL DELETE INDEXED;
+dataIndex '{document.data.index.detail.class}' = DATA INTEGER (ForwardingOrderDetail);
+defaultIndex '№' (ForwardingOrderDetail d) = PARTITION SUM 1 IF d IS ForwardingOrderDetail ORDER d BY forwardingOrder(d) CHARWIDTH 3;
+index 'N' (ForwardingOrderDetail d) = OVERRIDE dataIndex(d), defaultIndex(d) IN id;
+
+cargo = DATA Cargo (ForwardingOrderDetail);
+nameCargo 'Груз' (ForwardingOrderDetail d) = name(cargo(d)) CHARWIDTH 15;
+tnved 'Код ТН ВЭД' (ForwardingOrderDetail d) = tnved(cargo(d)) CHARWIDTH 6;
+nameTareType 'Вид тары' (ForwardingOrderDetail d) = name(tareType(cargo(d))) CHARWIDTH 10;
+
+quantityPlaces 'Количество грузовых мест' = DATA INTEGER (ForwardingOrderDetail);
+volume 'Объем, м3' = DATA NUMERIC[17,3](ForwardingOrderDetail);
+netWeight 'Вес нетто, кг' = DATA NUMERIC[17,3](ForwardingOrderDetail);
+grossWeight 'Вес брутто, кг' = DATA NUMERIC[17,3](ForwardingOrderDetail);
+quantityPallets 'Количество паллет' = DATA INTEGER (ForwardingOrderDetail);
+
+dangerous 'Опасный груз' = DATA BOOLEAN (ForwardingOrderDetail);          // ПрзОпаснГруз
+seized 'Изъятые из оборота вещества' = DATA BOOLEAN (ForwardingOrderDetail);   // ПрзИзъятВещ
+stateSystem 'Учет в гос. системе' = DATA BOOLEAN (ForwardingOrderDetail);  // УчГосСист
+packaged 'Есть упаковка' = DATA BOOLEAN (ForwardingOrderDetail);           // НалУпак
+banReload 'Запрет перегрузки' = DATA BOOLEAN (ForwardingOrderDetail);      // ЗапрПерегруз
+
+WHEN LOCAL CHANGED(cargo(ForwardingOrderDetail d)) AND NOT CHANGED(packaged(d)) DO
+    packaged(d) <- TRUE IF tareType(cargo(d));
+
+// итоги партии (ВесГрузПарт / КолМестПарт)
+netWeightTotal 'Вес нетто партии, кг' (ForwardingOrder f) = GROUP SUM netWeight(ForwardingOrderDetail d) BY forwardingOrder(d);
+grossWeightTotal 'Вес брутто партии, кг' (ForwardingOrder f) = GROUP SUM grossWeight(ForwardingOrderDetail d) BY forwardingOrder(d);
+quantityPlacesTotal 'Мест в партии' (ForwardingOrder f) = GROUP SUM quantityPlaces(ForwardingOrderDetail d) BY forwardingOrder(d);
+quantityPalletsTotal 'Паллет в партии' (ForwardingOrder f) = GROUP SUM quantityPallets(ForwardingOrderDetail d) BY forwardingOrder(d);
+
+// ------------------------- Ответ экспедитора (титул экспедитора) ------------------------- //
+
+registryNumber 'Номер в реестре экспедиторов' = DATA STRING[100](ForwardingOrder) CHARWIDTH 15;
+registryDate 'Дата записи в реестре' = DATA DATE (ForwardingOrder);
+batchId 'Идентификатор партии груза' = DATA STRING[100](ForwardingOrder) CHARWIDTH 15;
+batchNumber 'Номер партии груза' = DATA STRING[20](ForwardingOrder) CHARWIDTH 8;
+forwarderThirdParties 'Привлеченные третьи лица' = DATA ISTRING[1000](ForwardingOrder) CHARWIDTH 15;
+forwarderPaymentInfo 'Оплата услуг экспедиции' = DATA ISTRING[1000](ForwardingOrder) CHARWIDTH 15;
+forwarderNotes 'Оговорки экспедитора' = DATA ISTRING[1000](ForwardingOrder) CHARWIDTH 15;
+
+t2File 'Файл титула экспедитора (XML)' = DATA FILE (ForwardingOrder);
+t2ImportedDateTime 'Дата/время загрузки ответа экспедитора' = DATA DATETIME (ForwardingOrder);
+hasT2File 'Есть титул экспедитора XML' (ForwardingOrder f) = TRUE IF t2File(f);
+openT2File 'Открыть файл титула экспедитора' (ForwardingOrder f) { openTitleXml(t2File(f)); } IMAGE 'open.png';
+downloadT2File 'Скачать оригинал' (ForwardingOrder f) {
+    WRITE CLIENT DIALOG t2File(f) TO (OVERRIDE 'Титул_экспедитора_' + number(f), 'Титул_экспедитора');
+}
+
+// ------------------------- Обмен с провайдером ЭПД ------------------------- //
+
+provider 'Провайдер ЭПД' = DATA ETRNProvider (ForwardingOrder);
+nameProvider 'Провайдер ЭПД' (ForwardingOrder f) = name(provider(f)) CHARWIDTH 15;
+
+WHEN LOCAL SET(ForwardingOrder f IS ForwardingOrder) AND NOT CHANGED(provider(f)) INLINE DO
+    provider(f) <- defaultProvider();
+
+exchangeStatus 'Статус обмена' = DATA ETRNExchangeStatus (ForwardingOrder);
+nameExchangeStatus 'Статус обмена' (ForwardingOrder f) = name(exchangeStatus(f)) CHARWIDTH 15;
+providerStatus 'Статус документооборота (провайдер)' = DATA STRING[100](ForwardingOrder) CHARWIDTH 15;
+exchangeMessage 'Сообщение обмена' = DATA TEXT (ForwardingOrder);
+
+backgroundMandatory (ForwardingOrder f) = RGB(255, 236, 240) IF f IS ForwardingOrder;
+
+// привязка события ленты провайдера к поручению (аналог etrn(ETRNEvent))
+forwardingOrder = DATA ForwardingOrder (ETRNEvent) INDEXED;
+seriesNumberForwardingOrder 'Поручение экспедитору' (ETRNEvent ev) =
+    CONCAT '', series(forwardingOrder(ev)), number(forwardingOrder(ev)) CHARWIDTH 10;
+
+EXTEND FORM etrnEvents
+    PROPERTIES(ev) READONLY seriesNumberForwardingOrder AFTER seriesNumberETRN(ev)
+;
+
+// абстракции обмена (реализуются модулями провайдеров)
+sendForwardingOrder 'Подписать и отправить поручение' ABSTRACT CASE (ForwardingOrder);       // титул клиента
+importForwardingOrderT2Data 'Загрузить ответ экспедитора' ABSTRACT CASE (ForwardingOrder);   // скачивание титула экспедитора + разбор
+recallForwardingOrder 'Отозвать поручение' ABSTRACT CASE (ForwardingOrder);                  // титул отзыва (реализация - позже)
+
+// загрузка ответов экспедиторов по нашим поручениям с завершённым документооборотом
+processForwardingOrdersT2 'Загрузить ответы экспедиторов' () {
+    FOR ForwardingOrder f IS ForwardingOrder AND roleClient(f) AND NOT t2ImportedDateTime(f) AND
+        exchangeStatus(f) == ETRNExchangeStatus.completed AND provider(f) DO
+        importForwardingOrderT2Data(f);
+}
+
+// ------------------------- Проверки перед отправкой ------------------------- //
+
+missingForwardingOrderDetail (ForwardingOrderDetail d) = CONCAT ', ',
+    'груз' IF NOT cargo(d),
+    'количество мест' IF NOT quantityPlaces(d),
+    'вес нетто' IF NOT netWeight(d),
+    'вес брутто' IF NOT grossWeight(d);
+
+missingForwardingOrderDetails (ForwardingOrder f) = GROUP CONCAT ('строка ' + index(ForwardingOrderDetail d) + ': ' + missingForwardingOrderDetail(d)), '; ' ORDER d BY forwardingOrder(d);
+
+missingForwardingOrderT1 (ForwardingOrder f) = CONCAT ', ',
+    'номер поручения' IF NOT number(f),
+    'клиент' IF NOT client(f),
+    'экспедитор' IF NOT forwarder(f),
+    'договор ТЭ (наименование)' IF NOT contractName(f),
+    'договор ТЭ (номер)' IF NOT contractNumber(f),
+    'договор ТЭ (дата)' IF NOT contractDate(f),
+    'грузоотправитель' IF NOT shipper(f),
+    'грузополучатель' IF NOT consignee(f),
+    'даты готовности к отгрузке (с/по)' IF NOT (shipmentDateFrom(f) AND shipmentDateTo(f)),
+    'структурный адрес приема груза: код региона и индекс' IF NOT hasPickupAddress(f),
+    'структурный адрес выдачи груза: код региона и индекс' IF NOT hasDropAddress(f),
+    'вид транспорта' IF NOT vehicleKind(f),
+    'указания в отношении норм перевозки' IF NOT transportInstructions(f),
+    'особые отметки' IF NOT specialMarks(f),
+    'строки груза' IF NOT (GROUP SUM 1 IF forwardingOrder(ForwardingOrderDetail d) == f),
+    'подписант (ФИО)' IF NOT (signerLastName(f) AND signerFirstName(f)),
+    'подписант (должность)' IF NOT signerPosition(f);
+
+filledForwardingOrderT1 (ForwardingOrder f) = f IS ForwardingOrder AND
+    NOT missingForwardingOrderT1(f) AND NOT missingForwardingOrderDetails(f);
+
+checkForwardingOrderT1 (ForwardingOrder f) {
+    IF NOT filledForwardingOrderT1(f) THEN
+        MESSAGE CONCAT '\n', 'Не заполнены обязательные поля поручения:',
+                missingForwardingOrderT1(f), missingForwardingOrderDetails(f) NOWAIT;
+}
+
+sendForwardingOrderAction 'Отправить поручение' (ForwardingOrder f) {
+    IF NOT provider(f) THEN { MESSAGE 'Для поручения не задан провайдер ЭПД' NOWAIT; RETURN; }
+    // номер обязателен в титуле - подстраховка нумератором с немедленным сохранением
+    // (реализация провайдера работает в своей сессии и несохранённый номер не увидит)
+    IF NOT number(f) THEN NEWSESSION {
+        IF NOT defaultNumeratorForwardingOrder() THEN createDefaultNumeratorForwardingOrder();
+        numerator(f) <- defaultNumeratorForwardingOrder() WHERE NOT numerator(f);
+        generateSeriesNumber(f);
+        APPLY;
+    }
+    IF NOT skipFieldCheckETRN() THEN {
+        checkForwardingOrderT1(f);
+        IF NOT filledForwardingOrderT1(f) THEN RETURN;
+    }
+    sendForwardingOrder(f);
+} IMAGE 'apply.png';
+
+// ------------------------- Форма документа ------------------------- //
+
+FORM forwardingOrder 'Поручение экспедитору'
+    OBJECTS f = ForwardingOrder PANEL
+    PROPERTIES(f) nameProvider, nameExchangeStatus READONLY, providerStatus READONLY, exchangeMessage READONLY
+    PROPERTIES(f) hasT2File READONLY, openT2File SHOWIF hasT2File(f), downloadT2File SHOWIF hasT2File(f)
+    PROPERTIES(f) series, number BACKGROUND (backgroundMandatory(f) IF NOT number(f)), date,
+                  nameClient BACKGROUND (backgroundMandatory(f) IF NOT client(f)),
+                  nameForwarder BACKGROUND (backgroundMandatory(f) IF NOT forwarder(f)),
+                  forwarderPhone,
+                  signerLastName BACKGROUND (backgroundMandatory(f) IF NOT signerLastName(f)),
+                  signerFirstName BACKGROUND (backgroundMandatory(f) IF NOT signerFirstName(f)),
+                  signerMiddleName, signerPosition BACKGROUND (backgroundMandatory(f) IF NOT signerPosition(f)),
+                  contractName BACKGROUND (backgroundMandatory(f) IF NOT contractName(f)),
+                  contractNumber BACKGROUND (backgroundMandatory(f) IF NOT contractNumber(f)),
+                  contractDate BACKGROUND (backgroundMandatory(f) IF NOT contractDate(f)),
+                  documentsAttached, notifyParties, transferToForwarder, transportationSign,
+                  nameShipper BACKGROUND (backgroundMandatory(f) IF NOT shipper(f)),
+                  nameConsignee BACKGROUND (backgroundMandatory(f) IF NOT consignee(f)),
+                  nameVehicleKind BACKGROUND (backgroundMandatory(f) IF NOT vehicleKind(f)), bodyType,
+                  shipmentDateFrom BACKGROUND (backgroundMandatory(f) IF NOT shipmentDateFrom(f)),
+                  shipmentDateTo BACKGROUND (backgroundMandatory(f) IF NOT shipmentDateTo(f)),
+                  shipmentTime, deliveryDateFrom, deliveryDateTo, deliveryTime,
+                  namePickupStock, pickupPlace,
+                  pickupRegion BACKGROUND (backgroundMandatory(f) IF NOT pickupRegion(f)),
+                  pickupZipCode BACKGROUND (backgroundMandatory(f) IF NOT pickupZipCode(f)),
+                  pickupCity, pickupStreet, pickupBuilding,
+                  nameDropStock, dropPlace,
+                  dropRegion BACKGROUND (backgroundMandatory(f) IF NOT dropRegion(f)),
+                  dropZipCode BACKGROUND (backgroundMandatory(f) IF NOT dropZipCode(f)),
+                  dropCity, dropStreet, dropBuilding,
+                  route,
+                  transportInstructions BACKGROUND (backgroundMandatory(f) IF NOT transportInstructions(f)),
+                  specialMarks BACKGROUND (backgroundMandatory(f) IF NOT specialMarks(f)),
+                  speedLimits, deliveryPeriodDays,
+                  temperatureFrom, temperatureTo, humidityFrom, humidityTo,
+                  nameCurrency, declaredCost, actualCost,
+                  netWeightTotal, grossWeightTotal, quantityPlacesTotal, quantityPalletsTotal
+
+    OBJECTS d = ForwardingOrderDetail
+    PROPERTIES(d) index,
+                  nameCargo BACKGROUND (backgroundMandatory(f) IF NOT cargo(d)),
+                  nameTareType, tnved,
+                  quantityPlaces BACKGROUND (backgroundMandatory(f) IF NOT quantityPlaces(d)),
+                  volume,
+                  netWeight BACKGROUND (backgroundMandatory(f) IF NOT netWeight(d)),
+                  grossWeight BACKGROUND (backgroundMandatory(f) IF NOT grossWeight(d)),
+                  quantityPallets, dangerous, seized, stateSystem, packaged, banReload
+    PROPERTIES(d) NEW, DELETE
+    ORDERS index(d)
+    FILTERS forwardingOrder(d) = f
+
+    PROPERTIES(f) registryNumber READONLY, registryDate READONLY,
+                  batchId READONLY, batchNumber READONLY, forwarderThirdParties READONLY,
+                  forwarderPaymentInfo READONLY, forwarderNotes READONLY
+
+    OBJECTS ev = ETRNEvent
+    PROPERTIES(ev) READONLY dateTime, type, status
+    ORDERS dateTime(ev) DESC
+    FILTERS forwardingOrder(ev) = f
+
+    EDIT ForwardingOrder OBJECT f
+;
+
+DESIGN forwardingOrder {
+    size = (1100, 750);
+    OBJECTS {
+        NEW header FIRST {
+            alignment = STRETCH;
+            NEW headerRow {
+                horizontal = TRUE;
+                MOVE PROPERTY(series(f));
+                MOVE PROPERTY(number(f));
+                MOVE PROPERTY(date(f));
+            }
+        }
+        NEW pane {
+            fill = 1;
+            tabbed = TRUE;
+            NEW mainTab {
+                caption = 'Поручение';
+                NEW partiesBox {
+                    caption = 'Стороны';
+                    horizontal = TRUE;
+                    MOVE PROPERTY(nameClient(f));
+                    MOVE PROPERTY(nameForwarder(f));
+                    MOVE PROPERTY(forwarderPhone(f));
+                }
+                NEW signerBox {
+                    caption = 'Подписант клиента';
+                    horizontal = TRUE;
+                    MOVE PROPERTY(signerLastName(f));
+                    MOVE PROPERTY(signerFirstName(f));
+                    MOVE PROPERTY(signerMiddleName(f));
+                    MOVE PROPERTY(signerPosition(f));
+                }
+                NEW contractBox {
+                    caption = 'Договор транспортной экспедиции';
+                    horizontal = TRUE;
+                    MOVE PROPERTY(contractName(f));
+                    MOVE PROPERTY(contractNumber(f));
+                    MOVE PROPERTY(contractDate(f));
+                }
+                NEW signsBox {
+                    caption = 'Признаки';
+                    horizontal = TRUE;
+                    MOVE PROPERTY(documentsAttached(f));
+                    MOVE PROPERTY(notifyParties(f));
+                    MOVE PROPERTY(transferToForwarder(f));
+                    MOVE PROPERTY(transportationSign(f));
+                }
+                NEW costBox {
+                    caption = 'Стоимость груза';
+                    horizontal = TRUE;
+                    MOVE PROPERTY(nameCurrency(f));
+                    MOVE PROPERTY(declaredCost(f));
+                    MOVE PROPERTY(actualCost(f));
+                }
+            }
+            NEW batchTab {
+                caption = 'Партия груза';
+                NEW batchParties {
+                    caption = 'Грузоотправитель и грузополучатель';
+                    horizontal = TRUE;
+                    MOVE PROPERTY(nameShipper(f));
+                    MOVE PROPERTY(nameConsignee(f));
+                }
+                NEW vehicleBox {
+                    caption = 'Транспорт';
+                    horizontal = TRUE;
+                    MOVE PROPERTY(nameVehicleKind(f));
+                    MOVE PROPERTY(bodyType(f));
+                }
+                NEW datesBox {
+                    caption = 'Сроки';
+                    horizontal = TRUE;
+                    MOVE PROPERTY(shipmentDateFrom(f));
+                    MOVE PROPERTY(shipmentDateTo(f));
+                    MOVE PROPERTY(shipmentTime(f));
+                    MOVE PROPERTY(deliveryDateFrom(f));
+                    MOVE PROPERTY(deliveryDateTo(f));
+                    MOVE PROPERTY(deliveryTime(f));
+                    MOVE PROPERTY(deliveryPeriodDays(f));
+                }
+                NEW pickupBox {
+                    caption = 'Прием груза (погрузка)';
+                    NEW pickupStockRow {
+                        horizontal = TRUE;
+                        MOVE PROPERTY(namePickupStock(f));
+                        MOVE PROPERTY(pickupPlace(f));
+                    }
+                    NEW pickupAddrRow {
+                        horizontal = TRUE;
+                        MOVE PROPERTY(pickupRegion(f));
+                        MOVE PROPERTY(pickupZipCode(f));
+                        MOVE PROPERTY(pickupCity(f));
+                        MOVE PROPERTY(pickupStreet(f));
+                        MOVE PROPERTY(pickupBuilding(f));
+                    }
+                }
+                NEW dropBox {
+                    caption = 'Выдача груза (пункт назначения)';
+                    NEW dropStockRow {
+                        horizontal = TRUE;
+                        MOVE PROPERTY(nameDropStock(f));
+                        MOVE PROPERTY(dropPlace(f));
+                    }
+                    NEW dropAddrRow {
+                        horizontal = TRUE;
+                        MOVE PROPERTY(dropRegion(f));
+                        MOVE PROPERTY(dropZipCode(f));
+                        MOVE PROPERTY(dropCity(f));
+                        MOVE PROPERTY(dropStreet(f));
+                        MOVE PROPERTY(dropBuilding(f));
+                    }
+                }
+                NEW conditionsBox {
+                    caption = 'Особые условия';
+                    lines = 3;
+                    MOVE PROPERTY(transportInstructions(f));
+                    MOVE PROPERTY(specialMarks(f));
+                    MOVE PROPERTY(speedLimits(f));
+                    MOVE PROPERTY(route(f));
+                    MOVE PROPERTY(temperatureFrom(f));
+                    MOVE PROPERTY(temperatureTo(f));
+                    MOVE PROPERTY(humidityFrom(f));
+                    MOVE PROPERTY(humidityTo(f));
+                }
+            }
+            NEW cargoTab {
+                caption = 'Груз';
+                MOVE BOX(d) { fill = 1; }
+                NEW totalsBox {
+                    caption = 'Итоги партии';
+                    horizontal = TRUE;
+                    MOVE PROPERTY(netWeightTotal(f));
+                    MOVE PROPERTY(grossWeightTotal(f));
+                    MOVE PROPERTY(quantityPlacesTotal(f));
+                    MOVE PROPERTY(quantityPalletsTotal(f));
+                }
+            }
+            NEW answerTab {
+                caption = 'Ответ экспедитора';
+                NEW answerMain {
+                    lines = 2;
+                    MOVE PROPERTY(registryNumber(f));
+                    MOVE PROPERTY(registryDate(f));
+                    MOVE PROPERTY(batchId(f));
+                    MOVE PROPERTY(batchNumber(f));
+                    MOVE PROPERTY(forwarderThirdParties(f));
+                    MOVE PROPERTY(forwarderPaymentInfo(f));
+                    MOVE PROPERTY(forwarderNotes(f));
+                }
+            }
+            NEW exchangeTab {
+                caption = 'Обмен';
+                NEW exchangeState {
+                    lines = 3;
+                    MOVE PROPERTY(nameProvider(f));
+                    MOVE PROPERTY(nameExchangeStatus(f));
+                    MOVE PROPERTY(providerStatus(f));
+                    MOVE PROPERTY(exchangeMessage(f));
+                    MOVE PROPERTY(hasT2File(f));
+                    MOVE PROPERTY(openT2File(f));
+                    MOVE PROPERTY(downloadT2File(f));
+                }
+                MOVE BOX(ev) {
+                    caption = 'События';
+                    fill = 1;
+                }
+            }
+        }
+    }
+}
+
+// ------------------------- Форма списка ------------------------- //
+
+FORM forwardingOrders 'Поручения экспедитору'
+    OBJECTS f = ForwardingOrder LAST
+    PROPERTIES(f) READONLY isClosed, series, number, date, nameClient, nameForwarder,
+                           nameProvider, nameExchangeStatus, providerStatus, t2ImportedDateTime
+    PROPERTIES(f) sendForwardingOrderAction SHOWIF roleClient(f),
+                  importForwardingOrderT2Data SHOWIF roleClient(f)
+    PROPERTIES processForwardingOrdersT2() DRAW f
+    PROPERTIES exchangeMessagePanel = exchangeMessage(f) READONLY PANEL
+    PROPERTIES(f) NEWSESSION NEW, EDIT, DELETE
+
+    OBJECTS d = ForwardingOrderDetail
+    PROPERTIES(d) READONLY index, nameCargo, quantityPlaces, volume, netWeight, grossWeight, quantityPallets
+    ORDERS index(d)
+    FILTERS forwardingOrder(d) = f
+
+    FILTERGROUP openedFilter FILTER 'Открытые' isOpened(f) 'F10' DEFAULT
+;
+
+DESIGN forwardingOrders {
+    NEW detailPane BEFORE TOOLBARBOX {
+        tabbed = TRUE;
+        fill = 1;
+        MOVE BOX(d) { fill = 1; caption = 'Груз'; }
+        NEW actionsTab {
+            caption = 'Действия';
+            horizontal = TRUE;
+            NEW actionsButtons {
+                MOVE PROPERTY(sendForwardingOrderAction(f));
+                MOVE PROPERTY(importForwardingOrderT2Data(f));
+                MOVE PROPERTY(processForwardingOrdersT2());
+            }
+            MOVE PROPERTY(exchangeMessagePanel) {
+                caption = 'Сообщение обмена';
+                fill = 1;
+                panelCaptionVertical = TRUE;
+            }
+        }
+    }
+}
+
+NAVIGATOR {
+    epdNavigator {
+        NEW forwardingOrders;
+    }
+}

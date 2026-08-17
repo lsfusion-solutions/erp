@@ -1,0 +1,114 @@
+MODULE DiadocForwardingOrderImport;
+
+REQUIRE DiadocLogisticsEvents, ETRNForwardingOrderXmlRu;
+
+NAMESPACE Diadoc;
+
+// ------------------------- Ответ экспедитора (титул экспедитора, ПорЭксп) ------------------------- //
+// ИД сущности титула экспедитора (слот 1) - из журнала docflow-событий поручения;
+// fallback - запрос состава сообщения (GetMessage): вложение ON_POREXPEXP
+
+lastForwardingMessageId (ETRN.ForwardingOrder f) = GROUP LAST messageId(ETRN.ETRNEvent ev) ORDER ETRN.dateTime(ev), ev BY forwardingOrder(ev);
+lastForwardingEntityId (ETRN.ForwardingOrder f) = GROUP LAST entityId(ETRN.ETRNEvent ev) ORDER ETRN.dateTime(ev), ev BY forwardingOrder(ev);
+lastForwardingBox (ETRN.ForwardingOrder f) = GROUP LAST eventBox(ETRN.ETRNEvent ev) ORDER ETRN.dateTime(ev), ev BY forwardingOrder(ev);
+
+forwardingDocMessageId (ETRN.ForwardingOrder f) = OVERRIDE messageId(message(diadocDocument(f))), lastForwardingMessageId(f);
+forwardingDocEntityId (ETRN.ForwardingOrder f) = OVERRIDE entityId(entity(diadocDocument(f))), lastForwardingEntityId(f);
+
+ourForwardingLegalEntity (ETRN.ForwardingOrder f) = ETRN.client(f) IF isCompany(ETRN.client(f));
+forwardingBoxId (ETRN.ForwardingOrder f) = OVERRIDE diadocBoxId(ourForwardingLegalEntity(f)), boxId(lastForwardingBox(f));
+
+forwardingT2EntityId (ETRN.ForwardingOrder f) = GROUP LAST titleEntityId(ETRN.ETRNEvent ev, 1) ORDER ETRN.dateTime(ev), ev BY forwardingOrder(ev);
+
+// состав сообщения (V3/GetMessage)
+fwoEntityId = DATA LOCAL STRING (INTEGER);
+fwoParentEntityId = DATA LOCAL STRING (INTEGER);
+fwoEntityType = DATA LOCAL STRING (INTEGER);
+fwoFileName = DATA LOCAL STRING (INTEGER);
+
+FORM diadocForwardingMessageEntities
+    OBJECTS en = INTEGER EXTID 'Entities'
+    PROPERTIES(en) fwoEntityId EXTID 'EntityId', fwoParentEntityId EXTID 'ParentEntityId',
+                   fwoEntityType EXTID 'EntityType', fwoFileName EXTID 'FileName'
+;
+
+fwoResult = DATA LOCAL FILE ();
+foundForwardingT2EntityId = DATA LOCAL STRING ();
+
+// поиск ИД сущности титула экспедитора: приоритетно - по имени файла (ON_POREXPEXP по приказу),
+// иначе - XML-вложение с родителем-титулом клиента
+diadocFindForwardingT2Entity (ETRN.ForwardingOrder f) {
+    foundForwardingT2EntityId() <- NULL;
+    TRY {
+        EXTERNAL HTTP GET url() + '/V3/GetMessage?boxId=' + forwardingBoxId(f) + '&messageId=' + forwardingDocMessageId(f)
+            HEADERS httpHeadersToken TO fwoResult;
+        IMPORT diadocForwardingMessageEntities JSON FROM fwoResult();
+    } CATCH {
+        fileToString(fwoResult(), 'UTF-8');
+        MESSAGE 'Ошибка получения состава сообщения поручения (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException()) NOWAIT;
+        RETURN;
+    }
+    foundForwardingT2EntityId() <- OVERRIDE
+        (GROUP LAST fwoEntityId(INTEGER en) IF upper(fwoFileName(en)) LIKE 'ON_POREXPEXP%' ORDER en),
+        (GROUP LAST fwoEntityId(INTEGER en) IF fwoParentEntityId(en) == forwardingDocEntityId(f) AND
+            fwoEntityType(en) == 'Attachment' AND upper(fwoFileName(en)) LIKE '%.XML' ORDER en);
+
+    // диагностика: если титул не найден - показать состав сообщения
+    IF NOT foundForwardingT2EntityId() THEN
+        MESSAGE CONCAT '\n', 'Не удалось определить титул экспедитора в сообщении поручения. Состав сообщения (ИД | тип | родитель | файл):',
+            (GROUP CONCAT (CONCAT ' | ', fwoEntityId(INTEGER en), fwoEntityType(en), fwoParentEntityId(en), fwoFileName(en)), '\n' ORDER en) NOWAIT;
+}
+
+diadocImportForwardingOrderT2Data (ETRN.ForwardingOrder f) {
+    IF NOT forwardingDocMessageId(f) THEN {
+        MESSAGE 'Нет документа поручения экспедитору в Диадоке (события не получены)' NOWAIT;
+        RETURN;
+    }
+    IF NOT forwardingBoxId(f) THEN {
+        MESSAGE 'Не найден ящик Диадока нашей организации-клиента поручения' NOWAIT;
+        RETURN;
+    }
+
+    FOR User u == userDiadocETRN() DO {
+        getToken(u);
+
+        // ИД сущности титула экспедитора: приоритетно - по составу сообщения
+        diadocFindForwardingT2Entity(f);
+        foundForwardingT2EntityId() <- forwardingT2EntityId(f) WHERE NOT foundForwardingT2EntityId();
+        IF NOT foundForwardingT2EntityId() THEN RETURN;   // диагностика показана выше
+
+        // XML титула экспедитора (формат приказа ФНС)
+        LOCAL data = RAWFILE ();
+        TRY {
+            EXTERNAL HTTP GET url() + '/GetEntityContent?boxId=' + forwardingBoxId(f) +
+                '&messageId=' + forwardingDocMessageId(f) + '&entityId=' + foundForwardingT2EntityId()
+                HEADERS httpHeadersToken TO data;
+        } CATCH {
+            fileToString(FILE(data()), 'UTF-8');
+            MESSAGE 'Ошибка получения контента титула экспедитора (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException()) NOWAIT;
+            RETURN;
+        }
+
+        ETRN.t2File(f) <- file(data(), 'xml');
+
+        // разбор ответа экспедитора в поля поручения (в текущей сессии)
+        ETRN.parseForwardingOrderT2Xml(f);
+
+        ETRN.t2ImportedDateTime(f) <- currentDateTime();
+        APPLY;
+    }
+}
+
+ETRN.importForwardingOrderT2Data (ETRN.ForwardingOrder f) + WHEN ETRN.provider(f) == ETRN.ETRNProvider.diadoc THEN {
+    NEWSESSION {
+        diadocImportForwardingOrderT2Data(f);
+    }
+}
+
+// автозагрузка ответа экспедитора сразу при обработке события: как только документооборот
+// поручения завершён - запрашиваем титул экспедитора, не дожидаясь отдельного запуска
+ETRN.onProcessedEvent (ETRN.ETRNEvent ev) + {
+    FOR ETRN.ForwardingOrder f == forwardingOrder(ev) AND ETRN.roleClient(f) AND NOT ETRN.t2ImportedDateTime(f) AND
+        ETRN.exchangeStatus(f) == ETRN.ETRNExchangeStatus.completed DO
+        ETRN.importForwardingOrderT2Data(f);
+}

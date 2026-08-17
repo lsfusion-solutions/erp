@@ -1,6 +1,6 @@
 MODULE DiadocLogisticsEvents;
 
-REQUIRE DiadocLogistics, DiadocOrderRequest, ETRNConditionalTitles, ETRNIncoming;
+REQUIRE DiadocLogistics, DiadocOrderRequest, DiadocForwardingOrder, ETRNConditionalTitles, ETRNIncoming;
 
 NAMESPACE Diadoc;
 
@@ -217,6 +217,7 @@ importDocflowEventsPage (User u, Box b) {
         limitEventsR() <- 100;
         typeNamedIdR(0) <- logisticsTypeNamedId();
         typeNamedIdR(1) <- orderRequestTypeNamedId();
+        typeNamedIdR(2) <- forwardingOrderTypeNamedId();
 
         LOCAL result = FILE ();
         EXPORT exportDocflowEventsRequest JSON;
@@ -293,6 +294,7 @@ etrnByReceptionEntity (STRING id) = GROUP MAX ETRN.ETRN e BY entityId(entity(dia
 etrnByDeliveryEntity (STRING id) = GROUP MAX ETRN.ETRN e BY entityId(entity(diadocDeliveryDocument(e)));
 etrnByCostEntity (STRING id) = GROUP MAX ETRN.ETRN e BY entityId(entity(diadocCostDocument(e)));
 orderByEntity (STRING id) = GROUP MAX ETRN.OrderRequest o BY entityId(entity(diadocDocument(o)));
+forwardingByEntity (STRING id) = GROUP MAX ETRN.ForwardingOrder f BY entityId(entity(diadocDocument(f)));
 
 // маппинг статуса KlMt (ГИС ЭПД) на этап ЭТрН
 // TODO: сверить справочник статусов KlMt на тестовой площадке
@@ -397,11 +399,34 @@ processOrderRequestEvent (ETRN.ETRNEvent ev) {
     }
 }
 
+// событие по неизвестному поручению игнорируется: входящие поручения не создаём (мы - только клиент)
+processForwardingOrderEvent (ETRN.ETRNEvent ev) {
+    LOCAL f = ETRN.ForwardingOrder ();
+    f() <- OVERRIDE forwardingOrder(ev), forwardingByEntity(entityId(ev));
+
+    FOR ETRN.ForwardingOrder fo == f() DO {
+        forwardingOrder(ev) <- fo;
+        ETRN.providerStatus(fo) <- ETRN.status(ev);
+
+        // привязка документа поручения (если материализован через V3)
+        FOR Document d == document(messageId(ev), entityId(ev)) DO
+            IF NOT diadocDocument(fo) THEN diadocDocument(fo) <- d;
+
+        // титул клиента - слот 0, титул экспедитора - слот 1
+        ETRN.exchangeStatus(fo) <- CASE
+            WHEN titleRejected(ev, 0) THEN ETRN.ETRNExchangeStatus.rejected
+            WHEN signedTitle(ev, 1) THEN ETRN.ETRNExchangeStatus.completed   // оба титула оформлены
+            WHEN signedTitle(ev, 0) THEN ETRN.ETRNExchangeStatus.signed
+            ELSE ETRN.exchangeStatus(fo);
+    }
+}
+
 // продвижение документа по событию (реализация абстракции ETRNExchange; вызывается из
 // processETRNEvents в общей NEWSESSION по неубывающей dateTime)
 ETRN.processEvent (ETRN.ETRNEvent ev) + WHEN ETRN.provider(ev) == ETRN.ETRNProvider.diadoc THEN {
     IF typeNamedId(ev) == logisticsTypeNamedId() THEN processETRNEvent(ev);
     IF typeNamedId(ev) == orderRequestTypeNamedId() THEN processOrderRequestEvent(ev);
+    IF typeNamedId(ev) == forwardingOrderTypeNamedId() THEN processForwardingOrderEvent(ev);
 }
 
 // ------------------------- Координаты reception-документа перевозки ------------------------- //

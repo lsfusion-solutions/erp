@@ -1,0 +1,120 @@
+MODULE ETRNForwardingOrderXmlRu;
+
+REQUIRE ETRNForwardingOrder, Utils;
+
+NAMESPACE ETRN;
+
+// Разбор XML титула экспедитора (приказ ФНС N ЕД-7-26/958@, ON_POREXPEXP) в поля поручения.
+// Формат приказа - единый для провайдеров, поэтому общий модуль.
+// Провайдер кладёт XML в t2File(ForwardingOrder) и вызывает parseForwardingOrderT2Xml.
+
+// ------------------------- Локальные свойства ------------------------- //
+
+// СодИнфЭксп (шапка)
+impFoRegNum = DATA LOCAL STRING ();      // НомРеестр - номер записи в реестре экспедиторов
+impFoRegDate = DATA LOCAL STRING ();     // ДатаРеестр
+impFoUid = DATA LOCAL STRING ();         // УИД_ПорЭксп
+impFoOtherData = DATA LOCAL STRING ();   // ИныеДанЭксп (первая оговорка)
+
+// ДопИнфЭксп (услуги; может быть несколько)
+impFoSrvName = DATA LOCAL STRING (INTEGER);      // НаимУсл
+impFoSrvDone = DATA LOCAL STRING (INTEGER);      // ПризнИсп
+impFoSrvQuantity = DATA LOCAL STRING (INTEGER);  // КолУсл
+impFoSrvBatchId = DATA LOCAL STRING (INTEGER);   // ИдентПартГруз (первый)
+impFoSrvBatchNum = DATA LOCAL STRING (INTEGER);  // НомПартГруз (первый)
+impFoSrvCost = DATA LOCAL STRING (INTEGER);      // СвОплата@ОбщСтУсл
+impFoSrvTaxRate = DATA LOCAL STRING (INTEGER);   // СвОплата@НалСт
+impFoSrvCurrency = DATA LOCAL STRING (INTEGER);  // СвОплата@НаимОКВ
+// СвПредстЭксп (третье лицо, привлеченное экспедитором)
+impFoPredstName = DATA LOCAL STRING (INTEGER);   // СвЮЛУч@НаимОрг
+impFoPredstInn = DATA LOCAL STRING (INTEGER);    // СвЮЛУч@ИННЮЛ
+impFoPredstInnIP = DATA LOCAL STRING (INTEGER);  // СвИП@ИННФЛ
+
+// ------------------------- Импортная форма ------------------------- //
+
+GROUP impFoDoc EXTID 'Документ';
+GROUP impFoContent EXTID 'СодИнфЭксп' : impFoDoc;
+GROUP impFoPay EXTID 'СвОплата';
+GROUP impFoPredst EXTID 'СвПредстЭксп';
+GROUP impFoPredstRek EXTID 'РекИдПредст' : impFoPredst;
+GROUP impFoPredstId EXTID 'ИдСв' : impFoPredstRek;
+GROUP impFoPredstUL EXTID 'СвЮЛУч' : impFoPredstId;
+GROUP impFoPredstIP EXTID 'СвИП' : impFoPredstId;
+
+FORM etrnForwardingT2Import
+    PROPERTIES IN impFoContent
+        impFoRegNum() EXTID 'НомРеестр' ATTR,
+        impFoRegDate() EXTID 'ДатаРеестр' ATTR,
+        impFoUid() EXTID 'УИД_ПорЭксп' ATTR,
+        impFoOtherData() EXTID 'ИныеДанЭксп'
+
+    OBJECTS s = INTEGER EXTID 'ДопИнфЭксп' IN impFoContent
+    PROPERTIES(s)
+        impFoSrvName EXTID 'НаимУсл' ATTR,
+        impFoSrvDone EXTID 'ПризнИсп' ATTR,
+        impFoSrvQuantity EXTID 'КолУсл' ATTR,
+        impFoSrvBatchId EXTID 'ИдентПартГруз',
+        impFoSrvBatchNum EXTID 'НомПартГруз'
+    PROPERTIES(s) IN impFoPay
+        impFoSrvCost EXTID 'ОбщСтУсл' ATTR,
+        impFoSrvTaxRate EXTID 'НалСт' ATTR,
+        impFoSrvCurrency EXTID 'НаимОКВ' ATTR
+    PROPERTIES(s) IN impFoPredstUL
+        impFoPredstName EXTID 'НаимОрг' ATTR,
+        impFoPredstInn EXTID 'ИННЮЛ' ATTR
+    PROPERTIES(s) IN impFoPredstIP
+        impFoPredstInnIP EXTID 'ИННФЛ' ATTR
+;
+
+// ------------------------- Разбор в документ ------------------------- //
+
+parseForwardingOrderT2Xml 'Импортировать титул экспедитора из файла' (ForwardingOrder f) {
+    IF NOT t2File(f) THEN {
+        MESSAGE 'Не загружен файл титула экспедитора (поле на вкладке "Обмен")' NOWAIT;
+        RETURN;
+    }
+
+    // очистка результатов предыдущего импорта повторяющихся блоков
+    impFoSrvName(INTEGER i) <- NULL WHERE impFoSrvName(i);
+    impFoSrvDone(INTEGER i) <- NULL WHERE impFoSrvDone(i);
+    impFoSrvQuantity(INTEGER i) <- NULL WHERE impFoSrvQuantity(i);
+    impFoSrvBatchId(INTEGER i) <- NULL WHERE impFoSrvBatchId(i);
+    impFoSrvBatchNum(INTEGER i) <- NULL WHERE impFoSrvBatchNum(i);
+    impFoSrvCost(INTEGER i) <- NULL WHERE impFoSrvCost(i);
+    impFoSrvTaxRate(INTEGER i) <- NULL WHERE impFoSrvTaxRate(i);
+    impFoSrvCurrency(INTEGER i) <- NULL WHERE impFoSrvCurrency(i);
+    impFoPredstName(INTEGER i) <- NULL WHERE impFoPredstName(i);
+    impFoPredstInn(INTEGER i) <- NULL WHERE impFoPredstInn(i);
+    impFoPredstInnIP(INTEGER i) <- NULL WHERE impFoPredstInnIP(i);
+
+    // файлы приказа - windows-1251, как правило без XML-декларации
+    IMPORT etrnForwardingT2Import XML CHARSET 'windows-1251' FROM t2File(f);
+
+    registryNumber(f) <- STRING[100](impFoRegNum());
+    registryDate(f) <- DATE(toDateFormat(impFoRegDate(), 'DD.MM.YYYY'));
+
+    batchId(f) <- STRING[100]([GROUP LAST impFoSrvBatchId(INTEGER i) ORDER i]());
+    batchNumber(f) <- STRING[20]([GROUP LAST impFoSrvBatchNum(INTEGER i) ORDER i]());
+
+    // услуги экспедиции: наименование, стоимость, ставка налога, признак исполнения
+    forwarderPaymentInfo(f) <- ISTRING[1000](GROUP CONCAT (CONCAT ' ', impFoSrvName(INTEGER i),
+        (CONCAT ' ', impFoSrvCost(i), impFoSrvCurrency(i), 'НДС ' + impFoSrvTaxRate(i)),
+        'кол-во ' + impFoSrvQuantity(i), 'исполнено' IF impFoSrvDone(i) == '1'), '; ' ORDER i);
+
+    // привлеченные третьи лица
+    forwarderThirdParties(f) <- ISTRING[1000](GROUP CONCAT (CONCAT ' ', impFoPredstName(INTEGER i),
+        'ИНН ' + (OVERRIDE impFoPredstInn(i), impFoPredstInnIP(i))), '; ' ORDER i);
+
+    forwarderNotes(f) <- ISTRING[1000](impFoOtherData());
+}
+
+// ручной режим: разбор приложенного файла прямо с карточки поручения
+EXTEND FORM forwardingOrder
+    PROPERTIES(f) parseForwardingOrderT2Xml
+;
+
+DESIGN forwardingOrder {
+    answerTab {
+        MOVE PROPERTY(parseForwardingOrderT2Xml(f)) FIRST;
+    }
+}
