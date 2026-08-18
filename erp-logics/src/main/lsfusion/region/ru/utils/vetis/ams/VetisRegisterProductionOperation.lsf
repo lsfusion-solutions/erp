@@ -363,6 +363,10 @@ FORM registerProductionOperationResponse FORMEXTID 'merc=http://api.vetrf.ru/sch
     PROPERTIES() IN organizationR name14R EXTID 'dt:name'
     PROPERTIES() IN regionR uuid19R EXTID 'bs:uuid', guid17R EXTID 'bs:guid', name15R EXTID 'dt:name';
 
+// реализации могут дозаполнить созданный производственный ВСД данными из ответа
+// (локалы разбора ответа доступны — вызывается внутри той же сессии обработки)
+afterProcessProductionVetDocument ABSTRACT LIST (RegisterProductionOperationRequest, VetDocument);
+
 process (RegisterProductionOperationRequest r) + {
     NEWSESSION {
         stringToFile(response(r));
@@ -424,6 +428,8 @@ process (RegisterProductionOperationRequest r) + {
                 type(rd) <- 1;
                 relationshipType(rd) <- 1;
             }
+
+            afterProcessProductionVetDocument(r, d);
         }
 
         FOR  guidR(INTEGER i) AND NOT stockEntry(guidR(i)) DO NEW d = StockEntry {

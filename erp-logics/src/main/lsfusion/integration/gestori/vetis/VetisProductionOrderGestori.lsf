@@ -199,3 +199,41 @@ DESIGN vetDocument {
         MOVE BOX(pod) { caption = 'Производственные заказы'; fill = 1; }
     }
 }
+
+
+// ---- Дозаполнение производственного ВСД данными упаковки и маркировки из ответа ----
+// («Кол-во», «Тип упаковки», «Тип штрихкода», «Маркировка» — как при загрузке ВСД из Ветис)
+
+GROUP packagingProdRGestori EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:packaging' : productItem2R;
+GROUP packageListProdRGestori EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:packageList' : batch1R;
+GROUP packingTypeProdRGestori EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:packingType';
+GROUP productMarksProdRGestori EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:productMarks';
+
+quantityPackProdRGestori = DATA LOCAL STRING ();
+pkgLevelProdRGestori = DATA LOCAL INTEGER (INTEGER);
+pkgQuantityProdRGestori = DATA LOCAL STRING (INTEGER);
+pkgPackingTypeGlobalIDProdRGestori = DATA LOCAL STRING (INTEGER);
+pkgProductMarksProdRGestori = DATA LOCAL STRING (INTEGER);
+pkgProductMarksClassProdRGestori = DATA LOCAL STRING (INTEGER);
+
+EXTEND FORM registerProductionOperationResponse
+    PROPERTIES() quantityPackProdRGestori EXTID 'dt:quantity' IN packagingProdRGestori
+
+    OBJECTS pkgProd = INTEGER EXTID 'dt:package' IN packageListProdRGestori
+    PROPERTIES(pkgProd) pkgLevelProdRGestori EXTID 'dt:level',
+                        pkgQuantityProdRGestori EXTID 'dt:quantity',
+                        pkgPackingTypeGlobalIDProdRGestori EXTID 'dt:globalID' IN packingTypeProdRGestori,
+                        pkgProductMarksProdRGestori EXTID 'dt:productMarks',
+                        pkgProductMarksClassProdRGestori EXTID 'class' ATTR IN productMarksProdRGestori
+;
+
+afterProcessProductionVetDocument(RegisterProductionOperationRequest r, VetDocument d) + {
+    quantityPackGestori(d) <- NUMERIC[16,5](quantityPackProdRGestori());
+    FOR pkgLevelProdRGestori(INTEGER i) == 2 DO {
+        packingTypeGlobalIDGestori(d) <- pkgPackingTypeGlobalIDProdRGestori(i);
+        productMarksClassGestori(d) <- pkgProductMarksClassProdRGestori(i);
+        productMarksGestori(d) <- pkgProductMarksProdRGestori(i);
+        IF pkgQuantityProdRGestori(i) AND NOT quantityPackGestori(d) THEN
+            quantityPackGestori(d) <- NUMERIC[16,5](pkgQuantityProdRGestori(i));
+    }
+}
