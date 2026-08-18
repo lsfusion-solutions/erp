@@ -464,6 +464,27 @@ sendOrderRequestAction 'Отправить заявку (Т1)' (OrderRequest o) 
     sendOrderRequest(o);
 } IMAGE 'apply.png';
 
+// ------------------------- Добавление пунктов маршрута ------------------------- //
+// вместо стандартной кнопки: пункт создаётся сразу с операцией; расширение кнопки
+// «Выгрузка» (например, автосоздание строки груза) - у клиентов
+
+overAddUnloadingPoint ABSTRACT LIST (OrderPoint);
+
+addLoadingPoint 'Погрузка' (OrderRequest o) {
+    NEW p = OrderPoint {
+        orderRequest(p) <- o;
+        operation(p) <- OrderPointOperation.loading;
+    }
+} IMAGE 'add.png';
+
+addUnloadingPoint 'Выгрузка' (OrderRequest o) {
+    NEW p = OrderPoint {
+        orderRequest(p) <- o;
+        operation(p) <- OrderPointOperation.unloading;
+        overAddUnloadingPoint(p);
+    }
+} IMAGE 'add.png';
+
 // ------------------------- Форма документа ------------------------- //
 
 FORM orderRequest 'Заказ-заявка'
@@ -499,7 +520,8 @@ FORM orderRequest 'Заказ-заявка'
                    city, street, building, address,
                    ownerName BACKGROUND (backgroundMandatory(o) IF ownerInn(op) AND NOT ownerName(op)),
                    ownerInn
-    PROPERTIES(op) NEW, DELETE
+    PROPERTIES(o) DRAW op TOOLBAR addLoadingPoint, addUnloadingPoint 
+    PROPERTIES(op) DELETE
     ORDERS index(op)
     FILTERS orderRequest(op) = o
 
