@@ -581,6 +581,7 @@ recalculateStats 'Пересчет статистики' (TableColumn c) {
 }
 
 singleKey(Table t) = (GROUP SUM 1 IF table(TableKey k) == t) == 1;
+noKey(Table t) = NOT (GROUP SUM 1 IF table(TableKey k) == t);
 
 recalculateStats 'Пересчет статистики' (TableKey k) {
     NEWSESSION {
@@ -603,7 +604,7 @@ recalculateStats 'Пересчет статистики' (TableKey k) {
 
                 importQuantityAndLog(replace(replace(replace(distinctTopQuery(), '$1', sid(k)), '$2', sid(table(k))), '$3', STRING(LONG(0.8 * curRows(table(k))))));
                 //нормализуем обратно к 100% 
-                //(qty() == 0 AND quantity() != 0) нужно на случай если одна группа больше 80%.текущий запрос возвращает 0. Известно что есть группы если quantity() != 0, не нужно уложнять запрос
+                //(qty() == 0 AND quantity() != 0) нужно на случай если одна группа больше 80%.текущий запрос возвращает 0. Известно что есть группы если quantity() != 0, не нужно уcложнять запрос
                 quantityTop() <- min(curRows(table(k)), (IF qty() == 0 AND quantity() != 0 THEN 1 ELSE qty()) / 0.8);
             }
 
@@ -646,7 +647,7 @@ recalculateStats 'Пересчет статистики' (Table t, BOOLEAN skipT
         INTERNAL DB 'ANALYZE ' + lower(sid(t));
         loadCurRows(t);
 
-        importQuantityAndLog(replace(replace(notNullQuery(), '$1', 'key0'), '$2', sid(t)));
+        importQuantityAndLog(replace(replace(notNullQuery(), '$1', IF noKey(t) THEN 'dumb' ELSE 'key0'), '$2', sid(t)));
         rows(t) <- safeInt(qty());
         recalculateClassesStat(t);
         lastRecalculateStats(t) <- currentDateTime();
