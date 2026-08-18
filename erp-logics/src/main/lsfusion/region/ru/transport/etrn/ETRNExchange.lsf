@@ -22,7 +22,7 @@ EXTEND FORM options
 ;
 
 DESIGN options {
-    tranport {
+    transport {
         MOVE PROPERTY(nameDefaultProvider());
         MOVE PROPERTY(skipFieldCheckETRN());
     }
@@ -82,6 +82,11 @@ nextActionOurFlow (ETRN e) = TRUE IF
 nextActionOur (ETRN e) = OVERRIDE overNextActionOur(e), nextActionOurFlow(e);
 
 backgroundNextAction (ETRN e) = RGB(255, 246, 205) IF nextActionOur(e);
+
+// автозакрытие: документ с завершённым документооборотом (или прошедший этап "Разгрузка")
+// закрывается автоматически; при необходимости открывается кнопкой "Открыть"
+WHEN SET(exchangeStatus(ETRN e) == ETRNExchangeStatus.completed OR id(stage(e)) == 4) DO
+    isClosed(e) <- TRUE;
 
 // подписант организации (справочное значение - источник по умолчанию для документов):
 // выбирается из сотрудников; первичные поля позволяют поправить реквизиты вручную -
