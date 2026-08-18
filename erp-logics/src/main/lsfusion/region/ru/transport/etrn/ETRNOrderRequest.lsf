@@ -372,7 +372,7 @@ unloadingPoint 'Маршрут' = DATA OrderPoint (OrderDetail);
 concatName (OrderPoint o) = CONCAT ' ', ('№' + index(o)), address(o) CHARWIDTH 15;
 
 nameUnloadingPoint 'Маршрут' (OrderDetail d) = concatName(unloadingPoint(d)) CHARWIDTH 15;
-
+nameStockUnloadingPoint 'Маршрут (склад)' (OrderDetail d) = nameStock(unloadingPoint(d)) CHARWIDTH 15;
 CONSTRAINT unloadingPoint(OrderDetail d) AND
     (orderRequest(unloadingPoint(d)) != orderRequest(d) OR operation(unloadingPoint(d)) != OrderPointOperation.unloading)
     CHECKED BY unloadingPoint[OrderDetail]
@@ -516,7 +516,8 @@ FORM orderRequest 'Заказ-заявка'
                   width BACKGROUND (backgroundMandatory(o) IF NOT width(d)),
                   cost,
                   distributable, divisible,
-                  nameUnloadingPoint BACKGROUND (backgroundMandatory(o) IF countUnloadingPoints(o) > 1 AND NOT unloadingPoint(d))
+                  nameUnloadingPoint BACKGROUND (backgroundMandatory(o) IF countUnloadingPoints(o) > 1 AND NOT unloadingPoint(d)),
+                  nameStockUnloadingPoint BACKGROUND (backgroundMandatory(o) IF countUnloadingPoints(o) > 1 AND NOT unloadingPoint(d))
     PROPERTIES(d) NEW, DELETE
     ORDERS index(d)
     FILTERS orderRequest(d) = o
