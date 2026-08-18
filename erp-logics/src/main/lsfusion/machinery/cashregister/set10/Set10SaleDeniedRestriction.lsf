@@ -337,12 +337,13 @@ DESIGN saleDeniedRestrictions {
 
 prevDateTimeDeletePriceSaleDenied (Stock st) = PREV(dateTimeDeletePriceSaleDenied(st));
 
-// смена даты переносит уже выгруженные запреты между механизмами: SALE_DENIED останется неснятым либо цена невозвращённой
+// смена даты переносит незакрытые запреты между механизмами: SALE_DENIED останется неснятым либо цена невозвращённой
 CONSTRAINT SET(dateTimeDeletePriceSaleDenied(Stock st)) AND prevDateTimeDeletePriceSaleDenied(st)
-    AND (GROUP SUM 1 IF active(SaleDeniedRestriction r) AND stock(r) = st)
-    MESSAGE 'Нельзя менять дату перехода на запрет через удаление цены: по магазину есть активные запреты продаж';
+    AND (GROUP SUM 1 IF createdTime(SaleDeniedRestriction r) AND NOT deleted(r) AND stock(r) = st)
+    MESSAGE 'Нельзя менять дату перехода на запрет через удаление цены: по магазину есть незакрытые запреты продаж';
 
-CONSTRAINT SET(dateTimeDeletePriceSaleDenied(Stock st)) AND dateTimeDeletePriceSaleDenied(st) < currentDateTime()
+// сравнение по дню, иначе "сейчас" не выставить: пока идёт APPLY, currentDateTime() уходит вперёд
+CONSTRAINT SET(dateTimeDeletePriceSaleDenied(Stock st)) AND toDate(dateTimeDeletePriceSaleDenied(st)) < currentDate()
     MESSAGE 'Дата перехода на запрет через удаление цены не может быть в прошлом';
 
 in (MachineryPriceTransaction t, SaleDeniedRestriction r) = stock(t) = stock(r) AND in(t, barcode(sku(r))) AND active(r);
