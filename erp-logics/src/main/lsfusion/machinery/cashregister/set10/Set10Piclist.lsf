@@ -64,7 +64,8 @@ contentPage4 (CustomGroup g, DepartmentStore ds) = IF in(g, ds) THEN '\{' + (CON
     '"index": ' + (indexGroup(g, ds) - 1),
     '"name": "' + escapeNameAPI(Stock.name(g)) + '"',
     '"sortType": "manual"',
-    '"pages": [' + (GROUP CONCAT tilesGroup4(g, INTEGER i, ds) IF iterate(i, 0, maxIndexItem(g, ds) / 16), ', ' ORDER i) + ']'
+    //без OVERRIDE группа без товаров уезжает вообще без ключа pages — Set10 отбивает загрузку NPE
+    '"pages": [' + (OVERRIDE (GROUP CONCAT tilesGroup4(g, INTEGER i, ds) IF iterate(i, 0, maxIndexItem(g, ds) / 16), ', ' ORDER i), '') + ']'
     ) + '\}';
 
 tilesGroup3(CustomGroup g, INTEGER index, DepartmentStore ds) = '\{ "tiles": [' +
@@ -78,7 +79,7 @@ contentPage3 (CustomGroup g, DepartmentStore ds) = IF in(g, ds) THEN '\{' + (CON
     '"index": ' + (indexGroup(g, ds) - 1),
     '"name": "' + escapeNameAPI(Stock.name(g)) + '"',
     '"sortType": "manual"',
-    '"pages": [' + (GROUP CONCAT tilesGroup3(g, INTEGER i, ds) IF iterate(i, 0, maxIndexItem(g, ds) / 16), ', ' ORDER i) + ']'
+    '"pages": [' + (OVERRIDE (GROUP CONCAT tilesGroup3(g, INTEGER i, ds) IF iterate(i, 0, maxIndexItem(g, ds) / 16), ', ' ORDER i), '') + ']'
     ) + '\}';
 
 tilesGroup2(CustomGroup g, INTEGER index, DepartmentStore ds) = '\{ "tiles": [' +
@@ -92,7 +93,7 @@ contentPage2 (CustomGroup g, DepartmentStore ds) = IF in(g, ds) THEN '\{' + (CON
     '"index": ' + (indexGroup(g, ds) - 1),
     '"name": "' + escapeNameAPI(Stock.name(g)) + '"',
     '"sortType": "manual"',
-    '"pages": [' + (GROUP CONCAT tilesGroup2(g, INTEGER i, ds) IF iterate(i, 0, maxIndexItem(g, ds) / 16), ', ' ORDER i) + ']'
+    '"pages": [' + (OVERRIDE (GROUP CONCAT tilesGroup2(g, INTEGER i, ds) IF iterate(i, 0, maxIndexItem(g, ds) / 16), ', ' ORDER i), '') + ']'
     ) + '\}';
 
 tilesGroup1(CustomGroup g, INTEGER index, DepartmentStore ds) = '\{ "tiles": [' +
@@ -107,7 +108,7 @@ contentPage1 (CustomGroup g, DepartmentStore ds) = IF in(g, ds) THEN '\{' + (CON
     '"maxIndex": ' + maxIndexItem(g, ds),
     '"name": "' + escapeNameAPI(Stock.name(g)) + '"',
     '"sortType": "manual"',
-    '"pages": [' + (GROUP CONCAT tilesGroup1(g, INTEGER i, ds) IF iterate(i, 0, maxIndexItem(g, ds) / 16), ', ' ORDER i) + ']'
+    '"pages": [' + (OVERRIDE (GROUP CONCAT tilesGroup1(g, INTEGER i, ds) IF iterate(i, 0, maxIndexItem(g, ds) / 16), ', ' ORDER i), '') + ']'
     ) + '\}';
 
 tilesGroup(CustomGroupType gt, INTEGER index, DepartmentStore ds) = '\{ "tiles": [' +
@@ -116,7 +117,7 @@ tilesGroup(CustomGroupType gt, INTEGER index, DepartmentStore ds) = '\{ "tiles":
 
 contentCalc (CustomGroupType gt, DepartmentStore ds) = '\{' + (CONCAT ',' ,
     '"sortType": "manual"',
-    '"pages": [' + (GROUP CONCAT tilesGroup(gt, INTEGER i, ds) IF iterate(i, 0, maxIndexNULL() / 16), ', ' ORDER i) + ']'
+    '"pages": [' + (OVERRIDE (GROUP CONCAT tilesGroup(gt, INTEGER i, ds) IF iterate(i, 0, maxIndexNULL() / 16), ', ' ORDER i), '') + ']'
     ) + '\}';
 content  = ABSTRACT  CASE STRING (CustomGroupType, DepartmentStore);
 content (CustomGroupType t, DepartmentStore ds) += WHEN t IS CustomGroupType AND ds IS DepartmentStore THEN STRING (contentCalc(t,ds));
