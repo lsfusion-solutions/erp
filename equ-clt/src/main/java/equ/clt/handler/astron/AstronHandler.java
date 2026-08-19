@@ -1697,7 +1697,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             clientId, d.numberDiscountCard, extClntGrpId, social, clientGroupId, d.extInfo)); //временный лог, убрать после разбора CLNTGRPID
                     String clientName = nvl(trim(d.nameDiscountCard, 50), "");
                     String clientBirthday = d.birthdayContact != null ? d.birthdayContact.format(dateFormatter) + "000000" : null;
-                    int delflag = getLocked(d.extInfo);
+                    int locked = getLocked(d.extInfo);
 
                     if(params.pgsql) {
                         setObject(ps, clientId, 1); //CLNTID
@@ -1706,8 +1706,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         setObject(ps, null, 4); //PROPERTYGRPID
                         setObject(ps, clientName, 5); //CLNTNAME
                         setObject(ps, clientBirthday, 6); //CLNTBIRTHDAY
-                        setObject(ps, 0, 7); //LOCKED
-                        setObject(ps, delflag, 8); //DELFLAG
+                        setObject(ps, locked, 7); //LOCKED
+                        setObject(ps, 0, 8); //DELFLAG
                         setObject(ps, null, 9); //PRIMARYEMAIL
                         setObject(ps, null, 10); //PRIMARYPHONE
                         if(updateNum != null)
@@ -1718,8 +1718,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         setObject(ps, null, 3, offset); //PROPERTYGRPID
                         setObject(ps, clientName, 4, offset); //CLNTNAME
                         setObject(ps, clientBirthday, 5, offset); //CLNTBIRTHDAY
-                        setObject(ps, 0, 6, offset); //LOCKED
-                        setObject(ps, delflag, 7, offset); //DELFLAG
+                        setObject(ps, locked, 6, offset); //LOCKED
+                        setObject(ps, 0, 7, offset); //DELFLAG
                         setObject(ps, null, 8, offset); //PRIMARYEMAIL
                         setObject(ps, null, 9, offset); //PRIMARYPHONE
 
