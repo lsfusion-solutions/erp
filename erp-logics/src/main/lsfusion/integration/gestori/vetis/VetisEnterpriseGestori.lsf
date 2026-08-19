@@ -1,6 +1,6 @@
 MODULE VetisEnterpriseGestori;
 
-REQUIRE VetisEnterpriseImport, VetisStock, EGAISStockGestori, VetisBusinessEntityGestori;
+REQUIRE VetisEnterpriseImport, VetisStock, EGAISStockGestori, VetisBusinessEntityGestori, VetisAMSSubmitRequest, VetisAMSReceiveResponse, VetisBusinessEntityOwn;
 
 NAMESPACE Vetis;
 
@@ -16,6 +16,41 @@ uuid 'UUID площадки' = DATA STRING (Enterprise) CHARWIDTH 36;
 
 guidOwner 'GUID ХС' (Enterprise e) = guid(owner(e));
 
+// --- Добавление площадки собственного ХС ---
+
+createdManuallyGestori 'Добавлена вручную' = DATA BOOLEAN (Enterprise);
+
+// GUID площадки: для добавленной вручную временный код не показывается (заполнится из ответа Ветис)
+guidViewGestori 'GUID площадки' (Enterprise e) = guid(e) IF NOT createdManuallyGestori(e);
+
+// адрес площадки для заявки на добавление (GUID-ы адресных объектов Ветис)
+countryGuidGestori 'Страна (GUID)' = DATA STRING (Enterprise) CHARWIDTH 36;
+regionGuidGestori 'Регион (GUID)' = DATA STRING (Enterprise) CHARWIDTH 36;
+districtGuidGestori 'Район региона (GUID)' = DATA STRING (Enterprise) CHARWIDTH 36;
+localityGuidGestori 'Населённый пункт (GUID)' = DATA STRING (Enterprise) CHARWIDTH 36;
+subLocalityGuidGestori 'Подчиненный населенный пункт (GUID)' = DATA STRING (Enterprise) CHARWIDTH 36;
+streetGuidGestori 'Улица (GUID)' = DATA STRING (Enterprise) CHARWIDTH 36;
+houseGestori 'Номер дома' = DATA STRING[20] (Enterprise);
+buildingGestori 'Номер строения' = DATA STRING[20] (Enterprise);
+roomGestori 'Номер квартиры (офиса)' = DATA STRING[20] (Enterprise);
+postIndexGestori 'Почтовый индекс' = DATA STRING[10] (Enterprise);
+postBoxGestori 'Абонентский ящик' = DATA STRING[20] (Enterprise);
+additionalInfoGestori 'Доп.информация' = DATA ISTRING (Enterprise) CHARWIDTH 40;
+
+activityGestori 'Вид деятельности предприятия' = DATA ISTRING (Enterprise) CHARWIDTH 40;
+reasonGestori 'Основание добавления записи в реестр' = DATA ISTRING (Enterprise) CHARWIDTH 50;
+
+// выбор владельца — только собственные хозяйствующие субъекты
+FORM dialogOwnBusinessEntitiesGestori 'Хозяйствующие субъекты (собственные)'
+    OBJECTS b = BusinessEntity
+    PROPERTIES(b) READONLY guid, name, inn
+    FILTERS own(b)
+;
+
+changeOwnerOwnGestori (Enterprise e) {
+    DIALOG dialogOwnBusinessEntitiesGestori OBJECTS b INPUT DO owner(e) <- b;
+}
+
 typeDescription 'Тип площадки' (Enterprise e) = CASE
     WHEN type(e) = '1' THEN 'Предприятие'
     WHEN type(e) = '2' THEN 'Рынок'
@@ -26,7 +61,15 @@ typeDescription 'Тип площадки' (Enterprise e) = CASE
 // --- Форма карточки площадки: READONLY + вкладки ---
 
 EXTEND FORM enterprise
-    PROPERTIES(o) READONLY guidOwner, typeDescription, kpp, addressView, registryStatus, status
+    PROPERTIES guidOwnerEditGestori 'GUID ХС' = guidOwner(o) ON CHANGE changeOwnerOwnGestori(o) READONLYIF NOT createdManuallyGestori(o)
+    PROPERTIES nameEditGestori 'Наименование' = name(o) READONLYIF NOT createdManuallyGestori(o)
+    PROPERTIES kppEditGestori 'КПП' = kpp(o) READONLYIF NOT createdManuallyGestori(o)
+    PROPERTIES addressViewEditGestori 'Фактический адрес' = addressView(o) READONLYIF NOT createdManuallyGestori(o)
+    PROPERTIES(o) READONLY guidViewGestori, uuid, typeDescription, registryStatus, status
+    PROPERTIES(o) READONLYIF NOT createdManuallyGestori(o)
+        countryGuidGestori, regionGuidGestori, districtGuidGestori, localityGuidGestori,
+        subLocalityGuidGestori, streetGuidGestori, houseGestori, buildingGestori, roomGestori,
+        postIndexGestori, postBoxGestori, additionalInfoGestori, activityGestori, reasonGestori
 ;
 
 DESIGN enterprise {
@@ -36,15 +79,37 @@ DESIGN enterprise {
             fill = 1;
             NEW tabProperties {
                 caption = 'Реквизиты';
-                MOVE PROPERTY(guidOwner(o));
+                MOVE PROPERTY(guidOwnerEditGestori);
                 MOVE PROPERTY(nameOwner(o));
                 MOVE PROPERTY(typeDescription(o));
-                MOVE PROPERTY(guid(o));
-                MOVE PROPERTY(name(o));
-                MOVE PROPERTY(kpp(o));
-                MOVE PROPERTY(addressView(o));
+                MOVE PROPERTY(guidViewGestori(o));
+                MOVE PROPERTY(uuid(o));
+                MOVE PROPERTY(nameEditGestori);
+                MOVE PROPERTY(kppEditGestori);
+                MOVE PROPERTY(addressViewEditGestori);
                 MOVE PROPERTY(registryStatus(o));
                 MOVE PROPERTY(status(o));
+                NEW addEnterpriseDataGestori {
+                    caption = 'Данные для добавления площадки';
+                    showIf = createdManuallyGestori(o);
+                    MOVE PROPERTY(countryGuidGestori(o));
+                    MOVE PROPERTY(regionGuidGestori(o));
+                    MOVE PROPERTY(districtGuidGestori(o));
+                    MOVE PROPERTY(localityGuidGestori(o));
+                    MOVE PROPERTY(subLocalityGuidGestori(o));
+                    MOVE PROPERTY(streetGuidGestori(o));
+                    NEW addressNumbersGestori {
+                        horizontal = TRUE;
+                        MOVE PROPERTY(houseGestori(o));
+                        MOVE PROPERTY(buildingGestori(o));
+                        MOVE PROPERTY(roomGestori(o));
+                        MOVE PROPERTY(postIndexGestori(o));
+                        MOVE PROPERTY(postBoxGestori(o));
+                    }
+                    MOVE PROPERTY(additionalInfoGestori(o));
+                    MOVE PROPERTY(activityGestori(o));
+                    MOVE PROPERTY(reasonGestori(o));
+                }
             }
             NEW tabStocks {
                 caption = 'Склады';
@@ -52,7 +117,8 @@ DESIGN enterprise {
             }
         }
     }
-    PROPERTY(guid(o)) { caption = 'GUID площадки'; }
+    PROPERTY(guid(o)) { hide = TRUE; }
+    PROPERTY(name(o)) { hide = TRUE; }
     PROPERTY(nameOwner(o)) { caption = 'Наименование ХС'; }
 }
 
@@ -373,27 +439,169 @@ loadEnterpriseFromVetis 'Загрузить площадку' () {
     }
 }
 
+// --- Заявка «Добавление площадки» (ModifyEnterpriseOperation, type CREATE) ---
+
+CLASS ModifyEnterpriseRequestGestori 'Добавление площадки' : ApplicationRequest;
+enterpriseGestori = DATA Enterprise (ModifyEnterpriseRequestGestori) INDEXED;
+localTransactionId (ModifyEnterpriseRequestGestori r) = LONG(r AS ModifyEnterpriseRequestGestori);
+
+lastModifyRequestGestori (Enterprise e) = GROUP LAST ModifyEnterpriseRequestGestori r ORDER r WHERE enterpriseGestori(r) = e;
+
+GROUP initiatorModEntGestori EXTID 'merc:initiator';
+GROUP modificationOperationGestori EXTID 'merc:modificationOperation';
+GROUP resultingListModGestori EXTID 'vd:resultingList' : modificationOperationGestori;
+GROUP enterpriseModGestori EXTID 'dt:enterprise' : resultingListModGestori;
+GROUP addressModGestori EXTID 'dt:address' : enterpriseModGestori;
+GROUP countryModGestori EXTID 'dt:country' : addressModGestori;
+GROUP regionModGestori EXTID 'dt:region' : addressModGestori;
+GROUP districtModGestori EXTID 'dt:district' : addressModGestori;
+GROUP localityModGestori EXTID 'dt:locality' : addressModGestori;
+GROUP subLocalityModGestori EXTID 'dt:subLocality' : addressModGestori;
+GROUP streetModGestori EXTID 'dt:street' : addressModGestori;
+GROUP activityListModGestori EXTID 'dt:activityList' : enterpriseModGestori;
+GROUP activityModGestori EXTID 'dt:activity' : activityListModGestori;
+GROUP ownerModGestori EXTID 'dt:owner' : enterpriseModGestori;
+GROUP officialRegModGestori EXTID 'dt:officialRegistration' : enterpriseModGestori;
+GROUP officialRegBEModGestori EXTID 'dt:businessEntity' : officialRegModGestori;
+
+FORM modifyEnterpriseRequestGestori FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:modifyEnterpriseRequest'
+    PROPERTIES ATTR
+        ='http://api.vetrf.ru/schema/cdm/dictionary/v2' EXTID 'xmlns:dt',
+        ='http://api.vetrf.ru/schema/cdm/base' EXTID 'xmlns:bs',
+        ='http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2' EXTID 'xmlns:merc',
+        ='http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2' EXTID 'xmlns:vd'
+    OBJECTS r = ModifyEnterpriseRequestGestori PANEL
+    PROPERTIES(r) localTransactionId EXTID 'merc:localTransactionId'
+    PROPERTIES(r) IN initiatorModEntGestori loginMercury EXTID 'vd:login'
+    PROPERTIES typeModGestori = 'CREATE' IF r IS ModifyEnterpriseRequestGestori EXTID 'vd:type' IN modificationOperationGestori
+    PROPERTIES IN enterpriseModGestori
+        nameModGestori = name(enterpriseGestori(r)) EXTID 'dt:name',
+        typeEnterpriseModGestori = (OVERRIDE type(enterpriseGestori(r)), '1' IF r IS ModifyEnterpriseRequestGestori) EXTID 'dt:type'
+    PROPERTIES countryGuidModGestori = countryGuidGestori(enterpriseGestori(r)) EXTID 'bs:guid' IN countryModGestori
+    PROPERTIES regionGuidModGestori = regionGuidGestori(enterpriseGestori(r)) EXTID 'bs:guid' IN regionModGestori
+    PROPERTIES districtGuidModGestori = districtGuidGestori(enterpriseGestori(r)) EXTID 'bs:guid' IN districtModGestori
+    PROPERTIES localityGuidModGestori = localityGuidGestori(enterpriseGestori(r)) EXTID 'bs:guid' IN localityModGestori
+    PROPERTIES subLocalityGuidModGestori = subLocalityGuidGestori(enterpriseGestori(r)) EXTID 'bs:guid' IN subLocalityModGestori
+    PROPERTIES streetGuidModGestori = streetGuidGestori(enterpriseGestori(r)) EXTID 'bs:guid' IN streetModGestori
+    PROPERTIES IN addressModGestori
+        houseModGestori = houseGestori(enterpriseGestori(r)) EXTID 'dt:house',
+        buildingModGestori = buildingGestori(enterpriseGestori(r)) EXTID 'dt:building',
+        roomModGestori = roomGestori(enterpriseGestori(r)) EXTID 'dt:room',
+        postIndexModGestori = postIndexGestori(enterpriseGestori(r)) EXTID 'dt:postIndex',
+        postBoxModGestori = postBoxGestori(enterpriseGestori(r)) EXTID 'dt:postBox',
+        additionalInfoModGestori = additionalInfoGestori(enterpriseGestori(r)) EXTID 'dt:additionalInfo',
+        addressViewModGestori = addressView(enterpriseGestori(r)) EXTID 'dt:addressView'
+    PROPERTIES activityNameModGestori = activityGestori(enterpriseGestori(r)) EXTID 'dt:name' IN activityModGestori
+    PROPERTIES ownerGuidModGestori = guid(owner(enterpriseGestori(r))) EXTID 'bs:guid' IN ownerModGestori
+    PROPERTIES innModGestori = inn(owner(enterpriseGestori(r))) EXTID 'dt:inn' IN officialRegBEModGestori
+    PROPERTIES kppModGestori = kpp(enterpriseGestori(r)) EXTID 'dt:kpp' IN officialRegModGestori
+    PROPERTIES reasonModGestori = reasonGestori(enterpriseGestori(r)) EXTID 'vd:reason' IN modificationOperationGestori
+;
+
+isDigitsGestori = FORMULA NULL BOOLEAN 'CASE WHEN $1 ~ \'^[0-9]+$\' THEN 1 ELSE NULL END';
+
+sendModifyEnterpriseGestori 'Отправить в Ветис' (Enterprise e) {
+    IF NOT owner(e) THEN { MESSAGE 'Не заполнено обязательное поле "GUID ХС"' NOWAIT; RETURN; }
+    IF NOT own(owner(e)) THEN { MESSAGE 'Владелец площадки должен быть собственным хозяйствующим субъектом' NOWAIT; RETURN; }
+    IF NOT inn(owner(e)) THEN { MESSAGE 'У выбранного хозяйствующего субъекта не заполнен ИНН' NOWAIT; RETURN; }
+    IF NOT name(e) THEN { MESSAGE 'Не заполнено обязательное поле "Наименование"' NOWAIT; RETURN; }
+    IF NOT kpp(e) THEN { MESSAGE 'Не заполнено обязательное поле "КПП"' NOWAIT; RETURN; }
+    IF NOT isDigitsGestori(kpp(e)) THEN { MESSAGE 'Поле "КПП" должно содержать только цифры' NOWAIT; RETURN; }
+    IF NOT addressView(e) THEN { MESSAGE 'Не заполнено обязательное поле "Фактический адрес"' NOWAIT; RETURN; }
+    IF NOT countryGuidGestori(e) THEN { MESSAGE 'Не заполнено обязательное поле "Страна"' NOWAIT; RETURN; }
+    IF NOT regionGuidGestori(e) THEN { MESSAGE 'Не заполнено обязательное поле "Регион"' NOWAIT; RETURN; }
+    IF NOT localityGuidGestori(e) THEN { MESSAGE 'Не заполнено обязательное поле "Населённый пункт"' NOWAIT; RETURN; }
+    IF NOT reasonGestori(e) THEN { MESSAGE 'Не заполнено обязательное поле "Основание добавления записи в реестр"' NOWAIT; RETURN; }
+    IF notCompleted(lastModifyRequestGestori(e)) THEN { MESSAGE 'По площадке уже отправлена заявка, дождитесь её обработки («Обмен с Ветис»)' NOWAIT; RETURN; }
+
+    APPLY;
+    NEWSESSION {
+        NEW r = ModifyEnterpriseRequestGestori {
+            enterpriseGestori(r) <- e;
+            businessEntity(r) <- owner(e);
+            EXPORT modifyEnterpriseRequestGestori OBJECTS r = r XML;
+            submit(r, exportFile());
+            APPLY;
+        }
+    }
+}
+
+// --- Обработка ответа: GUID/UUID/статус созданной площадки (merc:enterprise) ---
+
+respUuidModGestori = DATA LOCAL STRING ();
+respGuidModGestori = DATA LOCAL STRING ();
+respStatusModGestori = DATA LOCAL STRING ();
+
+GROUP enterpriseRespModGestori EXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:enterprise';
+
+FORM modifyEnterpriseResponseGestori FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:modifyEnterpriseResponse'
+    PROPERTIES() IN enterpriseRespModGestori
+        respUuidModGestori EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid',
+        respGuidModGestori EXTID 'bs:guid',
+        respStatusModGestori EXTID 'bs:status'
+;
+
+process (ModifyEnterpriseRequestGestori r) + {
+    NEWSESSION {
+        respUuidModGestori() <- NULL;
+        respGuidModGestori() <- NULL;
+        respStatusModGestori() <- NULL;
+        stringToFile(response(r));
+        IMPORT modifyEnterpriseResponseGestori XML FROM resultFile();
+
+        FOR Enterprise e = enterpriseGestori(r) DO {
+            IF respUuidModGestori() THEN uuid(e) <- respUuidModGestori();
+            IF respGuidModGestori() THEN {
+                guid(e) <- respGuidModGestori();
+                createdManuallyGestori(e) <- NULL; // площадка получила GUID — далее ведёт себя как загруженная
+            }
+            IF respStatusModGestori() THEN status(e) <- STRING[5](respStatusModGestori());
+        }
+        processed(r) <- TRUE;
+        APPLY;
+    }
+}
+
 // --- Расширение форм ---
 
 EXTEND FORM enterprise
-    PROPERTIES(o) loadEnterpriseDetails
+    PROPERTIES(o) SHOWIF NOT createdManuallyGestori(o) loadEnterpriseDetails
+    PROPERTIES(o) SHOWIF createdManuallyGestori(o) sendModifyEnterpriseGestori
 ;
 
 DESIGN enterprise {
     tabProperties {
         MOVE PROPERTY(loadEnterpriseDetails(o));
+        MOVE PROPERTY(sendModifyEnterpriseGestori(o));
     }
     PROPERTY(loadEnterpriseDetails(o)) { caption = 'Обновить площадку'; }
 }
 
+// обновление площадок — с подтверждением выполнения
+getEnterpriseListConfirmGestori 'Обновить площадки' () { getEnterpriseList(); } CONFIRM;
+getEnterpriseListConfirmGestori 'Обновить площадки' (Enterprise e) { getEnterpriseList(e); } CONFIRM;
+
+// добавление площадки собственного ХС: карточка с временным кодом (GUID заполнится из ответа Ветис)
+addEnterpriseGestori 'Добавить площадку' () {
+    NEWSESSION {
+        NEW e = Enterprise {
+            guid(e) <- 'tmp-' + LONG(e AS Enterprise);
+            createdManuallyGestori(e) <- TRUE;
+            type(e) <- '1'; // Тип 1 - Предприятие
+            SHOW enterprise OBJECTS o = e DOCKED;
+        }
+    }
+}
+
 EXTEND FORM enterprises
-    PROPERTIES() DRAW o TOOLBAR loadEnterpriseFromVetis, loadEnterpriseByGLN
+    PROPERTIES() DRAW o TOOLBAR loadEnterpriseFromVetis, loadEnterpriseByGLN, addEnterpriseGestori, getEnterpriseListConfirmGestori
+    PROPERTIES(o) getEnterpriseListConfirmGestori GRID
     PROPERTIES(o) READONLY guidOwner AFTER nameOwner(o), registryStatus, status, typeDescription, kpp, addressView, gln
 ;
 
 DESIGN enterprises {
-    PROPERTY(getEnterpriseList()) { caption = 'Обновить площадки'; }
-    PROPERTY(getEnterpriseList(o)) { caption = 'Обновить площадки'; }
+    PROPERTY(getEnterpriseList()) { hide = TRUE; }
+    PROPERTY(getEnterpriseList(o)) { hide = TRUE; }
     PROPERTY(guid(o)) { caption = 'GUID площадки'; }
     PROPERTY(nameOwner(o)) { caption = 'Наименование ХС'; }
     PROPERTY(delete) { hide = TRUE; }
