@@ -176,7 +176,8 @@ overMessageUniversalCorrectionDocument ABSTRACT (UkdDocument);
     
 messageUniversalCorrectionDocument 'Подписать и отправить через Диадок' (UkdDocument d) {
     FOR User u == postUser() DO NEWSESSION {
-        fromBox() <- GROUP LAST Box b IF legalEntity(organization(b)) == supplier(invoice(updDocument(d))) ORDER b;
+        // свой ящик — только из организаций, где отправляющий пользователь является сотрудником
+        fromBox() <- GROUP LAST Box b IF legalEntity(organization(b)) == supplier(invoice(updDocument(d))) AND isEmployee(organization(b), u) ORDER b;
         toBox() <- GROUP LAST Box b IF legalEntity(organization(b)) == customer(invoice(updDocument(d))) ORDER b;
         overMessageUniversalCorrectionDocument(d);
         DIALOG dialogMessageToPost NOMANAGESESSION DO {

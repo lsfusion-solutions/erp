@@ -159,7 +159,8 @@ overUserDiadoc = ABSTRACT User();
 
 messageUniversalTransferDocument 'Подписать и отправить через Диадок' (UpdDocument d) {
     FOR User u == (OVERRIDE overUserDiadoc(), postUser()) DO NEWSESSION {
-        fromBox() <- GROUP LAST Box b IF legalEntity(organization(b)) == supplier(invoice(d)) ORDER b;
+        // свой ящик — только из организаций, где отправляющий пользователь является сотрудником
+        fromBox() <- GROUP LAST Box b IF legalEntity(organization(b)) == supplier(invoice(d)) AND isEmployee(organization(b), u) ORDER b;
         toBox() <- GROUP LAST Box b IF legalEntity(organization(b)) == customer(invoice(d)) ORDER b;
         overMessageUniversalTransferDocument(d);
         DIALOG dialogMessageToPost NOMANAGESESSION DO {
