@@ -77,6 +77,9 @@ unit (ProductItem pi) = IF (GROUP SUM 1 IF in(Sku s, pi) AND split(s)) THEN (GRO
 unitStockEntry (StockEntry se) = OVERRIDE unit(se),
     unit(GROUP LAST VetDocument vd ORDER vd WHERE in(se, vd)),
     unit(GROUP MIN ProductItem pi IF in(se, pi));
+
+// та же доопределённая единица используется при пересчёте количества строки в объём (подбор записей журнала)
+VetisSale.overUnitStockEntry(StockEntry se) += unitStockEntry(se);
 FORM registerProductionOperationRequest FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:registerProductionOperationRequest'
     PROPERTIES ATTR
     ='http://api.vetrf.ru/schema/cdm/dictionary/v2' EXTID 'xmlns:dt',

@@ -8,7 +8,13 @@ NAMESPACE VetisSale;
 
 volume 'Объем в документе' = DATA NUMERIC[16,5] (ComponentDetail, StockEntry);
 
-volumeDetail 'Объем в документе' (ComponentDetail vd, StockEntry s) = NUMERIC[16,5](bruttoQuantity(vd) * OVERRIDE factor(sku(vd), unit(s)), 1.0);
+// единица измерения записи журнала может быть не заполнена — тогда она доопределяется (ВСД, номенклатура),
+// иначе пересчёт количества в объём шёл бы с коэффициентом 1 и давал завышенный объём
+overUnitStockEntry = ABSTRACT Unit (StockEntry);
+unitEntry (StockEntry s) = OVERRIDE unit(s), overUnitStockEntry(s);
+factorEntry (ComponentDetail vd, StockEntry s) = OVERRIDE factor(sku(vd), unitEntry(s)), 1.0;
+
+volumeDetail 'Объем в документе' (ComponentDetail vd, StockEntry s) = NUMERIC[16,5](bruttoQuantity(vd) * factorEntry(vd, s));
 // объём при ручном выборе: не больше непокрытого остатка строки (поставлено − связанное с записями)
 // и не больше свободного остатка записи (объём продукции − распределённое строками);
 // по уже связанной записи не выполняется, при расчётном объёме <= 0 связь не создаётся
@@ -22,7 +28,7 @@ fillVolume 'Выбрать' (ComponentDetail d, StockEntry s) {
     }
 }
 
-bruttoQuantity (ComponentDetail vd, StockEntry s) = volume(s) / OVERRIDE factor(sku(vd), unit(s)), 1.0;
+bruttoQuantity (ComponentDetail vd, StockEntry s) = volume(s) / factorEntry(vd, s);
 
 matches (ComponentDetail vd, StockEntry s) = in(componentsStock(vd), enterprise(s)) AND in(s, GROUP MIN ProductItem pi IF in(sku(vd), pi)) AND active(s);
 
@@ -32,11 +38,11 @@ remainderVolumeLocal = DATA LOCAL NUMERIC[16,5] (StockEntry);
 assignedVolumeLocal = DATA LOCAL NUMERIC[16,5] (ComponentDetail, StockEntry);
 calcVolumeLocal = DATA LOCAL NUMERIC[16,5] (ComponentDetail, StockEntry);
 
-freeQuantity (ComponentDetail vd, StockEntry s) = (volume(s) (-) usedVolumeOtherLocal(s)) / (OVERRIDE factor(sku(vd), unit(s)), 1.0);
+freeQuantity (ComponentDetail vd, StockEntry s) = (volume(s) (-) usedVolumeOtherLocal(s)) / factorEntry(vd, s);
 
 // распределяется только непокрытый остаток по строке: количество минус уже связанное с записями журнала;
 // существующие связи (в т.ч. по строкам с отправленными заявками) не перезаписываются
-assignedQuantity (ComponentDetail vd) = GROUP SUM volume(vd, StockEntry s) / (OVERRIDE factor(sku(vd), unit(s)), 1.0);
+assignedQuantity (ComponentDetail vd) = GROUP SUM volume(vd, StockEntry s) / factorEntry(vd, s);
 restQuantity (ComponentDetail vd) = NUMERIC[16,5](bruttoQuantity(vd) (-) assignedQuantity(vd));
 
 calcQuantity(ComponentDetail vd, StockEntry s) =
@@ -46,13 +52,14 @@ calcQuantity(ComponentDetail vd, StockEntry s) =
 fillVolume 'Заполнить' (Order d) {
     usedVolumeOtherLocal(StockEntry s) <- GROUP SUM volume(ComponentDetail vd, s);
     // расчёт фиксируется до записи: calcQuantity зависит от текущих volume
-    calcVolumeLocal(ComponentDetail vd, StockEntry s) <- NUMERIC[16,5](calcQuantity(vd, s) * (OVERRIDE factor(sku(vd), unit(s)), 1.0)) WHERE order(vd) = d;
+    calcVolumeLocal(ComponentDetail vd, StockEntry s) <- NUMERIC[16,5](calcQuantity(vd, s) * factorEntry(vd, s)) WHERE order(vd) = d;
     volume(ComponentDetail vd, StockEntry s) <- calcVolumeLocal(vd, s) WHERE order(vd) = d AND calcVolumeLocal(vd, s);
     // суммарно по записи журнала не больше свободного остатка: излишек снимается с последних подобранных строк
     assignedVolumeLocal(ComponentDetail vd, StockEntry s) <- calcVolumeLocal(vd, s) WHERE calcVolumeLocal(vd, s) > 0;
     remainderVolumeLocal(StockEntry s) <- NUMERIC[16,5](volume(s) (-) usedVolumeOtherLocal(s));
+    // без STRICT: остаток свободного объёма записи не доливается последней строке сверх подобранного
     volume(ComponentDetail vd, StockEntry s) <-
-        PARTITION UNGROUP remainderVolumeLocal LIMIT STRICT (assignedVolumeLocal(vd, s)) ORDER index(vd), vd BY s
+        PARTITION UNGROUP remainderVolumeLocal LIMIT (assignedVolumeLocal(vd, s)) ORDER index(vd), vd BY s
         WHERE order(vd) == d AND assignedVolumeLocal(vd, s);
 }
 

@@ -28,9 +28,18 @@ hasProductItemProductionGestori (Production.Order o) =
 volumeShippedProductionGestori 'Объем (поставлено)' (Production.ComponentDetail d) =
     NUMERIC[16,5](bruttoQuantity(d) * netWeight[Stock.Sku](sku(d)));
 
-// суммарный объём по строкам, связанным с записью журнала
+// последняя заявка с участием пары строка × запись журнала
+lastRequestComponentGestori (Production.ComponentDetail d, StockEntry se) =
+    GROUP LAST RegisterProductionOperationRequest r ORDER r WHERE volume(r, d, se);
+
+// сумма объёмов по строкам производственных заказов, по которым ещё не созданы ВСД
+totalVolumeNoVSDSEGestori (StockEntry se) =
+    GROUP SUM VetisSale.volume(Production.ComponentDetail d, se) IF NOT vetDocument(lastRequestComponentGestori(d, se));
+
+// суммарный объём только по тем документам, связанным с записью журнала,
+// по которым не выполнено формирование производственной или транспортной партии
 totalVolumeSEProductionGestori 'Объем всего' (StockEntry se) =
-    GROUP SUM VetisSale.volume(Production.ComponentDetail d, se);
+    totalVolumeNoVSDSEGestori(se) (+) totalVolumeSEGestori(se);
 
 // заявки Ветис по производственному заказу
 filterProductionOrderRequestGestori = DATA LOCAL Production.Order ();
@@ -60,10 +69,8 @@ DESIGN Production.order {
 // номер накладной для входящих производственных партий — номер производственного заказа
 overSeriesNumberGestori(IncomingConsignment c) += seriesNumber(order(productDetail(c AS ProductionIncomingConsignment)));
 
-// --- Связь строк с производственными ВСД: последняя заявка с участием пары строка × запись журнала ---
+// --- Связь строк с производственными ВСД ---
 
-lastRequestComponentGestori (Production.ComponentDetail d, StockEntry se) =
-    GROUP LAST RegisterProductionOperationRequest r ORDER r WHERE volume(r, d, se);
 uuidVetDocumentComponentGestori 'GUID ВСД' (Production.ComponentDetail d, StockEntry se) = uuid(vetDocument(lastRequestComponentGestori(d, se)));
 nameStatusVetDocumentComponentGestori 'Статус ВСД' (Production.ComponentDetail d, StockEntry se) = nameStatus(vetDocument(lastRequestComponentGestori(d, se)));
 
@@ -108,10 +115,6 @@ CONSTRAINT CHANGED(Production.quantity(Production.ProductDetail d)) AND lockedPr
     MESSAGE 'Запрещено изменять количество по позиции: по ней отправлен запрос в Ветис или создан производственный ВСД';
 
 // --- Остатки записей журнала ---
-
-// сумма объёмов по строкам, по которым ещё не созданы ВСД
-totalVolumeNoVSDSEGestori (StockEntry se) =
-    GROUP SUM VetisSale.volume(Production.ComponentDetail d, se) IF NOT vetDocument(lastRequestComponentGestori(d, se));
 
 guidSEProductionGestori 'GUID записи журнала' (StockEntry se) = guid(se);
 numberSEProductionGestori 'Номер записи журнала' (StockEntry se) = number(se);
