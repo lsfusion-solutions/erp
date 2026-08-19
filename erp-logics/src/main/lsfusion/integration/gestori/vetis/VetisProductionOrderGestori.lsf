@@ -204,6 +204,23 @@ DESIGN vetDocument {
 }
 
 
+// ---- Упаковка производимой партии в запросе (vd:productiveBatch/vd:packageList) ----
+// тип упаковки и кол-во берутся с карточки номенклатуры изделия; сегмент добавляется,
+// только если тип упаковки задан и найден в справочнике типов упаковки
+
+GROUP packageListProdReqGestori EXTID 'vd:packageList';
+GROUP packingTypeProdReqGestori EXTID 'dt:packingType';
+
+packingTypeProdReqGestori (ProductItem pi) = packingTypeGlobalIDGestori(STRING(packagingType(pi)));
+
+EXTEND FORM registerProductionOperationRequest
+    OBJECTS packageProdReq = (pd1 = Production.ProductDetail, pi1 = ProductItem) EXTID 'dt:package' IN packageListProdReqGestori
+    PROPERTIES ='2' DRAW packageProdReq EXTID 'dt:level'
+    PROPERTIES IN packingTypeProdReqGestori =guid(packingTypeProdReqGestori(pi1)) EXTID 'bs:guid'
+    PROPERTIES =(OVERRIDE packagingQuantity(pi1), INTEGER(Production.quantity(pd1))) EXTID 'dt:quantity'
+    FILTERS pd1 == pd, pi1 == pi, packingTypeProdReqGestori(pi1)
+;
+
 // ---- Дозаполнение производственного ВСД данными упаковки и маркировки из ответа ----
 // («Кол-во», «Тип упаковки», «Тип штрихкода», «Маркировка» — как при загрузке ВСД из Ветис)
 
