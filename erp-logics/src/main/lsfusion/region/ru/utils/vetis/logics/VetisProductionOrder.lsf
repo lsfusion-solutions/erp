@@ -11,7 +11,7 @@ volume 'Объем в документе' = DATA NUMERIC[16,5] (ComponentDetail,
 // единица измерения записи журнала может быть не заполнена — тогда она доопределяется (ВСД, номенклатура),
 // иначе пересчёт количества в объём шёл бы с коэффициентом 1 и давал завышенный объём
 overUnitStockEntry = ABSTRACT Unit (StockEntry);
-unitEntry (StockEntry s) = OVERRIDE unit(s), overUnitStockEntry(s);
+unitEntry (StockEntry s) = OVERRIDE unit(s), overUnitStockEntry(s) MATERIALIZED; // материализация: OVERRIDE-каскад с GROUP LAST иначе инлайнится в каждый пересчёт объёма и раздувает запрос (SQLTooLongQuery)
 factorEntry (ComponentDetail vd, StockEntry s) = OVERRIDE factor(sku(vd), unitEntry(s)), 1.0;
 
 volumeDetail 'Объем в документе' (ComponentDetail vd, StockEntry s) = NUMERIC[16,5](bruttoQuantity(vd) * factorEntry(vd, s));
