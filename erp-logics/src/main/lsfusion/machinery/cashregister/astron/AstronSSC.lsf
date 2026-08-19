@@ -70,45 +70,90 @@ encodeBase64 = FORMULA STRING 'regexp_replace(encode(($1),\'base64\'), E\'[\\n\\
 updateImage = DATA LOCAL NESTED BOOLEAN (Barcode);
 updateAllImagesAstron = DATA BOOLEAN ();
 
-overAstronInfo1(MachineryPriceTransaction mpt, Barcode b) += 
-    (CONCAT ', ',
+// вес толерантности PowerPOS — масса тары товара в граммах: на столько весы допускают
+// превышение веса позиции, пусто или 0 — вес должен совпадать с зарегистрированным
+toleranceWeightAstron (Sku s) = INTEGER(taraCapacity(s) * 1000);
+
+// numberId свойства товара в PowerPOS; номера свойств заданы настройками кассовой программы.
+// Номера значений: 101 для признаков «да», 100 + возраст и 200 + вес толерантности для числовых —
+// поэтому возраст выгружается только до 99, иначе он попал бы в диапазон веса толерантности
+numberIdAstron (MachineryPriceTransaction mpt, Barcode b, INTEGER key) = CASE
+    WHEN key == 13 THEN 101 IF antiTheftDevice(sku(b))
+    WHEN key == 14 THEN (100 + age(sku(b))) IF ageVerify(sku(b)) AND age(sku(b)) <= 99
+    WHEN key == 22 THEN 101 IF requireQuantityManual(sku(b))
+    WHEN key == 24 THEN 101 IF lowWeight(sku(b))
+    WHEN key == 25 THEN 101 IF weightControlBypass(sku(b))
+    WHEN key == 26 THEN 101 IF inaccurateReferenceWeight(sku(b))
+    WHEN key == 27 THEN 101 IF hasPromotionPrice(sku(b), stock(mpt))
+    WHEN key == 28 THEN 101 IF requireProductSelection(sku(b))
+    WHEN key == 30 THEN 200 + toleranceWeightAstron(sku(b));
+
+// группа свойств выгружается, только если у товара есть хотя бы одно свойство;
+// набор признаков дублирует numberIdAstron: с агрегатом по нему компиляция запроса не завершается
+// за приемлемое время
+hasPropertyAstron (MachineryPriceTransaction mpt, Barcode b) = TRUE IF
+    antiTheftDevice(sku(b)) OR ageVerify(sku(b)) OR requireQuantityManual(sku(b))
+        OR lowWeight(sku(b)) OR weightControlBypass(sku(b)) OR inaccurateReferenceWeight(sku(b))
+        OR hasPromotionPrice(sku(b), stock(mpt)) OR requireProductSelection(sku(b))
+        OR toleranceWeightAstron(sku(b)) OR imageAstron(b);
+
+overAstronInfo1(MachineryPriceTransaction mpt, Barcode b) += JSON FROM
+    'astron' = JSON FROM
         //свойства
-        '"propertyGrpId":'+value(b) + ',' +
-        '"propertyGrp":[\{"propertyGrpId":'+value(b)+',"propertyGrpName":"Свойства для '+value(b)+'"\}],' +
-        (CONCAT ', ',
-        '"numProperty":[' + (CONCAT ', ',
-                '\{"numPropertyKey":13,"propertyGrpId":'+value(b)+',"numberId":101\}' IF antiTheftDevice(sku(b)),
-                '\{"numPropertyKey":14,"propertyGrpId":'+value(b)+',"numberId":'+(100 + age(sku(b)))+'\}' IF ageVerify(sku(b)),
-                '\{"numPropertyKey":22,"propertyGrpId":'+value(b)+',"numberId":101\}' IF requireQuantityManual(sku(b)),
-                '\{"numPropertyKey":24,"propertyGrpId":'+value(b)+',"numberId":101\}' IF lowWeight(sku(b)),
-                '\{"numPropertyKey":25,"propertyGrpId":'+value(b)+',"numberId":101\}' IF weightControlBypass(sku(b)),
-                '\{"numPropertyKey":26,"propertyGrpId":'+value(b)+',"numberId":101\}' IF inaccurateReferenceWeight(sku(b)),
-                '\{"numPropertyKey":27,"propertyGrpId":'+value(b)+',"numberId":101\}' IF hasPromotionPrice(sku(b), stock(mpt)),
-                '\{"numPropertyKey":28,"propertyGrpId":'+value(b)+',"numberId":101\}' IF requireProductSelection(sku(b))
-            ) +']',
-        '"numbers":[' + (CONCAT ', ',
-                '\{"numberId":101,"numberValue":1,"numberName":"Да"\}' IF requireQuantityManual(sku(b)) OR lowWeight(sku(b)) OR weightControlBypass(sku(b)) OR hasPromotionPrice(sku(b), stock(mpt)),
-                '\{"numberId":'+(100 + age(sku(b)))+',"numberValue":'+age(sku(b))+',"numberName":"'+age(sku(b))+' лет"\}' IF ageVerify(sku(b))
-            ) +']',
-        '"binProperty":[' + (CONCAT ', ',
-                '\{"binPropertyKey":1,"propertyGrpId":'+value(b)+',"binaryDataId":'+value(b)+'\}' IF imageAstron(b)
-            ) +']',
-        '"binaryData":[' + (CONCAT ', ',
-                '\{"binaryDataId":'+value(b)+',"binaryDataValue":"'+encodeBase64(imageAstron(b))+'","binaryDataName":"'+value(b)+'"\}' IF updateImage(b) OR updateAllImagesAstron()
-            ) +']'
-        ),
+        'propertyGrpId' = (value(b) IF hasPropertyAstron(mpt, b)),
+        'propertyGrp' = (JSON FROM
+                'propertyGrpId' = LONG propertyGrpId,
+                'propertyGrpName' = 'Свойства для ' + value(b)
+                WHERE propertyGrpId == value(b) AND hasPropertyAstron(mpt, b)),
+        'numProperty' = (JSON FROM
+                'numPropertyKey' = INTEGER numPropertyKey,
+                'propertyGrpId' = value(b),
+                'numberId' = numberIdAstron(mpt, b, numPropertyKey)
+                WHERE iterate(numPropertyKey, 13, 30) AND numberIdAstron(mpt, b, numPropertyKey)
+                ORDER numPropertyKey),
+        'numbers' = (JSON FROM
+                'numberId' = (CASE WHEN INTEGER numberRow == 1 THEN 101
+                        WHEN numberRow == 2 THEN numberIdAstron(mpt, b, 14)
+                        ELSE numberIdAstron(mpt, b, 30)),
+                'numberValue' = (CASE WHEN numberRow == 1 THEN 1
+                        WHEN numberRow == 2 THEN age(sku(b))
+                        ELSE toleranceWeightAstron(sku(b))),
+                'numberName' = (CASE WHEN numberRow == 1 THEN 'Да'
+                        WHEN numberRow == 2 THEN age(sku(b)) + ' лет'
+                        ELSE toleranceWeightAstron(sku(b)) + ' г')
+                WHERE iterate(numberRow, 1, 3) AND (CASE
+                        WHEN numberRow == 1 THEN requireQuantityManual(sku(b)) OR lowWeight(sku(b)) OR weightControlBypass(sku(b)) OR hasPromotionPrice(sku(b), stock(mpt))
+                        WHEN numberRow == 2 THEN TRUE IF numberIdAstron(mpt, b, 14)
+                        WHEN numberRow == 3 THEN TRUE IF numberIdAstron(mpt, b, 30))
+                ORDER numberRow),
+        'binProperty' = (JSON FROM
+                'binPropertyKey' = INTEGER binPropertyKey,
+                'propertyGrpId' = value(b),
+                'binaryDataId' = value(b)
+                WHERE binPropertyKey == 1 AND imageAstron(b)),
+        'binaryData' = (JSON FROM
+                'binaryDataId' = LONG binaryDataId,
+                'binaryDataValue' = encodeBase64(imageAstron(b)),
+                'binaryDataName' = STRING[20](value(b))
+                WHERE binaryDataId == value(b) AND imageAstron(b) AND (updateImage(b) OR updateAllImagesAstron())),
         //группы
-        ('"extGrp":['+(GROUP CONCAT ('\{'+ (CONCAT ',','"extGrpId":'+id(CustomGroup g, groupMachinery(mpt)),
-                '"sareaId":'+nppGroupMachinery(mpt),
-                '"parentExtGrpId":'+id(parent(g), groupMachinery(mpt)),
-                '"extGrpName":"'+escapeJSONValue(name(g))+'"',
-                '"extGrpPicture":"'+(encodeBase64(imageAstron(g)))+'"') + '\}') 
-                    IF (isParent(g, sku(b)) OR del(id(g, groupMachinery(mpt)), sku(b), groupMachinery(mpt))) AND customGroupType(g) == dataCustomGroupTypeAstron(groupMachinery(mpt)), ', ' ORDER g) + '],'+
-        '"artExtGrp":['+(CONCAT ',', ('\{"extGrpId":'+id(customGroup(dataCustomGroupTypeAstron(groupMachinery(mpt)),sku(b)), groupMachinery(mpt)) + '\}'), 
-                                     (GROUP CONCAT ('\{"extGrpId":'+ INTEGER  r+ ',"delFlag":1\}') IF del(r, sku(b), groupMachinery(mpt)), ',' ORDER r) 
-                        )+']'
-        ) IF customGroup(dataCustomGroupTypeAstron(groupMachinery(mpt)),sku(b))
-    )
+        'extGrp' = (JSON FROM
+                'extGrpId' = id(CustomGroup g, groupMachinery(mpt)),
+                'sareaId' = nppGroupMachinery(mpt),
+                'parentExtGrpId' = id(parent(g), groupMachinery(mpt)),
+                'extGrpName' = name(g),
+                'extGrpPicture' = encodeBase64(imageAstron(g))
+                WHERE (isParent(g, sku(b)) OR del(id(g, groupMachinery(mpt)), sku(b), groupMachinery(mpt)))
+                        AND customGroupType(g) == dataCustomGroupTypeAstron(groupMachinery(mpt))
+                        AND customGroup(dataCustomGroupTypeAstron(groupMachinery(mpt)), sku(b))
+                ORDER g),
+        'artExtGrp' = (JSON FROM
+                'extGrpId' = INTEGER extGrpId,
+                'delFlag' = (1 IF del(extGrpId, sku(b), groupMachinery(mpt)))
+                WHERE (extGrpId == id(customGroup(dataCustomGroupTypeAstron(groupMachinery(mpt)), sku(b)), groupMachinery(mpt))
+                            OR del(extGrpId, sku(b), groupMachinery(mpt)))
+                        AND customGroup(dataCustomGroupTypeAstron(groupMachinery(mpt)), sku(b))
+                ORDER extGrpId)
 ;
 
 skipLoadImages 'Не выгружать изображения' = DATA BOOLEAN (CashRegisterModel);
