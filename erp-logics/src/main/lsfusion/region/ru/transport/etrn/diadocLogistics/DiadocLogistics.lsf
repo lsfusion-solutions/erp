@@ -192,12 +192,32 @@ diadocAcquireOrganization 'Пригласить в контрагенты Диа
         TRY {
             EXTERNAL HTTP POST url() + '/V3/AcquireCounteragent?myBoxId=' + myBoxGuid
                 HEADERS httpHeadersToken PARAMS exportFile() TO result;
-            acquireRequestedDateTime(o) <- currentDateTime();
         } CATCH {
             fileToString(result(), 'UTF-8');
             MESSAGE 'Не удалось отправить приглашение в контрагенты Диадока: ' +
                 (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException()) NOWAIT;
+            RETURN;
         }
+        // AcquireCounteragent асинхронный: успешный POST - лишь принятая задача (TaskId),
+        // ошибки (например, нет права "Управление списком контрагентов" у учётки)
+        // проявляются только в результате задачи - без проверки приглашение теряется молча
+        LOCAL taskId = STRING ();
+        IMPORT JSON FROM result() FIELDS () STRING[100] TaskId DO taskId() <- STRING(TaskId);
+        IF taskId() THEN {
+            sleep(2000);
+            LOCAL taskResult = FILE ();
+            TRY {
+                EXTERNAL HTTP GET url() + '/V3/AcquireCounteragentResult?taskId=' + taskId() +
+                    '&boxId=' + myBoxGuid
+                    HEADERS httpHeadersToken TO taskResult;
+                acquireRequestedDateTime(o) <- currentDateTime();
+            } CATCH {
+                fileToString(taskResult(), 'UTF-8');
+                MESSAGE 'Приглашение в контрагенты Диадока не создано: ' +
+                    (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException()) NOWAIT;
+            }
+        } ELSE
+            acquireRequestedDateTime(o) <- currentDateTime();
     }
 }
 
@@ -215,7 +235,19 @@ diadocGetCounteragentStatus (STRING myBoxGuid, STRING counteragentBoxGuid) {
             IMPORT JSON FROM result() FIELDS () STRING[100] CurrentStatus DO
                 counteragentCurrentStatus() <- STRING(CurrentStatus);
         } CATCH {
-            // сбой проверки статуса не блокирует основную операцию
+            // 404 с текстом "Trust relationship ... not found" - не сбой, а легитимный ответ
+            // "контрагента нет в списке": возвращается статусом, чтобы вызывающий предложил
+            // приглашение. Прочая HTTP-ошибка (кривой ящик и т.п.) - показывается сырой
+            // ошибкой и возвращается статусом CheckFailed: отправка вызывающим прерывается,
+            // она обречена. Сбои без HTTP-ответа (сеть) основную операцию не блокируют
+            fileToString(result(), 'UTF-8');
+            IF STRING(statusHttp()) == '404' AND resultString() LIKE '%Trust relationship%' THEN
+                counteragentCurrentStatus() <- 'NotInCounteragentList';
+            ELSE IF statusHttp() THEN {
+                counteragentCurrentStatus() <- 'CheckFailed';
+                MESSAGE 'Ошибка проверки партнёрства (Диадок): ' +
+                    (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException()) NOWAIT;
+            }
         }
     }
 }

@@ -37,6 +37,8 @@ diadocSendT3 (ETRN.ETRN e) {
     // сразу; не контрагент - приглашение отправляется здесь же (настройка), Т3 повторяется
     // после подтверждения перевозчиком; сбой самой проверки отправку не блокирует
     diadocGetCounteragentStatus(guidBoxId(diadocBoxId(ETRN.consignee(e))), guidBoxId(boxId(carrierT3Box(e))));
+    // проверка завершилась HTTP-ошибкой (сообщение уже показано) - отправка обречена, выходим
+    IF counteragentCurrentStatus() == 'CheckFailed' THEN RETURN;
     IF counteragentCurrentStatus() == 'InvitesMe' THEN
         FOR Organization o == organization(carrierT3Box(e)) DO
             diadocAcquireOrganization(o, guidBoxId(diadocBoxId(ETRN.consignee(e))));
