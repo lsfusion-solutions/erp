@@ -32,17 +32,21 @@ diadocSendT3 (ETRN.ETRN e) {
         RETURN;
     }
 
-    // партнёрство ящиков с перевозчиком: без него Диадок не примет наш Т3.
+    // партнёрство ящиков с перевозчиком: совсем без него Диадок не примет наш Т3.
     // InvitesMe (перевозчик пригласил нас первым) - встречное приглашение подтверждает связь
-    // сразу; не контрагент - приглашение отправляется здесь же (настройка), Т3 повторяется
-    // после подтверждения перевозчиком; сбой самой проверки отправку не блокирует
+    // сразу; IsInvitedByMe (наше приглашение ещё не принято) отправке не мешает - Диадок
+    // доставляет документ вместе с приглашением; не контрагент - приглашение отправляется
+    // здесь же (с подтверждением), Т3 повторяется после; сбой самой проверки отправку не блокирует
     diadocGetCounteragentStatus(guidBoxId(diadocBoxId(ETRN.consignee(e))), guidBoxId(boxId(carrierT3Box(e))));
     // проверка завершилась HTTP-ошибкой (сообщение уже показано) - отправка обречена, выходим
     IF counteragentCurrentStatus() == 'CheckFailed' THEN RETURN;
     IF counteragentCurrentStatus() == 'InvitesMe' THEN
         FOR Organization o == organization(carrierT3Box(e)) DO
             diadocAcquireOrganization(o, guidBoxId(diadocBoxId(ETRN.consignee(e))));
-    IF counteragentCurrentStatus() AND NOT (counteragentCurrentStatus() == 'IsMyCounteragent' OR counteragentCurrentStatus() == 'InvitesMe') THEN {
+    IF counteragentCurrentStatus() == 'IsInvitedByMe' THEN
+        MESSAGE 'Приглашение в контрагенты у перевозчика и еще не принято: Т3 будет доставлен и будет ожидать подтверждения партнёрства' NOWAIT;
+    IF counteragentCurrentStatus() AND NOT (counteragentCurrentStatus() == 'IsMyCounteragent' OR
+        counteragentCurrentStatus() == 'InvitesMe' OR counteragentCurrentStatus() == 'IsInvitedByMe') THEN {
         ASK 'Партнёрство с перевозчиком в Диадоке не установлено - без него Т3 не будет принят.
 Отправить перевозчику приглашение в контрагенты?' DO {
             FOR Organization o == organization(carrierT3Box(e)) DO
