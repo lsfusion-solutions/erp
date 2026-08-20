@@ -333,8 +333,63 @@ DESIGN loya {
 }
 
 
+//--------------------------------------- Авторизация ---------------------------------------//
+
+// Базовый адрес API. Порт может быть не задан — тогда используется порт по умолчанию.
+urlLoya 'Адрес API' () = CONCAT '', r'http://', ipLoya(), r':', portLoya(), r'/api/1.0/';
+
+// пароль передаётся хэшем SHA-1 в hex; digest() — из расширения pgcrypto
+sha1Loya (TEXT text) = FORMULA TEXT PG 'encode(digest($1, \'sha1\'), \'hex\')';
+
+resultLoginLoya 'Ошибка авторизации' = DATA LOCAL NESTED TEXT ();
+
+// Авторизуется и записывает сессионный ключ в sessionKey(). Ключ пишется в текущую сессию —
+// вызывающий сам решает, сохранять его (APPLY) или использовать разово.
+// При ошибке заполняется resultLoginLoya(), sessionKey() не меняется.
+loginLoya 'Авторизоваться' ()  {
+    resultLoginLoya() <- NULL;
+
+    IF NOT (ipLoya() AND emailLoya() AND passwordLoya() AND apiKeyLoya()) THEN {
+        resultLoginLoya() <- 'Не заданы настройки подключения к Loya: IP / email / пароль / api key';
+        RETURN;
+    }
+
+    LOCAL headers = TEXT (STRING[100]);
+    LOCAL cookies = TEXT (STRING[100]);
+    LOCAL body = FILE ();
+    LOCAL response = FILE ();
+
+    headers(r'content-type') <- r'application/json';
+    EXPORT JSON FROM email = emailLoya(), password = sha1Loya(TEXT(passwordLoya())), apikey = apiKeyLoya() TO body;
+
+    TRY {
+        EXTERNAL HTTP POST urlLoya() + r'login' HEADERS headers COOKIESTO cookies PARAMS body() TO response;
+    } CATCH {
+        resultLoginLoya() <- CONCAT '\n', 'Ошибка обращения к Loya', messageCaughtException();
+        RETURN;
+    }
+
+    IF cookies(r'PLAY2AUTH_SESS_ID') THEN
+        sessionKey() <- cookies(r'PLAY2AUTH_SESS_ID');
+    ELSE
+        resultLoginLoya() <- CONCAT '\n', 'Loya не вернула сессионный ключ', STRING(response());
+}
+
+checkConnectionLoya 'Проверить подключение' ()  {
+    NEWSESSION {
+        loginLoya();
+        IF resultLoginLoya() THEN
+            MESSAGE resultLoginLoya();
+        ELSE {
+            APPLY;
+            IF NOT canceled() THEN
+                MESSAGE 'Подключение к Loya выполнено';
+        }
+    }
+}
+
 EXTEND FORM integrationData
-    PROPERTIES() ipLoya, portLoya, emailLoya, passwordLoya, apiKeyLoya, idPartnerLoya, 
+    PROPERTIES() ipLoya, portLoya, emailLoya, passwordLoya, apiKeyLoya, idPartnerLoya, checkConnectionLoya, 
                  maxDiscountLoya, maxAllowBonusLoya, maxAwardBonusLoya, useRestrictionsForAwardBonus, disableSynchronizeItemsLoya, deleteInactiveItemGroupsLoya, logRequestsLoya, useBarcodeAsIdLoya, useMinPrice
 ;
 
@@ -348,6 +403,7 @@ DESIGN integrationData {
             MOVE PROPERTY(passwordLoya());
             MOVE PROPERTY(apiKeyLoya());
             MOVE PROPERTY(idPartnerLoya());	
+            MOVE PROPERTY(checkConnectionLoya());
             MOVE PROPERTY(maxDiscountLoya());
             MOVE PROPERTY(maxAllowBonusLoya());
             MOVE PROPERTY(maxAwardBonusLoya());

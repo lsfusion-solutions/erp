@@ -70,6 +70,11 @@ TABLE sticker(Sticker);
 id 'Номинал' = DATA INTEGER (Sticker) CHARWIDTH 10 IN id;
 sticker = GROUP AGGR Sticker st BY id(st);
 
+FORM sticker 'Номинал стикеров'
+    OBJECTS s = Sticker PANEL 
+    PROPERTIES  id(s)
+    EDIT Sticker OBJECT s
+;
 FORM stickers 'Номиналы стикеров'
     OBJECTS s = Sticker
     PROPERTIES READONLY id(s)
@@ -88,8 +93,8 @@ idSticker 'Номинал стикера'(MarkdownDetail d) = id(sticker(d));
 quantityStickers 'Кол-во стикеров' = DATA NUMERIC[16,5](MarkdownDetail);
 quantityStickers 'Кол-во стикеров' (Markdown m) = [GROUP SUM quantityStickers(MarkdownDetail d) BY markdown(d)](m);
 
-
-WHEN LOCAL CHANGED(quantity(MarkdownDetail d)) AND NOT CHANGED(quantityStickers(d)) DO
+quantityStickersSkip = ABSTRACT VALUE BOOLEAN (MarkdownDetail);
+WHEN LOCAL CHANGED(quantity(MarkdownDetail d)) AND NOT CHANGED(quantityStickers(d)) AND NOT quantityStickersSkip(d) DO
     quantityStickers(d) <- quantity(d);
 
 expirationDate 'Срок годности до' = DATA DATE (MarkdownDetail);
@@ -615,7 +620,20 @@ CONSTRAINT (CHANGED(sku(MarkdownDetail d)) OR CHANGED(operation(d)) OR CHANGED(s
 countChangedStiker = GROUP SUM 1 IF SETCHANGED(sticker(MarkdownDetail d)) BY markdown(d);
 countStikers = GROUP SUM 1 IF [GROUP SUM 1 BY sticker(MarkdownDetail d), markdown(d)](Sticker s, Markdown m) BY m;
 
-skipCountStikers = DATA BOOLEAN ();
+skipCountStikers 'Разрешить разные номиналы стикеров в одном документе уценки' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES() skipCountStikers
+;
+
+DESIGN options {
+    pane {
+        NEW markdownOptions {
+            caption = 'Уценка';
+            MOVE PROPERTY(skipCountStikers());
+        }
+    }
+}
 
 CONSTRAINT (SETCHANGED(countChangedStiker(Markdown d)) OR SETCHANGED (countMarkdownDetail(d))) AND countStikers(d)>1 AND NOT skipCountStikers()
     MESSAGE 'Нельзя сохранить документ уценки, если у товаров выбран разный номинал стикеров!';
