@@ -205,20 +205,32 @@ DESIGN vetDocument {
 
 
 // ---- Упаковка производимой партии в запросе (vd:productiveBatch/vd:packageList) ----
-// тип упаковки и кол-во берутся с карточки номенклатуры изделия; сегмент добавляется,
-// только если тип упаковки задан и найден в справочнике типов упаковки
+// тип упаковки и кол-во берутся с карточки номенклатуры изделия, маркировка - со штрихкодов товара;
+// сегмент добавляется, если задан хотя бы один из них (тип упаковки должен быть найден в справочнике)
 
 GROUP packageListProdReqGestori EXTID 'vd:packageList';
 GROUP packingTypeProdReqGestori EXTID 'dt:packingType';
+GROUP productMarksProdReqGestori EXTID 'dt:productMarks';
 
 packingTypeProdReqGestori (ProductItem pi) = packingTypeGlobalIDGestori(STRING(packagingType(pi)));
+
+// маркировка изделия: активные штрихкоды товара с множителем 1 через запятую, иначе GTIN номенклатуры
+barcodesProdReqGestori (Production.ProductDetail pd) =
+    GROUP CONCAT (Barcode.id(Barcode.Barcode b) IF Barcode.sku(b) == Production.sku(pd)
+        AND Barcode.active(b) AND Barcode.amount(b) == 1.0), ',' ORDER Barcode.id(b), b;
+
+productMarksProdReqGestori (Production.ProductDetail pd, ProductItem pi) =
+    OVERRIDE barcodesProdReqGestori(pd), globalID(pi);
 
 EXTEND FORM registerProductionOperationRequest
     OBJECTS packageProdReq = (pd1 = Production.ProductDetail, pi1 = ProductItem) EXTID 'dt:package' IN packageListProdReqGestori
     PROPERTIES ='2' DRAW packageProdReq EXTID 'dt:level'
     PROPERTIES IN packingTypeProdReqGestori =guid(packingTypeProdReqGestori(pi1)) EXTID 'bs:guid'
     PROPERTIES =(OVERRIDE packagingQuantity(pi1), INTEGER(Production.quantity(pd1))) EXTID 'dt:quantity'
-    FILTERS pd1 == pd, pi1 == pi, packingTypeProdReqGestori(pi1)
+    PROPERTIES IN productMarksProdReqGestori
+        =productMarksProdReqGestori(pd1, pi1) EXTID 'value',
+        =(STRING[20]('UNDEFINED') IF productMarksProdReqGestori(pd1, pi1)) EXTID 'class' ATTR
+    FILTERS pd1 == pd, pi1 == pi, (packingTypeProdReqGestori(pi1) OR productMarksProdReqGestori(pd1, pi1))
 ;
 
 // ---- Дозаполнение производственного ВСД данными упаковки и маркировки из ответа ----
@@ -249,11 +261,20 @@ EXTEND FORM registerProductionOperationResponse
 
 afterProcessProductionVetDocument(RegisterProductionOperationRequest r, VetDocument d) + {
     quantityPackGestori(d) <- NUMERIC[16,5](quantityPackProdRGestori());
-    FOR pkgLevelProdRGestori(INTEGER i) == 2 DO {
-        packingTypeGlobalIDGestori(d) <- pkgPackingTypeGlobalIDProdRGestori(i);
-        productMarksClassGestori(d) <- pkgProductMarksClassProdRGestori(i);
-        productMarksGestori(d) <- pkgProductMarksProdRGestori(i);
-        IF pkgQuantityProdRGestori(i) AND NOT quantityPackGestori(d) THEN
-            quantityPackGestori(d) <- NUMERIC[16,5](pkgQuantityProdRGestori(i));
+    // упаковка возвращается в записи журнала изделия (merc:stockEntryList), а не в секции ВСД
+    FOR uuidR(INTEGER i) == vetDocumentUuidR() AND levelR(i) == '2' DO {
+        packingTypeGlobalIDGestori(d) <- globalID2R(i);
+        productMarksClassGestori(d) <- classR(i);
+        productMarksGestori(d) <- productMarksR(i);
+        IF quantityR(i) AND NOT quantityPackGestori(d) THEN
+            quantityPackGestori(d) <- NUMERIC[16,5](quantityR(i));
+    }
+    // запасной вариант: та же упаковка в секции ВСД ответа
+    FOR pkgLevelProdRGestori(INTEGER j) == 2 DO {
+        IF NOT packingTypeGlobalIDGestori(d) THEN packingTypeGlobalIDGestori(d) <- pkgPackingTypeGlobalIDProdRGestori(j);
+        IF NOT productMarksClassGestori(d) THEN productMarksClassGestori(d) <- pkgProductMarksClassProdRGestori(j);
+        IF NOT productMarksGestori(d) THEN productMarksGestori(d) <- pkgProductMarksProdRGestori(j);
+        IF pkgQuantityProdRGestori(j) AND NOT quantityPackGestori(d) THEN
+            quantityPackGestori(d) <- NUMERIC[16,5](pkgQuantityProdRGestori(j));
     }
 }
