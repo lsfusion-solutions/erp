@@ -14,12 +14,12 @@ in (ReceiptSaleDetail d,Lot l) =  dataIn(d,l) OR lot(d)==l;
 in (ReceiptReturnDetail d,Lot l) = dataIn(d,l) OR lot(d)==l;
 
 quantityReceiptSaleDetail 'Кол-во' = 
-    GROUP SUM 1.0 IF in[ReceiptSaleDetail,Lot](ReceiptDetail d, Lot l) IF isPosted(d) AND d IS ReceiptSaleDetail
+    GROUP SUM NUMERIC[10,1](1.0) IF in[ReceiptSaleDetail,Lot](ReceiptDetail d, Lot l) IF isPosted(d) AND d IS ReceiptSaleDetail
         BY departmentStore(d), sku(d), date(d), l;
 quantity(DateSaleSkuLedger d, Lot l) += quantityReceiptSaleDetail(departmentStore(d), sku(d), date(d), l);
 
 quantityReceiptReturnDetail 'Кол-во' (department, sku, date, lot) = 
-    GROUP SUM 1.0 IF in[ReceiptReturnDetail,Lot](ReceiptDetail d, Lot l) IF isPosted(d) AND d IS ReceiptReturnDetail
+    GROUP SUM NUMERIC[10,1](1.0) IF in[ReceiptReturnDetail,Lot](ReceiptDetail d, Lot l) IF isPosted(d) AND d IS ReceiptReturnDetail
         BY departmentStore(d), sku(d), date(d), l;
 quantity(DateReturnSkuLedger d, Lot l) += quantityReceiptReturnDetail(departmentStore(d), sku(d), date(d), l);
 
