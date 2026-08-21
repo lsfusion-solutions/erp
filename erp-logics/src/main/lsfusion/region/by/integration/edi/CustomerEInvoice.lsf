@@ -13,6 +13,8 @@ imported2551Customer 'Получено подтверждение о получ�
     TRUE IF GROUP SUM 1 IF eInvoice(EInvoiceMessage m) == ei AND type(m) == EInvoiceMessageType.blrapn_blrapn AND code(m) == '2551';
 exportedCustomer 'Экспортирован (покупатель)' = DATA BOOLEAN (EInvoice);
 exportedNoticeCustomer 'Экспортировано уведомление об изменении (покупатель)' = DATA BOOLEAN (EInvoice);
+imported2650Customer 'Получено подтверждение об отмене накладной (2650)' (EInvoice ei)=
+    TRUE IF GROUP SUM 1 IF eInvoice(EInvoiceMessage m) == ei AND isSupplier(m) AND code(m) == '2650';
 
 overSupplier = ABSTRACT LegalEntity (EInvoice);
 signSupplier (EInvoice i) = OVERRIDE supplier(i), overSupplier(i);
@@ -139,8 +141,47 @@ signAndSendNoticeCustomerEDIWithoutDialog 'Подписать и отправи�
             MESSAGE 'Запрещен обмен через провайдера для не EDI накладной: ' + deliveryNoteNumber(i);
         in(i) <- NULL;
     }
-    ELSE
-        MESSAGE 'Не выбрано ни одной накладной';
+        ELSE
+    MESSAGE 'Не выбрано ни одной накладной';
+}
+
+signAndSendConfirmCustomer ABSTRACT LIST (EInvoice);
+signAndSendConfirmCustomerEDI 'Подтвердить получение (покупатель)' () {
+    IF askPasswordEDSService() AND NOT passwordEDSService() THEN {
+        DIALOG passwordEDSService DO {} ELSE { BREAK; };
+    }
+    FOR in(EInvoice i) DO {
+        IF isEDI(i) THEN {
+            IF EDIProviderInvoice(i) THEN {
+                signAndSendConfirmCustomer(i);
+            } ELSE {
+                MESSAGE 'Не выбран EDI провайдер для накладной: ' + deliveryNoteNumber(i);
+            }
+        } ELSE
+            MESSAGE 'Запрещен обмен через провайдера для не EDI накладной: ' + deliveryNoteNumber(i);
+        in(i) <- NULL;
+    }
+        ELSE
+    MESSAGE 'Не выбрано ни одной накладной';
+}
+
+signAndSendConfirmCancelCustomer ABSTRACT LIST (EInvoice);
+signAndSendConfirmCancelCustomerEDI 'Подтвердить отмену (покупатель)' () {
+    IF askPasswordEDSService() AND NOT passwordEDSService() THEN {
+        DIALOG passwordEDSService DO {} ELSE { BREAK; };
+    }
+    FOR in(EInvoice i) DO {
+        IF isEDI(i) THEN {
+            IF EDIProviderInvoice(i) THEN {
+                signAndSendConfirmCancelCustomer(i);
+            } ELSE {
+                MESSAGE 'Не выбран EDI провайдер для накладной: ' + deliveryNoteNumber(i);
+            }
+        } ELSE
+            MESSAGE 'Запрещен обмен через провайдера для не EDI накладной: ' + deliveryNoteNumber(i);
+        in(i) <- NULL;
+    }
+        ELSE MESSAGE 'Не выбрано ни одной накладной';
 }
 
 EXTEND FORM eInvoices
@@ -149,6 +190,7 @@ EXTEND FORM eInvoices
         FILTER 'Не импортированы (покупатель)' NOT importedCustomer(e) 'F9'
         FILTER 'Не экспортированы (покупатель)' NOT exportedCustomer(e) AND NOT exportedNoticeCustomer(e) 'F10'
     PROPERTIES() DRAW e TOOLBAR signAndSendBlrapnCustomerEDI, signAndSendCustomerEDI, signAndSendNoticeCustomerEDI
+    PROPERTIES () TOOLBAR SHOWIF useV2EDI() signAndSendConfirmCustomerEDI, signAndSendConfirmCancelCustomerEDI
 ;
 
 DESIGN eInvoices{
@@ -160,6 +202,8 @@ DESIGN eInvoices{
             MOVE PROPERTY (signAndSendBlrapnCustomerEDI()) { alignment = STRETCH; };
             MOVE PROPERTY (signAndSendCustomerEDI()) { alignment = STRETCH; }; 
             MOVE PROPERTY (signAndSendNoticeCustomerEDI()) { alignment = STRETCH; };
+            MOVE PROPERTY (signAndSendConfirmCustomerEDI()) { alignment = STRETCH; };
+            MOVE PROPERTY (signAndSendConfirmCancelCustomerEDI()) { alignment = STRETCH; };
         }
     }
 }

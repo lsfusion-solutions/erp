@@ -37,13 +37,8 @@ processingStatusBundleUpd = GROUP MAX ProcessingStatusBundleUpd p BY id(p);
 processingStatusBundleUpd = DATA ProcessingStatusBundleUpd (UpdDocument);
 nameProcessingStatusBundleUpd 'Статус обработки пакета' (UpdDocument d) = name(processingStatusBundleUpd(d));
 
-legalEntityCTT = DATA LegalEntity ();
-nameLegalEntityCTT 'Организация' = name(legalEntityCTT());
 getRoseuLegalEntity ABSTRACT LIST (LegalEntity);
 getRoseuDocs 'Импорт трансграничных документов' () {
-    IF askPasswordEDSService() THEN {
-        DIALOG passwordEDSService DO {} ELSE { BREAK; };
-    }
     IF NOT documentDateStart() OR NOT documentDateEnd() THEN {
         MESSAGE 'Не заполнен период для импорта';
     } ELSE {
@@ -51,20 +46,6 @@ getRoseuDocs 'Импорт трансграничных документов' ()
             getRoseuLegalEntity(legalEntityCTT());
         ELSE
             MESSAGE 'Не выбран EDI провайдер для организации';
-    }
-}
-
-signer = DATA CustomUser ();
-nameSigner 'Подписант' = name(signer());
-
-EXTEND FORM integrationData PROPERTIES () nameLegalEntityCTT, nameSigner;
-DESIGN integrationData {
-    col1TopBy {
-        NEW v2 {
-            caption = 'V2';
-            MOVE PROPERTY (nameLegalEntityCTT());
-            MOVE PROPERTY (nameSigner());
-        }
     }
 }
 

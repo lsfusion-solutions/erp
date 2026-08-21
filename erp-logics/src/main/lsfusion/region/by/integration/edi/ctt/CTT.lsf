@@ -60,12 +60,59 @@ EXTEND FORM integrationData
     PROPERTIES (let) loginProfile
 ;
 
+CLASS FilterPageStatus {
+    ALL_ 'Все',
+    AT_PARTNER 'У контрагента',
+    COMPLETED 'Завершённые',
+    WAITING_FOR_PROCESSING 'Ждёт обработки'
+}
+
+id (FilterPageStatus s) = CASE
+    WHEN s == FilterPageStatus.ALL_ THEN 'ALL'
+    WHEN s == FilterPageStatus.AT_PARTNER THEN 'AT_PARTNER'
+    WHEN s == FilterPageStatus.COMPLETED THEN 'COMPLETED'
+    WHEN s == FilterPageStatus.WAITING_FOR_PROCESSING THEN 'WAITING_FOR_PROCESSING'
+;
+
+filterPageStatus = DATA LOCAL NESTED FilterPageStatus ();
+filterPageStatusName 'Статус документов' () = staticCaption(filterPageStatus()) CHARWIDTH 30;
+
 importRequestResult (FILE json, INTEGER status) {
     IF NOT status == 200 THEN {
         IMPORT JSON FROM json TO() requestError = error;
         IF status = 401 THEN requestError() <- 'Не пройдена авторизация';
     } ELSE {
         requestError() <- NULL;
+    }
+}
+
+errorV2 () = OVERRIDE requestError(), 'неожиданный ответ ' + statusHttp();
+
+headersV2 = DATA LOCAL NESTED STRING (STRING);
+authV2 'Авторизация V2' (LegalEntity le) {
+    authenticate(profile(le));
+    headersV2(STRING k) <- NULL;
+    IF token() THEN headersV2('Authorization') <- token();
+}
+
+requestSucceededV2 = DATA LOCAL BOOLEAN ();
+checkResponseV2 (FILE response, STRING stage, LegalEntity le, STRING provider) {
+    importRequestResult(response, statusHttp());
+    requestSucceededV2() <- TRUE IF statusHttp() == 200 OR statusHttp() == 201;
+    IF NOT requestSucceededV2() THEN
+        logToFile('edi', provider + ' (' + loginProfile(le) + ') ' + stage + ': ' + errorV2());
+}
+
+fillPartnerIdV2 (LegalEntity a, LegalEntity b, STRING glnA, STRING unpA, LegalEntity le, STRING provider) {
+    IF NOT id(a, b) THEN {
+        LOCAL response = FILE ();
+        EXPORT JSON FROM gln = glnA, unp = unpA;
+        EXTERNAL HTTP POST url(profile(le)) + 'organization/partners/list' HEADERS headersV2 PARAMS exportFile() TO response;
+        checkResponseV2(response(), 'organization/partners/list', le, provider);
+        IF requestSucceededV2() THEN {
+            IMPORT JSON FROM response() TO id = id;
+            id(a, b) <- id(0);
+        }
     }
 }
 
@@ -96,3 +143,124 @@ gln1 = DATA LOCAL STRING();
 id1 = DATA LOCAL STRING();
 last = DATA LOCAL BOOLEAN();
 totalPages = DATA LOCAL INTEGER();
+dateTime = DATA LOCAL STRING(INTEGER);
+documentNumber = DATA LOCAL STRING(INTEGER);
+name1 = DATA LOCAL STRING(INTEGER);
+id1 = DATA LOCAL STRING(INTEGER);
+
+GROUP processingStatus;
+
+FORM importEInvoices
+    PROPERTIES() last, totalPages
+
+    OBJECTS content = INTEGER
+    PROPERTIES(content) id, dateTime, documentNumber
+    PROPERTIES(content) IN processingStatus name1 EXTID 'name', id1 EXTID 'id'
+    FILTERS imported(content)
+;
+
+messageID = DATA LOCAL STRING();
+msgDateTime = DATA LOCAL DATETIME();
+messageType = DATA LOCAL STRING();
+msgSenderID = DATA LOCAL STRING();
+msgReceiverID = DATA LOCAL STRING();
+testIndicator = DATA LOCAL STRING();
+
+FORM message
+    PROPERTIES() IN messageHeader messageType EXTID 'MessageType'
+;
+
+currentDocId = DATA LOCAL NESTED STRING();
+
+overImportEInvoices ABSTRACT LIST (LegalEntity, STRING);
+receiveMessagesV2 (LegalEntity le, STRING archiveDir, BOOLEAN disableConfirmation, STRING provider) + {
+    IF loginProfile(le) AND password(profile(le)) AND url(profile(le)) THEN {
+        LOCAL response = FILE ();
+        LOCAL file = RAWFILE ();
+        TRY {
+            IF profile(le) THEN {
+                authV2(le);
+                IF token() THEN {
+                    LOCAL NESTED page = INTEGER ();
+                    WHILE TRUE DO {
+                        timeoutHttp() <- 300000;
+                        page() <- page() (+) 1;
+
+                        EXPORT JSON FROM documentDateStart = ZDATETIME(documentDateStart()), documentDateEnd = ZDATETIME(documentDateEnd());
+                        logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveMessages V2 request sent. POST /api/v1/EWAYBILL/' + (OVERRIDE id(filterPageStatus()), id(FilterPageStatus.ALL_)) + '/filteredPage?page=' + page());
+                        EXTERNAL HTTP POST url(profile(le)) + 'EWAYBILL/' + (OVERRIDE id(filterPageStatus()), id(FilterPageStatus.ALL_)) + '/filteredPage?page=' + page() HEADERS headersV2 PARAMS exportFile() TO response;
+
+                        IF NOT statusHttp() == 200 THEN {
+                            logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveMessages V2: неожиданный ответ ' + statusHttp());
+                            BREAK;
+                        }
+
+                        IMPORT importEInvoices JSON FROM response();
+                        IF NOT (GROUP SUM 1 IF id(INTEGER i)) THEN BREAK;
+                        overImportEInvoices(le, provider);
+
+                        FOR id(INTEGER i) AND id1(i) != 'DRAFT' DO {
+                            EXPORT JSON FROM value = '[' + id(i) + ']';
+                            logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveMessages V2 request sent. POST /api/v1/EWAYBILL/downloadArchive/XML\n' + exportFile());
+                            EXTERNAL HTTP POST url(profile(le)) + 'EWAYBILL/downloadArchive/XML' HEADERS headersV2 PARAMS exportFile() TO unzipping;
+                            makeUnzipFile();
+                            FOR FILE f = unzipped(STRING[100] s) DO {
+                                currentDocId() <- id(i);
+                                IMPORT message XML FROM f;
+                                data(i) <- XMLFILE(f);
+                                documentType(i) <- messageType();
+                                overReceiveMessages(i, loginProfile(le), password(profile(le)), url(profile(le)), archiveDir, disableConfirmation, provider);
+                            }
+                        }
+                        IF totalPages() == page() OR last() THEN BREAK;
+                        APPLY;
+                    }
+                }
+            }
+        } CATCH {
+            logToFile('edi', CONCAT '\n', provider + ' (' + loginProfile(le) + ') error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
+            MESSAGE 'Запрос на получение накладных не отправлен. Обратитесь к администратору' NOWAIT;
+            CANCEL;
+        }
+    }
+}
+
+legalEntityCTT = GROUP MIN LegalEntity l IF loginProfile(l);
+nameLegalEntityCTT 'Организация' = name(legalEntityCTT());
+signer = DATA CustomUser ();
+nameSigner 'Подписант' = name(signer());
+
+EXTEND FORM integrationData PROPERTIES () nameLegalEntityCTT, nameSigner, documentDateStart, documentDateEnd;
+DESIGN integrationData {
+    col1TopBy {
+        NEW v2 {
+            caption = 'V2';
+            MOVE PROPERTY (nameLegalEntityCTT());
+            MOVE PROPERTY (nameSigner());
+            NEW dates {
+                caption = 'Период';
+                horizontal = TRUE;
+                MOVE PROPERTY (documentDateStart());
+                MOVE PROPERTY (documentDateEnd());
+            }
+        }
+    }
+}
+
+META openJSON (class, object, table)
+    JSONPath = DATA STRING[200] (class);
+    openJSON 'Открыть JSON' (class object) {
+        IF JSONPath(object) THEN {
+            LOCAL file = FILE ();
+            TRY { READ 'file://' + JSONPath(object) + '.json' TO file; }
+            IF NOT file() THEN READ 'file://' + JSONPath(object) TO file;
+            open(file());
+        } ELSE {
+            MESSAGE 'Отсутствует ссылка на файл json';
+        }
+    }
+
+    EXTEND FORM table
+        PROPERTIES(object) openJSON GRID
+    ;
+END

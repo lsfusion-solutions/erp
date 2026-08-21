@@ -111,16 +111,16 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
             importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'GetDocumentsResponse');
             IF requestError() THEN {
                 logToFile('edi', provider + ' (' + login + ') ReceiveMessages: ' + requestError());
-                MESSAGE  provider + ' (' + login + ') Сообщения не получены: ' + requestError() NOWAIT;
+                MESSAGE provider + ' (' + login + ') Сообщения не получены: ' + requestError() NOWAIT;
             } ELSE {
                 IF newNS() THEN {
-                    IMPORT XML ROOT 'Data' FROM sendRequestEDIResponse() TO data = '=DocumentDataSis:Data', id = '=DocumentDataSis:Id',documentType = '=DocumentDataSis:DocumentType', documentDate = '=DocumentDataSis:DocumentDate';
+                    IMPORT XML ROOT 'Data' FROM sendRequestEDIResponse() TO data = '=DocumentDataSis:Data', id = '=DocumentDataSis:Id', documentType = '=DocumentDataSis:DocumentType', documentDate = '=DocumentDataSis:DocumentDate';
                 } ELSE {
                     IMPORT XML ROOT 'Data' FROM sendRequestEDIResponse() TO data = 'Data', id = 'Id', documentType = 'DocumentType', documentDate = 'DocumentDate';
                 }
 
                 fillStartParams();
-                
+
                 IF (GROUP SUM 1 IF documentType(INTEGER i)) > 0 THEN textMessage() <- CONCAT '\n', textMessage(), provider + '(' + login + ') Сообщений в очереди: ' + (GROUP SUM 1 IF documentType(INTEGER i));
                 logToFile('edi', provider + ' (' + login + ') ReceiveMessages count: ' + (GROUP SUM 1 IF documentType(INTEGER i)));
                 
@@ -132,15 +132,14 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
                     overReceiveMessages(i, login, password, url, archiveDir, disableConfirmation, provider);
                 }
 
-                fillEndParams();                
+                fillEndParams();
                 IF sendRecipientErrorFailed() == 0 THEN {
                     MESSAGE (OVERRIDE textMessage(), provider + '(' + login + ') Не найдено новых сообщений') NOWAIT;
                 }
             }
-     
         } ELSE {
             logToFile('edi', provider + ' (' + login + ') ReceiveMessages: не заданы имя пользователя / пароль / хост / порт');
-            MESSAGE  provider + ' (' + login + ') Сообщения не получены: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
+            MESSAGE provider + ' (' + login + ') Сообщения не получены: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
         }
     } CATCH {
         logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
@@ -160,18 +159,20 @@ confirmLog (STRING[100] provider, STRING[100] login, STRING[30] label, INTEGER i
 
 //label уточняет вид документа в логе, silent отключает сообщение пользователю при ошибке
 confirmMessage (INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] provider, STRING[30] label, BOOLEAN silent) {
-    LOCAL xml = XMLFILE();
-    EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
-    sendRequestEDI(url, xml());
-    logToFile('edi', confirmLog(provider, login, label, i) + ': request sent');
-    importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
-    IF requestError() THEN {
-        logToFile('edi', confirmLog(provider, login, label, i) + ': ' + requestError());
-        IF NOT silent THEN
-            MESSAGE provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
-    } ELSE {
-        logToFile('edi', confirmLog(provider, login, label, i) + ': request succeeded');
-        confirmEDIFile(id(i));
+    IF NOT useV2EDI() THEN {
+        LOCAL xml = XMLFILE();
+        EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
+        sendRequestEDI(url, xml());
+        logToFile('edi', confirmLog(provider, login, label, i) + ': request sent');
+        importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
+        IF requestError() THEN {
+            logToFile('edi', confirmLog(provider, login, label, i) + ': ' + requestError());
+            IF NOT silent THEN
+                MESSAGE provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+        } ELSE {
+            logToFile('edi', confirmLog(provider, login, label, i) + ': request succeeded');
+            confirmEDIFile(id(i));
+        }
     }
 }
 
@@ -354,7 +355,7 @@ overImportSystemmessage ABSTRACT ();
 skipSystemmessage = DATA LOCAL NESTED STRING ();
 
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
-    IF lower(documentType(i)) == 'systemmessage' OR lower(documentType(i)) == 'aperak' THEN {
+    IF (lower(documentType(i)) == 'systemmessage' OR lower(documentType(i)) == 'aperak') AND NOT useV2EDI() THEN {
         TRY {
             IMPORT systemMessage XML FROM data(i);
             skipSystemmessage() <- NULL;

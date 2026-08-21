@@ -97,8 +97,24 @@ onStarted()+ {
     }
 }
 
+receiveMessagesV2 ABSTRACT LIST (LegalEntity, STRING, BOOLEAN, STRING);
 receiveMessagesTopBy () {
-    FOR TopByProfile p IS TopByProfile AND login(p) AND password(p) DO {
+    IF useV2EDI() THEN {
+        FOR LegalEntity le == [GROUP MIN LegalEntity l BY loginTopBy(l)](STRING login) AND passwordTopBy(le) DO {
+            NEWSESSION {
+                lockTopBy(login);
+                IF lockResultTopBy() THEN {
+                    TRY {
+                        receiveMessagesV2(le, archiveDirTopBy(), disableConfirmationTopBy(), 'CTT');
+                    } FINALLY {
+                        unlockTopBy(login);
+                    }
+                } ELSE {
+                    MESSAGE 'Уже выполняется получение сообщений TopBy для ' + login + '. Подождите...' NOWAIT;
+                }
+            }
+        }
+    } ELSE FOR TopByProfile p IS TopByProfile AND login(p) AND password(p) DO {
         NEWSESSION {
             lockTopBy(login(p));
             IF lockResultTopBy() THEN {

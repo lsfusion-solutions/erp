@@ -66,7 +66,7 @@ signAndSendSupplierEDI 'Подписать и отправить (поставщ
 }
 
 skipCheckImportedSupplier = DATA BOOLEAN ();
-
+signAndSendSupplierCancelV2 ABSTRACT LIST (EInvoice);
 signAndSendSupplierCancelEDI 'Подписать и отправить отмену (поставщик)'() {
     IF askPasswordEDSService() THEN {
         DIALOG passwordEDSService DO {} ELSE { BREAK; };
@@ -77,7 +77,9 @@ signAndSendSupplierCancelEDI 'Подписать и отправить отме�
                 IF EDIProviderInvoice(customer(i), supplier(i)) THEN {
                     exportedSupplier(i) <- NULL WHERE exportedSupplier(i) AND NOT isCancel(i); //если оригинал отправлялся а отмена нет то нужно разрешить отправить отмену
                     isCancel(i) <- TRUE;
-                    signAndSendSupplier(i);
+                    IF useV2EDI() THEN {
+                        signAndSendSupplierCancelV2(i);
+                    } ELSE signAndSendSupplier(i);
                 } ELSE
                     MESSAGE 'Не выбран EDI провайдер для накладной: ' + deliveryNoteNumber(i);
             } ELSE
@@ -113,12 +115,34 @@ signAndSendBlrapnSupplierEDI 'Подписать и отправить изве�
     
 }
 
+signAndSendConfirmSupplier ABSTRACT LIST (EInvoice);
+signAndSendConfirmSupplierEDI 'Подтвердить изменения (поставщик)' () {
+    IF askPasswordEDSService() AND NOT passwordEDSService() THEN {
+        DIALOG passwordEDSService DO {} ELSE { BREAK; };
+    }
+    FOR in(EInvoice i) DO {
+        IF isEDI(i) THEN {
+            IF EDIProviderInvoice(customer(i), supplier(i)) THEN {
+                signAndSendConfirmSupplier(i);
+            } ELSE {
+                MESSAGE 'Не выбран EDI провайдер для накладной: ' + deliveryNoteNumber(i);
+            }
+        } ELSE
+            MESSAGE 'Запрещен обмен через провайдера для не EDI накладной: ' + deliveryNoteNumber(i);
+        in(i) <- NULL;
+    }
+        ELSE
+    MESSAGE 'Не выбрано ни одной накладной';
+}
+
+
 EXTEND FORM eInvoices
     PROPERTIES(e) BEFORE isCancel(e) READONLYIF isReadonly() exportedSupplier, importedSupplier, importedNoticeSupplier, importedSupplierCancel, exportedBlrapnSupplier
     EXTEND FILTERGROUP notExported
         FILTER 'Не экспортированы (поставщик)' NOT exportedSupplier(e) 'F8'
         FILTER 'Не импортированы (поставщик)' NOT isImportedSupplier(e) 'F11'
-    PROPERTIES() DRAW e TOOLBAR signAndSendSupplierEDI, signAndSendSupplierCancelEDI, signAndSendBlrapnSupplierEDI
+    PROPERTIES() DRAW e TOOLBAR signAndSendSupplierEDI, signAndSendSupplierCancelEDI, signAndSendBlrapnSupplierEDI,
+        signAndSendConfirmSupplierEDI SHOWIF useV2EDI()
 ;
 
 DESIGN eInvoices{
@@ -130,6 +154,7 @@ DESIGN eInvoices{
             MOVE PROPERTY (signAndSendSupplierEDI()) { alignment = STRETCH; };
             MOVE PROPERTY (signAndSendSupplierCancelEDI()) { alignment = STRETCH; };
             MOVE PROPERTY (signAndSendBlrapnSupplierEDI()) { alignment = STRETCH; };
+            MOVE PROPERTY (signAndSendConfirmSupplierEDI()) { alignment = STRETCH; };
         }
     }
 }

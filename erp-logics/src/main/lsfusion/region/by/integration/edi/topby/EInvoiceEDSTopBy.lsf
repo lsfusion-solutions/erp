@@ -164,3 +164,37 @@ getSignedDocumentSupplier(STRING[100] provider, ECreditNote e, FILE contentSubXM
         RETURN;
     }
 }
+
+//V2
+
+getSignedDocumentCustomerV2 (STRING[100] provider, EInvoice e, STRING s, BOOLEAN interactive) + {
+    IF edsApplication(EDSServiceCustomer(provider, e)) == EDSApplication.sccp THEN {
+        IF aliasEDSServiceCustomer(e) AND (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(e)) THEN {
+            keyID() <- aliasEDSServiceCustomer(e);
+            password() <- (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(e));
+            sign(s, EDSServiceCustomer(provider, e));
+        } ELSE {
+            IF interactive THEN {
+                MESSAGE provider + ' Документ ' + deliveryNoteNumber(e) + ' не подписан: Alias или Пароль ключа не задан' NOWAIT;
+            }
+            logToFile('edi', provider + ' error: Alias or Password for key not found');
+        }
+        RETURN;
+    }
+}
+
+getSignedDocumentSupplierV2 (STRING[100] provider, EInvoice e, STRING s, BOOLEAN interactive) + {
+    IF edsApplication(EDSServiceSupplier(provider, e)) == EDSApplication.sccp THEN {
+        IF aliasEDSServiceSupplier(e) AND (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(e)) THEN {
+            keyID() <- aliasEDSServiceSupplier(e);
+            password() <- (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(e));
+            sign(s, EDSServiceSupplier(provider, e));
+        } ELSE {
+            IF interactive THEN {
+                MESSAGE provider + ' Документ ' + deliveryNoteNumber(e) + ' не подписан: Alias или Пароль ключа не задан' NOWAIT;
+            }
+            logToFile('edi', provider + ' error: Alias or Password for key not found');
+        }
+        RETURN;
+    }
+}
