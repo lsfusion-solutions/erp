@@ -182,6 +182,10 @@ exportOrderDocument = DATA LOCAL EOrder();
 nameMessage = DATA LOCAL STRING();
 sendingCancelled = DATA LOCAL BOOLEAN ();
 
+// журналирование исходящего сообщения после успешной отправки: документ, имя файла
+afterSendMessage ABSTRACT LIST (EOrder, STRING);
+afterSendMessage ABSTRACT LIST (PurchaseReturn.Invoice, STRING);
+
 GLNSupplierStockKontur 'GLN поставщика' (EOrder e) = IF notUseStockGLN(supplier(e)) THEN GLNSupplier(e) ELSE (OVERRIDE GLN(supplierStock(e)), GLNSupplier(e));
 GLNSupplierStockKontur 'GLN поставщика' (PurchaseReturn.UserInvoice e) = IF notUseStockGLN(supplier(e)) THEN GLN(supplier(e)) ELSE (OVERRIDE GLN(supplierStock(e)), GLN(supplier(e)));
 
@@ -270,6 +274,7 @@ sendPurchaseOrderKonturEDI 'Отправить заказ (Контур.EDI)' (E
                 isPosted[Purchase.Order](o) <- TRUE;
                 IF NOT disableDocumentLog() THEN logSendDocumentOrder[Purchase.Order](o);
                 sentDateTime[Purchase.Order](o) <- currentDateTime();
+                afterSendMessage(o, nameMessage());
             } CATCH {
                 fileToString(result(), 'UTF-8');
                 MESSAGE 'Ошибка отправки ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
@@ -740,6 +745,7 @@ sendRecadvKontur 'Отправить RECADV' (EOrder o, User u) {
                 TRY {
                     EXTERNAL HTTP POST url() + '/V1/Messages/SendMessage?boxId='+ boxId(fromBox()) +'&messageFileName=' + nameMessage() HEADERS httpHeadersTokenUser PARAMS exportFile() TO result;
                     sentRecadvKontur(o) <- currentDateTime();
+                    afterSendMessage(o, nameMessage());
                 } CATCH {
                     fileToString(result(), 'UTF-8');
                     MESSAGE 'Ошибка отправки ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
@@ -913,6 +919,8 @@ sendRetann 'Отправить RETANN' (PurchaseReturn.Invoice o) {
                 LOCAL result = FILE ();
                 TRY {
                     EXTERNAL HTTP POST url() + '/V1/Messages/SendMessage?boxId='+ boxId(fromBox()) +'&messageFileName=' + nameMessage() HEADERS httpHeadersTokenUser PARAMS exportFile() TO result;
+                    afterSendMessage(o, nameMessage());
+                    APPLY;
                 } CATCH {
                     fileToString(result(), 'UTF-8');
                     MESSAGE 'Ошибка отправки ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
