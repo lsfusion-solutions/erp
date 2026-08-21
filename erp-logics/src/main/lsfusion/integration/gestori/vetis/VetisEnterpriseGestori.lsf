@@ -1,6 +1,6 @@
 MODULE VetisEnterpriseGestori;
 
-REQUIRE VetisEnterpriseImport, VetisStock, EGAISStockGestori, VetisBusinessEntityGestori, VetisAMSSubmitRequest, VetisAMSReceiveResponse, VetisBusinessEntityOwn;
+REQUIRE VetisEnterpriseImport, VetisStock, EGAISStockGestori, VetisBusinessEntityGestori, VetisAMSSubmitRequest, VetisAMSReceiveResponse, VetisBusinessEntityOwn, EDIGLN;
 
 NAMESPACE Vetis;
 
@@ -1068,3 +1068,75 @@ DESIGN businessEntity {
     PROPERTY(guid(e)) { caption = 'GUID площадки'; }
     PROPERTY(name(e)) { caption = 'Наименование площадки'; }
 }
+
+// --- Карточка ХС, вкладка «Организации»: добавление и удаление связи организации с ХС ---
+
+filterFitLEForBEGestori 'Подходящие организации' = DATA LOCAL BOOLEAN ();
+// подходящей считается организация с совпадающим ИНН, КПП или ОГРН
+fitLEForBEGestori (LegalEntity l, BusinessEntity b) = inn(l) == inn(b) OR kpp(l) == kpp(b) OR ogrn(l) == ogrn(b);
+
+FORM dialogLEForBusinessEntityGestori 'Организации'
+    OBJECTS bo = BusinessEntity PANEL
+    OBJECTS l = LegalEntity
+    PROPERTIES() filterFitLEForBEGestori
+    PROPERTIES(l) READONLY idLEGestori, name, inn, kpp, ogrn, nameBusinessEntity
+    FILTERS NOT filterFitLEForBEGestori() OR fitLEForBEGestori(l, bo)
+;
+
+DESIGN dialogLEForBusinessEntityGestori {
+    PROPERTY(name(l)) { caption = 'Наименование организации'; }
+}
+
+addLEBusinessEntityGestori 'Добавить' (BusinessEntity b) {
+    filterFitLEForBEGestori() <- TRUE;
+    DIALOG dialogLEForBusinessEntityGestori OBJECTS bo = b, l INPUT DO businessEntity(l) <- b;
+}
+
+deleteLEBusinessEntityGestori 'Удалить' (LegalEntity l) {
+    businessEntity(l) <- NULL;
+}
+
+// --- Карточка ХС, вкладка «Площадки»: связь площадки со складом/магазином ---
+
+kppStock 'КПП' = ABSTRACT STRING[9] (Stock);    // КПП склада/магазина — реализуется в проектных модулях
+
+filterFitStockForEntGestori 'Подходящие склады' = DATA LOCAL BOOLEAN ();
+// подходящим считается склад с совпадающим КПП или GLN площадки
+fitStockForEntGestori (Stock st, Enterprise e) = kppStock(st) == kpp(e) OR GLN(st) == gln(e);
+
+FORM dialogStockForEnterpriseGestori 'Склады организаций ХС'
+    OBJECTS bo = BusinessEntity PANEL
+    OBJECTS eo = Enterprise PANEL
+    OBJECTS st = Stock
+    PROPERTIES() filterFitStockForEntGestori
+    PROPERTIES READONLY idSt 'Код' = Stock.id(st), nameSt 'Наименование склада' = Stock.name(st)
+    PROPERTIES(st) READONLY kppStock
+    PROPERTIES READONLY glnSt 'GLN' = GLN(st), nameLESt 'Наименование организации' = name(legalEntity(st))
+    FILTERS businessEntity(legalEntity(st)) == bo,
+            NOT filterFitStockForEntGestori() OR fitStockForEntGestori(st, eo)
+;
+
+addStockEnterpriseGestori 'Добавить связь' (BusinessEntity b, Enterprise e) {
+    filterFitStockForEntGestori() <- TRUE;
+    DIALOG dialogStockForEnterpriseGestori OBJECTS bo = b, eo = e, st INPUT DO enterprise(st) <- e;
+}
+
+FORM dialogStocksOfEnterpriseGestori 'Склады площадки'
+    OBJECTS eo = Enterprise PANEL
+    OBJECTS st = Stock
+    PROPERTIES READONLY idSt 'Код' = Stock.id(st), nameSt 'Наименование склада' = Stock.name(st)
+    PROPERTIES(st) READONLY kppStock
+    PROPERTIES READONLY glnSt 'GLN' = GLN(st), nameLESt 'Наименование организации' = name(legalEntity(st))
+    FILTERS enterprise(st) == eo
+;
+
+deleteStockEnterpriseGestori 'Удалить связь' (Enterprise e) {
+    DIALOG dialogStocksOfEnterpriseGestori OBJECTS eo = e, st INPUT DO enterprise(st) <- NULL;
+}
+
+EXTEND FORM businessEntity
+    PROPERTIES(o) addLEBusinessEntityGestori DRAW l TOOLBAR
+    PROPERTIES deleteLEBusinessEntityGestori(l) TOOLBAR
+    PROPERTIES addStockEnterpriseGestori(o, e) DRAW e TOOLBAR
+    PROPERTIES deleteStockEnterpriseGestori(e) TOOLBAR
+;
