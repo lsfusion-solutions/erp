@@ -54,15 +54,19 @@ numberBerlioCard 'Номер карты Berlio' (Receipt receipt) = number(berli
 berlioFile 'Имя файла Берлио' = DATA STRING[20](ZReport) INDEXED IN documentHeader;
 dateTimeClose 'Время закрытия смены' = DATA DATETIME (ZReport) IN documentHeader;
 
+idBerlio 'Код Берлио' = DATA STRING[15] (ReceiptDetail) CHARWIDTH 14;
+
 EXTEND FORM zReports
     PROPERTIES READONLY berlioFile(z)
     PROPERTIES READONLY numberBerlioCard(b) BEFORE sumReceiptDetail(b)
     PROPERTIES READONLY idKindOperation(p)
+    PROPERTIES READONLY idBerlio(d) BEFORE idBarcode(d)
 ;
 EXTEND FORM zReport
     PROPERTIES READONLY berlioFile(z)
     PROPERTIES numberBerlioCard(b) BEFORE sumReceiptDetail(b)
     PROPERTIES idKindOperation(p)
+    PROPERTIES READONLY idBerlio(d) BEFORE idBarcode(d)
 ;
 
 dateStartlistFilesberlio 'Дата начиная с которой читать файлы в каталоге (YYMM)' = DATA BPISTRING[4]();
@@ -176,7 +180,8 @@ receiveFromBerlio (GroupCashRegister gcr, STRING fn) {
                 }
 
                 FOR INTEGER r == [GROUP MIN INTEGER rr BY idReceiptDetail(rr)](STRING idReceiptDetail) AND ReceiptDetail d == receiptDetail(idReceiptDetail) DO {
-                    idBarcode(d) <- code(r);
+                    idBarcode(d) <- STRING[15](code(r));
+                    idBerlio(d) <- STRING[15](item(r));
                     sku(d) <- OVERRIDE itemIdBerlio(INTEGER(item(r))), itemIdBarcodeBerlio(INTEGER(code(r))), skuBarcode(code(r)) IF length(code(r)) > 3;
                     quantity(d) <- IF vid(r) == 2 THEN -qty(r) ELSE qty(r);
                     weight(d) <- weight(r) IF weight(r) != 0.0;
