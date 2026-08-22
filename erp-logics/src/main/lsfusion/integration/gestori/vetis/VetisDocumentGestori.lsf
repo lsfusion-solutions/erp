@@ -1319,6 +1319,121 @@ DESIGN Purchase.userInvoice {
 CONSTRAINT totalVolumeVDGestori(VetDocument s) > volume(s)
     MESSAGE 'Суммарный объём по строкам, связанным с ВСД, превышает объём продукции';
 
+// ---- Накладная закупки: работа с ВСД по номеру товарно-транспортной накладной ----
+
+// номер ТТН — реквизит проекта, реализуется в клиентских модулях
+waybillNumberInvoiceGestori 'Номер ТТН' = ABSTRACT STRING[48] (Purchase.UserInvoice);
+
+// ВСД выписан по этой ТТН (поле «Накладная» ВСД совпадает с номером ТТН накладной)
+inWaybillVDGestori (Purchase.UserInvoice i, VetDocument vtd) =
+    TRUE IF waybillNumberInvoiceGestori(i) AND issueSeriesNumberWaybillGestori(vtd) == waybillNumberInvoiceGestori(i);
+
+// номенклатура ВСД не связана с товаром системы либо связана с товаром, которого нет в накладной
+noSkuInInvoiceVDGestori (Purchase.UserInvoice i, VetDocument vtd) = TRUE IF vtd IS VetDocument AND
+    NOT (GROUP SUM 1 IF in(Item.Item it, productItem(vtd))
+         AND (GROUP SUM 1 IF sku(Purchase.UserInvoiceDetail d) == it AND Purchase.userInvoice(d) == i));
+
+// ВСД по ТТН, которые не удастся сопоставить со строками накладной
+problemWaybillVDGestori (Purchase.UserInvoice i, VetDocument vtd) =
+    inWaybillVDGestori(i, vtd) AND noSkuInInvoiceVDGestori(i, vtd);
+
+hasProblemWaybillVDGestori (Purchase.UserInvoice i) =
+    GROUP SUM 1 IF problemWaybillVDGestori(i, VetDocument vtd) AND type(vtd) == VetDocumentType.TRANSPORT;
+
+// форма списка ВСД по номеру ТТН: тип задаётся вызывающим действием
+waybillFilterVDGestori = DATA LOCAL STRING[48] ();
+invoiceFilterVDGestori = DATA LOCAL Purchase.UserInvoice ();
+typeFilterVDGestori = DATA LOCAL VetDocumentType ();
+
+FORM vetDocumentsWaybillGestori 'ВСД по накладной'
+    OBJECTS o = VetDocument
+    PROPERTIES(o) READONLY uuid BACKGROUND (RGB(255,200,200) IF problemWaybillVDGestori(invoiceFilterVDGestori(), o))
+    PROPERTIES(o) READONLY issueDate, issueSeriesNumberWaybillGestori, nameType, nameStatus,
+                           nameConsignorBusinessEntity, nameConsignorEnterprise,
+                           nameProductItem, globalIDProductItem, volume, nameUnit, expiryDate
+    FILTERS issueSeriesNumberWaybillGestori(o) == waybillFilterVDGestori(),
+            type(o) == typeFilterVDGestori()
+;
+
+DESIGN vetDocumentsWaybillGestori {
+    PROPERTY(uuid(o)) { caption = 'UUID ВСД'; }
+}
+
+showWaybillVDGestori (Purchase.UserInvoice i, VetDocumentType t) {
+    IF NOT waybillNumberInvoiceGestori(i) THEN { MESSAGE 'У накладной не заполнен номер ТТН' NOWAIT; RETURN; }
+    waybillFilterVDGestori() <- waybillNumberInvoiceGestori(i);
+    invoiceFilterVDGestori() <- i;
+    typeFilterVDGestori() <- t;
+    SHOW vetDocumentsWaybillGestori DOCKED;
+}
+
+showTransportWaybillVDGestori 'ВСД' (Purchase.UserInvoice i) {
+    showWaybillVDGestori(i, VetDocumentType.TRANSPORT);
+}
+
+showReturnWaybillVDGestori 'Возвратные ВСД' (Purchase.UserInvoice i) {
+    showWaybillVDGestori(i, VetDocumentType.RETURNABLE);
+}
+
+// ---- Заявки в Ветис, связанные с накладной закупки ----
+
+// накладная, к которой относится входящая партия
+invoiceIncomingGestori (IncomingConsignment c) = GROUP MAX Purchase.userInvoice(Purchase.UserInvoiceDetail d)
+    IF VetisPurchase.incomingConsignment(d, VetDocument vtd) == c;
+
+invoiceRequestGestori = ABSTRACT Purchase.UserInvoice (ApplicationRequest);
+invoiceRequestGestori(ProcessIncomingConsignmentRequest r) += invoiceIncomingGestori(incomingConsignment(r));
+// заявка на условия регионализации ведётся по входящим партиям накладной
+invoiceRequestGestori(CheckShipmentRegionalization r) +=
+    GROUP MAX invoiceIncomingGestori(IncomingConsignment c) IF in(r, c);
+
+FORM applicationRequestsInvoiceGestori 'Заявки по накладной'
+    OBJECTS io = Purchase.UserInvoice PANEL
+    PROPERTIES(io) READONLY seriesNumber
+    OBJECTS r = ApplicationRequest
+    PROPERTIES(r) READONLY objectClassName, nameBusinessEntity, id, issueDate
+    PROPERTIES(r) READONLY PANEL prequest = request, perror = error
+    FILTERS invoiceRequestGestori(r) == io
+    ORDERS issueDate(r)
+;
+
+DESIGN applicationRequestsInvoiceGestori {
+    OBJECTS {
+        NEW paneGestori {
+            fill = 1;
+            MOVE BOX(r);
+            NEW tabbedPaneGestori {
+                fill = 0.5;
+                tabbed = TRUE;
+                NEW prequestGestori {
+                    caption = 'Запрос';
+                    fill = 1;
+                    MOVE PROPERTY(prequest) { caption = ''; panelCaptionVertical = TRUE; }
+                }
+                NEW perrorGestori {
+                    caption = 'Ошибка';
+                    fill = 1;
+                    MOVE PROPERTY(perror) { caption = ''; panelCaptionVertical = TRUE; }
+                }
+            }
+        }
+    }
+}
+
+showRequestsInvoiceGestori 'Заявки' (Purchase.UserInvoice i) {
+    SHOW applicationRequestsInvoiceGestori OBJECTS io = i DOCKED;
+}
+
+EXTEND FORM Purchase.userInvoice
+    PROPERTIES(i) showTransportWaybillVDGestori DRAW vtd TOOLBAR
+        BACKGROUND (RGB(255,200,200) IF hasProblemWaybillVDGestori(i))
+    PROPERTIES(i) showReturnWaybillVDGestori DRAW vtd TOOLBAR
+    PROPERTIES(i) showRequestsInvoiceGestori DRAW vd TOOLBAR
+
+    FILTERGROUP waybillVDGestori
+        FILTER 'По ТТН' inWaybillVDGestori(i, vtd) OR NOT waybillNumberInvoiceGestori(i) DEFAULT
+;
+
 // ---- Накладные продажи, вкладка ВЕТИС (записи журнала / исходящие партии) ----
 
 // объём (поставлено) по строке = фактическое количество × вес единицы товара
