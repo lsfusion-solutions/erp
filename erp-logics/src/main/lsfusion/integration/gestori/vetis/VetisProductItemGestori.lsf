@@ -1,7 +1,8 @@
 MODULE VetisProductItemGestori;
 
 REQUIRE VetisProductItem, VetisProductItemImport, VetisProductItemExport, VetisStockEntry, VetisItem,
-        VetisIncomingConsignment, VetisStock, VetisEnterpriseGestori, VetisUnitImport;
+        VetisIncomingConsignment, VetisStock, VetisEnterpriseGestori, VetisUnitImport,
+        EDIGTIN, ItemArticle, Barcode;
 
 NAMESPACE Vetis;
 
@@ -865,4 +866,58 @@ DESIGN Item.item {
     BOX(pi) { caption = 'ВЕТИС'; }
     PROPERTY(guid(pi)) { caption = 'GUID номенклатуры'; }
     PROPERTY(ownProductGestori(pi)) { caption = 'Собственная'; }
+}
+
+// --- Карточка номенклатуры, вкладка «Товары»: связанные товары системы ---
+
+barcodesItemGestori 'Список штрихкодов' (Item.Item i) =
+    GROUP CONCAT Barcode.id(Barcode.Barcode b) IF sku(b) == i, ', ' ORDER b CHARWIDTH 30;
+
+filterFitItemGestori 'Подходящие товары' = DATA LOCAL BOOLEAN ();
+
+// подходящим считается товар с совпадающим GTIN (в том числе среди штрихкодов) или артикулом
+fitItemForProductItemGestori (Item.Item i, ProductItem p) =
+    EDI.GTIN(i) == globalID(p) OR Item.idArticle(i) == code(p)
+    OR (GROUP SUM 1 IF sku(Barcode.Barcode b) == i AND Barcode.id(b) == globalID(p));
+
+FORM dialogItemForProductItemGestori 'Товары'
+    OBJECTS po = ProductItem PANEL
+    OBJECTS i = Item.Item
+    PROPERTIES() filterFitItemGestori
+    PROPERTIES(i) READONLY name, GTIN, idArticle, nameManufacturer, controlledProductGestori
+    PROPERTIES(i) READONLY barcodesItemGestori AFTER GTIN(i)
+    FILTERS NOT filterFitItemGestori() OR fitItemForProductItemGestori(i, po)
+;
+
+addItemProductItemGestori 'Добавить' (ProductItem p) {
+    filterFitItemGestori() <- TRUE;
+    DIALOG dialogItemForProductItemGestori OBJECTS po = p, i INPUT DO in(i, p) <- TRUE;
+}
+
+deleteItemProductItemGestori 'Удалить' (Item.Item i, ProductItem p) {
+    in(i, p) <- NULL;
+}
+
+EXTEND FORM productItem
+    OBJECTS it = Item.Item
+    PROPERTIES(it) READONLY name, GTIN, idArticle, nameManufacturer, controlledProductGestori
+    PROPERTIES addItemProductItemGestori(o) DRAW it TOOLBAR
+    PROPERTIES deleteItemProductItemGestori(it, o) TOOLBAR
+    FILTERS in(it, o)
+;
+
+DESIGN productItem {
+    NEW tabPaneGestori FIRST {
+        tabbed = TRUE;
+        fill = 1;
+        NEW tabPropertiesGestori {
+            caption = 'Реквизиты';
+            MOVE mainColumnGestori;
+        }
+        NEW tabItemsGestori {
+            caption = 'Товары';
+            fill = 1;
+            MOVE BOX(it);
+        }
+    }
 }
