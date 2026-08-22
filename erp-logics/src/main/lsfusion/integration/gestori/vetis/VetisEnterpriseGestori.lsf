@@ -1248,3 +1248,25 @@ EXTEND FORM businessEntity
     PROPERTIES addStockEnterpriseGestori(o, e) DRAW e TOOLBAR
     PROPERTIES deleteStockEnterpriseGestori(e) TOOLBAR
 ;
+
+// --- Карточка площадки, вкладка «Склады»: подбор складов организаций ХС площадки ---
+
+addStockEnterpriseCardGestori 'Добавить' (Enterprise e) {
+    IF NOT owner(e) THEN { MESSAGE 'У площадки не указан хозяйствующий субъект — список складов определяется по его организациям' NOWAIT; RETURN; }
+    addStockEnterpriseGestori(owner(e), e);
+}
+
+deleteStockEnterpriseCardGestori 'Удалить' (Stock st) {
+    enterprise(st) <- NULL;
+}
+
+EXTEND FORM enterprise
+    PROPERTIES READONLY idStockGestori 'Код' = Stock.id(s) BEFORE name(s)
+    PROPERTIES READONLY glnStockGestori 'GLN' = GLN(s), nameLEStockGestori 'Наименование организации' = name(legalEntity(s))
+    PROPERTIES addStockEnterpriseCardGestori(o) DRAW s TOOLBAR
+    PROPERTIES deleteStockEnterpriseCardGestori(s) TOOLBAR
+;
+
+DESIGN enterprise {
+    PROPERTY(name(s)) { caption = 'Наименование склада'; }
+}
