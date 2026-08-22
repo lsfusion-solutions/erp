@@ -289,18 +289,24 @@ CONSTRAINT SETCHANGED(guid(BusinessEntity b)) AND PREV(guid(b))
 
 // --- Расширение форм ---
 
+// обновление ХС — с подтверждением выполнения (объявления до использования в формах)
+getBusinessEntityListConfirmGestori 'Обновить ХС' () { getBusinessEntityList(); } CONFIRM;
+getBusinessEntityListConfirmGestori 'Обновить ХС' (BusinessEntity b) { getBusinessEntityList(b); } CONFIRM;
+getBusinessEntityByGUIDConfirmGestori 'Обновить ХС' (BusinessEntity b) { getBusinessEntityByGUID(b); } CONFIRM;
+
 EXTEND FORM businessEntity
     PROPERTIES(o) READONLY nameBE SHOWIF isLegalEntityBE(o)
     PROPERTIES(o) READONLY fullName SHOWIF isLegalEntityBE(o)
     PROPERTIES(o) READONLY status, typeDescription
-    PROPERTIES(o) getBusinessEntityByGUID DRAW o TOOLBAR
+    PROPERTIES(o) getBusinessEntityByGUIDConfirmGestori DRAW o TOOLBAR
     PROPERTIES(l) READONLY kpp, ogrn AFTER inn(l)
 ;
 
 EXTEND FORM businessEntities
     PROPERTIES(o) READONLY fullName, status
     PROPERTIES(o) READONLY typeDescription AFTER type(o)
-    PROPERTIES() DRAW o TOOLBAR loadBusinessEntities, loadBusinessEntityByGLN
+    PROPERTIES() DRAW o TOOLBAR loadBusinessEntities, loadBusinessEntityByGLN, getBusinessEntityListConfirmGestori
+    PROPERTIES(o) getBusinessEntityListConfirmGestori GRID
 ;
 
 DESIGN businessEntity {
@@ -314,7 +320,7 @@ DESIGN businessEntity {
         MOVE PROPERTY(fio(o)) AFTER PROPERTY(fullName(o));
         MOVE PROPERTY(typeDescription(o)) AFTER PROPERTY(fio(o));
         MOVE PROPERTY(status(o)) AFTER PROPERTY(addressView(o));
-        MOVE PROPERTY(getBusinessEntityByGUID(o)) LAST;
+        MOVE PROPERTY(getBusinessEntityByGUIDConfirmGestori(o)) LAST;
     }
     PROPERTY(guid(o)) { caption = 'GUID ХС'; }
     PROPERTY(name(o)) { hide = TRUE; }
@@ -322,11 +328,10 @@ DESIGN businessEntity {
     PROPERTY(typeDescription(o)) { charWidth = 5; }
     PROPERTY(fio(o)) { charWidth = 50; }
     PROPERTY(addressView(o)) { charWidth = 255; }
-    PROPERTY(getBusinessEntityByGUID(o)) { caption = 'Обновить ХС'; }
 }
 
 DESIGN businessEntities {
-    PROPERTY(getBusinessEntityList()) { caption = 'Обновить ХС'; }
-    PROPERTY(getBusinessEntityList(o)) { caption = 'Обновить ХС'; }
+    PROPERTY(getBusinessEntityList()) { hide = TRUE; }           // заменены на варианты с подтверждением
+    PROPERTY(getBusinessEntityList(o)) { hide = TRUE; }
     PROPERTY(type(o)) { hide = TRUE; }
 }

@@ -102,6 +102,7 @@ ikarAccGuidGestori = DATA LOCAL STRING (INTEGER, INTEGER);
 ikarAccNameGestori = DATA LOCAL ISTRING (INTEGER, INTEGER);
 ikarAccViewGestori = DATA LOCAL ISTRING (INTEGER, INTEGER);
 ikarPageSizeGestori = DATA LOCAL INTEGER ();
+maxIkarPagesGestori () = 20;    // страховка от бесконечного чтения страниц справочника
 
 appendIkarPageGestori (INTEGER pg) {
     ikarPageSizeGestori() <- (OVERRIDE (GROUP SUM 1 IF ikarGuidGestori(INTEGER i)), 0);
@@ -286,24 +287,75 @@ FORM dialogIkarSelectGestori 'Справочник адресных объект
     FILTERS ikarAccGuidGestori(pg, i)
 ;
 
-clearIkarLocalsGestori () {
+// разбор очередной страницы пишет свойства по индексам с нуля — остатки предыдущей страницы нужно убрать,
+// иначе короткая последняя страница «дотягивает» хвост от предыдущей
+clearIkarPageLocalsGestori () {
     ikarGuidGestori(INTEGER i) <- NULL;
     ikarNameGestori(INTEGER i) <- NULL;
     ikarViewGestori(INTEGER i) <- NULL;
+}
+
+clearIkarLocalsGestori () {
+    clearIkarPageLocalsGestori();
     ikarAccGuidGestori(INTEGER p, INTEGER i2) <- NULL;
     ikarAccNameGestori(INTEGER p, INTEGER i2) <- NULL;
     ikarAccViewGestori(INTEGER p, INTEGER i2) <- NULL;
     ikarPageSizeGestori() <- NULL;
 }
 
+// --- Фактический адрес: автоформирование из компонент ---
+
+// адрес собирается из полных наименований адресных объектов (как их отдаёт Икар)
+calcAddressViewGestori (Enterprise e) = CONCAT ', ',
+    postIndexGestori(e), countryNameGestori(e), regionNameGestori(e), districtNameGestori(e),
+    localityNameGestori(e), subLocalityNameGestori(e), streetNameGestori(e),
+    ('д. ' + houseGestori(e)), ('стр. ' + buildingGestori(e)), ('кв. ' + roomGestori(e)),
+    ('а/я ' + postBoxGestori(e)), additionalInfoGestori(e);
+
+updateAddressViewGestori (Enterprise e) {
+    IF createdManuallyGestori(e) THEN addressView(e) <- ISTRING(calcAddressViewGestori(e));
+}
+
 // --- Выбор адресных объектов на карточке площадки ---
 
 checkIkarUrlGestori () = TRUE IF urlIkarGestori();
 
+// очистка адресных полей: вместе с полем очищаются все зависящие от него (3.13.14)
+
+clearStreetIkarGestori 'Очистить' (Enterprise e) {
+    streetGuidGestori(e) <- NULL; streetNameGestori(e) <- NULL;
+    updateAddressViewGestori(e);
+}
+
+clearSubLocalityIkarGestori 'Очистить' (Enterprise e) {
+    subLocalityGuidGestori(e) <- NULL; subLocalityNameGestori(e) <- NULL;
+    clearStreetIkarGestori(e);
+}
+
+clearLocalityIkarGestori 'Очистить' (Enterprise e) {
+    localityGuidGestori(e) <- NULL; localityNameGestori(e) <- NULL;
+    clearSubLocalityIkarGestori(e);
+}
+
+clearDistrictIkarGestori 'Очистить' (Enterprise e) {
+    districtGuidGestori(e) <- NULL; districtNameGestori(e) <- NULL;
+    clearLocalityIkarGestori(e);
+}
+
+clearRegionIkarGestori 'Очистить' (Enterprise e) {
+    regionGuidGestori(e) <- NULL; regionNameGestori(e) <- NULL;
+    clearDistrictIkarGestori(e);
+}
+
+clearCountryIkarGestori 'Очистить' (Enterprise e) {
+    countryGuidGestori(e) <- NULL; countryNameGestori(e) <- NULL;
+    clearRegionIkarGestori(e);
+}
+
 changeCountryIkarGestori (Enterprise e) {
     IF NOT checkIkarUrlGestori() THEN { MESSAGE 'Не задан Url к стенду Ikar (Администрирование - Приложение - Интеграция - Ветис)' NOWAIT; RETURN; }
     clearIkarLocalsGestori();
-    count() <- 5000; offset() <- 0;
+    count() <- 1000; offset() <- 0;
     LOCAL f = FILE ();
     EXPORT ikarCountryListRequestGestori XML TO f;
     postIkarGestori(f());
@@ -311,13 +363,10 @@ changeCountryIkarGestori (Enterprise e) {
     IMPORT ikarCountryListResponseGestori XML FROM ikarResponseFileGestori();
     appendIkarPageGestori(0);
     DIALOG dialogIkarSelectGestori OBJECTS pg INPUT, i INPUT DO {
+        clearCountryIkarGestori(e);
         countryGuidGestori(e) <- ikarAccGuidGestori(pg, i);
-        countryNameGestori(e) <- ikarAccNameGestori(pg, i);
-        regionGuidGestori(e) <- NULL; regionNameGestori(e) <- NULL;
-        districtGuidGestori(e) <- NULL; districtNameGestori(e) <- NULL;
-        localityGuidGestori(e) <- NULL; localityNameGestori(e) <- NULL;
-        subLocalityGuidGestori(e) <- NULL; subLocalityNameGestori(e) <- NULL;
-        streetGuidGestori(e) <- NULL; streetNameGestori(e) <- NULL;
+        countryNameGestori(e) <- OVERRIDE ikarAccViewGestori(pg, i), ikarAccNameGestori(pg, i);
+        updateAddressViewGestori(e);
     }
 }
 
@@ -325,7 +374,7 @@ changeRegionIkarGestori (Enterprise e) {
     IF NOT checkIkarUrlGestori() THEN { MESSAGE 'Не задан Url к стенду Ikar (Администрирование - Приложение - Интеграция - Ветис)' NOWAIT; RETURN; }
     IF NOT countryGuidGestori(e) THEN { MESSAGE 'Сначала выберите страну' NOWAIT; RETURN; }
     clearIkarLocalsGestori();
-    count() <- 5000; offset() <- 0;
+    count() <- 1000; offset() <- 0;
     ikarParentGuidGestori() <- countryGuidGestori(e);
     LOCAL f = FILE ();
     EXPORT ikarRegionListRequestGestori XML TO f;
@@ -334,12 +383,10 @@ changeRegionIkarGestori (Enterprise e) {
     IMPORT ikarRegionListResponseGestori XML FROM ikarResponseFileGestori();
     appendIkarPageGestori(0);
     DIALOG dialogIkarSelectGestori OBJECTS pg INPUT, i INPUT DO {
+        clearRegionIkarGestori(e);
         regionGuidGestori(e) <- ikarAccGuidGestori(pg, i);
-        regionNameGestori(e) <- ikarAccNameGestori(pg, i);
-        districtGuidGestori(e) <- NULL; districtNameGestori(e) <- NULL;
-        localityGuidGestori(e) <- NULL; localityNameGestori(e) <- NULL;
-        subLocalityGuidGestori(e) <- NULL; subLocalityNameGestori(e) <- NULL;
-        streetGuidGestori(e) <- NULL; streetNameGestori(e) <- NULL;
+        regionNameGestori(e) <- OVERRIDE ikarAccViewGestori(pg, i), ikarAccNameGestori(pg, i);
+        updateAddressViewGestori(e);
     }
 }
 
@@ -347,7 +394,7 @@ changeDistrictIkarGestori (Enterprise e) {
     IF NOT checkIkarUrlGestori() THEN { MESSAGE 'Не задан Url к стенду Ikar (Администрирование - Приложение - Интеграция - Ветис)' NOWAIT; RETURN; }
     IF NOT regionGuidGestori(e) THEN { MESSAGE 'Сначала выберите регион' NOWAIT; RETURN; }
     clearIkarLocalsGestori();
-    count() <- 5000; offset() <- 0;
+    count() <- 1000; offset() <- 0;
     ikarParentGuidGestori() <- regionGuidGestori(e);
     LOCAL f = FILE ();
     EXPORT ikarDistrictListRequestGestori XML TO f;
@@ -356,11 +403,10 @@ changeDistrictIkarGestori (Enterprise e) {
     IMPORT ikarDistrictListResponseGestori XML FROM ikarResponseFileGestori();
     appendIkarPageGestori(0);
     DIALOG dialogIkarSelectGestori OBJECTS pg INPUT, i INPUT DO {
+        clearDistrictIkarGestori(e);
         districtGuidGestori(e) <- ikarAccGuidGestori(pg, i);
-        districtNameGestori(e) <- ikarAccNameGestori(pg, i);
-        localityGuidGestori(e) <- NULL; localityNameGestori(e) <- NULL;
-        subLocalityGuidGestori(e) <- NULL; subLocalityNameGestori(e) <- NULL;
-        streetGuidGestori(e) <- NULL; streetNameGestori(e) <- NULL;
+        districtNameGestori(e) <- OVERRIDE ikarAccViewGestori(pg, i), ikarAccNameGestori(pg, i);
+        updateAddressViewGestori(e);
     }
 }
 
@@ -368,28 +414,38 @@ changeLocalityIkarGestori (Enterprise e) {
     IF NOT checkIkarUrlGestori() THEN { MESSAGE 'Не задан Url к стенду Ikar (Администрирование - Приложение - Интеграция - Ветис)' NOWAIT; RETURN; }
     IF NOT regionGuidGestori(e) THEN { MESSAGE 'Сначала выберите регион' NOWAIT; RETURN; }
     clearIkarLocalsGestori();
-    count() <- 5000; offset() <- 0;
     LOCAL f = FILE ();
-    IF districtGuidGestori(e) THEN {
-        ikarParentGuidGestori() <- districtGuidGestori(e);
-        EXPORT ikarLocalityListByDistrictRequestGestori XML TO f;
-        postIkarGestori(f());
-        IF ikarRequestErrorGestori() THEN RETURN;
-        IMPORT ikarLocalityListByDistrictResponseGestori XML FROM ikarResponseFileGestori();
-    appendIkarPageGestori(0);
-    } ELSE {
-        ikarParentGuidGestori() <- regionGuidGestori(e);
-        EXPORT ikarLocalityListByRegionRequestGestori XML TO f;
-        postIkarGestori(f());
-        IF ikarRequestErrorGestori() THEN RETURN;
-        IMPORT ikarLocalityListByRegionResponseGestori XML FROM ikarResponseFileGestori();
-    appendIkarPageGestori(0);
+    // населённых пунктов в регионе может быть больше страницы сервиса — читаем постранично
+    LOCAL pgLoc = INTEGER ();
+    LOCAL moreLoc = BOOLEAN ();
+    pgLoc() <- 0;
+    moreLoc() <- TRUE;
+    ikarParentGuidGestori() <- OVERRIDE districtGuidGestori(e), regionGuidGestori(e);
+    WHILE moreLoc() AND pgLoc() < maxIkarPagesGestori() DO {
+        count() <- 1000; offset() <- pgLoc() * 1000;
+        clearIkarPageLocalsGestori();
+        IF districtGuidGestori(e) THEN {
+            EXPORT ikarLocalityListByDistrictRequestGestori XML TO f;
+            postIkarGestori(f());
+            IF NOT ikarRequestErrorGestori() THEN IMPORT ikarLocalityListByDistrictResponseGestori XML FROM ikarResponseFileGestori();
+        } ELSE {
+            EXPORT ikarLocalityListByRegionRequestGestori XML TO f;
+            postIkarGestori(f());
+            IF NOT ikarRequestErrorGestori() THEN IMPORT ikarLocalityListByRegionResponseGestori XML FROM ikarResponseFileGestori();
+        }
+        IF ikarRequestErrorGestori() THEN moreLoc() <- NULL;
+        ELSE {
+            appendIkarPageGestori(pgLoc());
+            IF ikarPageSizeGestori() < 1000 THEN moreLoc() <- NULL;
+            ELSE pgLoc() <- pgLoc() + 1;
+        }
     }
+    IF ikarRequestErrorGestori() THEN RETURN;
     DIALOG dialogIkarSelectGestori OBJECTS pg INPUT, i INPUT DO {
+        clearLocalityIkarGestori(e);
         localityGuidGestori(e) <- ikarAccGuidGestori(pg, i);
-        localityNameGestori(e) <- ikarAccNameGestori(pg, i);
-        subLocalityGuidGestori(e) <- NULL; subLocalityNameGestori(e) <- NULL;
-        streetGuidGestori(e) <- NULL; streetNameGestori(e) <- NULL;
+        localityNameGestori(e) <- OVERRIDE ikarAccViewGestori(pg, i), ikarAccNameGestori(pg, i);
+        updateAddressViewGestori(e);
     }
 }
 
@@ -397,7 +453,7 @@ changeSubLocalityIkarGestori (Enterprise e) {
     IF NOT checkIkarUrlGestori() THEN { MESSAGE 'Не задан Url к стенду Ikar (Администрирование - Приложение - Интеграция - Ветис)' NOWAIT; RETURN; }
     IF NOT localityGuidGestori(e) THEN { MESSAGE 'Сначала выберите населённый пункт' NOWAIT; RETURN; }
     clearIkarLocalsGestori();
-    count() <- 5000; offset() <- 0;
+    count() <- 1000; offset() <- 0;
     ikarParentGuidGestori() <- localityGuidGestori(e);
     LOCAL f = FILE ();
     EXPORT ikarLocalityListByLocalityRequestGestori XML TO f;
@@ -406,9 +462,10 @@ changeSubLocalityIkarGestori (Enterprise e) {
     IMPORT ikarLocalityListByLocalityResponseGestori XML FROM ikarResponseFileGestori();
     appendIkarPageGestori(0);
     DIALOG dialogIkarSelectGestori OBJECTS pg INPUT, i INPUT DO {
+        clearSubLocalityIkarGestori(e);
         subLocalityGuidGestori(e) <- ikarAccGuidGestori(pg, i);
-        subLocalityNameGestori(e) <- ikarAccNameGestori(pg, i);
-        streetGuidGestori(e) <- NULL; streetNameGestori(e) <- NULL;
+        subLocalityNameGestori(e) <- OVERRIDE ikarAccViewGestori(pg, i), ikarAccNameGestori(pg, i);
+        updateAddressViewGestori(e);
     }
 }
 
@@ -419,37 +476,38 @@ changeStreetIkarGestori (Enterprise e) {
     // улицы ищутся в подчинённом населённом пункте, если он выбран, иначе в основном
     ikarParentGuidGestori() <- OVERRIDE subLocalityGuidGestori(e), localityGuidGestori(e);
     LOCAL f = FILE ();
-    // улиц может быть больше лимита страницы сервиса (1000) — читаем постранично
-    LOCAL stop = BOOLEAN ();
-    FOR iterate(INTEGER pg, 0, 9) AND NOT stop() DO {
-        count() <- 1000; offset() <- pg * 1000;
+    // улиц может быть больше страницы сервиса (1000) — читаем постранично;
+    // следующая страница запрашивается, только если предыдущая пришла полной: запрос с offset
+    // больше общего количества записей сервис отклоняет ошибкой «Count out of range»
+    LOCAL pgStr = INTEGER ();
+    LOCAL moreStr = BOOLEAN ();
+    pgStr() <- 0;
+    moreStr() <- TRUE;
+    WHILE moreStr() AND pgStr() < maxIkarPagesGestori() DO {
+        count() <- 1000; offset() <- pgStr() * 1000;
+        clearIkarPageLocalsGestori();
         EXPORT ikarStreetListRequestGestori XML TO f;
         postIkarGestori(f());
-        IF ikarRequestErrorGestori() THEN stop() <- TRUE;
+        IF ikarRequestErrorGestori() THEN moreStr() <- NULL;
         ELSE {
             IMPORT ikarStreetListResponseGestori XML FROM ikarResponseFileGestori();
-            appendIkarPageGestori(pg);
-            IF ikarPageSizeGestori() < 1000 THEN stop() <- TRUE;
+            appendIkarPageGestori(pgStr());
+            IF ikarPageSizeGestori() < 1000 THEN moreStr() <- NULL;
+            ELSE pgStr() <- pgStr() + 1;
         }
     }
     IF ikarRequestErrorGestori() THEN RETURN;
     DIALOG dialogIkarSelectGestori OBJECTS pg INPUT, i INPUT DO {
+        clearStreetIkarGestori(e);
         streetGuidGestori(e) <- ikarAccGuidGestori(pg, i);
-        streetNameGestori(e) <- ikarAccNameGestori(pg, i);
+        streetNameGestori(e) <- OVERRIDE ikarAccViewGestori(pg, i), ikarAccNameGestori(pg, i);
+        updateAddressViewGestori(e);
     }
 }
 
-// --- Фактический адрес: автоформирование из компонент ---
-
-calcAddressViewGestori (Enterprise e) = CONCAT ', ',
-    postIndexGestori(e), countryNameGestori(e), regionNameGestori(e), districtNameGestori(e),
-    localityNameGestori(e), subLocalityNameGestori(e), streetNameGestori(e),
-    ('д. ' + houseGestori(e)), ('стр. ' + buildingGestori(e)), ('кв. ' + roomGestori(e)),
-    ('а/я ' + postBoxGestori(e)), additionalInfoGestori(e);
-
-WHEN (CHANGED(postIndexGestori(Enterprise e)) OR CHANGED(countryNameGestori(e)) OR CHANGED(regionNameGestori(e)) OR
-      CHANGED(districtNameGestori(e)) OR CHANGED(localityNameGestori(e)) OR CHANGED(subLocalityNameGestori(e)) OR
-      CHANGED(streetNameGestori(e)) OR CHANGED(houseGestori(e)) OR CHANGED(buildingGestori(e)) OR
+// адрес пересобирается и при ручном вводе номеров дома/строения/квартиры/индекса/а-я/доп.информации
+// (адресные объекты Икара обновляют адрес сразу при выборе или очистке)
+WHEN (CHANGED(postIndexGestori(Enterprise e)) OR CHANGED(houseGestori(e)) OR CHANGED(buildingGestori(e)) OR
       CHANGED(roomGestori(e)) OR CHANGED(postBoxGestori(e)) OR CHANGED(additionalInfoGestori(e)))
      AND createdManuallyGestori(e) AND NOT DROPPED(e IS Enterprise) DO
     addressView(e) <- ISTRING(calcAddressViewGestori(e));
@@ -491,9 +549,26 @@ EXTEND FORM enterprise
     PROPERTIES streetIkarGestori 'Улица (GUID)' = streetGuidGestori(o) ON CHANGE changeStreetIkarGestori(o) READONLYIF NOT createdManuallyGestori(o)
     PROPERTIES(o) READONLY countryNameGestori, regionNameGestori, districtNameGestori,
         localityNameGestori, subLocalityNameGestori, streetNameGestori
-    PROPERTIES(o) READONLYIF NOT createdManuallyGestori(o)
-        houseGestori, buildingGestori, roomGestori,
-        postIndexGestori, postBoxGestori, additionalInfoGestori, activityGestori, reasonGestori
+    // адрес пересобирается сразу после ввода — не полагаемся на срабатывание события в сессии формы
+    PROPERTIES houseEditGestori 'Номер дома' = houseGestori(o) READONLYIF NOT createdManuallyGestori(o)
+        ON CHANGE { INPUT s = STRING[20] DO { houseGestori(o) <- s; updateAddressViewGestori(o); } }
+    PROPERTIES buildingEditGestori 'Номер строения' = buildingGestori(o) READONLYIF NOT createdManuallyGestori(o)
+        ON CHANGE { INPUT s = STRING[20] DO { buildingGestori(o) <- s; updateAddressViewGestori(o); } }
+    PROPERTIES roomEditGestori 'Номер квартиры (офиса)' = roomGestori(o) READONLYIF NOT createdManuallyGestori(o)
+        ON CHANGE { INPUT s = STRING[20] DO { roomGestori(o) <- s; updateAddressViewGestori(o); } }
+    PROPERTIES postIndexEditGestori 'Почтовый индекс' = postIndexGestori(o) READONLYIF NOT createdManuallyGestori(o)
+        ON CHANGE { INPUT s = STRING[10] DO { postIndexGestori(o) <- s; updateAddressViewGestori(o); } }
+    PROPERTIES postBoxEditGestori 'Абонентский ящик' = postBoxGestori(o) READONLYIF NOT createdManuallyGestori(o)
+        ON CHANGE { INPUT s = STRING[20] DO { postBoxGestori(o) <- s; updateAddressViewGestori(o); } }
+    PROPERTIES additionalInfoEditGestori 'Доп.информация' = additionalInfoGestori(o) READONLYIF NOT createdManuallyGestori(o)
+        ON CHANGE { INPUT s = ISTRING DO { additionalInfoGestori(o) <- s; updateAddressViewGestori(o); } }
+    PROPERTIES(o) READONLYIF NOT createdManuallyGestori(o) activityGestori
+    // основание указывается только при добавлении новой площадки
+    PROPERTIES(o) reasonGestori SHOWIF createdManuallyGestori(o)
+    // очистка адресных объектов (вместе с зависящими от них)
+    PROPERTIES(o) SHOWIF createdManuallyGestori(o)
+        clearCountryIkarGestori, clearRegionIkarGestori, clearDistrictIkarGestori,
+        clearLocalityIkarGestori, clearSubLocalityIkarGestori, clearStreetIkarGestori
 ;
 
 DESIGN enterprise {
@@ -519,26 +594,32 @@ DESIGN enterprise {
                     caption = 'Адрес площадки';
                     showIf = createdManuallyGestori(o);
                     NEW countryRowGestori { horizontal = TRUE;
-                        MOVE PROPERTY(countryIkarGestori); MOVE PROPERTY(countryNameGestori(o)); }
+                        MOVE PROPERTY(countryIkarGestori); MOVE PROPERTY(countryNameGestori(o));
+                        MOVE PROPERTY(clearCountryIkarGestori(o)); }
                     NEW regionRowGestori { horizontal = TRUE;
-                        MOVE PROPERTY(regionIkarGestori); MOVE PROPERTY(regionNameGestori(o)); }
+                        MOVE PROPERTY(regionIkarGestori); MOVE PROPERTY(regionNameGestori(o));
+                        MOVE PROPERTY(clearRegionIkarGestori(o)); }
                     NEW districtRowGestori { horizontal = TRUE;
-                        MOVE PROPERTY(districtIkarGestori); MOVE PROPERTY(districtNameGestori(o)); }
+                        MOVE PROPERTY(districtIkarGestori); MOVE PROPERTY(districtNameGestori(o));
+                        MOVE PROPERTY(clearDistrictIkarGestori(o)); }
                     NEW localityRowGestori { horizontal = TRUE;
-                        MOVE PROPERTY(localityIkarGestori); MOVE PROPERTY(localityNameGestori(o)); }
+                        MOVE PROPERTY(localityIkarGestori); MOVE PROPERTY(localityNameGestori(o));
+                        MOVE PROPERTY(clearLocalityIkarGestori(o)); }
                     NEW subLocalityRowGestori { horizontal = TRUE;
-                        MOVE PROPERTY(subLocalityIkarGestori); MOVE PROPERTY(subLocalityNameGestori(o)); }
+                        MOVE PROPERTY(subLocalityIkarGestori); MOVE PROPERTY(subLocalityNameGestori(o));
+                        MOVE PROPERTY(clearSubLocalityIkarGestori(o)); }
                     NEW streetRowGestori { horizontal = TRUE;
-                        MOVE PROPERTY(streetIkarGestori); MOVE PROPERTY(streetNameGestori(o)); }
+                        MOVE PROPERTY(streetIkarGestori); MOVE PROPERTY(streetNameGestori(o));
+                        MOVE PROPERTY(clearStreetIkarGestori(o)); }
                     NEW addressNumbersGestori {
                         horizontal = TRUE;
-                        MOVE PROPERTY(houseGestori(o));
-                        MOVE PROPERTY(buildingGestori(o));
-                        MOVE PROPERTY(roomGestori(o));
-                        MOVE PROPERTY(postIndexGestori(o));
-                        MOVE PROPERTY(postBoxGestori(o));
+                        MOVE PROPERTY(houseEditGestori);
+                        MOVE PROPERTY(buildingEditGestori);
+                        MOVE PROPERTY(roomEditGestori);
+                        MOVE PROPERTY(postIndexEditGestori);
+                        MOVE PROPERTY(postBoxEditGestori);
                     }
-                    MOVE PROPERTY(additionalInfoGestori(o));
+                    MOVE PROPERTY(additionalInfoEditGestori);
                 }
                 MOVE PROPERTY(reasonGestori(o));
             }
@@ -572,6 +653,11 @@ DESIGN enterprise {
 
 GROUP importEnterpriseOfficialRegistration EXTID 'dt:officialRegistration';
 GROUP importEnterpriseAddress EXTID 'dt:address';
+GROUP importEnterpriseActivityList EXTID 'dt:activityList';
+
+// виды деятельности площадки (dt:activityList/dt:activity/dt:name) — на карточке одной строкой через запятую
+eActivityName = DATA LOCAL ISTRING (INTEGER);
+activityListStringGestori () = GROUP CONCAT eActivityName(INTEGER i), ', ' ORDER i;
 
 eType = DATA LOCAL STRING();
 eKpp = DATA LOCAL STRING();
@@ -587,9 +673,12 @@ FORM importEnterpriseDetails FORMEXTID 'dt=http://api.vetrf.ru/schema/cdm/dictio
     PROPERTIES() eUuidVetis EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid'
     PROPERTIES() IN importEnterpriseOfficialRegistration eKpp EXTID 'dt:kpp'
     PROPERTIES() IN importEnterpriseAddress eAddressView EXTID 'dt:addressView'
+    OBJECTS act = INTEGER EXTID 'dt:activity' IN importEnterpriseActivityList
+    PROPERTIES(act) eActivityName EXTID 'dt:name'
 ;
 
 afterImportEnterprise(Enterprise e, TEXT xml) + {
+    eActivityName(INTEGER i) <- NULL;
     stringToFile('<dt:enterprise xmlns:dt="http://api.vetrf.ru/schema/cdm/dictionary/v2" xmlns:bs="http://api.vetrf.ru/schema/cdm/base">' +
                   xml +
                   '</dt:enterprise>');
@@ -600,6 +689,7 @@ afterImportEnterprise(Enterprise e, TEXT xml) + {
     IF eStatus() THEN registryStatus(e) <- eStatus();
     IF eStatusVetis() THEN status(e) <- STRING[5](eStatusVetis());
     IF eUuidVetis() THEN uuid(e) <- eUuidVetis();
+    IF activityListStringGestori() THEN activityGestori(e) <- ISTRING(activityListStringGestori());
 }
 
 // --- GetEnterpriseByGuid: загрузка полей вручную ---
@@ -608,6 +698,7 @@ GROUP getEnterpriseByGuidResponseEnterprise EXTID 'dt=http://api.vetrf.ru/schema
 GROUP getEnterpriseByGuidResponseOfficialReg EXTID 'dt:officialRegistration' : getEnterpriseByGuidResponseEnterprise;
 GROUP getEnterpriseByGuidResponseAddress EXTID 'dt:address' : getEnterpriseByGuidResponseEnterprise;
 GROUP getEnterpriseByGuidResponseOwner EXTID 'dt:owner' : getEnterpriseByGuidResponseEnterprise;
+GROUP getEnterpriseByGuidResponseActivityList EXTID 'dt:activityList' : getEnterpriseByGuidResponseEnterprise;
 
 eOwnerGuid = DATA LOCAL STRING();
 
@@ -618,6 +709,8 @@ FORM getEnterpriseDetailResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/s
     PROPERTIES() IN getEnterpriseByGuidResponseOfficialReg eKpp EXTID 'dt:kpp'
     PROPERTIES() IN getEnterpriseByGuidResponseAddress eAddressView EXTID 'dt:addressView'
     PROPERTIES() IN getEnterpriseByGuidResponseOwner eOwnerGuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
+    OBJECTS actd = INTEGER EXTID 'dt:activity' IN getEnterpriseByGuidResponseActivityList
+    PROPERTIES(actd) eActivityName EXTID 'dt:name'
 ;
 
 EXTEND FORM enterprises
@@ -650,6 +743,7 @@ checkEnterpriseOwnerGestori (Enterprise e, STRING ownerGuid) {
 
 loadEnterpriseDetails 'Загрузить реквизиты' (Enterprise b) {
     NEWSESSION {
+        eActivityName(INTEGER i) <- NULL;
         LOCAL requestFile = FILE();
         EXPORT getEnterpriseByGuidRequest OBJECTS e = b XML TO requestFile;
         LOCAL response = FILE();
@@ -667,6 +761,7 @@ loadEnterpriseDetails 'Загрузить реквизиты' (Enterprise b) {
         IF eStatus() THEN registryStatus(b) <- eStatus();
         IF eStatusVetis() THEN status(b) <- STRING[5](eStatusVetis());
         IF eUuidVetis() THEN uuid(b) <- eUuidVetis();
+        IF activityListStringGestori() THEN activityGestori(b) <- ISTRING(activityListStringGestori());
         APPLY NESTED LOCAL; // eOwnerGuid нужен после применения
         checkEnterpriseOwnerGestori(b, eOwnerGuid());
     }
@@ -906,7 +1001,11 @@ FORM modifyEnterpriseRequestGestori FORMEXTID 'merc=http://api.vetrf.ru/schema/c
 
 isDigitsGestori = FORMULA NULL BOOLEAN 'CASE WHEN $1 ~ \'^[0-9]+$\' THEN 1 ELSE NULL END';
 
+// признак того, что заявка ушла (проверки не отсекли и submit отработал)
+sentModifyRequestGestori = DATA LOCAL BOOLEAN ();
+
 sendModifyEnterpriseGestori 'Отправить в Ветис' (Enterprise e) {
+    sentModifyRequestGestori() <- NULL;
     IF NOT owner(e) THEN { MESSAGE 'Не заполнено обязательное поле "GUID ХС"' NOWAIT; RETURN; }
     IF NOT own(owner(e)) THEN { MESSAGE 'Владелец площадки должен быть собственным хозяйствующим субъектом' NOWAIT; RETURN; }
     IF NOT inn(owner(e)) THEN { MESSAGE 'У выбранного хозяйствующего субъекта не заполнен ИНН' NOWAIT; RETURN; }
@@ -929,6 +1028,7 @@ sendModifyEnterpriseGestori 'Отправить в Ветис' (Enterprise e) {
             APPLY;
         }
     }
+    sentModifyRequestGestori() <- TRUE;
 }
 
 // --- Обработка ответа: GUID/UUID/статус созданной площадки (merc:enterprise) ---
@@ -984,26 +1084,34 @@ DESIGN enterprise {
 getEnterpriseListConfirmGestori 'Обновить площадки' () { getEnterpriseList(); } CONFIRM;
 getEnterpriseListConfirmGestori 'Обновить площадки' (Enterprise e) { getEnterpriseList(e); } CONFIRM;
 
-// отправка заявки добавления после сохранения карточки — вне транзакции apply (submit делает HTTP-вызов)
-sendPendingEnterpriseRequestGestori (Enterprise e) {
-    IF e IS Enterprise AND createdManuallyGestori(e) AND NOT notCompleted(lastModifyRequestGestori(e)) THEN
-        sendModifyEnterpriseGestori(e);
+// submit делает внешний HTTP-вызов, недопустимый в транзакции apply: сохранение карточки только помечает
+// площадку, а заявка отправляется после закрытия формы. Пометка — в данных (не LOCAL): значение,
+// присвоенное внутри NEWSESSION карточки, наружу не передаётся
+needModifyRequestGestori 'Требуется отправка заявки' = DATA BOOLEAN (Enterprise);
+
+// отправка накопленных заявок — вызывается после сохранения карточки, вне транзакции apply
+sendPendingEnterpriseRequestsGestori () {
+    FOR needModifyRequestGestori(Enterprise e) DO {
+        IF createdManuallyGestori(e) AND NOT notCompleted(lastModifyRequestGestori(e)) THEN
+            sendModifyEnterpriseGestori(e);
+        // пометка снимается только при успешной отправке: иначе заявку можно дослать из «Изменить»
+        IF sentModifyRequestGestori() THEN NEWSESSION { needModifyRequestGestori(e) <- NULL; APPLY; }
+    }
 }
 
 // добавление площадки собственного ХС: карточка с временным кодом (GUID заполнится из ответа Ветис);
 // заявка в Ветис уходит после сохранения карточки (кнопки «Сохранить»/«ОК») — аналогично отправке номенклатуры
 addEnterpriseGestori 'Добавить' () {
-    LOCAL created = Enterprise ();
     NEWSESSION {
         NEW e = Enterprise {
             guid(e) <- 'tmp-' + LONG(e AS Enterprise);
             createdManuallyGestori(e) <- TRUE;
+            needModifyRequestGestori(e) <- TRUE;    // заявка уйдёт после сохранения карточки
             type(e) <- '1'; // Тип 1 - Предприятие
-            created() <- e;
             SHOW enterprise OBJECTS o = e DOCKED WAIT MANAGESESSION;
         }
     }
-    sendPendingEnterpriseRequestGestori(created());
+    sendPendingEnterpriseRequestsGestori();
 }
 
 // изменение добавляемой площадки с отправкой заявки после сохранения
@@ -1011,7 +1119,7 @@ editEnterpriseGestori 'Изменить' (Enterprise e) {
     NEWSESSION {
         SHOW enterprise OBJECTS o = e DOCKED WAIT MANAGESESSION;
     }
-    sendPendingEnterpriseRequestGestori(e);
+    sendPendingEnterpriseRequestsGestori();
 }
 
 EXTEND FORM enterprises
