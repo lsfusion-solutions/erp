@@ -1640,18 +1640,18 @@ diffVolumeShippedReturnGestori (PurchaseReturn.UserInvoiceDetail d) =
 // связок по всем её записям журнала; расхождение показывается на связанных парах
 diffVolumeShippedRowReturnGestori (PurchaseReturn.UserInvoiceDetail d, StockEntry se) =
     VetisPurchaseReturn.volume(d, se) AND diffVolumeShippedReturnGestori(d);
-// расхождение объёма продукции записи журнала с объёмом по строке (только для связанных пар)
-diffVolumeSEReturnGestori (PurchaseReturn.UserInvoiceDetail d, StockEntry se) =
-    VetisPurchaseReturn.volume(d, se) != volume(se);
 
 EXTEND FORM PurchaseReturn.userInvoice
     PROPERTIES(vd) READONLY volumeShippedReturnGestori BACKGROUND (RGB(255,200,200) IF diffVolumeShippedReturnGestori(vd))
     PROPERTIES(se) READONLY totalVolumeSEReturnGestori
 
+    // записи журнала: по умолчанию по сроку годности; записи с нулевым объёмом не показываем,
+    // уже связанные со строкой остаются видимыми, иначе их нельзя было бы отвязать
+    ORDERS expiryDate(se)
+    FILTERS volume(se) != 0 OR VetisPurchaseReturn.volume(vd, se)
+
     FILTERGROUP diffShippedReturnGestori
         FILTER 'Расхождение объемов' diffVolumeShippedReturnGestori(vd)
-    FILTERGROUP diffSEReturnGestori
-        FILTER 'Расхождение объемов' diffVolumeSEReturnGestori(vd, se)
 ;
 
 DESIGN PurchaseReturn.userInvoice {
@@ -1681,15 +1681,6 @@ DESIGN PurchaseReturn.invoices {
 CONSTRAINT CHANGED(VetisPurchaseReturn.volume(PurchaseReturn.UserInvoiceDetail d, StockEntry se)) AND totalVolumeSEReturnGestori(se) > volume(se)
     MESSAGE 'Суммарный объём по строкам, связанным с записью журнала, превышает текущий остаток записи журнала'
     PROPERTIES guidSEGestori(se), numberSEGestori(se), volumeSEGestori(se), nameProductItemSEGestori(se);
-
-// «Объем продукции» с подсветкой расхождения — базовая колонка скрывается
-EXTEND FORM PurchaseReturn.userInvoice
-    PROPERTIES READONLY volumeSECardReturnGestori = volumeSEGestori(se)
-        BACKGROUND (RGB(255,200,200) IF diffVolumeSEReturnGestori(vd, se)) BEFORE expiryDate(se)
-;
-DESIGN PurchaseReturn.userInvoice {
-    PROPERTY(volume(se)) { hide = TRUE; }
-}
 
 // ---- условия регионализации по исходящим партиям накладной закупки (возврат) ----
 
@@ -1761,7 +1752,7 @@ EXTEND FORM applicationRequests
 ;
 
 // кнопка на накладной закупки (возврат): заявки, отфильтрованные по накладной
-showVetisRequestsReturnGestori 'Заявки ВЕТИС' (PurchaseReturn.Invoice i) {
+showVetisRequestsReturnGestori 'Заявки' (PurchaseReturn.Invoice i) {
     filterReturnInvoiceRequestGestori() <- i;
     SHOW applicationRequests;
 }
