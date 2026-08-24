@@ -1458,18 +1458,18 @@ diffVolumeShippedSaleGestori (Sale.UserInvoiceDetail d) =
 // связок по всем её записям журнала; расхождение показывается на связанных парах
 diffVolumeShippedRowSaleGestori (Sale.UserInvoiceDetail d, StockEntry se) =
     VetisSale.volume(d, se) AND diffVolumeShippedSaleGestori(d);
-// расхождение объёма продукции записи журнала с объёмом по строке (только для связанных пар)
-diffVolumeSESaleGestori (Sale.UserInvoiceDetail d, StockEntry se) =
-    VetisSale.volume(d, se) != volume(se);
 
 EXTEND FORM Sale.userInvoice
     PROPERTIES(vd) READONLY volumeShippedSaleGestori BACKGROUND (RGB(255,200,200) IF diffVolumeShippedSaleGestori(vd))
     PROPERTIES(se) READONLY totalVolumeSEGestori
 
+    // записи журнала: по умолчанию по сроку годности; записи с нулевым объёмом не показываем,
+    // уже связанные со строкой остаются видимыми, иначе их нельзя было бы отвязать
+    ORDERS expiryDate(se)
+    FILTERS volume(se) != 0 OR VetisSale.volume(vd, se)
+
     FILTERGROUP diffShippedSaleGestori
         FILTER 'Расхождение объемов' diffVolumeShippedSaleGestori(vd)
-    FILTERGROUP diffSESaleGestori
-        FILTER 'Расхождение объемов' diffVolumeSESaleGestori(vd, se)
 ;
 
 DESIGN Sale.userInvoice {
@@ -1569,15 +1569,6 @@ CONSTRAINT CHANGED(VetisSale.volume(Sale.UserInvoiceDetail d, StockEntry se)) AN
     MESSAGE 'Суммарный объём по строкам, связанным с записью журнала, превышает текущий остаток записи журнала'
     PROPERTIES guidSEGestori(se), numberSEGestori(se), volumeSEGestori(se), nameProductItemSEGestori(se);
 
-// «Объем продукции» с подсветкой расхождения — базовая колонка скрывается
-EXTEND FORM Sale.userInvoice
-    PROPERTIES READONLY volumeSECardSaleGestori = volumeSEGestori(se)
-        BACKGROUND (RGB(255,200,200) IF diffVolumeSESaleGestori(vd, se)) BEFORE expiryDate(se)
-;
-DESIGN Sale.userInvoice {
-    PROPERTY(volume(se)) { hide = TRUE; }
-}
-
 // суммарный объём по связанным записям журнала не может превышать объём по строке
 CONSTRAINT VetisSale.volumeStockEntry(Sale.UserInvoiceDetail d) > volumeShippedSaleGestori(d)
     MESSAGE 'Суммарный объём по записям журнала превышает объём по строке накладной';
@@ -1610,7 +1601,7 @@ EXTEND FORM applicationRequests
 ;
 
 // кнопка на накладной продажи: заявки, отфильтрованные по накладной
-showVetisRequestsSaleGestori 'Заявки ВЕТИС' (Sale.Invoice i) {
+showVetisRequestsSaleGestori 'Заявки' (Sale.Invoice i) {
     filterSaleInvoiceRequestGestori() <- i;
     SHOW applicationRequests;
 }
