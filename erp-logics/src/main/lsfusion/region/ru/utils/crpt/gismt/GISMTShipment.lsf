@@ -147,8 +147,8 @@ META defineDocumentGISMTOut (senderProp, receiverProp)
     gismtType(Invoice i) += WHEN actionReceipt(operation(i)) THEN 'LK_RECEIPT';
     
     productCost = ABSTRACT VALUE NUMERIC[16,4] (InvoiceDetail);
-    modKpp = ABSTRACT STRING[9] (Invoice);
-    modFiasId = ABSTRACT STRING[50] (Invoice);
+    modKpp = ABSTRACT STRING[9] (Invoice, LotType);
+    modFiasId = ABSTRACT STRING[50] (Invoice, LotType);
     FORM exportInvoiceReceipt
         OBJECTS i = Invoice, t = LotType PANEL
         
@@ -156,8 +156,8 @@ META defineDocumentGISMTOut (senderProp, receiverProp)
                    document_date = (toDateISO(date(i)) IF documentType(operation(i))), document_number = (seriesNumber(i) IF documentType(operation(i))),
                    document_type = documentType(operation(i)), primary_document_custom_name = primaryDocumentCustomName(operation(i)),
                    inn = inn(senderProp(i)),
-                   kpp = modKpp(i),
-                   fias_id = modFiasId(i)
+                   kpp = modKpp(i, t),
+                   fias_id = modFiasId(i, t)
 
         OBJECTS products = (d = InvoiceDetail, l = Lot)
         PROPERTIES cis = id(l), product_cost = productCost(d)
