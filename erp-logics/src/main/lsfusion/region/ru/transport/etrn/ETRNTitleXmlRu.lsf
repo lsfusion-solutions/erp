@@ -340,10 +340,14 @@ stockByDeliveryZip (STRING[6] z) = GROUP MAX Stock.Stock st IF zipCode(st) == z;
 // с подразделениями Диадока (у подразделения есть код ГАР/ФИАС адреса)
 stockByDeliveryGar = ABSTRACT CASE Stock.Stock (STRING);
 
-// индекс из текстового адреса: первые 6 символов, если все они цифры
-// (в титулах адрес начинается с индекса: '117216, Москва г, ...')
-deliveryZip (STRING text) = STRING[6](substr(trim(text), 1, 6))
-    IF length(trim(text)) >= 6 AND (OVERRIDE length(regexpReplace(substr(trim(text), 1, 6), '[0-9]', '', 'g')), 0) == 0;
+// индекс из текстового адреса: первая группа из РОВНО 6 цифр подряд в любом месте текста
+// (слитная - телефоны и прочие длинные числа не подходят). Извлечение - обратной ссылкой
+// \2 (PG-синтаксис); при несовпадении шаблона regexpReplace возвращает исходный текст,
+// поэтому результат валидируется: ровно 6 символов и все - цифры
+deliveryZipExtract (STRING text) = regexpReplace(trim(text), '^.*?(^|[^0-9])([0-9]{6})([^0-9]|$).*$', '\\2', '');
+deliveryZip (STRING text) = STRING[6](deliveryZipExtract(text))
+    IF length(deliveryZipExtract(text)) == 6 AND
+       (OVERRIDE length(regexpReplace(deliveryZipExtract(text), '[0-9]', '', 'g')), 0) == 0;
 
 // индекс места доставки разбираемого титула: из структурного адреса либо из текстового
 impT1DeliveryZip () = STRING[6](OVERRIDE impT1GPIndex(),
