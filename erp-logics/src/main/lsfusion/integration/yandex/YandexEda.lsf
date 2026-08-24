@@ -275,3 +275,35 @@ closeExpiriedToken(){
 v1_menu(FILE f){
     EXPORT JSON FROM result = 'ok';
 }
+
+//----------------------- Платформенная экономика ------------------------//
+
+tnvedCode (Item i) = ABSTRACT STRING;
+okpd2Code (Item i) = ABSTRACT STRING;
+vendorInn (Item i) = ABSTRACT STRING;
+gtin (Item i) = ABSTRACT STRING;
+markingType (Item i) = ABSTRACT STRING;
+manufacturerLegalAddress (Manufacturer m) = ABSTRACT STRING;
+
+conformityStatus (Item i) = ABSTRACT TBOOLEAN;
+registrationStatus (Item i) = ABSTRACT TBOOLEAN;
+
+jsonArrayOne (STRING s) = '["' + escapeJSONValue(s) + '"]';
+gtinsJSON (Item i) = jsonArrayOne(gtin(i));
+productionAddressJSON (Manufacturer m) = jsonArrayOne(address(m));
+
+GROUP classificationCodes;
+GROUP conformityInfo;
+GROUP governmentRegistrationInfo;
+
+EXTEND FORM nomenclature
+    PROPERTIES vendorInn(i), markingType(i), gtinsJSON(i) EXTID 'gtins'
+    PROPERTIES IN classificationCodes tnvedCode(i) EXTID 'tnvedCode', okpd2Code(i) EXTID 'okpd2Code'
+    PROPERTIES IN conformityInfo conformityStatus(i) EXTID 'status'
+    PROPERTIES IN governmentRegistrationInfo registrationStatus(i) EXTID 'status'
+
+    OBJECTS m = Manufacturer EXTID 'manufacturerInfo'
+    PROPERTIES name(m) EXTID 'manufacturerName', manufacturerLegalAddress(m) EXTID 'legalAddress',
+        productionAddressJSON(m) EXTID 'productionAddress'
+    FILTERS m = manufacturer(i)
+;
