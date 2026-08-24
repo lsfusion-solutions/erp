@@ -310,13 +310,16 @@ typographyContract 'Договор типографии' = DATA STRING (LotOrder
 
 listidOrderEZ (LotOrder o)= GROUP CONCAT STRING(idOrderExt (o, STRING[14] gtin)), ', ' ORDER gtin;
 
-listGTINJSON100 (LotOrder o, INTEGER i) = 
-    GROUP CONCAT STRING(CONCAT '','"', (STRING[14] gtin), '": \{ "count": ', INTEGER(quantity(o, gtin)), ', ',
+quantityNotOrdered (LotOrder o, STRING[14] gtin) = GROUP SUM quantity(LotOrderDetail d)
+    IF lotOrder(d) = o AND gtin = gtin(d) AND NOT idOrderEZ(d);
+
+listGTINJSON100 (LotOrder o, INTEGER i) =
+    GROUP CONCAT STRING(CONCAT '','"', (STRING[14] gtin), '": \{ "count": ', INTEGER(quantityNotOrdered(o, gtin)), ', ',
         '"label_type": ', id(identificationMeansType(o)),
         ', "typography_id": ' + idTypography(o),
         ', "typography_doc": ' + typographyContract(o),
-        ' \}'), ', ' 
-        IF quantity(o, gtin) AND indexGtin100(o, gtin) == i AND NOT idOrderExt(o, gtin) ORDER gtin;
+        ' \}'), ', '
+        IF quantityNotOrdered(o, gtin) AND indexGtin100(o, gtin) == i ORDER gtin;
                                               
 addGroupOrdersJSON100 (LotOrder o, INTEGER i) = CONCAT '', '\{ "group": "' + codeGroup(type(o)) + '", ' + 
                                                     '"orders": \{ ' + listGTINJSON100(o, i) + ' \} \}';     
@@ -382,7 +385,7 @@ addGroupOrders (LotOrder o) + {
                                 subJson() <- STRING(jsonAttributeValue1(ordersJson(), i));
                                 FOR iterate(INTEGER j, 1, jsonAttributeCount2(subJson())) DO {
                                     IF 'id' == jsonAttributeKey2(subJson(), j) THEN {
-                                        idOrderEZ(LotOrderDetail d) <- replace(STRING(jsonAttributeValue2(subJson(), j)), '"', '') WHERE gtin(d) == gtin AND o == lotOrder(d);
+                                        idOrderEZ(LotOrderDetail d) <- replace(STRING(jsonAttributeValue2(subJson(), j)), '"', '') WHERE gtin(d) == gtin AND o == lotOrder(d) AND NOT idOrderEZ(d);
                                     } ELSE IF 'created_at' == jsonAttributeKey2(subJson(), j) THEN {
                                         createdTime(o) <- toDateTimeFormat(replace(STRING(jsonAttributeValue2(subJson(), j)), '"', ''), 'yyyy-MM-dd hh24:mi:ss');
                                     }
@@ -398,7 +401,7 @@ addGroupOrders (LotOrder o) + {
 
                             FOR iterate(INTEGER j, 1, jsonAttributeCount1(subJson())) DO {
                                 IF 'id' == jsonAttributeKey1(subJson(), j) THEN {
-                                    idOrderEZ(LotOrderDetail d) <- replace(STRING(jsonAttributeValue1(subJson(), j)), '"', '') WHERE gtin(d) == gtin AND o == lotOrder(d);
+                                    idOrderEZ(LotOrderDetail d) <- replace(STRING(jsonAttributeValue1(subJson(), j)), '"', '') WHERE gtin(d) == gtin AND o == lotOrder(d) AND NOT idOrderEZ(d);
                                 } ELSE IF 'created_at' == jsonAttributeKey1(subJson(), j) THEN {
                                     createdTime(o) <- toDateTimeFormat(replace(STRING(jsonAttributeValue1(subJson(), j)), '"', ''), 'yyyy-MM-ddThh24:mi:ss');
                                 }
@@ -485,7 +488,16 @@ CONSTRAINT (CHANGED(sku(LotOrderDetail d)) OR CHANGED(quantity(d))) AND (PREV(is
 
 fileName  = DATA STRING (LotOrder, STRING[14]);
 
-idOrderEZ(LotOrder o, STRING[14] gtin) = GROUP MIN idOrderEZ(LotOrderDetail d) IF lotOrder(d) == o AND gtin(d) == gtin;
+fileNameEZ = DATA STRING (LotOrder, STRING[100]);
+
+countOrderEZ (LotOrder o, STRING[100] idOrder) =
+    GROUP SUM 1 IF lotOrder(LotOrderDetail d) = o AND idOrderEZ(d) = idOrder;
+
+gtinOrderEZ (LotOrder o, STRING[100] idOrder) =
+    GROUP MAX gtin(LotOrderDetail d) IF lotOrder(d) = o AND idOrderEZ(d) = idOrder;
+
+fileNameOrder (LotOrder o, STRING[100] idOrder) =
+    OVERRIDE fileNameEZ(o, idOrder), fileName(o, gtinOrderEZ(o, idOrder));
 
 //Информация о заказе
 checkStatus 'Проверить статус' ABSTRACT LIST (LotOrder);
@@ -498,7 +510,7 @@ checkStatus  (LotOrder o) + {
         statusMessage() <- '';
 
         NEWSESSION {
-            FOR quantity(o, STRING[14] gtin) DO {
+            FOR countOrderEZ(o, STRING[100] idOrder) DO {
 
                 LOCAL result = FILE();
 
@@ -508,9 +520,9 @@ checkStatus  (LotOrder o) + {
                 TRY {
                     insecureSSL() <- TRUE;
                     IF useV3OrdersListEZ() THEN {
-                        EXTERNAL HTTP GET urlEZ() + '/v3/orders/list/' + idOrderEZ(o, gtin) HEADERS ezHeadersLotOrder TO result;
+                        EXTERNAL HTTP GET urlEZ() + '/v3/orders/list/' + idOrder HEADERS ezHeadersLotOrder TO result;
                     } ELSE {
-                        EXPORT JSON FROM id = idOrderEZ(o, gtin);
+                        EXPORT JSON FROM id = idOrder;
                         EXTERNAL HTTP POST urlEZ() + '/v2/orders' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
                     }
                 } CATCH {
@@ -536,7 +548,7 @@ checkStatus  (LotOrder o) + {
                     FOR iterate(INTEGER j, 1, jsonAttributeCount1(subJson1())) DO {
                         // GTIN 
                         IF 'gtin' == jsonAttributeKey1(subJson1(), j) AND NOT useV3OrdersListEZ() THEN {
-                            IF gtin != replace(STRING(jsonAttributeValue1(subJson1(), j)), '"', '') THEN {
+                            IF gtinOrderEZ(o, idOrder) != replace(STRING(jsonAttributeValue1(subJson1(), j)), '"', '') THEN {
                                 statusCode() <- NULL;
                                 BREAK;
                             }
@@ -595,19 +607,19 @@ checkStatus  (LotOrder o) + {
                     RETURN;
                 }
 
-                status(LotOrderDetail d) <- statusLotOrder(statusCode()) WHERE lotOrder(d) = o AND gtin(d) = gtin;
+                status(LotOrderDetail d) <- statusLotOrder(statusCode()) WHERE lotOrder(d) = o AND idOrderEZ(d) = idOrder;
 
                 IF statusCode() == 30 THEN {
                     LOCAL lotOrder = LotOrder ();
-                    LOCAL gtin = STRING[14] ();
+                    LOCAL idOrderLoc = STRING[100] ();
                     lotOrder() <- o;
-                    gtin() <- gtin;
+                    idOrderLoc() <- idOrder;
                     availableCodes(LotOrderDetail d) <- (PARTITION UNGROUP availableCodes
-                        LIMIT quantity(d) IF lotOrder(d) = lotOrder() AND gtin(d) = gtin()
-                        ORDER d) WHERE lotOrder(d) = o AND gtin(d) = gtin;
-                    fileName(o, gtin) <- fileName();
+                        LIMIT quantity(d) IF lotOrder(d) = lotOrder() AND idOrderEZ(d) = idOrderLoc()
+                        ORDER d) WHERE lotOrder(d) = o AND idOrderEZ(d) = idOrder;
+                    fileNameEZ(o, idOrder) <- fileName();
                 }
-                statusMessage() <- statusMessage() + (CONCAT ' ', 'Товар', gtin, ', статус :', name(statusLotOrder(statusCode())), '\n');
+                statusMessage() <- statusMessage() + (CONCAT ' ', 'Товар', gtinOrderEZ(o, idOrder), ', заказ', idOrder, ', статус :', name(statusLotOrder(statusCode())), '\n');
             }
             APPLY;
         }
@@ -629,9 +641,9 @@ importLotCodes  (LotOrder o) + {
             initialDemand(LotOrderDetail d) <- quantity(d) WHERE lotOrder(d) = o AND availableCodes(d) AND NOT initialDemand(d);
             quantity(LotOrderDetail d) <- (OVERRIDE NUMERIC[16,5](quantityLot(d)), 0 IF d IS LotOrderDetail) WHERE lotOrder(d) = o;
 
-            FOR initialDemand(o, STRING[14] gtin) DO {
+            FOR fileNameOrder(o, STRING[100] idOrder) DO {
                 LOCAL fileName = STRING();
-                fileName() <- getWord(TEXT(fileName(o, gtin)), '/', wordCount(TEXT(fileName(o, gtin)), '/'));
+                fileName() <- getWord(TEXT(fileNameOrder(o, idOrder)), '/', wordCount(TEXT(fileNameOrder(o, idOrder)), '/'));
                 fileName() <- replace(fileName(), '"', '');
 
                 LOCAL result = FILE();
@@ -660,7 +672,7 @@ importLotCodes  (LotOrder o) + {
                     // V3
                     IMPORT importOrderDownloadV3 JSON FROM result();
                     FOR downloadLabelsV3(INTEGER i) NOINLINE DO NEW l = Lot {
-                        FOR LotOrderDetail d = (GROUP LAST LotOrderDetail dd IF lotOrder(dd) = o AND gtin(dd) = gtin AND initialDemand(dd) > quantity(dd) AND availableCodes(dd) > quantity(dd) ORDER DESC dd) DO {
+                        FOR LotOrderDetail d = (GROUP LAST LotOrderDetail dd IF lotOrder(dd) = o AND idOrderEZ(dd) = idOrder AND initialDemand(dd) > quantity(dd) AND availableCodes(dd) > quantity(dd) ORDER DESC dd) DO {
                             id(l) <- barcodeToId(downloadLabelsV3(i));
                             tail(l) <- barcodeToTail(downloadLabelsV3(i));
                             sku(l) <- sku(d);
@@ -678,7 +690,7 @@ importLotCodes  (LotOrder o) + {
                     //            MESSAGE resultString();
                     IMPORT CSV '|' NOESCAPE FROM result() TO idLoc;
                     FOR idLoc(INTEGER i) NOINLINE DO NEW l = Lot {
-                        FOR LotOrderDetail d = (GROUP LAST LotOrderDetail dd IF lotOrder(dd) = o AND gtin(dd) = gtin AND initialDemand(dd) > quantity(dd) AND availableCodes(dd) > quantity(dd) ORDER DESC dd) DO {
+                        FOR LotOrderDetail d = (GROUP LAST LotOrderDetail dd IF lotOrder(dd) = o AND idOrderEZ(dd) = idOrder AND initialDemand(dd) > quantity(dd) AND availableCodes(dd) > quantity(dd) ORDER DESC dd) DO {
                             id(l) <- barcodeToId(idLoc(i));
                             tail(l) <- barcodeToTail(idLoc(i));
                             sku(l) <- sku(d);
