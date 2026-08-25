@@ -1,0 +1,486 @@
+MODULE EGAISDocumentStateReportGestori;
+
+REQUIRE EGAISStockReportGestori,
+        EGAISPurchaseInvoiceGestori, EGAISSaleShipmentGestori,
+        EGAISPurchaseReturnShipmentGestori, EGAISSaleReturnInvoiceGestori,
+        EGAISWriteOff, EGAISLotAdjustment, EGAISStock,
+        EGAISActFixBarCodeLotInitGestori, EGAISActUnFixBarCodeLotInitGestori,
+        EGAISActWriteOffStatus, EGAISActChargeOnStatus, EGAISActFixBarCodeStatus,
+        EGAISActUnFixBarCodeStatus, EGAISWayBillStatus;
+
+NAMESPACE EGAIS;
+
+dateFromDocState 'Дата с' = DATA LOCAL NESTED DATE ();
+dateToDocState 'Дата по' = DATA LOCAL NESTED DATE ();
+
+CLASS DocStateKind 'Вид документа' {
+    purchaseInvoice 'Накладная (закупка)',
+    saleInvoice 'Накладная (продажа)',
+    purchaseReturnInvoice 'Накладная (закупка-возврат)',
+    saleReturnInvoice 'Накладная (продажа-возврат)',
+    writeOff 'Списание',
+    lotAdjustment 'Изменение остатка марки',
+    actWriteOff 'Списание с баланса',
+    actChargeOn 'Постановка на баланс',
+    actFixBarCode 'Фиксация штрихкодов',
+    actUnFixBarCode 'Расфиксация штрихкодов'
+}
+
+nameDocStateKind 'Вид документа' (DocStateKind k) = staticCaption(k) IF k IS DocStateKind CHARWIDTH 30;
+
+inDocStateKind 'Вкл.' = DATA LOCAL NESTED BOOLEAN (DocStateKind);
+countDocStateKinds () = GROUP SUM 1 IF inDocStateKind(DocStateKind k);
+namesDocStateKinds 'Виды документов' () =
+    GROUP CONCAT nameDocStateKind(DocStateKind k) IF inDocStateKind(k), ', ' ORDER k CHARWIDTH 30;
+
+selectedDocStateKind (DocStateKind k) = TRUE IF inDocStateKind(k) OR NOT countDocStateKinds();
+
+FORM dialogDocStateKinds 'Выбор видов документов'
+    OBJECTS k = DocStateKind
+    PROPERTIES(k) READONLY nameDocStateKind
+    PROPERTIES(k) inDocStateKind
+;
+
+changeDocStateKinds 'Виды документов' () {
+    DIALOG dialogDocStateKinds;
+}
+
+kindDocState = DATA LOCAL NESTED DocStateKind (INTEGER);
+nameKindDocState 'Вид документа ЕГАИС' (INTEGER row) = nameDocStateKind(kindDocState(row));
+
+postedDocState 'Статус документа системы' = DATA LOCAL NESTED STRING[20] (INTEGER);
+numberDocState 'Номер документа системы' = DATA LOCAL NESTED STRING[100] (INTEGER);
+dateDocState 'Дата документа системы' = DATA LOCAL NESTED DATE (INTEGER);
+idSystemDocState 'Идентификатор документа в системе' = DATA LOCAL NESTED STRING[100] (INTEGER);
+idOperationDocState 'Код операции' = DATA LOCAL NESTED STRING[100] (INTEGER);
+
+docEGAISDocState 'Документ ЕГАИС' = DATA LOCAL NESTED STRING[40] (INTEGER);
+
+typeEGAISDocState 'Тип документа ЕГАИС' = DATA LOCAL NESTED STRING[100] (INTEGER);
+
+statusEGAISDocState 'Статус документа ЕГАИС' = DATA LOCAL NESTED STRING[50] (INTEGER);
+numberEGAISDocState 'Номер документа ЕГАИС' = DATA LOCAL NESTED STRING[100] (INTEGER);
+dateEGAISDocState 'Дата документа ЕГАИС' = DATA LOCAL NESTED DATE (INTEGER);
+idEGAISDocState 'Идентификатор документа в ЕГАИС' = DATA LOCAL NESTED STRING[100] (INTEGER);
+regIdEGAISDocState 'Регистрационный номер документа ЕГАИС' = DATA LOCAL NESTED STRING[100] (INTEGER);
+
+idShipperDocState 'Код грузоотправителя' = DATA LOCAL NESTED STRING[100] (INTEGER);
+nameShipperDocState 'Наименование грузоотправителя' = DATA LOCAL NESTED STRING[250] (INTEGER);
+idConsigneeDocState 'Код грузополучателя' = DATA LOCAL NESTED STRING[100] (INTEGER);
+nameConsigneeDocState 'Наименование грузополучателя' = DATA LOCAL NESTED STRING[250] (INTEGER);
+
+sioShipperDocState 'СИО грузоотправителя (ЕГАИС)' = DATA LOCAL NESTED STRING[100] (INTEGER);
+sioConsigneeDocState 'СИО грузополучателя (ЕГАИС)' = DATA LOCAL NESTED STRING[100] (INTEGER);
+
+stockDocState = DATA LOCAL NESTED Stock (INTEGER);
+orgDocState = DATA LOCAL NESTED STRING[250] (INTEGER);
+
+idStockDocState 'Код подразделения' (INTEGER row) = id(stockDocState(row));
+nameStockDocState 'Наименование подразделения' (INTEGER row) =
+    OVERRIDE name(stockDocState(row)), orgDocState(row), 'Не задано' IF kindDocState(row);
+nameLegalEntityDocState 'Объединение' (INTEGER row) =
+    OVERRIDE name(legalEntity(stockDocState(row))), orgDocState(row), 'Не задано' IF kindDocState(row);
+
+inDocState (Purchase.Invoice i) = TRUE IF selectedDocStateKind(DocStateKind.purchaseInvoice)
+    AND EGAISPurchase.wayBill(i)
+    AND (inReport(customerStock(i)) OR NOT countInReport())
+    AND date(i) >= dateFromDocState() AND date(i) <= dateToDocState();
+
+inDocState (Sale.Invoice i) = TRUE IF selectedDocStateKind(DocStateKind.saleInvoice)
+    AND EGAISSale.wayBill(i)
+    AND (inReport(supplierStock(i)) OR NOT countInReport())
+    AND date(i) >= dateFromDocState() AND date(i) <= dateToDocState();
+
+inDocState (PurchaseReturn.Invoice i) = TRUE IF selectedDocStateKind(DocStateKind.purchaseReturnInvoice)
+    AND EGAISPurchaseReturn.wayBill(i)
+    AND (inReport(supplierStock(i)) OR NOT countInReport())
+    AND date(i) >= dateFromDocState() AND date(i) <= dateToDocState();
+
+inDocState (SaleReturn.Invoice i) = TRUE IF selectedDocStateKind(DocStateKind.saleReturnInvoice)
+    AND wayBill(i)
+    AND (inReport(customerStock(i)) OR NOT countInReport())
+    AND date(i) >= dateFromDocState() AND date(i) <= dateToDocState();
+
+inDocState (WriteOff w) = TRUE IF selectedDocStateKind(DocStateKind.writeOff)
+    AND actWriteOff(w)
+    AND (inReport(stock(w)) OR NOT countInReport())
+    AND date(w) >= dateFromDocState() AND date(w) <= dateToDocState();
+
+inDocState (Lot.LotAdjustment a) = TRUE IF selectedDocStateKind(DocStateKind.lotAdjustment)
+    AND (actWriteOff(a) OR actFixBarCode(a))
+    AND (inReport(stock(a)) OR NOT countInReport())
+    AND date(a) >= dateFromDocState() AND date(a) <= dateToDocState();
+
+stockDocState (ActChargeOn a) = stock(client(a));
+
+inDocState (ActChargeOn a) = TRUE IF selectedDocStateKind(DocStateKind.actChargeOn)
+    AND (inReport(stockDocState(a)) OR NOT countInReport())
+    AND date(a) >= dateFromDocState() AND date(a) <= dateToDocState();
+
+usedActDocState = DATA LOCAL NESTED BOOLEAN (ActWriteOff);
+usedActDocState = DATA LOCAL NESTED BOOLEAN (ActFixBarCode);
+
+stockDocState (ActWriteOff a) = stock(client(a));
+stockDocState (ActFixBarCode a) = stock(client(a));
+
+inDocState (ActWriteOff a) = TRUE IF selectedDocStateKind(DocStateKind.actWriteOff)
+    AND NOT usedActDocState(a)
+    AND (inReport(stockDocState(a)) OR NOT countInReport())
+    AND date(a) >= dateFromDocState() AND date(a) <= dateToDocState();
+
+inDocState (ActFixBarCode a) = TRUE IF selectedDocStateKind(DocStateKind.actFixBarCode)
+    AND NOT usedActDocState(a)
+    AND (inReport(stockDocState(a)) OR NOT countInReport())
+    AND date(a) >= dateFromDocState() AND date(a) <= dateToDocState();
+
+lotInitDocState (ActFixBarCode a) = GROUP MAX LotInit l BY actFixBarCode(l);
+lotInitDocState (ActUnFixBarCode a) = GROUP MAX LotInit l BY actUnFixBarCode(l);
+
+textPostedDocState (LotInit l) = IF isPosted(l) THEN 'Проведен' ELSE 'Не проведен';
+
+stockDocState (ActUnFixBarCode a) = stock(client(a));
+
+inDocState (ActUnFixBarCode a) = TRUE IF selectedDocStateKind(DocStateKind.actUnFixBarCode)
+    AND (inReport(stockDocState(a)) OR NOT countInReport())
+    AND date(a) >= dateFromDocState() AND date(a) <= dateToDocState();
+
+
+numberDSPurchase (Purchase.Invoice i) = PARTITION SUM 1 IF inDocState(i) ORDER date(i), i;
+indexDSPurchase (Purchase.Invoice i) = numberDSPurchase(i) + 1000000;
+
+numberDSSale (Sale.Invoice i) = PARTITION SUM 1 IF inDocState(i) ORDER date(i), i;
+indexDSSale (Sale.Invoice i) = numberDSSale(i) + 2000000;
+
+numberDSPurchaseReturn (PurchaseReturn.Invoice i) = PARTITION SUM 1 IF inDocState(i) ORDER date(i), i;
+indexDSPurchaseReturn (PurchaseReturn.Invoice i) = numberDSPurchaseReturn(i) + 3000000;
+
+numberDSSaleReturn (SaleReturn.Invoice i) = PARTITION SUM 1 IF inDocState(i) ORDER date(i), i;
+indexDSSaleReturn (SaleReturn.Invoice i) = numberDSSaleReturn(i) + 4000000;
+
+numberDSWriteOff (WriteOff w) = PARTITION SUM 1 IF inDocState(w) ORDER date(w), w;
+indexDSWriteOff (WriteOff w) = numberDSWriteOff(w) + 5000000;
+
+numberDSLotAdjWriteOff (Lot.LotAdjustment a) =
+    PARTITION SUM 1 IF inDocState(a) AND actWriteOff(a) ORDER date(a), a;
+indexDSLotAdjWriteOff (Lot.LotAdjustment a) = numberDSLotAdjWriteOff(a) + 6000000;
+
+numberDSLotAdjFix (Lot.LotAdjustment a) =
+    PARTITION SUM 1 IF inDocState(a) AND actFixBarCode(a) ORDER date(a), a;
+indexDSLotAdjFix (Lot.LotAdjustment a) = numberDSLotAdjFix(a) + 7000000;
+
+numberDSChargeOn (ActChargeOn a) = PARTITION SUM 1 IF inDocState(a) ORDER date(a), a;
+indexDSChargeOn (ActChargeOn a) = numberDSChargeOn(a) + 8000000;
+
+numberDSActWriteOff (ActWriteOff a) = PARTITION SUM 1 IF inDocState(a) ORDER date(a), a;
+indexDSActWriteOff (ActWriteOff a) = numberDSActWriteOff(a) + 9000000;
+
+numberDSActFixBarCode (ActFixBarCode a) = PARTITION SUM 1 IF inDocState(a) ORDER date(a), a;
+indexDSActFixBarCode (ActFixBarCode a) = numberDSActFixBarCode(a) + 10000000;
+
+numberDSActUnFixBarCode (ActUnFixBarCode a) = PARTITION SUM 1 IF inDocState(a) ORDER date(a), a;
+indexDSActUnFixBarCode (ActUnFixBarCode a) = numberDSActUnFixBarCode(a) + 11000000;
+
+fillWayBillDocState (INTEGER row, WayBill w, Stock supplierStock, Stock customerStock) {
+    docEGAISDocState(row) <- 'ТТН';
+    statusEGAISDocState(row) <- nameStatus(w);
+    numberEGAISDocState(row) <- number(w);
+    dateEGAISDocState(row) <- date(w);
+    idEGAISDocState(row) <- id(w);
+    regIdEGAISDocState(row) <- regId(w);
+
+    idShipperDocState(row) <- id(legalEntity(supplierStock));
+    nameShipperDocState(row) <- name(legalEntity(supplierStock));
+    idConsigneeDocState(row) <- id(legalEntity(customerStock));
+    nameConsigneeDocState(row) <- name(legalEntity(customerStock));
+    
+    sioShipperDocState(row) <- id(shipper(w));
+    sioConsigneeDocState(row) <- id(consignee(w));
+}
+
+fillActWriteOffDocState (INTEGER row, ActWriteOff a, Stock stock) {
+    docEGAISDocState(row) <- 'Акт списания с баланса';
+    typeEGAISDocState(row) <- id(type(a));
+    statusEGAISDocState(row) <- nameStatus(a);
+    numberEGAISDocState(row) <- number(a);
+    dateEGAISDocState(row) <- date(a);
+    regIdEGAISDocState(row) <- regId(a);
+
+    idShipperDocState(row) <- id(legalEntity(stock));
+    nameShipperDocState(row) <- name(legalEntity(stock));
+    sioShipperDocState(row) <- id(client(a));
+    orgDocState(row) <- shortName(client(a));
+}
+
+fillActFixBarCodeDocState (INTEGER row, ActFixBarCode a, Stock stock) {
+    docEGAISDocState(row) <- 'Акт фиксации штрихкодов';
+    statusEGAISDocState(row) <- nameStatus(a);
+    numberEGAISDocState(row) <- number(a);
+    dateEGAISDocState(row) <- date(a);
+    regIdEGAISDocState(row) <- regId(a);
+
+    idShipperDocState(row) <- id(legalEntity(stock));
+    nameShipperDocState(row) <- name(legalEntity(stock));
+    sioShipperDocState(row) <- id(client(a));
+    orgDocState(row) <- shortName(client(a));
+}
+
+fillDocStateReport 'Сформировать' () {
+    kindDocState(INTEGER row) <- NULL;
+    postedDocState(INTEGER row) <- NULL;
+    numberDocState(INTEGER row) <- NULL;
+    dateDocState(INTEGER row) <- NULL;
+    idSystemDocState(INTEGER row) <- NULL;
+    idOperationDocState(INTEGER row) <- NULL;
+    docEGAISDocState(INTEGER row) <- NULL;
+    typeEGAISDocState(INTEGER row) <- NULL;
+    statusEGAISDocState(INTEGER row) <- NULL;
+    numberEGAISDocState(INTEGER row) <- NULL;
+    dateEGAISDocState(INTEGER row) <- NULL;
+    idEGAISDocState(INTEGER row) <- NULL;
+    regIdEGAISDocState(INTEGER row) <- NULL;
+    idShipperDocState(INTEGER row) <- NULL;
+    nameShipperDocState(INTEGER row) <- NULL;
+    idConsigneeDocState(INTEGER row) <- NULL;
+    nameConsigneeDocState(INTEGER row) <- NULL;
+    sioShipperDocState(INTEGER row) <- NULL;
+    sioConsigneeDocState(INTEGER row) <- NULL;
+    stockDocState(INTEGER row) <- NULL;
+    orgDocState(INTEGER row) <- NULL;
+    usedActDocState(ActWriteOff a) <- NULL;
+    usedActDocState(ActFixBarCode a) <- NULL;
+
+    FOR inDocState(Purchase.Invoice i) DO {
+        kindDocState(indexDSPurchase(i)) <- DocStateKind.purchaseInvoice;
+        stockDocState(indexDSPurchase(i)) <- customerStock(i);
+        postedDocState(indexDSPurchase(i)) <- (IF isPosted(i) THEN 'Проведен' ELSE 'Не проведен');
+        numberDocState(indexDSPurchase(i)) <- seriesNumber(i);
+        dateDocState(indexDSPurchase(i)) <- date(i);
+        idSystemDocState(indexDSPurchase(i)) <- id(i);
+        idOperationDocState(indexDSPurchase(i)) <- id(operation(i));
+        fillWayBillDocState(indexDSPurchase(i), EGAISPurchase.wayBill(i), supplierStock(i), customerStock(i));
+    }
+
+    FOR inDocState(Sale.Invoice i) DO {
+        kindDocState(indexDSSale(i)) <- DocStateKind.saleInvoice;
+        stockDocState(indexDSSale(i)) <- supplierStock(i);
+        postedDocState(indexDSSale(i)) <- (IF isPosted(i) THEN 'Проведен' ELSE 'Не проведен');
+        numberDocState(indexDSSale(i)) <- seriesNumber(i);
+        dateDocState(indexDSSale(i)) <- date(i);
+        idSystemDocState(indexDSSale(i)) <- id(i);
+        idOperationDocState(indexDSSale(i)) <- id(operation(i));
+        fillWayBillDocState(indexDSSale(i), EGAISSale.wayBill(i), supplierStock(i), customerStock(i));
+    }
+
+    FOR inDocState(PurchaseReturn.Invoice i) DO {
+        kindDocState(indexDSPurchaseReturn(i)) <- DocStateKind.purchaseReturnInvoice;
+        stockDocState(indexDSPurchaseReturn(i)) <- supplierStock(i);
+        postedDocState(indexDSPurchaseReturn(i)) <- (IF isPosted(i) THEN 'Проведен' ELSE 'Не проведен');
+        numberDocState(indexDSPurchaseReturn(i)) <- seriesNumber(i);
+        dateDocState(indexDSPurchaseReturn(i)) <- date(i);
+        idSystemDocState(indexDSPurchaseReturn(i)) <- id(i);
+        idOperationDocState(indexDSPurchaseReturn(i)) <- id(operation(i));
+        fillWayBillDocState(indexDSPurchaseReturn(i), EGAISPurchaseReturn.wayBill(i), supplierStock(i), customerStock(i));
+    }
+
+    FOR inDocState(SaleReturn.Invoice i) DO {
+        kindDocState(indexDSSaleReturn(i)) <- DocStateKind.saleReturnInvoice;
+        stockDocState(indexDSSaleReturn(i)) <- customerStock(i);
+        postedDocState(indexDSSaleReturn(i)) <- (IF isPosted(i) THEN 'Проведен' ELSE 'Не проведен');
+        numberDocState(indexDSSaleReturn(i)) <- seriesNumber(i);
+        dateDocState(indexDSSaleReturn(i)) <- date(i);
+        idSystemDocState(indexDSSaleReturn(i)) <- id(i);
+        idOperationDocState(indexDSSaleReturn(i)) <- id(operation(i));
+        fillWayBillDocState(indexDSSaleReturn(i), wayBill(i), supplierStock(i), customerStock(i));
+    }
+
+    FOR inDocState(WriteOff w) DO {
+        kindDocState(indexDSWriteOff(w)) <- DocStateKind.writeOff;
+        stockDocState(indexDSWriteOff(w)) <- stock(w);
+        postedDocState(indexDSWriteOff(w)) <- (IF isPosted(w) THEN 'Проведен' ELSE 'Не проведен');
+        numberDocState(indexDSWriteOff(w)) <- seriesNumber(w);
+        dateDocState(indexDSWriteOff(w)) <- date(w);
+        idSystemDocState(indexDSWriteOff(w)) <- id(w);
+        idOperationDocState(indexDSWriteOff(w)) <- id(operation(w));
+        fillActWriteOffDocState(indexDSWriteOff(w), actWriteOff(w), stock(w));
+        usedActDocState(actWriteOff(w)) <- TRUE;
+    }
+    
+    FOR inDocState(Lot.LotAdjustment a) AND actWriteOff(a) DO {
+        kindDocState(indexDSLotAdjWriteOff(a)) <- DocStateKind.lotAdjustment;
+        stockDocState(indexDSLotAdjWriteOff(a)) <- stock(a);
+        postedDocState(indexDSLotAdjWriteOff(a)) <- (IF isPosted(a) THEN 'Проведен' ELSE 'Не проведен');
+        numberDocState(indexDSLotAdjWriteOff(a)) <- seriesNumber(a);
+        dateDocState(indexDSLotAdjWriteOff(a)) <- date(a);
+        idSystemDocState(indexDSLotAdjWriteOff(a)) <- STRING[100](a);
+        fillActWriteOffDocState(indexDSLotAdjWriteOff(a), actWriteOff(a), stock(a));
+        usedActDocState(actWriteOff(a)) <- TRUE;
+    }
+
+    FOR inDocState(Lot.LotAdjustment a) AND actFixBarCode(a) DO {
+        kindDocState(indexDSLotAdjFix(a)) <- DocStateKind.lotAdjustment;
+        stockDocState(indexDSLotAdjFix(a)) <- stock(a);
+        postedDocState(indexDSLotAdjFix(a)) <- (IF isPosted(a) THEN 'Проведен' ELSE 'Не проведен');
+        numberDocState(indexDSLotAdjFix(a)) <- seriesNumber(a);
+        dateDocState(indexDSLotAdjFix(a)) <- date(a);
+        idSystemDocState(indexDSLotAdjFix(a)) <- STRING[100](a);
+        fillActFixBarCodeDocState(indexDSLotAdjFix(a), actFixBarCode(a), stock(a));
+        usedActDocState(actFixBarCode(a)) <- TRUE;
+    }
+
+    FOR inDocState(ActChargeOn a) DO {
+        kindDocState(indexDSChargeOn(a)) <- DocStateKind.actChargeOn;
+        stockDocState(indexDSChargeOn(a)) <- stockDocState(a);
+        docEGAISDocState(indexDSChargeOn(a)) <- 'Акт постановки на баланс';
+        typeEGAISDocState(indexDSChargeOn(a)) <- id(type(a));
+        statusEGAISDocState(indexDSChargeOn(a)) <- nameStatus(a);
+        numberEGAISDocState(indexDSChargeOn(a)) <- number(a);
+        dateEGAISDocState(indexDSChargeOn(a)) <- date(a);
+        regIdEGAISDocState(indexDSChargeOn(a)) <- regId(a);
+        idSystemDocState(indexDSChargeOn(a)) <- STRING[100](a);
+        idConsigneeDocState(indexDSChargeOn(a)) <- id(legalEntity(stockDocState(a)));
+        nameConsigneeDocState(indexDSChargeOn(a)) <- name(legalEntity(stockDocState(a)));
+        sioConsigneeDocState(indexDSChargeOn(a)) <- id(client(a));
+        orgDocState(indexDSChargeOn(a)) <- shortName(client(a));
+    }
+    
+    FOR inDocState(ActWriteOff a) DO {
+        kindDocState(indexDSActWriteOff(a)) <- DocStateKind.actWriteOff;
+        stockDocState(indexDSActWriteOff(a)) <- stockDocState(a);
+        fillActWriteOffDocState(indexDSActWriteOff(a), a, stockDocState(a));
+        idSystemDocState(indexDSActWriteOff(a)) <- STRING[100](a);
+    }
+
+    FOR inDocState(ActFixBarCode a) DO {
+        kindDocState(indexDSActFixBarCode(a)) <- DocStateKind.actFixBarCode;
+        stockDocState(indexDSActFixBarCode(a)) <- stockDocState(a);
+        postedDocState(indexDSActFixBarCode(a)) <- textPostedDocState(lotInitDocState(a));
+        numberDocState(indexDSActFixBarCode(a)) <- number(lotInitDocState(a));
+        dateDocState(indexDSActFixBarCode(a)) <- date(lotInitDocState(a));
+        idSystemDocState(indexDSActFixBarCode(a)) <- id(lotInitDocState(a));
+        fillActFixBarCodeDocState(indexDSActFixBarCode(a), a, stockDocState(a));
+    }
+
+    FOR inDocState(ActUnFixBarCode a) DO {
+        kindDocState(indexDSActUnFixBarCode(a)) <- DocStateKind.actUnFixBarCode;
+        stockDocState(indexDSActUnFixBarCode(a)) <- stockDocState(a);
+        postedDocState(indexDSActUnFixBarCode(a)) <- textPostedDocState(lotInitDocState(a));
+        numberDocState(indexDSActUnFixBarCode(a)) <- number(lotInitDocState(a));
+        dateDocState(indexDSActUnFixBarCode(a)) <- date(lotInitDocState(a));
+        idSystemDocState(indexDSActUnFixBarCode(a)) <- id(lotInitDocState(a));
+        docEGAISDocState(indexDSActUnFixBarCode(a)) <- 'Акт расфиксации штрихкодов';
+        statusEGAISDocState(indexDSActUnFixBarCode(a)) <- nameStatus(a);
+        numberEGAISDocState(indexDSActUnFixBarCode(a)) <- number(a);
+        dateEGAISDocState(indexDSActUnFixBarCode(a)) <- date(a);
+        regIdEGAISDocState(indexDSActUnFixBarCode(a)) <- regId(a);
+        idShipperDocState(indexDSActUnFixBarCode(a)) <- id(legalEntity(stockDocState(a)));
+        nameShipperDocState(indexDSActUnFixBarCode(a)) <- name(legalEntity(stockDocState(a)));
+        sioShipperDocState(indexDSActUnFixBarCode(a)) <- id(client(a));
+        orgDocState(indexDSActUnFixBarCode(a)) <- shortName(client(a));
+    }
+}
+
+inRowDocState (INTEGER row) = TRUE IF kindDocState(row);
+
+FORM printDocumentStates 'По состоянию документов ЕГАИС'
+    PROPERTIES() nameStocksReport, namesDocStateKinds, dateFromDocState, dateToDocState
+
+    OBJECTS row = INTEGER
+    PROPERTIES READONLY
+        'Объединение' = nameLegalEntityDocState(row),
+        'Код подразделения' = idStockDocState(row),
+        'Наименование подразделения' = nameStockDocState(row),
+        'Вид документа ЕГАИС' = nameKindDocState(row),
+        'Документ ЕГАИС' = docEGAISDocState(row),
+        'Тип документа ЕГАИС' = typeEGAISDocState(row),
+        'Статус документа системы' = postedDocState(row),
+        'Номер документа системы' = numberDocState(row),
+        'Дата документа системы' = dateDocState(row),
+        'Код операции' = idOperationDocState(row),
+        'Статус документа ЕГАИС' = statusEGAISDocState(row),
+        'Номер документа ЕГАИС' = numberEGAISDocState(row),
+        'Дата документа ЕГАИС' = dateEGAISDocState(row),
+        'Код грузоотправителя' = idShipperDocState(row),
+        'Наименование грузоотправителя' = nameShipperDocState(row),
+        'Код грузополучателя' = idConsigneeDocState(row),
+        'Наименование грузополучателя' = nameConsigneeDocState(row),
+        'СИО грузоотправителя (ЕГАИС)' = sioShipperDocState(row),
+        'СИО грузополучателя (ЕГАИС)' = sioConsigneeDocState(row),
+        'Идентификатор документа в ЕГАИС' = idEGAISDocState(row),
+        'Регистрационный номер документа ЕГАИС' = regIdEGAISDocState(row),
+        'Идентификатор документа в системе' = idSystemDocState(row)
+    FILTERS inRowDocState(row)
+    ORDERS nameLegalEntityDocState(row), idStockDocState(row)
+;
+
+printDocumentStates 'Печать' () {
+    fillDocStateReport();
+    PRINT printDocumentStates XLSX;
+} TOOLBAR;
+
+FORM documentStateReport 'По состоянию документов ЕГАИС'
+    PROPERTIES() dateFromDocState, dateToDocState,
+                 nameStocksReport ON CHANGE changeStocksReport(),
+                 namesDocStateKinds ON CHANGE changeDocStateKinds(),
+                 fillDocStateReport, printDocumentStates
+
+    OBJECTS row = INTEGER
+    PROPERTIES READONLY
+        'Объединение' = nameLegalEntityDocState(row),
+        'Код подразделения' = idStockDocState(row),
+        'Наименование подразделения' = nameStockDocState(row),
+        'Вид документа ЕГАИС' = nameKindDocState(row),
+        'Документ ЕГАИС' = docEGAISDocState(row),
+        'Тип документа ЕГАИС' = typeEGAISDocState(row),
+        'Статус документа системы' = postedDocState(row),
+        'Номер документа системы' = numberDocState(row),
+        'Дата документа системы' = dateDocState(row),
+        'Код операции' = idOperationDocState(row),
+        'Статус документа ЕГАИС' = statusEGAISDocState(row),
+        'Номер документа ЕГАИС' = numberEGAISDocState(row),
+        'Дата документа ЕГАИС' = dateEGAISDocState(row),
+        'Код грузоотправителя' = idShipperDocState(row),
+        'Наименование грузоотправителя' = nameShipperDocState(row),
+        'Код грузополучателя' = idConsigneeDocState(row),
+        'Наименование грузополучателя' = nameConsigneeDocState(row),
+        'СИО грузоотправителя (ЕГАИС)' = sioShipperDocState(row),
+        'СИО грузополучателя (ЕГАИС)' = sioConsigneeDocState(row),
+        'Идентификатор документа в ЕГАИС' = idEGAISDocState(row),
+        'Регистрационный номер документа ЕГАИС' = regIdEGAISDocState(row),
+        'Идентификатор документа в системе' = idSystemDocState(row)
+    FILTERS inRowDocState(row)
+    ORDERS nameLegalEntityDocState(row), idStockDocState(row)
+
+    EVENTS ON INIT {
+        dateToDocState() <- currentDate();
+        dateFromDocState() <- sum(currentDate(), -30);
+    }
+;
+
+DESIGN documentStateReport {
+    OBJECTS {
+        NEW parameters {
+            caption = 'Параметры';
+            alignment = STRETCH;
+            NEW dates {
+                MOVE PROPERTY(dateFromDocState());
+                MOVE PROPERTY(dateToDocState());
+            }
+            MOVE PROPERTY(nameStocksReport());
+            MOVE PROPERTY(namesDocStateKinds());
+
+            NEW actions {
+                alignment = STRETCH;
+                MOVE PROPERTY(fillDocStateReport());
+                MOVE PROPERTY(printDocumentStates());
+            }
+        }
+
+        MOVE BOX(row);
+    }
+}
+
+NAVIGATOR {
+    EGAISReports {
+        NEW documentStateReport;
+    }
+}
