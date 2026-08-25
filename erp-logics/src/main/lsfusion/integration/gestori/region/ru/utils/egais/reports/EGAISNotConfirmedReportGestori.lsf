@@ -1,0 +1,211 @@
+MODULE EGAISNotConfirmedReportGestori;
+
+REQUIRE EGAISStockReportGestori,
+        EGAISSaleShipmentGestori, EGAISPurchaseReturnShipmentGestori,
+        EGAISWriteOff, EGAISItem,
+        EGAISWayBillStatus, EGAISActWriteOffStatus;
+
+NAMESPACE EGAIS;
+
+dateFromNotConfirmed 'Дата с' = DATA LOCAL NESTED DATE ();
+dateToNotConfirmed 'Дата по' = DATA LOCAL NESTED DATE ();
+
+CLASS NotConfirmedKind 'Вид документа' {
+    writeOff 'Списания',
+    saleInvoice 'Накладные (продажа)',
+    purchaseReturnInvoice 'Накладные (закупка-возврат)'
+}
+
+nameNotConfirmedKind 'Вид документа' (NotConfirmedKind k) =
+    staticCaption(k) IF k IS NotConfirmedKind CHARWIDTH 30;
+
+inNotConfirmedKind 'Вкл.' = DATA LOCAL NESTED BOOLEAN (NotConfirmedKind);
+countNotConfirmedKinds () = GROUP SUM 1 IF inNotConfirmedKind(NotConfirmedKind k);
+namesNotConfirmedKinds 'Виды документов' () =
+    GROUP CONCAT nameNotConfirmedKind(NotConfirmedKind k) IF inNotConfirmedKind(k), ', ' ORDER k CHARWIDTH 30;
+
+selectedNotConfirmedKind (NotConfirmedKind k) =
+    TRUE IF inNotConfirmedKind(k) OR NOT countNotConfirmedKinds();
+
+FORM dialogNotConfirmedKinds 'Выбор видов документов'
+    OBJECTS k = NotConfirmedKind
+    PROPERTIES(k) READONLY nameNotConfirmedKind
+    PROPERTIES(k) inNotConfirmedKind
+;
+
+changeNotConfirmedKinds 'Виды документов' () {
+    DIALOG dialogNotConfirmedKinds;
+}
+
+alcoNotConfirmed (WriteOff w) =
+    GROUP SUM 1 IF minProduct(sku(WriteOffDetail d)) AND writeOff(d) = w;
+
+alcoNotConfirmed (Sale.Invoice i) =
+    GROUP SUM 1 IF minProduct(sku(Sale.InvoiceDetail d)) AND invoice(d) = i;
+
+alcoNotConfirmed (PurchaseReturn.Invoice i) =
+    GROUP SUM 1 IF minProduct(sku(PurchaseReturn.InvoiceDetail d)) AND invoice(d) = i;
+
+confirmedNotConfirmed (WriteOff w) = posted(actWriteOff(w));
+confirmedNotConfirmed (Sale.Invoice i) = accepted(EGAISSale.wayBill(i));
+confirmedNotConfirmed (PurchaseReturn.Invoice i) = accepted(EGAISPurchaseReturn.wayBill(i));
+
+nameStatusNotConfirmed (WriteOff w) =
+    OVERRIDE nameStatus(actWriteOff(w)), 'Не отправлен' IF w IS WriteOff;
+nameStatusNotConfirmed (Sale.Invoice i) =
+    OVERRIDE nameStatus(EGAISSale.wayBill(i)), 'Не отправлена' IF i IS Sale.Invoice;
+nameStatusNotConfirmed (PurchaseReturn.Invoice i) =
+    OVERRIDE nameStatus(EGAISPurchaseReturn.wayBill(i)), 'Не отправлена' IF i IS PurchaseReturn.Invoice;
+
+inNotConfirmed (WriteOff w) = TRUE IF selectedNotConfirmedKind(NotConfirmedKind.writeOff)
+    AND isPosted(w)
+    AND alcoNotConfirmed(w)
+    AND NOT confirmedNotConfirmed(w)
+    AND (inReport(stock(w)) OR NOT countInReport())
+    AND date(w) >= dateFromNotConfirmed() AND date(w) <= dateToNotConfirmed();
+
+inNotConfirmed (Sale.Invoice i) = TRUE IF selectedNotConfirmedKind(NotConfirmedKind.saleInvoice)
+    AND isPosted(i)
+    AND alcoNotConfirmed(i)
+    AND NOT confirmedNotConfirmed(i)
+    AND (inReport(supplierStock(i)) OR NOT countInReport())
+    AND date(i) >= dateFromNotConfirmed() AND date(i) <= dateToNotConfirmed();
+
+inNotConfirmed (PurchaseReturn.Invoice i) = TRUE IF selectedNotConfirmedKind(NotConfirmedKind.purchaseReturnInvoice)
+    AND isPosted(i)
+    AND alcoNotConfirmed(i)
+    AND NOT confirmedNotConfirmed(i)
+    AND (inReport(supplierStock(i)) OR NOT countInReport())
+    AND date(i) >= dateFromNotConfirmed() AND date(i) <= dateToNotConfirmed();
+
+kindNotConfirmed = DATA LOCAL NESTED NotConfirmedKind (INTEGER);
+
+operationNotConfirmed 'Операция' = DATA LOCAL NESTED STRING[100] (INTEGER);
+idStockNotConfirmed 'Код подразделения' = DATA LOCAL NESTED STRING[100] (INTEGER);
+numberNotConfirmed 'Номер документа' = DATA LOCAL NESTED STRING[100] (INTEGER);
+dateNotConfirmed 'Дата документа' = DATA LOCAL NESTED DATE (INTEGER);
+statusNotConfirmed 'Статус ЕГАИС' = DATA LOCAL NESTED STRING[50] (INTEGER);
+sumNotConfirmed 'Сумма' = DATA LOCAL NESTED NUMERIC[18,4] (INTEGER);
+
+inRowNotConfirmed (INTEGER row) = TRUE IF kindNotConfirmed(row);
+
+numberNCWriteOff (WriteOff w) = PARTITION SUM 1 IF inNotConfirmed(w) ORDER date(w), w;
+indexNCWriteOff (WriteOff w) = numberNCWriteOff(w) + 1000000;
+
+numberNCSale (Sale.Invoice i) = PARTITION SUM 1 IF inNotConfirmed(i) ORDER date(i), i;
+indexNCSale (Sale.Invoice i) = numberNCSale(i) + 2000000;
+
+numberNCPurchaseReturn (PurchaseReturn.Invoice i) = PARTITION SUM 1 IF inNotConfirmed(i) ORDER date(i), i;
+indexNCPurchaseReturn (PurchaseReturn.Invoice i) = numberNCPurchaseReturn(i) + 3000000;
+
+fillNotConfirmedReport 'Сформировать' () {
+    kindNotConfirmed(INTEGER row) <- NULL;
+    operationNotConfirmed(INTEGER row) <- NULL;
+    idStockNotConfirmed(INTEGER row) <- NULL;
+    numberNotConfirmed(INTEGER row) <- NULL;
+    dateNotConfirmed(INTEGER row) <- NULL;
+    statusNotConfirmed(INTEGER row) <- NULL;
+    sumNotConfirmed(INTEGER row) <- NULL;
+
+    FOR inNotConfirmed(WriteOff w) DO {
+        kindNotConfirmed(indexNCWriteOff(w)) <- NotConfirmedKind.writeOff;
+        operationNotConfirmed(indexNCWriteOff(w)) <- name(operation(w));
+        idStockNotConfirmed(indexNCWriteOff(w)) <- id(stock(w));
+        numberNotConfirmed(indexNCWriteOff(w)) <- seriesNumber(w);
+        dateNotConfirmed(indexNCWriteOff(w)) <- date(w);
+        statusNotConfirmed(indexNCWriteOff(w)) <- nameStatusNotConfirmed(w);
+        sumNotConfirmed(indexNCWriteOff(w)) <- sumWriteOffDetail(w);
+    }
+
+    FOR inNotConfirmed(Sale.Invoice i) DO {
+        kindNotConfirmed(indexNCSale(i)) <- NotConfirmedKind.saleInvoice;
+        operationNotConfirmed(indexNCSale(i)) <- name(operation(i));
+        idStockNotConfirmed(indexNCSale(i)) <- id(supplierStock(i));
+        numberNotConfirmed(indexNCSale(i)) <- seriesNumber(i);
+        dateNotConfirmed(indexNCSale(i)) <- date(i);
+        statusNotConfirmed(indexNCSale(i)) <- nameStatusNotConfirmed(i);
+        sumNotConfirmed(indexNCSale(i)) <- invoiceSumInvoiceDetail(i);
+    }
+
+    FOR inNotConfirmed(PurchaseReturn.Invoice i) DO {
+        kindNotConfirmed(indexNCPurchaseReturn(i)) <- NotConfirmedKind.purchaseReturnInvoice;
+        operationNotConfirmed(indexNCPurchaseReturn(i)) <- name(operation(i));
+        idStockNotConfirmed(indexNCPurchaseReturn(i)) <- id(supplierStock(i));
+        numberNotConfirmed(indexNCPurchaseReturn(i)) <- seriesNumber(i);
+        dateNotConfirmed(indexNCPurchaseReturn(i)) <- date(i);
+        statusNotConfirmed(indexNCPurchaseReturn(i)) <- nameStatusNotConfirmed(i);
+        sumNotConfirmed(indexNCPurchaseReturn(i)) <- invoiceSumInvoiceDetail(i);
+    }
+}
+
+FORM printNotConfirmed 'Не подтвержденные в ЕГАИС документы'
+    PROPERTIES() nameStocksReport, namesNotConfirmedKinds, dateFromNotConfirmed, dateToNotConfirmed
+
+    OBJECTS row = INTEGER
+    PROPERTIES READONLY
+        'Операция' = operationNotConfirmed(row),
+        'Код подразделения' = idStockNotConfirmed(row),
+        'Номер документа' = numberNotConfirmed(row),
+        'Дата документа' = dateNotConfirmed(row),
+        'Статус ЕГАИС' = statusNotConfirmed(row),
+        'Сумма' = sumNotConfirmed(row)
+    FILTERS inRowNotConfirmed(row)
+    ORDERS operationNotConfirmed(row), idStockNotConfirmed(row), dateNotConfirmed(row)
+;
+
+printNotConfirmed 'Печать' () {
+    fillNotConfirmedReport();
+    PRINT printNotConfirmed XLSX;
+} TOOLBAR;
+
+FORM notConfirmedReport 'Не подтвержденные в ЕГАИС документы'
+    PROPERTIES() dateFromNotConfirmed, dateToNotConfirmed,
+                 nameStocksReport ON CHANGE changeStocksReport(),
+                 namesNotConfirmedKinds ON CHANGE changeNotConfirmedKinds(),
+                 fillNotConfirmedReport, printNotConfirmed
+
+    OBJECTS row = INTEGER
+    PROPERTIES READONLY
+        'Операция' = operationNotConfirmed(row),
+        'Код подразделения' = idStockNotConfirmed(row),
+        'Номер документа' = numberNotConfirmed(row),
+        'Дата документа' = dateNotConfirmed(row),
+        'Статус ЕГАИС' = statusNotConfirmed(row),
+        'Сумма' = sumNotConfirmed(row)
+    FILTERS inRowNotConfirmed(row)
+    ORDERS operationNotConfirmed(row), idStockNotConfirmed(row), dateNotConfirmed(row)
+
+    EVENTS ON INIT {
+        dateToNotConfirmed() <- currentDate();
+        dateFromNotConfirmed() <- sum(currentDate(), -30);
+    }
+;
+
+DESIGN notConfirmedReport {
+    OBJECTS {
+        NEW parameters {
+            caption = 'Параметры';
+            alignment = STRETCH;
+            NEW dates {
+                MOVE PROPERTY(dateFromNotConfirmed());
+                MOVE PROPERTY(dateToNotConfirmed());
+            }
+            MOVE PROPERTY(nameStocksReport());
+            MOVE PROPERTY(namesNotConfirmedKinds());
+
+            NEW actions {
+                alignment = STRETCH;
+                MOVE PROPERTY(fillNotConfirmedReport());
+                MOVE PROPERTY(printNotConfirmed());
+            }
+        }
+
+        MOVE BOX(row);
+    }
+}
+
+NAVIGATOR {
+    EGAISReports {
+        NEW notConfirmedReport;
+    }
+}
