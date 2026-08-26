@@ -9,6 +9,10 @@ NAMESPACE Diadoc;
 // Здесь: GenerateTitleXml (Диадок строит полный XML по приказу), подпись КЭП, PostMessage.
 
 diadocSendT1 (ETRN.OutgoingETRN e) {
+    // защита от дублей: каждый PostMessage создаёт в Диадоке новый документ, даже если
+    // предыдущая отправка не зафиксировалась у нас (обрыв на ответе, ошибка APPLY)
+    IF diadocReceptionDocument(e) THEN
+        ASK 'Т1 уже отправлен в Диадок (есть связанный документ перевозки). Отправить повторно (в Диадоке создастся ещё один документ)?' DO { } ELSE RETURN;
     IF NOT diadocBox(ETRN.shipper(e)) THEN {
         MESSAGE 'Не найден ящик Диадока грузоотправителя' NOWAIT;
         RETURN;

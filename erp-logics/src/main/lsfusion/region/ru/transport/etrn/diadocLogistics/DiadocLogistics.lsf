@@ -104,12 +104,49 @@ deliveryMessageId (ETRN.ETRN e) = messageId(diadocDeliveryDocument(e));
 deliveryEntityId (ETRN.ETRN e) = entityId(diadocDeliveryDocument(e));
 
 // ящик Диадока нашей организации-участника
-// ящик юрлица: приоритет у основной (не-роуминговой) организации - роуминговое
-// представительство не может быть ящиком отправителя; для контрагентов, работающих
-// только через роуминг, роуминговый ящик остаётся единственным и используется
+// организация Диадока для обмена с юрлицом - выбирается вручную на карточке организации
+// и перебивает автоматический выбор (для контрагентов с несколькими записями в Диадоке)
+transportOrganization 'Организация Диадока (транспорт)' = DATA Organization (LegalEntity);
+nameTransportOrganization 'Организация Диадока (транспорт)' (LegalEntity l) = shortName(transportOrganization(l));
+
+CONSTRAINT SETCHANGED(transportOrganization(LegalEntity l)) AND NOT legalEntity(transportOrganization(l)) == l
+    CHECKED BY transportOrganization[LegalEntity]
+    MESSAGE 'Организация Диадока (транспорт) должна быть из организаций Диадока этого контрагента';
+
+// ящик юрлица - приоритет выбора организации:
+// 1) выбранная вручную; 2) абонент Диадока (идентификатор участника СФ начинается
+// на 2BM - код оператора Диадок; записи из роуминга несут код другого оператора);
+// 3) не-роуминговая; 4) любая (контрагенты, работающие только через роуминг)
 diadocBox (LegalEntity l) = OVERRIDE
+    [GROUP LAST Box b ORDER b BY organization(b)](transportOrganization(l)),
+    [GROUP LAST Box b IF fnsParticipantId(organization(b)) LIKE '2BM%' ORDER b BY legalEntity(organization(b))](l),
     [GROUP LAST Box b IF NOT isRoaming(organization(b)) ORDER b BY legalEntity(organization(b))](l),
     [GROUP LAST Box b ORDER b BY legalEntity(organization(b))](l);
+
+// своя форма выбора: LIST-форма организаций Диадока (dialogOrganizations) фильтрует
+// по своим организациям (isEmployee) и для контрагента всегда пуста
+FORM dialogTransportOrganizations 'Организации Диадока контрагента'
+    OBJECTS le = LegalEntity PANEL
+    OBJECTS o = Organization
+    PROPERTIES(o) READONLY shortName, fullName, inn, kpp, fnsParticipantId, isRoaming
+    FILTERS legalEntity(o) == le
+;
+
+changeTransportOrganization (LegalEntity l) {
+    DIALOG dialogTransportOrganizations OBJECTS le = l, o = transportOrganization(l) INPUT NULL DO {
+        transportOrganization(l) <- o;
+    }
+}
+
+EXTEND FORM legalEntity
+    PROPERTIES nameTransportOrganization(l) ON CHANGE changeTransportOrganization(l)
+;
+
+DESIGN legalEntity {
+    signerETRN {
+        MOVE PROPERTY(nameTransportOrganization(l));
+    }
+}
 diadocBoxId (LegalEntity l) = boxId(diadocBox(l));
 // BoxId в Signers ожидается чистым GUID с дефисами (8-4-4-4-12): убираем суффикс адреса
 // ящика и форматируем 32-символьный идентификатор

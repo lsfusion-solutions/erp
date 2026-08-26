@@ -34,7 +34,13 @@ GROUP t1ItemCost EXTID 'Cost';
 GROUP t1Directives EXTID 'ConsignorDirectives' : t1WaybillInfo;
 
 GROUP t1Carrier EXTID 'Carrier' : t1WaybillInfo;
-GROUP t1CarrierRef EXTID 'OrganizationReference' : t1Carrier;
+// перевозчик - через OrganizationDetails (ручное заполнение), а не OrganizationReference:
+// при ссылке на ящик Диадок сам подставляет в титул адрес из своего справочника организаций,
+// и при неполном там адресе (без индекса) титул не проходит валидацию (Индекс - ровно 6 цифр);
+// Адрес у участника по приказу необязателен - выгружаем его только при полном (Region+ZipCode)
+GROUP t1CarrierOrg EXTID 'OrganizationDetails' : t1Carrier;
+GROUP t1CarrierAddr EXTID 'Address' : t1CarrierOrg;
+GROUP t1CarrierAddrRF EXTID 'RussianAddress' : t1CarrierAddr;
 
 GROUP t1Drivers EXTID 'Drivers' : t1WaybillInfo;
 GROUP t1DriverInfo EXTID 'DriverInfo' : t1Drivers;
@@ -75,7 +81,7 @@ GROUP t1SignerDetails EXTID 'SignerDetails' : t1Signer;
 // обязательные Phones у организаций-участников (база организации требует Phones)
 GROUP t1ShipperPhones EXTID 'Phones' : t1ShipperRef;
 GROUP t1ConsigneePhones EXTID 'Phones' : t1ConsigneeRef;
-GROUP t1CarrierPhones EXTID 'Phones' : t1CarrierRef;
+GROUP t1CarrierPhones EXTID 'Phones' : t1CarrierOrg;
 // обязательные сведения о переадресовке (ReaddressDetails: Phones + AccountableSide)
 GROUP t1ReaddressDetails EXTID 'ReaddressDetails' : t1Directives;
 GROUP t1ReaddressPhones EXTID 'Phones' : t1ReaddressDetails;
@@ -114,8 +120,26 @@ FORM diadocT1UserData FORMEXTID 'LogisticsWaybillConsignorTitle'
     PROPERTIES ATTR IN t1ReaddressDetails t1AccountableSide = (IF redirectPerson(e) == ETRNRedirectPerson.consignee THEN 'Consignee' ELSE 'Consignor') EXTID 'AccountableSide'
     PROPERTIES IN t1ReaddressPhones t1ReaddressPhone = redirectPhone(e) EXTID 'Phone'
 
-    PROPERTIES ATTR IN t1CarrierRef t1CarrierBoxId = diadocBoxIdGuid(carrier(e)) EXTID 'BoxId'
+    PROPERTIES ATTR IN t1CarrierOrg
+        t1CarrierOgrn = ogrn(carrier(e)) EXTID 'Ogrn',
+        t1CarrierName = name(carrier(e)) EXTID 'OrgName',
+        t1CarrierInn = inn(carrier(e)) EXTID 'Inn',
+        t1CarrierKpp = kpp(carrier(e)) EXTID 'Kpp',
+        t1CarrierFns = diadocFnsParticipantId(carrier(e)) EXTID 'FnsParticipantId',
+        t1CarrierType = diadocOrgType(carrier(e)) EXTID 'OrgType'   // 1 - ИП, 2 - ЮЛ (по длине ИНН)
     PROPERTIES IN t1CarrierPhones t1CarrierPhone = phone(carrier(e)) EXTID 'Phone'
+    // структурный адрес перевозчика (из справочника Диадока); только при полном (Region+ZipCode),
+    // иначе Адрес не выгружается вовсе (по приказу он у участника необязателен)
+    PROPERTIES ATTR IN t1CarrierAddrRF
+        t1CarrierZip = (diadocOrgZipCode(carrier(e)) IF hasDiadocOrgAddress(carrier(e))) EXTID 'ZipCode',
+        t1CarrierRegion = (diadocOrgRegion(carrier(e)) IF hasDiadocOrgAddress(carrier(e))) EXTID 'Region',
+        t1CarrierTerritory = (diadocOrgTerritory(carrier(e)) IF hasDiadocOrgAddress(carrier(e))) EXTID 'Territory',
+        t1CarrierCity = (diadocOrgCity(carrier(e)) IF hasDiadocOrgAddress(carrier(e))) EXTID 'City',
+        t1CarrierLocality = (diadocOrgLocality(carrier(e)) IF hasDiadocOrgAddress(carrier(e))) EXTID 'Locality',
+        t1CarrierStreet = (diadocOrgStreet(carrier(e)) IF hasDiadocOrgAddress(carrier(e))) EXTID 'Street',
+        t1CarrierBuilding = (diadocOrgBuilding(carrier(e)) IF hasDiadocOrgAddress(carrier(e))) EXTID 'Building',
+        t1CarrierBlock = (diadocOrgBlock(carrier(e)) IF hasDiadocOrgAddress(carrier(e))) EXTID 'Block',
+        t1CarrierApartment = (diadocOrgApartment(carrier(e)) IF hasDiadocOrgAddress(carrier(e))) EXTID 'Apartment'
 
     // водитель (в первой версии один)
     // TODO: отчество (MiddleName) - источник отчества водителя уточнить

@@ -19,6 +19,11 @@ carrierT3Box (ETRN.ETRN e) = OVERRIDE diadocBox(ETRN.carrier(e)),
     [GROUP LAST Box b IF organization(b) == organizationInn(ETRN.incomingCarrierInn(e)) ORDER b]();
 
 diadocSendT3 (ETRN.ETRN e) {
+    // защита от дублей: Т3 создаёт delivery-документ через PostMessage - повтор при уже
+    // созданном документе создаст в Диадоке ещё один; штатному повтору после отказа
+    // по партнёрству не мешает (при отказе документ не создан и поле пусто)
+    IF diadocDeliveryDocument(e) THEN
+        ASK 'Т3 уже отправлен в Диадок (есть связанный delivery-документ). Отправить повторно (в Диадоке создастся ещё один документ)?' DO { } ELSE RETURN;
     IF NOT (receptionDocMessageId(e) AND receptionDocEntityId(e)) THEN {
         MESSAGE 'Нет reception-документа перевозки (Т1) в Диадоке (события не получены)' NOWAIT;
         RETURN;

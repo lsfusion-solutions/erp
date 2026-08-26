@@ -15,6 +15,10 @@ diadocDocument = DATA Document (ETRN.OrderRequest);
 // ------------------------- Т1: заявка грузоотправителя ------------------------- //
 
 diadocSendOrderRequest (ETRN.OrderRequest o) {
+    // защита от дублей: каждый PostMessage создаёт в Диадоке новый документ, даже если
+    // предыдущая отправка не зафиксировалась у нас (обрыв на ответе, ошибка APPLY)
+    IF diadocDocument(o) THEN
+        ASK 'Заявка уже отправлена в Диадок (есть связанный документ). Отправить повторно (в Диадоке создастся ещё один документ)?' DO { } ELSE RETURN;
     IF NOT diadocBox(ETRN.shipper(o)) THEN {
         MESSAGE 'Не найден ящик Диадока грузоотправителя' NOWAIT;
         RETURN;
@@ -27,6 +31,30 @@ diadocSendOrderRequest (ETRN.OrderRequest o) {
     // догрузить структурные реквизиты организаций-участников, если их нет
     //ensureDiadocOrgData(ETRN.shipper(o));
     //ensureDiadocOrgData(ETRN.carrier(o));
+
+    // партнёрство ящиков с перевозчиком: совсем без него Диадок не примет заявку (как в Т3).
+    // InvitesMe (перевозчик пригласил нас первым) - встречное приглашение подтверждает связь
+    // сразу; IsInvitedByMe (наше приглашение ещё не принято) отправке не мешает - Диадок
+    // доставляет документ вместе с приглашением; не контрагент - приглашение отправляется
+    // здесь же (с подтверждением), заявка повторяется после; сбой самой проверки отправку не блокирует
+    diadocGetCounteragentStatus(guidBoxId(diadocBoxId(ETRN.shipper(o))), guidBoxId(diadocBoxId(ETRN.carrier(o))));
+    // проверка завершилась HTTP-ошибкой (сообщение уже показано) - отправка обречена, выходим
+    IF counteragentCurrentStatus() == 'CheckFailed' THEN RETURN;
+    IF counteragentCurrentStatus() == 'InvitesMe' THEN
+        FOR Organization org == organization(diadocBox(ETRN.carrier(o))) DO
+            diadocAcquireOrganization(org, guidBoxId(diadocBoxId(ETRN.shipper(o))));
+    IF counteragentCurrentStatus() == 'IsInvitedByMe' THEN
+        MESSAGE 'Приглашение в контрагенты у перевозчика и еще не принято: заявка Т1 будет доставлена и будет ожидать подтверждения партнёрства' NOWAIT;
+    IF counteragentCurrentStatus() AND NOT (counteragentCurrentStatus() == 'IsMyCounteragent' OR
+        counteragentCurrentStatus() == 'InvitesMe' OR counteragentCurrentStatus() == 'IsInvitedByMe') THEN {
+        ASK 'Партнёрство с перевозчиком в Диадоке не установлено - без него заявка Т1 не будет принята.
+Отправить перевозчику приглашение в контрагенты?' DO {
+            FOR Organization org == organization(diadocBox(ETRN.carrier(o))) DO
+                diadocAcquireOrganization(org, guidBoxId(diadocBoxId(ETRN.shipper(o))));
+            MESSAGE 'Приглашение перевозчику отправлено. Повторите отправку заявки после подтверждения партнёрства перевозчиком' NOWAIT;
+        }
+        RETURN;
+    }
 
     FOR User u == userDiadocETRN() DO NEWSESSION {
         fromBox() <- diadocBox(ETRN.shipper(o));
