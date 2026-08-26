@@ -53,6 +53,7 @@ status = DATA ReceivingStatus (Receiving);
 nameStatus 'Статус' (Receiving r) = staticCaption(status(r)) IN documentPrm CHARWIDTH 8;
 
 completeStatus (Receiving r) = status(r) == ReceivingStatus.partiallyReceived OR status(r) == ReceivingStatus.fullyReceived MATERIALIZED;
+open(Receiving r) = status(r) == ReceivingStatus.pending OR status(r) == ReceivingStatus.inProgress MATERIALIZED;
 
 status (Receiving receiving) <- ReceivingStatus.pending WHEN SET(receiving IS Receiving);
 
@@ -851,6 +852,12 @@ META defineUserReceiving (primObject, captionObjects)
     filterReceiving = ABSTRACT BOOLEAN (###primObject);
     filterReceiving = ABSTRACT BOOLEAN (###primObject, CustomUser);
     use###primObject##Receiving = ABSTRACT BOOLEAN (Operation.Operation);
+
+    completeStatusReceiving (Invoice invoice) = completeStatus(receiving(invoice));
+    nameStatusReceiving 'Статус приёмки' (Invoice invoice) = nameStatus(receiving(invoice)) CHARWIDTH 15;
+    GRDate 'Дата завершения приёмки' (Invoice invoice) = GRDate(receiving(invoice));
+    GRTime 'Время завершения приёмки' (Invoice invoice) = GRTime(receiving(invoice));
+    GRDateTime 'Дата/время завершения приёмки' (Invoice invoice) = GRDateTime(receiving(invoice));    
 
     expectedQuantity 'Кол-во в документе прихода' =
         GROUP SUM quantity(###primObject##Detail detail) BY sku(detail), userReceiving(primObject(detail));
