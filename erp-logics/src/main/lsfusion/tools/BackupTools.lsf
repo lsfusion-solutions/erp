@@ -1,0 +1,166 @@
+MODULE BackupTools;
+
+REQUIRE Tools, Backup, Time;
+
+// Регистрация бэкапов, снятых вне платформы (cron на сервере БД, сторонний скрипт), как объектов
+// Backup — они видны в привычном списке формы «Резервная копия». Поддерживаются:
+//   1) дампы по соглашению со скриптом tools/backup/pg_dump_backup.sh (ресурс рядом с модулем):
+//      каталог <имя> + лог <имя>.log; незавершённый — <имя>.part (пропускается);
+//      упавший — <имя>.failed (регистрируется без log, текст лога — в error);
+//      при дампе с исключением данных таблиц первая строка лога '# partial ...' — ставится partial;
+//   2) внешние дампы, снятые без этого соглашения: файл с любым расширением или каталог без лога рядом;
+//      завершённость определяется затишьем изменений (stableMinutes, по умолчанию 10 минут),
+//      для каталога — по максимальному mtime рекурсивного обхода.
+// Ротацию выполняет внешняя сторона; снятые с шары бэкапы здесь только помечаются fileDeleted.
+// Признак успеха в системном модуле — непустой log (notSucceeded(b) = NOT log(b)).
+
+scanDir 'Каталог бэкапов (без / в конце)' = DATA STRING ();
+scanPrefix 'Префикс имён бэкапов' = DATA STRING ();
+stableMinutes 'Считать внешний дамп завершённым после стольких минут без изменений' = DATA INTEGER ();
+stableMin = OVERRIDE stableMinutes(), 10;
+
+error 'Ошибка' = DATA TEXT (Backup);
+
+scanPath (INTEGER r) = scanDir() + '/' + fileName(r);
+scanLogPath (INTEGER r) = replace(scanPath(r), '.failed', '') + '.log';
+matchesPrefix (INTEGER r) = startsWith(fileName(r), scanPrefix()) OR NOT scanPrefix();
+registered (INTEGER r) = GROUP SUM 1 IF file(Backup b) = scanPath(r);
+stable (DATETIME dt) = sumSeconds(dt, 60 * stableMin()) <= currentDateTime();
+
+dumpLog = DATA LOCAL TEXT ();
+readDumpLog (STRING path) {
+    dumpLog() <- NULL;
+    LOCAL f = FILE ();
+    fileExists(path);
+    IF fileExists() THEN {
+        READ 'file://' + path TO f;
+        fileToString(f());
+        dumpLog() <- resultString();
+    }
+}
+
+scanBackups 'Зарегистрировать бэкапы с шары' () {
+    IF NOT scanDir() THEN RETURN;
+    NEWSESSION {
+        LOCAL NESTED addedOk, addedFail, markedDeleted = INTEGER ();
+        LOCAL pendingDir = BOOLEAN (ISTRING[500]);
+        listFiles('file://' + scanDir());
+
+        // упавшие дампы нашего скрипта (*.failed): log сознательно не заполняется — пустой log и есть признак неуспеха
+        FOR fileIsDirectory(INTEGER r) AND endsWith(fileName(r), '.failed') AND matchesPrefix(r) AND NOT registered(r)
+            ORDER fileModifiedDateTime(r)
+            NEW b = Backup DO {
+            file(b) <- STRING[200](scanPath(r));
+            name(b) <- STRING[100](fileName(r));
+            date(b) <- DATE(fileModifiedDateTime(r));
+            time(b) <- TIME(fileModifiedDateTime(r));
+            fileLog(b) <- STRING[200](scanLogPath(r));
+            readDumpLog(scanLogPath(r));
+            error(b) <- dumpLog();
+        }
+
+        // каталоги: с логом рядом — дамп нашего скрипта, без лога — внешний (проверка затишьем ниже)
+        FOR fileIsDirectory(INTEGER r) AND NOT endsWith(fileName(r), '.part') AND NOT endsWith(fileName(r), '.failed')
+            AND NOT startsWith(fileName(r), '.') AND matchesPrefix(r) AND NOT registered(r)
+            ORDER fileModifiedDateTime(r) DO {
+            readDumpLog(scanLogPath(r));
+            IF dumpLog() THEN {
+                NEW b = Backup {
+                    file(b) <- STRING[200](scanPath(r));
+                    name(b) <- STRING[100](fileName(r));
+                    date(b) <- DATE(fileModifiedDateTime(r));
+                    time(b) <- TIME(fileModifiedDateTime(r));
+                    isMultithread(b) <- TRUE;
+                    fileLog(b) <- STRING[200](scanLogPath(r));
+                    log(b) <- dumpLog();
+                    partial(b) <- TRUE IF startsWith(dumpLog(), '# partial');
+                }
+            } ELSE
+                pendingDir(fileName(r)) <- TRUE;
+        }
+
+        // внешние дампы-файлы (любое расширение): регистрируем после затишья
+        FOR fileName(INTEGER r) AND NOT fileIsDirectory(r) AND NOT endsWith(fileName(r), '.log') AND NOT startsWith(fileName(r), '.')
+            AND matchesPrefix(r) AND NOT registered(r) AND stable(fileModifiedDateTime(r))
+            ORDER fileModifiedDateTime(r)
+            NEW b = Backup DO {
+            file(b) <- STRING[200](scanPath(r));
+            name(b) <- STRING[100](fileName(r));
+            date(b) <- DATE(fileModifiedDateTime(r));
+            time(b) <- TIME(fileModifiedDateTime(r));
+            log(b) <- 'Зарегистрирован сканом каталога бэкапов ' + currentDateTime();
+        }
+
+        // снятые ротацией внешней стороны
+        fileDeleted(Backup b) <- TRUE WHERE file(b) AND NOT fileDeleted(b)
+            AND startsWith(file(b), scanDir() + '/')
+            AND NOT (GROUP SUM 1 IF scanPath(INTEGER r) = file(b));
+
+        // внешние дампы-каталоги: рекурсивный листинг перезаписывает результаты верхнего, поэтому в самом конце
+        FOR pendingDir(ISTRING[500] n) DO {
+            listFiles('file://' + scanDir() + '/' + n, TRUE);
+            LOCAL lastModified = DATETIME ();
+            lastModified() <- GROUP MAX fileModifiedDateTime(INTEGER i);
+            IF lastModified() AND stable(lastModified()) THEN {
+                NEW b = Backup {
+                    file(b) <- STRING[200](scanDir() + '/' + n);
+                    name(b) <- STRING[100](n);
+                    date(b) <- DATE(lastModified());
+                    time(b) <- TIME(lastModified());
+                    log(b) <- 'Зарегистрирован сканом каталога бэкапов ' + currentDateTime();
+                }
+            }
+        }
+
+        addedOk() <- GROUP SUM 1 IF SET(file(Backup b)) AND log(b);
+        addedFail() <- GROUP SUM 1 IF SET(file(Backup b)) AND NOT log(b);
+        markedDeleted() <- GROUP SUM 1 IF SET(fileDeleted(Backup b));
+
+        APPLY;
+        IF canceled() THEN throwException('BackupTools.scanBackups: ' + applyMessage());
+
+        // MESSAGE из задачи планировщика попадает в её журнал сообщений
+        IF addedOk() OR addedFail() OR markedDeleted() THEN
+            MESSAGE 'Бэкапы с шары: ' + (CONCAT ', ', 'новых успешных ' + addedOk(), 'новых упавших ' + addedFail(), 'помечено удалёнными ' + markedDeleted()) NOWAIT;
+    }
+}
+
+scanBackupsAction 'Найти бэкапы на шаре' () {
+    scanBackups();
+    formRefresh();
+}
+
+// скрипт дампа для cron на сервере БД
+dumpScriptText 'Скрипт дампа (tools/backup/pg_dump_backup.sh)' = DATA LOCAL TEXT ();
+showDumpScript 'Показать скрипт дампа' () {
+    readResource('tools/backup/pg_dump_backup.sh');
+    fileToString(resource());
+    dumpScriptText() <- resultString();
+}
+
+EXTEND FORM backup
+    PROPERTIES() scanDir, scanPrefix, stableMinutes
+    PROPERTIES(b) READONLY error PANEL
+    PROPERTIES() DRAW b scanBackupsAction TOOLBAR
+    PROPERTIES() showDumpScript
+    PROPERTIES() READONLY dumpScriptText PANEL
+;
+
+DESIGN backup {
+    rightPane {
+        MOVE PROPERTY(error(b)) {
+            fill = 0.5;
+            captionVertical = TRUE;
+        }
+    }
+    pane2 {
+        MOVE PROPERTY(scanDir());
+        MOVE PROPERTY(scanPrefix());
+        MOVE PROPERTY(stableMinutes());
+        MOVE PROPERTY(showDumpScript());
+        MOVE PROPERTY(dumpScriptText()) {
+            fill = 1;
+            captionVertical = TRUE;
+        }
+    }
+}
