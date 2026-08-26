@@ -260,6 +260,8 @@ listCashTemplates(STRING templateGuid) = OVERRIDE overListCashTemplates(template
 overExportCSIAPI ABSTRACT(STRING);
 overExportCSIAPI ABSTRACT();
 
+skipExportCSIAPIMessage = ABSTRACT BOOLEAN ();
+
 exportCSIAPI 'Экспорт пиклиста CSI' (STRING templateGuid) {
     overExportCSIAPI(templateGuid);
 
@@ -296,7 +298,9 @@ exportCSIAPI 'Экспорт пиклиста CSI' (STRING templateGuid) {
                 MESSAGE 'Пиклист успешно выгружен' NOWAIT ;
             }
             ELSE {
-                MESSAGE CONCAT '\n', 'Ошибка при выполнении запроса API CSI-K (' + errorCode() + ')', description() NOWAIT;
+                IF NOT skipExportCSIAPIMessage() THEN {
+                    MESSAGE CONCAT '\n', 'Ошибка при выполнении запроса API CSI-K (' + errorCode() + ')', description() NOWAIT;
+                }
             }
         }
         ELSE {
