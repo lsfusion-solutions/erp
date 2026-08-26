@@ -282,7 +282,8 @@ exportCSIAPI 'Экспорт пиклиста CSI' (STRING templateGuid) {
         mContentGroup(CustomGroup g, DepartmentStore ds) <- contentPage2(g, ds) WHERE in(g, ds) AND level(g) == 2;
         mContentGroup(CustomGroup g, DepartmentStore ds) <- contentPage1(g, ds) WHERE in(g, ds) AND level(g) == 1;
 
-        IF GROUP SUM 1 IF isSet10(GroupMachinery g) AND customGroupPicListLocal() AND NOT overSkipExport(templateGuid, g) THEN {
+        //та же проверка, что FILTERS в exportCSIformAPI — иначе POST уходит с пустым menuTemplates и Set10 отвечает 400
+        IF GROUP SUM 1 IF isSet10(GroupCashRegister g) AND idStoreSet(g) AND active(g) AND customGroupPicListLocal() AND NOT overSkipExport(templateGuid, g) THEN {
             EXPORT exportCSIformAPI OBJECTS templateGuid = templateGuid, cashTemplates = '[' + listCashTemplates(templateGuid) + ']' JSON;
             fileToString(exportFile());
             timeoutHttp() <- 60000;
