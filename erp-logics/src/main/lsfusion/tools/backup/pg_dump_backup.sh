@@ -3,6 +3,7 @@
 # Ставится на сервер БД в /usr/local/sbin/, запускается из cron под postgres:
 #   /etc/cron.d/pg-dump-backup:
 #     MAILTO=<адрес админов>
+#     PGBIN=/usr/lib/postgresql/<версия>/bin
 #     5 16 * * * postgres /usr/local/sbin/pg_dump_backup.sh <база> <каталог бэкапов>
 # Требует локального доступа psql к базе (peer) и стандартной политики именования БД lsFusion
 # (FullDBNamingPolicy — колонки вида backup_threadcount в _auto).
@@ -35,7 +36,8 @@ export PGOPTIONS='-c idle_in_transaction_session_timeout=0 -c statement_timeout=
 
 DB=${1:-${PGDATABASE:-}}
 BACKUP_DIR=${2:-/mnt/backup}
-PGBIN=${PGBIN:-/usr/bin}   # /usr/bin/pg_dump на Debian — обёртка, берёт старший установленный PG
+PGBIN=${PGBIN:-/usr/bin}   # /usr/bin/pg_dump на Debian — pg_wrapper: берёт версию КЛАСТЕРА по умолчанию,
+                           # а не старшую установленную; если нужна версия отличная от той что по умолчанию задавать PGBIN в cron явно
 USE_EXCLUDES=${USE_EXCLUDES:-1}          # 0 = полный дамп, игнорировать исключения из lsFusion
 FAILED_KEEP_DAYS=${FAILED_KEEP_DAYS:-30} # упавшие дампы и их логи старше — удаляются
 
