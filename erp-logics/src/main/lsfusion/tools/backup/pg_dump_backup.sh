@@ -19,6 +19,8 @@
 # lsFusion; выключается USE_EXCLUDES=0. Ротация повторяет DecimateBackupsAction платформы:
 # новые-к-старым, лимит по количеству; старше 30 дней остаются только 1-е числа (если флаг);
 # 7..30 дней — 1-е числа и понедельники (если флаги); если ни лимита, ни флагов — лимит 30.
+# Сжатие: COMPRESS=auto|<аргумент --compress>; auto — по версии pg_dump: 16+ — zstd:3,
+# старее — gzip уровня 1 (метод zstd в pg_dump появился в 16-й версии).
 #
 # Соглашение с lsFusion-модулем BackupTools (регистрация бэкапов в интерфейсе Backup):
 #   во время дампа: каталог <NAME>.part, лог <NAME>.log (пишется по ходу);
@@ -29,7 +31,7 @@
 #   ротация — здесь; lsFusion по ней только помечает fileDeleted.
 
 set -u
-SCRIPT_VERSION=1.0         # печатается в лог дампа: в интерфейсе видно, какой версией скрипта снят бэкап
+SCRIPT_VERSION=1.1         # печатается в лог дампа: в интерфейсе видно, какой версией скрипта снят бэкап
 export LANG=C LC_ALL=C     # сообщения pg_dump в ASCII: лог читается в lsFusion как UTF-8
 # управляющая сессия pg_dump -j висит в idle in transaction весь дамп — таймауты недопустимы
 export PGOPTIONS='-c idle_in_transaction_session_timeout=0 -c statement_timeout=0'
@@ -38,10 +40,16 @@ DB=${1:-${PGDATABASE:-}}
 BACKUP_DIR=${2:-/mnt/backup}
 PGBIN=${PGBIN:-/usr/bin}   # /usr/bin/pg_dump на Debian — pg_wrapper: берёт версию КЛАСТЕРА по умолчанию,
                            # а не старшую установленную; если нужна версия отличная от той что по умолчанию задавать PGBIN в cron явно
+COMPRESS=${COMPRESS:-auto}               # auto: выбор по версии pg_dump (ниже); либо явный аргумент --compress
 USE_EXCLUDES=${USE_EXCLUDES:-1}          # 0 = полный дамп, игнорировать исключения из lsFusion
 FAILED_KEEP_DAYS=${FAILED_KEEP_DAYS:-30} # упавшие дампы и их логи старше — удаляются
 
 [ -n "$DB" ] || { logger -t pg_dump_backup "не задана база (аргумент 1 или PGDATABASE)"; exit 1; }
+
+PGDUMP_MAJOR=$("$PGBIN/pg_dump" --version 2>/dev/null | grep -oE '[0-9]+' | head -1)
+if [ "$COMPRESS" = auto ]; then
+    if [ "${PGDUMP_MAJOR:-0}" -ge 16 ]; then COMPRESS=zstd:3; else COMPRESS=1; fi
+fi
 
 TS=$(date +%Y%m%d_%H%M%S)
 NAME="${DB}_${TS}"
@@ -90,9 +98,9 @@ if [ -n "$EXCL_LIST" ]; then
 else
     : >"$LOG"
 fi
-echo "$(date '+%F %T') start: pg_dump_backup.sh v$SCRIPT_VERSION, pg_dump -Fd -j $JOBS --compress=zstd:3 $DB -> $NAME" >>"$LOG"
+echo "$(date '+%F %T') start: pg_dump_backup.sh v$SCRIPT_VERSION, pg_dump v${PGDUMP_MAJOR:-?} -Fd -j $JOBS --compress=$COMPRESS $DB -> $NAME" >>"$LOG"
 start=$(date +%s)
-"$PGBIN/pg_dump" -Fd -j "$JOBS" --compress=zstd:3 --no-sync -v -f "$PART" "${EXCL_ARGS[@]}" "$DB" >>"$LOG" 2>&1
+"$PGBIN/pg_dump" -Fd -j "$JOBS" --compress="$COMPRESS" --no-sync -v -f "$PART" "${EXCL_ARGS[@]}" "$DB" >>"$LOG" 2>&1
 rc=$?
 dur=$(( $(date +%s) - start ))
 
