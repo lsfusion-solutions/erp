@@ -3234,8 +3234,10 @@ EXTEND FORM documents
 
 //----------------------- RevocationRequest Предложение об аннулировании -----------------------//
 //комментарий и Signer не обязательны
+// перевозочные документы (типы Logistics*: ЭТрН, заказ-заявка, поручение экспедитору)
+// Диадок аннулировать запретил - запрос возвращает 400, кнопку для них не показываем
 showMessageRevocationRequest (Box b, Document d) = CASE
-    WHEN NOT (primaryStatusText(b,d) == 'Требуется подпись' OR primaryStatusText(b,d) == 'Требуется подпись. Требуется подписать извещение' OR primaryStatusText(b,d) == 'Ожидается аннулирование' OR primaryStatusText(b,d) == 'Требуется аннулирование' OR primaryStatusText(b,d) == 'Аннулирован' OR primaryStatusText(b,d) == 'Контрагент отказал в подписи' OR primaryStatusText(b,d) == 'Отказано в подписи контрагенту') AND b IS Box AND d IS Document THEN TRUE;
+    WHEN NOT (primaryStatusText(b,d) == 'Требуется подпись' OR primaryStatusText(b,d) == 'Требуется подпись. Требуется подписать извещение' OR primaryStatusText(b,d) == 'Ожидается аннулирование' OR primaryStatusText(b,d) == 'Требуется аннулирование' OR primaryStatusText(b,d) == 'Аннулирован' OR primaryStatusText(b,d) == 'Контрагент отказал в подписи' OR primaryStatusText(b,d) == 'Отказано в подписи контрагенту') AND NOT typeNamedId(d) LIKE 'Logistics%' AND b IS Box AND d IS Document THEN TRUE;
 messageRevocationRequest 'Подписать и отправить предложение об аннулировании' (User u, Box b, Document d) {
      NEWSESSION {
         box() <- b;
