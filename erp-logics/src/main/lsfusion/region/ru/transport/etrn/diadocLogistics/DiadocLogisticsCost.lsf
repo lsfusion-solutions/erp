@@ -5,15 +5,10 @@ REQUIRE DiadocLogisticsEvents, DiadocLogisticsCostForm;
 NAMESPACE Diadoc;
 
 // ------------------------- Изменение стоимости перевозки (Т5/Т6) через Диадок ------------------------- //
-// Реализация абстракций ETRNConditionalTitles для провайдера Диадок:
-//   Т6 - GenerateTitleXml (cost, titleIndex=5, letterId/documentId от Т5) -> подпись КЭП
-//        грузоотправителя -> PostMessagePatch (RecipientTitles);
-//   отказ - GenerateSignatureRejectionXml (V2) -> подпись -> PostMessagePatch
-//        (XmlSignatureRejections); документооборот продолжается, перевозчик может прислать Т5 повторно.
-// Приём Т5/Т7/Т8 из ленты docflow-событий - в DiadocLogisticsEvents (diadocCostDocument, отметки).
+// Т6 - GenerateTitleXml (cost, titleIndex=5, letterId/documentId от Т5) -> PostMessagePatch (RecipientTitles).
+// Отказ - GenerateSignatureRejectionXml (V2) -> PostMessagePatch (XmlSignatureRejections):
+// документооборот продолжается, перевозчик может прислать Т5 повторно.
 
-
-// диадок-специфичные предпроверки (наличие cost-документа и ящика)
 checkCostDocument (ETRN.ETRN e) {
     IF NOT diadocCostDocument(e) THEN {
         MESSAGE 'Нет документа изменения стоимости (Т5) в Диадоке: выполните приём событий и сообщений' NOWAIT;
@@ -103,7 +98,6 @@ diadocRejectT5 (ETRN.ETRN e) {
 
         getToken(u);
 
-        // данные подписанта отказа (base64 XML)
         // TODO: сверить ожидаемый формат SignerContent на тестовой площадке
         EXPORT diadocRejectionSigner OBJECTS e = e XML;
         rejSignerContent() <- encode(RAWFILE(exportFile()), 'base64');

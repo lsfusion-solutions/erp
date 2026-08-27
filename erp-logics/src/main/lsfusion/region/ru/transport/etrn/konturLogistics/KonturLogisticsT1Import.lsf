@@ -4,11 +4,10 @@ REQUIRE KonturLogistics, ETRNTitleXmlRu;
 
 NAMESPACE ETRN;
 
-// Kontur-специфика загрузки полного состава титула Т1: получение titleId,
-// скачивание архива титула, распаковка XML. Разбор XML - в общем ETRNTitleXmlRu.
+// Kontur-специфика загрузки титула Т1: titleId, архив титула, распаковка XML.
+// Разбор самого XML - в общем модуле ETRNTitleXmlRu.
 
 // ------------------------- Загрузка полного состава титула Т1 у провайдера ------------------------- //
-// Скачивание XML-файла титула Т1 из документооборота перевозки и полный разбор parseETRNTitleXml.
 // titleId Т1 берётся из сведений о перевозке (receptionInfo.titleId).
 
 konturFullTitleId = DATA LOCAL STRING[100] ();
@@ -25,7 +24,6 @@ konturImportFullData (ETRN e) {
         RETURN;
     }
 
-    // 1. идентификатор титула Т1 (receptionInfo.titleId)
     // TODO: сверить метод/тело запроса на тестовой площадке (POST /v2/transportations/{id})
     konturFullTitleId() <- NULL;
     TRY {
@@ -42,7 +40,7 @@ konturImportFullData (ETRN e) {
         RETURN;
     }
 
-    // 2. архив файлов титула (zip: xml + подпись)
+    // архив титула: zip из XML и файла подписи
     TRY {
         EXTERNAL HTTP GET konturUrl() + '/v1/transportations/' + transportationId(e) + '/titles/' + konturFullTitleId()
             HEADERS konturHeaders TO konturResult;
@@ -52,7 +50,6 @@ konturImportFullData (ETRN e) {
         RETURN;
     }
 
-    // 3. распаковать архив, извлечь XML-файл титула (не .sig)
     titleFile(e) <- NULL;
     unzipping() <- konturResult();
     makeUnzipFile();
@@ -63,7 +60,7 @@ konturImportFullData (ETRN e) {
         RETURN;
     }
 
-    // 4. полный разбор титула Т1 в поля документа (parseETRNTitleXml выполняет свой APPLY)
+    // parseETRNTitleXml выполняет свой APPLY
     parseETRNTitleXml(e);
 
     titleImportedDateTime(e) <- currentDateTime();

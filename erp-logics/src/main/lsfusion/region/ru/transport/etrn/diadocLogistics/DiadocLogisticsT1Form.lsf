@@ -5,12 +5,9 @@ REQUIRE ETRN, TransportRu, DiadocLogistics;
 NAMESPACE ETRN;
 
 // Экспортная форма UserDataXml титула Т1 (LogisticsWaybillConsignorTitle) для Диадок API.
-// В namespace ETRN, чтобы домен документа ЭТрН был доступен без префиксов.
-// BoxId участников - через diadocBoxId (из DiadocLogistics).
+// diadocDate / diadocBoxId и прочее общее для титулов - в DiadocLogistics.
 
-// diadocDate / diadocDateTime - в базовом модуле DiadocLogistics (общие для всех титулов)
-
-// иные получатели документа (наблюдатели; первый элемент корня по схеме)
+// наблюдатели (иные получатели документа); по схеме - первый элемент корня
 GROUP t1OtherRecipients EXTID 'OtherRecipientIds';
 
 GROUP t1WaybillInfo EXTID 'WaybillInfo';
@@ -34,10 +31,9 @@ GROUP t1ItemCost EXTID 'Cost';
 GROUP t1Directives EXTID 'ConsignorDirectives' : t1WaybillInfo;
 
 GROUP t1Carrier EXTID 'Carrier' : t1WaybillInfo;
-// перевозчик - через OrganizationDetails (ручное заполнение), а не OrganizationReference:
-// при ссылке на ящик Диадок сам подставляет в титул адрес из своего справочника организаций,
-// и при неполном там адресе (без индекса) титул не проходит валидацию (Индекс - ровно 6 цифр);
-// Адрес у участника по приказу необязателен - выгружаем его только при полном (Region+ZipCode)
+// перевозчик - через OrganizationDetails, а не OrganizationReference: по ссылке на ящик
+// Диадок подставляет адрес из своего справочника, и при пустом там индексе титул не проходит
+// валидацию (Индекс - ровно 6 цифр); сам Адрес по приказу необязателен
 GROUP t1CarrierOrg EXTID 'OrganizationDetails' : t1Carrier;
 GROUP t1CarrierAddr EXTID 'Address' : t1CarrierOrg;
 GROUP t1CarrierAddrRF EXTID 'RussianAddress' : t1CarrierAddr;
@@ -78,16 +74,15 @@ GROUP t1LoadingOwnerReqShipper EXTID 'RequisitesShipper' : t1LoadingOwner;
 GROUP t1Signer EXTID 'Signer';
 GROUP t1SignerDetails EXTID 'SignerDetails' : t1Signer;
 
-// обязательные Phones у организаций-участников (база организации требует Phones)
+// Phones у организаций-участников обязателен по схеме
 GROUP t1ShipperPhones EXTID 'Phones' : t1ShipperRef;
 GROUP t1ConsigneePhones EXTID 'Phones' : t1ConsigneeRef;
 GROUP t1CarrierPhones EXTID 'Phones' : t1CarrierOrg;
-// обязательные сведения о переадресовке (ReaddressDetails: Phones + AccountableSide)
+// ReaddressDetails обязателен (Phones + AccountableSide)
 GROUP t1ReaddressDetails EXTID 'ReaddressDetails' : t1Directives;
 GROUP t1ReaddressPhones EXTID 'Phones' : t1ReaddressDetails;
 // обязательный телефон водителя
 GROUP t1DriverPhones EXTID 'Phones' : t1DriverInfo;
-// обязательная маркировка груза
 GROUP t1ItemMarks EXTID 'Marks';
 
 FORM diadocT1UserData FORMEXTID 'LogisticsWaybillConsignorTitle'
@@ -98,7 +93,6 @@ FORM diadocT1UserData FORMEXTID 'LogisticsWaybillConsignorTitle'
         t1OrderNumber = (OVERRIDE orderNumber(e), 'Без номера') EXTID 'OrderNumber',
         t1OrderDate = diadocDate(orderDate(e)) EXTID 'OrderDate'
 
-    // наблюдатель (иной получатель документа) - ящик Диадока
     PROPERTIES IN t1OtherRecipients t1ObserverBoxId = diadocBoxIdGuid(diadocObserver(e)) EXTID 'OtherRecipientId'
 
     PROPERTIES ATTR IN t1ShipperInfo t1IsFreightForwarder = (IF forwarder(e) THEN '1' ELSE '0') EXTID 'IsFreightForwarder'
@@ -107,7 +101,7 @@ FORM diadocT1UserData FORMEXTID 'LogisticsWaybillConsignorTitle'
 
     PROPERTIES ATTR IN t1ConsigneeRef t1ConsigneeBoxId = diadocBoxIdGuid(consignee(e)) EXTID 'BoxId'
     PROPERTIES IN t1ConsigneePhones t1ConsigneePhone = phone(consignee(e)) EXTID 'Phone'
-    // структурный адрес места доставки (выгружается при наличии Region+ZipCode)
+    // адрес выгружается только при полном (Region+ZipCode)
     PROPERTIES ATTR IN t1DeliveryAddressRF
         t1DeliveryRegion = (deliveryRegion(e) IF hasDeliveryAddress(e)) EXTID 'Region',
         t1DeliveryZip = (deliveryZipCode(e) IF hasDeliveryAddress(e)) EXTID 'ZipCode',
@@ -116,7 +110,6 @@ FORM diadocT1UserData FORMEXTID 'LogisticsWaybillConsignorTitle'
         t1DeliveryBuilding = (deliveryBuilding(e) IF hasDeliveryAddress(e)) EXTID 'Building'
 
     PROPERTIES ATTR IN t1Directives t1TransportationDirectives = (OVERRIDE transportInstructions(e), 'Отсутствует') EXTID 'TransportationDirectives'
-    // сведения о переадресовке (обязательный блок)
     PROPERTIES ATTR IN t1ReaddressDetails t1AccountableSide = (IF redirectPerson(e) == ETRNRedirectPerson.consignee THEN 'Consignee' ELSE 'Consignor') EXTID 'AccountableSide'
     PROPERTIES IN t1ReaddressPhones t1ReaddressPhone = redirectPhone(e) EXTID 'Phone'
 
@@ -128,8 +121,7 @@ FORM diadocT1UserData FORMEXTID 'LogisticsWaybillConsignorTitle'
         t1CarrierFns = diadocFnsParticipantId(carrier(e)) EXTID 'FnsParticipantId',
         t1CarrierType = diadocOrgType(carrier(e)) EXTID 'OrgType'   // 1 - ИП, 2 - ЮЛ (по длине ИНН)
     PROPERTIES IN t1CarrierPhones t1CarrierPhone = phone(carrier(e)) EXTID 'Phone'
-    // структурный адрес перевозчика (из справочника Диадока); только при полном (Region+ZipCode),
-    // иначе Адрес не выгружается вовсе (по приказу он у участника необязателен)
+    // адрес из справочника Диадока; выгружается только при полном (Region+ZipCode)
     PROPERTIES ATTR IN t1CarrierAddrRF
         t1CarrierZip = (diadocOrgZipCode(carrier(e)) IF hasDiadocOrgAddress(carrier(e))) EXTID 'ZipCode',
         t1CarrierRegion = (diadocOrgRegion(carrier(e)) IF hasDiadocOrgAddress(carrier(e))) EXTID 'Region',
@@ -159,14 +151,12 @@ FORM diadocT1UserData FORMEXTID 'LogisticsWaybillConsignorTitle'
         t1VehicleModel = nameTruckModel(truck(e)) EXTID 'Model',
         t1VehicleMaxWeight = NUMERIC[5,2](weight(truck(e)) / 1000) EXTID 'MaxWeight',
         t1VehicleCapacity = NUMERIC[4,2](capacity(truck(e))) EXTID 'Capacity'
-    // документ-основание владения ТС при аренде/лизинге (ОснАрЛиз)
     PROPERTIES ATTR IN t1VehicleLeasing
         t1VehLeaseDocName = (rentDocName(truck(e)) IF needRentGround(truck(e))) EXTID 'DocumentName',
         t1VehLeaseDocNumber = (rentDocNumber(truck(e)) IF needRentGround(truck(e))) EXTID 'DocumentNumber',
         t1VehLeaseDocDate = (diadocDate(rentDocDate(truck(e))) IF needRentGround(truck(e))) EXTID 'DocumentDate'
     PROPERTIES ATTR IN t1VehicleLeasingParty
         t1VehLeasePartyInn = (rentLessorInn(truck(e)) IF needRentGround(truck(e))) EXTID 'Inn'
-    // прицеп (при наличии)
     PROPERTIES ATTR IN t1TrailerG
         t1TrailerNumber = sid(trailer(e)) EXTID 'Number',
         t1TrailerOwnership = idOwnershipType(ownershipType(trailer(e))) EXTID 'Ownership',
@@ -174,7 +164,6 @@ FORM diadocT1UserData FORMEXTID 'LogisticsWaybillConsignorTitle'
         t1TrailerModel = nameTruckModel(trailer(e)) EXTID 'Model',
         t1TrailerMaxWeight = NUMERIC[5,2](weight(trailer(e)) / 1000) EXTID 'MaxWeight',
         t1TrailerCapacity = NUMERIC[4,2](capacity(trailer(e))) EXTID 'Capacity'
-    // документ-основание владения прицепом при аренде/лизинге
     PROPERTIES ATTR IN t1TrailerLeasing
         t1TrlLeaseDocName = (rentDocName(trailer(e)) IF needRentGround(trailer(e))) EXTID 'DocumentName',
         t1TrlLeaseDocNumber = (rentDocNumber(trailer(e)) IF needRentGround(trailer(e))) EXTID 'DocumentNumber',
@@ -192,7 +181,7 @@ FORM diadocT1UserData FORMEXTID 'LogisticsWaybillConsignorTitle'
         t1LoadGrossWeight = acceptGrossWeight(e) EXTID 'GrossWeight',
         t1WeighingMethod = idWeightMethod(weightMethod(e)) EXTID 'WeighingMethod',
         t1NumberOfPlaces = acceptQuantityPlaces(e) EXTID 'NumberOfPlaces'
-    // структурный адрес места погрузки (выгружается при наличии Region+ZipCode)
+    // адрес выгружается только при полном (Region+ZipCode)
     PROPERTIES ATTR IN t1LoadingAddressRF
         t1LoadingRegion = (loadingRegion(e) IF hasLoadingAddress(e)) EXTID 'Region',
         t1LoadingZip = (loadingZipCode(e) IF hasLoadingAddress(e)) EXTID 'ZipCode',
@@ -200,9 +189,7 @@ FORM diadocT1UserData FORMEXTID 'LogisticsWaybillConsignorTitle'
         t1LoadingStreet = (loadingStreet(e) IF hasLoadingAddress(e)) EXTID 'Street',
         t1LoadingBuilding = (loadingBuilding(e) IF hasLoadingAddress(e)) EXTID 'Building'
     PROPERTIES ATTR IN t1LoadingParty t1LoaderMatchingShipper = (IF loaderIsShipper(e) THEN '1' ELSE '2') EXTID 'MatchingShipper'
-    // идентифицирующий реквизит ГО (обязателен при MatchingShipper=1)
     PROPERTIES ATTR IN t1LoadingPartyReqShipper t1LoaderShipperInn = (inn(shipper(e)) IF loaderIsShipper(e)) EXTID 'Inn'
-    // реквизиты лица, осуществляющего погрузку (когда не грузоотправитель)
     PROPERTIES ATTR IN t1LoadingPartyOrg
         t1LoaderOrgType = (diadocOrgType(loader(e)) IF NOT loaderIsShipper(e)) EXTID 'OrgType',
         t1LoaderName = (name(loader(e)) IF NOT loaderIsShipper(e)) EXTID 'OrgName',
@@ -211,9 +198,7 @@ FORM diadocT1UserData FORMEXTID 'LogisticsWaybillConsignorTitle'
     PROPERTIES ATTR IN t1LoadingOwner
         t1OwnerType = (IF infrastructureOwnerIsShipper(e) THEN '1' ELSE IF infrastructureOwnerUnknown(e) THEN '3' ELSE '2') EXTID 'Type',
         t1OwnerNoInfo = (infrastructureOwnerNoInfo(e) IF infrastructureOwnerUnknown(e)) EXTID 'OwnerInfoAbsenceReason'
-    // идентифицирующий реквизит ГО (обязателен при Type=1)
     PROPERTIES ATTR IN t1LoadingOwnerReqShipper t1OwnerShipperInn = (inn(shipper(e)) IF infrastructureOwnerIsShipper(e)) EXTID 'Inn'
-    // реквизиты владельца объекта инфраструктуры (когда не грузоотправитель и известен)
     PROPERTIES ATTR IN t1LoadingOwnerOrg
         t1OwnerOrgType = (diadocOrgType(infrastructureOwner(e)) IF NOT (infrastructureOwnerIsShipper(e) OR infrastructureOwnerUnknown(e))) EXTID 'OrgType',
         t1OwnerName = (name(infrastructureOwner(e)) IF NOT (infrastructureOwnerIsShipper(e) OR infrastructureOwnerUnknown(e))) EXTID 'OrgName',
@@ -227,7 +212,6 @@ FORM diadocT1UserData FORMEXTID 'LogisticsWaybillConsignorTitle'
         t1SignerFirstName = signerFirstName(e) EXTID 'FirstName',
         t1SignerMiddleName = signerMiddleName(e) EXTID 'MiddleName'
 
-    // строки груза
     OBJECTS d = ETRNDetail EXTID 'ItemDescription' IN t1ItemDescriptions
     PROPERTIES ATTR
         itemName = nameCargo(d) EXTID 'Name',
@@ -237,11 +221,10 @@ FORM diadocT1UserData FORMEXTID 'LogisticsWaybillConsignorTitle'
         itemCargoSpaceQuantity = quantityPlaces(d) EXTID 'CargoSpaceQuantity',
         itemStateSystem = ('0' IF d IS ETRNDetail) EXTID 'IsForStateSystemRegistration'
     PROPERTIES ATTR IN t1ItemPlannedMass itemGrossWeight = grossWeight(d) EXTID 'GrossWeight'
-    // объявленная стоимость (ценность) груза
     PROPERTIES ATTR IN t1ItemCost
         itemCostAmount = cost(d) EXTID 'Amount',
         itemCostCurrency = ('643' IF cost(d)) EXTID 'CurrencyCode'
-    // обязательная маркировка (Marks/Mark); по умолчанию заполняется «Отсутствует»
+    // маркировка обязательна по схеме; по умолчанию «Отсутствует»
     PROPERTIES IN t1ItemMarks itemMark = nameMarking(d) EXTID 'Mark'
     FILTERS detailETRN(d) == e
 ;

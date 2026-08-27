@@ -5,18 +5,16 @@ REQUIRE DiadocLogistics, DiadocOrderRequestT1Form;
 NAMESPACE Diadoc;
 
 // ------------------------- Заказ-заявка через Диадок: генерация XML + подпись + отправка ------------------------- //
-// Т1 (грузоотправитель): GenerateTitleXml titleIndex=0 -> подпись КЭП -> PostMessage (создаёт документ заказа-заявки).
-// Форма UserDataXml - в модуле DiadocOrderRequestT1Form (namespace ETRN).
-// Т2 (ответ перевозчика) мы не формируем - только принимаем (DiadocOrderRequestImport).
+// Т1 (грузоотправитель): GenerateTitleXml titleIndex=0 -> подпись КЭП -> PostMessage.
+// Т2 (ответ перевозчика) не формируем - только принимаем (DiadocOrderRequestImport).
 
-// связь заказа-заявки с документом Диадока (Т1 + Т2 - один двухтитульный документ)
+// Т1 и Т2 - один двухтитульный документ Диадока
 diadocDocument = DATA Document (ETRN.OrderRequest);
 
 // ------------------------- Т1: заявка грузоотправителя ------------------------- //
 
 diadocSendOrderRequest (ETRN.OrderRequest o) {
-    // защита от дублей: каждый PostMessage создаёт в Диадоке новый документ, даже если
-    // предыдущая отправка не зафиксировалась у нас (обрыв на ответе, ошибка APPLY)
+    // каждый PostMessage создаёт в Диадоке новый документ, аннулировать его нельзя
     IF diadocDocument(o) THEN
         ASK 'Заявка уже отправлена в Диадок (есть связанный документ). Отправить повторно (в Диадоке создастся ещё один документ)?' DO { } ELSE RETURN;
     IF NOT diadocBox(ETRN.shipper(o)) THEN {
@@ -32,29 +30,8 @@ diadocSendOrderRequest (ETRN.OrderRequest o) {
     //ensureDiadocOrgData(ETRN.shipper(o));
     //ensureDiadocOrgData(ETRN.carrier(o));
 
-    // партнёрство ящиков с перевозчиком: совсем без него Диадок не примет заявку (как в Т3).
-    // InvitesMe (перевозчик пригласил нас первым) - встречное приглашение подтверждает связь
-    // сразу; IsInvitedByMe (наше приглашение ещё не принято) отправке не мешает - Диадок
-    // доставляет документ вместе с приглашением; не контрагент - приглашение отправляется
-    // здесь же (с подтверждением), заявка повторяется после; сбой самой проверки отправку не блокирует
-    diadocGetCounteragentStatus(guidBoxId(diadocBoxId(ETRN.shipper(o))), guidBoxId(diadocBoxId(ETRN.carrier(o))));
-    // проверка завершилась HTTP-ошибкой (сообщение уже показано) - отправка обречена, выходим
-    IF counteragentCurrentStatus() == 'CheckFailed' THEN RETURN;
-    IF counteragentCurrentStatus() == 'InvitesMe' THEN
-        FOR Organization org == organization(diadocBox(ETRN.carrier(o))) DO
-            diadocAcquireOrganization(org, guidBoxId(diadocBoxId(ETRN.shipper(o))));
-    IF counteragentCurrentStatus() == 'IsInvitedByMe' THEN
-        MESSAGE 'Приглашение в контрагенты у перевозчика и еще не принято: заявка Т1 будет доставлена и будет ожидать подтверждения партнёрства' NOWAIT;
-    IF counteragentCurrentStatus() AND NOT (counteragentCurrentStatus() == 'IsMyCounteragent' OR
-        counteragentCurrentStatus() == 'InvitesMe' OR counteragentCurrentStatus() == 'IsInvitedByMe') THEN {
-        ASK 'Партнёрство с перевозчиком в Диадоке не установлено - без него заявка Т1 не будет принята.
-Отправить перевозчику приглашение в контрагенты?' DO {
-            FOR Organization org == organization(diadocBox(ETRN.carrier(o))) DO
-                diadocAcquireOrganization(org, guidBoxId(diadocBoxId(ETRN.shipper(o))));
-            MESSAGE 'Приглашение перевозчику отправлено. Повторите отправку заявки после подтверждения партнёрства перевозчиком' NOWAIT;
-        }
-        RETURN;
-    }
+    checkCounteragent(guidBoxId(diadocBoxId(ETRN.shipper(o))), diadocBox(ETRN.carrier(o)), 'заказ-заявка Т1', 'перевозчик');
+    IF NOT counteragentCheckPassed() THEN RETURN;
 
     FOR User u == userDiadocETRN() DO NEWSESSION {
         fromBox() <- diadocBox(ETRN.shipper(o));
@@ -102,5 +79,4 @@ ETRN.sendOrderRequest (ETRN.OrderRequest o) + WHEN ETRN.provider(o) == ETRN.ETRN
     diadocSendOrderRequest(o);
 }
 
-// Обновление статусов заявок - через ленту docflow-событий V5
-// (DiadocLogisticsEvents: importEvents / processEvent), общие действия ETRNExchange.
+// статусы заявок обновляются лентой docflow-событий V5 (DiadocLogisticsEvents)

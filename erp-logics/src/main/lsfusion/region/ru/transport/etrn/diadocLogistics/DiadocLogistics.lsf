@@ -104,8 +104,7 @@ deliveryMessageId (ETRN.ETRN e) = messageId(diadocDeliveryDocument(e));
 deliveryEntityId (ETRN.ETRN e) = entityId(diadocDeliveryDocument(e));
 
 // ящик Диадока нашей организации-участника
-// организация Диадока для обмена с юрлицом - выбирается вручную на карточке организации
-// и перебивает автоматический выбор (для контрагентов с несколькими записями в Диадоке)
+// ручной выбор для контрагентов с несколькими записями в Диадоке
 transportOrganization 'Организация Диадока (транспорт)' = DATA Organization (LegalEntity);
 nameTransportOrganization 'Организация Диадока (транспорт)' (LegalEntity l) = shortName(transportOrganization(l));
 
@@ -113,18 +112,16 @@ CONSTRAINT SETCHANGED(transportOrganization(LegalEntity l)) AND NOT legalEntity(
     CHECKED BY transportOrganization[LegalEntity]
     MESSAGE 'Организация Диадока (транспорт) должна быть из организаций Диадока этого контрагента';
 
-// ящик юрлица - приоритет выбора организации:
-// 1) выбранная вручную; 2) абонент Диадока (идентификатор участника СФ начинается
-// на 2BM - код оператора Диадок; записи из роуминга несут код другого оператора);
-// 3) не-роуминговая; 4) любая (контрагенты, работающие только через роуминг)
+// приоритет: ручной выбор -> абонент Диадока (2BM - код оператора в идентификаторе
+// участника СФ, у роуминговых записей код чужого оператора) -> не-роуминговая -> любая
 diadocBox (LegalEntity l) = OVERRIDE
     [GROUP LAST Box b ORDER b BY organization(b)](transportOrganization(l)),
     [GROUP LAST Box b IF fnsParticipantId(organization(b)) LIKE '2BM%' ORDER b BY legalEntity(organization(b))](l),
     [GROUP LAST Box b IF NOT isRoaming(organization(b)) ORDER b BY legalEntity(organization(b))](l),
     [GROUP LAST Box b ORDER b BY legalEntity(organization(b))](l);
 
-// своя форма выбора: LIST-форма организаций Диадока (dialogOrganizations) фильтрует
-// по своим организациям (isEmployee) и для контрагента всегда пуста
+// своя форма выбора: штатная dialogOrganizations фильтрует по своим организациям
+// (isEmployee) и для контрагента всегда пуста
 FORM dialogTransportOrganizations 'Организации Диадока контрагента'
     OBJECTS le = LegalEntity PANEL
     OBJECTS o = Organization
@@ -287,6 +284,36 @@ diadocGetCounteragentStatus (STRING myBoxGuid, STRING counteragentBoxGuid) {
             }
         }
     }
+}
+
+// ------------------------- Единая проверка партнёрства перед отправкой ------------------------- //
+// Без партнёрства Диадок документ не примет; при непринятом нашем приглашении (IsInvitedByMe)
+// принимает и держит вместе с приглашением. title/side - подстановки в сообщения.
+// Итог - в counteragentCheckPassed: RETURN отсюда вызывающую отправку не прерывает.
+counteragentCheckPassed = DATA LOCAL BOOLEAN ();
+checkCounteragent (STRING myBoxGuid, Box counteragentBox, STRING title, STRING side) {
+    counteragentCheckPassed() <- NULL;
+    diadocGetCounteragentStatus(myBoxGuid, guidBoxId(boxId(counteragentBox)));
+    IF counteragentCurrentStatus() == 'CheckFailed' THEN RETURN;   // сообщение уже показано
+    // встречное приглашение подтверждает связь сразу
+    IF counteragentCurrentStatus() == 'InvitesMe' THEN
+        FOR Organization org == organization(counteragentBox) DO
+            diadocAcquireOrganization(org, myBoxGuid);
+    IF counteragentCurrentStatus() == 'IsInvitedByMe' THEN
+        MESSAGE 'Сторона (' + side + ') еще не приняла приглашение в контрагенты: документ (' + title +
+            ') будет доставлен и будет ожидать подтверждения партнёрства' NOWAIT;
+    IF counteragentCurrentStatus() AND NOT (counteragentCurrentStatus() == 'IsMyCounteragent' OR
+        counteragentCurrentStatus() == 'InvitesMe' OR counteragentCurrentStatus() == 'IsInvitedByMe') THEN {
+        ASK 'Партнёрство со стороной (' + side + ') в Диадоке не установлено - без него документ (' + title + ') не будет принят.
+Отправить приглашение в контрагенты?' DO {
+            FOR Organization org == organization(counteragentBox) DO
+                diadocAcquireOrganization(org, myBoxGuid);
+            MESSAGE 'Приглашение стороне (' + side + ') отправлено. Повторите отправку документа (' + title +
+                ') после подтверждения партнёрства' NOWAIT;
+        }
+        RETURN;
+    }
+    counteragentCheckPassed() <- TRUE;
 }
 
 // проверить и при необходимости догрузить реквизиты организации по API (перед отправкой титулов):

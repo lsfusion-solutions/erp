@@ -5,23 +5,19 @@ REQUIRE DiadocLogistics, DiadocLogisticsT3Form, DiadocLogisticsEvents;
 NAMESPACE Diadoc;
 
 // ------------------------- Т3 через Диадок: генерация + подпись + отправка ------------------------- //
-// Т3+Т4 - отдельный двухтитульный документ (delivery). Т3 создаёт этот delivery-документ
-// (PostMessage), связь с reception-документом (Т1/Т2) - через letterId/documentId в GenerateTitleXml.
-// Т4 затем отправляется как patch к созданному delivery-документу.
+// Т3+Т4 - отдельный двухтитульный документ (delivery), Т4 - patch к нему; связь с
+// reception-документом (Т1/Т2) - через letterId/documentId в GenerateTitleXml.
 
-// координаты reception-документа - через receptionDoc* (для входящих перевозок своего
-// объекта Document у нас нет, идентификаторы берутся из журнала docflow-событий)
+// для входящих перевозок своего объекта Document нет - координаты reception-документа
+// берутся из ленты docflow-событий (receptionDoc*)
 
-// ящик перевозчика - получателя Т3: у исходящей - по карточке перевозчика из справочника
-// контрагентов, у входящей - по ИНН перевозчика из титула через справочник организаций
-// Диадока (перевозчик приглашается в контрагенты Диадока, в наш справочник не заводится)
+// у входящей перевозки перевозчик в наш справочник не заводится - ящик ищем
+// по ИНН из титула через справочник организаций Диадока
 carrierT3Box (ETRN.ETRN e) = OVERRIDE diadocBox(ETRN.carrier(e)),
     [GROUP LAST Box b IF organization(b) == organizationInn(ETRN.incomingCarrierInn(e)) ORDER b]();
 
 diadocSendT3 (ETRN.ETRN e) {
-    // защита от дублей: Т3 создаёт delivery-документ через PostMessage - повтор при уже
-    // созданном документе создаст в Диадоке ещё один; штатному повтору после отказа
-    // по партнёрству не мешает (при отказе документ не создан и поле пусто)
+    // каждый PostMessage создаёт в Диадоке новый документ, аннулировать его нельзя
     IF diadocDeliveryDocument(e) THEN
         ASK 'Т3 уже отправлен в Диадок (есть связанный delivery-документ). Отправить повторно (в Диадоке создастся ещё один документ)?' DO { } ELSE RETURN;
     IF NOT (receptionDocMessageId(e) AND receptionDocEntityId(e)) THEN {
@@ -37,33 +33,12 @@ diadocSendT3 (ETRN.ETRN e) {
         RETURN;
     }
 
-    // партнёрство ящиков с перевозчиком: совсем без него Диадок не примет наш Т3.
-    // InvitesMe (перевозчик пригласил нас первым) - встречное приглашение подтверждает связь
-    // сразу; IsInvitedByMe (наше приглашение ещё не принято) отправке не мешает - Диадок
-    // доставляет документ вместе с приглашением; не контрагент - приглашение отправляется
-    // здесь же (с подтверждением), Т3 повторяется после; сбой самой проверки отправку не блокирует
-    diadocGetCounteragentStatus(guidBoxId(diadocBoxId(ETRN.consignee(e))), guidBoxId(boxId(carrierT3Box(e))));
-    // проверка завершилась HTTP-ошибкой (сообщение уже показано) - отправка обречена, выходим
-    IF counteragentCurrentStatus() == 'CheckFailed' THEN RETURN;
-    IF counteragentCurrentStatus() == 'InvitesMe' THEN
-        FOR Organization o == organization(carrierT3Box(e)) DO
-            diadocAcquireOrganization(o, guidBoxId(diadocBoxId(ETRN.consignee(e))));
-    IF counteragentCurrentStatus() == 'IsInvitedByMe' THEN
-        MESSAGE 'Приглашение в контрагенты у перевозчика и еще не принято: Т3 будет доставлен и будет ожидать подтверждения партнёрства' NOWAIT;
-    IF counteragentCurrentStatus() AND NOT (counteragentCurrentStatus() == 'IsMyCounteragent' OR
-        counteragentCurrentStatus() == 'InvitesMe' OR counteragentCurrentStatus() == 'IsInvitedByMe') THEN {
-        ASK 'Партнёрство с перевозчиком в Диадоке не установлено - без него Т3 не будет принят.
-Отправить перевозчику приглашение в контрагенты?' DO {
-            FOR Organization o == organization(carrierT3Box(e)) DO
-                diadocAcquireOrganization(o, guidBoxId(diadocBoxId(ETRN.consignee(e))));
-            MESSAGE 'Приглашение перевозчику отправлено. Повторите отправку Т3 после подтверждения партнёрства перевозчиком' NOWAIT;
-        }
-        RETURN;
-    }
+    checkCounteragent(guidBoxId(diadocBoxId(ETRN.consignee(e))), carrierT3Box(e), 'Т3', 'перевозчик');
+    IF NOT counteragentCheckPassed() THEN RETURN;
 
     FOR User u == userDiadocETRN() DO NEWSESSION {
         fromBox() <- diadocBox(ETRN.consignee(e));
-        toBox() <- carrierT3Box(e);   // Т3 отправляется перевозчику (далее Т4)
+        toBox() <- carrierT3Box(e);
 
         getToken(u);
         EXPORT diadocT3UserData OBJECTS e = e XML;
@@ -90,11 +65,10 @@ diadocSendT3 (ETRN.ETRN e) {
             postMessage(u);
             // postMessage глотает HTTP-ошибки (MESSAGE внутри) - успех определяем по созданному документу
             IF createdDocument() THEN {
-                // Т3 создаёт delivery-документ перевозки (Т4 - patch к нему)
                 diadocDeliveryDocument(e) <- createdDocument();
                 ETRN.exchangeStatus(e) <- ETRN.ETRNExchangeStatus.signed;
                 ETRN.exchangeMessage(e) <- NULL;
-                // наш титул оформлен - продвигаем этап сразу, не дожидаясь события ленты
+                // этап продвигаем сразу по своей отправке, не дожидаясь события ленты
                 ETRN.stage(e) <- ETRN.ETRNStage.acceptance WHERE NOT ETRN.id(ETRN.stage(e)) >= 3;
             } ELSE
                 ETRN.exchangeMessage(e) <- 'Т3 не отправлен (Диадок): ошибка PostMessage';

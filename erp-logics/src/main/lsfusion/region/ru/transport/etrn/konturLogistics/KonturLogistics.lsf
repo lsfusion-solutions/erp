@@ -4,10 +4,9 @@ REQUIRE ETRNExchange, ETRNConsignee, ETRNConditionalTitles, ETRNIncoming, LegalE
 
 NAMESPACE ETRN;
 
-// настройки провайдера, класс ETRNProvider.kontur, авторизация (API-Key / OIDC, мультибокс)
-// и контекст запроса (setKonturAuth / konturHeaders / konturBoxId) - в модуле KonturLogisticsAuth
+// настройки провайдера и контекст запроса (setKonturAuth / konturHeaders / konturBoxId) - в KonturLogisticsAuth
 
-// наша организация-участник документа (владелец запросов чтения по документу)
+// наша организация-участник: от её имени идут запросы чтения по документу
 konturOurParty (ETRN e) = OVERRIDE (shipper(e) IF isCompany(shipper(e))),
                                    (consignee(e) IF isCompany(consignee(e))),
                                    (carrier(e) IF isCompany(carrier(e)));
@@ -36,7 +35,7 @@ konturImportRequisites 'Получить FNSId (Контур)' (LegalEntity l) {
     }
 }
 
-// запрос FNSId у провайдера, если ещё не получен (перед формированием файлов титулов)
+// вызывается перед формированием файлов титулов
 konturEnsureFnsId (LegalEntity l) {
     IF l AND NOT fnsId(l) THEN konturImportRequisites(l);
 }
@@ -56,8 +55,7 @@ EXTEND FORM integrationData
 ;
 
 // ------------------------- Наши организации (ящики) у провайдера ------------------------- //
-// GET /v2/organizations/my: организации, доступные пользователю API-Key.
-// Создаются ящики (KonturBox), привязка к нашим организациям - по ИНН, заодно заполняется FNSId.
+// GET /v2/organizations/my: организации, доступные пользователю API-Key; привязка к нашим - по ИНН.
 
 impOrgInn = DATA LOCAL STRING[12] (INTEGER);
 impOrgKpp = DATA LOCAL STRING[9] (INTEGER);
@@ -114,7 +112,6 @@ konturDateTime (DATETIME d) = toChar(d, 'YYYY-MM-DD"T"HH24:MI:SS');
 konturT1 = DATA LOCAL FILE ();
 
 // ------------------------- Экспортная форма JSON титула Т1 ------------------------- //
-// Группы - вложенные объекты JSON, объекты формы - массивы, EXTID - ключи.
 
 GROUP konturT1ReceptionInfo EXTID 'receptionInfo';
 GROUP konturT1Participants EXTID 'participantsDetails';
@@ -261,7 +258,7 @@ buildKonturT1 (OutgoingETRN e) {
 
 // генерация XML титула Т1 из JSON-модели на стороне Контура
 konturGenerateT1 'Сгенерировать титул Т1 (Контур)' (ETRN e) {
-    setKonturAuth(shipper(e));   // от имени грузоотправителя
+    setKonturAuth(shipper(e));
     buildKonturT1(e);
     TRY {
         EXTERNAL HTTP POST konturUrl() + '/v1/transportations/documents/consignor-reception' HEADERS konturHeaders PARAMS konturT1() TO konturResult;
@@ -274,11 +271,10 @@ konturGenerateT1 'Сгенерировать титул Т1 (Контур)' (ETR
     }
 }
 
-// отправка черновика титула
 // TODO: тело запроса - multipart/form-data с частью draft (файл XML);
 // сверить формат передачи файла на тестовой площадке
 konturSendDraft (ETRN e, STRING[50] draftAction) {
-    setKonturAuth(shipper(e));   // от имени грузоотправителя
+    setKonturAuth(shipper(e));
     IF NOT titleFile(e) THEN konturGenerateT1(e);
     IF NOT titleFile(e) THEN RETURN;
 
@@ -304,28 +300,25 @@ konturSendDraft (ETRN e, STRING[50] draftAction) {
     }
 }
 
-// отправка подписанного титула Т1 (КЭП грузоотправителя):
-// XML генерируется Контуром (consignor-reception), подписывается через cryptopro,
-// отправляется парой файлов через POST /v1/transportations/documents
+// XML генерируется Контуром (consignor-reception), подписывается КЭП грузоотправителя
+// и отправляется парой файлов (титул + подпись) через POST /v1/transportations/documents
 konturSendSignedT1 (ETRN e) {
-    setKonturAuth(shipper(e));   // от имени грузоотправителя
+    setKonturAuth(shipper(e));
     IF NOT keyAlias(shipper(e)) THEN {
         MESSAGE 'Не задан ключ УКЭП грузоотправителя (справочник организаций, вкладка УКЭП)' NOWAIT;
         RETURN;
     }
 
-    // 1. генерация XML Т1 (если ещё не сформирован)
     IF NOT titleFile(e) THEN konturGenerateT1(e);
     IF NOT titleFile(e) THEN RETURN;
 
-    // 2. отсоединённая подпись XML грузоотправителем
+    // отсоединённая подпись XML
     sign(titleFile(e), TRUE, shipper(e));
     IF NOT signature() THEN {
         MESSAGE 'Не удалось сформировать подпись КЭП' NOWAIT;
         RETURN;
     }
 
-    // 3. отправка титула и подписи
     TRY {
         // TODO: сверить формат multipart (formFiles: файл титула + файл подписи) на тестовой площадке
         EXTERNAL HTTP POST konturUrl() + '/v1/transportations/documents' +
@@ -369,7 +362,6 @@ konturImportPrintForm (ETRN e) {
 
 konturT3 = DATA LOCAL FILE ();
 
-// экспортная форма JSON титула Т3: группы - вложенные объекты, объекты формы - массивы
 GROUP konturT3DeliveryInfo EXTID 'deliveryInfo';
 
 FORM konturT3Export
@@ -408,7 +400,7 @@ buildKonturT3 (ETRN e) {
 }
 
 konturSendT3 (ETRN e, STRING[50] draftAction) {
-    setKonturAuth(consignee(e));   // от имени грузополучателя
+    setKonturAuth(consignee(e));
     IF NOT transportationId(e) THEN {
         MESSAGE 'Для отправки Т3 у ЭТрН должен быть идентификатор перевозки у провайдера' NOWAIT;
         RETURN;
@@ -416,7 +408,6 @@ konturSendT3 (ETRN e, STRING[50] draftAction) {
 
     buildKonturT3(e);
     TRY {
-        // генерация XML титула Т3 на стороне Контура
         EXTERNAL HTTP POST konturUrl() + '/v1/transportations/' + transportationId(e) + '/documents/consignee-delivery' HEADERS konturHeaders PARAMS konturT3() TO konturResult;
         titleFile(e) <- konturResult();
     } CATCH {
@@ -427,7 +418,6 @@ konturSendT3 (ETRN e, STRING[50] draftAction) {
     }
 
     TRY {
-        // отправка черновика Т3 в ту же перевозку
         EXTERNAL HTTP POST konturUrl() + '/v1/transportations/documents/draft?draftAction=' + draftAction +
             '&transportationId=' + transportationId(e) +
             (OVERRIDE '&initiatorBoxId=' + konturBoxId(), '')
@@ -445,11 +435,10 @@ konturSendT3 (ETRN e, STRING[50] draftAction) {
     }
 }
 
-// отправка подписанного титула Т3 (КЭП грузополучателя):
-// XML генерируется Контуром (consignee-delivery), подписывается через cryptopro,
-// отправляется парой файлов через POST /v1/transportations/documents
+// XML генерируется Контуром (consignee-delivery), подписывается КЭП грузополучателя
+// и отправляется парой файлов (титул + подпись) через POST /v1/transportations/documents
 konturSendSignedT3 (ETRN e) {
-    setKonturAuth(consignee(e));   // от имени грузополучателя
+    setKonturAuth(consignee(e));
     IF NOT transportationId(e) THEN {
         MESSAGE 'Для отправки Т3 у ЭТрН должен быть идентификатор перевозки у провайдера' NOWAIT;
         RETURN;
@@ -459,7 +448,6 @@ konturSendSignedT3 (ETRN e) {
         RETURN;
     }
 
-    // 1. генерация XML Т3 на стороне Контура
     buildKonturT3(e);
     TRY {
         EXTERNAL HTTP POST konturUrl() + '/v1/transportations/' + transportationId(e) + '/documents/consignee-delivery' HEADERS konturHeaders PARAMS konturT3() TO konturResult;
@@ -471,14 +459,13 @@ konturSendSignedT3 (ETRN e) {
         RETURN;
     }
 
-    // 2. отсоединённая подпись XML грузополучателем
+    // отсоединённая подпись XML
     sign(titleFile(e), TRUE, consignee(e));
     IF NOT signature() THEN {
         MESSAGE 'Не удалось сформировать подпись КЭП' NOWAIT;
         RETURN;
     }
 
-    // 3. отправка титула и подписи
     TRY {
         // TODO: сверить формат multipart (formFiles: файл титула + файл подписи) на тестовой площадке
         EXTERNAL HTTP POST konturUrl() + '/v1/transportations/documents?transportationId=' + transportationId(e) +
@@ -497,7 +484,6 @@ konturSendSignedT3 (ETRN e) {
     }
 }
 
-// маппинг статуса перевозки Контура на этап ЭТрН
 konturStage (STRING[100] status) = CASE
     WHEN status = 'NewTransportation' OR status = 'RequestingMintransId' THEN ETRNStage.registration
     WHEN status LIKE 'WaybillReception%' THEN ETRNStage.loading
@@ -526,8 +512,7 @@ konturStage (STRING[100] status) = CASE
 //}
 
 // ------------------------- Импорт данных перевозки ------------------------- //
-// GET /v2/transportations/{id}: участники (Participants.V2: inn, kpp, name, role) и
-// груз (CargoInfo.cargoItems: name, containerTypeCode, numberOfCargoSpaces, plannedWeight, volume).
+// GET /v2/transportations/{id}: участники (Participants.V2) и груз (CargoInfo.cargoItems).
 // TODO: сверить на тестовой площадке ключи верхнего уровня ответа (participants, cargo, status)
 // и структуру Weight/Volume (предположительно поле value).
 
@@ -594,20 +579,17 @@ konturImportTransportation 'Получить данные перевозки (К
 
     providerStatus(e) <- importedTrStatus() WHERE importedTrStatus();
 
-    // участники по ролям (поиск организаций по ИНН)
     shipper(e) <- [GROUP MAX legalEntityInn(importedPartInn(INTEGER i)) IF importedPartRole(i) = 'Consignor']() WHERE [GROUP MAX legalEntityInn(importedPartInn(INTEGER i)) IF importedPartRole(i) = 'Consignor']();
     consignee(e) <- [GROUP MAX legalEntityInn(importedPartInn(INTEGER i)) IF importedPartRole(i) = 'Consignee']() WHERE [GROUP MAX legalEntityInn(importedPartInn(INTEGER i)) IF importedPartRole(i) = 'Consignee']();
     // перевозчик входящей - чужая сторона: строковое наименование, в справочник не заводится
     FOR IncomingETRN ie == e DO
         incomingCarrierName(ie) <- ISTRING[150]([GROUP MAX importedPartName(INTEGER i) IF importedPartRole(i) = 'Carrier']());
 
-    // участники, не найденные в справочнике организаций
     LOCAL missingParticipants = STRING ();
     missingParticipants() <- GROUP CONCAT (CONCAT ' ', importedPartName(INTEGER i), 'ИНН ' + importedPartInn(i)) IF NOT legalEntityInn(importedPartInn(i)) AND NOT importedPartRole(i) = 'Observer', '; ' ORDER i;
     IF missingParticipants() THEN
         MESSAGE CONCAT ' ', 'Участники перевозки не найдены в справочнике организаций (заведите и повторите импорт):', missingParticipants() NOWAIT;
 
-    // строки груза: пересоздаются из данных провайдера (только для входящих - когда мы не грузоотправитель)
     IF NOT roleShipper(e) THEN {
         DELETE ETRNDetail d WHERE etrn(d) = e;
         FOR importedCargoName(INTEGER i) NEW nd = ETRNDetail DO {
@@ -629,10 +611,8 @@ konturImportTransportation 'Получить данные перевозки (К
 }
 
 // ------------------------- Входящие перевозки (мы - грузополучатель или перевозчик) ------------------------- //
-// GET /v1/transportations возвращает перевозки нашего ящика (в т.ч. выставленные поставщиками
-// в нашу сторону): TransportationsList { items: [TransportationInfo { id, status, ... }], totalCount }.
-// Синхронизация инкрементальная (From = время прошлой синхронизации, TimeKind по умолчанию - Modified),
-// страницы по 200 записей. Свои исходящие перевозки не дублируются - у них transportationId уже сохранен.
+// GET /v1/transportations: перевозки нашего ящика, страницами по 200 (Take/Skip, totalCount в ответе).
+// Синхронизация инкрементальная: From = время прошлой синхронизации, TimeKind по умолчанию - Modified.
 
 importedIncomingId = DATA LOCAL STRING[36] (INTEGER);
 importedIncomingStatus = DATA LOCAL STRING[100] (INTEGER);
@@ -645,7 +625,6 @@ FORM konturImportIncoming
     PROPERTIES(t) importedIncomingId EXTID 'id', importedIncomingStatus EXTID 'status'
 ;
 
-// последняя синхронизация - по ящику (мультибокс) либо по провайдеру (системный ящик)
 lastIncomingSync 'Последняя синхронизация перевозок' = DATA DATETIME (KonturBox);
 lastIncomingSyncProvider = DATA DATETIME (ETRNProvider);
 getLastIncomingSync (ETRNProvider p, KonturBox b) = IF b THEN lastIncomingSync(b) ELSE lastIncomingSyncProvider(p);
@@ -657,7 +636,7 @@ konturImportIncomingBox (ETRNProvider p, KonturBox box) {
 
     syncStarted() <- currentDateTime();
     skip() <- 0;
-    total() <- 1; // первый заход в цикл; фактическое значение придет из totalCount первой страницы
+    total() <- 1; // чтобы войти в цикл; далее - из totalCount ответа
 
     WHILE skip() < total() DO {
         importedIncomingId(INTEGER i) <- NULL WHERE importedIncomingId(i);
@@ -678,18 +657,15 @@ konturImportIncomingBox (ETRNProvider p, KonturBox box) {
 
         total() <- OVERRIDE importedIncomingTotal(), 0;
 
-        // новые перевозки (входящие): создание документа и полный импорт данных
         FOR importedIncomingId(INTEGER i) AND NOT etrn(importedIncomingId(i)) ORDER i NEW e = IncomingETRN DO {
             provider(e) <- p;
             transportationId(e) <- importedIncomingId(i);
             providerStatus(e) <- importedIncomingStatus(i);
             stage(e) <- OVERRIDE konturStage(importedIncomingStatus(i)), ETRNStage.acceptance;
-            // участники (по ролям, поиск по ИНН), строки груза, статус - из данных перевозки;
             // наши роли вычислятся автоматически по совпадению участников с нашими компаниями
             konturImportTransportation(e);
         }
 
-        // существующие: продвижение статуса и этапа
         FOR importedIncomingId(INTEGER i) AND ETRN e = etrn(importedIncomingId(i)) DO {
             providerStatus(e) <- importedIncomingStatus(i);
             stage(e) <- konturStage(importedIncomingStatus(i)) WHERE konturStage(importedIncomingStatus(i));
@@ -703,7 +679,6 @@ konturImportIncomingBox (ETRNProvider p, KonturBox box) {
     APPLY;
 }
 
-// опрос входящих по всем ящикам (мультибокс) либо по системному ящику
 konturImportIncoming (ETRNProvider p) {
     IF (GROUP SUM 1 IF KonturBox bb IS KonturBox) THEN
         FOR KonturBox b IS KonturBox DO {
@@ -718,8 +693,6 @@ konturImportIncoming (ETRNProvider p) {
 
 // ------------------------- Лента событий ------------------------- //
 
-// TransportationEventsList { events: [TransportationEvent], continueFromId };
-// TransportationEvent { id, transportationId, dateTimeUtc, eventType, newStatus, details };
 // в details события MintransIdReceived приходит присвоенный УИД (mintransId)
 importedEventId = DATA LOCAL STRING[100] (INTEGER);
 importedEventTransportationId = DATA LOCAL STRING[36] (INTEGER);
@@ -768,9 +741,8 @@ DESIGN etrnEvent {
 }
 
 // ------------------------- Файлы титула (/titles/{titleId}) ------------------------- //
-// Архив ровно из двух файлов: XML титула и файл его подписи (описание метода API).
-// Имя XML-файла (без расширения) - ИдФайл титула, дата/время формирования - из атрибутов
-// элемента Документ, подпись кодируется в Base64 для вложения в ответный титул.
+// Архив ровно из двух файлов: XML титула и файл его подписи. Имя XML без расширения - ИдФайл
+// титула, дата/время - из атрибутов элемента Документ, подпись - в Base64 для ответного титула.
 
 // дата/время формирования файла - имена атрибутов зависят от вида титула
 konturTfDatGO = DATA LOCAL STRING[10] ();
@@ -788,7 +760,6 @@ FORM konturTitleFileAttrs FORMEXTID 'Файл'
                  konturTfDatPrv ATTR EXTID 'ДатПУДИнфПрв', konturTfVrPrv ATTR EXTID 'ВрПУДИнфПрв'
 ;
 
-// результаты разбора архива титула
 konturTitleFileName = DATA LOCAL STRING[255] ();
 konturTitleFileDate = DATA LOCAL STRING[10] ();
 konturTitleFileTime = DATA LOCAL STRING[8] ();
@@ -842,7 +813,6 @@ FORM konturImportEvents
                    importedEventRejectionReason EXTID 'rejectionReason'
 ;
 
-// курсор ленты событий - по ящику (мультибокс) либо по провайдеру (системный)
 lastEventId 'ИД последнего события' = DATA STRING[100](KonturBox) CHARWIDTH 15;
 getLastEventId (ETRNProvider p, KonturBox b) = IF b THEN lastEventId(b) ELSE lastEventId(p);
 
@@ -874,7 +844,7 @@ konturImportEventsBox (ETRNProvider p, KonturBox box) {
             RETURN;
         }
 
-        // приём новых событий в журнал (без продвижения документов - это делает processEvent)
+        // документы по событиям продвигает processEvent
         FOR importedEventId(INTEGER i) AND NOT event(p, importedEventId(i)) ORDER i NEW ev = ETRNEvent DO {
             provider(ev) <- p;
             id(ev) <- importedEventId(i);
@@ -889,7 +859,6 @@ konturImportEventsBox (ETRNProvider p, KonturBox box) {
             etrn(ev) <- etrn(importedEventTransportationId(i));
         }
 
-        // курсор ленты: официальный continueFromId из ответа
         IF (GROUP SUM 1 IF importedEventId(INTEGER i)) THEN {
             LOCAL cursor = STRING[100] ();
             cursor() <- OVERRIDE STRING[100](importedEventsContinueFromId()), (GROUP LAST importedEventId(INTEGER i) ORDER i);
@@ -902,7 +871,6 @@ konturImportEventsBox (ETRNProvider p, KonturBox box) {
     APPLY;
 }
 
-// опрос событий по всем ящикам (мультибокс) либо по системному ящику
 konturImportEvents (ETRNProvider p) {
     IF (GROUP SUM 1 IF KonturBox bb IS KonturBox) THEN
         FOR KonturBox b IS KonturBox DO {
@@ -918,7 +886,6 @@ konturImportEvents (ETRNProvider p) {
 // ------------------------- Черновики / передача на подпись (специфика Контур.Логистики) ------------------------- //
 // Флоу черновиков и согласования водителем есть только в API Контур.Логистики
 // (у Диадока титул подписывается КЭП локально и отправляется сразу - sendSigned).
-// Перенесено из ETRNExchange: абстракции, действия и кнопки на списке ЭТрН.
 
 sendDraft 'Отправить черновик' ABSTRACT CASE (ETRN);
 sendForSignature 'Передать на подпись' ABSTRACT CASE (ETRN);
@@ -927,7 +894,7 @@ sendForDriverApproval 'Передать водителю' ABSTRACT CASE (ETRN);
 sendDraftETRN 'Отправить черновик' (ETRN e) {
     checkProvider(e);
     IF NOT provider(e) THEN RETURN;
-    // черновик (SavedDraft) можно отправлять частично заполненным - полную проверку не делаем
+    // черновик (SavedDraft) можно отправлять частично заполненным
     sendDraft(e);
 } IMAGE 'share.png';
 
@@ -951,7 +918,6 @@ sendForDriverApprovalETRN 'Передать водителю' (ETRN e) {
     sendForDriverApproval(e);
 } IMAGE 'editProfile.png';
 
-// титул грузополучателя (Т3): черновик / на подпись
 sendConsigneeDraft 'Отправить черновик Т3' ABSTRACT CASE (ETRN);
 sendConsigneeForSignature 'Передать Т3 на подпись' ABSTRACT CASE (ETRN);
 
@@ -1036,7 +1002,7 @@ importEvents (ETRNProvider p) + WHEN p = ETRNProvider.kontur THEN {
     }
 }
 
-// продвижение документа по событию (вызывается из общего processETRNEvents в текущей сессии)
+// вызывается из общего processETRNEvents в текущей сессии
 processEvent (ETRNEvent ev) + WHEN provider(ev) = ETRNProvider.kontur THEN {
     FOR ETRN e = etrn(ev) DO {
         providerStatus(e) <- status(ev);
@@ -1054,12 +1020,11 @@ processEvent (ETRNEvent ev) + WHEN provider(ev) = ETRNProvider.kontur THEN {
         IF type(ev) = 'MintransIdReceived' THEN
             mintransId(e) <- mintransId(ev);
 
-        // условные титулы перевозчика: отметки на документе (по подписанным титулам из деталей события);
-        // заодно запоминаются ИД подписанных титулов - для получения их файлов (/titles/{titleId})
+        // ИД подписанных титулов запоминаются для получения их файлов (/titles/{titleId})
         IF type(ev) = 'DocumentSignedBySender' OR type(ev) = 'DocumentSignedByRecipient' THEN {
             IF konturDocumentType(ev) = 'ConsignorTitle' THEN konturT1TitleId(e) <- konturDocumentId(ev);        // Т1
             IF konturDocumentType(ev) = 'ConsigneeTitle' THEN konturT3TitleId(e) <- konturDocumentId(ev);        // Т3
-            FOR OutgoingETRN oe == e DO {   // условные титулы - только на исходящих (мы грузоотправитель)
+            FOR OutgoingETRN oe == e DO {   // условные титулы - только на исходящих
                 IF konturDocumentType(ev) = 'CarrierPaymentTitle' THEN {                                         // Т5
                     costChangeDateTime(oe) <- dateTime(ev);
                     konturT5TitleId(oe) <- konturDocumentId(ev);
@@ -1095,8 +1060,8 @@ sendConsigneeSigned (ETRN e) + WHEN provider(e) = ETRNProvider.kontur THEN {
     }
 }
 
-// Т2/Т4: у API Контура нет генерации XML и черновиков для титулов перевозчика -
-// отправка только подписанным файлом (КЭП). Реализация - в модуле KonturCarrierTitles.
+// Т2/Т4: у API Контура нет генерации XML и черновиков для титулов перевозчика - отправка
+// только подписанным файлом (КЭП). Реализация - в модуле KonturLogisticsCarrierTitles.
 
 importIncoming (ETRNProvider p) + WHEN p = ETRNProvider.kontur THEN {
     NEWSESSION {
@@ -1104,7 +1069,6 @@ importIncoming (ETRNProvider p) + WHEN p = ETRNProvider.kontur THEN {
     }
 }
 
-// кнопка обновления данных перевозки на списке ЭТрН
 EXTEND FORM etrns
     PROPERTIES(e) konturImportTransportation SHOWIF transportationId(e)
 ;

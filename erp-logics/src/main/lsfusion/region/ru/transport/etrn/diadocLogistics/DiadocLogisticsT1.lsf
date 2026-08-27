@@ -5,12 +5,10 @@ REQUIRE DiadocLogistics, DiadocLogisticsT1Form;
 NAMESPACE Diadoc;
 
 // ------------------------- Т1 через Диадок: генерация XML + подпись + отправка ------------------------- //
-// Форма UserDataXml (diadocT1UserData) - в модуле DiadocLogisticsT1Form (namespace ETRN).
-// Здесь: GenerateTitleXml (Диадок строит полный XML по приказу), подпись КЭП, PostMessage.
+// GenerateTitleXml (Диадок строит полный XML по приказу) -> подпись КЭП -> PostMessage.
 
 diadocSendT1 (ETRN.OutgoingETRN e) {
-    // защита от дублей: каждый PostMessage создаёт в Диадоке новый документ, даже если
-    // предыдущая отправка не зафиксировалась у нас (обрыв на ответе, ошибка APPLY)
+    // каждый PostMessage создаёт в Диадоке новый документ, аннулировать его нельзя
     IF diadocReceptionDocument(e) THEN
         ASK 'Т1 уже отправлен в Диадок (есть связанный документ перевозки). Отправить повторно (в Диадоке создастся ещё один документ)?' DO { } ELSE RETURN;
     IF NOT diadocBox(ETRN.shipper(e)) THEN {
@@ -21,6 +19,9 @@ diadocSendT1 (ETRN.OutgoingETRN e) {
         MESSAGE CONCAT ' ', 'Не найдены ящики участников:', missingDiadocBoxes(e) NOWAIT;
         RETURN;
     }
+
+    checkCounteragent(guidBoxId(diadocBoxId(ETRN.shipper(e))), diadocBox(ETRN.carrier(e)), 'Т1', 'перевозчик');
+    IF NOT counteragentCheckPassed() THEN RETURN;
 
     FOR User u == userDiadocETRN() DO NEWSESSION {
         fromBox() <- diadocBox(ETRN.shipper(e));
@@ -50,10 +51,10 @@ diadocSendT1 (ETRN.OutgoingETRN e) {
             postMessage(u);
             // postMessage глотает HTTP-ошибки (MESSAGE внутри) - успех определяем по созданному документу
             IF createdDocument() THEN {
-                // Т1 создаёт reception-документ перевозки; kl-id связывает все документы перевозки
+                // kl-id связывает все документы перевозки
                 diadocReceptionDocument(e) <- createdDocument();
                 diadocKlId(e) <- STRING[36](klIdDocument(createdDocument()));
-                ETRN.transportationId(e) <- diadocKlId(e);   // общий ИД перевозки (kl-id)
+                ETRN.transportationId(e) <- diadocKlId(e);
                 ETRN.mintransId(e) <- STRING[255](mtIdDocument(createdDocument())) WHERE mtIdDocument(createdDocument());
                 ETRN.exchangeStatus(e) <- ETRN.ETRNExchangeStatus.signed;
                 ETRN.exchangeMessage(e) <- NULL;
@@ -68,7 +69,6 @@ diadocSendT1 (ETRN.OutgoingETRN e) {
     }
 }
 
-// реализация абстракции подписанной отправки Т1 для провайдера Диадок
 ETRN.sendSigned (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvider.diadoc THEN {
     FOR ETRN.OutgoingETRN oe == e DO
         diadocSendT1(oe);

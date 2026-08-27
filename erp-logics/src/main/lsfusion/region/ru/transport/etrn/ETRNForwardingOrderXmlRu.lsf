@@ -96,19 +96,17 @@ parseForwardingOrderT2Xml 'Импортировать титул экспеди�
     batchId(f) <- STRING[100]([GROUP LAST impFoSrvBatchId(INTEGER i) ORDER i]());
     batchNumber(f) <- STRING[20]([GROUP LAST impFoSrvBatchNum(INTEGER i) ORDER i]());
 
-    // услуги экспедиции: наименование, стоимость, ставка налога, признак исполнения
     forwarderPaymentInfo(f) <- ISTRING[1000](GROUP CONCAT (CONCAT ' ', impFoSrvName(INTEGER i),
         (CONCAT ' ', impFoSrvCost(i), impFoSrvCurrency(i), 'НДС ' + impFoSrvTaxRate(i)),
         'кол-во ' + impFoSrvQuantity(i), 'исполнено' IF impFoSrvDone(i) == '1'), '; ' ORDER i);
 
-    // привлеченные третьи лица
     forwarderThirdParties(f) <- ISTRING[1000](GROUP CONCAT (CONCAT ' ', impFoPredstName(INTEGER i),
         'ИНН ' + (OVERRIDE impFoPredstInn(i), impFoPredstInnIP(i))), '; ' ORDER i);
 
     forwarderNotes(f) <- ISTRING[1000](impFoOtherData());
 }
 
-// ручной режим: разбор приложенного файла прямо с карточки поручения
+// ручной режим: разбор файла прямо с карточки поручения
 EXTEND FORM forwardingOrder
     PROPERTIES(f) parseForwardingOrderT2Xml
 ;

@@ -5,8 +5,7 @@ REQUIRE ETRNExchange, LegalEntity, LegalEntityRu, TransportRu, Cargo, Currency;
 NAMESPACE ETRN;
 
 // Заказ-заявка на перевозку груза (формат ФНС zakzvper) - отдельный документ, предшественник ЭТрН.
-// Грузоотправитель формирует и подписывает Т1 (заявку), перевозчик отвечает Т2 (приём/отказ + водитель, ТС, стоимость).
-// Обмен через провайдера ЭПД (Диадок). Переиспользует общие справочники: контрагенты, груз, ТС, подписант, провайдер.
+// Грузоотправитель формирует и подписывает Т1, перевозчик отвечает Т2 (приём/отказ, водитель, ТС, стоимость).
 
 // ------------------------- Документ ------------------------- //
 
@@ -21,8 +20,7 @@ is (OrderRequest o) = o IS OrderRequest;
 WHEN LOCAL SET(OrderRequest o IS OrderRequest) AND NOT CHANGED(date(o)) DO date(o) <- currentDate();
 
 // ------------------------- Нумерация (по аналогии с ЭТрН) ------------------------- //
-// Номер присваивается нумератором при создании заявки; при отправке - подстраховка
-// (номер обязателен в титуле), дефолтный нумератор при отсутствии создаётся автоматически
+// Номер обязателен в титуле, поэтому при отправке есть подстраховка (sendOrderRequestAction)
 
 numerator '{numerator.id.numerator}' = DATA Numerator (OrderRequest);
 nameNumerator '{numerator.numerator}' (OrderRequest o) = name(numerator(o)) CHARWIDTH 7;
@@ -74,8 +72,7 @@ open 'Открыть' (OrderRequest o)  {
     NEWSESSION { isClosed(o) <- NULL; apply(); }
 } TOOLBAR CONFIRM;
 
-// связь с ЭТрН: заявка может породить несколько ЭТрН (по одной на пункт выгрузки).
-// Связь и производные (кол-во, перечень номеров) - в модуле ETRNFromOrderRequest.
+// заявка может породить несколько ЭТрН (по одной на пункт выгрузки); связь - в ETRNFromOrderRequest
 
 // ------------------------- Участники ------------------------- //
 
@@ -83,24 +80,21 @@ shipper = DATA LegalEntity (OrderRequest);
 nameShipper 'Грузоотправитель' (OrderRequest o) = name(shipper(o)) CHARWIDTH 15;
 carrier = DATA LegalEntity (OrderRequest);
 nameCarrier 'Перевозчик' (OrderRequest o) = name(carrier(o)) CHARWIDTH 15;
-// телефон организации-перевозчика (Phones обязателен в титуле Т1; из карточки, при отправке
-// в титул подставляется и телефон представителя из ответа перевозчика, если карточка пуста)
+// Phones обязателен в титуле Т1; при пустой карточке в титул идёт телефон представителя из Т2
 carrierOrgPhone 'Телефон' (OrderRequest o) = phone(carrier(o)) CHARWIDTH 15;
 
-// наши роли в заявке (по тому, кто из участников - наша компания)
 roleShipper 'Мы - грузоотправитель' (OrderRequest o) = isCompany(shipper(o));
 roleCarrier 'Мы - перевозчик' (OrderRequest o) = isCompany(carrier(o));
 roles 'Наши роли' (OrderRequest o) = CONCAT ', ', 'грузоотправитель' IF roleShipper(o),
                                                    'перевозчик' IF roleCarrier(o) CHARWIDTH 15;
 
-// подписант титула заявки (Т1 грузоотправителя) - первичные поля документа;
-// заполняются из карточки грузоотправителя, можно поправить на конкретной заявке
+// подписант титула Т1 - первичные поля документа, можно поправить на конкретной заявке
 signerLastName 'Подписант: фамилия' = DATA ISTRING[60](OrderRequest) CHARWIDTH 15;
 signerFirstName 'Подписант: имя' = DATA ISTRING[60](OrderRequest) CHARWIDTH 15;
 signerMiddleName 'Подписант: отчество' = DATA ISTRING[60](OrderRequest) CHARWIDTH 15;
 signerPosition 'Подписант: должность' = DATA ISTRING[128](OrderRequest) CHARWIDTH 15;
 
-// подписант заполняется из карточки грузоотправителя, если не заполнен иначе
+// skipSetSigner - флаг подавления автозаполнения подписанта
 skipSetSigner = DATA BOOLEAN  ()PREREAD;
 WHEN LOCAL CHANGED(shipper(OrderRequest o)) AND NOT skipSetSigner() DO {
     signerLastName(o) <- overSignerLastName(shipper(o)) WHERE overSignerLastName(shipper(o)) AND NOT signerLastName(o);
@@ -111,16 +105,13 @@ WHEN LOCAL CHANGED(shipper(OrderRequest o)) AND NOT skipSetSigner() DO {
 
 // ------------------------- Реквизиты заявки (Т1 грузоотправителя) ------------------------- //
 
-// договор перевозки - основание заявки
 contractName 'Договор перевозки: наименование' = DATA ISTRING[255](OrderRequest) CHARWIDTH 15;
 contractNumber 'Договор перевозки: номер' = DATA ISTRING[255](OrderRequest) CHARWIDTH 12;
 contractDate 'Договор перевозки: дата' = DATA DATE (OrderRequest);
 
-// требования к перевозке
 sanitary 'Санитарные требования' = DATA ISTRING[1000](OrderRequest) CHARWIDTH 15;
 food 'Требования к перевозке пищевой продукции' = DATA ISTRING[1000](OrderRequest) CHARWIDTH 15;
 
-// подача транспортного средства
 supplyDateTime 'Дата и время подачи ТС' = DATA DATETIME (OrderRequest);
 maxSupplyDateTime 'Предельные дата и время подачи ТС' = DATA DATETIME (OrderRequest);
 
@@ -132,12 +123,10 @@ supplyStreet 'Улица (подача)' = DATA ISTRING[255](OrderRequest) CHARW
 supplyBuilding 'Дом (подача)' = DATA ISTRING[20](OrderRequest) CHARWIDTH 6;
 hasSupplyAddress (OrderRequest o) = supplyRegion(o) AND supplyZipCode(o);
 
-// требования к транспортному средству
 vehicleType 'Требуемый тип ТС' = DATA ISTRING[255](OrderRequest) CHARWIDTH 15;
 vehicleWeight 'Требуемая грузоподъёмность, т' = DATA NUMERIC[10,2](OrderRequest);
 vehicleVolume 'Требуемая вместимость, м3' = DATA NUMERIC[10,2](OrderRequest);
 
-// метод определения массы груза (ETRNWeightMethod - общий справочник)
 weightMethod 'Метод определения массы груза' = DATA ETRNWeightMethod (OrderRequest);
 nameWeightMethod 'Метод определения массы груза' (OrderRequest o) = name(weightMethod(o)) CHARWIDTH 15;
 
@@ -154,8 +143,8 @@ nameTruck 'Транспортное средство' (OrderRequest o) = name(tr
 trailer 'Прицеп' = DATA Trailer (OrderRequest);
 nameTrailer 'Прицеп' (OrderRequest o) = name(trailer(o)) CHARWIDTH 15;
 
-// обязательные реквизиты водителя/ТС/прицепа (проверяются перед отправкой Т2) -
-// выводятся на форму READONLY, чтобы пользователь видел, что нужно заполнить в карточках
+// обязательные реквизиты для Т2; выводятся на форму READONLY, чтобы было видно,
+// что нужно дозаполнить в карточках водителя/ТС/прицепа
 driverPhone 'Телефон' (OrderRequest o) = phone(driver(o)) CHARWIDTH 15;
 driverLicenseSeries 'ВУ: серия' (OrderRequest o) = licenseSeries(driver(o)) CHARWIDTH 8;
 driverLicenseNumber 'ВУ: номер' (OrderRequest o) = licenseNumber(driver(o)) CHARWIDTH 10;
@@ -180,7 +169,6 @@ trailerOwnership 'Тип владения' (OrderRequest o) = nameOwnershipType(
 WHEN LOCAL CHANGED(truck(OrderRequest o)) AND NOT CHANGED(trailer(o)) DO
     trailer(o) <- defaultTrailer(truck(o));
 
-// стоимость перевозки
 currency 'Валюта' = DATA Currency (OrderRequest);
 nameCurrency 'Валюта' (OrderRequest o) = name(currency(o)) CHARWIDTH 10;
 feeNoVat 'Стоимость перевозки без НДС' = DATA NUMERIC[18,2](OrderRequest);
@@ -205,14 +193,14 @@ WHEN LOCAL SET(OrderRequest o IS OrderRequest) AND NOT CHANGED(provider(o)) INLI
 exchangeStatus 'Статус обмена' = DATA ETRNExchangeStatus (OrderRequest);
 nameExchangeStatus 'Статус обмена' (OrderRequest o) = name(exchangeStatus(o)) CHARWIDTH 15;
 
-// подсветка незаполненных обязательных полей (аналогично ЭТрН)
+// подсветка незаполненных обязательных полей
 backgroundMandatory (OrderRequest o) = RGB(255, 236, 240) IF o IS OrderRequest;
 exchangeMessage 'Сообщение обмена' = DATA TEXT (OrderRequest);
 
-// статус документооборота у провайдера (сырой код), обновляется при приёме статусов
+// сырой код статуса, как его отдаёт провайдер
 providerStatus 'Статус документооборота (провайдер)' = DATA STRING[100](OrderRequest) CHARWIDTH 15;
 
-// файл титула Т2 (ответ перевозчика, ЗАКЗВПЕР) и признак загрузки его данных
+// титул Т2 - ответ перевозчика, формат ЗАКЗВПЕР
 t2File 'Файл титула Т2 (XML)' = DATA FILE (OrderRequest);
 t2ImportedDateTime 'Дата/время загрузки ответа (Т2)' = DATA DATETIME (OrderRequest);
 
@@ -222,23 +210,21 @@ downloadT2File 'Скачать оригинал' (OrderRequest o) {
     WRITE CLIENT DIALOG t2File(o) TO (OVERRIDE 'Титул_Т2_заявки_' + number(o), 'Титул_Т2_заявки');
 }
 
-// привязка события ленты провайдера к заявке (аналог etrn(ETRNEvent) для ЭТрН)
+// привязка события ленты провайдера к заявке (аналог etrn(ETRNEvent))
 orderRequest = DATA OrderRequest (ETRNEvent) INDEXED;
 seriesNumberOrderRequest 'Заказ-заявка' (ETRNEvent ev) =
     CONCAT '', series(orderRequest(ev)), number(orderRequest(ev)) CHARWIDTH 10;
 
-// колонка заявки в журнале событий - после колонки ЭТрН
 EXTEND FORM etrnEvents
     PROPERTIES(ev) READONLY seriesNumberOrderRequest AFTER seriesNumberETRN(ev)
 ;
 
-// абстракции обмена (реализуются модулями провайдеров);
-// действия-обёртки с проверкой обязательных полей - ниже, после объявлений пунктов и строк
+// абстракции обмена (реализуют модули провайдеров); обёртки с проверками - ниже,
+// после объявлений пунктов и строк
 sendOrderRequest 'Подписать и отправить заявку (Т1)' ABSTRACT CASE (OrderRequest);          // грузоотправитель
-importOrderRequestT2Data 'Загрузить ответ перевозчика (Т2)' ABSTRACT CASE (OrderRequest);   // скачивание XML титула Т2 + разбор (реализация - у провайдера)
+importOrderRequestT2Data 'Загрузить ответ перевозчика (Т2)' ABSTRACT CASE (OrderRequest);   // скачивание XML титула Т2 + разбор
 
-// загрузка ответов перевозчиков (Т2) по нашим заявкам с завершённым документооборотом -
-// для планировщика / кнопки (реализация провайдера ставит t2ImportedDateTime при успешной загрузке)
+// для планировщика/кнопки; t2ImportedDateTime ставит реализация провайдера при успехе
 processOrderRequestsT2 'Загрузить ответы перевозчиков (Т2)' () {
     FOR OrderRequest o IS OrderRequest AND roleShipper(o) AND NOT t2ImportedDateTime(o) AND
         exchangeStatus(o) == ETRNExchangeStatus.completed AND provider(o) DO
@@ -280,7 +266,6 @@ address 'Адрес пункта (текст)' = DATA ISTRING[350](OrderPoint) C
 ownerName 'Владелец объекта инфраструктуры' = DATA ISTRING[255](OrderPoint) CHARWIDTH 15;
 ownerInn 'ИНН владельца инфраструктуры' = DATA STRING[12](OrderPoint) CHARWIDTH 12;
 
-// склад-источник адреса пункта (текстовый и структурный адрес заполняются от склада)
 stock 'Склад' = DATA Stock (OrderPoint);
 nameStock 'Склад' (OrderPoint p) = name(stock(p)) CHARWIDTH 15;
 
@@ -291,8 +276,7 @@ city 'Город' = DATA ISTRING[255](OrderPoint) CHARWIDTH 15;
 street 'Улица' = DATA ISTRING[255](OrderPoint) CHARWIDTH 15;
 building 'Дом' = DATA ISTRING[20](OrderPoint) CHARWIDTH 6;
 
-// при выборе склада - заполнить адрес пункта из адреса склада
-// (структурный адрес - из абстракций region/zipCode/... (Stock), реализуемых источником клиента)
+// region/zipCode/... (Stock) - абстракции, реализуются источником данных у клиента
 WHEN LOCAL CHANGED(stock(OrderPoint p)) DO {
     address(p) <- ISTRING[350](address(stock(p)));
     region(p) <- region(stock(p));
@@ -316,10 +300,9 @@ hasPointAddress (OrderPoint p) = region(p) AND zipCode(p);
 firstLoadingPoint (OrderRequest o) = GROUP MIN pointIndex(OrderPoint p) IF operation(p) == OrderPointOperation.loading BY orderRequest(p);
 firstUnloadingPoint (OrderRequest o) = GROUP MIN pointIndex(OrderPoint p) IF operation(p) == OrderPointOperation.unloading BY orderRequest(p);
 
-// первый (минимальный по индексу) пункт погрузки маршрута - место и время подачи ТС
+// первый пункт погрузки задаёт место и время подачи ТС
 loadingPoint (OrderRequest o) = GROUP MIN OrderPoint p IF operation(p) == OrderPointOperation.loading AND orderRequest(p)==o;
 
-// подача ТС = первый пункт погрузки: структурный адрес и дата/время заполняются из него
 supplyFromRegion (OrderRequest o) = region(loadingPoint(o));
 supplyFromZipCode (OrderRequest o) = zipCode(loadingPoint(o));
 supplyFromCity (OrderRequest o) = city(loadingPoint(o));
@@ -366,8 +349,8 @@ cost 'Стоимость груза (с НДС)' = DATA NUMERIC[19,2](OrderDetai
 distributable 'Возможно распределение по платформе' = DATA BOOLEAN (OrderDetail);
 divisible 'Груз делимый' = DATA BOOLEAN (OrderDetail);
 
-// пункт выгрузки строки груза (мультимаршрут: груз строки едет на этот пункт;
-// по нему выгружается связь груз-пункт в титул и формируется отдельная ЭТрН)
+// мультимаршрут: по пункту строки выгружается связь груз-пункт в титул
+// и формируется отдельная ЭТрН
 unloadingPoint 'Маршрут' = DATA OrderPoint (OrderDetail);
 concatName (OrderPoint o) = CONCAT ' ', ('№' + index(o)), address(o) CHARWIDTH 15;
 
@@ -378,12 +361,10 @@ CONSTRAINT unloadingPoint(OrderDetail d) AND
     CHECKED BY unloadingPoint[OrderDetail]
     MESSAGE 'Пункт выгрузки строки должен быть пунктом выгрузки этой же заявки';
 
-// число пунктов выгрузки заявки и единственный пункт (для автозаполнения)
 countUnloadingPoints 'Пунктов выгрузки' (OrderRequest o) = GROUP SUM 1 IF operation(OrderPoint p) == OrderPointOperation.unloading BY orderRequest(p);
 theUnloadingPoint (OrderRequest o) = GROUP LAST OrderPoint p ORDER pointIndex(p), p IF operation(p) == OrderPointOperation.unloading BY orderRequest(p);
 
-// один пункт выгрузки - проставляется в строку автоматически (в том числе при заполнении
-// маршрута после строк груза); несколько - выбираются вручную
+// единственный пункт проставляется автоматически, в том числе если маршрут заполнили после строк
 WHEN LOCAL (CHANGED(orderRequest(OrderDetail d)) OR CHANGED(theUnloadingPoint(orderRequest(d)))) AND
     countUnloadingPoints(orderRequest(d)) == 1 AND NOT unloadingPoint(d) DO
     unloadingPoint(d) <- theUnloadingPoint(orderRequest(d));
@@ -448,9 +429,8 @@ checkOrderRequestT1 (OrderRequest o) {
 
 sendOrderRequestAction 'Отправить заявку (Т1)' (OrderRequest o) {
     IF NOT provider(o) THEN { MESSAGE 'Для заказа-заявки не задан провайдер ЭПД' NOWAIT; RETURN; }
-    // номер обязателен в титуле: присваивается нумератором, дефолтный нумератор
-    // при отсутствии создаётся; сохраняем сразу - реализация провайдера работает
-    // в своей сессии и несохранённый номер не увидит
+    // номер обязателен в титуле; APPLY сразу - реализация провайдера работает
+    // в своей сессии и несохранённого номера не увидит
     IF NOT number(o) THEN NEWSESSION {
         IF NOT defaultNumeratorOrderRequest() THEN createDefaultNumeratorOrderRequest();
         numerator(o) <- defaultNumeratorOrderRequest() WHERE NOT numerator(o);
@@ -465,8 +445,8 @@ sendOrderRequestAction 'Отправить заявку (Т1)' (OrderRequest o) 
 } IMAGE 'apply.png';
 
 // ------------------------- Добавление пунктов маршрута ------------------------- //
-// вместо стандартной кнопки: пункт создаётся сразу с операцией; расширение кнопки
-// «Выгрузка» (например, автосоздание строки груза) - у клиентов
+// вместо стандартной кнопки NEW: пункт создаётся сразу с операцией;
+// overAddUnloadingPoint - точка расширения для клиентов
 
 overAddUnloadingPoint ABSTRACT LIST (OrderPoint);
 

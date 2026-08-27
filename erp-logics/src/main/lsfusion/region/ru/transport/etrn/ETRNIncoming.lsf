@@ -5,9 +5,8 @@ REQUIRE ETRNConsignee;   // реализует хранение и полей о
 NAMESPACE ETRN;
 
 // ------------------------- ЭТрН (входящая) ------------------------- //
-// Мы - грузополучатель: документ создаётся приёмом из ЭПД, стороны чужие -
-// реквизиты перевозчика/водителя/транспорта хранятся первичными строковыми полями
-// (заполняются разбором титула Т1)
+// Мы - грузополучатель: документ создаётся приёмом из ЭПД, стороны чужие, поэтому
+// реквизиты перевозчика/водителя/транспорта хранятся строками из титула Т1, а не ссылками
 
 CLASS IncomingETRN 'ЭТрН (входящая)' : ETRN;
 TABLE incomingEtrn(IncomingETRN);
@@ -147,16 +146,14 @@ infrastructureOwnerInfo[ETRN](IncomingETRN e) += infrastructureOwnerInfo(e);
 infrastructureOwnerNoInfo 'Обстоятельства отсутствия информации о владельце' = DATA ISTRING[1000](IncomingETRN);
 infrastructureOwnerNoInfo[ETRN](IncomingETRN e) += infrastructureOwnerNoInfo(e);
 
-// исправление титула (ИспрТрН): исправленный Т1 разбирается поверх оригинала,
-// номер/дата исправления показываются в шапке как признак
+// исправление титула (ИспрТрН): исправленный Т1 разбирается поверх оригинала
 correctionNumber 'Исправление №' = DATA STRING[10](IncomingETRN) CHARWIDTH 5;
 correctionDate 'Дата исправления' = DATA DATE (IncomingETRN);
 
 // ------------------------- Перевозчик, водитель, транспорт (из титула) ------------------------- //
 
-// перевозчик - карточка контрагента: ищется по ИНН из титула, при отсутствии создаётся
-// автоматически по данным справочника организаций Диадока (модуль DiadocLogisticsT1Import);
-// наименование и ИНН из титула сохраняются первичными полями (данные как в документе)
+// карточка перевозчика ищется по ИНН из титула, при отсутствии создаётся по справочнику
+// организаций Диадока (модуль DiadocLogisticsT1Import); наименование и ИНН титула хранятся отдельно
 carrier = DATA LegalEntity (IncomingETRN);
 carrier[ETRN](IncomingETRN e) += carrier(e);
 nameCarrierCard 'Перевозчик (карточка)' (IncomingETRN e) = name(carrier(e)) CHARWIDTH 15;
@@ -188,8 +185,8 @@ incomingTrailerCapacity 'Вместимость прицепа, м3' = DATA NUME
 incomingTrailerOwnership 'Тип владения прицепа' = DATA ISTRING[50](IncomingETRN) CHARWIDTH 15;
 
 
-// данные водителя и ТС стороннего перевозчика из входящего титула Т1
-// (в справочники Водители/Машины не заводятся - там наши сотрудники и транспорт)
+// водитель и ТС чужого перевозчика в справочники Водители/Машины не заводятся -
+// там только наши сотрудники и транспорт
 incomingDriverInfo 'Водитель (данные грузоотправителя)' = DATA ISTRING[1000](IncomingETRN) CHARWIDTH 15;
 incomingVehicleInfo 'ТС (данные грузоотправителя)' = DATA ISTRING[500](IncomingETRN) CHARWIDTH 15;
 
@@ -221,9 +218,7 @@ trailerOwnership(IncomingETRN e) += incomingTrailerOwnership(e);
 // ------------------------- Форма документа ------------------------- //
 
 // ------------------------- Форма входящей ------------------------- //
-// Компактная карточка: стороны и транспорт (строковые реквизиты из титула Т1),
-// груз - только просмотр. Вкладки "Т3: Приемка" и "Обмен" добавляют модули
-// ETRNConsignee и ETRNExchange.
+// груз доступен только на просмотр; вкладки «Т3: Приемка» и «Обмен» добавляются ниже
 
 FORM incomingEtrn 'Электронная транспортная накладная (входящая)'
     OBJECTS e = IncomingETRN PANEL
@@ -235,8 +230,7 @@ FORM incomingEtrn 'Электронная транспортная наклад�
                            nameConsignee, consigneePhone,
                            deliveryAddress, deliveryRegion, deliveryZipCode, deliveryCity, deliveryStreet, deliveryBuilding,
                            loadingAddress, deliveryDateTime, deliveryPeriod
-    // выбор склада заполняет структурный адрес доставки (обязателен для титула Т3) -
-    // подсвечивается, пока адрес не заполнен
+    // выбор склада заполняет структурный адрес доставки, обязательный для титула Т3
     PROPERTIES(e) nameCustomerStock BACKGROUND (backgroundMandatory(e) IF NOT hasDeliveryAddress(e))
 
     PROPERTIES(e) nameCarrierCard, carrierPhone READONLY, incomingCarrierName, incomingCarrierInn,
@@ -420,7 +414,6 @@ unloadingAddress[ETRN](IncomingETRN e) += unloadingAddress(e);
 
 // ------------------------- Вкладка «Обмен» ------------------------- //
 
-// вкладка "Обмен" на карточке входящей
 EXTEND FORM incomingEtrn
     PROPERTIES(e) nameProvider READONLY, nameExchangeStatus READONLY, providerStatus READONLY,
                   transportationId READONLY, mintransId READONLY, exchangeMessage READONLY,
@@ -459,7 +452,6 @@ DESIGN incomingEtrn {
 
 // ------------------------- Вкладка «Т3: Приемка» ------------------------- //
 
-// вкладка Т3 на карточке входящей + кнопка отправки
 EXTEND FORM incomingEtrn
     PROPERTIES(e) READONLYIF readonlyT3(e)
                   nameAcceptResult BACKGROUND (backgroundMandatory(e) IF NOT acceptResult(e)),

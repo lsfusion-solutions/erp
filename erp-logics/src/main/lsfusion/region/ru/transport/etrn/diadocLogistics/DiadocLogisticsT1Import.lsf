@@ -5,28 +5,21 @@ REQUIRE DiadocLogisticsEvents, ETRNTitleXmlRu;
 NAMESPACE Diadoc;
 
 // ------------------------- Загрузка полного состава входящих ЭТрН через Диадок ------------------------- //
-// importIncoming: входящие перевозки создаются лентой docflow-событий V5
-// (DiadocLogisticsEvents.processETRNEvent) - здесь только приём + обработка событий.
-// importFullData: скачивание XML титула Т1 (GetEntityContent - контент хранится в формате
-// приказа ФНС N ЕД-7-26/1065@) и полный разбор общим parseETRNTitleXml (ETRNTitleXmlRu).
-// ParseTitleXml Диадока не используется: он возвращает упрощённый UserDataXml,
-// а общий парсер работает с исходным форматом приказа (единым для всех провайдеров).
+// importIncoming: входящие перевозки создаются лентой docflow-событий (DiadocLogisticsEvents).
+// importFullData: XML титула Т1 (GetEntityContent, контент в формате приказа ФНС N ЕД-7-26/1065@)
+// разбирается общим parseETRNTitleXml; ParseTitleXml Диадока даёт упрощённый UserDataXml, не формат приказа.
 
 // ------------------------- Входящие перевозки ------------------------- //
-// создание документов с базовыми данными - через ленту событий и общий журнал
 
 ETRN.importIncoming (ETRN.ETRNProvider p) + WHEN p == ETRN.ETRNProvider.diadoc THEN {
-    ETRN.importEvents(p);        // 1. вычитать ленту docflow-событий в журнал
-    ETRN.processETRNEvents();    // 2. обработать необработанные события (создаст входящие ЭТрН)
+    ETRN.importEvents(p);
+    ETRN.processETRNEvents();
 }
 
 // ------------------------- Титул Т1 в fwd-сообщениях ------------------------- //
-// Трансляция титулов грузополучателю (fwd): документооборот ведут грузоотправитель
-// и перевозчик, нам приходят fwd-сообщения с копиями титулов - отдельное сообщение
-// на каждый титул (Т1 - вложение ON_TRNACLGROT, Т2 - ON_TRNACLPPRIN) с подписями.
-// Поиск: по каждому fwd-сообщению перевозки состав (V3/GetMessage), берётся вложение
-// с именем файла титула Т1; координаты сохраняются в документ (fwdT1MessageId/EntityId)
-// и используются общими receptionDoc*-координатами как запасной путь
+// Трансляция титулов грузополучателю (fwd): документооборот ведут грузоотправитель и перевозчик,
+// нам приходят fwd-сообщения с копиями титулов - по одному сообщению на титул
+// (Т1 - вложение ON_TRNACLGROT, Т2 - ON_TRNACLPPRIN); состав сообщения - V3/GetMessage.
 
 fwdEntityId = DATA LOCAL STRING (INTEGER);
 fwdEntityType = DATA LOCAL STRING (INTEGER);
@@ -42,8 +35,7 @@ fwdResult = DATA LOCAL FILE ();
 diadocFindFwdT1 (ETRN.ETRN e) {
     FOR [GROUP MAX TRUE IF docFunction(ETRN.ETRNEvent ev) == 'fwd' AND ETRN.etrn(ev) == e BY messageId(ev)](STRING[100] msg) DO {
         IF NOT fwdT1EntityId(e) THEN {
-            // очистка результатов предыдущего импорта: если в этом сообщении сущностей меньше,
-            // в "хвосте" локальных свойств остались бы строки прошлого сообщения
+            // очистка хвоста прошлого импорта: при меньшем числе сущностей остались бы старые строки
             fwdEntityId(INTEGER i) <- NULL WHERE fwdEntityId(i);
             fwdEntityType(INTEGER i) <- NULL WHERE fwdEntityType(i);
             fwdFileName(INTEGER i) <- NULL WHERE fwdFileName(i);
@@ -66,22 +58,18 @@ diadocFindFwdT1 (ETRN.ETRN e) {
 }
 
 // ------------------------- Карточка перевозчика входящей ------------------------- //
-// Перевозчик - чужая организация: карточка контрагента создаётся по официальным данным
-// справочника организаций Диадока (подтягивается по ИНН вместе с ящиками) и связывается
-// с ним; констрейнты справочника (КПП, e-mail и т.п.) не блокируют создание -
-// setNoCancelInTransaction. Приглашение в контрагенты Диадока (партнёрство ящиков
-// обязательно для Т3) отправляется в момент отправки Т3 - DiadocLogisticsT3.
+// Перевозчик - чужая организация: карточка создаётся по справочнику организаций Диадока
+// (подтягивается по ИНН вместе с ящиками); констрейнты справочника не должны отменять создание -
+// setNoCancelInTransaction. Приглашение в контрагенты (нужно для Т3) - при отправке Т3.
 
 diadocEnsureCarrier (ETRN.IncomingETRN ie) {
     IF ETRN.carrier(ie) THEN RETURN;
     IF NOT ETRN.incomingCarrierInn(ie) THEN RETURN;
 
-    // организация Диадока по ИНН - при отсутствии подтягивается из API (вместе с ящиками)
     IF NOT organizationInn(ETRN.incomingCarrierInn(ie)) THEN
         getOrganizationsByInn(userDiadocETRN(), ETRN.incomingCarrierInn(ie));
 
     FOR Organization o == organizationInn(ETRN.incomingCarrierInn(ie)) DO {
-        // карточка контрагента: связанная с организацией Диадока, иначе по ИНН, иначе создаётся
         LOCAL NESTED carrierCard = LegalEntity ();
         carrierCard() <- OVERRIDE legalEntity(o), legalEntityInn(ETRN.incomingCarrierInn(ie));
         IF NOT carrierCard() THEN NEWSESSION NESTED (carrierCard) {
@@ -92,13 +80,12 @@ diadocEnsureCarrier (ETRN.IncomingETRN ie) {
                 dataKpp(l, currentDate()) <- kpp(o);   // КПП - историзируемое
                 carrierCard() <- l;
             }
-            setNoCancelInTransaction();   // констрейнты справочника не отменяют создание
+            setNoCancelInTransaction();
             apply();
         }
         legalEntity(o) <- carrierCard() WHERE NOT legalEntity(o);
         ETRN.carrier(ie) <- carrierCard() WHERE NOT ETRN.carrier(ie);
-        // телефон/КПП из разобранного титула - в карточку (локальные свойства разбора
-        // еще заполнены: вызывается сразу после parseETRNTitleXml в той же сессии)
+        // работает, пока живы локальные свойства разбора - вызов сразу после parseETRNTitleXml
         ETRN.fillCarrierCardFromT1(ie);
     }
 }
@@ -106,17 +93,15 @@ diadocEnsureCarrier (ETRN.IncomingETRN ie) {
 // ------------------------- Полный состав из титула Т1 ------------------------- //
 
 diadocImportFullData (ETRN.ETRN e) {
-    // основной путь - reception-документ; для fwd-перевозок (трансляция) Т1 ищется
-    // по вложениям fwd-сообщений и попадает в те же координаты запасным значением
+    // у fwd-перевозок своего reception-документа нет - Т1 ищется по вложениям fwd-сообщений
     IF NOT (receptionDocMessageId(e) AND receptionDocEntityId(e)) THEN {
         FOR User u == userDiadocETRN() DO {
             getToken(u);
             diadocFindFwdT1(e);
         }
     }
-    // проблемы автозагрузки не показываются сообщениями (она выполняется фоном после каждого
-    // события, ранние попытки до появления файла Т1 - штатный переходный случай), а пишутся
-    // в «Сообщение обмена» документа; при успешной загрузке сообщение очищается
+    // автозагрузка идёт фоном после каждого события, попытка до появления Т1 - штатный случай:
+    // ошибки не в MESSAGE, а в «Сообщение обмена» документа (очищается при успехе)
     IF NOT (receptionDocMessageId(e) AND receptionDocEntityId(e)) THEN {
         ETRN.exchangeMessage(e) <- 'Автозагрузка: файл титула Т1 еще не получен от провайдера (загрузка повторится при следующей обработке событий)';
         APPLY;
@@ -131,7 +116,6 @@ diadocImportFullData (ETRN.ETRN e) {
     FOR User u == userDiadocETRN() DO {
         getToken(u);
 
-        // XML титула Т1 (формат приказа ФНС)
         LOCAL data = RAWFILE ();
         TRY {
             EXTERNAL HTTP GET url() + '/GetEntityContent?boxId=' + receptionBoxId(e) +
@@ -146,10 +130,9 @@ diadocImportFullData (ETRN.ETRN e) {
 
         ETRN.titleFile(e) <- file(data(), 'xml');
 
-        // полный разбор титула в поля документа (parseETRNTitleXml выполняет свой APPLY)
+        // parseETRNTitleXml выполняет свой APPLY
         ETRN.parseETRNTitleXml(e);
 
-        // карточка и партнёрство перевозчика - по ИНН из разобранного титула
         FOR ETRN.IncomingETRN ie == e DO diadocEnsureCarrier(ie);
 
         ETRN.titleImportedDateTime(e) <- currentDateTime();

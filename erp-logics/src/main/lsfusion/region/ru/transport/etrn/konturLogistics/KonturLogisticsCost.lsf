@@ -5,11 +5,9 @@ REQUIRE KonturLogistics;
 NAMESPACE ETRN;
 
 // ------------------------- Изменение стоимости перевозки (Т5/Т6) через Контур.Логистику ------------------------- //
-// Реализация абстракций ETRNConditionalTitles для провайдера Контур:
-// у API Контура нет генерации XML для титулов о стоимости - Т6 формируется по приказу
-// ФНС N ЕД-7-26/1065@ (раздел VIII, ON_TRNPUDGO, КНД 1110346), подписывается КЭП
-// грузоотправителя и отправляется парой файлов через POST /v1/transportations/documents.
-// Приём Т5/Т7/Т8/Т9 - по ленте docflow-событий (processEvent в KonturLogistics).
+// У API Контура нет генерации XML для титулов о стоимости: Т6 формируется по приказу ФНС
+// N ЕД-7-26/1065@ (раздел VIII, ON_TRNPUDGO, КНД 1110346), подписывается КЭП грузоотправителя
+// и отправляется парой файлов через POST /v1/transportations/documents.
 
 // ------------------------- Файл титула Т5 (для ссылки из Т6) ------------------------- //
 // В Т6 (ИдПУДИнфПрв) вкладывается ссылка на файл Т5 перевозчика и его подпись (Base64).
@@ -109,7 +107,7 @@ missingKonturT6 (ETRN e) = CONCAT ', ',
     'ключ УКЭП грузоотправителя' IF NOT keyAlias(shipper(e));
 
 konturSendT6 'Отправить титул Т6 (Контур)' (ETRN e) {
-    setKonturAuth(shipper(e));   // от имени грузоотправителя
+    setKonturAuth(shipper(e));
     konturEnsureFnsId(shipper(e));
     konturEnsureFnsId(carrier(e));
     IF missingKonturT6(e) THEN {
@@ -117,7 +115,7 @@ konturSendT6 'Отправить титул Т6 (Контур)' (ETRN e) {
         RETURN;
     }
     IF NOT (t5FileName(e) AND t5FileDate(e) AND t5FileTime(e) AND t5Signature(e)) THEN
-        konturImportT5Files(e);   // автозаполнение из архива титула по ИД из событий
+        konturImportT5Files(e);
     IF NOT (t5FileName(e) AND t5FileDate(e) AND t5FileTime(e) AND t5Signature(e)) THEN {
         MESSAGE 'Нет данных файла титула Т5 (имя, дата, время, подпись)' NOWAIT;
         RETURN;

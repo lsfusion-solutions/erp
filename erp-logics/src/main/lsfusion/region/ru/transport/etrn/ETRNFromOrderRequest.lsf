@@ -5,11 +5,8 @@ REQUIRE ETRNOrderRequest, ETRNOutgoing;
 NAMESPACE ETRN;
 
 // ------------------------- ЭТрН на основании заказа-заявки ------------------------- //
-// Создание транспортных накладных из заказа-заявки. Заявка может содержать несколько
-// пунктов выгрузки; на каждый пункт выгрузки формируется отдельная ЭТрН, в которую
-// попадают только строки груза, привязанные к этому пункту (unloadingPoint(OrderDetail)).
-// Погрузка предполагается из первого пункта погрузки маршрута.
-// Связь заявка <- ЭТрН (многие ЭТрН к одной заявке): orderRequest(ETRN).
+// На каждый пункт выгрузки заявки - своя ЭТрН со строками груза этого пункта
+// (unloadingPoint(OrderDetail)); погрузка - из первого пункта погрузки маршрута.
 
 orderRequest = DATA OrderRequest (OutgoingETRN) INDEXED;
 numberOrderRequestETRN 'Заказ-заявка (основание)' (ETRN e) = number(orderRequest(e)) CHARWIDTH 10;
@@ -26,7 +23,7 @@ loadingPointCity (OrderRequest o) = GROUP MAX city(OrderPoint p) IF operation(p)
 loadingPointStreet (OrderRequest o) = GROUP MAX street(OrderPoint p) IF operation(p) == OrderPointOperation.loading AND pointIndex(p) == firstLoadingPoint(orderRequest(p)) BY orderRequest(p);
 loadingPointBuilding (OrderRequest o) = GROUP MAX building(OrderPoint p) IF operation(p) == OrderPointOperation.loading AND pointIndex(p) == firstLoadingPoint(orderRequest(p)) BY orderRequest(p);
 
-// текстовое описание маршрута (все пункты) - чтобы не потерять промежуточные пункты в ЭТрН
+// маршрут текстом - чтобы не потерять в ЭТрН промежуточные пункты заявки
 routePointsText (OrderRequest o) = GROUP CONCAT (nameOperation(OrderPoint p) + ': ' + address(p)), '; ' ORDER pointIndex(p), p BY orderRequest(p);
 
 // строки груза без указанного пункта выгрузки (при нескольких пунктах - препятствие созданию)
@@ -69,7 +66,6 @@ fillHeader (OrderRequest o, OutgoingETRN e) {
     route(e) <- routePointsText(o);
 }
 
-// доставка - из конкретного пункта выгрузки
 fillDelivery (ETRN e, OrderPoint up) {
     customerStock(e) <- stock(up) WHERE stock(up);
     deliveryAddress(e) <- address(up);
@@ -81,7 +77,6 @@ fillDelivery (ETRN e, OrderPoint up) {
     deliveryBuilding(e) <- building(up);
 }
 
-// создание ЭТрН по пункту выгрузки со своими строками груза
 createETRNForPoint (OrderRequest o, OrderPoint up) {
     NEW e = OutgoingETRN {
         fillHeader(o, e);
@@ -129,7 +124,6 @@ createETRNFromOrder 'Создать ЭТрН' (OrderRequest o) {
     }
 } IMAGE 'add.png';
 
-// список ЭТрН заявки (просмотр / редактирование)
 FORM orderRequestETRNs 'ЭТрН заявки'
     OBJECTS o = OrderRequest PANEL
     OBJECTS e = ETRN
@@ -150,7 +144,6 @@ EXTEND FORM orderRequests
                   showETRNFromOrder TOOLBAR SHOWIF countETRN(o)
 ;
 
-// основание (заявка) и перечень ЭТрН на форме заявки
 EXTEND FORM orderRequest
     PROPERTIES(o) READONLY seriesNumbersETRN
 ;
@@ -161,7 +154,6 @@ DESIGN orderRequest {
     }
 }
 
-// основание (заявка) на форме ЭТрН
 EXTEND FORM outgoingEtrn
     PROPERTIES(e) numberOrderRequestETRN READONLY
 ;

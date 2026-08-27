@@ -5,10 +5,8 @@ REQUIRE ETRNExchange, LegalEntity, LegalEntityRu, Cargo, Currency;
 NAMESPACE ETRN;
 
 // Электронное поручение экспедитору (приказ ФНС N ЕД-7-26/958@) - документ ЭПД.
-// Мы всегда выступаем клиентом (титул клиента), экспедитор отвечает своим титулом;
-// отзыв поручения (третий титул) - отдельное действие, закладывается абстракцией.
-// Упрощение ручного режима: одна партия груза на поручение (поля партии - на документе,
-// строки груза - таблицей); при необходимости нескольких партий модель расширяется.
+// Мы всегда клиент (титул клиента), экспедитор отвечает своим титулом, отзыв - третий титул.
+// Упрощение: одна партия груза на поручение (поля партии - на документе, груз - таблицей).
 
 // ------------------------- Документ ------------------------- //
 
@@ -88,7 +86,7 @@ contractName 'Договор ТЭ: наименование' = DATA ISTRING[255]
 contractNumber 'Договор ТЭ: номер' = DATA ISTRING[255](ForwardingOrder) CHARWIDTH 12;
 contractDate 'Договор ТЭ: дата' = DATA DATE (ForwardingOrder);
 
-// ДокГруз: признак передачи экспедитору документов, необходимых для перевозки груза
+// ДокГруз - передача экспедитору документов, необходимых для перевозки
 documentsAttached 'Передаются документы для перевозки' = DATA BOOLEAN (ForwardingOrder);
 
 // подписант титула клиента - первичные поля документа, заполняются из карточки клиента
@@ -111,7 +109,6 @@ nameShipper 'Грузоотправитель' (ForwardingOrder f) = name(shippe
 consignee = DATA LegalEntity (ForwardingOrder);
 nameConsignee 'Грузополучатель' (ForwardingOrder f) = name(consignee(f)) CHARWIDTH 15;
 
-// грузоотправитель по умолчанию - сам клиент
 WHEN LOCAL CHANGED(client(ForwardingOrder f)) AND NOT shipper(f) DO shipper(f) <- client(f);
 
 notifyParties 'Уведомить стороны о прибытии груза' = DATA BOOLEAN (ForwardingOrder);   // ПрУведСторон
@@ -142,7 +139,6 @@ WHEN LOCAL SET(ForwardingOrder f IS ForwardingOrder) AND NOT CHANGED(vehicleKind
     vehicleKind(f) <- ForwardingVehicleKind.automobile;
 bodyType 'Требования к типу кузова' = DATA ISTRING[255](ForwardingOrder) CHARWIDTH 15;
 
-// готовность к отгрузке и доставка
 shipmentDateFrom 'Готовность к отгрузке: с' = DATA DATE (ForwardingOrder);
 shipmentDateTo 'Готовность к отгрузке: по' = DATA DATE (ForwardingOrder);
 shipmentTime 'Время готовности' = DATA TIME (ForwardingOrder);
@@ -150,8 +146,8 @@ deliveryDateFrom 'Доставка: с' = DATA DATE (ForwardingOrder);
 deliveryDateTo 'Доставка: по' = DATA DATE (ForwardingOrder);
 deliveryTime 'Время доставки' = DATA TIME (ForwardingOrder);
 
-// адреса приема и выдачи груза: структурные + место; заполняются выбором складов
-// (структурный адрес склада - от подразделения Диадока, как в ЭТрН)
+// адреса приема и выдачи заполняются выбором склада (структурный адрес склада -
+// от подразделения Диадока, как в ЭТрН)
 pickupStock 'Склад погрузки' = DATA Stock (ForwardingOrder);
 namePickupStock 'Склад погрузки' (ForwardingOrder f) = name(pickupStock(f)) CHARWIDTH 15;
 pickupPlace 'Место приема груза' = DATA ISTRING[255](ForwardingOrder) CHARWIDTH 15;
@@ -201,7 +197,6 @@ temperatureTo 'Температура, до °C' = DATA NUMERIC[7,2](ForwardingO
 humidityFrom 'Влажность, от %' = DATA NUMERIC[5,2](ForwardingOrder);
 humidityTo 'Влажность, до %' = DATA NUMERIC[5,2](ForwardingOrder);
 
-// объявленная/действительная стоимость груза
 currency 'Валюта' = DATA Currency (ForwardingOrder);
 nameCurrency 'Валюта' (ForwardingOrder f) = name(currency(f)) CHARWIDTH 10;
 declaredCost 'Объявленная стоимость груза' = DATA NUMERIC[18,2](ForwardingOrder);
@@ -296,7 +291,6 @@ sendForwardingOrder 'Подписать и отправить поручение
 importForwardingOrderT2Data 'Загрузить ответ экспедитора' ABSTRACT CASE (ForwardingOrder);   // скачивание титула экспедитора + разбор
 recallForwardingOrder 'Отозвать поручение' ABSTRACT CASE (ForwardingOrder);                  // титул отзыва (реализация - позже)
 
-// загрузка ответов экспедиторов по нашим поручениям с завершённым документооборотом
 processForwardingOrdersT2 'Загрузить ответы экспедиторов' () {
     FOR ForwardingOrder f IS ForwardingOrder AND roleClient(f) AND NOT t2ImportedDateTime(f) AND
         exchangeStatus(f) == ETRNExchangeStatus.completed AND provider(f) DO

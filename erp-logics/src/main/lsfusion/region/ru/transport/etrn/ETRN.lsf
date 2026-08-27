@@ -69,16 +69,13 @@ FORM etrnRedirectPersons 'Лицо, по указанию которого мо�
 
 // ------------------------- Документ ЭТрН ------------------------- //
 
-// ЭТрН - абстрактный документ с двумя конкретными видами:
-//   исходящая (мы - грузоотправитель): создаётся у нас, реквизиты перевозчика, водителя
-//     и транспорта - ссылки на справочники;
-//   входящая (мы - грузополучатель): создаётся приёмом из ЭПД, стороны чужие -
-//     реквизиты первичными строковыми полями (заполняются разбором титула Т1)
+// Два вида: исходящая (мы - грузоотправитель) - реквизиты перевозчика, водителя и транспорта
+// ссылками на справочники; входящая (мы - грузополучатель) - те же реквизиты первичными
+// строковыми полями из разбора чужого титула Т1
 CLASS ABSTRACT ETRN 'Электронная транспортная накладная';
 TABLE etrn(ETRN);   // MATERIALIZED-свойства уровня ETRN и служебные поля провайдеров
 
-// Нумерация и дата: хранение - в конкретных классах (у исходящей нумератор - модуль
-// ETRNOutgoing, у входящей номер и дата приходят из титула Т1 - модуль ETRNIncoming)
+// хранение - в конкретных классах: ETRNOutgoing (нумератор), ETRNIncoming (из титула Т1)
 number '{numerator.number.numerator}' = ABSTRACT STRING[48] (ETRN) IN numbered CHARWIDTH 8;
 series '{numerator.series.numerator}' = ABSTRACT BPSTRING[2] (ETRN) IN numbered CHARWIDTH 3 NOFLEX;
 seriesNumber '{numerator.series.number.numerator}' (ETRN o) =
@@ -99,7 +96,7 @@ WHEN LOCAL CHANGED(date(ETRN o)) AND NOT CHANGED(time(o)) DO {
 
 is (ETRN e) = e IS ETRN;
 
-// вид документа - Входящий/Исходящий (реализации в модулях конкретных классов)
+// значения - Входящий/Исходящий (реализации в модулях конкретных классов)
 direction 'Вид' = ABSTRACT ISTRING[10](ETRN) CHARWIDTH 10;
 
 // -- Параметры документа
@@ -118,9 +115,7 @@ open 'Открыть' (ETRN e)  {
     NEWSESSION { isClosed(e) <- NULL; apply(); }
 } TOOLBAR CONFIRM;
 
-// доступность данных титулов для редактирования по этапам:
-// данные титула можно менять, пока документ не ушел дальше соответствующего этапа.
-// при выключенном контроле этапов (настройка) все данные редактируемы на любой стадии
+// данные титула редактируемы, пока документ не ушел дальше соответствующего этапа
 controlStageEditETRN 'Контролировать этап при редактировании ЭТрН' = DATA BOOLEAN ();
 
 readonlyT1 (ETRN e) = (isClosed(e) OR id(stage(e)) > 1) AND controlStageEditETRN();
@@ -128,11 +123,11 @@ readonlyT2 (ETRN e) = (isClosed(e) OR id(stage(e)) > 2) AND controlStageEditETRN
 readonlyT3 (ETRN e) = (isClosed(e) OR id(stage(e)) > 3) AND controlStageEditETRN();
 readonlyT4 (ETRN e) = isClosed(e) AND controlStageEditETRN();
 
-// подсветка незаполненных обязательных полей; цвет перегружается через overBackgroundMandatory
+// подсветка незаполненных обязательных полей
 overBackgroundMandatory = ABSTRACT CASE COLOR (ETRN);
 backgroundMandatory (ETRN e) = OVERRIDE overBackgroundMandatory(e), (RGB(255, 236, 240) IF e IS ETRN);
 
-// способ упаковки по умолчанию - подставляется в строки груза ЭТрН, если у груза он не задан
+// подставляется в строки груза, если у самого груза способ не задан
 defaultPackageWay 'Способ упаковки (ЭТрН)' = DATA PackageWay ();
 nameDefaultPackageWay 'Способ упаковки (ЭТрН)' = name(defaultPackageWay());
 
@@ -161,9 +156,8 @@ note 'Примечание' = ABSTRACT ISTRING[250](ETRN) CHARWIDTH 15;
 currency 'Валюта стоимости' = ABSTRACT Currency (ETRN);
 nameCurrency 'Валюта стоимости' (ETRN e) = name(currency(e)) CHARWIDTH 10;
 
-// дефолты - только если создающий код не задал своё значение (INLINE-событие выполняется
-// после присваиваний создающего блока и иначе перетирало бы их: входящие создаются
-// сразу с этапом "Погрузка"/"Приемка")
+// WHERE, а не безусловно: INLINE-событие идёт после присваиваний создающего блока
+// и иначе перетирало бы их (входящие создаются сразу с этапом "Погрузка"/"Приемка")
 WHEN LOCAL SET(ETRN e IS ETRN) INLINE DO {
     stage(e) <- ETRNStage.registration WHERE NOT stage(e);
     currency(e) <- defaultCurrency() WHERE NOT currency(e);
@@ -215,7 +209,6 @@ seals 'Сведения о запорно-пломбировочных устр�
 speedLimits 'Указания об ограничениях скорости движения' = ABSTRACT ISTRING[2000](ETRN) CHARWIDTH 15;
 route 'Сведения о маршруте перевозки' = ABSTRACT ISTRING[2000](ETRN) CHARWIDTH 15;
 
-// климатический режим перевозки
 temperatureFrom 'Нижний предел температуры, °C' = ABSTRACT NUMERIC[7,2](ETRN);
 temperatureTo 'Верхний предел температуры, °C' = ABSTRACT NUMERIC[7,2](ETRN);
 humidityFrom 'Нижний предел влажности, %' = ABSTRACT NUMERIC[5,2](ETRN);
@@ -226,7 +219,6 @@ humidityTo 'Верхний предел влажности, %' = ABSTRACT NUMERI
 redirectPerson 'Лицо, по указанию которого может осуществляться переадресовка' = ABSTRACT ETRNRedirectPerson (ETRN);
 nameRedirectPerson 'Лицо, по указанию которого может осуществляться переадресовка' (ETRN e) = name(redirectPerson(e)) CHARWIDTH 15;
 
-// по умолчанию переадресовка - по указанию грузоотправителя (типовой случай)
 WHEN LOCAL SET(ETRN e IS ETRN) AND NOT CHANGED(redirectPerson(e)) INLINE DO
     redirectPerson(e) <- ETRNRedirectPerson.shipper;
 
@@ -235,10 +227,8 @@ redirectMethod 'Способ передачи указания на переад
 WHEN LOCAL SET(ETRN e IS ETRN) AND NOT CHANGED(redirectMethod(e)) INLINE DO
     redirectMethod(e) <- 'Электронное уведомление перевозчика о переадресовке';
 
-// контакты лица, по указанию которого может осуществляться переадресовка
 redirectPhone 'Номер контактного телефона/факс' = ABSTRACT ISTRING[255](ETRN) CHARWIDTH 15;
 
-// телефон по умолчанию - из карточки выбранного лица (грузоотправитель/грузополучатель)
 WHEN LOCAL (CHANGED(redirectPerson(ETRN e)) OR CHANGED(shipper(e)) OR CHANGED(consignee(e))) AND NOT CHANGED(redirectPhone(e)) DO
     redirectPhone(e) <- ISTRING[255](IF redirectPerson(e) == ETRNRedirectPerson.consignee
                                      THEN phone(consignee(e))
@@ -246,14 +236,13 @@ WHEN LOCAL (CHANGED(redirectPerson(ETRN e)) OR CHANGED(shipper(e)) OR CHANGED(co
 redirectEmail 'Адрес электронной почты' = ABSTRACT ISTRING[255](ETRN) CHARWIDTH 15;
 redirectContacts 'Иные контактные данные' = ABSTRACT ISTRING[255](ETRN) CHARWIDTH 15;
 
-// реквизиты документа, подтверждающего передачу полномочий по переадресовке грузополучателю
+// документ передачи полномочий по переадресовке грузополучателю
 redirectDocName 'Наименование документа' = ABSTRACT ISTRING[255](ETRN) CHARWIDTH 15;
 redirectDocNumber 'Номер документа' = ABSTRACT ISTRING[255](ETRN) CHARWIDTH 15;
 redirectDocDate 'Дата документа' = ABSTRACT DATE (ETRN);
 redirectDocFileId 'Идентификатор файла документа' = ABSTRACT ISTRING[255](ETRN) CHARWIDTH 15;
 redirectDocInfo 'Дополнительные сведения' = ABSTRACT ISTRING[1000](ETRN) CHARWIDTH 15;
 
-// идентифицирующие реквизиты сторон, составивших документ передачи полномочий
 CLASS ETRNRedirectDocParty 'Сторона документа передачи полномочий';
 TABLE etrnRedirectDocParty(ETRNRedirectDocParty);
 
@@ -263,32 +252,26 @@ innLegal 'ИНН юридического лица' = DATA STRING[10](ETRNRedire
 innPhysical 'ИНН физического лица' = DATA STRING[12](ETRNRedirectDocParty);
 authority 'Краткое наименование органа исполнительной власти, выдавшего документ' = DATA ISTRING[255](ETRNRedirectDocParty) CHARWIDTH 15;
 
-// -- Перевозчик (хранение реквизитов - в конкретных классах: у исходящей выбирается
-// из справочника, у входящей карточка создаётся автоматически по данным Диадока)
+// -- Перевозчик (у исходящей - из справочника, у входящей карточка создаётся по данным Диадока)
 
 carrier = ABSTRACT LegalEntity (ETRN);
 
-// роли нашей организации в перевозке - определяются тем, кто из участников является
-// нашей компанией. Перевозчиком мы не выступаем: ЭПД оформляется только при
-// заказном транспорте (доставка собственным транспортом обходится без ЭТрН)
+// перевозчиком мы не выступаем: ЭПД оформляется только при заказном транспорте
+// (доставка собственным транспортом обходится без ЭТрН)
 roleShipper 'Мы - грузоотправитель' (ETRN e) = isCompany(shipper(e));
 roleConsignee 'Мы - грузополучатель' (ETRN e) = isCompany(consignee(e));
 
 roles 'Наши роли' (ETRN e) = CONCAT ', ', 'Грузоотправитель' IF roleShipper(e),
                                           'Грузополучатель' IF roleConsignee(e) CHARWIDTH 15;
 
-// подсветка обязательных полей титула Т1 - только для исходящих (мы - грузоотправитель):
-// на входящих перевозках эти поля приходят из чужого титула и нами не заполняются
+// на входящих эти поля приходят из чужого титула Т1 и нами не заполняются
 backgroundMandatoryT1 (ETRN e) = backgroundMandatory(e) IF roleShipper(e);
 
 // ------------------------- Реквизиты перевозчика/водителя/транспорта ------------------------- //
-// Исходящая: ссылки на справочники. Входящая: первичные строковые поля.
-// Отображаемые свойства - ABSTRACT на базовом классе, реализация по виду документа;
-// имена сохранены, общие формы (списки) работают с обоими видами.
+// ABSTRACT на базовом классе (реализация по виду документа) - общие формы работают с обоими видами
 
 
 
-// отображаемые реквизиты: реализация по виду документа
 nameCarrier 'Перевозчик' = ABSTRACT ISTRING[150](ETRN) CHARWIDTH 15;
 
 carrierPhone 'Телефон' = ABSTRACT ISTRING[100](ETRN) CHARWIDTH 15;
@@ -334,14 +317,12 @@ trailerCapacity 'Вместимость, м3' = ABSTRACT NUMERIC[16,5](ETRN);
 
 trailerOwnership 'Тип владения' = ABSTRACT ISTRING[50](ETRN) CHARWIDTH 15;
 
-// телефоны участников (Phones обязательны в титуле у всех трёх организаций);
-// грузоотправитель и грузополучатель - всегда наши справочные организации
+// Phones обязательны в титуле у всех трёх организаций
 shipperPhone 'Телефон' (ETRN e) = phone(shipper(e)) CHARWIDTH 15;
 consigneePhone 'Телефон' (ETRN e) = phone(consignee(e)) CHARWIDTH 15;
 
 
 
-// сведения о путевом листе
 CLASS ETRNWaybill 'Путевой лист';
 TABLE etrnWaybill(ETRNWaybill);
 
@@ -364,8 +345,7 @@ declaredSupplyDateTime 'Заявленные дата и время подачи
 arrivalDateTime 'Фактические дата и время прибытия' = ABSTRACT DATETIME (ETRN);
 departureDateTime 'Фактические дата и время убытия' = ABSTRACT DATETIME (ETRN);
 
-// предзаполнение дат подачи: заявленная - при создании (из заявки-основания перекрывается),
-// фактическое прибытие - по заявленной, убытие - по прибытию; ручной ввод не затирается
+// предзаполнение; ручной ввод и данные заявки-основания не затираются
 WHEN LOCAL SET(ETRN e IS ETRN) AND NOT CHANGED(declaredSupplyDateTime(e)) INLINE DO
     declaredSupplyDateTime(e) <- currentDateTime();
 WHEN LOCAL CHANGED(declaredSupplyDateTime(ETRN e)) AND NOT CHANGED(arrivalDateTime(e)) DO
@@ -405,7 +385,7 @@ fillLoadingDiadocAddress (ETRN e) {
     loadingBuilding(e) <- building(supplierStock(e));
 }
 
-// место доставки - из подразделения Диадока склада грузополучателя
+// адрес - из подразделения Диадока склада грузополучателя
 fillDeliveryDiadocAddress (ETRN e) {
     deliveryRegion(e) <- region(customerStock(e));
     deliveryZipCode(e) <- zipCode(customerStock(e));
@@ -425,7 +405,6 @@ acceptGrossWeight 'Масса брутто груза, кг' = ABSTRACT NUMERIC[
 weightMethod 'Метод определения массы груза' = ABSTRACT ETRNWeightMethod (ETRN);
 nameWeightMethod 'Метод определения массы груза' (ETRN e) = name(weightMethod(e)) CHARWIDTH 15;
 
-// по умолчанию - расчетная масса груза
 WHEN LOCAL SET(ETRN e IS ETRN) AND NOT CHANGED(weightMethod(e)) INLINE DO
     weightMethod(e) <- ETRNWeightMethod.calculated;
 
@@ -435,15 +414,13 @@ containerCondition 'Фактическое состояние тары' = ABSTRA
 packageCondition 'Фактическое состояние упаковки' = ABSTRACT ISTRING[255](ETRN) CHARWIDTH 15;
 bodyCondition 'Фактическое состояние кузова' = ABSTRACT ISTRING[255](ETRN) CHARWIDTH 15;
 
-// лицо, осуществляющее погрузку груза (СвЛицПогрГр): признак СовпГОП -
-// совпадает с грузоотправителем (типовой случай) либо реквизиты отдельного лица
+// СвЛицПогрГр: признак СовпГОП - погрузку осуществляет сам грузоотправитель
 loaderIsShipper 'Погрузку осуществляет грузоотправитель' = ABSTRACT BOOLEAN (ETRN);
 loader 'Лицо, осуществляющее погрузку груза' = ABSTRACT LegalEntity (ETRN);
 nameLoader 'Лицо, осуществляющее погрузку груза' (ETRN e) = name(loader(e)) CHARWIDTH 15;
 loaderInfo 'Сведения о лице, осуществляющем погрузку' = ABSTRACT ISTRING[500](ETRN) CHARWIDTH 15;
 
-// владелец объекта инфраструктуры пункта погрузки (ВладИнфр): признак СовпГОВ -
-// совпадает с грузоотправителем / отдельное лицо / неизвестен
+// ВладИнфр: признак СовпГОВ - владелец совпадает с грузоотправителем
 infrastructureOwnerIsShipper 'Владелец инфраструктуры - грузоотправитель' = ABSTRACT BOOLEAN (ETRN);
 infrastructureOwnerUnknown 'Владелец инфраструктуры неизвестен' = ABSTRACT BOOLEAN (ETRN);
 infrastructureOwner 'Владелец объекта инфраструктуры пункта погрузки' = ABSTRACT LegalEntity (ETRN);
@@ -479,7 +456,6 @@ namePackageWay 'Способ упаковки' (ETRNDetail d) = name(packageWay(
 tareType 'Вид тары' = DATA TareType (ETRNDetail);
 nameTareType 'Вид тары' (ETRNDetail d) = name(tareType(d)) CHARWIDTH 15;
 
-// способ упаковки строки: от груза, иначе - значение по умолчанию из настроек
 WHEN LOCAL CHANGED(cargo(ETRNDetail d))  AND NOT CHANGED(packageWay(d)) DO
     packageWay(d) <- OVERRIDE packageWay(cargo(d)), defaultPackageWay();
 WHEN LOCAL CHANGED(cargo(ETRNDetail d)) AND NOT CHANGED(tareType(d)) DO
@@ -489,7 +465,6 @@ density 'Плотность груза, кг/м3' = DATA NUMERIC[5,2](ETRNDetail
 condition = DATA CargoCondition (ETRNDetail);
 nameCondition 'Состояние груза' (ETRNDetail d) = name(condition(d)) CHARWIDTH 15;
 
-// по умолчанию - «Целый»
 WHEN LOCAL SET(ETRNDetail d IS ETRNDetail) AND NOT CHANGED(condition(d)) DO
     condition(d) <- conditionIntact();
 volume 'Объем груза, м3' = DATA NUMERIC[17,3](ETRNDetail);
@@ -504,30 +479,27 @@ cost 'Стоимость груза (с НДС)' = DATA NUMERIC[19,2](ETRNDetail
 marking = DATA CargoMarking (ETRNDetail);
 nameMarking 'Маркировка' (ETRNDetail d) = name(marking(d)) CHARWIDTH 15;
 
-// по умолчанию - «Отсутствует» (Марк обязателен по формату)
+// Марк обязателен по формату
 WHEN LOCAL SET(ETRNDetail d IS ETRNDetail) AND NOT CHANGED(marking(d)) DO
     marking(d) <- markingAbsent();
 otherInfo 'Другая информация' = DATA ISTRING[1000](ETRNDetail) CHARWIDTH 15;
 
 cost 'Стоимость груза (с НДС)' (ETRN e) = GROUP SUM cost(ETRNDetail d) BY etrn(d);
 
-// суммы по строкам груза - для предзаполнения приема груза перевозчиком (вкладка «Погрузка»)
+// для предзаполнения сведений о приеме груза перевозчиком
 detailGrossWeight (ETRN e) = GROUP SUM grossWeight(ETRNDetail d) BY etrn(d);
 detailQuantityPlaces (ETRN e) = GROUP SUM quantityPlaces(ETRNDetail d) BY etrn(d);
 
-// масса брутто и количество мест при приеме - по умолчанию из строк груза (пока не введены вручную)
 WHEN LOCAL CHANGED(detailGrossWeight(ETRN e)) AND NOT CHANGED(acceptGrossWeight(e)) DO
     acceptGrossWeight(e) <- detailGrossWeight(e);
 WHEN LOCAL CHANGED(detailQuantityPlaces(ETRN e)) AND NOT CHANGED(acceptQuantityPlaces(e)) DO
     acceptQuantityPlaces(e) <- detailQuantityPlaces(e);
 
-// однозначные имена для доступа к свойствам строки из других namespace
-// (packageWay/tareType/etrn перегружены между ETRNDetail, Cargo и namespace ETRN)
+// однозначные имена для доступа из других namespace (packageWay/tareType/etrn перегружены)
 detailPackageWay (ETRNDetail d) = name(packageWay(d));
 detailTareCode (ETRNDetail d) = idTareType(tareType(d));
 detailETRN (ETRNDetail d) = etrn(d);
 
-// сведения о контейнерах
 CLASS ETRNDetailContainer 'Сведения о контейнере';
 TABLE etrnDetailContainer(ETRNDetailContainer);
 
@@ -568,7 +540,7 @@ FORM etrns 'Электронные транспортные накладные'
 ;
 
 DESIGN etrns {
-    // нижняя панель закладок: «Спецификация» (строки груза) + вкладки других модулей («Действия» и др.)
+    // нижняя панель закладок; свои вкладки в неё добавляют другие модули ЭПД
     NEW detailPane BEFORE TOOLBARBOX {
         tabbed = TRUE;           
         fill = 1;

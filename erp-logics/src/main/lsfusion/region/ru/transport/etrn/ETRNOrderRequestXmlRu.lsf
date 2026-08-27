@@ -8,9 +8,6 @@ NAMESPACE ETRN;
 // Формат приказа - единый для провайдеров, поэтому общий модуль (по аналогии с ETRNTitleXmlRu).
 
 // ------------------------- Разбор титула Т2 (ЗАКЗВПЕР, ответ перевозчика) ------------------------- //
-// Заполняет ответную часть нашей заявки: принятие/отказ, телефон представителя, водителя,
-// ТС, прицеп и стоимость перевозки. Водитель ищется по ВУ либо ИНН, ТС/прицеп - по рег. номеру;
-// не найденные создаются в справочниках с реквизитами из титула.
 // Провайдер кладёт входящий XML в t2File(OrderRequest) и вызывает parseOrderRequestT2Xml.
 
 // СодИнфПрв
@@ -112,7 +109,6 @@ FORM orderRequestT2XmlImport
         impR2FeeCalc() EXTID 'Расчет' ATTR
 ;
 
-// поиск в справочниках
 truckBySid = GROUP MAX Truck t BY sid(t);
 trailerBySid = GROUP MAX Trailer t BY sid(t);
 driverByLicense = GROUP MAX Driver d BY licenseSeries(d), licenseNumber(d);
@@ -129,18 +125,16 @@ parseOrderRequestT2Xml 'Импортировать ответ перевозчи
     // APPLY - на вызывающей стороне. Файлы приказа - windows-1251 без XML-декларации
     IMPORT orderRequestT2XmlImport XML CHARSET 'windows-1251' FROM t2File(o);
 
-        // принятие / отказ, телефон представителя
         accepted(o) <- TRUE IF NOT impR2Reject();
         rejectionReason(o) <- ISTRING[1000](impR2Reject());
         carrierPhone(o) <- ISTRING[100](OVERRIDE impR2OrgPhone(), impR2VodPhone());
 
-        // стоимость перевозки
         feeNoVat(o) <- NUMERIC[18,2](impR2FeeNoVat());
         feeTaxRate(o) <- ISTRING[20](impR2FeeRate());
         feeTotal(o) <- NUMERIC[18,2](impR2FeeTotal());
         feeCalculations(o) <- ISTRING[255](impR2FeeCalc());
 
-        // водитель: поиск по ВУ либо ИНН, при отсутствии - создание
+        // водитель
         IF impR2VodLast() THEN {
             LOCAL foundDriver = Driver ();
             foundDriver() <- OVERRIDE driverByLicense(STRING[20](impR2VodSer()), STRING[20](impR2VodNum())),
@@ -160,7 +154,7 @@ parseOrderRequestT2Xml 'Импортировать ответ перевозчи
             }
         }
 
-        // транспортное средство: поиск по рег. номеру, при отсутствии - создание
+        // транспортное средство
         IF impR2TSReg() THEN {
             IF impR2TSBrand() AND NOT truckModelByName(ISTRING[50](impR2TSBrand())) THEN NEW m = TruckModel {
                 name(m) <- ISTRING[50](impR2TSBrand());
@@ -183,7 +177,7 @@ parseOrderRequestT2Xml 'Импортировать ответ перевозчи
             }
         }
 
-        // прицеп: поиск по рег. номеру, при отсутствии - создание
+        // прицеп
         IF impR2PrReg() THEN {
             IF impR2PrBrand() AND NOT truckModelByName(ISTRING[50](impR2PrBrand())) THEN NEW m = TruckModel {
                 name(m) <- ISTRING[50](impR2PrBrand());
@@ -207,7 +201,7 @@ parseOrderRequestT2Xml 'Импортировать ответ перевозчи
         }
 }
 
-// кнопка ручного импорта из файла (по аналогии с parseETRNTitleXml на списке ЭТрН)
+// ручной импорт из файла (как parseETRNTitleXml на списке ЭТрН)
 EXTEND FORM orderRequests
     PROPERTIES(o) READONLY t2ImportedDateTime
     PROPERTIES(o) parseOrderRequestT2Xml SHOWIF (roleShipper(o) AND t2File(o))

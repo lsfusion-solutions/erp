@@ -9,11 +9,9 @@ NAMESPACE ETRN;
 // Провайдер кладёт входящий XML в titleFile(ETRN) и вызывает parseETRNTitleXml.
 
 // ------------------------- Импорт титула Т1 из XML-файла ------------------------- //
-// Полный разбор файла обмена информации грузоотправителя (приказ ФНС N ЕД-7-26/1065@,
-// раздел II) в документ ЭТрН - для входящих перевозок, где мы грузополучатель/перевозчик.
-// Файл титула: поле "Файл титула (XML)" на вкладке "Обмен" (вручную или из документооборота).
+// Для входящих перевозок, где мы грузополучатель/перевозчик; файл титула - поле
+// "Файл титула (XML)" на вкладке "Обмен" (вручную или из документооборота).
 
-// лукапы статических справочников
 etrnWeightMethod (STRING[2] code) = GROUP MAX ETRNWeightMethod m BY id(m);
 etrnRedirectPerson (ISTRING[15] name) = GROUP MAX ETRNRedirectPerson p BY name(p);
 
@@ -336,14 +334,12 @@ FORM etrnTitleXmlImport
 countStocksByDeliveryZip (STRING[6] z) = GROUP SUM 1 IF zipCode(Stock.Stock st) == z;
 stockByDeliveryZip (STRING[6] z) = GROUP MAX Stock.Stock st IF zipCode(st) == z;
 
-// склад по коду ГАР (ФИАС) места доставки - реализация у клиента, где склады связаны
-// с подразделениями Диадока (у подразделения есть код ГАР/ФИАС адреса)
+// склад по коду ГАР (ФИАС) места доставки - реализуется у клиента, где склад связан
+// с подразделением Диадока (у подразделения есть код ГАР адреса)
 stockByDeliveryGar = ABSTRACT CASE Stock.Stock (STRING);
 
-// индекс из текстового адреса: первая группа из РОВНО 6 цифр подряд в любом месте текста
-// (слитная - телефоны и прочие длинные числа не подходят). Извлечение - обратной ссылкой
-// \2 (PG-синтаксис); при несовпадении шаблона regexpReplace возвращает исходный текст,
-// поэтому результат валидируется: ровно 6 символов и все - цифры
+// индекс из текстового адреса: первая слитная группа РОВНО из 6 цифр; извлечение - обратной
+// ссылкой \2 (PG); при несовпадении regexpReplace вернёт исходный текст - отсюда валидация
 deliveryZipExtract (STRING text) = regexpReplace(trim(text), '^.*?(^|[^0-9])([0-9]{6})([^0-9]|$).*$', '\\2', '');
 deliveryZip (STRING text) = STRING[6](deliveryZipExtract(text))
     IF length(deliveryZipExtract(text)) == 6 AND
@@ -353,8 +349,8 @@ deliveryZip (STRING text) = STRING[6](deliveryZipExtract(text))
 impT1DeliveryZip () = STRING[6](OVERRIDE impT1GPIndex(),
     deliveryZip(STRING(OVERRIDE impT1GPAddrInfText(), impT1GPAddrText())));
 
-// телефон и КПП перевозчика из титула - в карточку контрагента, только незаполненные
-// (вызывается из разбора и из провайдерского модуля после автосоздания карточки)
+// телефон и КПП перевозчика - в карточку контрагента, только незаполненные
+// (вызывается и из провайдерского модуля после автосоздания карточки)
 fillCarrierCardFromT1 (IncomingETRN ie) {
     FOR LegalEntity l == carrier(ie) DO {
         dataPhone(l, currentDate()) <- STRING[100](impT1PerPhone()) WHERE impT1PerPhone() AND NOT phone(l);
@@ -379,7 +375,6 @@ parseETRNTitleXml 'Импортировать титул Т1 из файла' (E
     // файлы приказа - windows-1251, как правило без XML-декларации
     IMPORT etrnTitleXmlImport XML CHARSET 'windows-1251' FROM titleFile(e);
 
-    // параметры документа
     number(e) <- STRING[48](impT1Number());
     date(e) <- DATE(toDateFormat(impT1Date(), 'DD.MM.YYYY'));
     orderNumber(e) <- STRING[100](impT1OrderNumber());
@@ -388,9 +383,8 @@ parseETRNTitleXml 'Импортировать титул Т1 из файла' (E
     // УИД накладной из файла - если провайдер еще не сообщил его событием
     mintransId(e) <- STRING[255](impT1Uid()) WHERE impT1Uid() AND NOT mintransId(e);
 
-    // участники: грузоотправитель и грузополучатель - только наши справочные организации
-    // (поиск по ИНН, ненайденные - сообщением); перевозчик входящих - чужая сторона,
-    // в справочник не заводится: первичные строковые реквизиты
+    // грузоотправитель и грузополучатель ищутся по ИНН в справочнике (ненайденные - сообщением);
+    // перевозчик входящих - чужая сторона, в справочник не заводится: строковые реквизиты
     shipper(e) <- legalEntityInn(STRING[12](OVERRIDE impT1GOInn(), impT1GOInnIP())) WHERE legalEntityInn(STRING[12](OVERRIDE impT1GOInn(), impT1GOInnIP()));
     forwarder(e) <- TRUE IF impT1GOExp() = '1';
     consignee(e) <- legalEntityInn(STRING[12](OVERRIDE impT1GPInn(), impT1GPInnIP())) WHERE legalEntityInn(STRING[12](OVERRIDE impT1GPInn(), impT1GPInnIP()));
@@ -412,9 +406,8 @@ parseETRNTitleXml 'Импортировать титул Т1 из файла' (E
         incomingDesadvNumber(ie) <- STRING[100]([GROUP LAST impT1InfValue(INTEGER i) IF impT1InfId(i) == 'DESADV' ORDER i]());
         incomingInvoicNumber(ie) <- STRING[100]([GROUP LAST impT1InfValue(INTEGER i) IF impT1InfId(i) == 'INVOIC' ORDER i]());
 
-        // автоопределение склада грузополучателя (первое совпадение по приоритету):
-        // GLN места доставки -> код ГАР (подразделение Диадока склада) -> индекс адреса
-        // (только при однозначности); дальше событие подтянет структурный адрес для Т3
+        // склад грузополучателя по приоритету: GLN -> код ГАР -> индекс адреса (только при
+        // однозначности); дальше событие подтянет структурный адрес для Т3
         IF NOT customerStock(ie) THEN
             customerStock(ie) <- CASE
                 WHEN stockGLN(STRING[13](impT1GPGln())) THEN stockGLN(STRING[13](impT1GPGln()))
@@ -429,19 +422,17 @@ parseETRNTitleXml 'Импортировать титул Т1 из файла' (E
     IF missingParticipants() THEN
         MESSAGE CONCAT ' ', 'Участники титула не найдены в справочнике организаций:', missingParticipants() NOWAIT;
 
-    // адрес доставки: комментарий/структурный адрес РФ
     deliveryAddress(e) <- ISTRING[350](OVERRIDE impT1GPAddrText(), impT1GPAddrInfText(),
         (CONCAT ', ', impT1GPIndex(), impT1GPDistrict(), impT1GPCity(), impT1GPLocality(), impT1GPStreet(), impT1GPHouse(), impT1GPCorpus(), impT1GPFlat()));
 
-    // структурный адрес места доставки (АдресРФ) - в структурные поля документа, не затирая
-    // заполненных (при отсутствии в титуле их заполняет выбор склада грузополучателя)
+    // структурный адрес места доставки (АдресРФ) - не затирая заполненных
+    // (при отсутствии в титуле их заполняет выбор склада грузополучателя)
     deliveryRegion(e) <- STRING[2](impT1GPRegion()) WHERE impT1GPRegion() AND NOT deliveryRegion(e);
     deliveryZipCode(e) <- STRING[6](impT1GPIndex()) WHERE impT1GPIndex() AND NOT deliveryZipCode(e);
     deliveryCity(e) <- ISTRING[255](OVERRIDE impT1GPCity(), impT1GPLocality()) WHERE (impT1GPCity() OR impT1GPLocality()) AND NOT deliveryCity(e);
     deliveryStreet(e) <- ISTRING[255](impT1GPStreet()) WHERE impT1GPStreet() AND NOT deliveryStreet(e);
     deliveryBuilding(e) <- ISTRING[20](CONCAT ' ', impT1GPHouse(), impT1GPCorpus()) WHERE impT1GPHouse() AND NOT deliveryBuilding(e);
 
-    // указания грузоотправителя
     banReload(e) <- TRUE IF impT1Zapr() = '1';
     deliveryDateTime(e) <- vzToDateTime(impT1DostDT());
     deliveryPeriod(e) <- ISTRING[100](impT1Srok());
@@ -454,14 +445,12 @@ parseETRNTitleXml 'Импортировать титул Т1 из файла' (E
     humidityFrom(e) <- NUMERIC[5,2](impT1HumFrom());
     humidityTo(e) <- NUMERIC[5,2](impT1HumTo());
 
-    // переадресовка
     redirectPerson(e) <- etrnRedirectPerson(ISTRING[15](impT1PALitso())) WHERE etrnRedirectPerson(ISTRING[15](impT1PALitso()));
     redirectMethod(e) <- ISTRING[255](impT1PASposob());
     redirectPhone(e) <- ISTRING[255](impT1PAPhone());
     redirectEmail(e) <- ISTRING[255](impT1PAEmail());
     redirectContacts(e) <- ISTRING[255](impT1PAOther());
 
-    // прием груза перевозчиком (погрузка)
     declaredSupplyDateTime(e) <- vzToDateTime(impT1PgZayav());
     arrivalDateTime(e) <- vzToDateTime(impT1PgPrib());
     departureDateTime(e) <- vzToDateTime(impT1PgUbyt());
@@ -482,7 +471,7 @@ parseETRNTitleXml 'Импортировать титул Т1 из файла' (E
     loadingBuilding(e) <- ISTRING[20](impT1PgHouse()) WHERE impT1PgHouse() AND NOT loadingBuilding(e);
 
     // водитель и транспорт стороннего перевозчика - в первичные реквизиты входящей
-    // (водитель - первый из титула; все водители дополнительно - информационной строкой)
+    // (водитель - первый из титула, все - дополнительно информационной строкой)
     FOR IncomingETRN ie == e DO {
         FOR INTEGER fv == [GROUP MIN INTEGER i IF impT1VodLast(i)]() DO {
             incomingDriverName(ie) <- ISTRING[150](CONCAT ' ', impT1VodLast(fv), impT1VodFirst(fv), impT1VodMiddle(fv));
@@ -512,19 +501,17 @@ parseETRNTitleXml 'Импортировать титул Т1 из файла' (E
     incomingVehicleInfo(e) <- ISTRING[500](CONCAT ', ', impT1TSType(), impT1TSBrand(), 'рег. № ' + impT1TSReg(),
         'г/п ' + impT1TSGruzopod() + ' т', impT1TSVmest() + ' м3', 'VIN ' + impT1TSVin(), 'прицеп ' + impT1PricepReg());
 
-    // строки груза с контейнерами: пересоздаются (только когда мы не грузоотправитель)
+    // строки груза пересоздаются - свои (когда грузоотправитель мы) не затираем
     IF NOT roleShipper(e) THEN {
         DELETE ETRNDetail d WHERE etrn(d) = e;
         FOR impT1OpName(INTEGER i) NEW nd = ETRNDetail DO {
             etrn(nd) <- e;
-            // отсутствующие справочные значения создаются из титула
             IF impT1OpPack(i) AND NOT packageWayName(ISTRING[255](impT1OpPack(i))) THEN NEW pw = PackageWay {
                 name(pw) <- ISTRING[255](impT1OpPack(i));
             }
             IF impT1OpCondition(i) AND NOT conditionName(ISTRING[255](impT1OpCondition(i))) THEN NEW cc = CargoCondition {
                 name(cc) <- ISTRING[255](impT1OpCondition(i));
             }
-            // отсутствующий в справочнике груз создаётся с реквизитами из титула
             IF NOT cargoName(ISTRING[255](impT1OpName(i))) THEN NEW c = Cargo {
                 name(c) <- ISTRING[255](impT1OpName(i));
                 tnved(c) <- STRING[4](impT1OpTnved(i));

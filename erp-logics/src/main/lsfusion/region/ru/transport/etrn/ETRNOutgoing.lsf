@@ -231,7 +231,7 @@ trailerWeight(OutgoingETRN e) += weight(trailer(e)) IF e IS OutgoingETRN;
 trailerCapacity(OutgoingETRN e) += capacity(trailer(e)) IF e IS OutgoingETRN;
 trailerOwnership(OutgoingETRN e) += ISTRING[50](nameOwnershipType(trailer(e))) IF e IS OutgoingETRN;
 
-// реквизиты идентификации водителя не заполнены (нужно ВУ или ИНН) - проверки исходящих
+// формат титула требует у водителя либо ВУ (серия, номер, дата), либо ИНН
 missingDriverId (OutgoingETRN e) = driver(e) AND NOT (licenseSeries(driver(e)) AND licenseNumber(driver(e)) AND licenseDate(driver(e))) AND NOT inn(driver(e));
 
 // документ-основание владения при аренде/лизинге (обязателен в титуле при Ownership 3/4)
@@ -591,7 +591,7 @@ DESIGN outgoingEtrn {
 }
 
 
-// добавление в общий список: создаётся исходящая (входящие появляются только приёмом из ЭПД)
+// вручную создаётся только исходящая: входящие появляются приёмом из ЭПД
 addOutgoingETRN 'Добавить' () {
     NEWSESSION {
         NEW e = OutgoingETRN {
@@ -722,9 +722,8 @@ sendSignedETRN 'Подписать и отправить Т1' (ETRN e) {
     checkProvider(e);
     IF NOT provider(e) THEN RETURN;
     FOR OutgoingETRN oe == e DO {
-        // номер накладной присваивается при отправке: до этого момента ЭТрН может быть
-        // черновиком, а номер должен уйти в титул. Сохраняем сразу - реализация провайдера
-        // работает в своей сессии и несохранённый номер не увидит
+        // номер присваивается при отправке (до этого ЭТрН - черновик), но должен уйти в титул;
+        // сохраняем сразу: реализация провайдера работает в своей сессии и несохранённого не увидит
         IF NOT number(oe) THEN NEWSESSION {
             numerator(oe) <- defaultNumeratorETRN() WHERE NOT numerator(oe);
             generateSeriesNumber(oe);
@@ -766,8 +765,7 @@ EXTEND FORM outgoingEtrn
 ;
 
 DESIGN outgoingEtrn {
-    // подписант - на вкладке «Стороны» титула Т1, где он впервые необходим (подписание Т1;
-    // те же данные используются в Т3 и Т6)
+    // подписант - на вкладке «Стороны» Т1, где он нужен впервые; те же данные идут в Т3 и Т6
     parties {
         NEW signerBox AFTER shipperBox {
             caption = 'Подписант титулов';

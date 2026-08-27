@@ -4,8 +4,7 @@ REQUIRE ETRNExchange, LegalEntity, Time, Utils;
 
 NAMESPACE ETRN;
 
-// Автономная аутентификация Контур.Логистики (не зависит от модулей Diadoc).
-// Поддерживает два способа: API-Key (x-kontur-apikey) и OpenID Connect (Bearer + refresh_token).
+// Аутентификация Контур.Логистики: API-Key (заголовок x-kontur-apikey) либо OpenID Connect (Bearer + refresh_token).
 // Мультибокс: настройки авторизации хранятся на ящике (KonturBox), привязанном к организации.
 
 EXTEND CLASS ETRNProvider { kontur 'Контур.Логистика' }
@@ -62,7 +61,6 @@ accessToken = DATA STRING (KonturBox);
 refreshToken 'Refresh token' = DATA STRING (KonturBox) ECHO;
 tokenExpiresAt 'Токен действителен до' = DATA DATETIME (KonturBox);
 
-// ящик нашей организации (для определения владельца запроса)
 konturBox (LegalEntity l) = GROUP LAST KonturBox b ORDER b BY legalEntity(b);
 
 // ------------------------- OIDC: обновление токена по refresh_token ------------------------- //
@@ -72,7 +70,6 @@ konturOidcResult = DATA LOCAL FILE ();
 konturOidcHeaders (TEXT name) = CASE
     WHEN name == 'Content-Type' THEN 'application/x-www-form-urlencoded';
 
-// POST /connect/token, grant_type=refresh_token → новый access_token (+ refresh_token, expires_in)
 // TODO: сверить endpoint OpenID провайдера и формат ответа на тестовой площадке
 konturRefreshOidc (KonturBox b) {
     IF NOT (refreshToken(b) AND konturClientId() AND konturOidcUrl()) THEN {
@@ -104,8 +101,8 @@ konturRefreshOidc (KonturBox b) {
 }
 
 // ------------------------- Контекст запроса ------------------------- //
-// Перед каждым обращением к API устанавливается контекст (setKonturAuth), из которого
-// konturHeaders формирует заголовок, а konturBoxId подставляется в query как diadocBoxId.
+// setKonturAuth вызывается перед каждым обращением к API: konturHeaders даёт заголовок
+// авторизации, konturBoxId подставляется в query как diadocBoxId (пусто, если не задан).
 
 curBox = DATA LOCAL KonturBox ();
 curApiKey = DATA LOCAL STRING[255] ();
@@ -116,7 +113,6 @@ konturHeaders (TEXT name) = CASE
     WHEN name == 'x-kontur-apikey' AND curApiKey() THEN curApiKey()
     WHEN name == 'Authorization' AND curToken() THEN 'Bearer ' + curToken();
 
-// diadocBoxId в query (пусто, если не задан)
 konturBoxId () = curBoxId();
 
 setKonturAuth (KonturBox b) {
@@ -132,7 +128,6 @@ setKonturAuth (KonturBox b) {
     curBoxId() <- OVERRIDE boxId(b), konturBoxIdSystem();
 }
 
-// авторизация по умолчанию (нет мультибокс - системный ключ/ящик)
 setKonturAuthDefault () {
     curBox() <- NULL;
     curApiKey() <- konturApiKeySystem();
@@ -140,7 +135,6 @@ setKonturAuthDefault () {
     curBoxId() <- konturBoxIdSystem();
 }
 
-// авторизация от имени организации-владельца ящика (fallback на системные настройки)
 setKonturAuth (LegalEntity l) {
     IF konturBox(l) THEN setKonturAuth(konturBox(l));
     ELSE setKonturAuthDefault();

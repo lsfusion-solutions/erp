@@ -5,12 +5,9 @@ REQUIRE DiadocLogisticsEvents;
 NAMESPACE Diadoc;
 
 // ------------------------- Печатная форма перевозки через Диадок ------------------------- //
-// GeneratePrintForm: GET /GeneratePrintForm?boxId&messageId&documentId.
-// Если форма готова - 200 и PDF в теле; если формируется - 200 с пустым телом и
-// заголовком Retry-After (секунды до повторного запроса). Повторяем с ожиданием.
-// documentId = entityId титула 0 reception-документа перевозки.
+// GeneratePrintForm: пустое тело и заголовок Retry-After (секунды) = форма ещё формируется,
+// нужен повтор; documentId = entityId титула 0 reception-документа перевозки.
 
-// заголовки ответа GeneratePrintForm (Retry-After)
 headersPrintForm = DATA LOCAL STRING (STRING);
 
 diadocImportPrintForm (ETRN.ETRN e) {
@@ -49,7 +46,7 @@ diadocImportPrintForm (ETRN.ETRN e) {
                 RETURN;
             }
 
-            // форма ещё формируется - ждём Retry-After (не более 5 секунд за попытку)
+            // ждём не более 5 секунд за попытку, даже если Retry-After больше
             IF headersPrintForm('Retry-After') THEN {
                 retryAfter() <- OVERRIDE INTEGER(headersPrintForm('Retry-After')), 3;
                 IF retryAfter() > 5 THEN retryAfter() <- 5;
@@ -68,7 +65,6 @@ diadocImportPrintForm (ETRN.ETRN e) {
     }
 }
 
-// реализация абстракции ETRNExchange (кнопка «Печатная форма»)
 ETRN.importPrintForm (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvider.diadoc THEN {
     diadocImportPrintForm(e);
 }

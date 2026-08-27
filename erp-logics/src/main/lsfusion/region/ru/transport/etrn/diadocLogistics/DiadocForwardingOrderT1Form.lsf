@@ -4,15 +4,12 @@ REQUIRE ETRNForwardingOrder, LegalEntityRu, DiadocLogistics;
 
 NAMESPACE ETRN;
 
-// Экспортная форма UserDataXml титула клиента поручения экспедитору
-// (LogisticsForwardingOrderClientTitle) для Диадок API: GenerateTitleXml строит по ней
-// полный XML формата приказа ФНС N ЕД-7-26/958@ (ПорЭксп).
+// Экспортная форма UserDataXml титула клиента поручения экспедитору для Диадок API:
+// GenerateTitleXml строит по ней полный XML приказа ФНС N ЕД-7-26/958@ (ПорЭксп).
 // Упрощение модели: одна партия груза (CargoInfo) на поручение.
 
-// строка «Создатель документа»: наименование, ИНН, КПП
 forwardingDocumentCreator (LegalEntity l) = CONCAT ', ', name(l), 'ИНН ' + inn(l), 'КПП ' + kpp(l);
 
-// булевы признаки приказа - строковые коды 0/1
 digit1 (BOOLEAN b) = IF b THEN '1' ELSE '0';
 
 // ------------------------- Структура UserDataXml ------------------------- //
@@ -78,7 +75,6 @@ FORM diadocForwardingOrderT1 FORMEXTID 'LogisticsForwardingOrderClientTitle'
         foClientFns = diadocFnsParticipantId(client(f)) EXTID 'FnsParticipantId',
         foClientType = diadocOrgType(client(f)) EXTID 'OrgType'   // 1 - ИП, 2 - ЮЛ (по длине ИНН)
 
-    // экспедитор
     PROPERTIES ATTR IN foForwarderOrg
         foForwarderName = name(forwarder(f)) EXTID 'OrgName',
         foForwarderInn = inn(forwarder(f)) EXTID 'Inn',
@@ -86,13 +82,11 @@ FORM diadocForwardingOrderT1 FORMEXTID 'LogisticsForwardingOrderClientTitle'
         foForwarderFns = diadocFnsParticipantId(forwarder(f)) EXTID 'FnsParticipantId',
         foForwarderType = diadocOrgType(forwarder(f)) EXTID 'OrgType'
 
-    // договор транспортной экспедиции
     PROPERTIES ATTR IN foContract
         foContractName = contractName(f) EXTID 'DocumentName',
         foContractNumber = contractNumber(f) EXTID 'DocumentNumber',
         foContractDate = diadocDate(contractDate(f)) EXTID 'DocumentDate'
 
-    // партия груза (единственная)
     PROPERTIES ATTR IN foCargo
         foNotifyReq = digit1(notifyParties(f)) EXTID 'NotifyReq',
         foReadyFrom = diadocDate(shipmentDateFrom(f)) EXTID 'ReadyFromDate',
@@ -106,7 +100,6 @@ FORM diadocForwardingOrderT1 FORMEXTID 'LogisticsForwardingOrderClientTitle'
         foSpaceQuantity = quantityPlacesTotal(f) EXTID 'ShipmentCargoSpaceQuantity',
         foRoute = route(f) EXTID 'CargoRoute'
 
-    // грузоотправитель и грузополучатель партии
     PROPERTIES ATTR IN foShipperOrg
         foShipperName = name(shipper(f)) EXTID 'OrgName',
         foShipperInn = inn(shipper(f)) EXTID 'Inn',
@@ -118,12 +111,10 @@ FORM diadocForwardingOrderT1 FORMEXTID 'LogisticsForwardingOrderClientTitle'
         foConsigneeKpp = kpp(consignee(f)) EXTID 'Kpp',
         foConsigneeType = diadocOrgType(consignee(f)) EXTID 'OrgType'
 
-    // транспорт
     PROPERTIES ATTR IN foTransportInfo
         foTransportType = id(vehicleKind(f)) EXTID 'TransportType',
         foBodyType = bodyType(f) EXTID 'BodyType'
 
-    // особые условия
     PROPERTIES ATTR IN foDirectives
         foDirectivesNorm = transportInstructions(f) EXTID 'TransportationDirectives',
         foSpecialInfo = specialMarks(f) EXTID 'SpecialInformation',
@@ -135,13 +126,12 @@ FORM diadocForwardingOrderT1 FORMEXTID 'LogisticsForwardingOrderClientTitle'
         foHumLower = humidityFrom(f) EXTID 'HumidityLowerLimit',
         foHumUpper = humidityTo(f) EXTID 'HumidityUpperLimit'
 
-    // вес партии
     PROPERTIES ATTR IN foBatchWeight
         foNetWeight = netWeightTotal(f) EXTID 'NetWeight',
         foGrossWeight = grossWeightTotal(f) EXTID 'GrossWeight',
         foPallets = quantityPalletsTotal(f) EXTID 'NumberOfPallets'
 
-    // стоимость партии; TODO: код валюты (ОКВ) - сопоставить со справочником валют; пока '643' (рубль)
+    // TODO: код валюты (ОКВ) - сопоставить со справочником валют; пока '643' (рубль)
     PROPERTIES ATTR IN foDeclaredCost
         foDeclaredCurrency = ('643' IF declaredCost(f)) EXTID 'Currency',
         foDeclaredCost = declaredCost(f) EXTID 'CargoCost'
@@ -149,7 +139,7 @@ FORM diadocForwardingOrderT1 FORMEXTID 'LogisticsForwardingOrderClientTitle'
         foActualCurrency = ('643' IF actualCost(f)) EXTID 'Currency',
         foActualCost = actualCost(f) EXTID 'CargoCost'
 
-    // адрес приема груза (выгружается при наличии Region+ZipCode)
+    // адреса выгружаются только при полном (Region+ZipCode)
     PROPERTIES ATTR IN foPickup foPickupLocation = pickupPlace(f) EXTID 'CargoPickupLocation'
     PROPERTIES ATTR IN foPickupAddrRF
         foPickupRegion = (pickupRegion(f) IF hasPickupAddress(f)) EXTID 'Region',
@@ -158,7 +148,6 @@ FORM diadocForwardingOrderT1 FORMEXTID 'LogisticsForwardingOrderClientTitle'
         foPickupStreet = (pickupStreet(f) IF hasPickupAddress(f)) EXTID 'Street',
         foPickupBuilding = (pickupBuilding(f) IF hasPickupAddress(f)) EXTID 'Building'
 
-    // адрес пункта назначения (выдачи груза)
     PROPERTIES ATTR IN foDrop foDropPoint = dropPlace(f) EXTID 'CargoDeliveryPoint'
     PROPERTIES ATTR IN foDropAddrRF
         foDropRegion = (dropRegion(f) IF hasDropAddress(f)) EXTID 'Region',
@@ -167,7 +156,6 @@ FORM diadocForwardingOrderT1 FORMEXTID 'LogisticsForwardingOrderClientTitle'
         foDropStreet = (dropStreet(f) IF hasDropAddress(f)) EXTID 'Street',
         foDropBuilding = (dropBuilding(f) IF hasDropAddress(f)) EXTID 'Building'
 
-    // строки груза
     OBJECTS d = ForwardingOrderDetail EXTID 'ItemDescription' IN foItems
     PROPERTIES ATTR
         itemName = nameCargo(d) EXTID 'Name',
@@ -187,7 +175,7 @@ FORM diadocForwardingOrderT1 FORMEXTID 'LogisticsForwardingOrderClientTitle'
         itemPallets = quantityPallets(d) EXTID 'NumberOfPallets'
     FILTERS forwardingOrder(d) == f
 
-    // подписант (клиент); BoxId - чистый GUID (без @diadoc.ru)
+    // BoxId подписанта - чистый GUID (без @diadoc.ru)
     PROPERTIES ATTR IN foSigners foSignersBoxId = diadocBoxIdGuid(client(f)) EXTID 'BoxId'
     PROPERTIES ATTR IN foSignerFio
         foSignerLast = signerLastName(f) EXTID 'LastName',

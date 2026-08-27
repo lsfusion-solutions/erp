@@ -4,8 +4,8 @@ REQUIRE ETRNOrderRequest, TransportRu, LegalEntityRu, Currency, DiadocLogistics;
 
 NAMESPACE ETRN;
 
-// Экспортная форма UserDataXml титула Т2 заказа-заявки (LogisticsOrderRequestRecipientTitle) для Диадок API.
-// Ответ перевозчика на заявку: приём/отказ, представитель, водитель, ТС, прицеп, стоимость перевозки, подписант.
+// Экспортная форма UserDataXml титула Т2 заказа-заявки - ответа перевозчика
+// (LogisticsOrderRequestRecipientTitle).
 
 // ------------------------- Структура UserDataXml ------------------------- //
 
@@ -40,26 +40,24 @@ FORM diadocOrderRequestT2 FORMEXTID 'LogisticsOrderRequestRecipientTitle'
     PROPERTIES ATTR
         r2Creator = name(carrier(o)) EXTID 'DocumentCreator'
 
-    // основание (ссылка на заявку грузоотправителя)
+    // основание - заявка грузоотправителя
     PROPERTIES ATTR IN r2Base
         r2BaseName = (OVERRIDE contractName(o), 'Заявка на перевозку') EXTID 'DocumentName',
         r2BaseNumber = (OVERRIDE number(o), 'Без номера') EXTID 'DocumentNumber',
         r2BaseDate = diadocDate(date(o)) EXTID 'DocumentDate'
     PROPERTIES ATTR IN r2BaseParty r2BasePartyInn = inn(shipper(o)) EXTID 'Inn'
 
-    // операция приёма: 1 - заявка принята, 2 - отказ; причина отказа - только при отказе
+    // операция приёма: 1 - заявка принята, 2 - отказ
     PROPERTIES ATTR IN r2Request
         r2Receiving = (IF accepted(o) THEN '1' ELSE '2') EXTID 'ReceivingOperation',
         r2Rejection = ((OVERRIDE rejectionReason(o), 'Отсутствует') IF NOT accepted(o)) EXTID 'RejectionReason'
 
-    // представитель перевозчика
     PROPERTIES IN r2Organizer r2OrgPhone = carrierPhone(o) EXTID 'Phone'
     PROPERTIES ATTR IN r2OrganizerFio
         r2OrgLast = overSignerLastName(carrier(o)) EXTID 'LastName',
         r2OrgFirst = overSignerFirstName(carrier(o)) EXTID 'FirstName',
         r2OrgMiddle = overSignerMiddleName(carrier(o)) EXTID 'MiddleName'
 
-    // водитель (в первой версии один)
     // TODO: отчество водителя (MiddleName) - источник уточнить; несколько водителей
     PROPERTIES ATTR IN r2Driver
         r2DriverLicNumber = licenseNumber(driver(o)) EXTID 'LicenseNumber',
@@ -71,7 +69,6 @@ FORM diadocOrderRequestT2 FORMEXTID 'LogisticsOrderRequestRecipientTitle'
         r2DriverLast = lastName(driver(o)) EXTID 'LastName',
         r2DriverFirst = firstName(driver(o)) EXTID 'FirstName'
 
-    // транспортное средство
     PROPERTIES ATTR IN r2Truck
         r2TruckReg = sid(truck(o)) EXTID 'RegistrationNumber',
         r2TruckVin = vin(truck(o)) EXTID 'Vin',
@@ -83,7 +80,6 @@ FORM diadocOrderRequestT2 FORMEXTID 'LogisticsOrderRequestRecipientTitle'
         r2TruckWeight = NUMERIC[10,2](weight(truck(o)) / 1000) EXTID 'WeightCapacity',
         r2TruckVolume = NUMERIC[10,2](capacity(truck(o))) EXTID 'VolumeCapacity'
 
-    // прицеп (при наличии)
     PROPERTIES ATTR IN r2Trailer
         r2TrailerReg = sid(trailer(o)) EXTID 'RegistrationNumber',
         r2TrailerVin = vin(trailer(o)) EXTID 'Vin',
@@ -95,7 +91,6 @@ FORM diadocOrderRequestT2 FORMEXTID 'LogisticsOrderRequestRecipientTitle'
         r2TrailerWeight = NUMERIC[10,2](weight(trailer(o)) / 1000) EXTID 'WeightCapacity',
         r2TrailerVolume = NUMERIC[10,2](capacity(trailer(o))) EXTID 'VolumeCapacity'
 
-    // стоимость перевозки
     // TODO: CurrencyCode (ОКВ) - сопоставить со справочником валют; пока '643' (рубль)
     PROPERTIES ATTR IN r2Fee
         r2FeeCurrencyCode = ('643' IF o IS OrderRequest) EXTID 'CurrencyCode',
@@ -105,7 +100,6 @@ FORM diadocOrderRequestT2 FORMEXTID 'LogisticsOrderRequestRecipientTitle'
         r2FeeTotal = feeTotal(o) EXTID 'Subtotal',
         r2FeeCalculations = feeCalculations(o) EXTID 'Calculations'
 
-    // подписант (перевозчик)
     PROPERTIES ATTR IN r2Signers r2SignersBoxId = diadocBoxIdGuid(carrier(o)) EXTID 'BoxId'
     PROPERTIES ATTR IN r2Signer r2SignerMethod = ('5' IF o IS OrderRequest) EXTID 'SignerPowersConfirmationMethod'
     PROPERTIES ATTR IN r2SignerDetails

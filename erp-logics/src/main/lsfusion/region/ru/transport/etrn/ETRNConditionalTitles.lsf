@@ -6,9 +6,8 @@ NAMESPACE ETRN;
 
 // ------------------------- Условные титулы перевозчика (Т5-Т8) ------------------------- //
 // Приказ ФНС N ЕД-7-26/1065@: Т5 - изменение стоимости (требует ответа Т6 грузоотправителя),
-// Т7 - переадресация, Т8 - эстафета (замена водителя/ТС). Все отправляются перевозчиком;
-// наша роль (грузоотправитель/грузополучатель) - принимать их и отвечать Т6 либо отказом.
-// Приём и отправка - в модулях провайдеров; здесь - общие поля, проверки, абстракции и формы.
+// Т7 - переадресация, Т8 - эстафета (замена водителя/ТС). Все отправляет перевозчик,
+// мы только принимаем их и отвечаем Т6 либо отказом.
 
 // отметки полученных условных титулов (проставляются провайдером при приёме)
 costChangeDateTime 'Получено изменение стоимости (Т5)' = DATA DATETIME (OutgoingETRN);
@@ -27,13 +26,12 @@ checkCostT6 (ETRN e) {
         MESSAGE CONCAT '\n', 'Не заполнены обязательные поля титула Т6:', missingCostT6(e) NOWAIT;
 }
 
-// получен Т5 без ответа - следующий шаг за нами (грузоотправителем): Т6 или отказ
 overNextAction (ETRN e) += WHEN costChangeDateTime(e) AND NOT costConfirmedDateTime(e) AND roleShipper(e)
     THEN STRING[100]('Ответить на Т5: Т6 или отказ (мы)');
 overNextActionOur (ETRN e) += WHEN costChangeDateTime(e) AND NOT costConfirmedDateTime(e) AND roleShipper(e) THEN TRUE;
 
 // абстракции (реализуются модулями провайдеров)
-sendCostConfirmation 'Подписать и отправить Т6' ABSTRACT CASE (ETRN);      // согласование изменения стоимости
+sendCostConfirmation 'Подписать и отправить Т6' ABSTRACT CASE (ETRN);
 rejectCostChange 'Отказаться от изменения стоимости' ABSTRACT CASE (ETRN); // формализованный отказ от подписания Т5
 
 sendCostConfirmationETRN 'Подтвердить изменение стоимости (Т6)' (ETRN e) {
@@ -61,8 +59,6 @@ rejectCostChangeETRN 'Отказать в изменении стоимости'
 } IMAGE 'delete.png';
 
 // ------------------------- Формы ------------------------- //
-// отдельные вкладки Т5 и Т6 на карточке ЭТрН (в ряду титулов, после Т4);
-// отметки Т7/Т8 - на вкладке Т5 (все условные титулы перевозчика)
 
 EXTEND FORM outgoingEtrn
     PROPERTIES(e) costChangeDateTime READONLY, costConfirmedDateTime READONLY,
@@ -97,7 +93,6 @@ DESIGN outgoingEtrn {
     }
 }
 
-// кнопки отправки - на списке ЭТрН, вкладка «Действия» (как у остальных титулов)
 showCostResponse (ETRN e) = roleShipper(e) AND costChangeDateTime(e);
 
 EXTEND FORM etrns

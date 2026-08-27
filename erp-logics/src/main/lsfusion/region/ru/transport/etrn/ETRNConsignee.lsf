@@ -26,7 +26,6 @@ FORM etrnAcceptResults 'Итог приемки груза'
 acceptResult 'Итог приемки' = ABSTRACT ETRNAcceptResult (ETRN);
 nameAcceptResult 'Итог приемки' (ETRN e) = name(acceptResult(e)) CHARWIDTH 15;
 
-// по умолчанию - груз принят (типовой случай)
 WHEN LOCAL SET(ETRN e IS ETRN) AND NOT CHANGED(acceptResult(e)) INLINE DO
     acceptResult(e) <- ETRNAcceptResult.accepted;
 
@@ -96,17 +95,15 @@ checkT3 (ETRN e) {
 // -- Отправка титула (реализации - в модулях провайдеров;
 //    черновик / на подпись Т3 - специфика Контур.Логистики, модуль KonturLogistics)
 
-// подготовка документа перед отправкой Т3 - реализации в модулях-связках
-// (например, определение склада грузополучателя по закупочной накладной)
+// реализуется модулями-связками (например, определение склада грузополучателя по закупочной накладной)
 overPrepareT3 ABSTRACT LIST (ETRN);
 
 sendConsigneeSignedETRN 'Подписать и отправить Т3' (ETRN e) {
     checkProvider(e);
     IF NOT provider(e) THEN RETURN;
     overPrepareT3(e);
-    // подписант Т3 - от карточки нашей стороны, если не заполнен на документе.
-    // Сохраняется сразу: реализация провайдера работает в своей сессии
-    // и несохранённые значения не увидит
+    // подписант Т3 подтягивается с карточки нашей стороны; сохраняем сразу:
+    // реализация провайдера работает в своей сессии и несохранённого не увидит
     IF NOT (signerLastName(e) AND signerFirstName(e) AND signerPosition(e)) THEN NEWSESSION {
         signerLastName(e) <- overSignerLastName(signerParty(e)) WHERE NOT signerLastName(e) AND overSignerLastName(signerParty(e));
         signerFirstName(e) <- overSignerFirstName(signerParty(e)) WHERE NOT signerFirstName(e) AND overSignerFirstName(signerParty(e));
