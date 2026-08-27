@@ -22,6 +22,20 @@ currentReservedBatch 'Текущий резерв всех ячеек' =
     GROUP SUM currentReserved(Batch batch, Bin bin) BY batch, stock(bin);
 prevCurrentReservedBatch 'Текущий резерв всех ячеек' (Batch batch, Stock stock) = PREV(currentReservedBatch(batch, stock));
 
+reservedTotalA 'Изменение резерва' =
+    GROUP SUM quantityActive(ReservedBinLedger ledger) IF date(ledger) > DATE date BY batch(ledger), bin(ledger), date;
+
+reservedTotalB 'Изменение резерва' =
+    GROUP SUM quantityActive(ReservedBinLedger ledger) IF dateTime(ledger) >= DATETIME dateTime BY batch(ledger), bin(ledger), dateTime;
+
+reservedA 'Резерв в ячейке на конец дня' (Batch batch, Bin bin, DATE date) =
+    currentReserved(batch, bin) (-) reservedTotalA(batch, bin, date);
+
+// без учета текущей даты/времени
+reservedB 'Резерв в ячейке (до)' (Batch batch, Bin bin, DATETIME dateTime) =
+    currentReserved(batch, bin) (-) reservedTotalB(batch, bin, dateTime);
+prevReservedB 'Резерв (до)' (Batch batch, Bin bin, DATETIME dateTime) = PREV(reservedB(batch, bin, dateTime) IF dateTime IS DATETIME);
+
 availableQuantity 'Доступное к-во (всего)' (Batch batch, Bin bin) = 
     currentBalance(batch, bin) (-) (currentReserved(batch, bin) IF currentReserved(batch, bin) > 0.0) CHARWIDTH 7;
 prevAvailableQuantity 'Доступное к-во (всего)' (Batch batch, Bin bin) = 
@@ -35,6 +49,13 @@ diffavailableQuantityBin 'Расхождение по доступному ко�
     availableQuantityBatch(batch, st) (-) availableQuantity(batch, st);
 prevDiffavailableQuantityBin 'Расхождение по доступному кол-ву в ячейках' (Batch batch, Stock st)=
     prevAvailableQuantityBatch(batch, st) (-) prevAvailableQuantity(batch, st);
+
+availableQuantityA 'Доступное к-во на конец дня' (Batch batch, Bin bin, DATE date) =
+    balanceA(batch, bin, date) (-) (reservedA(batch, bin, date) IF reservedA(batch, bin, date) > 0.0) CHARWIDTH 7;
+
+// без учета текущей даты/времени
+availableQuantityB 'Доступное к-во (до)' (Batch batch, Bin bin, DATETIME dateTime) =
+    balanceB(batch, bin, dateTime) (-) (reservedB(batch, bin, dateTime) IF reservedB(batch, bin, dateTime) > 0.0) CHARWIDTH 7;
 
 EXTEND FORM batchBinBalance
     PROPERTIES(bt, b) READONLY AFTER currentBalance(bt, b) currentReserved, availableQuantity

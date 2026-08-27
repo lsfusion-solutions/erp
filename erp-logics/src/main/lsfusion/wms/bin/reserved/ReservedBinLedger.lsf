@@ -78,6 +78,20 @@ currentReservedSku 'Текущий резерв всех ячеек' =
     GROUP SUM currentReserved(Sku sku, Bin bin) BY sku, stock(bin);
 prevCurrentReservedSku 'Текущий резерв всех ячеек' (Sku sku, Stock stock) = PREV(currentReservedSku(sku, stock));
 
+reservedTotalA 'Изменение резерва' =
+    GROUP SUM quantityActive(ReservedBinLedger ledger) IF date(ledger) > DATE date BY sku(ledger), bin(ledger), date;
+
+reservedTotalB 'Изменение резерва' =
+    GROUP SUM quantityActive(ReservedBinLedger ledger) IF dateTime(ledger) >= DATETIME dateTime BY sku(ledger), bin(ledger), dateTime;
+
+reservedA 'Резерв в ячейке на конец дня' (Sku sku, Bin bin, DATE date) =
+    currentReserved(sku, bin) (-) reservedTotalA(sku, bin, date);
+
+// без учета текущей даты/времени
+reservedB 'Резерв в ячейке (до)' (Sku sku, Bin bin, DATETIME dateTime) =
+    currentReserved(sku, bin) (-) reservedTotalB(sku, bin, dateTime);
+prevReservedB 'Резерв (до)' (Sku sku, Bin bin, DATETIME dateTime) = PREV(reservedB(sku, bin, dateTime) IF dateTime IS DATETIME);
+
 availableQuantity 'Доступное к-во (всего)' (Sku sku, Bin bin) = 
     currentBalance(sku, bin) (-) (currentReserved(sku, bin) IF currentReserved(sku, bin) > 0.0) CHARWIDTH 7;
 prevAvailableQuantity 'Доступное к-во (всего)' (Sku sku, Bin bin) = 
@@ -91,6 +105,13 @@ diffavailableQuantityBin 'Расхождение по доступному ко�
     availableQuantitySku(sku, st) (-) availableQuantity(sku, st);
 prevDiffavailableQuantityBin 'Расхождение по доступному кол-ву в ячейках' (Sku sku, Stock st)=
     prevAvailableQuantitySku(sku, st) (-) prevAvailableQuantity(sku, st);
+
+availableQuantityA 'Доступное к-во на конец дня' (Sku sku, Bin bin, DATE date) =
+    balanceA(sku, bin, date) (-) (reservedA(sku, bin, date) IF reservedA(sku, bin, date) > 0.0) CHARWIDTH 7;
+
+// без учета текущей даты/времени
+availableQuantityB 'Доступное к-во (до)' (Sku sku, Bin bin, DATETIME dateTime) =
+    balanceB(sku, bin, dateTime) (-) (reservedB(sku, bin, dateTime) IF reservedB(sku, bin, dateTime) > 0.0) CHARWIDTH 7;
 
 FORM reservedBinLedger 'Регистр изменения резервов по ячейкам'
     OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
