@@ -112,10 +112,17 @@ CONSTRAINT SETCHANGED(transportOrganization(LegalEntity l)) AND NOT legalEntity(
     CHECKED BY transportOrganization[LegalEntity]
     MESSAGE 'Организация Диадока (транспорт) должна быть из организаций Диадока этого контрагента';
 
+// ящик вручную выбранной организации - высший приоритет везде, где ищется ящик контрагента
+manualDiadocBox (LegalEntity l) = [GROUP LAST Box b ORDER b BY organization(b)](transportOrganization(l));
+
+// организация Диадока по идентификатору участника ЭДО (из ИдФайла титула)
+organizationParticipantId (STRING[46] participantId) =
+    GROUP LAST Organization o ORDER o BY fnsParticipantId(o);
+
 // приоритет: ручной выбор -> абонент Диадока (2BM - код оператора в идентификаторе
 // участника СФ, у роуминговых записей код чужого оператора) -> не-роуминговая -> любая
 diadocBox (LegalEntity l) = OVERRIDE
-    [GROUP LAST Box b ORDER b BY organization(b)](transportOrganization(l)),
+    manualDiadocBox(l),
     [GROUP LAST Box b IF fnsParticipantId(organization(b)) LIKE '2BM%' ORDER b BY legalEntity(organization(b))](l),
     [GROUP LAST Box b IF NOT isRoaming(organization(b)) ORDER b BY legalEntity(organization(b))](l),
     [GROUP LAST Box b ORDER b BY legalEntity(organization(b))](l);

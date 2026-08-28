@@ -11,9 +11,12 @@ NAMESPACE Diadoc;
 // для входящих перевозок своего объекта Document нет - координаты reception-документа
 // берутся из ленты docflow-событий (receptionDoc*)
 
-// у входящей перевозки перевозчик в наш справочник не заводится - ящик ищем
-// по ИНН из титула через справочник организаций Диадока
-carrierT3Box (ETRN.ETRN e) = OVERRIDE diadocBox(ETRN.carrier(e)),
+// ящик перевозчика: ручной выбор -> идентификатор участника ЭДО из титула (факт обмена,
+// точнее эвристики diadocBox при нескольких организациях с одним ИНН) -> карточка
+// контрагента -> ИНН из титула (у входящей перевозки перевозчика в справочнике может не быть)
+carrierT3Box (ETRN.ETRN e) = OVERRIDE manualDiadocBox(ETRN.carrier(e)),
+    [GROUP LAST Box b IF organization(b) == organizationParticipantId(ETRN.incomingCarrierParticipantId(e)) ORDER b](),
+    diadocBox(ETRN.carrier(e)),
     [GROUP LAST Box b IF organization(b) == organizationInn(ETRN.incomingCarrierInn(e)) ORDER b]();
 
 diadocSendT3 (ETRN.ETRN e) {

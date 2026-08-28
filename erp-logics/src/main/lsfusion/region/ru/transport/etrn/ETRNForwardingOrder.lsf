@@ -238,6 +238,32 @@ banReload 'Запрет перегрузки' = DATA BOOLEAN (ForwardingOrderDet
 WHEN LOCAL CHANGED(cargo(ForwardingOrderDetail d)) AND NOT CHANGED(packaged(d)) DO
     packaged(d) <- TRUE IF tareType(cargo(d));
 
+// страна происхождения груза (СтрПроисх) - обязательна в титуле, код ОКСМ из справочника
+country = DATA Country (ForwardingOrderDetail);
+nameCountry 'Страна происхождения' (ForwardingOrderDetail d) = name(country(d)) CHARWIDTH 12;
+sidCountry (ForwardingOrderDetail d) = sid(country(d));
+
+WHEN LOCAL SET(ForwardingOrderDetail d IS ForwardingOrderDetail) AND NOT CHANGED(country(d)) DO
+    country(d) <- defaultCountry();
+
+// Марк обязателен по формату
+marking = DATA CargoMarking (ForwardingOrderDetail);
+nameMarking 'Маркировка' (ForwardingOrderDetail d) = name(marking(d)) CHARWIDTH 15;
+
+WHEN LOCAL SET(ForwardingOrderDetail d IS ForwardingOrderDetail) AND NOT CHANGED(marking(d)) DO
+    marking(d) <- markingAbsent();
+
+// сведения об упаковке (СвУпак): в титуле обязательны при НалУпак = 1
+packagingType 'Вид упаковки' = DATA ISTRING[255](ForwardingOrderDetail) CHARWIDTH 12;
+packagingWeight 'Вес упаковки, кг' = DATA NUMERIC[17,3](ForwardingOrderDetail);
+packagingCount 'Количество упаковок' = DATA INTEGER (ForwardingOrderDetail);
+packagingHeight 'Высота упаковки, м' = DATA NUMERIC[17,3](ForwardingOrderDetail);
+packagingLength 'Длина упаковки, м' = DATA NUMERIC[17,3](ForwardingOrderDetail);
+packagingWidth 'Ширина упаковки, м' = DATA NUMERIC[17,3](ForwardingOrderDetail);
+
+hasPackagingInfo (ForwardingOrderDetail d) = packaged(d) AND packagingType(d) AND packagingWeight(d) AND
+    packagingHeight(d) AND packagingLength(d) AND packagingWidth(d);
+
 // итоги партии (ВесГрузПарт / КолМестПарт)
 netWeightTotal 'Вес нетто партии, кг' (ForwardingOrder f) = GROUP SUM netWeight(ForwardingOrderDetail d) BY forwardingOrder(d);
 grossWeightTotal 'Вес брутто партии, кг' (ForwardingOrder f) = GROUP SUM grossWeight(ForwardingOrderDetail d) BY forwardingOrder(d);
@@ -303,7 +329,9 @@ missingForwardingOrderDetail (ForwardingOrderDetail d) = CONCAT ', ',
     'груз' IF NOT cargo(d),
     'количество мест' IF NOT quantityPlaces(d),
     'вес нетто' IF NOT netWeight(d),
-    'вес брутто' IF NOT grossWeight(d);
+    'вес брутто' IF NOT grossWeight(d),
+    'страна происхождения' IF NOT sidCountry(d),
+    'сведения об упаковке (вид, вес, габариты)' IF packaged(d) AND NOT hasPackagingInfo(d);
 
 missingForwardingOrderDetails (ForwardingOrder f) = GROUP CONCAT ('строка ' + index(ForwardingOrderDetail d) + ': ' + missingForwardingOrderDetail(d)), '; ' ORDER d BY forwardingOrder(d);
 
@@ -399,7 +427,10 @@ FORM forwardingOrder 'Поручение экспедитору'
                   volume,
                   netWeight BACKGROUND (backgroundMandatory(f) IF NOT netWeight(d)),
                   grossWeight BACKGROUND (backgroundMandatory(f) IF NOT grossWeight(d)),
-                  quantityPallets, dangerous, seized, stateSystem, packaged, banReload
+                  quantityPallets, nameCountry BACKGROUND (backgroundMandatory(f) IF NOT country(d)),
+                  nameMarking, dangerous, seized, stateSystem, packaged, banReload
+    PROPERTIES(d) SHOWIF packaged(d) packagingType, packagingWeight, packagingCount,
+                  packagingHeight, packagingLength, packagingWidth
     PROPERTIES(d) NEW, DELETE
     ORDERS index(d)
     FILTERS forwardingOrder(d) = f

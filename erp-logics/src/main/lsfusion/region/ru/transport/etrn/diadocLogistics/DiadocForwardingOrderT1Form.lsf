@@ -8,21 +8,13 @@ NAMESPACE ETRN;
 // GenerateTitleXml строит по ней полный XML приказа ФНС N ЕД-7-26/958@ (ПорЭксп).
 // Упрощение модели: одна партия груза (CargoInfo) на поручение.
 
-forwardingDocumentCreator (LegalEntity l) = CONCAT ', ', name(l), 'ИНН ' + inn(l), 'КПП ' + kpp(l);
-
 digit1 (BOOLEAN b) = IF b THEN '1' ELSE '0';
 
 // ------------------------- Структура UserDataXml ------------------------- //
 
+// порядок групп и свойств = порядок элементов в XML, а схема требует строгой
+// последовательности: CargoInfos -> ClientInfo -> ForwarderInfo -> ForwardingContractRequisites
 GROUP foOrder EXTID 'ClientForwarderOrder';
-
-GROUP foClient EXTID 'ClientInfo' : foOrder;
-GROUP foClientOrg EXTID 'OrganizationDetails' : foClient;
-
-GROUP foForwarder EXTID 'ForwarderInfo' : foOrder;
-GROUP foForwarderOrg EXTID 'OrganizationDetails' : foForwarder;
-
-GROUP foContract EXTID 'ForwardingContractRequisites' : foOrder;
 
 GROUP foCargoInfos EXTID 'CargoInfos' : foOrder;
 GROUP foCargo EXTID 'CargoInfo' : foCargoInfos;
@@ -43,7 +35,12 @@ GROUP foDeclaredCost EXTID 'DeclaredShipmentCost' : foCargo;
 GROUP foActualCost EXTID 'ActualShipmentCost' : foCargo;
 
 GROUP foItems EXTID 'ItemDescriptions' : foCargo;
+GROUP foItemMarks EXTID 'Marks';
+GROUP foItemCountry EXTID 'CargoOriginCountryInfo';
 GROUP foItemWeight EXTID 'CargoWeight';
+GROUP foItemPackagings EXTID 'CargoPackagingInfos';
+GROUP foItemPackaging EXTID 'CargoPackagingInfo' : foItemPackagings;
+GROUP foItemPackagingSize EXTID 'PackagingDimensions' : foItemPackaging;
 
 GROUP foPickup EXTID 'CargoLocationAddress' : foCargo;
 GROUP foPickupAddr EXTID 'CargoDeliveryAddress' : foPickup;
@@ -55,6 +52,14 @@ GROUP foDropAddr EXTID 'CargoDeliveryAddress' : foDrop;
 GROUP foDropAddrInfo EXTID 'Address' : foDropAddr;
 GROUP foDropAddrRF EXTID 'RussianAddress' : foDropAddrInfo;
 
+GROUP foClient EXTID 'ClientInfo' : foOrder;
+GROUP foClientOrg EXTID 'OrganizationDetails' : foClient;
+
+GROUP foForwarder EXTID 'ForwarderInfo' : foOrder;
+GROUP foForwarderOrg EXTID 'OrganizationDetails' : foForwarder;
+
+GROUP foContract EXTID 'ForwardingContractRequisites' : foOrder;
+
 GROUP foSigners EXTID 'Signers';
 GROUP foSigner EXTID 'Signer' : foSigners;
 GROUP foSignerFio EXTID 'Fio' : foSigner;
@@ -64,28 +69,9 @@ FORM diadocForwardingOrderT1 FORMEXTID 'LogisticsForwardingOrderClientTitle'
     PROPERTIES ATTR
         foNumber = (OVERRIDE number(f), 'Без номера') EXTID 'Number',
         foDate = diadocDate(date(f)) EXTID 'Date',
-        foHasCargoDocs = digit1(documentsAttached(f)) EXTID 'HasCargoDocs',
-        foCreator = forwardingDocumentCreator(client(f)) EXTID 'DocumentCreator'
-
-    // клиент (мы)
-    PROPERTIES ATTR IN foClientOrg
-        foClientName = name(client(f)) EXTID 'OrgName',
-        foClientInn = inn(client(f)) EXTID 'Inn',
-        foClientKpp = kpp(client(f)) EXTID 'Kpp',
-        foClientFns = diadocFnsParticipantId(client(f)) EXTID 'FnsParticipantId',
-        foClientType = diadocOrgType(client(f)) EXTID 'OrgType'   // 1 - ИП, 2 - ЮЛ (по длине ИНН)
-
-    PROPERTIES ATTR IN foForwarderOrg
-        foForwarderName = name(forwarder(f)) EXTID 'OrgName',
-        foForwarderInn = inn(forwarder(f)) EXTID 'Inn',
-        foForwarderKpp = kpp(forwarder(f)) EXTID 'Kpp',
-        foForwarderFns = diadocFnsParticipantId(forwarder(f)) EXTID 'FnsParticipantId',
-        foForwarderType = diadocOrgType(forwarder(f)) EXTID 'OrgType'
-
-    PROPERTIES ATTR IN foContract
-        foContractName = contractName(f) EXTID 'DocumentName',
-        foContractNumber = contractNumber(f) EXTID 'DocumentNumber',
-        foContractDate = diadocDate(contractDate(f)) EXTID 'DocumentDate'
+        foHasCargoDocs = digit1(documentsAttached(f)) EXTID 'HasCargoDocs'
+    // DocumentCreator не выгружаем: при нём схема требует DocumentCreatorBase (основание,
+    // по которому мы составитель), а составитель поручения - сам клиент
 
     PROPERTIES ATTR IN foCargo
         foNotifyReq = digit1(notifyParties(f)) EXTID 'NotifyReq',
@@ -100,16 +86,16 @@ FORM diadocForwardingOrderT1 FORMEXTID 'LogisticsForwardingOrderClientTitle'
         foSpaceQuantity = quantityPlacesTotal(f) EXTID 'ShipmentCargoSpaceQuantity',
         foRoute = route(f) EXTID 'CargoRoute'
 
-    PROPERTIES ATTR IN foShipperOrg
-        foShipperName = name(shipper(f)) EXTID 'OrgName',
-        foShipperInn = inn(shipper(f)) EXTID 'Inn',
-        foShipperKpp = kpp(shipper(f)) EXTID 'Kpp',
-        foShipperType = diadocOrgType(shipper(f)) EXTID 'OrgType'
     PROPERTIES ATTR IN foConsigneeOrg
         foConsigneeName = name(consignee(f)) EXTID 'OrgName',
         foConsigneeInn = inn(consignee(f)) EXTID 'Inn',
         foConsigneeKpp = kpp(consignee(f)) EXTID 'Kpp',
         foConsigneeType = diadocOrgType(consignee(f)) EXTID 'OrgType'
+    PROPERTIES ATTR IN foShipperOrg
+        foShipperName = name(shipper(f)) EXTID 'OrgName',
+        foShipperInn = inn(shipper(f)) EXTID 'Inn',
+        foShipperKpp = kpp(shipper(f)) EXTID 'Kpp',
+        foShipperType = diadocOrgType(shipper(f)) EXTID 'OrgType'
 
     PROPERTIES ATTR IN foTransportInfo
         foTransportType = id(vehicleKind(f)) EXTID 'TransportType',
@@ -139,6 +125,36 @@ FORM diadocForwardingOrderT1 FORMEXTID 'LogisticsForwardingOrderClientTitle'
         foActualCurrency = ('643' IF actualCost(f)) EXTID 'Currency',
         foActualCost = actualCost(f) EXTID 'CargoCost'
 
+    OBJECTS d = ForwardingOrderDetail EXTID 'ItemDescription' IN foItems
+    PROPERTIES ATTR
+        itemName = nameCargo(d) EXTID 'Name',
+        itemPlaces = quantityPlaces(d) EXTID 'CargoSpaceQuantity',
+        itemDangerous = digit1(dangerous(d)) EXTID 'HasDangerous',
+        itemRestricted = digit1(seized(d)) EXTID 'HasRestrictedItems',
+        itemCanVolume = digit1(TRUE IF volume(d)) EXTID 'CanSpecifyVolume',
+        itemVolume = volume(d) EXTID 'Volume',
+        itemOverload = ('1' IF banReload(d)) EXTID 'OverloadProhibition',
+        itemStateSystem = digit1(stateSystem(d)) EXTID 'IsForStateSystemRegistration',
+        itemPackaging = digit1(packaged(d)) EXTID 'HasPackaging',
+        itemHasTnved = digit1(TRUE IF tnved(d)) EXTID 'HasCommodityCode',
+        itemTnved = tnved(d) EXTID 'NomenclatureCode'
+    PROPERTIES IN foItemMarks itemMark = nameMarking(d) EXTID 'Mark'
+    PROPERTIES IN foItemCountry itemCountry = sidCountry(d) EXTID 'Country'
+    PROPERTIES ATTR IN foItemWeight
+        itemNetWeight = netWeight(d) EXTID 'NetWeight',
+        itemGrossWeight = grossWeight(d) EXTID 'GrossWeight',
+        itemPallets = quantityPallets(d) EXTID 'NumberOfPallets'
+    // упаковка обязательна при HasPackaging = 1
+    PROPERTIES ATTR IN foItemPackaging
+        itemPackType = (packagingType(d) IF packaged(d)) EXTID 'PackagingType',
+        itemPackWeight = (packagingWeight(d) IF packaged(d)) EXTID 'PackagingWeight',
+        itemPackCount = (packagingCount(d) IF packaged(d)) EXTID 'PackagingCount'
+    PROPERTIES ATTR IN foItemPackagingSize
+        itemPackHeight = (packagingHeight(d) IF packaged(d)) EXTID 'Height',
+        itemPackLength = (packagingLength(d) IF packaged(d)) EXTID 'Length',
+        itemPackWidth = (packagingWidth(d) IF packaged(d)) EXTID 'Width'
+    FILTERS forwardingOrder(d) == f
+
     // адреса выгружаются только при полном (Region+ZipCode)
     PROPERTIES ATTR IN foPickup foPickupLocation = pickupPlace(f) EXTID 'CargoPickupLocation'
     PROPERTIES ATTR IN foPickupAddrRF
@@ -156,27 +172,32 @@ FORM diadocForwardingOrderT1 FORMEXTID 'LogisticsForwardingOrderClientTitle'
         foDropStreet = (dropStreet(f) IF hasDropAddress(f)) EXTID 'Street',
         foDropBuilding = (dropBuilding(f) IF hasDropAddress(f)) EXTID 'Building'
 
-    OBJECTS d = ForwardingOrderDetail EXTID 'ItemDescription' IN foItems
-    PROPERTIES ATTR
-        itemName = nameCargo(d) EXTID 'Name',
-        itemPlaces = quantityPlaces(d) EXTID 'CargoSpaceQuantity',
-        itemDangerous = digit1(dangerous(d)) EXTID 'HasDangerous',
-        itemRestricted = digit1(seized(d)) EXTID 'HasRestrictedItems',
-        itemCanVolume = digit1(TRUE IF volume(d)) EXTID 'CanSpecifyVolume',
-        itemVolume = volume(d) EXTID 'Volume',
-        itemOverload = ('1' IF banReload(d)) EXTID 'OverloadProhibition',
-        itemStateSystem = digit1(stateSystem(d)) EXTID 'IsForStateSystemRegistration',
-        itemPackaging = digit1(packaged(d)) EXTID 'HasPackaging',
-        itemHasTnved = digit1(TRUE IF tnved(d)) EXTID 'HasCommodityCode',
-        itemTnved = tnved(d) EXTID 'NomenclatureCode'
-    PROPERTIES ATTR IN foItemWeight
-        itemNetWeight = netWeight(d) EXTID 'NetWeight',
-        itemGrossWeight = grossWeight(d) EXTID 'GrossWeight',
-        itemPallets = quantityPallets(d) EXTID 'NumberOfPallets'
-    FILTERS forwardingOrder(d) == f
+
+    // клиент (мы), экспедитор и договор ТЭ - после партии груза (порядок схемы)
+    PROPERTIES ATTR IN foClientOrg
+        foClientName = name(client(f)) EXTID 'OrgName',
+        foClientInn = inn(client(f)) EXTID 'Inn',
+        foClientKpp = kpp(client(f)) EXTID 'Kpp',
+        foClientFns = diadocFnsParticipantId(client(f)) EXTID 'FnsParticipantId',
+        foClientType = diadocOrgType(client(f)) EXTID 'OrgType'   // 1 - ИП, 2 - ЮЛ (по длине ИНН)
+
+    PROPERTIES ATTR IN foForwarderOrg
+        foForwarderName = name(forwarder(f)) EXTID 'OrgName',
+        foForwarderInn = inn(forwarder(f)) EXTID 'Inn',
+        foForwarderKpp = kpp(forwarder(f)) EXTID 'Kpp',
+        foForwarderFns = diadocFnsParticipantId(forwarder(f)) EXTID 'FnsParticipantId',
+        foForwarderType = diadocOrgType(forwarder(f)) EXTID 'OrgType'
+
+    PROPERTIES ATTR IN foContract
+        foContractName = contractName(f) EXTID 'DocumentName',
+        foContractNumber = contractNumber(f) EXTID 'DocumentNumber',
+        foContractDate = diadocDate(contractDate(f)) EXTID 'DocumentDate'
 
     // BoxId подписанта - чистый GUID (без @diadoc.ru)
     PROPERTIES ATTR IN foSigners foSignersBoxId = diadocBoxIdGuid(client(f)) EXTID 'BoxId'
+    // 1 - полномочия по учредительным документам (руководитель); доверенности (2-4) не поддерживаем
+    PROPERTIES ATTR IN foSigner
+        foSignerPowers = ('1' IF f IS ForwardingOrder) EXTID 'SignerPowersConfirmationMethod'
     PROPERTIES ATTR IN foSignerFio
         foSignerLast = signerLastName(f) EXTID 'LastName',
         foSignerFirst = signerFirstName(f) EXTID 'FirstName',

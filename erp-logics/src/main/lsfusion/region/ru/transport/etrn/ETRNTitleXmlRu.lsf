@@ -18,6 +18,10 @@ etrnRedirectPerson (ISTRING[15] name) = GROUP MAX ETRNRedirectPerson p BY name(p
 
 // ------------------------- Локальные свойства ------------------------- //
 
+// ИдФайл (имя файла обмена): в нём через '_' перечислены идентификаторы участников
+// документооборота СФ всех сторон - по нему определяется ящик перевозчика
+impT1IdFile = DATA LOCAL STRING ();
+
 // СодИнфГО (шапка)
 impT1Number = DATA LOCAL STRING ();
 impT1Date = DATA LOCAL STRING ();
@@ -197,6 +201,7 @@ GROUP impT1PgAddrRF EXTID 'АдресРФ' : impT1PgAddr;
 GROUP impT1PgAddrInf EXTID 'АдресИнф' : impT1PgAddr;
 
 FORM etrnTitleXmlImport
+    PROPERTIES impT1IdFile() EXTID 'ИдФайл' ATTR
     PROPERTIES IN impT1Content
         impT1Number() EXTID 'НомерТрН' ATTR,
         impT1Date() EXTID 'ДатаТрН' ATTR,
@@ -345,6 +350,14 @@ deliveryZip (STRING text) = STRING[6](deliveryZipExtract(text))
     IF length(deliveryZipExtract(text)) == 6 AND
        (OVERRIDE length(regexpReplace(deliveryZipExtract(text), '[0-9]', '', 'g')), 0) == 0;
 
+// идентификатор участника ЭДО стороны по её ИНН из ИдФайла (имя файла обмена: части через '_',
+// каждая - <код оператора>-<ИНН>-<...>); оператор не фиксируем: у работающих через роуминг
+// там код чужого оператора. При несовпадении regexpReplace вернёт исходный текст - отсюда валидация
+participantIdExtract (STRING idFile, STRING inn) =
+    regexpReplace(idFile, '^(.*_)?([^_]*-' + inn + '-[^_]*)(_.*)?$', '\\2', '');
+participantId (STRING idFile, STRING inn) = STRING[46](participantIdExtract(idFile, inn))
+    IF inn AND idFile AND NOT participantIdExtract(idFile, inn) == idFile;
+
 // индекс места доставки разбираемого титула: из структурного адреса либо из текстового
 impT1DeliveryZip () = STRING[6](OVERRIDE impT1GPIndex(),
     deliveryZip(STRING(OVERRIDE impT1GPAddrInfText(), impT1GPAddrText())));
@@ -397,6 +410,7 @@ parseETRNTitleXml 'Импортировать титул Т1 из файла' (E
         incomingCarrierName(ie) <- ISTRING[150](OVERRIDE impT1PerName(),
             (CONCAT ' ', 'ИП', impT1PerLastIP(), impT1PerFirstIP(), impT1PerMiddleIP()));
         incomingCarrierInn(ie) <- STRING[12](OVERRIDE impT1PerInn(), impT1PerInnIP());
+        incomingCarrierParticipantId(ie) <- participantId(impT1IdFile(), incomingCarrierInn(ie));
         // карточка перевозчика по ИНН (при отсутствии создаётся провайдерским модулем)
         carrier(ie) <- legalEntityInn(incomingCarrierInn(ie)) WHERE legalEntityInn(incomingCarrierInn(ie)) AND NOT carrier(ie);
         fillCarrierCardFromT1(ie);

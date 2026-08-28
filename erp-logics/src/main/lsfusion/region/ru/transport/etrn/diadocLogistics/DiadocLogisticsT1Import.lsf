@@ -90,6 +90,17 @@ diadocEnsureCarrier (ETRN.IncomingETRN ie) {
     }
 }
 
+// организация Диадока перевозчика - по идентификатору участника ЭДО из титула: при нескольких
+// организациях с одним ИНН только он указывает, через какую идёт обмен. Записывается в карточку
+// контрагента, чтобы дальше её использовали все отправки (diadocBox), а не только Т3
+diadocFillCarrierOrganization (ETRN.IncomingETRN ie) {
+    FOR Organization o == organizationParticipantId(ETRN.incomingCarrierParticipantId(ie)) AND
+        LegalEntity l == ETRN.carrier(ie) DO {
+        legalEntity(o) <- l WHERE NOT legalEntity(o);
+        transportOrganization(l) <- o WHERE legalEntity(o) == l AND NOT transportOrganization(l);
+    }
+}
+
 // ------------------------- Полный состав из титула Т1 ------------------------- //
 
 diadocImportFullData (ETRN.ETRN e) {
@@ -133,7 +144,10 @@ diadocImportFullData (ETRN.ETRN e) {
         // parseETRNTitleXml выполняет свой APPLY
         ETRN.parseETRNTitleXml(e);
 
-        FOR ETRN.IncomingETRN ie == e DO diadocEnsureCarrier(ie);
+        FOR ETRN.IncomingETRN ie == e DO {
+            diadocEnsureCarrier(ie);
+            diadocFillCarrierOrganization(ie);
+        }
 
         ETRN.titleImportedDateTime(e) <- currentDateTime();
         ETRN.exchangeMessage(e) <- NULL;
