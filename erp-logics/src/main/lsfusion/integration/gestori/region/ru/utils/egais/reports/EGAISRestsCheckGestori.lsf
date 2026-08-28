@@ -1,0 +1,358 @@
+MODULE EGAISRestsCheckGestori;
+
+REQUIRE EGAISStockReportGestori, EGAISRestsGestori, EGAISGestori, EGAISItem, EGAISStock,
+        ItemArticle,
+        SkuLedger, Barcode;
+
+NAMESPACE EGAIS;
+
+utmRestsCheck = DATA LOCAL NESTED UTM ();
+nameUtmRestsCheck 'УТМ' () = name(utmRestsCheck());
+idUtmRestsCheck 'Код' () = fsrarId(utmRestsCheck());
+
+changeUtmRestsCheck 'УТМ' () {
+    DIALOG dialogUTMs OBJECTS o = utmRestsCheck() CHANGE;
+}
+
+dateFromRestsCheck 'Дата с' = DATA LOCAL NESTED DATE ();
+dateToRestsCheck 'Дата по' = DATA LOCAL NESTED DATE ();
+
+dataInGroupRestsCheck 'Вкл.' = DATA LOCAL NESTED BOOLEAN (ItemGroup);
+
+levelParentRestsCheck (ItemGroup group) =
+    GROUP MIN level(group, ItemGroup parent) IF dataInGroupRestsCheck(parent);
+inParentRestsCheck (ItemGroup group) = TRUE IF levelParentRestsCheck(group);
+
+inGroupRestsCheck 'Вкл.' (ItemGroup group) =
+    OVERRIDE dataInGroupRestsCheck(group), inParentRestsCheck(group);
+
+dataInRestsCheck 'Вкл.' = DATA LOCAL NESTED BOOLEAN (Item);
+inRestsCheck 'Вкл.' (Item item) =
+    OVERRIDE dataInRestsCheck(item), inGroupRestsCheck(itemGroup(item));
+
+nameGroupsRestsCheck () =
+    GROUP CONCAT name(ItemGroup g) IF inGroupRestsCheck(g) AND NOT inGroupRestsCheck(parent(g)), ', ' ORDER name(g), g;
+nameItemsRestsCheck () =
+    GROUP CONCAT name(Item i) IF dataInRestsCheck(i), ', ' ORDER name(i), i;
+
+nameFilterRestsCheck 'Товары и группы' () =
+    CONCAT '; ', nameGroupsRestsCheck(), nameItemsRestsCheck() CHARWIDTH 30;
+
+FORM dialogItemsRestsCheck 'Выбор товаров'
+    TREE groupTree g = ItemGroup PARENT parent(g)
+    PROPERTIES(g) inGroupRestsCheck
+    PROPERTIES(g) READONLY order, name
+    FILTERGROUP inactiveGroup FILTER 'Активные' active(g) 'F6' DEFAULT
+    ORDERS order(g), name(g)
+
+    OBJECTS i = Item
+    PROPERTIES(i) inRestsCheck
+    PROPERTIES(i) READONLY id, name, idBarcode
+    FILTERS isParent(g, i)
+    ORDERS name(i)
+;
+
+changeItemsRestsCheck 'Товары и группы' () {
+    DIALOG dialogItemsRestsCheck;
+}
+
+showZeroRestsCheck 'Выводить позиции с нулевыми остатками' = DATA LOCAL NESTED BOOLEAN ();
+showNotLinkedItemRestsCheck 'Выводить товары без привязки к алкогольной продукции' = DATA LOCAL NESTED BOOLEAN ();
+showNotLinkedProductRestsCheck 'Выводить остатки ЕГАИС без привязки к товару системы' = DATA LOCAL NESTED BOOLEAN ();
+
+inStockRestsCheck (Stock s) = TRUE IF utm(client(s)) = utmRestsCheck();
+
+documentRestsCheck () = GROUP LAST EGAISRests r ORDER dateTime(r)
+    WHERE utm(r) = utmRestsCheck() AND date(r) <= sum(dateToRestsCheck(), 1);
+
+numberDateRestsCheck 'Документ остатков' () =
+    CONCAT ' ', number(documentRestsCheck()), 'от:', toDateDDMMYYYY(date(documentRestsCheck()));
+
+balanceStartRestsCheck (Item i) = GROUP SUM balanceB(i, Stock s, dateFromRestsCheck()) IF inStockRestsCheck(s);
+quantityInRestsCheck (Item i) = GROUP SUM quantitySumIn(i, Stock s, dateFromRestsCheck(), dateToRestsCheck()) IF inStockRestsCheck(s);
+quantityOutRestsCheck (Item i) = GROUP SUM quantitySumOut(i, Stock s, dateFromRestsCheck(), dateToRestsCheck()) IF inStockRestsCheck(s);
+balanceEndRestsCheck (Item i) = GROUP SUM balanceB(i, Stock s, sum(dateToRestsCheck(), 1)) IF inStockRestsCheck(s);
+
+quantityEGAISRestsCheck (Item i) =
+    GROUP SUM quantity(EGAISRestsPosition p) IF rests(p) = documentRestsCheck() AND minItem(product(p)) = i;
+
+quantityProductRestsCheck (Product pr) =
+    GROUP SUM quantity(EGAISRestsPosition p) IF rests(p) = documentRestsCheck() AND product(p) = pr;
+
+countPositionsProductRestsCheck (Product pr) =
+    GROUP SUM 1 IF rests(EGAISRestsPosition p) = documentRestsCheck() AND product(p) = pr;
+
+countPositionsItemRestsCheck (Item i) =
+    GROUP SUM 1 IF rests(EGAISRestsPosition p) = documentRestsCheck() AND minItem(product(p)) = i;
+
+decalitreRestsCheck (Item i, NUMERIC[16,5] quantity) = quantity * capacityMinProduct(i) / 10.0;
+
+anyQuantityRestsCheck (Item i) = TRUE IF balanceStartRestsCheck(i) OR quantityInRestsCheck(i)
+    OR quantityOutRestsCheck(i) OR balanceEndRestsCheck(i) OR quantityEGAISRestsCheck(i);
+
+inRowRestsCheck (Item i) = TRUE IF utmRestsCheck()
+    AND inRestsCheck(i)
+    AND (minProduct(i) OR showNotLinkedItemRestsCheck())
+    AND (anyQuantityRestsCheck(i) OR showZeroRestsCheck());
+
+inProductRowRestsCheck (Product pr) = TRUE IF countPositionsProductRestsCheck(pr) AND inRowRestsCheck(minItem(pr));
+
+inNotLinkedProductRestsCheck (Product pr) = TRUE IF showNotLinkedProductRestsCheck()
+    AND countPositionsProductRestsCheck(pr) AND NOT minItem(pr);
+
+countProductRowsRestsCheck (Item i) =
+    GROUP SUM 1 IF inProductRowRestsCheck(Product pr) AND minItem(pr) = i;
+
+rowCountRestsCheck (Item i) = OVERRIDE countProductRowsRestsCheck(i) + 1, 1;
+
+lastRowRestsCheck (Item i) =
+    PARTITION SUM rowCountRestsCheck(i) IF inRowRestsCheck(i) ORDER name(i), i;
+
+indexItemRestsCheck (Item i) = lastRowRestsCheck(i) - rowCountRestsCheck(i) + 1;
+
+numberProductRestsCheck (Product pr) = PARTITION SUM 1 IF inProductRowRestsCheck(pr) ORDER pr BY minItem(pr);
+indexProductRestsCheck (Product pr) = indexItemRestsCheck(minItem(pr)) + numberProductRestsCheck(pr);
+
+maxRowRestsCheck () = GROUP MAX lastRowRestsCheck(Item i) IF inRowRestsCheck(i);
+numberNotLinkedProductRestsCheck (Product pr) = PARTITION SUM 1 IF inNotLinkedProductRestsCheck(pr) ORDER pr;
+indexNotLinkedProductRestsCheck (Product pr) =
+    (OVERRIDE maxRowRestsCheck(), 0) + numberNotLinkedProductRestsCheck(pr);
+
+isProductRowRestsCheck = DATA LOCAL NESTED BOOLEAN (INTEGER);
+filledRestsCheck = DATA LOCAL NESTED BOOLEAN (INTEGER);
+
+idTypeRestsCheck 'Код вида алкогольной продукции' = DATA LOCAL NESTED STRING[100] (INTEGER);
+nameTypeRestsCheck 'Вид алкогольной продукции' = DATA LOCAL NESTED STRING[250] (INTEGER);
+
+idProducerRestsCheck 'Код в ЕГАИС' = DATA LOCAL NESTED STRING[100] (INTEGER);
+nameProducerRestsCheck 'Производитель/импортёр' = DATA LOCAL NESTED STRING[250] (INTEGER);
+innProducerRestsCheck 'ИНН' = DATA LOCAL NESTED STRING[12] (INTEGER);
+kppProducerRestsCheck 'КПП' = DATA LOCAL NESTED STRING[9] (INTEGER);
+
+idItemRestsCheck 'Код товара' = DATA LOCAL NESTED STRING[100] (INTEGER);
+articleItemRestsCheck 'Артикул' = DATA LOCAL NESTED STRING[100] (INTEGER);
+barcodeItemRestsCheck 'Штрих-коды' = DATA LOCAL NESTED STRING[100] (INTEGER);
+idProductRestsCheck 'Код товара ЕГАИС' = DATA LOCAL NESTED STRING[100] (INTEGER);
+nameRowRestsCheck 'Наименование' = DATA LOCAL NESTED STRING[250] (INTEGER);
+
+rateRestsCheck 'Кратность' = DATA LOCAL NESTED NUMERIC[10,3] (INTEGER);
+capacityRestsCheck 'Объем (л)' = DATA LOCAL NESTED NUMERIC[16,5] (INTEGER);
+
+startQuantityRestsCheck = DATA LOCAL NESTED NUMERIC[16,5] (INTEGER);
+startDecalitreRestsCheck = DATA LOCAL NESTED NUMERIC[16,5] (INTEGER);
+inQuantityRestsCheck = DATA LOCAL NESTED NUMERIC[16,5] (INTEGER);
+inDecalitreRestsCheck = DATA LOCAL NESTED NUMERIC[16,5] (INTEGER);
+outQuantityRestsCheck = DATA LOCAL NESTED NUMERIC[16,5] (INTEGER);
+outDecalitreRestsCheck = DATA LOCAL NESTED NUMERIC[16,5] (INTEGER);
+endQuantityRestsCheck = DATA LOCAL NESTED NUMERIC[16,5] (INTEGER);
+endDecalitreRestsCheck = DATA LOCAL NESTED NUMERIC[16,5] (INTEGER);
+
+quantityRestsCheck 'Регистр 1' = DATA LOCAL NESTED NUMERIC[16,5] (INTEGER);
+docRestsCheck 'Документ Регистр 1' = DATA LOCAL NESTED STRING[100] (INTEGER);
+
+idUtmRowRestsCheck 'Код' (INTEGER row) = idUtmRestsCheck() IF filledRestsCheck(row);
+nameUtmRowRestsCheck 'Наименование' (INTEGER row) = nameUtmRestsCheck() IF filledRestsCheck(row);
+
+fillRestsCheckReport 'Сформировать' () {
+    isProductRowRestsCheck(INTEGER row) <- NULL;
+    filledRestsCheck(INTEGER row) <- NULL;
+    idTypeRestsCheck(INTEGER row) <- NULL;
+    nameTypeRestsCheck(INTEGER row) <- NULL;
+    idProducerRestsCheck(INTEGER row) <- NULL;
+    nameProducerRestsCheck(INTEGER row) <- NULL;
+    innProducerRestsCheck(INTEGER row) <- NULL;
+    kppProducerRestsCheck(INTEGER row) <- NULL;
+    idItemRestsCheck(INTEGER row) <- NULL;
+    articleItemRestsCheck(INTEGER row) <- NULL;
+    barcodeItemRestsCheck(INTEGER row) <- NULL;
+    idProductRestsCheck(INTEGER row) <- NULL;
+    nameRowRestsCheck(INTEGER row) <- NULL;
+    rateRestsCheck(INTEGER row) <- NULL;
+    capacityRestsCheck(INTEGER row) <- NULL;
+    startQuantityRestsCheck(INTEGER row) <- NULL;
+    startDecalitreRestsCheck(INTEGER row) <- NULL;
+    inQuantityRestsCheck(INTEGER row) <- NULL;
+    inDecalitreRestsCheck(INTEGER row) <- NULL;
+    outQuantityRestsCheck(INTEGER row) <- NULL;
+    outDecalitreRestsCheck(INTEGER row) <- NULL;
+    endQuantityRestsCheck(INTEGER row) <- NULL;
+    endDecalitreRestsCheck(INTEGER row) <- NULL;
+    quantityRestsCheck(INTEGER row) <- NULL;
+    docRestsCheck(INTEGER row) <- NULL;
+
+    FOR inRowRestsCheck(Item i) DO {
+        filledRestsCheck(indexItemRestsCheck(i)) <- TRUE;
+
+        idTypeRestsCheck(indexItemRestsCheck(i)) <- idType(i);
+        nameTypeRestsCheck(indexItemRestsCheck(i)) <- nameType(minProduct(i));
+        
+        idItemRestsCheck(indexItemRestsCheck(i)) <- id(i);
+        articleItemRestsCheck(indexItemRestsCheck(i)) <- idArticle(i);
+        barcodeItemRestsCheck(indexItemRestsCheck(i)) <- idBarcode(i);
+        nameRowRestsCheck(indexItemRestsCheck(i)) <- name(i);
+
+        rateRestsCheck(indexItemRestsCheck(i)) <- 1.0;
+        capacityRestsCheck(indexItemRestsCheck(i)) <- capacityMinProduct(i);
+        
+        startQuantityRestsCheck(indexItemRestsCheck(i)) <- OVERRIDE balanceStartRestsCheck(i), 0.0;
+        startDecalitreRestsCheck(indexItemRestsCheck(i)) <- OVERRIDE decalitreRestsCheck(i, balanceStartRestsCheck(i)), 0.0;
+        inQuantityRestsCheck(indexItemRestsCheck(i)) <- OVERRIDE quantityInRestsCheck(i), 0.0;
+        inDecalitreRestsCheck(indexItemRestsCheck(i)) <- OVERRIDE decalitreRestsCheck(i, quantityInRestsCheck(i)), 0.0;
+        outQuantityRestsCheck(indexItemRestsCheck(i)) <- OVERRIDE quantityOutRestsCheck(i), 0.0;
+        outDecalitreRestsCheck(indexItemRestsCheck(i)) <- OVERRIDE decalitreRestsCheck(i, quantityOutRestsCheck(i)), 0.0;
+        endQuantityRestsCheck(indexItemRestsCheck(i)) <- OVERRIDE balanceEndRestsCheck(i), 0.0;
+        endDecalitreRestsCheck(indexItemRestsCheck(i)) <- OVERRIDE decalitreRestsCheck(i, balanceEndRestsCheck(i)), 0.0;
+
+        quantityRestsCheck(indexItemRestsCheck(i)) <-
+            OVERRIDE quantityEGAISRestsCheck(i), 0.0 IF countPositionsItemRestsCheck(i);
+    }
+
+    FOR inProductRowRestsCheck(Product pr) DO {
+        filledRestsCheck(indexProductRestsCheck(pr)) <- TRUE;
+        isProductRowRestsCheck(indexProductRestsCheck(pr)) <- TRUE;
+
+        idProducerRestsCheck(indexProductRestsCheck(pr)) <- id(producer(pr));
+        nameProducerRestsCheck(indexProductRestsCheck(pr)) <- shortName(producer(pr));
+        innProducerRestsCheck(indexProductRestsCheck(pr)) <- INN(producer(pr));
+        kppProducerRestsCheck(indexProductRestsCheck(pr)) <- KPP(producer(pr));
+
+        idProductRestsCheck(indexProductRestsCheck(pr)) <- id(pr);
+        nameRowRestsCheck(indexProductRestsCheck(pr)) <- fullName(pr);
+
+        quantityRestsCheck(indexProductRestsCheck(pr)) <- OVERRIDE quantityProductRestsCheck(pr), 0.0;
+        docRestsCheck(indexProductRestsCheck(pr)) <- numberDateRestsCheck();
+    }
+
+    FOR inNotLinkedProductRestsCheck(Product pr) DO {
+        filledRestsCheck(indexNotLinkedProductRestsCheck(pr)) <- TRUE;
+        isProductRowRestsCheck(indexNotLinkedProductRestsCheck(pr)) <- TRUE;
+
+        idProducerRestsCheck(indexNotLinkedProductRestsCheck(pr)) <- id(producer(pr));
+        nameProducerRestsCheck(indexNotLinkedProductRestsCheck(pr)) <- shortName(producer(pr));
+        innProducerRestsCheck(indexNotLinkedProductRestsCheck(pr)) <- INN(producer(pr));
+        kppProducerRestsCheck(indexNotLinkedProductRestsCheck(pr)) <- KPP(producer(pr));
+
+        idProductRestsCheck(indexNotLinkedProductRestsCheck(pr)) <- id(pr);
+        nameRowRestsCheck(indexNotLinkedProductRestsCheck(pr)) <- fullName(pr);
+
+        quantityRestsCheck(indexNotLinkedProductRestsCheck(pr)) <- OVERRIDE quantityProductRestsCheck(pr), 0.0;
+        docRestsCheck(indexNotLinkedProductRestsCheck(pr)) <- numberDateRestsCheck();
+    }
+}
+
+FORM printRestsCheck 'Сверка остатков ЕГАИС'
+    PROPERTIES() nameUtmRestsCheck, nameFilterRestsCheck, dateFromRestsCheck, dateToRestsCheck
+
+    OBJECTS row = INTEGER
+    PROPERTIES READONLY
+        'Строка ЕГАИС' = isProductRowRestsCheck(row),
+        'Код УТМ' = idUtmRowRestsCheck(row),
+        'Наименование УТМ' = nameUtmRowRestsCheck(row),
+        'Код алкогольной продукции' = idTypeRestsCheck(row),
+        'Вид алкогольной продукции' = nameTypeRestsCheck(row),
+        'Код в ЕГАИС' = idProducerRestsCheck(row),
+        'Производитель/импортёр' = nameProducerRestsCheck(row),
+        'ИНН' = innProducerRestsCheck(row),
+        'КПП' = kppProducerRestsCheck(row),
+        'Код товара' = idItemRestsCheck(row),
+        'Артикул' = articleItemRestsCheck(row),
+        'Штрих-коды' = barcodeItemRestsCheck(row),
+        'Код товара ЕГАИС' = idProductRestsCheck(row),
+        'Наименование' = nameRowRestsCheck(row),
+        'Кратность' = rateRestsCheck(row),
+        'Объем (л)' = capacityRestsCheck(row),
+        'Остаток на начало, шт' = startQuantityRestsCheck(row),
+        'Остаток на начало, дал' = startDecalitreRestsCheck(row),
+        'Приход, шт' = inQuantityRestsCheck(row),
+        'Приход, дал' = inDecalitreRestsCheck(row),
+        'Расход, шт' = outQuantityRestsCheck(row),
+        'Расход, дал' = outDecalitreRestsCheck(row),
+        'Остаток на конец, шт' = endQuantityRestsCheck(row),
+        'Остаток на конец, дал' = endDecalitreRestsCheck(row),
+        'Регистр 1' = quantityRestsCheck(row),
+        'Документ Регистр 1' = docRestsCheck(row)
+    FILTERS filledRestsCheck(row)
+;
+
+printRestsCheck 'Печать' () {
+    fillRestsCheckReport();
+    PRINT printRestsCheck XLSX;
+} TOOLBAR;
+
+FORM restsCheckReport 'Сверка остатков ЕГАИС'
+    PROPERTIES() dateFromRestsCheck, dateToRestsCheck,
+                 nameUtmRestsCheck ON CHANGE changeUtmRestsCheck(),
+                 nameFilterRestsCheck ON CHANGE changeItemsRestsCheck(),
+                 showZeroRestsCheck, showNotLinkedItemRestsCheck, showNotLinkedProductRestsCheck,
+                 fillRestsCheckReport, printRestsCheck
+
+    OBJECTS row = INTEGER
+    PROPERTIES READONLY
+        'Код УТМ' = idUtmRowRestsCheck(row),
+        'Наименование УТМ' = nameUtmRowRestsCheck(row),
+        'Код алкогольной продукции' = idTypeRestsCheck(row),
+        'Вид алкогольной продукции' = nameTypeRestsCheck(row),
+        'Код в ЕГАИС' = idProducerRestsCheck(row),
+        'Производитель/импортёр' = nameProducerRestsCheck(row),
+        'ИНН' = innProducerRestsCheck(row),
+        'КПП' = kppProducerRestsCheck(row),
+        'Код товара' = idItemRestsCheck(row),
+        'Артикул' = articleItemRestsCheck(row),
+        'Штрих-коды' = barcodeItemRestsCheck(row),
+        'Код товара ЕГАИС' = idProductRestsCheck(row),
+        'Наименование' = nameRowRestsCheck(row),
+        'Кратность' = rateRestsCheck(row),
+        'Объем (л)' = capacityRestsCheck(row),
+        'Остаток на начало, шт' = startQuantityRestsCheck(row),
+        'Остаток на начало, дал' = startDecalitreRestsCheck(row),
+        'Приход, шт' = inQuantityRestsCheck(row),
+        'Приход, дал' = inDecalitreRestsCheck(row),
+        'Расход, шт' = outQuantityRestsCheck(row),
+        'Расход, дал' = outDecalitreRestsCheck(row),
+        'Остаток на конец, шт' = endQuantityRestsCheck(row),
+        'Остаток на конец, дал' = endDecalitreRestsCheck(row),
+        'Регистр 1' = quantityRestsCheck(row),
+        'Документ Регистр 1' = docRestsCheck(row)
+    FILTERS filledRestsCheck(row)
+
+    EVENTS ON INIT {
+        dateToRestsCheck() <- currentDate();
+        dateFromRestsCheck() <- sum(currentDate(), -30);
+    }
+;
+
+DESIGN restsCheckReport {
+    OBJECTS {
+        NEW parameters {
+            caption = 'Параметры';
+            alignment = STRETCH;
+            NEW dates {
+                MOVE PROPERTY(dateFromRestsCheck());
+                MOVE PROPERTY(dateToRestsCheck());
+            }
+            MOVE PROPERTY(nameUtmRestsCheck());
+            MOVE PROPERTY(nameFilterRestsCheck());
+
+            NEW options {
+                caption = 'Опции';
+                MOVE PROPERTY(showZeroRestsCheck());
+                MOVE PROPERTY(showNotLinkedItemRestsCheck());
+                MOVE PROPERTY(showNotLinkedProductRestsCheck());
+            }
+
+            NEW actions {
+                alignment = STRETCH;
+                MOVE PROPERTY(fillRestsCheckReport());
+                MOVE PROPERTY(printRestsCheck());
+            }
+        }
+
+        MOVE BOX(row);
+    }
+}
+
+NAVIGATOR {
+    EGAISReports {
+        NEW restsCheckReport;
+    }
+}
