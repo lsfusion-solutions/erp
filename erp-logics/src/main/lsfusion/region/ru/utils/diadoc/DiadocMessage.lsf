@@ -318,6 +318,13 @@ attachmentType 'Тип вложения' = DATA AttachmentType (Entity);
 attachmentTypeName 'Тип вложения' (Entity e) = staticCaption(attachmentType(e)) CHARWIDTH 20;
 
 fileName 'Исходное имя файла' = DATA STRING[255] (Entity) CHARWIDTH 25;
+
+// расширение содержимого — последняя часть имени файла после точки: длина расширения хранится в одном байте,
+// поэтому у имени без точки (или с длинным «хвостом») содержимое не читается — NegativeArraySizeException
+lastWordFileName (Entity e) = getWord(fileName(e), '.', wordCount(fileName(e), '.'));
+extensionEntity 'Расширение файла' (Entity e) = OVERRIDE
+    (STRING[20](lastWordFileName(e)) IF wordCount(fileName(e), '.') > 1 AND length(lastWordFileName(e)) <= 20),
+    STRING[20]('txt');
 needRecipientSignature 'Запрос подписи получателя' = DATA BOOLEAN (Entity);
 
 signerBox 'Ящик автора подписи' = DATA Box (Entity);
@@ -1675,7 +1682,7 @@ getNewEvents 'Получить новые сообщения' (User u, Box box) 
                         fileToString(FILE(data()), 'UTF-8');
                         MESSAGE 'Ошибка получения контента ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
                     }
-                    data(e) <- file(data(),(OVERRIDE getWord(fileName(e),'.',wordCount(fileName(e),'.')),'txt'));
+                    data(e) <- file(data(), extensionEntity(e));
                     importComment(e);
                 }
             }
@@ -1798,7 +1805,7 @@ getNewEvents 'Получить новые сообщения' (User u, Box box) 
                         fileToString(FILE(data()), 'UTF-8');
                         MESSAGE 'Ошибка получения контента ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
                     }
-                    data(e) <- file(data(),(OVERRIDE getWord(fileName(e),'.',wordCount(fileName(e),'.')),'txt'));
+                    data(e) <- file(data(), extensionEntity(e));
                     importComment(e);
                 }
             }
@@ -2499,7 +2506,7 @@ postMessage 'Отправить сообщение' (User u) {
                 fileToString(FILE(data()), 'UTF-8');
                 MESSAGE 'Ошибка получения контента ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
             }
-            data(e) <- file(data(),(OVERRIDE getWord(fileName(e),'.',wordCount(fileName(e),'.')),'txt'));
+            data(e) <- file(data(), extensionEntity(e));
             importComment(e);
         }
     }
@@ -2927,7 +2934,7 @@ postMessagePatch 'Отправить дополнение к сообщению'
                 fileToString(FILE(data()), 'UTF-8');
                 MESSAGE 'Ошибка получения контента ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
             }
-            data(e) <- file(data(),(OVERRIDE getWord(fileName(e),'.',wordCount(fileName(e),'.')),'txt'));
+            data(e) <- file(data(), extensionEntity(e));
             importComment(e);
         }
     }
