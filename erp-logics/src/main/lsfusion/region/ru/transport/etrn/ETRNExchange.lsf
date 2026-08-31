@@ -142,6 +142,8 @@ transportationId 'ИД перевозки у провайдера' = ABSTRACT ST
 etrn (STRING[36] transportationId) = GROUP MAX ETRN e BY transportationId(e);
 
 mintransId 'УИД Минтранса (ГИС ЭПД)' = ABSTRACT STRING[255](ETRN) CHARWIDTH 15;
+// трансляции титулов (fwd) приходят без ИД перевозки провайдера - там есть только УИД Минтранса
+etrnMintrans (STRING[255] mintransId) = GROUP MAX ETRN e BY mintransId(e);
 providerStatus 'Статус перевозки (провайдер)' = ABSTRACT STRING[100](ETRN) CHARWIDTH 15;
 exchangeMessage 'Сообщение обмена' = ABSTRACT TEXT (ETRN);
 
@@ -300,6 +302,7 @@ processETRNEvents 'Обработать события ЭПД' () {
                 NEWSESSION {
                     // документ мог появиться (импорт входящей перевозки) уже после приёма события
                     etrn(ev) <- etrn(transportationId(ev)) WHERE NOT etrn(ev);
+                    etrn(ev) <- etrnMintrans(mintransId(ev)) WHERE NOT etrn(ev) AND mintransId(ev);
                     processEvent(ev);
                     processedDateTime(ev) <- currentDateTime();
                     processedMessage(ev) <- NULL;

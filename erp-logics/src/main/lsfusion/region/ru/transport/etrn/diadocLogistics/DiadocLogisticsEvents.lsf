@@ -298,7 +298,9 @@ processETRNEvent (ETRN.ETRNEvent ev) {
                     etrnByDeliveryEntity(entityId(ev)),
                     etrnByCostEntity(entityId(ev)),
                     ETRN.etrn(ETRN.transportationId(ev)),
-                    etrnByEventEntity(entityId(ev));
+                    etrnByEventEntity(entityId(ev)),
+                    // fwd-трансляция чужого титула идёт без kl-id: перевозку опознаём по УИД Минтранса
+                    ETRN.etrnMintrans(ETRN.mintransId(ev));
 
     // новая входящая создаётся только по reception (Т1) или fwd (трансляция титулов) и только
     // при наличии координат: событие без документа и без ИД перевозки не с чем связать дальше;
@@ -318,7 +320,7 @@ processETRNEvent (ETRN.ETRNEvent ev) {
         // общий ИД перевозки (нужен processIncomingETRN и поиску etrn(transportationId))
         ETRN.transportationId(et) <- ETRN.transportationId(ev) WHERE ETRN.transportationId(ev) AND NOT ETRN.transportationId(et);
         ETRN.mintransId(et) <- ETRN.mintransId(ev) WHERE ETRN.mintransId(ev);
-        ETRN.providerStatus(et) <- ETRN.status(ev);
+        ETRN.providerStatus(et) <- ETRN.status(ev) WHERE ETRN.status(ev);
         ETRN.stage(et) <- diadocStage(ETRN.status(ev)) WHERE diadocStage(ETRN.status(ev));
 
         // только если Message/Document уже материализованы через V3
