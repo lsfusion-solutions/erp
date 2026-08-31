@@ -141,16 +141,21 @@ bodyType 'Требования к типу кузова' = DATA ISTRING[255](For
 
 shipmentDateFrom 'Готовность к отгрузке: с' = DATA DATE (ForwardingOrder);
 shipmentDateTo 'Готовность к отгрузке: по' = DATA DATE (ForwardingOrder);
-shipmentTime 'Время готовности' = DATA TIME (ForwardingOrder);
+// время в титуле - интервал ЧЧ:ММ-ЧЧ:ММ со смещением UTC, поэтому время с/по
+shipmentTime 'Время готовности: с' = DATA TIME (ForwardingOrder);
+shipmentTimeTo 'Время готовности: по' = DATA TIME (ForwardingOrder);
 deliveryDateFrom 'Доставка: с' = DATA DATE (ForwardingOrder);
 deliveryDateTo 'Доставка: по' = DATA DATE (ForwardingOrder);
-deliveryTime 'Время доставки' = DATA TIME (ForwardingOrder);
+deliveryTime 'Время доставки: с' = DATA TIME (ForwardingOrder);
+deliveryTimeTo 'Время доставки: по' = DATA TIME (ForwardingOrder);
 
 // адреса приема и выдачи заполняются выбором склада (структурный адрес склада -
 // от подразделения Диадока, как в ЭТрН)
 pickupStock 'Склад погрузки' = DATA Stock (ForwardingOrder);
 namePickupStock 'Склад погрузки' (ForwardingOrder f) = name(pickupStock(f)) CHARWIDTH 15;
 pickupPlace 'Место приема груза' = DATA ISTRING[255](ForwardingOrder) CHARWIDTH 15;
+// МстПрГр: 1 - на складе грузоотправителя, 2 - на складе экспедитора
+pickupAtForwarder 'Прием на складе экспедитора' = DATA BOOLEAN (ForwardingOrder);
 pickupRegion 'Код региона (прием)' = DATA STRING[2](ForwardingOrder) CHARWIDTH 4;
 pickupZipCode 'Индекс (прием)' = DATA STRING[6](ForwardingOrder) CHARWIDTH 6;
 pickupCity 'Город (прием)' = DATA ISTRING[255](ForwardingOrder) CHARWIDTH 15;
@@ -161,6 +166,8 @@ hasPickupAddress (ForwardingOrder f) = pickupRegion(f) AND pickupZipCode(f);
 dropStock 'Склад разгрузки' = DATA Stock (ForwardingOrder);
 nameDropStock 'Склад разгрузки' (ForwardingOrder f) = name(dropStock(f)) CHARWIDTH 15;
 dropPlace 'Место выдачи груза' = DATA ISTRING[255](ForwardingOrder) CHARWIDTH 15;
+// МстВыдГр: 1 - на складе грузополучателя, 2 - на складе экспедитора
+dropAtForwarder 'Выдача на складе экспедитора' = DATA BOOLEAN (ForwardingOrder);
 dropRegion 'Код региона (выдача)' = DATA STRING[2](ForwardingOrder) CHARWIDTH 4;
 dropZipCode 'Индекс (выдача)' = DATA STRING[6](ForwardingOrder) CHARWIDTH 6;
 dropCity 'Город (выдача)' = DATA ISTRING[255](ForwardingOrder) CHARWIDTH 15;
@@ -221,7 +228,11 @@ index 'N' (ForwardingOrderDetail d) = OVERRIDE dataIndex(d), defaultIndex(d) IN 
 cargo = DATA Cargo (ForwardingOrderDetail);
 nameCargo 'Груз' (ForwardingOrderDetail d) = name(cargo(d)) CHARWIDTH 15;
 tnved 'Код ТН ВЭД' (ForwardingOrderDetail d) = tnved(cargo(d)) CHARWIDTH 6;
-nameTareType 'Вид тары' (ForwardingOrderDetail d) = name(tareType(cargo(d))) CHARWIDTH 10;
+tareType = DATA TareType (ForwardingOrderDetail);
+nameTareType 'Вид тары' (ForwardingOrderDetail d) = name(tareType(d)) CHARWIDTH 10;
+
+WHEN LOCAL CHANGED(cargo(ForwardingOrderDetail d)) AND NOT CHANGED(tareType(d)) DO
+    tareType(d) <- OVERRIDE tareType(cargo(d)), defaultTareType();
 
 quantityPlaces 'Количество грузовых мест' = DATA INTEGER (ForwardingOrderDetail);
 volume 'Объем, м3' = DATA NUMERIC[17,3](ForwardingOrderDetail);
@@ -235,8 +246,8 @@ stateSystem 'Учет в гос. системе' = DATA BOOLEAN (ForwardingOrder
 packaged 'Есть упаковка' = DATA BOOLEAN (ForwardingOrderDetail);           // НалУпак
 banReload 'Запрет перегрузки' = DATA BOOLEAN (ForwardingOrderDetail);      // ЗапрПерегруз
 
-WHEN LOCAL CHANGED(cargo(ForwardingOrderDetail d)) AND NOT CHANGED(packaged(d)) DO
-    packaged(d) <- TRUE IF tareType(cargo(d));
+WHEN LOCAL CHANGED(tareType(ForwardingOrderDetail d)) AND NOT CHANGED(packaged(d)) DO
+    packaged(d) <- TRUE IF tareType(d);
 
 // страна происхождения груза (СтрПроисх) - обязательна в титуле, код ОКСМ из справочника
 country = DATA Country (ForwardingOrderDetail);
@@ -253,8 +264,9 @@ nameMarking 'Маркировка' (ForwardingOrderDetail d) = name(marking(d)) 
 WHEN LOCAL SET(ForwardingOrderDetail d IS ForwardingOrderDetail) AND NOT CHANGED(marking(d)) DO
     marking(d) <- markingAbsent();
 
-// сведения об упаковке (СвУпак): в титуле обязательны при НалУпак = 1
-packagingType 'Вид упаковки' = DATA ISTRING[255](ForwardingOrderDetail) CHARWIDTH 12;
+// сведения об упаковке (СвУпак): в титуле обязательны при НалУпак = 1;
+// вид упаковки - код вида тары груза (в титуле ровно 2 символа)
+packagingType (ForwardingOrderDetail d) = idTareType(tareType(d));
 packagingWeight 'Вес упаковки, кг' = DATA NUMERIC[17,3](ForwardingOrderDetail);
 packagingCount 'Количество упаковок' = DATA INTEGER (ForwardingOrderDetail);
 packagingHeight 'Высота упаковки, м' = DATA NUMERIC[17,3](ForwardingOrderDetail);
@@ -331,7 +343,7 @@ missingForwardingOrderDetail (ForwardingOrderDetail d) = CONCAT ', ',
     'вес нетто' IF NOT netWeight(d),
     'вес брутто' IF NOT grossWeight(d),
     'страна происхождения' IF NOT sidCountry(d),
-    'сведения об упаковке (вид, вес, габариты)' IF packaged(d) AND NOT hasPackagingInfo(d);
+    'сведения об упаковке (вид тары груза, вес, габариты)' IF packaged(d) AND NOT hasPackagingInfo(d);
 
 missingForwardingOrderDetails (ForwardingOrder f) = GROUP CONCAT ('строка ' + index(ForwardingOrderDetail d) + ': ' + missingForwardingOrderDetail(d)), '; ' ORDER d BY forwardingOrder(d);
 
@@ -402,12 +414,12 @@ FORM forwardingOrder 'Поручение экспедитору'
                   nameVehicleKind BACKGROUND (backgroundMandatory(f) IF NOT vehicleKind(f)), bodyType,
                   shipmentDateFrom BACKGROUND (backgroundMandatory(f) IF NOT shipmentDateFrom(f)),
                   shipmentDateTo BACKGROUND (backgroundMandatory(f) IF NOT shipmentDateTo(f)),
-                  shipmentTime, deliveryDateFrom, deliveryDateTo, deliveryTime,
-                  namePickupStock, pickupPlace,
+                  shipmentTime, shipmentTimeTo, deliveryDateFrom, deliveryDateTo, deliveryTime, deliveryTimeTo,
+                  namePickupStock, pickupPlace, pickupAtForwarder,
                   pickupRegion BACKGROUND (backgroundMandatory(f) IF NOT pickupRegion(f)),
                   pickupZipCode BACKGROUND (backgroundMandatory(f) IF NOT pickupZipCode(f)),
                   pickupCity, pickupStreet, pickupBuilding,
-                  nameDropStock, dropPlace,
+                  nameDropStock, dropPlace, dropAtForwarder,
                   dropRegion BACKGROUND (backgroundMandatory(f) IF NOT dropRegion(f)),
                   dropZipCode BACKGROUND (backgroundMandatory(f) IF NOT dropZipCode(f)),
                   dropCity, dropStreet, dropBuilding,
@@ -422,15 +434,20 @@ FORM forwardingOrder 'Поручение экспедитору'
     OBJECTS d = ForwardingOrderDetail
     PROPERTIES(d) index,
                   nameCargo BACKGROUND (backgroundMandatory(f) IF NOT cargo(d)),
-                  nameTareType, tnved,
+                  nameTareType BACKGROUND (backgroundMandatory(f) IF packaged(d) AND NOT packagingType(d)), tnved,
                   quantityPlaces BACKGROUND (backgroundMandatory(f) IF NOT quantityPlaces(d)),
                   volume,
                   netWeight BACKGROUND (backgroundMandatory(f) IF NOT netWeight(d)),
                   grossWeight BACKGROUND (backgroundMandatory(f) IF NOT grossWeight(d)),
                   quantityPallets, nameCountry BACKGROUND (backgroundMandatory(f) IF NOT country(d)),
                   nameMarking, dangerous, seized, stateSystem, packaged, banReload
-    PROPERTIES(d) SHOWIF packaged(d) packagingType, packagingWeight, packagingCount,
-                  packagingHeight, packagingLength, packagingWidth
+    // при признаке упаковки в титуле обязательны вид тары груза, вес и все габариты
+    PROPERTIES(d) SHOWIF packaged(d)
+                  packagingWeight BACKGROUND (backgroundMandatory(f) IF NOT packagingWeight(d)),
+                  packagingCount,
+                  packagingHeight BACKGROUND (backgroundMandatory(f) IF NOT packagingHeight(d)),
+                  packagingLength BACKGROUND (backgroundMandatory(f) IF NOT packagingLength(d)),
+                  packagingWidth BACKGROUND (backgroundMandatory(f) IF NOT packagingWidth(d))
     PROPERTIES(d) NEW, DELETE
     ORDERS index(d)
     FILTERS forwardingOrder(d) = f
@@ -438,11 +455,6 @@ FORM forwardingOrder 'Поручение экспедитору'
     PROPERTIES(f) registryNumber READONLY, registryDate READONLY,
                   batchId READONLY, batchNumber READONLY, forwarderThirdParties READONLY,
                   forwarderPaymentInfo READONLY, forwarderNotes READONLY
-
-    OBJECTS ev = ETRNEvent
-    PROPERTIES(ev) READONLY dateTime, type, status
-    ORDERS dateTime(ev) DESC
-    FILTERS forwardingOrder(ev) = f
 
     EDIT ForwardingOrder OBJECT f
 ;
@@ -522,9 +534,11 @@ DESIGN forwardingOrder {
                     MOVE PROPERTY(shipmentDateFrom(f));
                     MOVE PROPERTY(shipmentDateTo(f));
                     MOVE PROPERTY(shipmentTime(f));
+                    MOVE PROPERTY(shipmentTimeTo(f));
                     MOVE PROPERTY(deliveryDateFrom(f));
                     MOVE PROPERTY(deliveryDateTo(f));
                     MOVE PROPERTY(deliveryTime(f));
+                    MOVE PROPERTY(deliveryTimeTo(f));
                     MOVE PROPERTY(deliveryPeriodDays(f));
                 }
                 NEW pickupBox {
@@ -533,6 +547,7 @@ DESIGN forwardingOrder {
                         horizontal = TRUE;
                         MOVE PROPERTY(namePickupStock(f));
                         MOVE PROPERTY(pickupPlace(f));
+                        MOVE PROPERTY(pickupAtForwarder(f));
                     }
                     NEW pickupAddrRow {
                         horizontal = TRUE;
@@ -549,6 +564,7 @@ DESIGN forwardingOrder {
                         horizontal = TRUE;
                         MOVE PROPERTY(nameDropStock(f));
                         MOVE PROPERTY(dropPlace(f));
+                        MOVE PROPERTY(dropAtForwarder(f));
                     }
                     NEW dropAddrRow {
                         horizontal = TRUE;
@@ -604,14 +620,15 @@ DESIGN forwardingOrder {
                     MOVE PROPERTY(nameProvider(f));
                     MOVE PROPERTY(nameExchangeStatus(f));
                     MOVE PROPERTY(providerStatus(f));
-                    MOVE PROPERTY(exchangeMessage(f));
                     MOVE PROPERTY(hasT2File(f));
                     MOVE PROPERTY(openT2File(f));
                     MOVE PROPERTY(downloadT2File(f));
                 }
-                MOVE BOX(ev) {
-                    caption = 'События';
+                MOVE PROPERTY(exchangeMessage(f)) {
+                    caption = 'Сообщение обмена';
+                    panelCaptionVertical = TRUE;
                     fill = 1;
+                    charWidth = 120;
                 }
             }
         }

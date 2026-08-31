@@ -77,10 +77,10 @@ FORM diadocForwardingOrderT1 FORMEXTID 'LogisticsForwardingOrderClientTitle'
         foNotifyReq = digit1(notifyParties(f)) EXTID 'NotifyReq',
         foReadyFrom = diadocDate(shipmentDateFrom(f)) EXTID 'ReadyFromDate',
         foReadyTo = diadocDate(shipmentDateTo(f)) EXTID 'ReadyToDate',
-        foReadyTime = toChar(shipmentTime(f), 'HH24:MI:SS') EXTID 'ReadyTime',
+        foReadyTime = diadocTimePeriod(shipmentTime(f), shipmentTimeTo(f)) EXTID 'ReadyTime',
         foDeliveryFrom = diadocDate(deliveryDateFrom(f)) EXTID 'DeliveryFromDate',
         foDeliveryTo = diadocDate(deliveryDateTo(f)) EXTID 'DeliveryToDate',
-        foDeliveryTime = toChar(deliveryTime(f), 'HH24:MI:SS') EXTID 'DeliveryTime',
+        foDeliveryTime = diadocTimePeriod(deliveryTime(f), deliveryTimeTo(f)) EXTID 'DeliveryTime',
         foAcceptReq = ('1' IF transferToForwarder(f)) EXTID 'AcceptReq',
         foTranspInd = transportationSign(f) EXTID 'TransportationIndicator',
         foSpaceQuantity = quantityPlacesTotal(f) EXTID 'ShipmentCargoSpaceQuantity',
@@ -135,10 +135,10 @@ FORM diadocForwardingOrderT1 FORMEXTID 'LogisticsForwardingOrderClientTitle'
         itemVolume = volume(d) EXTID 'Volume',
         itemOverload = ('1' IF banReload(d)) EXTID 'OverloadProhibition',
         itemStateSystem = digit1(stateSystem(d)) EXTID 'IsForStateSystemRegistration',
-        itemPackaging = digit1(packaged(d)) EXTID 'HasPackaging',
+        itemPackaging = digit1(hasPackagingInfo(d)) EXTID 'HasPackaging',
         itemHasTnved = digit1(TRUE IF tnved(d)) EXTID 'HasCommodityCode',
         itemTnved = tnved(d) EXTID 'NomenclatureCode'
-    PROPERTIES IN foItemMarks itemMark = nameMarking(d) EXTID 'Mark'
+    PROPERTIES IN foItemMarks itemMark = (OVERRIDE nameMarking(d), name(markingAbsent())) EXTID 'Mark'
     PROPERTIES IN foItemCountry itemCountry = sidCountry(d) EXTID 'Country'
     PROPERTIES ATTR IN foItemWeight
         itemNetWeight = netWeight(d) EXTID 'NetWeight',
@@ -146,17 +146,18 @@ FORM diadocForwardingOrderT1 FORMEXTID 'LogisticsForwardingOrderClientTitle'
         itemPallets = quantityPallets(d) EXTID 'NumberOfPallets'
     // упаковка обязательна при HasPackaging = 1
     PROPERTIES ATTR IN foItemPackaging
-        itemPackType = (packagingType(d) IF packaged(d)) EXTID 'PackagingType',
-        itemPackWeight = (packagingWeight(d) IF packaged(d)) EXTID 'PackagingWeight',
-        itemPackCount = (packagingCount(d) IF packaged(d)) EXTID 'PackagingCount'
+        itemPackType = (packagingType(d) IF hasPackagingInfo(d)) EXTID 'PackagingType',   // код вида тары, 2 символа
+        itemPackWeight = (packagingWeight(d) IF hasPackagingInfo(d)) EXTID 'PackagingWeight',
+        itemPackCount = (packagingCount(d) IF hasPackagingInfo(d)) EXTID 'PackagingCount'
     PROPERTIES ATTR IN foItemPackagingSize
-        itemPackHeight = (packagingHeight(d) IF packaged(d)) EXTID 'Height',
-        itemPackLength = (packagingLength(d) IF packaged(d)) EXTID 'Length',
-        itemPackWidth = (packagingWidth(d) IF packaged(d)) EXTID 'Width'
+        itemPackHeight = (packagingHeight(d) IF hasPackagingInfo(d)) EXTID 'Height',
+        itemPackLength = (packagingLength(d) IF hasPackagingInfo(d)) EXTID 'Length',
+        itemPackWidth = (packagingWidth(d) IF hasPackagingInfo(d)) EXTID 'Width'
     FILTERS forwardingOrder(d) == f
 
     // адреса выгружаются только при полном (Region+ZipCode)
-    PROPERTIES ATTR IN foPickup foPickupLocation = pickupPlace(f) EXTID 'CargoPickupLocation'
+    PROPERTIES ATTR IN foPickup
+        foPickupLocation = (IF pickupAtForwarder(f) THEN '2' ELSE '1') EXTID 'CargoPickupLocation'
     PROPERTIES ATTR IN foPickupAddrRF
         foPickupRegion = (pickupRegion(f) IF hasPickupAddress(f)) EXTID 'Region',
         foPickupZip = (pickupZipCode(f) IF hasPickupAddress(f)) EXTID 'ZipCode',
@@ -164,7 +165,8 @@ FORM diadocForwardingOrderT1 FORMEXTID 'LogisticsForwardingOrderClientTitle'
         foPickupStreet = (pickupStreet(f) IF hasPickupAddress(f)) EXTID 'Street',
         foPickupBuilding = (pickupBuilding(f) IF hasPickupAddress(f)) EXTID 'Building'
 
-    PROPERTIES ATTR IN foDrop foDropPoint = dropPlace(f) EXTID 'CargoDeliveryPoint'
+    PROPERTIES ATTR IN foDrop
+        foDropPoint = (IF dropAtForwarder(f) THEN '2' ELSE '1') EXTID 'CargoDeliveryPoint'
     PROPERTIES ATTR IN foDropAddrRF
         foDropRegion = (dropRegion(f) IF hasDropAddress(f)) EXTID 'Region',
         foDropZip = (dropZipCode(f) IF hasDropAddress(f)) EXTID 'ZipCode',
