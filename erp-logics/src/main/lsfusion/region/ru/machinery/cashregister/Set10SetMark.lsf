@@ -56,12 +56,16 @@ FORM setLots
     FILTERS lotType(al) = t AND in(m, al)
     
 ;
+createExportFileMark  ABSTRACT CASE(CashRegisterPriceTransaction, LotType);
+createExportFileMark(CashRegisterPriceTransaction cpt, LotType t) + WHEN cpt IS CashRegisterPriceTransaction AND t IS LotType THEN {
+    EXPORT setLots OBJECTS m = cpt, t = t JSON;
+}
 
 sendMark 'Выгрузить в SetMark' (CashRegisterPriceTransaction cpt, LotType t){
     IF urlSetMark(cpt) THEN NEWSESSION {
         NEWSESSION {currentIdSetMark(groupMachinery(cpt)) <- currentIdSetMark(groupMachinery(cpt)) (+) 1; APPLY; }
         LOCAL response = FILE ();
-        EXPORT setLots OBJECTS m = cpt, t = t JSON;
+        createExportFileMark(cpt,t);
         EXTERNAL HTTP POST urlSetMark(cpt) + '/erp/add_mark' PARAMS exportFile() TO response;
         uploaded(cpt, t) <- currentDateTime();
         APPLY;
