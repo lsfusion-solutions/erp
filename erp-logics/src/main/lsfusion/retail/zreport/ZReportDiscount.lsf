@@ -15,10 +15,10 @@ discountMode = GROUP MAX Discount type BY mode(type);
 
 discountSum 'Сумма скидки' = DATA NUMERIC[18,4] (ReceiptDetail, Discount);
 
-skipQantitySold 'Исключить из проданного количества' = DATA BOOLEAN (Discount);
+skipQantitySold 'Исключить из однодневных продаж' = DATA BOOLEAN (Discount);
 
-skipQantitySold 'Исключить из проданного количества' = DATA NUMERIC[16,5](Sku, Stock, DATE);
-extraQuantitySold(Sku s, Stock st, DATE date) += -skipQantitySold(s, st, date);
+skipQantitySold 'Исключить из однодневных продаж' = DATA NUMERIC[16,5](Sku, Stock, DATE);
+extraQuantitySoldAuto(Sku s, Stock st, DATE date) += -skipQantitySold(s, st, date);
 
 overSkipQantitySold ABSTRACT LIST(DATE);
 fillSkipQantitySold(DATE date) {
@@ -33,7 +33,7 @@ fillSkipQantitySold(DATE date) {
     }
 }
 
-fillSkipQantitySold 'Заполнить "Исключить из проданного количества" за предыдущий день' () {
+fillSkipQantitySold 'Заполнить "Исключить из однодневных продаж" за предыдущий день' () {
     fillSkipQantitySold(sum(currentDate(), -1));
 }
 
