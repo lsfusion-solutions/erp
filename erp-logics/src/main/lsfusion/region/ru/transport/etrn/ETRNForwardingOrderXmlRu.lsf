@@ -93,8 +93,11 @@ parseForwardingOrderT2Xml 'Импортировать титул экспеди�
     registryNumber(f) <- STRING[100](impFoRegNum());
     registryDate(f) <- DATE(toDateFormat(impFoRegDate(), 'DD.MM.YYYY'));
 
-    batchId(f) <- STRING[100]([GROUP LAST impFoSrvBatchId(INTEGER i) ORDER i]());
-    batchNumber(f) <- STRING[20]([GROUP LAST impFoSrvBatchNum(INTEGER i) ORDER i]());
+    // идентификатор партии экспедитор возвращает при услугах - раскладываем по партиям
+    // по их номеру (тому, что сами и отправляли в CargoBatchNumber)
+    FOR forwardingOrder(ForwardingOrderBatch b) == f DO
+        batchId(b) <- STRING[36]([GROUP LAST impFoSrvBatchId(INTEGER i)
+            IF impFoSrvBatchNum(i) == (OVERRIDE batchNumber(b), STRING(index(b))) ORDER i]());
 
     forwarderPaymentInfo(f) <- ISTRING[1000](GROUP CONCAT (CONCAT ' ', impFoSrvName(INTEGER i),
         (CONCAT ' ', impFoSrvCost(i), impFoSrvCurrency(i), 'НДС ' + impFoSrvTaxRate(i)),

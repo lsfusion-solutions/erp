@@ -6,7 +6,8 @@ NAMESPACE ETRN;
 
 // Экспортная форма UserDataXml титула клиента поручения экспедитору для Диадок API:
 // GenerateTitleXml строит по ней полный XML приказа ФНС N ЕД-7-26/958@ (ПорЭксп).
-// Упрощение модели: одна партия груза (CargoInfo) на поручение.
+// CargoInfo и ItemDescription в схеме повторяются, поэтому оба - объекты формы,
+// а одиночные теги внутри них (Consignee, ClientDirectives и т.д.) - группы.
 
 digit1 (BOOLEAN b) = IF b THEN '1' ELSE '0';
 
@@ -17,24 +18,24 @@ digit1 (BOOLEAN b) = IF b THEN '1' ELSE '0';
 GROUP foOrder EXTID 'ClientForwarderOrder';
 
 GROUP foCargoInfos EXTID 'CargoInfos' : foOrder;
-GROUP foCargo EXTID 'CargoInfo' : foCargoInfos;
 
-GROUP foConsignee EXTID 'Consignee' : foCargo;
+// группы партии - без родителя: они попадают внутрь своего CargoInfo по объекту-владельцу
+GROUP foConsignee EXTID 'Consignee';
 GROUP foConsigneeOrg EXTID 'OrganizationDetails' : foConsignee;
-GROUP foShipper EXTID 'Shipper' : foCargo;
+GROUP foShipper EXTID 'Shipper';
 GROUP foShipperOrg EXTID 'OrganizationDetails' : foShipper;
 
-GROUP foTransportInfos EXTID 'TransportInfos' : foCargo;
+GROUP foTransportInfos EXTID 'TransportInfos';
 GROUP foTransportInfo EXTID 'TransportInfo' : foTransportInfos;
 
-GROUP foDirectives EXTID 'ClientDirectives' : foCargo;
+GROUP foDirectives EXTID 'ClientDirectives';
 GROUP foClimate EXTID 'ClimateTransportRegime' : foDirectives;
 
-GROUP foBatchWeight EXTID 'BatchWeight' : foCargo;
-GROUP foDeclaredCost EXTID 'DeclaredShipmentCost' : foCargo;
-GROUP foActualCost EXTID 'ActualShipmentCost' : foCargo;
+GROUP foBatchWeight EXTID 'BatchWeight';
+GROUP foDeclaredCost EXTID 'DeclaredShipmentCost';
+GROUP foActualCost EXTID 'ActualShipmentCost';
 
-GROUP foItems EXTID 'ItemDescriptions' : foCargo;
+GROUP foItems EXTID 'ItemDescriptions';
 GROUP foItemMarks EXTID 'Marks';
 GROUP foItemCountry EXTID 'CargoOriginCountryInfo';
 GROUP foItemWeight EXTID 'CargoWeight';
@@ -42,12 +43,12 @@ GROUP foItemPackagings EXTID 'CargoPackagingInfos';
 GROUP foItemPackaging EXTID 'CargoPackagingInfo' : foItemPackagings;
 GROUP foItemPackagingSize EXTID 'PackagingDimensions' : foItemPackaging;
 
-GROUP foPickup EXTID 'CargoLocationAddress' : foCargo;
+GROUP foPickup EXTID 'CargoLocationAddress';
 GROUP foPickupAddr EXTID 'CargoDeliveryAddress' : foPickup;
 GROUP foPickupAddrInfo EXTID 'Address' : foPickupAddr;
 GROUP foPickupAddrRF EXTID 'RussianAddress' : foPickupAddrInfo;
 
-GROUP foDrop EXTID 'DestinationAddress' : foCargo;
+GROUP foDrop EXTID 'DestinationAddress';
 GROUP foDropAddr EXTID 'CargoDeliveryAddress' : foDrop;
 GROUP foDropAddrInfo EXTID 'Address' : foDropAddr;
 GROUP foDropAddrRF EXTID 'RussianAddress' : foDropAddrInfo;
@@ -73,57 +74,65 @@ FORM diadocForwardingOrderT1 FORMEXTID 'LogisticsForwardingOrderClientTitle'
     // DocumentCreator не выгружаем: при нём схема требует DocumentCreatorBase (основание,
     // по которому мы составитель), а составитель поручения - сам клиент
 
-    PROPERTIES ATTR IN foCargo
-        foNotifyReq = digit1(notifyParties(f)) EXTID 'NotifyReq',
-        foReadyFrom = diadocDate(shipmentDateFrom(f)) EXTID 'ReadyFromDate',
-        foReadyTo = diadocDate(shipmentDateTo(f)) EXTID 'ReadyToDate',
-        foReadyTime = diadocTimePeriod(shipmentTime(f), shipmentTimeTo(f)) EXTID 'ReadyTime',
-        foDeliveryFrom = diadocDate(deliveryDateFrom(f)) EXTID 'DeliveryFromDate',
-        foDeliveryTo = diadocDate(deliveryDateTo(f)) EXTID 'DeliveryToDate',
-        foDeliveryTime = diadocTimePeriod(deliveryTime(f), deliveryTimeTo(f)) EXTID 'DeliveryTime',
-        foAcceptReq = ('1' IF transferToForwarder(f)) EXTID 'AcceptReq',
-        foTranspInd = transportationSign(f) EXTID 'TransportationIndicator',
-        foSpaceQuantity = quantityPlacesTotal(f) EXTID 'ShipmentCargoSpaceQuantity',
-        foRoute = route(f) EXTID 'CargoRoute'
+    // ------------------------- Партии груза ------------------------- //
+
+    OBJECTS b = ForwardingOrderBatch EXTID 'CargoInfo' IN foCargoInfos
+    PROPERTIES ATTR
+        foNotifyReq = digit1(notifyParties(b)) EXTID 'NotifyReq',
+        foReadyFrom = diadocDate(shipmentDateFrom(b)) EXTID 'ReadyFromDate',
+        foReadyTo = diadocDate(shipmentDateTo(b)) EXTID 'ReadyToDate',
+        foReadyTime = diadocTimePeriod(shipmentTime(b), shipmentTimeTo(b)) EXTID 'ReadyTime',
+        foDeliveryFrom = diadocDate(deliveryDateFrom(b)) EXTID 'DeliveryFromDate',
+        foDeliveryTo = diadocDate(deliveryDateTo(b)) EXTID 'DeliveryToDate',
+        foDeliveryTime = diadocTimePeriod(deliveryTime(b), deliveryTimeTo(b)) EXTID 'DeliveryTime',
+        foAcceptReq = ('1' IF transferToForwarder(b)) EXTID 'AcceptReq',
+        foTranspInd = id(transportationSign(b)) EXTID 'TransportationIndicator',
+        foBatchId = batchId(b) EXTID 'CargoBatchId',
+        foBatchNumber = (OVERRIDE batchNumber(b), STRING(index(b))) EXTID 'CargoBatchNumber',
+        foSpaceQuantity = quantityPlacesTotal(b) EXTID 'ShipmentCargoSpaceQuantity',
+        foRoute = route(b) EXTID 'CargoRoute'
+    FILTERS forwardingOrder(b) == f
 
     PROPERTIES ATTR IN foConsigneeOrg
-        foConsigneeName = name(consignee(f)) EXTID 'OrgName',
-        foConsigneeInn = inn(consignee(f)) EXTID 'Inn',
-        foConsigneeKpp = kpp(consignee(f)) EXTID 'Kpp',
-        foConsigneeType = diadocOrgType(consignee(f)) EXTID 'OrgType'
+        foConsigneeName = name(consignee(b)) EXTID 'OrgName',
+        foConsigneeInn = inn(consignee(b)) EXTID 'Inn',
+        foConsigneeKpp = kpp(consignee(b)) EXTID 'Kpp',
+        foConsigneeType = diadocOrgType(consignee(b)) EXTID 'OrgType'
     PROPERTIES ATTR IN foShipperOrg
-        foShipperName = name(shipper(f)) EXTID 'OrgName',
-        foShipperInn = inn(shipper(f)) EXTID 'Inn',
-        foShipperKpp = kpp(shipper(f)) EXTID 'Kpp',
-        foShipperType = diadocOrgType(shipper(f)) EXTID 'OrgType'
+        foShipperName = name(shipper(b)) EXTID 'OrgName',
+        foShipperInn = inn(shipper(b)) EXTID 'Inn',
+        foShipperKpp = kpp(shipper(b)) EXTID 'Kpp',
+        foShipperType = diadocOrgType(shipper(b)) EXTID 'OrgType'
 
     PROPERTIES ATTR IN foTransportInfo
-        foTransportType = id(vehicleKind(f)) EXTID 'TransportType',
-        foBodyType = bodyType(f) EXTID 'BodyType'
+        foTransportType = id(vehicleKind(b)) EXTID 'TransportType',
+        foBodyType = bodyType(b) EXTID 'BodyType'
 
     PROPERTIES ATTR IN foDirectives
-        foDirectivesNorm = transportInstructions(f) EXTID 'TransportationDirectives',
-        foSpecialInfo = specialMarks(f) EXTID 'SpecialInformation',
-        foSpeedLimit = speedLimits(f) EXTID 'SpeedLimit',
-        foDeliveryTerms = deliveryPeriodDays(f) EXTID 'DeliveryTerms'
+        foDirectivesNorm = transportInstructions(b) EXTID 'TransportationDirectives',
+        foSpecialInfo = specialMarks(b) EXTID 'SpecialInformation',
+        foSpeedLimit = speedLimits(b) EXTID 'SpeedLimit',
+        foDeliveryTerms = deliveryPeriodDays(b) EXTID 'DeliveryTerms'
     PROPERTIES ATTR IN foClimate
-        foTempLower = temperatureFrom(f) EXTID 'TemperatureLowerLimit',
-        foTempUpper = temperatureTo(f) EXTID 'TemperatureUpperLimit',
-        foHumLower = humidityFrom(f) EXTID 'HumidityLowerLimit',
-        foHumUpper = humidityTo(f) EXTID 'HumidityUpperLimit'
+        foTempLower = temperatureFrom(b) EXTID 'TemperatureLowerLimit',
+        foTempUpper = temperatureTo(b) EXTID 'TemperatureUpperLimit',
+        foHumLower = humidityFrom(b) EXTID 'HumidityLowerLimit',
+        foHumUpper = humidityTo(b) EXTID 'HumidityUpperLimit'
 
     PROPERTIES ATTR IN foBatchWeight
-        foNetWeight = netWeightTotal(f) EXTID 'NetWeight',
-        foGrossWeight = grossWeightTotal(f) EXTID 'GrossWeight',
-        foPallets = quantityPalletsTotal(f) EXTID 'NumberOfPallets'
+        foNetWeight = netWeightTotal(b) EXTID 'NetWeight',
+        foGrossWeight = grossWeightTotal(b) EXTID 'GrossWeight',
+        foPallets = quantityPalletsTotal(b) EXTID 'NumberOfPallets'
 
     // TODO: код валюты (ОКВ) - сопоставить со справочником валют; пока '643' (рубль)
     PROPERTIES ATTR IN foDeclaredCost
-        foDeclaredCurrency = ('643' IF declaredCost(f)) EXTID 'Currency',
-        foDeclaredCost = declaredCost(f) EXTID 'CargoCost'
+        foDeclaredCurrency = ('643' IF declaredCost(b)) EXTID 'Currency',
+        foDeclaredCost = declaredCost(b) EXTID 'CargoCost'
     PROPERTIES ATTR IN foActualCost
-        foActualCurrency = ('643' IF actualCost(f)) EXTID 'Currency',
-        foActualCost = actualCost(f) EXTID 'CargoCost'
+        foActualCurrency = ('643' IF actualCost(b)) EXTID 'Currency',
+        foActualCost = actualCost(b) EXTID 'CargoCost'
+
+    // ------------------------- Строки груза партии ------------------------- //
 
     OBJECTS d = ForwardingOrderDetail EXTID 'ItemDescription' IN foItems
     PROPERTIES ATTR
@@ -153,29 +162,31 @@ FORM diadocForwardingOrderT1 FORMEXTID 'LogisticsForwardingOrderClientTitle'
         itemPackHeight = (packagingHeight(d) IF packaged(d)) EXTID 'Height',
         itemPackLength = (packagingLength(d) IF packaged(d)) EXTID 'Length',
         itemPackWidth = (packagingWidth(d) IF packaged(d)) EXTID 'Width'
-    FILTERS forwardingOrder(d) == f
+    FILTERS batch(d) == b
 
-    // адреса выгружаются только при полном (Region+ZipCode)
+    // ------------------------- Адреса партии ------------------------- //
+    // выгружаются только при полном структурном адресе (Region + ZipCode)
+
     PROPERTIES ATTR IN foPickup
-        foPickupLocation = (IF pickupAtForwarder(f) THEN '2' ELSE '1') EXTID 'CargoPickupLocation'
+        foPickupLocation = (IF pickupAtForwarder(b) THEN '2' ELSE '1') EXTID 'CargoPickupLocation'
     PROPERTIES ATTR IN foPickupAddrRF
-        foPickupRegion = (pickupRegion(f) IF hasPickupAddress(f)) EXTID 'Region',
-        foPickupZip = (pickupZipCode(f) IF hasPickupAddress(f)) EXTID 'ZipCode',
-        foPickupCity = (pickupCity(f) IF hasPickupAddress(f)) EXTID 'City',
-        foPickupStreet = (pickupStreet(f) IF hasPickupAddress(f)) EXTID 'Street',
-        foPickupBuilding = (pickupBuilding(f) IF hasPickupAddress(f)) EXTID 'Building'
+        foPickupRegion = (pickupRegion(b) IF hasPickupAddress(b)) EXTID 'Region',
+        foPickupZip = (pickupZipCode(b) IF hasPickupAddress(b)) EXTID 'ZipCode',
+        foPickupCity = (pickupCity(b) IF hasPickupAddress(b)) EXTID 'City',
+        foPickupStreet = (pickupStreet(b) IF hasPickupAddress(b)) EXTID 'Street',
+        foPickupBuilding = (pickupBuilding(b) IF hasPickupAddress(b)) EXTID 'Building'
 
     PROPERTIES ATTR IN foDrop
-        foDropPoint = (IF dropAtForwarder(f) THEN '2' ELSE '1') EXTID 'CargoDeliveryPoint'
+        foDropPoint = (IF dropAtForwarder(b) THEN '2' ELSE '1') EXTID 'CargoDeliveryPoint'
     PROPERTIES ATTR IN foDropAddrRF
-        foDropRegion = (dropRegion(f) IF hasDropAddress(f)) EXTID 'Region',
-        foDropZip = (dropZipCode(f) IF hasDropAddress(f)) EXTID 'ZipCode',
-        foDropCity = (dropCity(f) IF hasDropAddress(f)) EXTID 'City',
-        foDropStreet = (dropStreet(f) IF hasDropAddress(f)) EXTID 'Street',
-        foDropBuilding = (dropBuilding(f) IF hasDropAddress(f)) EXTID 'Building'
+        foDropRegion = (dropRegion(b) IF hasDropAddress(b)) EXTID 'Region',
+        foDropZip = (dropZipCode(b) IF hasDropAddress(b)) EXTID 'ZipCode',
+        foDropCity = (dropCity(b) IF hasDropAddress(b)) EXTID 'City',
+        foDropStreet = (dropStreet(b) IF hasDropAddress(b)) EXTID 'Street',
+        foDropBuilding = (dropBuilding(b) IF hasDropAddress(b)) EXTID 'Building'
 
 
-    // клиент (мы), экспедитор и договор ТЭ - после партии груза (порядок схемы)
+    // клиент (мы), экспедитор и договор ТЭ - после партий груза (порядок схемы)
     PROPERTIES ATTR IN foClientOrg
         foClientName = name(client(f)) EXTID 'OrgName',
         foClientInn = inn(client(f)) EXTID 'Inn',

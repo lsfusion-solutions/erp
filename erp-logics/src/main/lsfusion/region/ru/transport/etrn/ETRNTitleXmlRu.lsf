@@ -37,6 +37,20 @@ impT1IsprDate = DATA LOCAL STRING ();
 impT1GOExp = DATA LOCAL STRING ();
 impT1GOInn = DATA LOCAL STRING ();
 impT1GOName = DATA LOCAL STRING ();
+impT1GOKpp = DATA LOCAL STRING ();
+
+// СвЗак / ЗакУсл - заказчик услуг по перевозке. Когда грузоотправитель экспедитор
+// (ГОЭксп=1), схема обязывает указать СвЗак; иначе заказчик может оказаться
+// только в описании груза (ЗакУсл), поэтому читаем оба места
+impT1ZakInn = DATA LOCAL STRING ();
+impT1ZakInnIP = DATA LOCAL STRING ();
+impT1ZakName = DATA LOCAL STRING ();
+impT1ZakKpp = DATA LOCAL STRING ();
+
+impT1OpZakInn = DATA LOCAL STRING (INTEGER);
+impT1OpZakInnIP = DATA LOCAL STRING (INTEGER);
+impT1OpZakName = DATA LOCAL STRING (INTEGER);
+impT1OpZakKpp = DATA LOCAL STRING (INTEGER);
 impT1GPInn = DATA LOCAL STRING ();
 impT1GPName = DATA LOCAL STRING ();
 impT1PerInn = DATA LOCAL STRING ();
@@ -165,6 +179,14 @@ GROUP impT1GORek EXTID 'РекИдентГО' : impT1GO;
 GROUP impT1GOIdSv EXTID 'ИдСв' : impT1GORek;
 GROUP impT1GOUL EXTID 'СвЮЛУч' : impT1GOIdSv;
 GROUP impT1GOIP EXTID 'СвИП' : impT1GOIdSv;
+GROUP impT1Zak EXTID 'СвЗак' : impT1Content;
+GROUP impT1ZakRek EXTID 'РекИдентЗак' : impT1Zak;
+GROUP impT1ZakIdSv EXTID 'ИдСв' : impT1ZakRek;
+GROUP impT1ZakUL EXTID 'СвЮЛУч' : impT1ZakIdSv;
+GROUP impT1ZakIP EXTID 'СвИП' : impT1ZakIdSv;
+GROUP impT1OpZak EXTID 'ЗакУсл';
+GROUP impT1OpZakUL EXTID 'СвЮЛУч' : impT1OpZak;
+GROUP impT1OpZakIP EXTID 'СвИП' : impT1OpZak;
 GROUP impT1GP EXTID 'СвГП' : impT1Content;
 GROUP impT1GPRek EXTID 'РекИдентГП' : impT1GP;
 GROUP impT1GPIdSv EXTID 'ИдСв' : impT1GPRek;
@@ -213,8 +235,13 @@ FORM etrnTitleXmlImport
         impT1IsprDate() EXTID 'ДатаИспр' ATTR
 
     PROPERTIES IN impT1GO impT1GOExp() EXTID 'ГОЭксп' ATTR
-    PROPERTIES IN impT1GOUL impT1GOInn() EXTID 'ИННЮЛ' ATTR, impT1GOName() EXTID 'НаимОрг' ATTR
+    PROPERTIES IN impT1GOUL impT1GOInn() EXTID 'ИННЮЛ' ATTR, impT1GOName() EXTID 'НаимОрг' ATTR,
+                             impT1GOKpp() EXTID 'КПП' ATTR
     PROPERTIES IN impT1GOIP impT1GOInnIP() EXTID 'ИННФЛ' ATTR
+
+    PROPERTIES IN impT1ZakUL impT1ZakInn() EXTID 'ИННЮЛ' ATTR, impT1ZakName() EXTID 'НаимОрг' ATTR,
+                             impT1ZakKpp() EXTID 'КПП' ATTR
+    PROPERTIES IN impT1ZakIP impT1ZakInnIP() EXTID 'ИННФЛ' ATTR
 
     PROPERTIES IN impT1GPUL impT1GPInn() EXTID 'ИННЮЛ' ATTR, impT1GPName() EXTID 'НаимОрг' ATTR
     PROPERTIES IN impT1GPIP impT1GPInnIP() EXTID 'ИННФЛ' ATTR
@@ -326,6 +353,10 @@ FORM etrnTitleXmlImport
         impT1OpGross EXTID 'МасБрутЗнач' ATTR,
         impT1OpPallets EXTID 'КолПалл' ATTR
     PROPERTIES(op) IN impT1Cost impT1OpCost EXTID 'СтЦеннГр' ATTR
+    PROPERTIES(op) IN impT1OpZakUL impT1OpZakInn EXTID 'ИННЮЛ' ATTR,
+                                     impT1OpZakName EXTID 'НаимОрг' ATTR,
+                                     impT1OpZakKpp EXTID 'КПП' ATTR
+    PROPERTIES(op) IN impT1OpZakIP impT1OpZakInnIP EXTID 'ИННФЛ' ATTR
 
     OBJECTS cont = INTEGER EXTID 'СвКонтейн'
     PROPERTIES(op, cont) impT1ContQty EXTID 'КолКонтейн' ATTR,
@@ -362,6 +393,12 @@ participantId (STRING idFile, STRING inn) = STRING[46](participantIdExtract(idFi
 impT1DeliveryZip () = STRING[6](OVERRIDE impT1GPIndex(),
     deliveryZip(STRING(OVERRIDE impT1GPAddrInfText(), impT1GPAddrText())));
 
+// заказчик из описания груза - по строкам, берём заполненную
+impT1OpZakFirstName () = [GROUP LAST impT1OpZakName(INTEGER i) IF impT1OpZakName(i) ORDER i]();
+impT1OpZakFirstInn () = [GROUP LAST (OVERRIDE impT1OpZakInn(INTEGER i), impT1OpZakInnIP(i))
+    IF impT1OpZakInn(i) OR impT1OpZakInnIP(i) ORDER i]();
+impT1OpZakFirstKpp () = [GROUP LAST impT1OpZakKpp(INTEGER i) IF impT1OpZakKpp(i) ORDER i]();
+
 // телефон и КПП перевозчика - в карточку контрагента, только незаполненные
 // (вызывается и из провайдерского модуля после автосоздания карточки)
 fillCarrierCardFromT1 (IncomingETRN ie) {
@@ -384,6 +421,10 @@ parseETRNTitleXml 'Импортировать титул Т1 из файла' (E
     // очистка результатов предыдущего импорта повторяющихся блоков
     impT1InfId(INTEGER i) <- NULL WHERE impT1InfId(i);
     impT1InfValue(INTEGER i) <- NULL WHERE impT1InfValue(i);
+    impT1OpZakInn(INTEGER i) <- NULL WHERE impT1OpZakInn(i);
+    impT1OpZakInnIP(INTEGER i) <- NULL WHERE impT1OpZakInnIP(i);
+    impT1OpZakName(INTEGER i) <- NULL WHERE impT1OpZakName(i);
+    impT1OpZakKpp(INTEGER i) <- NULL WHERE impT1OpZakKpp(i);
 
     // файлы приказа - windows-1251, как правило без XML-декларации
     IMPORT etrnTitleXmlImport XML CHARSET 'windows-1251' FROM titleFile(e);
@@ -407,6 +448,19 @@ parseETRNTitleXml 'Импортировать титул Т1 из файла' (E
         correctionNumber(ie) <- STRING[10](impT1IsprNum());
         correctionDate(ie) <- DATE(toDateFormat(impT1IsprDate(), 'DD.MM.YYYY'));
 
+            // грузоотправитель - чужая сторона: реквизиты из титула, карточка по ИНН при наличии
+        incomingShipperName(ie) <- ISTRING[150](impT1GOName());
+        incomingShipperInn(ie) <- STRING[12](OVERRIDE impT1GOInn(), impT1GOInnIP());
+        incomingShipperKpp(ie) <- STRING[9](impT1GOKpp());
+
+        // заказчик перевозки - настоящий владелец груза, когда грузоотправитель экспедитор
+        incomingCustomerName(ie) <- ISTRING[150](OVERRIDE impT1ZakName(), impT1OpZakFirstName());
+        incomingCustomerInn(ie) <- STRING[12](OVERRIDE impT1ZakInn(), impT1ZakInnIP(), impT1OpZakFirstInn());
+        incomingCustomerKpp(ie) <- STRING[9](OVERRIDE impT1ZakKpp(), impT1OpZakFirstKpp());
+        incomingCustomerSource(ie) <- STRING[10](IF impT1ZakInn() OR impT1ZakInnIP() THEN 'СвЗак'
+                                                 ELSE ('ЗакУсл' IF impT1OpZakFirstInn()));
+        incomingCustomer(ie) <- legalEntityInn(incomingCustomerInn(ie)) WHERE legalEntityInn(incomingCustomerInn(ie));
+
         incomingCarrierName(ie) <- ISTRING[150](OVERRIDE impT1PerName(),
             (CONCAT ' ', 'ИП', impT1PerLastIP(), impT1PerFirstIP(), impT1PerMiddleIP()));
         incomingCarrierInn(ie) <- STRING[12](OVERRIDE impT1PerInn(), impT1PerInnIP());
@@ -429,12 +483,13 @@ parseETRNTitleXml 'Импортировать титул Т1 из файла' (E
                 WHEN countStocksByDeliveryZip(impT1DeliveryZip()) == 1 THEN stockByDeliveryZip(impT1DeliveryZip());
     }
 
+    // грузоотправителя без карточки не сообщаем: его реквизиты сохранены строками.
+    // грузополучатель - это мы, без карточки не отправить Т3, поэтому о нём предупреждаем
     LOCAL missingParticipants = STRING ();
-    missingParticipants() <- CONCAT '; ',
-        (CONCAT ' ', impT1GOName(), 'ИНН ' + (OVERRIDE impT1GOInn(), impT1GOInnIP())) IF (OVERRIDE impT1GOInn(), impT1GOInnIP()) AND NOT legalEntityInn(STRING[12](OVERRIDE impT1GOInn(), impT1GOInnIP())),
-        (CONCAT ' ', impT1GPName(), 'ИНН ' + (OVERRIDE impT1GPInn(), impT1GPInnIP())) IF (OVERRIDE impT1GPInn(), impT1GPInnIP()) AND NOT legalEntityInn(STRING[12](OVERRIDE impT1GPInn(), impT1GPInnIP()));
+    missingParticipants() <- (CONCAT ' ', impT1GPName(), 'ИНН ' + (OVERRIDE impT1GPInn(), impT1GPInnIP()))
+        IF (OVERRIDE impT1GPInn(), impT1GPInnIP()) AND NOT legalEntityInn(STRING[12](OVERRIDE impT1GPInn(), impT1GPInnIP()));
     IF missingParticipants() THEN
-        MESSAGE CONCAT ' ', 'Участники титула не найдены в справочнике организаций:', missingParticipants() NOWAIT;
+        MESSAGE CONCAT ' ', 'Грузополучатель титула не найден в справочнике организаций:', missingParticipants() NOWAIT;
 
     deliveryAddress(e) <- ISTRING[350](OVERRIDE impT1GPAddrText(), impT1GPAddrInfText(),
         (CONCAT ', ', impT1GPIndex(), impT1GPDistrict(), impT1GPCity(), impT1GPLocality(), impT1GPStreet(), impT1GPHouse(), impT1GPCorpus(), impT1GPFlat()));

@@ -158,6 +158,23 @@ carrier = DATA LegalEntity (IncomingETRN);
 carrier[ETRN](IncomingETRN e) += carrier(e);
 nameCarrierCard 'Перевозчик (карточка)' (IncomingETRN e) = name(carrier(e)) CHARWIDTH 15;
 
+nameShipperCard 'Грузоотправитель (карточка)' (IncomingETRN e) = name(shipper(e)) CHARWIDTH 15;
+
+// грузоотправитель входящей - чужая сторона (нередко склад-оператор, которого нет в справочнике):
+// в обмене он не участвует, поэтому храним реквизиты из титула, а карточку - если нашлась по ИНН
+incomingShipperName 'Грузоотправитель (из титула)' = DATA ISTRING[150](IncomingETRN) CHARWIDTH 15;
+incomingShipperInn 'ИНН грузоотправителя' = DATA STRING[12](IncomingETRN) CHARWIDTH 12;
+incomingShipperKpp 'КПП грузоотправителя' = DATA STRING[9](IncomingETRN) CHARWIDTH 9;
+
+// заказчик услуг по перевозке (СвЗак/ЗакУсл титула): когда грузоотправитель - экспедитор
+// или склад-оператор, товар едет именно от него
+incomingCustomer 'Заказчик перевозки (карточка)' = DATA LegalEntity (IncomingETRN);
+nameIncomingCustomer 'Заказчик перевозки (карточка)' (IncomingETRN e) = name(incomingCustomer(e)) CHARWIDTH 15;
+incomingCustomerName 'Заказчик перевозки (из титула)' = DATA ISTRING[150](IncomingETRN) CHARWIDTH 15;
+incomingCustomerInn 'ИНН заказчика перевозки' = DATA STRING[12](IncomingETRN) CHARWIDTH 12;
+incomingCustomerKpp 'КПП заказчика перевозки' = DATA STRING[9](IncomingETRN) CHARWIDTH 9;
+incomingCustomerSource 'Источник в титуле' = DATA STRING[10](IncomingETRN) CHARWIDTH 8;
+
 incomingCarrierName 'Перевозчик (из титула)' = DATA ISTRING[150](IncomingETRN) CHARWIDTH 15;
 incomingCarrierInn 'ИНН перевозчика' = DATA STRING[12](IncomingETRN) CHARWIDTH 12;   // по нему ищутся карточка и ящик Диадока
 
@@ -196,6 +213,7 @@ incomingVehicleInfo 'ТС (данные грузоотправителя)' = DAT
 
 // отображаемые реквизиты - реализации от первичных полей
 nameCarrier(IncomingETRN e) += ISTRING[150](OVERRIDE name(carrier(e)), incomingCarrierName(e));
+nameShipper(IncomingETRN e) += ISTRING[150](OVERRIDE name(shipper(e)), incomingShipperName(e));
 carrierPhone(IncomingETRN e) += ISTRING[100](phone(carrier(e))) IF e IS IncomingETRN;
 shortNameDriver(IncomingETRN e) += incomingDriverName(e);
 driverPhone(IncomingETRN e) += incomingDriverPhone(e);
@@ -223,6 +241,14 @@ trailerOwnership(IncomingETRN e) += incomingTrailerOwnership(e);
 // ------------------------- Форма входящей ------------------------- //
 // груз доступен только на просмотр; вкладки «Т3: Приемка» и «Обмен» добавляются ниже
 
+// в общем списке ЭТрН: у исходящих эти поля пустые, они есть только у входящих.
+// признак экспедитора объясняет, почему грузоотправитель не совпадает с владельцем груза
+
+nameIncomingCustomerOver 'Заказчик перевозки' (ETRN e) = OVERRIDE nameIncomingCustomer(e), incomingCustomerName(e) CHARWIDTH 15;
+EXTEND FORM etrns
+    PROPERTIES(e) READONLY  AFTER nameShipper(e) forwarder, nameIncomingCustomerOver, incomingCustomerInn
+;
+
 FORM incomingEtrn 'Электронная транспортная накладная (входящая)'
     OBJECTS e = IncomingETRN PANEL
     PROPERTIES(e) nameStage, roles, number READONLY, date READONLY, orderNumber READONLY, orderDate READONLY,
@@ -236,6 +262,9 @@ FORM incomingEtrn 'Электронная транспортная наклад�
     // выбор склада заполняет структурный адрес доставки, обязательный для титула Т3
     PROPERTIES(e) nameCustomerStock BACKGROUND (backgroundMandatory(e) IF NOT hasDeliveryAddress(e))
 
+    PROPERTIES(e) nameShipperCard, incomingShipperName, incomingShipperInn, incomingShipperKpp
+    PROPERTIES(e) nameIncomingCustomer, incomingCustomerName, incomingCustomerInn,
+                  incomingCustomerKpp, incomingCustomerSource READONLY
     PROPERTIES(e) nameCarrierCard, carrierPhone , incomingCarrierName, incomingCarrierInn,
                   incomingCarrierParticipantId ,
                   incomingDriverName, incomingDriverPhone,
@@ -281,10 +310,23 @@ DESIGN incomingEtrn {
                 caption = 'Стороны и транспорт';
                 NEW inShipperBox {
                     caption = 'Грузоотправитель';
-                    horizontal = TRUE;
+                    lines = 2;
                     MOVE PROPERTY(nameShipper(e));
                     MOVE PROPERTY(shipperPhone(e));
                     MOVE PROPERTY(forwarder(e));
+                    MOVE PROPERTY(nameShipperCard(e));
+                    MOVE PROPERTY(incomingShipperName(e));
+                    MOVE PROPERTY(incomingShipperInn(e));
+                    MOVE PROPERTY(incomingShipperKpp(e));
+                    NEW inCustomerBox {
+                        caption = 'Заказчик перевозки (владелец груза)';
+                        horizontal = TRUE;
+                        MOVE PROPERTY(nameIncomingCustomer(e));
+                        MOVE PROPERTY(incomingCustomerName(e));
+                        MOVE PROPERTY(incomingCustomerInn(e));
+                        MOVE PROPERTY(incomingCustomerKpp(e));
+                        MOVE PROPERTY(incomingCustomerSource(e));
+                    }
                 }
                 NEW inConsigneeBox {
                     caption = 'Грузополучатель';
