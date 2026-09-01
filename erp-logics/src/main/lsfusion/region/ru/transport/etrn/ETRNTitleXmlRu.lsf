@@ -381,13 +381,17 @@ deliveryZip (STRING text) = STRING[6](deliveryZipExtract(text))
     IF length(deliveryZipExtract(text)) == 6 AND
        (OVERRIDE length(regexpReplace(deliveryZipExtract(text), '[0-9]', '', 'g')), 0) == 0;
 
-// идентификатор участника ЭДО стороны по её ИНН из ИдФайла (имя файла обмена: части через '_',
-// каждая - <код оператора>-<ИНН>-<...>); оператор не фиксируем: у работающих через роуминг
-// там код чужого оператора. При несовпадении regexpReplace вернёт исходный текст - отсюда валидация
-participantIdExtract (STRING idFile, STRING inn) =
-    regexpReplace(idFile, '^(.*_)?([^_]*-' + inn + '-[^_]*)(_.*)?$', '\\2', '');
-participantId (STRING idFile, STRING inn) = STRING[46](participantIdExtract(idFile, inn))
-    IF inn AND idFile AND NOT participantIdExtract(idFile, inn) == idFile;
+// ИдФайл: ON_<тип>_<Ид1>_<Ид2>_<Ид3>_<признак>_<ГГГГММДД>_<GUID>. Разбираем позиционно,
+// а не по ИНН: у роуминговых участников идентификатор вида 2BE<hex>, ИНН в нём нет
+idFilePart (STRING idFile, INTEGER n) = getWord(idFile, '_', n);
+
+// дата на своём месте подтверждает, что слоты посчитаны верно (иначе вернём пусто, а не чужую организацию)
+idFileT1Valid (STRING idFile) = idFilePart(idFile, 1) == 'ON' AND idFilePart(idFile, 2) == 'TRNACLGROT'
+    AND idFilePart(idFile, 3) AND idFilePart(idFile, 4) AND idFilePart(idFile, 5)
+    AND length(idFilePart(idFile, 7)) == 8;
+
+// в Т1 первый слот - перевозчик: автор титула (грузоотправитель) всегда последний
+carrierParticipantId (STRING idFile) = STRING[46](idFilePart(idFile, 3)) IF idFileT1Valid(idFile);
 
 // индекс места доставки разбираемого титула: из структурного адреса либо из текстового
 impT1DeliveryZip () = STRING[6](OVERRIDE impT1GPIndex(),
@@ -464,7 +468,7 @@ parseETRNTitleXml 'Импортировать титул Т1 из файла' (E
         incomingCarrierName(ie) <- ISTRING[150](OVERRIDE impT1PerName(),
             (CONCAT ' ', 'ИП', impT1PerLastIP(), impT1PerFirstIP(), impT1PerMiddleIP()));
         incomingCarrierInn(ie) <- STRING[12](OVERRIDE impT1PerInn(), impT1PerInnIP());
-        incomingCarrierParticipantId(ie) <- participantId(impT1IdFile(), incomingCarrierInn(ie));
+        incomingCarrierParticipantId(ie) <- carrierParticipantId(impT1IdFile());
         // карточка перевозчика по ИНН (при отсутствии создаётся провайдерским модулем)
         carrier(ie) <- legalEntityInn(incomingCarrierInn(ie)) WHERE legalEntityInn(incomingCarrierInn(ie)) AND NOT carrier(ie);
         fillCarrierCardFromT1(ie);

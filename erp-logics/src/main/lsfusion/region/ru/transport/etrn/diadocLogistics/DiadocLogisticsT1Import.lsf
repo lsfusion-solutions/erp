@@ -105,6 +105,12 @@ diadocEnsureCarrier (ETRN.IncomingETRN ie) {
 // организациях с одним ИНН только он указывает, через какую идёт обмен. Записывается в карточку
 // контрагента, чтобы дальше её использовали все отправки (diadocBox), а не только Т3
 diadocFillCarrierOrganization (ETRN.IncomingETRN ie) {
+    // новый перевозчик: организации с этим кодом в справочнике ещё нет - дотягиваем по ИНН
+    // из тела титула (он есть всегда, в отличие от ИНН внутри кода) и ищем по коду повторно
+    IF ETRN.incomingCarrierParticipantId(ie) AND ETRN.incomingCarrierInn(ie) AND
+       NOT organizationParticipantId(ETRN.incomingCarrierParticipantId(ie)) THEN
+        getOrganizationsByInn(userDiadocETRN(), ETRN.incomingCarrierInn(ie));
+
     FOR Organization o == organizationParticipantId(ETRN.incomingCarrierParticipantId(ie)) AND
         LegalEntity l == ETRN.carrier(ie) DO {
         legalEntity(o) <- l WHERE NOT legalEntity(o);
