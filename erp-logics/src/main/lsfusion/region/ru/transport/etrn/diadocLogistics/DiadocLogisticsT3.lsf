@@ -1,6 +1,6 @@
 MODULE DiadocLogisticsT3;
 
-REQUIRE DiadocLogistics, DiadocLogisticsT3Form, DiadocLogisticsEvents;
+REQUIRE DiadocLogistics, DiadocLogisticsT3Form, DiadocLogisticsEvents, DiadocLogisticsT1Import;
 
 NAMESPACE Diadoc;
 
@@ -44,6 +44,20 @@ diadocSendT3 (ETRN.ETRN e) {
         toBox() <- carrierT3Box(e);
 
         getToken(u);
+
+        // ИдФайл титула Т3 - ON_TRNACLGRPO_<перевозчик>_<грузоотправитель>_<грузополучатель>;
+        // перевозчик попадает в документооборот только со своим Т2, до этого Диадок оставляет
+        // его слот пустым и отбивает генерацию (400 Invalid generated title: Metadata errors)
+        IF fwdOnlyETRN(e) THEN {
+            IF NOT fwdT2EntityId(e) THEN diadocFindFwdTitles(e);
+            IF NOT fwdT2EntityId(e) THEN {
+                ETRN.exchangeMessage(e) <- 'Т3 не отправлен: перевозчик еще не подписал титул Т2 (приём груза). Дождитесь получения Т2 и повторите';
+                MESSAGE ETRN.exchangeMessage(e) NOWAIT;
+                APPLY;
+                RETURN;
+            }
+        }
+
         EXPORT diadocT3UserData OBJECTS e = e XML;
 
         LOCAL result = FILE ();

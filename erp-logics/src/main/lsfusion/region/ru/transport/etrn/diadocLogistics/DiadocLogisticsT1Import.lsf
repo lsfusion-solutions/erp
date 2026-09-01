@@ -16,7 +16,7 @@ ETRN.importIncoming (ETRN.ETRNProvider p) + WHEN p == ETRN.ETRNProvider.diadoc T
     ETRN.processETRNEvents();
 }
 
-// ------------------------- Титул Т1 в fwd-сообщениях ------------------------- //
+// ------------------------- Титулы в fwd-сообщениях ------------------------- //
 // Трансляция титулов грузополучателю (fwd): документооборот ведут грузоотправитель и перевозчик,
 // нам приходят fwd-сообщения с копиями титулов - по одному сообщению на титул
 // (Т1 - вложение ON_TRNACLGROT, Т2 - ON_TRNACLPPRIN); состав сообщения - V3/GetMessage.
@@ -32,9 +32,12 @@ FORM diadocFwdMessageEntities
 
 fwdResult = DATA LOCAL FILE ();
 
-diadocFindFwdT1 (ETRN.ETRN e) {
+diadocFindFwdTitles (ETRN.ETRN e) {
     FOR [GROUP MAX TRUE IF docFunction(ETRN.ETRNEvent ev) == 'fwd' AND ETRN.etrn(ev) == e BY messageId(ev)](STRING[100] msg) DO {
-        IF NOT fwdT1EntityId(e) THEN {
+        // уже опознанные сообщения не перезапрашиваем: оба титула ищутся в один проход,
+        // так что второй раз в них ничего нового не найдётся
+        IF NOT (fwdT1EntityId(e) AND fwdT2EntityId(e)) AND
+           NOT (msg == fwdT1MessageId(e) OR msg == fwdT2MessageId(e)) THEN {
             // очистка хвоста прошлого импорта: при меньшем числе сущностей остались бы старые строки
             fwdEntityId(INTEGER i) <- NULL WHERE fwdEntityId(i);
             fwdEntityType(INTEGER i) <- NULL WHERE fwdEntityType(i);
@@ -53,6 +56,14 @@ diadocFindFwdT1 (ETRN.ETRN e) {
                 fwdT1MessageId(e) <- STRING[100](msg);
                 fwdT1EntityId(e) <- STRING[100](id);
             }
+            FOR STRING id == [GROUP LAST fwdEntityId(INTEGER en)
+                    IF fwdEntityType(en) == 'Attachment' AND upper(fwdFileName(en)) LIKE 'ON_TRNACLPPRIN%' ORDER en]() DO {
+                fwdT2MessageId(e) <- STRING[100](msg);
+                fwdT2EntityId(e) <- STRING[100](id);
+            }
+            // Т2 = перевозчик принял груз, дальше наш Т3; этап только вперёд, как в processETRNEvent
+            IF fwdT2EntityId(e) THEN
+                ETRN.stage(e) <- ETRN.ETRNStage.loading WHERE NOT id(ETRN.stage(e)) >= 2;
         }
     }
 }
@@ -108,7 +119,7 @@ diadocImportFullData (ETRN.ETRN e) {
     IF NOT (receptionDocMessageId(e) AND receptionDocEntityId(e)) THEN {
         FOR User u == userDiadocETRN() DO {
             getToken(u);
-            diadocFindFwdT1(e);
+            diadocFindFwdTitles(e);
         }
     }
     // автозагрузка идёт фоном после каждого события, попытка до появления Т1 - штатный случай:
@@ -159,4 +170,19 @@ ETRN.importFullData (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvider.d
     NEWSESSION {
         diadocImportFullData(e);
     }
+}
+
+// Т2 приходит отдельным fwd-сообщением уже после Т1, а автозагрузка титула к этому моменту
+// отработала и больше не запускается - иначе этап так и остался бы на оформлении,
+// и пользователь не увидел бы, что пора отправлять Т3
+ETRN.onProcessedEvent (ETRN.ETRNEvent ev) + {
+    FOR ETRN.ETRN e == ETRN.etrn(ev) AND ETRN.provider(ev) == ETRN.ETRNProvider.diadoc AND
+        docFunction(ev) == 'fwd' AND fwdOnlyETRN(e) AND NOT fwdT2EntityId(e) AND hasUnknownFwdMessage(e) DO
+        NEWSESSION {
+            FOR User u == userDiadocETRN() DO {
+                getToken(u);
+                diadocFindFwdTitles(e);
+            }
+            APPLY;
+        }
 }

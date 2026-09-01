@@ -309,8 +309,9 @@ processETRNEvent (ETRN.ETRNEvent ev) {
         e() <- ne;
         ETRN.provider(ne) <- ETRN.ETRNProvider.diadoc;
         diadocKlId(ne) <- ETRN.transportationId(ev);
-        // fwd-трансляция идёт уже после подписания титулов - следующий шаг наша приёмка (Т3)
-        ETRN.stage(ne) <- IF docFunction(ev) == 'fwd' THEN ETRN.ETRNStage.loading ELSE ETRN.ETRNStage.acceptance;
+        // трансляция идёт по сообщению на титул: первой приходит копия Т1, перевозчик груз ещё
+        // не принял - этап оформления; на погрузку двигаем по появлению Т2 (DiadocLogisticsT1Import)
+        ETRN.stage(ne) <- IF docFunction(ev) == 'fwd' THEN ETRN.ETRNStage.registration ELSE ETRN.ETRNStage.acceptance;
         // TODO: заполнить участников/груз - разбор титула Т1 (ParseTitleXml + GetEntityContent)
     }
 
@@ -414,13 +415,26 @@ ETRN.processEvent (ETRN.ETRNEvent ev) + WHEN ETRN.provider(ev) == ETRN.ETRNProvi
 lastReceptionMessageId (ETRN.ETRN e) = GROUP LAST messageId(ETRN.ETRNEvent ev) IF docFunction(ev) == 'reception' ORDER ETRN.dateTime(ev), ev BY ETRN.etrn(ev);
 lastReceptionEntityId (ETRN.ETRN e) = GROUP LAST entityId(ETRN.ETRNEvent ev) IF docFunction(ev) == 'reception' ORDER ETRN.dateTime(ev), ev BY ETRN.etrn(ev);
 
-// у fwd-перевозок своего reception-документа нет: Т1 ищется по вложению ON_TRNACLGROT
-// (DiadocLogisticsT1Import) и подставляется в receptionDoc*-координаты
+// у fwd-перевозок своего reception-документа нет: титулы ищутся по вложениям fwd-сообщений
+// (DiadocLogisticsT1Import), Т1 подставляется в receptionDoc*-координаты
 fwdT1MessageId = DATA STRING[100](ETRN.ETRN);
 fwdT1EntityId = DATA STRING[100](ETRN.ETRN);
+// Т2 сам не разбирается, но его наличие = перевозчик подписал приём груза и стал участником
+// документооборота; без этого Диадок не может сгенерировать Т3 (DiadocLogisticsT3)
+fwdT2MessageId = DATA STRING[100](ETRN.ETRN);
+fwdT2EntityId = DATA STRING[100](ETRN.ETRN);
 
 receptionDocMessageId (ETRN.ETRN e) = OVERRIDE receptionMessageId(e), lastReceptionMessageId(e), fwdT1MessageId(e);
 receptionDocEntityId (ETRN.ETRN e) = OVERRIDE receptionEntityId(e), lastReceptionEntityId(e), fwdT1EntityId(e);
+
+// перевозка получена только трансляцией копий - мы не сторона документооборота в Диадоке
+fwdOnlyETRN (ETRN.ETRN e) = TRUE IF fwdT1MessageId(e) AND NOT (receptionMessageId(e) OR lastReceptionMessageId(e));
+
+// есть fwd-сообщение, состав которого мы ещё не разбирали - только ради него имеет смысл
+// авторизоваться и идти в GetMessage
+hasUnknownFwdMessage (ETRN.ETRN e) = GROUP MAX TRUE IF docFunction(ETRN.ETRNEvent ev) == 'fwd' AND
+    NOT (messageId(ev) == fwdT1MessageId(ETRN.etrn(ev)) OR messageId(ev) == fwdT2MessageId(ETRN.etrn(ev)))
+    BY ETRN.etrn(ev);
 
 ourLegalEntity (ETRN.ETRN e) = OVERRIDE (ETRN.shipper(e) IF isCompany(ETRN.shipper(e))),
                                         (ETRN.consignee(e) IF isCompany(ETRN.consignee(e))),
