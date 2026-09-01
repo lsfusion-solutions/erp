@@ -74,13 +74,24 @@ archiveDir(EDNProfile p) += archiveDirEDN() IF p IS EDNProfile;
 disableConfirmation(EDNProfile p) += disableConfirmationEDN() IF p IS EDNProfile;
 
 document = DATA LOCAL RAWFILE();
+GROUP signatures EXTID 'signatures';
+//EXTID 'value' у свойства - это значение самого тега, поэтому вложенный <value> читается через одноимённую группу
+GROUP signatureValue EXTID 'value';
+signatureContent = DATA LOCAL TEXT (INTEGER);
 FORM edocument
-    PROPERTIES() document;
+    PROPERTIES() document
+
+    OBJECTS s = INTEGER EXTID 'signature' IN signatures
+    PROPERTIES(s) signatureContent IN signatureValue EXTID 'value'
+;
 
 beforeOverReceiveMessages(INTEGER i, STRING[100] login, STRING[100] archiveDir) + {
     IF extract(ednProfile(login)) AND NOT skipUnzip(ednProfile(login)) THEN {
         unzipped(STRING[100] s) <- NULL;
+        //считаем до распаковки: в распакованный документ подписи не попадают
+        signatureContent(INTEGER s) <- NULL;
         IMPORT edocument FROM data(i);
+        countSignatures(i) <- OVERRIDE (GROUP SUM 1 IF signatureContent(INTEGER s)), 0;
         unzipping() <- file(document(), 'zip');
         makeUnzipFile();
         FOR unzipped(STRING[100] s) DO {
@@ -128,7 +139,7 @@ onStarted() + {
 
 overReceiveMessagesEDN ABSTRACT LIST(EDNProfile);
 receiveMessagesEDN () {
-    FOR EDNProfile p IS EDNProfile AND login(p) AND password(p) DO {
+    FOR login(EDNProfile p) AND password(p) AND (GROUP SUM 1 IF profileEDN(LegalEntity le) == p) DO {
         NEWSESSION {
             lockEDN(login(p));
             IF lockResultEDN() THEN {
@@ -246,7 +257,7 @@ receiveMessagesEDN (STRING[100] login, STRING[100] password, TEXT url, STRING[10
 }
 
 receiveMessagesEDNApi () {
-    FOR EDNProfile p IS EDNProfile AND login(p) AND password(p) DO {
+    FOR login(EDNProfile p) AND password(p) AND (GROUP SUM 1 IF profileEDN(LegalEntity le) == p) DO {
         NEWSESSION {
             lockEDN(login(p));
             IF lockResultEDN() THEN {

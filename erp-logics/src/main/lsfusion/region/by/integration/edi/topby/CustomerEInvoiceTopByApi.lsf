@@ -657,7 +657,9 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
     IF lower(documentType(i)) == 'blradf' THEN {
         TRY {
             IMPORT blradf XML FROM data(i);
-            IF blradfMsgReceiverID() == blradfCustomerGLN() THEN {
+            //в сообщениях без заголовка адресата определяем по числу подписей конверта:
+            //со второй подписью акт возвращается покупателю, с одной - приходит поставщику
+            IF blradfMsgReceiverID() == blradfCustomerGLN() OR (NOT blradfMsgReceiverID() AND countSignatures(i) > 1) THEN {
                 FOR ECreditNote ec == eCreditNoteActDifNumber(blradfActDifNumber()) DO {
                     IF NOT disableAutoBlrapn() THEN {
                         LOCAL contentSubXML = FILE();
@@ -767,7 +769,11 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                         }
                     }
                 }
-
+                ELSE {
+                    logToFile('edi', provider + ' (' + login + ') Import ECreditNote ' + id(i) + ' failed: ECreditNote ' + (OVERRIDE blradfActDifNumber(), 'NULL') + ' not found');
+                }
+            } ELSE {
+                logToFile('edi', CONCAT ' ', provider + ' (' + login + ') Import ECreditNote ' + id(i) + ' skipped:', 'act ' + (OVERRIDE blradfActDifNumber(), 'NULL'), 'addressed to ' + (OVERRIDE blradfMsgReceiverID(), 'NULL'), 'customer ' + (OVERRIDE blradfCustomerGLN(), 'NULL'), 'signatures ' + (OVERRIDE countSignatures(i), 0));
             }
         } CATCH {
             logToFile('edi', CONCAT '\n', provider + ' Parse Message ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
