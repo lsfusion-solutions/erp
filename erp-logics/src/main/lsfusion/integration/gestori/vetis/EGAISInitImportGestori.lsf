@@ -1,7 +1,7 @@
 MODULE EGAISInitImportGestori;
 
 REQUIRE EGAIS, EGAISFReg, EGAISFRegLedger, EGAISMarkCode, EGAISProduct, EGAISClient, EGAISStock, EGAISItem, Store,
-        EGAISF1RegImport, EGAISQueryFormF2, ImportGestoriKirovsky;
+        EGAISF1RegImport, EGAISQueryFormF2, ImportGestoriSettings;
 
 NAMESPACE EGAIS;
 
@@ -23,11 +23,7 @@ quantity(FRegLedgerInit l) += dataQuantity(l);
 
 // --- Строка подключения (переиспользуем Gestori) ---
 
-egaisDbUrl() =
-    'jdbc:datadirect:openedge://' + ImportGestori.host() + ':' + ImportGestori.port() +
-    ';DatabaseName=' + ImportGestori.base() +
-    ';user=' + ImportGestori.login() +
-    ';password=' + ImportGestori.password();
+egaisDbUrl() = ImportGestori.connectionString();
 
 // --- Локальные переменные для импорта ---
 
@@ -42,7 +38,7 @@ firmLocalFullName = DATA LOCAL ISTRING[300](INTEGER);
 firmLocalInn = DATA LOCAL STRING[12](INTEGER);
 firmLocalKpp = DATA LOCAL STRING[9](INTEGER);
 firmLocalRegion = DATA LOCAL STRING[10](INTEGER);
-firmLocalAddress = DATA LOCAL ISTRING[300](INTEGER);
+firmLocalAddress = DATA LOCAL ISTRING[4500](INTEGER);
 firmLocalWBver = DATA LOCAL STRING[10](INTEGER);
 firmLocalCodFirm = DATA LOCAL STRING[20](INTEGER);
 firmLocalTypeOrg = DATA LOCAL STRING[5](INTEGER);
@@ -114,9 +110,10 @@ importEgaisUtm 'Импорт УТМ ЕГАИС' () {
 importEgaisClients 'Импорт организаций ЕГАИС' () {
     LOCAL file = FILE();
 
+    // значения в GESTORI длиннее объявленной SQL-ширины столбца — без SUBSTR драйвер падает на выборке
     EXTERNAL SQL egaisDbUrl()
-        EXEC 'SELECT IdFirmEgais, ShortName, Name, inn, Kpp, ' +
-             'CAST(AddrRegion AS CHAR(10)), Address, CAST(OrgWBver AS CHAR(10)), CAST(cod_firm AS CHAR(20)), CAST(OrgType AS CHAR(5)) ' +
+        EXEC 'SELECT IdFirmEgais, SUBSTR(ShortName, 1, 200), SUBSTR(Name, 1, 200), inn, Kpp, ' +
+             'CAST(AddrRegion AS CHAR(10)), SUBSTR(Address, 1, 4500), CAST(OrgWBver AS CHAR(10)), CAST(cod_firm AS CHAR(20)), CAST(OrgType AS CHAR(5)) ' +
              'FROM Pub.EgaisFirm'
         TO file;
 
@@ -193,7 +190,7 @@ importEgaisF1 'Импорт справок А ЕГАИС' () {
 
     // Запрос 1: создание F1Reg из Parts
     EXTERNAL SQL egaisDbUrl()
-        EXEC 'SELECT p.IdNoteA, p.IdGoodEgais, ps.CodeParts ' +
+        EXEC 'SELECT SUBSTR(p.IdNoteA, 1, 20), p.IdGoodEgais, ps.CodeParts ' +
              'FROM Pub.PartsShop ps ' +
              'JOIN Pub.Parts p ON ps.CodeParts = p.CodeParts'
         TO file;
@@ -209,7 +206,7 @@ importEgaisF1 'Импорт справок А ЕГАИС' () {
 
     // Запрос 2: доимпорт данных из EgaisNote
     EXTERNAL SQL egaisDbUrl()
-        EXEC 'SELECT n.IdNoteEgais, n.IdShipEgais, ' +
+        EXEC 'SELECT SUBSTR(n.IdNoteEgais, 1, 20), n.IdShipEgais, ' +
              'SUBSTR(n.NumTtn, 1, 500), n.DateTtn, SUBSTR(n.NumConfirm, 1, 500), n.DateConfirm, n.DateBottl, n.Quan ' +
              'FROM Pub.EgaisNote n ' +
              'WHERE n.NoteType = 1'
@@ -239,7 +236,7 @@ importEgaisF2 'Импорт справок Б ЕГАИС' () {
     LOCAL file = FILE();
 
     EXTERNAL SQL egaisDbUrl()
-        EXEC 'SELECT p.IdNoteBPr, p.IdNoteA, ef.IdFirmEgais ' +
+        EXEC 'SELECT SUBSTR(p.IdNoteBPr, 1, 20), SUBSTR(p.IdNoteA, 1, 20), ef.IdFirmEgais ' +
              'FROM Pub.PartsShop ps ' +
              'JOIN Pub.Parts p ON ps.CodeParts = p.CodeParts ' +
              'JOIN Pub.EgaisFirm ef ON ef.cod_firm = ps.cod_shop'
@@ -257,7 +254,7 @@ importEgaisF2 'Импорт справок Б ЕГАИС' () {
 
     // Запрос 2: доимпорт данных из EgaisNote
     EXTERNAL SQL egaisDbUrl()
-        EXEC 'SELECT n.IdNoteEgais, n.IdShipEgais, n.IdConsEgais, n.IdGoodEgais, ' +
+        EXEC 'SELECT SUBSTR(n.IdNoteEgais, 1, 20), n.IdShipEgais, n.IdConsEgais, n.IdGoodEgais, ' +
              'SUBSTR(n.NumTtn, 1, 500), n.DateTtn, n.DateShip, n.Quan ' +
              'FROM Pub.EgaisNote n ' +
              'WHERE n.NoteType = 1'
@@ -286,7 +283,7 @@ importEgaisBalances 'Импорт начальных остатков ЕГАИС
     LOCAL file = FILE();
 
     EXTERNAL SQL egaisDbUrl()
-        EXEC 'SELECT ps.cod_shop, ps.QuanRest, p.IdNoteBPr ' +
+        EXEC 'SELECT ps.cod_shop, ps.QuanRest, SUBSTR(p.IdNoteBPr, 1, 20) ' +
              'FROM Pub.PartsShop ps JOIN Pub.Parts p ON ps.CodeParts = p.CodeParts'
         TO file;
 
@@ -310,7 +307,7 @@ importEgaisMarkCodes 'Импорт кодов маркировки ЕГАИС' (
     LOCAL file = FILE();
 
     EXTERNAL SQL egaisDbUrl()
-        EXEC 'SELECT em.bar_cod, p.IdNoteBPr ' +
+        EXEC 'SELECT SUBSTR(em.bar_cod, 1, 160), SUBSTR(p.IdNoteBPr, 1, 20) ' +
              'FROM Pub.EgaisMarkItem em JOIN Pub.Parts p ON em.CodeParts = p.CodeParts ' +
              'WHERE LEN(em.bar_cod) = 150'
         TO file;

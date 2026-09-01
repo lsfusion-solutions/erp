@@ -1,38 +1,10 @@
 MODULE ImportGestori;
 
-REQUIRE Item, Store, Stock, Warehouse, ItemDescription, StockContract, Agreement, ItemStorage, ImportUserPriceList, ItemNutrition, 
+REQUIRE ImportGestoriSettings, Item, Store, Stock, Warehouse, ItemDescription, StockContract, Agreement, ItemStorage, ImportUserPriceList, ItemNutrition, 
         PurchaseInvoice, PurchaseShipment, PricingPurchase, LegalEntity, PriceListBarcode, Disparity, SalePack;
 
 @defineLogRotate(importGestori_init, 5, weekly);
 @defineLogRotate(importGestori, 5, weekly);
-
-host 'Хост' = DATA ISTRING[30]();
-port 'Порт' = DATA ISTRING[10]();
-base 'База' = DATA ISTRING[100]();
-login 'Логин' = DATA ISTRING[100]();
-password 'Пароль' = DATA ISTRING[100]() ECHO;
-
-EXTEND FORM integrationData PROPERTIES () host, port, base, login, password;
-
-DESIGN integrationData {
-    pane {
-        NEW gestori FIRST {
-            caption = 'Gestori';
-            fill = 1;
-            NEW gestoriParams {
-                caption = 'Параметры';
-                MOVE PROPERTY (host());
-                MOVE PROPERTY (port());
-                MOVE PROPERTY (base());
-                MOVE PROPERTY (login());
-                MOVE PROPERTY (password());
-            }
-            NEW gestoriButtons { 
-                caption = 'Импорт';
-            }
-        }
-    }
-}
 
 CLASS CorrespndenceLegalEntityId 'Соответствие кодов организаций';
 TABLE correspndenceLegalEntityId (CorrespndenceLegalEntityId);
@@ -72,7 +44,7 @@ idParent = DATA LOCAL INTEGER (INTEGER);
 importItemGroup 'Импорт товарных групп' () {
     
     LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+    EXTERNAL SQL connectionString() 
         EXEC 'SELECT cod_dep, name_dep FROM Pub.depart WITH (NOLOCK)' TO file;
     
     IMPORT TABLE FROM file() TO id, name;
@@ -91,7 +63,7 @@ importItemGroup 'Импорт товарных групп' () {
         parent(g) <- itemGroup('all');
     }
     
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+    EXTERNAL SQL connectionString() 
         EXEC 'SELECT cod_group, name_gr, cod_dep FROM Pub.ggroup WITH (NOLOCK)' TO file;
         
     IMPORT TABLE FROM file() TO id, name, idParent;
@@ -105,7 +77,7 @@ importItemGroup 'Импорт товарных групп' () {
         parent(g) <- itemGroup(TEXT (idParent(i)));
     }
     
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+    EXTERNAL SQL connectionString() 
         EXEC 'SELECT cod_sgr, name_sgr, cod_group FROM Pub.sgroup WITH (NOLOCK)' TO file;
         
     IMPORT TABLE FROM file() TO id, name, idParent;
@@ -148,7 +120,7 @@ importLegalEntities 'Импорт организаций' () {
     LOCAL bic = TEXT (INTEGER);
 
     LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password()
+    EXTERNAL SQL connectionString()
         EXEC 'SELECT cod_group, name_group FROM Pub.groups WITH (NOLOCK)' TO file;
     
     IMPORT TABLE FROM file() TO id, name;
@@ -176,7 +148,7 @@ importLegalEntities 'Импорт организаций' () {
         id(w) <- 'company';
         name(w) <- 'Склады собственные';
     }
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+    EXTERNAL SQL connectionString() 
         EXEC 'SELECT cod_firm, SUBSTR(name_firm, 1, 100), cod_group, address, address, phone, fax, "e-mail", SUBSTR(director, 1, 100), comment, intext, bank_addr, bank_acct, bank_acctk, MFO, SUBSTR(primech, 1, 100) FROM Pub.firms WITH (NOLOCK)' TO file;
     
     IMPORT TABLE FROM file() TO id, name, idGroup, unp, okpo, phone, fax, email, director, comment, intext, bankAddress, account, corrAccount, bic, note;
@@ -237,7 +209,7 @@ importLegalEntities 'Импорт организаций' () {
         }
     }
 
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password()
+    EXTERNAL SQL connectionString()
         EXEC 'SELECT a.cod_firm, b.cod_rol FROM Pub.firms as a JOIN Pub.rol_firms AS b ON b.cod_firm = a.cod_firm WHERE '
         + 'a.intext = \'E\' WITH (NOLOCK)' TO file;
 
@@ -265,21 +237,6 @@ EXTEND FORM options PROPERTIES nameDefaultCompany();
 DESIGN options {
     commons {
         MOVE PROPERTY (nameDefaultCompany());
-    }
-}
-
-extId 'Код для импорта' = DATA STRING[100](Store) CHARWIDTH 10;
-extId 'Код для импорта' = DATA STRING[100](Stock) CHARWIDTH 10;
-storeExtId = GROUP AGGR Store s BY extId(s);
-stockExtId = GROUP AGGR Stock s BY extId(s);
-
-EXTEND FORM stores PROPERTIES READONLYIF isReadonly() extId(s) AFTER id(s), extId(d);
-EXTEND FORM store PROPERTIES extId(s), extId(d) READONLY;
-EXTEND FORM departmentStores PROPERTIES READONLY extId(d);
-
-DESIGN store {
-    row2 {
-        MOVE PROPERTY (extId(s));
     }
 }
 
@@ -311,7 +268,7 @@ importStores 'Импорт магазинов' () {
     LOCAL comment = TEXT (INTEGER);
 
     LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+    EXTERNAL SQL connectionString() 
         EXEC 'SELECT cod_ob, SUBSTR(name,1,100) as test_name FROM Pub.obshop WITH (NOLOCK)' TO file;
     
     IMPORT TABLE FROM file() TO id, name;
@@ -330,7 +287,7 @@ importStores 'Импорт магазинов' () {
         name(g) <- name(i) + ' ' + id(i);
     }
     
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+    EXTERNAL SQL connectionString() 
         EXEC 'SELECT cod_shop, name_shop, cod_ob, type, cod_reg FROM Pub.shops WITH (NOLOCK)' TO file;
 
     IMPORT TABLE FROM file() TO id, name, idType, type, cod_reg;
@@ -366,7 +323,7 @@ importStores 'Импорт магазинов' () {
 
     }
 
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password()
+    EXTERNAL SQL connectionString()
         EXEC 'SELECT cod_firm, comment FROM Pub.firms WITH (NOLOCK)' TO file;
 
     IMPORT TABLE FROM file() TO id, comment;
@@ -386,7 +343,7 @@ DESIGN integrationData { gestoriButtons { MOVE PROPERTY (importStores()); } }
 importUOMs 'Импорт ед. измерений' () {
     
     LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+    EXTERNAL SQL connectionString() 
         EXEC 'SELECT cod_meas, name_meas FROM Pub.meas WITH (NOLOCK)' TO file;
     
     IMPORT TABLE FROM file() TO id, name;
@@ -441,7 +398,7 @@ importItems1 'Импорт товаров' () {
     LOCAL article = TEXT(INTEGER);
     
     LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+    EXTERNAL SQL connectionString() 
         EXEC 'SELECT cod_good, SUBSTR(name, 1, 162), SUBSTR(price_name, 1, 80), cod_meas, cod_sgr, cod_group, cod_dep, cod_firm, wflag, massa, volume, artic, CrDate, CrOper FROM Pub.katalog WHERE '
              + 'NOT cod_sgr=  \'990101\' WITH (NOLOCK)' TO file;
     
@@ -467,7 +424,7 @@ importItems1 'Импорт товаров' () {
     LOCAL vat = NUMERIC[16,0] (INTEGER);
     LOCAL dt = DATE (INTEGER);
     
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+    EXTERNAL SQL connectionString() 
             EXEC 'SELECT a.cod_good, a.dt, n."size" FROM Pub."arh-nds" AS a JOIN Pub.katalog AS k ON a.cod_good = k.cod_good JOIN Pub.nds AS n ON a.nds = n.nds WHERE NOT k.cod_sgr = \'990101\' WITH (NOLOCK)' TO file;
     
     IMPORT TABLE FROM file() TO idItem, dt, vat;
@@ -481,7 +438,7 @@ importItems1 'Импорт товаров' () {
     LOCAL level = INTEGER (INTEGER);
     LOCAL date = DATE (INTEGER);
     
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+    EXTERNAL SQL connectionString() 
             EXEC 'SELECT b.cod_good, b.bar_cod, b.type_bar, b.cod_level, b.dt FROM Pub.barcod as b JOIN Pub.katalog AS k ON b.cod_good = k.cod_good WHERE ' 
             + 'NOT k.cod_sgr = \'990101\' AND NOT b.cod_good = b.bar_cod WITH (NOLOCK)' TO file;
 
@@ -593,7 +550,7 @@ importContract 'Импорт договоров' () {
     LOCAL idContract = INTEGER (INTEGER);
     
     LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+    EXTERNAL SQL connectionString() 
             EXEC 'SELECT ct_num, NumCt, DateCt, DateAct, cod_firm, cod_ob, comment, SUBSTR(SpecCond,1,1000), TypeCt, cod_deliv, CodePayVid, termpay, CodeTypeOpl, main_ct_num FROM Pub.Contract WITH (NOLOCK)' TO file;
     
     IMPORT TABLE FROM file() TO id, number, dateFrom, dateTo, idLegalEntity, idCompany, comment, condition, idType, idDeliv, idPayVid, delay, idPayment, idContract;
@@ -670,7 +627,7 @@ overImportItemAttribute ABSTRACT LIST ();
 importItemAttribute 'Импорт доп. свойств товаров' () {
     
     LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+    EXTERNAL SQL connectionString() 
         EXEC 'SELECT cod_good, npar, SUBSTR(pvalue, 1, 1000) FROM Pub.subcard WITH (NOLOCK)' TO file;
     
     IMPORT TABLE FROM file() TO idItem, property, value;
@@ -749,7 +706,7 @@ importInit 'Импорт остатков' () {
     LOCAL quantityID = NUMERIC[16,3](NUMERIC[13,0]);
     
     LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+    EXTERNAL SQL connectionString() 
         EXEC 'SELECT cod_good, quantityF FROM Pub.art WHERE cod_shop = \''+ extId(customerStock()) +'\' AND NOT (quantityF = 0 AND last_cost_price = 0) WITH (NOLOCK)' TO file;
     
     IMPORT TABLE FROM file() TO idItem, quantity;
@@ -762,7 +719,7 @@ importInit 'Импорт остатков' () {
     LOCAL price = NUMERIC[16,3](INTEGER);
     LOCAL priceID = NUMERIC[16,3](NUMERIC[13,0]);
     
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+    EXTERNAL SQL connectionString() 
         EXEC 'SELECT cod_good, retail_price FROM Pub.artprice WHERE cod_shop = \''+ extId(customerStock()) +'\' AND cod_level = 1 WITH (NOLOCK)' TO file;
     
     IMPORT TABLE FROM file() TO idItem, price;
@@ -787,7 +744,7 @@ importInit 'Импорт остатков' () {
     
     // импорт приходов
     LOCAL iItem = NUMERIC[13,0](INTEGER);
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+    EXTERNAL SQL connectionString() 
         EXEC 'SELECT pr2.cod_good, pr2.dt_nakl, pr2.num_nakl, SUBSTR(pr1.num_doc, 1, 50) , pr2.cost_price, pr1.cod_firm, pr1.ModTime, pr2.sal_date, pr2.made_date FROM Pub.pr2 LEFT JOIN Pub.pr1 ON pr2.num_nakl = pr1.num_nakl WHERE pr2.cod_shop = \''
         + extId(customerStock()) +'\' WITH (NOLOCK)' TO file;
         
@@ -852,12 +809,12 @@ importInit 'Импорт остатков' () {
     LOCAL bItem = NUMERIC[13,0](INTEGER);
     LOCAL bBarcode = STRING[15] (INTEGER);
     
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+    EXTERNAL SQL connectionString() 
             EXEC 'SELECT cod_good, bar_cod FROM Pub.barcod WHERE cod_level = 3 AND NOT cod_good = bar_cod WITH (NOLOCK)' TO file;
     
     IMPORT TABLE FROM file() TO bItem, bBarcode;
 
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+    EXTERNAL SQL connectionString() 
         EXEC 'SELECT ch_pr2.cod_good, ch_pr2.new_retail_price, ch_pr2.dt_akt, ch_pr2.dt_akt FROM Pub.ch_pr2 ' + 
             'LEFT JOIN Pub.ch_pr1 ON ch_pr2.num_akt = ch_pr1.num_akt WHERE ch_pr1.cod_shop = ' + extId(customerStock()) + ' AND cod_level = 3 WITH (NOLOCK)' TO file;
     LOCAL ucode = NUMERIC[16,3] (INTEGER); 
@@ -955,7 +912,7 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
     logToFile('importGestori', 'importPriceList_Docs_Select_started');
     
     LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+    EXTERNAL SQL connectionString() 
         EXEC 'SELECT ct_spec, NumSpec, DateSpec, DateEnd, spec1.ct_num, Contract.main_ct_num, spec1.cod_firm, spec1.cod_ob, SUBSTR(seq_shop,1,100), primech, StsDoc, Contract.TypeCt FROM Pub.spec1, Pub.Contract WHERE spec1.ct_num = Contract.ct_num AND (spec1.DateEnd >= TO_DATE(\''
             + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\') OR spec1.DateEnd IS NULL) AND (Contract.DateAct >= TO_DATE(\'' + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\') OR Contract.DateAct IS NULL) AND spec1.stsdoc = \'$\' WITH (NOLOCK)' TO file;
 
@@ -996,7 +953,7 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
     
     logToFile('importGestori', 'importPriceList_Spec_Select_started');
 
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+    EXTERNAL SQL connectionString() 
             EXEC 'SELECT cod_good, NumPos, PriceDoc, spec2.ct_spec, Contract.TypeCt FROM Pub.spec2, Pub.spec1, Pub.Contract WHERE spec1.ct_spec = spec2.ct_spec AND spec1.ct_num = Contract.ct_num AND (spec1.DateEnd >= TO_DATE(\'' 
             + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\') OR spec1.DateEnd IS NULL) AND (Contract.DateAct >= TO_DATE(\'' + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\') OR Contract.DateAct IS NULL) AND spec1.stsdoc = \'$\' WITH (NOLOCK)' TO file;
 
@@ -1058,7 +1015,7 @@ importOrder 'Импорт заказов' () {
     LOCAL idSupplier = INTEGER (INTEGER);
     LOCAL comment = ISTRING[255] (INTEGER);
     
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+    EXTERNAL SQL connectionString() 
             EXEC 'SELECT num_nakl, dt_doc, dt_nakl, fflag, cod_firm, primech FROM Pub.zakp1 WHERE cod_shop = \'' + idCustomerStockOrder() + '\' AND zakp1.dt_doc >= TO_DATE(\'' 
             + toDateISO(dateFromOrder())  + '\',\'YYYY-MM-DD\') OR (zakp1.dt_doc IS NULL AND zakp1.dt_nakl >= TO_DATE(\'' 
             + toDateISO(dateFromOrder())  + '\',\'YYYY-MM-DD\')) WITH (NOLOCK)' TO file;
@@ -1090,7 +1047,7 @@ importOrder 'Импорт заказов' () {
     LOCAL idDetail = ISTRING[100](INTEGER);
     LOCAL imported = BOOLEAN (UserPriceListDetail);
 
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+    EXTERNAL SQL connectionString() 
             EXEC 'SELECT cod_good, quantity_f, cost_price, nn, zakp2.num_nakl FROM Pub.zakp2, Pub.zakp1 WHERE zakp1.num_nakl = zakp2.num_nakl AND quantity > 0 AND (zakp1.dt_doc >= TO_DATE(\'' 
             + toDateISO(dateFromOrder())  + '\',\'YYYY-MM-DD\') OR (zakp1.dt_doc IS NULL AND zakp1.dt_nakl >= TO_DATE(\'' 
             + toDateISO(dateFromOrder())  + '\',\'YYYY-MM-DD\'))) AND zakp1.cod_shop = \'' + idCustomerStockOrder() + '\' WITH (NOLOCK)' TO file;
@@ -1139,7 +1096,7 @@ importPriceLists 'Импорт прайсов' () {
     logToFile('importGestori', 'importPriceList_Docs_Select_started');
     
     LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+    EXTERNAL SQL connectionString() 
         EXEC 'SELECT ch_pr2.dt_akt, ch_pr2.num_akt, ch_pr2.new_retail_price, ch_pr2.cod_level, ch_pr2.cod_good, ch_pr1.name_doc FROM Pub.ch_pr2 ' + 
             'LEFT JOIN Pub.ch_pr1 ON ch_pr2.num_akt = ch_pr1.num_akt WHERE ch_pr1.cod_shop = ' + extId(customerStock()) + ' AND cod_level IN (' + idOperations() + ') WITH (NOLOCK)' TO file;
 

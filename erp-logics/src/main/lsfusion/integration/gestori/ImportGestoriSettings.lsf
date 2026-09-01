@@ -1,0 +1,50 @@
+MODULE ImportGestoriSettings;
+
+REQUIRE Store, Stock;
+
+NAMESPACE ImportGestori;
+
+host 'Хост' = DATA ISTRING[30]();
+port 'Порт' = DATA ISTRING[10]();
+base 'База' = DATA ISTRING[100]();
+login 'Логин' = DATA ISTRING[100]();
+password 'Пароль' = DATA ISTRING[100]() ECHO;
+
+connectionString 'Строка подключения' () = 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password();
+
+EXTEND FORM integrationData PROPERTIES () host, port, base, login, password;
+
+DESIGN integrationData {
+    pane {
+        NEW gestori FIRST {
+            caption = 'Gestori';
+            fill = 1;
+            NEW gestoriParams {
+                caption = 'Параметры';
+                MOVE PROPERTY (host());
+                MOVE PROPERTY (port());
+                MOVE PROPERTY (base());
+                MOVE PROPERTY (login());
+                MOVE PROPERTY (password());
+            }
+            NEW gestoriButtons {
+                caption = 'Импорт';
+            }
+        }
+    }
+}
+
+extId 'Код для импорта' = DATA STRING[100](Store) CHARWIDTH 10;
+extId 'Код для импорта' = DATA STRING[100](Stock) CHARWIDTH 10;
+storeExtId = GROUP AGGR Store s BY extId(s);
+stockExtId = GROUP AGGR Stock s BY extId(s);
+
+EXTEND FORM stores PROPERTIES READONLYIF isReadonly() extId(s) AFTER id(s), extId(d);
+EXTEND FORM store PROPERTIES extId(s), extId(d) READONLY;
+EXTEND FORM departmentStores PROPERTIES READONLY extId(d);
+
+DESIGN store {
+    row2 {
+        MOVE PROPERTY (extId(s));
+    }
+}

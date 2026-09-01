@@ -1,6 +1,6 @@
 MODULE VetisImportGestori;
 
-REQUIRE ImportGestoriKirovsky, VetisBusinessEntity, VetisBusinessEntityOwn, VetisEnterprise,
+REQUIRE ImportGestoriSettings, VetisBusinessEntity, VetisBusinessEntityOwn, VetisEnterprise,
         VetisProductItem, VetisProductItemExport, VetisStockEntry, VetisDocument, VetisStock,
         VetisItem;
 
@@ -8,11 +8,7 @@ NAMESPACE Vetis;
 
 // --- Строка подключения (переиспользуем Gestori) ---
 
-vetisDbUrl() =
-    'jdbc:datadirect:openedge://' + ImportGestori.host() + ':' + ImportGestori.port() +
-    ';DatabaseName=' + ImportGestori.base() +
-    ';user=' + ImportGestori.login() +
-    ';password=' + ImportGestori.password();
+vetisDbUrl() = ImportGestori.connectionString();
 
 // --- Локальные переменные для MercFirm ---
 
@@ -81,7 +77,7 @@ importFirmGestori 'Импорт ХС Ветис' () {
     LOCAL file = FILE();
 
     EXTERNAL SQL vetisDbUrl()
-        EXEC 'SELECT GuidFirm, NameFirm, InnFirm ' +
+        EXEC 'SELECT GuidFirm, SUBSTR(NameFirm, 1, 500), InnFirm ' +
              'FROM Pub.MercFirm'
         TO file;
 
@@ -104,7 +100,7 @@ importAreaGestori 'Импорт площадок Ветис' () {
     LOCAL file = FILE();
 
     EXTERNAL SQL vetisDbUrl()
-        EXEC 'SELECT GuidFirm, GuidArea, NameArea, CAST(cod_firm AS CHAR(20)) ' +
+        EXEC 'SELECT GuidFirm, GuidArea, SUBSTR(NameArea, 1, 500), CAST(cod_firm AS CHAR(20)) ' +
              'FROM Pub.MercArea'
         TO file;
 
@@ -134,7 +130,7 @@ importProductItemsGestori 'Импорт номенклатуры Ветис' () 
 
     EXTERNAL SQL vetisDbUrl()
         EXEC 'SELECT GuidSubProd, GuidItemProd, UuidItemProd, GuidFirmProducer, GuidFirmOwner, ' +
-             'NameItemProd, CodeItemProd, GtinItemProd, cod_good ' +
+             'SUBSTR(NameItemProd, 1, 500), CodeItemProd, GtinItemProd, cod_good ' +
              'FROM Pub.MercItemProd'
         TO file;
 
