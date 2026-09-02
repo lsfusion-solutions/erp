@@ -31,7 +31,7 @@
 #   ротация — здесь; lsFusion по ней только помечает fileDeleted.
 
 set -u
-SCRIPT_VERSION=1.1         # печатается в лог дампа: в интерфейсе видно, какой версией скрипта снят бэкап
+SCRIPT_VERSION=1.2         # печатается в лог дампа: в интерфейсе видно, какой версией скрипта снят бэкап
 export LANG=C LC_ALL=C     # сообщения pg_dump в ASCII: лог читается в lsFusion как UTF-8
 # управляющая сессия pg_dump -j висит в idle in transaction весь дамп — таймауты недопустимы
 export PGOPTIONS='-c idle_in_transaction_session_timeout=0 -c statement_timeout=0'
@@ -99,10 +99,41 @@ else
     : >"$LOG"
 fi
 echo "$(date '+%F %T') start: pg_dump_backup.sh v$SCRIPT_VERSION, pg_dump v${PGDUMP_MAJOR:-?} -Fd -j $JOBS --compress=$COMPRESS $DB -> $NAME" >>"$LOG"
+
+# --- пауза реплея WAL на время дампа (только если дампим реплику) --------------
+# Параллельный pg_dump берёт блокировки воркерами в режиме NOWAIT. Если реплей WAL
+# встанет в очередь за ACCESS EXCLUSIVE (автовакуум усёк таблицу на мастере, DDL),
+#   could not obtain lock on relation ... / a worker process died unexpectedly
+# max_standby_*_delay = -1 от этого НЕ защищает: он запрещает реплею отменять запросы,
+# но запрос блокировки всё равно встаёт в очередь и подрубает NOWAIT-воркеров.
+# Реплика на время дампа и так фактически стоит, после — догоняет по архиву WAL.
+IN_RECOVERY=$(q "select pg_is_in_recovery()")
+replay_resume() {
+    [ "$IN_RECOVERY" = t ] || return 0
+    local was
+    was=$("$PGBIN/psql" -d "$DB" -Atqc "select pg_is_wal_replay_paused()" 2>/dev/null)
+    if "$PGBIN/psql" -d "$DB" -Atqc "select pg_wal_replay_resume()" >/dev/null 2>&1; then
+        # молчим, если пауза и не стояла: это стартовая подстраховка, а не событие
+        [ "$was" = t ] && echo "$(date '+%F %T') реплей WAL возобновлён" >>"$LOG"
+    else
+        echo "$(date '+%F %T') ВНИМАНИЕ: не удалось возобновить реплей WAL — проверить pg_is_wal_replay_paused()" >>"$LOG"
+    fi
+}
+trap replay_resume EXIT INT TERM
+replay_resume        # снять паузу, оставленную прерванным прошлым запуском (идемпотентно)
+if [ "$IN_RECOVERY" = t ]; then
+    if "$PGBIN/psql" -d "$DB" -Atqc "select pg_wal_replay_pause()" >/dev/null 2>&1; then
+        echo "$(date '+%F %T') реплей WAL приостановлен на время дампа" >>"$LOG"
+    else
+        echo "$(date '+%F %T') ВНИМАНИЕ: реплей WAL приостановить не удалось — дамп идёт без защиты от конфликта блокировок" >>"$LOG"
+    fi
+fi
+
 start=$(date +%s)
 "$PGBIN/pg_dump" -Fd -j "$JOBS" --compress="$COMPRESS" --no-sync -v -f "$PART" "${EXCL_ARGS[@]}" "$DB" >>"$LOG" 2>&1
 rc=$?
 dur=$(( $(date +%s) - start ))
+replay_resume        # сразу, не дожидаясь ротации: реплика должна начать догонять
 
 if [ "$rc" -eq 0 ]; then
     size=$(du -sm "$PART" 2>/dev/null | cut -f1)
