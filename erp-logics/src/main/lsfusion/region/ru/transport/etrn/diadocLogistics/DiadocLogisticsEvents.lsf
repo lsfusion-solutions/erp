@@ -302,10 +302,11 @@ processETRNEvent (ETRN.ETRNEvent ev) {
                     // fwd-трансляция чужого титула идёт без kl-id: перевозку опознаём по УИД Минтранса
                     ETRN.etrnMintrans(ETRN.mintransId(ev));
 
-    // новая входящая создаётся только по reception (Т1) или fwd (трансляция титулов) и только
-    // при наличии координат: событие без документа и без ИД перевозки не с чем связать дальше;
-    // условные документы (cost/readdress/relay) ждут привязки по kl-id
-    IF NOT e() AND (docFunction(ev) == 'reception' OR docFunction(ev) == 'fwd') AND (entityId(ev) OR ETRN.transportationId(ev)) THEN NEW ne = ETRN.IncomingETRN {
+    // новая входящая создаётся только по reception (Т1) или fwd (трансляция титулов);
+    // условные документы (cost/readdress/relay) ждут привязки по kl-id.
+    // Для fwd обязателен ИД перевозки: без него выходят пустышки, у реальных перевозок он всегда есть
+    IF NOT e() AND ((docFunction(ev) == 'reception' AND (entityId(ev) OR ETRN.transportationId(ev)))
+                 OR (docFunction(ev) == 'fwd' AND ETRN.transportationId(ev))) THEN NEW ne = ETRN.IncomingETRN {
         e() <- ne;
         ETRN.provider(ne) <- ETRN.ETRNProvider.diadoc;
         diadocKlId(ne) <- ETRN.transportationId(ev);

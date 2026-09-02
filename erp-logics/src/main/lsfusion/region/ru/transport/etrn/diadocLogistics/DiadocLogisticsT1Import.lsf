@@ -61,8 +61,9 @@ diadocFindFwdTitles (ETRN.ETRN e) {
                 fwdT2MessageId(e) <- STRING[100](msg);
                 fwdT2EntityId(e) <- STRING[100](id);
             }
-            // Т2 = перевозчик принял груз, дальше наш Т3; этап только вперёд, как в processETRNEvent
-            IF fwdT2EntityId(e) THEN
+            // Т2 = перевозчик принял груз, дальше наш Т3; этап только вперёд, как в processETRNEvent.
+            // Без Т1 не двигаем: сообщения приходят по титулу в произвольном порядке, документ ещё пуст
+            IF fwdT2EntityId(e) AND fwdT1EntityId(e) THEN
                 ETRN.stage(e) <- ETRN.ETRNStage.loading WHERE NOT id(ETRN.stage(e)) >= 2;
         }
     }
