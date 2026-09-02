@@ -25,13 +25,13 @@ CONSTRAINT (CHANGED(currentBalance(Sku sk, Stock st)) OR CHANGED(currentBalanceL
     AND NOT skipCheckBalanceLot()
     MESSAGE 'Не совпадает текущий остаток секонд-товара по маркам';
 
-CONSTRAINT SET(currentBalance(Lot l) > 1)
+CONSTRAINT SET(currentBalance(Lot l) > 1) AND isSecond(l) 
     MESSAGE 'Суммарный остаток оценённого товара по всем местам хранения больше 1';
 
-WHEN SET(currentBalance(Lot l, Stock st) > 1) DO
+WHEN SET(currentBalance(Lot l, Stock st) > 1) AND isSecond(l) DO
     MESSAGE CONCAT ' ', 'Остаток оценённого товара', id(l), '(' + nameSku(l) + ')' , 'на месте хранения', name(st), 'больше 1' NOWAIT;
 
-WHEN SET(currentBalance(Lot l, Stock st) < 0) DO
+WHEN SET(currentBalance(Lot l, Stock st) < 0) AND isSecond(l) DO
     MESSAGE CONCAT ' ', 'Остаток оценённого товара', id(l), '(' + nameSku(l) + ')', 'на месте хранения', name(st), 'меньше 0' NOWAIT;
 
 currentWeightLot 'Текущий вес оценённых товаров' = GROUP SUM weight(Lot l) * currentBalance(l, Stock st) BY sku(l), st CHARWIDTH 7 MATERIALIZED;
