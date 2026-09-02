@@ -1,6 +1,6 @@
 MODULE DiadocLogisticsCost;
 
-REQUIRE DiadocLogisticsEvents, DiadocLogisticsCostForm;
+REQUIRE DiadocLogisticsEvents, DiadocLogisticsCostForm, ETRNCostTitleXmlRu;
 
 NAMESPACE Diadoc;
 
@@ -137,4 +137,68 @@ diadocRejectT5 (ETRN.ETRN e) {
 
 ETRN.rejectCostChange (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvider.diadoc THEN {
     diadocRejectT5(e);
+}
+
+// ------------------------- Загрузка контента Т5 ------------------------- //
+// Титулов Т5 может быть несколько: после отказа перевозчик присылает ПУД заново, плюс в схеме
+// есть ИспрПУД. Поэтому идём по всем событиям cost, а титул перечитываем, если по нему пришло
+// событие позже последнего разбора - это верно и когда исправление приходит новым документом,
+// и когда обновляется прежний.
+
+costTitleFileData = DATA LOCAL RAWFILE ();
+
+// слот 0 - титул перевозчика (автор Т5)
+costEntityId (ETRN.ETRNEvent ev) = OVERRIDE titleEntityId(ev, 0), entityId(ev);
+
+loadCostTitle (ETRN.OutgoingETRN e, ETRN.ETRNEvent ev) {
+    costTitleFileData() <- NULL;
+
+    FOR User u == userDiadocETRN() DO {
+        getToken(u);
+        TRY {
+            EXTERNAL HTTP GET url() + '/GetEntityContent?boxId=' + eventBoxId(ev) +
+                '&messageId=' + messageId(ev) + '&entityId=' + costEntityId(ev)
+                HEADERS httpHeadersToken TO costTitleFileData;
+        } CATCH {
+            costTitleFileData() <- NULL;
+            fileToString(FILE(costTitleFileData()), 'UTF-8');
+            ETRN.exchangeMessage(e) <- STRING('Ошибка получения контента титула Т5 (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException()));
+            MESSAGE ETRN.exchangeMessage(e) NOWAIT;
+            APPLY;
+        }
+    }
+}
+
+diadocImportT5 (ETRN.OutgoingETRN e) {
+    FOR ETRN.etrn(ETRN.ETRNEvent ev) == e AND docFunction(ev) == 'cost' AND
+        messageId(ev) AND costEntityId(ev) AND eventBoxId(ev) AND
+        NOT ETRN.titleEventDateTime(ETRN.etrnCostTitle(STRING[100](costEntityId(ev)))) >= ETRN.dateTime(ev)
+        ORDER ETRN.dateTime(ev), ev DO {
+
+        loadCostTitle(e, ev);
+        IF costTitleFileData() THEN {
+            IF NOT ETRN.etrnCostTitle(STRING[100](costEntityId(ev))) THEN
+                NEW t = ETRN.ETRNCostTitle {
+                    ETRN.etrn(t) <- e;
+                    ETRN.titleEntityId(t) <- STRING[100](costEntityId(ev));
+                }
+            FOR ETRN.ETRNCostTitle t == ETRN.etrnCostTitle(STRING[100](costEntityId(ev))) DO {
+                ETRN.titleMessageId(t) <- messageId(ev);
+                ETRN.titleEventDateTime(t) <- ETRN.dateTime(ev);
+                ETRN.titleFile(t) <- file(costTitleFileData(), 'xml');
+                ETRN.parseETRNCostTitleXml(t);   // разбор применяет сессию сам
+            }
+        }
+    }
+}
+
+ETRN.importCostTitle (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvider.diadoc THEN {
+    FOR ETRN.OutgoingETRN oe == e DO diadocImportT5(oe);
+}
+
+// титул грузим сразу по приходу события: сумму надо видеть до ответа Т6
+ETRN.onProcessedEvent (ETRN.ETRNEvent ev) + {
+    FOR ETRN.OutgoingETRN e == ETRN.etrn(ev) AND ETRN.provider(ev) == ETRN.ETRNProvider.diadoc AND
+        docFunction(ev) == 'cost' DO
+        NEWSESSION { diadocImportT5(e); }
 }

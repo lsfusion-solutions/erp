@@ -1,0 +1,101 @@
+MODULE DiadocLogisticsChanges;
+
+REQUIRE DiadocLogisticsEvents, ETRNChangeTitlesXmlRu;
+
+NAMESPACE Diadoc;
+
+// ------------------------- Титулы изменений в пути через Диадок ------------------------- //
+// Переадресовка (readdress) и замена водителя/ТС (relay) - отдельные документы перевозки
+// со своими функциями. Мы их только принимаем.
+// По перевозке титулов может быть несколько, поэтому идём по всем событиям функции,
+// а не по последнему: иначе первая переадресовка так и не была бы загружена.
+
+changeTitleFile = DATA LOCAL RAWFILE ();
+
+// координаты титула из события; ящик берём из самого события - у входящих роли могут
+// быть ещё не разобраны, а по ролям ящик не определить
+changeEntityId (ETRN.ETRNEvent ev) = OVERRIDE entityId(ev), titleEntityId(ev, 0);
+
+// контент титула в changeTitleFile; при ошибке свойство остаётся пустым
+loadChangeTitle (ETRN.ETRN e, ETRN.ETRNEvent ev) {
+    changeTitleFile() <- NULL;
+
+    FOR User u == userDiadocETRN() DO {
+        getToken(u);
+        TRY {
+            EXTERNAL HTTP GET url() + '/GetEntityContent?boxId=' + eventBoxId(ev) +
+                '&messageId=' + messageId(ev) + '&entityId=' + changeEntityId(ev)
+                HEADERS httpHeadersToken TO changeTitleFile;
+        } CATCH {
+            changeTitleFile() <- NULL;
+            fileToString(FILE(changeTitleFile()), 'UTF-8');
+            ETRN.exchangeMessage(e) <- STRING('Ошибка получения контента титула (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException()));
+            MESSAGE ETRN.exchangeMessage(e) NOWAIT;
+            APPLY;
+        }
+    }
+}
+
+// событие, титул которого ещё не разобран или разобран раньше самого события
+needReaddress (ETRN.ETRNEvent ev) = TRUE IF docFunction(ev) == 'readdress' AND messageId(ev) AND changeEntityId(ev);
+needRelay (ETRN.ETRNEvent ev) = TRUE IF docFunction(ev) == 'relay' AND messageId(ev) AND changeEntityId(ev);
+
+diadocImportT7 (ETRN.ETRN e) {
+    FOR ETRN.etrn(ETRN.ETRNEvent ev) == e AND needReaddress(ev) AND
+        NOT ETRN.titleEventDateTime(ETRN.etrnReaddress(STRING[100](changeEntityId(ev)))) >= ETRN.dateTime(ev)
+        ORDER ETRN.dateTime(ev), ev DO {
+
+        loadChangeTitle(e, ev);
+        IF changeTitleFile() THEN {
+            IF NOT ETRN.etrnReaddress(STRING[100](changeEntityId(ev))) THEN
+                NEW r = ETRN.ETRNReaddress {
+                    ETRN.etrn(r) <- e;
+                    ETRN.titleEntityId(r) <- STRING[100](changeEntityId(ev));
+                }
+            FOR ETRN.ETRNReaddress r == ETRN.etrnReaddress(STRING[100](changeEntityId(ev))) DO {
+                ETRN.titleMessageId(r) <- messageId(ev);
+                ETRN.titleEventDateTime(r) <- ETRN.dateTime(ev);
+                ETRN.titleFile(r) <- file(changeTitleFile(), 'xml');
+                ETRN.parseETRNReaddressXml(r);   // разбор применяет сессию сам
+            }
+        }
+    }
+}
+
+diadocImportT8 (ETRN.ETRN e) {
+    FOR ETRN.etrn(ETRN.ETRNEvent ev) == e AND needRelay(ev) AND
+        NOT ETRN.titleEventDateTime(ETRN.etrnRelayTitle(STRING[100](changeEntityId(ev)))) >= ETRN.dateTime(ev)
+        ORDER ETRN.dateTime(ev), ev DO {
+
+        loadChangeTitle(e, ev);
+        IF changeTitleFile() THEN {
+            IF NOT ETRN.etrnRelayTitle(STRING[100](changeEntityId(ev))) THEN
+                NEW t = ETRN.ETRNRelayTitle {
+                    ETRN.etrn(t) <- e;
+                    ETRN.titleEntityId(t) <- STRING[100](changeEntityId(ev));
+                }
+            FOR ETRN.ETRNRelayTitle t == ETRN.etrnRelayTitle(STRING[100](changeEntityId(ev))) DO {
+                ETRN.titleMessageId(t) <- messageId(ev);
+                ETRN.titleEventDateTime(t) <- ETRN.dateTime(ev);
+                ETRN.titleFile(t) <- file(changeTitleFile(), 'xml');
+                ETRN.parseETRNRelayXml(t);
+            }
+        }
+    }
+}
+
+ETRN.importReaddressTitle (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvider.diadoc THEN {
+    diadocImportT7(e);
+}
+
+ETRN.importRelayTitle (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvider.diadoc THEN {
+    diadocImportT8(e);
+}
+
+// грузим сразу: новый адрес и новая машина нужны до прихода транспорта, а не по запросу
+ETRN.onProcessedEvent (ETRN.ETRNEvent ev) + {
+    FOR ETRN.ETRN e == ETRN.etrn(ev) AND ETRN.provider(ev) == ETRN.ETRNProvider.diadoc DO {
+        IF docFunction(ev) == 'readdress' THEN NEWSESSION { diadocImportT7(e); }
+        IF docFunction(ev) == 'relay' THEN NEWSESSION { diadocImportT8(e); }
+    }
+}

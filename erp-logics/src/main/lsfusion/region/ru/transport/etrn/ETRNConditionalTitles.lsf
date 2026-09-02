@@ -1,20 +1,199 @@
 MODULE ETRNConditionalTitles;
 
-REQUIRE ETRNExchange, ETRNOutgoing;   // условные титулы Т5-Т8 приходят по нашим (исходящим) перевозкам
+REQUIRE ETRNExchange, ETRNOutgoing, ETRNIncoming;
+
+// ------------------------- Условные титулы перевозчика ------------------------- //
+// ПУД перевозчика о стоимости (Т5) адресован грузоотправителю - только по исходящим.
+// Переадресовка (Т7) и замена водителя/ТС (Т8) касаются любой стороны - по обоим направлениям.
+// Составляет их всегда перевозчик, мы только принимаем и по Т5 отвечаем Т6 либо отказом.
 
 NAMESPACE ETRN;
-
-// ------------------------- Условные титулы перевозчика (Т5-Т8) ------------------------- //
-// Приказ ФНС N ЕД-7-26/1065@: Т5 - изменение стоимости (требует ответа Т6 грузоотправителя),
-// Т7 - переадресация, Т8 - эстафета (замена водителя/ТС). Все отправляет перевозчик,
-// мы только принимаем их и отвечаем Т6 либо отказом.
 
 // отметки полученных условных титулов (проставляются провайдером при приёме)
 costChangeDateTime 'Получено изменение стоимости (Т5)' = DATA DATETIME (OutgoingETRN);
 costConfirmedDateTime 'Изменение стоимости подтверждено (Т6)' = DATA DATETIME (OutgoingETRN);
 costRejectionReason 'Причина отказа в изменении стоимости' = DATA ISTRING[1000](OutgoingETRN) CHARWIDTH 15;
-readdressDateTime 'Переадресация (Т7)' = DATA DATETIME (OutgoingETRN);
-relayDateTime 'Замена водителя/ТС (Т8)' = DATA DATETIME (OutgoingETRN);
+// переадресовка и замена - по любой нашей перевозке: перевозчиком мы не бываем, но и
+// грузоотправителю, и грузополучателю нужно видеть новый адрес, машину и водителя.
+// По одной перевозке титулов может прийти несколько (переадресовали дважды, потом
+// поменяли машину), поэтому каждый титул - своя строка, а не поля на перевозке.
+readdressDateTime 'Переадресовка (Т7)' = DATA DATETIME (ETRN);
+relayDateTime 'Замена водителя/ТС (Т8)' = DATA DATETIME (ETRN);
+
+// ------------------------- Т7: переадресовки ------------------------- //
+// В одном титуле по схеме ровно одна переадресовка (СодИнфПА не повторяется),
+// так что строка = титул. Ключ титула - entityId сущности Диадока.
+
+CLASS ETRNReaddress 'Переадресовка';
+TABLE etrnReaddress (ETRNReaddress);
+
+etrn 'ЭТрН' = DATA ETRN (ETRNReaddress) NONULL DELETE;
+
+titleMessageId 'ИД сообщения' = DATA STRING[100](ETRNReaddress) CHARWIDTH 12;
+titleEntityId 'ИД титула' = DATA STRING[100](ETRNReaddress) INDEXED CHARWIDTH 12;
+titleFile 'Файл титула (XML)' = DATA FILE (ETRNReaddress);
+importedDateTime 'Разобран' = DATA DATETIME (ETRNReaddress);
+// время события, по которому разобран титул: с ним и сравниваем новые события.
+// Время событий Диадока - UTC, а currentDateTime() локальное, их сравнивать нельзя
+titleEventDateTime 'Событие титула' = DATA DATETIME (ETRNReaddress);
+
+dateTime 'Дата и время переадресовки' = DATA DATETIME (ETRNReaddress);
+operation 'Содержание операции' = DATA ISTRING[1000](ETRNReaddress) CHARWIDTH 30;
+readdressForm 'Форма переадресовки' = DATA ISTRING[100](ETRNReaddress) CHARWIDTH 15;
+deliveryKind 'Вид доставки документа' = DATA ISTRING[100](ETRNReaddress) CHARWIDTH 15;
+consigneeName 'Новый грузополучатель' = DATA ISTRING[1000](ETRNReaddress) CHARWIDTH 25;
+consigneeInn 'ИНН нового ГП' = DATA STRING[12](ETRNReaddress) CHARWIDTH 12;
+consigneeKpp 'КПП нового ГП' = DATA STRING[9](ETRNReaddress) CHARWIDTH 9;
+unloadAddress 'Новый адрес выгрузки' = DATA ISTRING[1000](ETRNReaddress) CHARWIDTH 30;
+unloadDateTime 'Новые дата и время подачи под выгрузку' = DATA DATETIME (ETRNReaddress);
+reasonDoc 'Основание: документ' = DATA ISTRING[255](ETRNReaddress) CHARWIDTH 20;
+reasonNumber 'Основание: номер' = DATA ISTRING[100](ETRNReaddress) CHARWIDTH 12;
+reasonDate 'Основание: дата' = DATA DATE (ETRNReaddress);
+index 'N' (ETRNReaddress r) = PARTITION SUM 1 IF r IS ETRNReaddress ORDER dateTime(r), r BY etrn(r) CHARWIDTH 3;
+
+// титул по своему entityId - для идемпотентного повторного разбора
+etrnReaddress (STRING[100] ent) = GROUP MAX ETRNReaddress r BY titleEntityId(r);
+
+// последняя переадресовка - для шапки: куда груз едет сейчас
+lastReaddress (ETRN e) = GROUP LAST ETRNReaddress r ORDER dateTime(r), r BY etrn(r);
+lastReaddressConsignee 'Грузополучатель после переадресовки' (ETRN e) = consigneeName(lastReaddress(e)) CHARWIDTH 25;
+lastReaddressAddress 'Адрес выгрузки после переадресовки' (ETRN e) = unloadAddress(lastReaddress(e)) CHARWIDTH 30;
+
+// ------------------------- Т8: замены водителя и ТС ------------------------- //
+// Титул Т8 - одно событие замены (СодИнфЗамен не повторяется), внутри повторяются
+// ЗаменВодит и ЗаменТС, а в блоке замены ТС - ещё и Прицеп. Титул отдельным классом,
+// чтобы строки замен из разных титулов не затирали друг друга.
+
+CLASS ETRNRelayTitle 'Титул замены водителя / ТС';
+TABLE etrnRelayTitle (ETRNRelayTitle);
+
+etrn 'ЭТрН' = DATA ETRN (ETRNRelayTitle) NONULL DELETE;
+
+titleMessageId 'ИД сообщения' = DATA STRING[100](ETRNRelayTitle) CHARWIDTH 12;
+titleEntityId 'ИД титула' = DATA STRING[100](ETRNRelayTitle) INDEXED CHARWIDTH 12;
+titleFile 'Файл титула (XML)' = DATA FILE (ETRNRelayTitle);
+importedDateTime 'Разобран' = DATA DATETIME (ETRNRelayTitle);
+// время события, по которому разобран титул: с ним и сравниваем новые события.
+// Время событий Диадока - UTC, а currentDateTime() локальное, их сравнивать нельзя
+titleEventDateTime 'Событие титула' = DATA DATETIME (ETRNRelayTitle);
+
+dateTime 'Дата и время замены' = DATA DATETIME (ETRNRelayTitle);
+operation 'Содержание операции' = DATA ISTRING[1000](ETRNRelayTitle) CHARWIDTH 30;
+relayReason 'Причина замены' = DATA ISTRING[1000](ETRNRelayTitle) CHARWIDTH 30;
+index 'N' (ETRNRelayTitle t) = PARTITION SUM 1 IF t IS ETRNRelayTitle ORDER dateTime(t), t BY etrn(t) CHARWIDTH 3;
+
+etrnRelayTitle (STRING[100] ent) = GROUP MAX ETRNRelayTitle t BY titleEntityId(t);
+
+CLASS ETRNDriverReplacement 'Замена водителя';
+TABLE etrnDriverReplacement (ETRNDriverReplacement);
+
+relayTitle 'Титул' = DATA ETRNRelayTitle (ETRNDriverReplacement) NONULL DELETE;
+etrn (ETRNDriverReplacement d) = etrn(relayTitle(d));
+relayDateTime 'Дата и время замены' (ETRNDriverReplacement d) = dateTime(relayTitle(d));
+index 'N' (ETRNDriverReplacement d) = PARTITION SUM 1 IF d IS ETRNDriverReplacement ORDER relayDateTime(d), d BY etrn(d) CHARWIDTH 3;
+
+driverLastName 'Фамилия' = DATA ISTRING[60](ETRNDriverReplacement) CHARWIDTH 12;
+driverFirstName 'Имя' = DATA ISTRING[60](ETRNDriverReplacement) CHARWIDTH 10;
+driverMiddleName 'Отчество' = DATA ISTRING[60](ETRNDriverReplacement) CHARWIDTH 10;
+driverName 'Водитель' (ETRNDriverReplacement d) = CONCAT ' ', driverLastName(d), driverFirstName(d), driverMiddleName(d) CHARWIDTH 20;
+driverPhone 'Телефон' = DATA ISTRING[50](ETRNDriverReplacement) CHARWIDTH 15;
+driverInn 'ИНН' = DATA STRING[12](ETRNDriverReplacement) CHARWIDTH 12;
+driverLicenseSeries 'Серия ВУ' = DATA ISTRING[10](ETRNDriverReplacement) CHARWIDTH 6;
+driverLicenseNumber 'Номер ВУ' = DATA ISTRING[20](ETRNDriverReplacement) CHARWIDTH 10;
+driverLicenseDate 'Дата выдачи ВУ' = DATA DATE (ETRNDriverReplacement);
+driverIdentMethod 'Способ идентификации при простой подписи' = DATA ISTRING[255](ETRNDriverReplacement) CHARWIDTH 15;
+driverTransferDoc 'Документ о передаче груза' = DATA ISTRING[255](ETRNDriverReplacement) CHARWIDTH 20;
+driverTransferDocNumber 'Номер документа' = DATA ISTRING[100](ETRNDriverReplacement) CHARWIDTH 12;
+driverTransferDocDate 'Дата документа' = DATA DATE (ETRNDriverReplacement);
+
+CLASS ETRNVehicleReplacement 'Замена транспортного средства';
+TABLE etrnVehicleReplacement (ETRNVehicleReplacement);
+
+relayTitle 'Титул' = DATA ETRNRelayTitle (ETRNVehicleReplacement) NONULL DELETE;
+etrn (ETRNVehicleReplacement v) = etrn(relayTitle(v));
+relayDateTime 'Дата и время замены' (ETRNVehicleReplacement v) = dateTime(relayTitle(v));
+index 'N' (ETRNVehicleReplacement v) = PARTITION SUM 1 IF v IS ETRNVehicleReplacement ORDER relayDateTime(v), v BY etrn(v) CHARWIDTH 3;
+replacementNumber 'N замены' = DATA INTEGER (ETRNVehicleReplacement) CHARWIDTH 3;
+isTrailer 'Прицеп' = DATA BOOLEAN (ETRNVehicleReplacement);
+
+vehicleRegNumber 'Гос. номер' = DATA ISTRING[20](ETRNVehicleReplacement) CHARWIDTH 12;
+vehicleStsNumber 'Номер СТС' = DATA ISTRING[20](ETRNVehicleReplacement) CHARWIDTH 12;
+vehicleVin 'VIN' = DATA ISTRING[20](ETRNVehicleReplacement) CHARWIDTH 15;
+vehicleOwnership 'Тип владения' = DATA ISTRING[10](ETRNVehicleReplacement) CHARWIDTH 6;
+vehicleType 'Тип' = DATA ISTRING[100](ETRNVehicleReplacement) CHARWIDTH 12;
+vehicleBrand 'Марка' = DATA ISTRING[100](ETRNVehicleReplacement) CHARWIDTH 15;
+vehicleCapacity 'Грузоподъемность, т' = DATA NUMERIC[16,4](ETRNVehicleReplacement);
+vehicleVolume 'Вместимость' = DATA NUMERIC[16,5](ETRNVehicleReplacement);
+vehicleTransferDoc 'Документ о передаче груза' = DATA ISTRING[255](ETRNVehicleReplacement) CHARWIDTH 20;
+vehicleTransferDocNumber 'Номер документа' = DATA ISTRING[100](ETRNVehicleReplacement) CHARWIDTH 12;
+vehicleTransferDocDate 'Дата документа' = DATA DATE (ETRNVehicleReplacement);
+
+// последняя замена - для шапки: кто и на чём едет сейчас
+lastVehicleReplacement (ETRN e) = GROUP LAST ETRNVehicleReplacement v IF NOT isTrailer(v) ORDER relayDateTime(v), v BY etrn(v);
+lastDriverReplacement (ETRN e) = GROUP LAST ETRNDriverReplacement d ORDER relayDateTime(d), d BY etrn(d);
+lastRelayDriver 'Водитель после замены' (ETRN e) = driverName(lastDriverReplacement(e)) CHARWIDTH 20;
+lastRelayTruck 'ТС после замены' (ETRN e) = vehicleRegNumber(lastVehicleReplacement(e)) CHARWIDTH 12;
+
+// ------------------------- Т5: титулы стоимости ------------------------- //
+// ПУД перевозчика может прийти повторно: после нашего отказа перевозчик отправляет его
+// заново, а в схеме есть ИспрПУД - исправление. Поэтому строка на титул, а на документе -
+// реквизиты последнего, чтобы вкладка Т5 и ответ Т6 работали по актуальной сумме.
+
+CLASS ETRNCostTitle 'Титул стоимости перевозки';
+TABLE etrnCostTitle (ETRNCostTitle);
+
+etrn 'ЭТрН' = DATA OutgoingETRN (ETRNCostTitle) NONULL DELETE;
+
+titleMessageId 'ИД сообщения' = DATA STRING[100](ETRNCostTitle) CHARWIDTH 12;
+titleEntityId 'ИД титула' = DATA STRING[100](ETRNCostTitle) INDEXED CHARWIDTH 12;
+titleFile 'Файл титула (XML)' = DATA FILE (ETRNCostTitle);
+importedDateTime 'Разобран' = DATA DATETIME (ETRNCostTitle);
+// время события, по которому разобран титул: с ним и сравниваем новые события.
+// Время событий Диадока - UTC, а currentDateTime() локальное, их сравнивать нельзя
+titleEventDateTime 'Событие титула' = DATA DATETIME (ETRNCostTitle);
+
+costDateTime 'Дата формирования' = DATA DATETIME (ETRNCostTitle);
+costAuthor 'Составитель (перевозчик)' = DATA ISTRING[1000](ETRNCostTitle) CHARWIDTH 25;
+costUid 'УИД перевозки в титуле' = DATA STRING[255](ETRNCostTitle) CHARWIDTH 15;
+costContent 'Содержание факта хозяйственной жизни' = DATA ISTRING[1000](ETRNCostTitle) CHARWIDTH 30;
+costSum 'Стоимость перевозки без налога' = DATA NUMERIC[19,2](ETRNCostTitle);
+costVatRate 'Налоговая ставка' = DATA ISTRING[35](ETRNCostTitle) CHARWIDTH 10;
+costVatSum 'Сумма НДС' = DATA NUMERIC[19,2](ETRNCostTitle);
+costNoVat 'Без НДС' = DATA ISTRING[7](ETRNCostTitle) CHARWIDTH 7;
+costTotal 'Стоимость перевозки с налогом' = DATA NUMERIC[19,2](ETRNCostTitle);
+costCurrencyCode 'Код валюты' = DATA STRING[3](ETRNCostTitle) CHARWIDTH 5;
+costCurrencyName 'Валюта' = DATA ISTRING[100](ETRNCostTitle) CHARWIDTH 10;
+costCalc 'Порядок расчета платы' = DATA ISTRING[2000](ETRNCostTitle) CHARWIDTH 30;
+costCorrectionNumber 'Номер исправления' = DATA INTEGER (ETRNCostTitle) CHARWIDTH 3;
+costCorrectionDate 'Дата исправления' = DATA DATE (ETRNCostTitle);
+
+index 'N' (ETRNCostTitle t) = PARTITION SUM 1 IF t IS ETRNCostTitle ORDER costDateTime(t), t BY etrn(t) CHARWIDTH 3;
+
+etrnCostTitle (STRING[100] ent) = GROUP MAX ETRNCostTitle t BY titleEntityId(t);
+lastCostTitle (OutgoingETRN e) = GROUP LAST ETRNCostTitle t ORDER costDateTime(t), t BY etrn(t);
+
+// реквизиты последнего титула - под теми же именами, что были у полей документа
+costTitleFile 'Файл титула Т5 (XML)' (OutgoingETRN e) = titleFile(lastCostTitle(e));
+costTitleImportedDateTime 'Титул Т5 разобран' (OutgoingETRN e) = importedDateTime(lastCostTitle(e));
+costTitleDateTime 'Дата формирования Т5' (OutgoingETRN e) = costDateTime(lastCostTitle(e));
+costTitleAuthor 'Составитель (перевозчик)' (OutgoingETRN e) = costAuthor(lastCostTitle(e)) CHARWIDTH 25;
+costTitleUid 'УИД перевозки в титуле' (OutgoingETRN e) = costUid(lastCostTitle(e)) CHARWIDTH 15;
+costTitleContent 'Содержание факта хозяйственной жизни' (OutgoingETRN e) = costContent(lastCostTitle(e)) CHARWIDTH 30;
+costTitleSum 'Стоимость перевозки без налога' (OutgoingETRN e) = costSum(lastCostTitle(e));
+costTitleVatRate 'Налоговая ставка' (OutgoingETRN e) = costVatRate(lastCostTitle(e)) CHARWIDTH 10;
+costTitleVatSum 'Сумма НДС' (OutgoingETRN e) = costVatSum(lastCostTitle(e));
+costTitleNoVat 'Без НДС' (OutgoingETRN e) = costNoVat(lastCostTitle(e)) CHARWIDTH 7;
+costTitleTotal 'Стоимость перевозки с налогом' (OutgoingETRN e) = costTotal(lastCostTitle(e));
+costTitleCurrencyCode 'Код валюты' (OutgoingETRN e) = costCurrencyCode(lastCostTitle(e)) CHARWIDTH 5;
+costTitleCurrencyName 'Валюта' (OutgoingETRN e) = costCurrencyName(lastCostTitle(e)) CHARWIDTH 10;
+costTitleCalc 'Порядок расчета платы' (OutgoingETRN e) = costCalc(lastCostTitle(e)) CHARWIDTH 30;
+costTitleCorrectionNumber 'Номер исправления Т5' (OutgoingETRN e) = costCorrectionNumber(lastCostTitle(e)) CHARWIDTH 3;
+costTitleCorrectionDate 'Дата исправления Т5' (OutgoingETRN e) = costCorrectionDate(lastCostTitle(e));
+
+// получение контента условных титулов у провайдера с последующим разбором
+importCostTitle ABSTRACT CASE (ETRN);
+importReaddressTitle ABSTRACT CASE (ETRN);
+importRelayTitle ABSTRACT CASE (ETRN);
 
 // в Т6 по формату обязателен только подписант
 missingCostT6 (ETRN e) = CONCAT ', ',
@@ -44,6 +223,24 @@ sendCostConfirmationETRN 'Подтвердить изменение стоимо
     sendCostConfirmation(e);
 } IMAGE 'apply.png';
 
+importCostTitleETRN 'Загрузить титул Т5' (ETRN e) {
+    checkProvider(e);
+    IF NOT provider(e) THEN RETURN;
+    importCostTitle(e);
+}
+
+importReaddressTitleETRN 'Загрузить титул Т7' (ETRN e) {
+    checkProvider(e);
+    IF NOT provider(e) THEN RETURN;
+    importReaddressTitle(e);
+}
+
+importRelayTitleETRN 'Загрузить титул Т8' (ETRN e) {
+    checkProvider(e);
+    IF NOT provider(e) THEN RETURN;
+    importRelayTitle(e);
+}
+
 rejectCostChangeETRN 'Отказать в изменении стоимости' (ETRN e) {
     checkProvider(e);
     IF NOT provider(e) THEN RETURN;
@@ -62,25 +259,62 @@ rejectCostChangeETRN 'Отказать в изменении стоимости'
 
 EXTEND FORM outgoingEtrn
     PROPERTIES(e) costChangeDateTime READONLY, costConfirmedDateTime READONLY,
-                  costRejectionReason,
-                  readdressDateTime READONLY, relayDateTime READONLY
+                  costRejectionReason
+    PROPERTIES(e) READONLY costTitleDateTime, costTitleAuthor, costTitleContent,
+                           costTitleSum, costTitleVatRate, costTitleVatSum, costTitleNoVat,
+                           costTitleTotal, costTitleCurrencyCode, costTitleCurrencyName,
+                           costTitleCalc, costTitleCorrectionNumber, costTitleCorrectionDate,
+                           costTitleImportedDateTime, costTitleUid, costTitleFile
+    PROPERTIES(e) importCostTitleETRN SHOWIF costChangeDateTime(e)
+
+    OBJECTS t5t = ETRNCostTitle
+    PROPERTIES(t5t) READONLY index, costDateTime, costSum, costVatRate, costVatSum, costNoVat,
+                            costTotal, costCurrencyCode, costCorrectionNumber, costCorrectionDate,
+                            costAuthor, costContent, costCalc, titleFile, importedDateTime
+    FILTERS etrn(t5t) == e
+    ORDERS costDateTime(t5t)
 ;
 
 DESIGN outgoingEtrn {
     pane {
         NEW t5Tab BEFORE exchangeTab {
-            caption = 'Т5: Изменение стоимости (перевозчик)';
+            caption = 'Т5: Стоимость перевозки (перевозчик)';
+            fill = 1;
             NEW t5Received {
                 caption = 'Получено от перевозчика';
                 horizontal = TRUE;
                 MOVE PROPERTY(costChangeDateTime(e));
+                MOVE PROPERTY(costTitleDateTime(e));
+                MOVE PROPERTY(costTitleAuthor(e));
+                MOVE PROPERTY(importCostTitleETRN(e));
             }
-            NEW conditionalMarks {
-                caption = 'Прочие условные титулы перевозчика';
+            NEW t5Cost {
+                caption = 'Стоимость перевозки по титулу';
+                NEW t5CostSums {
+                    horizontal = TRUE;
+                    MOVE PROPERTY(costTitleSum(e));
+                    MOVE PROPERTY(costTitleVatRate(e));
+                    MOVE PROPERTY(costTitleVatSum(e));
+                    MOVE PROPERTY(costTitleNoVat(e));
+                    MOVE PROPERTY(costTitleTotal(e));
+                }
+                NEW t5CostCurrency {
+                    horizontal = TRUE;
+                    MOVE PROPERTY(costTitleCurrencyCode(e));
+                    MOVE PROPERTY(costTitleCurrencyName(e));
+                    MOVE PROPERTY(costTitleCorrectionNumber(e));
+                    MOVE PROPERTY(costTitleCorrectionDate(e));
+                }
+                MOVE PROPERTY(costTitleContent(e));
+                MOVE PROPERTY(costTitleCalc(e));
+            }
+            NEW t5File {
                 horizontal = TRUE;
-                MOVE PROPERTY(readdressDateTime(e));
-                MOVE PROPERTY(relayDateTime(e));
+                MOVE PROPERTY(costTitleUid(e));
+                MOVE PROPERTY(costTitleFile(e));
+                MOVE PROPERTY(costTitleImportedDateTime(e));
             }
+            MOVE BOX(t5t) { fill = 1; alignment = STRETCH; caption = 'Полученные титулы Т5'; }
         }
         NEW t6Tab BEFORE exchangeTab {
             caption = 'Т6: Согласование стоимости (грузоотправитель)';
@@ -88,6 +322,148 @@ DESIGN outgoingEtrn {
                 horizontal = TRUE;
                 MOVE PROPERTY(costConfirmedDateTime(e));
                 MOVE PROPERTY(costRejectionReason(e));
+            }
+        }
+    }
+}
+
+
+// ------------------------- Изменения в пути (Т7/Т8) на обеих формах ------------------------- //
+
+EXTEND FORM outgoingEtrn
+    PROPERTIES(e) READONLY readdressDateTime, lastReaddressConsignee, lastReaddressAddress
+    PROPERTIES(e) importReaddressTitleETRN SHOWIF readdressDateTime(e)
+
+    OBJECTS outrd = ETRNReaddress
+    PROPERTIES(outrd) READONLY index, dateTime, consigneeName, consigneeInn, consigneeKpp,
+                               unloadAddress, unloadDateTime, readdressForm, deliveryKind,
+                               operation, reasonDoc, reasonNumber, reasonDate,
+                               titleFile, importedDateTime
+    FILTERS etrn(outrd) == e
+    ORDERS dateTime(outrd)
+
+    PROPERTIES(e) READONLY relayDateTime, lastRelayDriver, lastRelayTruck
+    PROPERTIES(e) importRelayTitleETRN SHOWIF relayDateTime(e)
+
+    OBJECTS outrt = ETRNRelayTitle
+    PROPERTIES(outrt) READONLY index, dateTime, relayReason, operation, titleFile, importedDateTime
+    FILTERS etrn(outrt) == e
+    ORDERS dateTime(outrt)
+
+    OBJECTS outdr = ETRNDriverReplacement
+    PROPERTIES(outdr) READONLY driverName, driverPhone, driverInn,
+                               driverLicenseSeries, driverLicenseNumber, driverLicenseDate,
+                               driverIdentMethod, driverTransferDoc, driverTransferDocNumber, driverTransferDocDate
+    FILTERS relayTitle(outdr) == outrt
+
+    OBJECTS outvr = ETRNVehicleReplacement
+    PROPERTIES(outvr) READONLY replacementNumber, isTrailer, vehicleRegNumber, vehicleBrand,
+                               vehicleType, vehicleStsNumber, vehicleVin, vehicleOwnership,
+                               vehicleCapacity, vehicleVolume,
+                               vehicleTransferDoc, vehicleTransferDocNumber, vehicleTransferDocDate
+    FILTERS relayTitle(outvr) == outrt
+;
+
+DESIGN outgoingEtrn {
+    pane {
+        NEW outReaddressTab BEFORE exchangeTab {
+            caption = 'Т7: Переадресовки';
+            fill = 1;
+            NEW outReaddressHead {
+                horizontal = TRUE;
+                MOVE PROPERTY(readdressDateTime(e));
+                MOVE PROPERTY(lastReaddressConsignee(e));
+                MOVE PROPERTY(lastReaddressAddress(e));
+                MOVE PROPERTY(importReaddressTitleETRN(e));
+            }
+            MOVE BOX(outrd) { fill = 1; alignment = STRETCH; }
+        }
+        NEW outRelayTab BEFORE exchangeTab {
+            caption = 'Т8: Замены водителя / ТС';
+            fill = 1;
+            NEW outRelayHead {
+                horizontal = TRUE;
+                MOVE PROPERTY(relayDateTime(e));
+                MOVE PROPERTY(lastRelayDriver(e));
+                MOVE PROPERTY(lastRelayTruck(e));
+                MOVE PROPERTY(importRelayTitleETRN(e));
+            }
+            MOVE BOX(outrt) { fill = 1; alignment = STRETCH; caption = 'Титулы замен'; }
+            NEW outRelayDetails {
+                horizontal = TRUE;
+                fill = 2;
+                MOVE BOX(outdr) { fill = 1; caption = 'Водители'; }
+                MOVE BOX(outvr) { fill = 1; caption = 'Транспортные средства'; }
+            }
+        }
+    }
+}
+
+
+EXTEND FORM incomingEtrn
+    PROPERTIES(e) READONLY readdressDateTime, lastReaddressConsignee, lastReaddressAddress
+    PROPERTIES(e) importReaddressTitleETRN SHOWIF readdressDateTime(e)
+
+    OBJECTS inrd = ETRNReaddress
+    PROPERTIES(inrd) READONLY index, dateTime, consigneeName, consigneeInn, consigneeKpp,
+                               unloadAddress, unloadDateTime, readdressForm, deliveryKind,
+                               operation, reasonDoc, reasonNumber, reasonDate,
+                               titleFile, importedDateTime
+    FILTERS etrn(inrd) == e
+    ORDERS dateTime(inrd)
+
+    PROPERTIES(e) READONLY relayDateTime, lastRelayDriver, lastRelayTruck
+    PROPERTIES(e) importRelayTitleETRN SHOWIF relayDateTime(e)
+
+    OBJECTS inrt = ETRNRelayTitle
+    PROPERTIES(inrt) READONLY index, dateTime, relayReason, operation, titleFile, importedDateTime
+    FILTERS etrn(inrt) == e
+    ORDERS dateTime(inrt)
+
+    OBJECTS indr = ETRNDriverReplacement
+    PROPERTIES(indr) READONLY driverName, driverPhone, driverInn,
+                               driverLicenseSeries, driverLicenseNumber, driverLicenseDate,
+                               driverIdentMethod, driverTransferDoc, driverTransferDocNumber, driverTransferDocDate
+    FILTERS relayTitle(indr) == inrt
+
+    OBJECTS invr = ETRNVehicleReplacement
+    PROPERTIES(invr) READONLY replacementNumber, isTrailer, vehicleRegNumber, vehicleBrand,
+                               vehicleType, vehicleStsNumber, vehicleVin, vehicleOwnership,
+                               vehicleCapacity, vehicleVolume,
+                               vehicleTransferDoc, vehicleTransferDocNumber, vehicleTransferDocDate
+    FILTERS relayTitle(invr) == inrt
+;
+
+DESIGN incomingEtrn {
+    inPane {
+        NEW inReaddressTab BEFORE inExchangeTab {
+            caption = 'Т7: Переадресовки';
+            fill = 1;
+            NEW inReaddressHead {
+                horizontal = TRUE;
+                MOVE PROPERTY(readdressDateTime(e));
+                MOVE PROPERTY(lastReaddressConsignee(e));
+                MOVE PROPERTY(lastReaddressAddress(e));
+                MOVE PROPERTY(importReaddressTitleETRN(e));
+            }
+            MOVE BOX(inrd) { fill = 1; alignment = STRETCH; }
+        }
+        NEW inRelayTab BEFORE inExchangeTab {
+            caption = 'Т8: Замены водителя / ТС';
+            fill = 1;
+            NEW inRelayHead {
+                horizontal = TRUE;
+                MOVE PROPERTY(relayDateTime(e));
+                MOVE PROPERTY(lastRelayDriver(e));
+                MOVE PROPERTY(lastRelayTruck(e));
+                MOVE PROPERTY(importRelayTitleETRN(e));
+            }
+            MOVE BOX(inrt) { fill = 1; alignment = STRETCH; caption = 'Титулы замен'; }
+            NEW inRelayDetails {
+                horizontal = TRUE;
+                fill = 2;
+                MOVE BOX(indr) { fill = 1; caption = 'Водители'; }
+                MOVE BOX(invr) { fill = 1; caption = 'Транспортные средства'; }
             }
         }
     }

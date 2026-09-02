@@ -332,12 +332,13 @@ processETRNEvent (ETRN.ETRNEvent ev) {
             IF docFunction(ev) == 'cost' AND NOT diadocCostDocument(et) THEN diadocCostDocument(et) <- d;
         }
 
-        // условные титулы перевозчика - только у исходящих
-        FOR ETRN.OutgoingETRN oet == et DO {
+        // ПУД перевозчика адресован грузоотправителю, поэтому только у исходящих
+        FOR ETRN.OutgoingETRN oet == et DO
             IF docFunction(ev) == 'cost' THEN ETRN.costChangeDateTime(oet) <- ETRN.dateTime(ev);
-            IF docFunction(ev) == 'readdress' THEN ETRN.readdressDateTime(oet) <- ETRN.dateTime(ev);
-            IF docFunction(ev) == 'relay' THEN ETRN.relayDateTime(oet) <- ETRN.dateTime(ev);
-        }
+
+        // переадресовка и замена касаются любой стороны перевозки
+        IF docFunction(ev) == 'readdress' THEN ETRN.readdressDateTime(et) <- ETRN.dateTime(ev);
+        IF docFunction(ev) == 'relay' THEN ETRN.relayDateTime(et) <- ETRN.dateTime(ev);
 
         // слоты титулов считаются в рамках документа: 0 - отправитель, 1 - получатель
         // (reception - Т1/Т2, delivery - Т3/Т4); отказ подписать титул для ЭТрН терминален

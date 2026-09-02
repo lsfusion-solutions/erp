@@ -1,0 +1,307 @@
+MODULE ETRNChangeTitlesXmlRu;
+
+REQUIRE ETRNConditionalTitles;
+
+NAMESPACE ETRN;
+
+// Разбор титулов изменений в пути: переадресовка (ON_TRNPEREADR) и замена водителя/ТС
+// (ON_TRNZAMEN). Оба составляет перевозчик, мы их только принимаем - и по исходящим,
+// и по входящим. Структура - по схемам Диадока версии 05_01_01.
+
+// ДатаВремяВЗТип - дата и время в одном значении через 'T'
+vzDateTime (STRING s) = DATETIME(toDateTimeFormat(left(s, 19), 'DD.MM.YYYY"T"HH24:MI:SS'));
+
+// ------------------------- Т7: переадресовка ------------------------- //
+
+impT7Uid = DATA LOCAL STRING ();
+impT7Oper = DATA LOCAL STRING ();
+impT7DateTime = DATA LOCAL STRING ();
+impT7Form = DATA LOCAL STRING ();
+impT7Delivery = DATA LOCAL STRING ();
+impT7GPName = DATA LOCAL STRING ();
+impT7GPInn = DATA LOCAL STRING ();
+impT7GPKpp = DATA LOCAL STRING ();
+impT7GPInnIP = DATA LOCAL STRING ();
+impT7AddrComment = DATA LOCAL STRING ();
+impT7AddrText = DATA LOCAL STRING ();
+impT7UnloadDateTime = DATA LOCAL STRING ();
+impT7ReasonName = DATA LOCAL STRING ();
+impT7ReasonNumber = DATA LOCAL STRING ();
+impT7ReasonDate = DATA LOCAL STRING ();
+
+GROUP impT7Doc EXTID 'Документ';
+GROUP impT7Content EXTID 'СодИнфПА' : impT7Doc;
+GROUP impT7Reason EXTID 'ОснПА' : impT7Content;
+GROUP impT7NewGP EXTID 'НовГрузПол' : impT7Content;
+GROUP impT7NewGPId EXTID 'ИдСв' : impT7NewGP;
+GROUP impT7NewGPUL EXTID 'СвЮЛУч' : impT7NewGPId;
+GROUP impT7NewGPIP EXTID 'СвИП' : impT7NewGPId;
+GROUP impT7NewPoint EXTID 'НовПунктВыгр' : impT7Content;
+GROUP impT7NewAddr EXTID 'АдрВыгруз' : impT7NewPoint;
+GROUP impT7NewAddrInf EXTID 'АдресИнф' : impT7NewAddr;
+
+FORM etrnReaddressXmlImport
+    PROPERTIES IN impT7Content
+        impT7Uid() EXTID 'УИД_ТрН' ATTR,
+        impT7Oper() EXTID 'СодОпер' ATTR,
+        impT7DateTime() EXTID 'ДатВрПА' ATTR,
+        impT7Form() EXTID 'ФормаПА' ATTR,
+        impT7Delivery() EXTID 'ВидДост' ATTR
+    PROPERTIES IN impT7Reason
+        impT7ReasonName() EXTID 'НаимДок' ATTR,
+        impT7ReasonNumber() EXTID 'НомерДок' ATTR,
+        impT7ReasonDate() EXTID 'ДатаДок' ATTR
+    PROPERTIES IN impT7NewGPUL
+        impT7GPName() EXTID 'НаимОрг' ATTR,
+        impT7GPInn() EXTID 'ИННЮЛ' ATTR,
+        impT7GPKpp() EXTID 'КПП' ATTR
+    PROPERTIES IN impT7NewGPIP impT7GPInnIP() EXTID 'ИННФЛ' ATTR
+    PROPERTIES IN impT7NewPoint impT7UnloadDateTime() EXTID 'ДатВрНовВыгрПА' ATTR
+    PROPERTIES IN impT7NewAddr impT7AddrComment() EXTID 'АдрКоммент' ATTR
+    PROPERTIES IN impT7NewAddrInf impT7AddrText() EXTID 'АдрТекст' ATTR
+;
+
+parseETRNReaddressXml 'Импортировать титул Т7 из файла' (ETRNReaddress r) {
+    IF NOT titleFile(r) THEN {
+        MESSAGE 'Не загружен файл титула Т7' NOWAIT;
+        RETURN;
+    }
+    IMPORT etrnReaddressXmlImport XML CHARSET 'windows-1251' FROM titleFile(r);
+
+    dateTime(r) <- vzDateTime(impT7DateTime());
+    operation(r) <- ISTRING[1000](impT7Oper());
+    readdressForm(r) <- ISTRING[100](impT7Form());
+    deliveryKind(r) <- ISTRING[100](impT7Delivery());
+
+    consigneeName(r) <- ISTRING[1000](impT7GPName());
+    consigneeInn(r) <- STRING[12](OVERRIDE impT7GPInn(), impT7GPInnIP());
+    consigneeKpp(r) <- STRING[9](impT7GPKpp());
+
+    unloadAddress(r) <- ISTRING[1000](OVERRIDE impT7AddrComment(), impT7AddrText());
+    unloadDateTime(r) <- vzDateTime(impT7UnloadDateTime());
+
+    reasonDoc(r) <- ISTRING[255](impT7ReasonName());
+    reasonNumber(r) <- ISTRING[100](impT7ReasonNumber());
+    reasonDate(r) <- DATE(toDateFormat(impT7ReasonDate(), 'DD.MM.YYYY'));
+
+    importedDateTime(r) <- currentDateTime();
+
+    IF impT7Uid() AND mintransId(etrn(r)) AND NOT impT7Uid() == mintransId(etrn(r)) THEN
+        MESSAGE 'Титул Т7 относится к другой перевозке: УИД в титуле ' + impT7Uid() NOWAIT;
+
+    APPLY;
+}
+
+// ------------------------- Т8: замена водителя / ТС ------------------------- //
+// ЗаменВодит и ЗаменТС повторяющиеся, Прицеп - вложенный в ЗаменТС: разбираем строками.
+
+impT8Uid = DATA LOCAL STRING ();
+impT8Oper = DATA LOCAL STRING ();
+impT8DateTime = DATA LOCAL STRING ();
+impT8Reason = DATA LOCAL STRING ();
+
+// ЗаменВодит
+impT8DrLast = DATA LOCAL STRING (INTEGER);
+impT8DrFirst = DATA LOCAL STRING (INTEGER);
+impT8DrMiddle = DATA LOCAL STRING (INTEGER);
+impT8DrPhone = DATA LOCAL STRING (INTEGER);
+impT8DrInn = DATA LOCAL STRING (INTEGER);
+impT8DrLicSer = DATA LOCAL STRING (INTEGER);
+impT8DrLicNum = DATA LOCAL STRING (INTEGER);
+impT8DrLicDate = DATA LOCAL STRING (INTEGER);
+impT8DrIdent = DATA LOCAL STRING (INTEGER);
+impT8DrDocName = DATA LOCAL STRING (INTEGER);
+impT8DrDocNumber = DATA LOCAL STRING (INTEGER);
+impT8DrDocDate = DATA LOCAL STRING (INTEGER);
+
+// ЗаменТС / ТС
+impT8TSReg = DATA LOCAL STRING (INTEGER);
+impT8TSSts = DATA LOCAL STRING (INTEGER);
+impT8TSVin = DATA LOCAL STRING (INTEGER);
+impT8TSOwn = DATA LOCAL STRING (INTEGER);
+impT8TSType = DATA LOCAL STRING (INTEGER);
+impT8TSBrand = DATA LOCAL STRING (INTEGER);
+impT8TSCapacity = DATA LOCAL STRING (INTEGER);
+impT8TSVolume = DATA LOCAL STRING (INTEGER);
+impT8TSDocName = DATA LOCAL STRING (INTEGER);
+impT8TSDocNumber = DATA LOCAL STRING (INTEGER);
+impT8TSDocDate = DATA LOCAL STRING (INTEGER);
+
+// ЗаменТС / Прицеп - вложенный список, ключ (замена, прицеп)
+impT8PrReg = DATA LOCAL STRING (INTEGER, INTEGER);
+impT8PrSts = DATA LOCAL STRING (INTEGER, INTEGER);
+impT8PrVin = DATA LOCAL STRING (INTEGER, INTEGER);
+impT8PrOwn = DATA LOCAL STRING (INTEGER, INTEGER);
+impT8PrType = DATA LOCAL STRING (INTEGER, INTEGER);
+impT8PrBrand = DATA LOCAL STRING (INTEGER, INTEGER);
+impT8PrCapacity = DATA LOCAL STRING (INTEGER, INTEGER);
+impT8PrVolume = DATA LOCAL STRING (INTEGER, INTEGER);
+
+GROUP impT8Doc EXTID 'Документ';
+GROUP impT8Content EXTID 'СодИнфЗамен' : impT8Doc;
+GROUP impT8NewDriver EXTID 'НовВодит';
+GROUP impT8DriverFIO EXTID 'ФИО' : impT8NewDriver;
+GROUP impT8DriverDoc EXTID 'ДокПерГрВод';
+GROUP impT8TS EXTID 'ТС';
+GROUP impT8TSPar EXTID 'ПарТС' : impT8TS;
+GROUP impT8TSDoc EXTID 'ДокПерГр';
+GROUP impT8PricepPar EXTID 'ПарТС';
+
+FORM etrnRelayXmlImport
+    PROPERTIES IN impT8Content
+        impT8Uid() EXTID 'УИД_ТрН' ATTR,
+        impT8Oper() EXTID 'СодОпер' ATTR,
+        impT8DateTime() EXTID 'ДатВрЗамен' ATTR,
+        impT8Reason() EXTID 'ПричЗамТекст'
+
+    OBJECTS dv = INTEGER EXTID 'ЗаменВодит' IN impT8Content
+    PROPERTIES(dv) IN impT8NewDriver
+        impT8DrInn EXTID 'ИННФЛ' ATTR,
+        impT8DrLicSer EXTID 'СерВУ' ATTR,
+        impT8DrLicNum EXTID 'НомВУ' ATTR,
+        impT8DrLicDate EXTID 'ДатаВыдВУ' ATTR,
+        impT8DrIdent EXTID 'СвСпИдПодп' ATTR,
+        impT8DrPhone EXTID 'Тлф'
+    PROPERTIES(dv) IN impT8DriverFIO
+        impT8DrLast EXTID 'Фамилия' ATTR,
+        impT8DrFirst EXTID 'Имя' ATTR,
+        impT8DrMiddle EXTID 'Отчество' ATTR
+    PROPERTIES(dv) IN impT8DriverDoc
+        impT8DrDocName EXTID 'НаимДок' ATTR,
+        impT8DrDocNumber EXTID 'НомерДок' ATTR,
+        impT8DrDocDate EXTID 'ДатаДок' ATTR
+
+    OBJECTS dt = INTEGER EXTID 'ЗаменТС' IN impT8Content
+    PROPERTIES(dt) IN impT8TS
+        impT8TSReg EXTID 'РегНомер' ATTR,
+        impT8TSSts EXTID 'НомСТС' ATTR,
+        impT8TSVin EXTID 'НомерВИН' ATTR,
+        impT8TSOwn EXTID 'ТипВлад' ATTR
+    PROPERTIES(dt) IN impT8TSPar
+        impT8TSType EXTID 'Тип' ATTR,
+        impT8TSBrand EXTID 'Марка' ATTR,
+        impT8TSCapacity EXTID 'Грузопод' ATTR,
+        impT8TSVolume EXTID 'Вместим' ATTR
+    PROPERTIES(dt) IN impT8TSDoc
+        impT8TSDocName EXTID 'НаимДок' ATTR,
+        impT8TSDocNumber EXTID 'НомерДок' ATTR,
+        impT8TSDocDate EXTID 'ДатаДок' ATTR
+
+    OBJECTS pr = INTEGER EXTID 'Прицеп'
+    PROPERTIES(dt, pr)
+        impT8PrReg EXTID 'РегНомер' ATTR,
+        impT8PrSts EXTID 'НомСТС' ATTR,
+        impT8PrVin EXTID 'НомерВИН' ATTR,
+        impT8PrOwn EXTID 'ТипВлад' ATTR
+    PROPERTIES(dt, pr) IN impT8PricepPar
+        impT8PrType EXTID 'Тип' ATTR,
+        impT8PrBrand EXTID 'Марка' ATTR,
+        impT8PrCapacity EXTID 'Грузопод' ATTR,
+        impT8PrVolume EXTID 'Вместим' ATTR
+;
+
+parseETRNRelayXml 'Импортировать титул Т8 из файла' (ETRNRelayTitle t) {
+    IF NOT titleFile(t) THEN {
+        MESSAGE 'Не загружен файл титула Т8' NOWAIT;
+        RETURN;
+    }
+
+    // очистка хвоста прошлого импорта: при меньшем числе замен остались бы старые строки
+    impT8DrLast(INTEGER i) <- NULL WHERE impT8DrLast(i);
+    impT8DrFirst(INTEGER i) <- NULL WHERE impT8DrFirst(i);
+    impT8DrMiddle(INTEGER i) <- NULL WHERE impT8DrMiddle(i);
+    impT8DrPhone(INTEGER i) <- NULL WHERE impT8DrPhone(i);
+    impT8DrInn(INTEGER i) <- NULL WHERE impT8DrInn(i);
+    impT8DrLicSer(INTEGER i) <- NULL WHERE impT8DrLicSer(i);
+    impT8DrLicNum(INTEGER i) <- NULL WHERE impT8DrLicNum(i);
+    impT8DrLicDate(INTEGER i) <- NULL WHERE impT8DrLicDate(i);
+    impT8DrIdent(INTEGER i) <- NULL WHERE impT8DrIdent(i);
+    impT8DrDocName(INTEGER i) <- NULL WHERE impT8DrDocName(i);
+    impT8DrDocNumber(INTEGER i) <- NULL WHERE impT8DrDocNumber(i);
+    impT8DrDocDate(INTEGER i) <- NULL WHERE impT8DrDocDate(i);
+
+    impT8TSReg(INTEGER i) <- NULL WHERE impT8TSReg(i);
+    impT8TSSts(INTEGER i) <- NULL WHERE impT8TSSts(i);
+    impT8TSVin(INTEGER i) <- NULL WHERE impT8TSVin(i);
+    impT8TSOwn(INTEGER i) <- NULL WHERE impT8TSOwn(i);
+    impT8TSType(INTEGER i) <- NULL WHERE impT8TSType(i);
+    impT8TSBrand(INTEGER i) <- NULL WHERE impT8TSBrand(i);
+    impT8TSCapacity(INTEGER i) <- NULL WHERE impT8TSCapacity(i);
+    impT8TSVolume(INTEGER i) <- NULL WHERE impT8TSVolume(i);
+    impT8TSDocName(INTEGER i) <- NULL WHERE impT8TSDocName(i);
+    impT8TSDocNumber(INTEGER i) <- NULL WHERE impT8TSDocNumber(i);
+    impT8TSDocDate(INTEGER i) <- NULL WHERE impT8TSDocDate(i);
+
+    impT8PrReg(INTEGER i, INTEGER j) <- NULL WHERE impT8PrReg(i, j);
+    impT8PrSts(INTEGER i, INTEGER j) <- NULL WHERE impT8PrSts(i, j);
+    impT8PrVin(INTEGER i, INTEGER j) <- NULL WHERE impT8PrVin(i, j);
+    impT8PrOwn(INTEGER i, INTEGER j) <- NULL WHERE impT8PrOwn(i, j);
+    impT8PrType(INTEGER i, INTEGER j) <- NULL WHERE impT8PrType(i, j);
+    impT8PrBrand(INTEGER i, INTEGER j) <- NULL WHERE impT8PrBrand(i, j);
+    impT8PrCapacity(INTEGER i, INTEGER j) <- NULL WHERE impT8PrCapacity(i, j);
+    impT8PrVolume(INTEGER i, INTEGER j) <- NULL WHERE impT8PrVolume(i, j);
+
+    IMPORT etrnRelayXmlImport XML CHARSET 'windows-1251' FROM titleFile(t);
+
+    dateTime(t) <- vzDateTime(impT8DateTime());
+    operation(t) <- ISTRING[1000](impT8Oper());
+    relayReason(t) <- ISTRING[1000](impT8Reason());
+
+    // пересоздаём строки только этого титула: повторный разбор идемпотентен,
+    // а замены из других титулов остаются на месте
+    DELETE ETRNDriverReplacement d WHERE relayTitle(d) == t;
+    DELETE ETRNVehicleReplacement v WHERE relayTitle(v) == t;
+
+    FOR impT8DrLast(INTEGER i) OR impT8DrLicNum(i) OR impT8DrInn(i) ORDER i NEW d = ETRNDriverReplacement DO {
+        relayTitle(d) <- t;
+        driverLastName(d) <- ISTRING[60](impT8DrLast(i));
+        driverFirstName(d) <- ISTRING[60](impT8DrFirst(i));
+        driverMiddleName(d) <- ISTRING[60](impT8DrMiddle(i));
+        driverPhone(d) <- ISTRING[50](impT8DrPhone(i));
+        driverInn(d) <- STRING[12](impT8DrInn(i));
+        driverLicenseSeries(d) <- ISTRING[10](impT8DrLicSer(i));
+        driverLicenseNumber(d) <- ISTRING[20](impT8DrLicNum(i));
+        driverLicenseDate(d) <- DATE(toDateFormat(impT8DrLicDate(i), 'DD.MM.YYYY'));
+        driverIdentMethod(d) <- ISTRING[255](impT8DrIdent(i));
+        driverTransferDoc(d) <- ISTRING[255](impT8DrDocName(i));
+        driverTransferDocNumber(d) <- ISTRING[100](impT8DrDocNumber(i));
+        driverTransferDocDate(d) <- DATE(toDateFormat(impT8DrDocDate(i), 'DD.MM.YYYY'));
+    }
+
+    FOR impT8TSReg(INTEGER i) ORDER i NEW v = ETRNVehicleReplacement DO {
+        relayTitle(v) <- t;
+        replacementNumber(v) <- i;
+        vehicleRegNumber(v) <- ISTRING[20](impT8TSReg(i));
+        vehicleStsNumber(v) <- ISTRING[20](impT8TSSts(i));
+        vehicleVin(v) <- ISTRING[20](impT8TSVin(i));
+        vehicleOwnership(v) <- ISTRING[10](impT8TSOwn(i));
+        vehicleType(v) <- ISTRING[100](impT8TSType(i));
+        vehicleBrand(v) <- ISTRING[100](impT8TSBrand(i));
+        vehicleCapacity(v) <- NUMERIC[16,4](impT8TSCapacity(i));
+        vehicleVolume(v) <- NUMERIC[16,5](impT8TSVolume(i));
+        vehicleTransferDoc(v) <- ISTRING[255](impT8TSDocName(i));
+        vehicleTransferDocNumber(v) <- ISTRING[100](impT8TSDocNumber(i));
+        vehicleTransferDocDate(v) <- DATE(toDateFormat(impT8TSDocDate(i), 'DD.MM.YYYY'));
+    }
+
+    FOR impT8PrReg(INTEGER i, INTEGER j) ORDER i, j NEW v = ETRNVehicleReplacement DO {
+        relayTitle(v) <- t;
+        replacementNumber(v) <- i;
+        isTrailer(v) <- TRUE;
+        vehicleRegNumber(v) <- ISTRING[20](impT8PrReg(i, j));
+        vehicleStsNumber(v) <- ISTRING[20](impT8PrSts(i, j));
+        vehicleVin(v) <- ISTRING[20](impT8PrVin(i, j));
+        vehicleOwnership(v) <- ISTRING[10](impT8PrOwn(i, j));
+        vehicleType(v) <- ISTRING[100](impT8PrType(i, j));
+        vehicleBrand(v) <- ISTRING[100](impT8PrBrand(i, j));
+        vehicleCapacity(v) <- NUMERIC[16,4](impT8PrCapacity(i, j));
+        vehicleVolume(v) <- NUMERIC[16,5](impT8PrVolume(i, j));
+    }
+
+    importedDateTime(t) <- currentDateTime();
+
+    IF impT8Uid() AND mintransId(etrn(t)) AND NOT impT8Uid() == mintransId(etrn(t)) THEN
+        MESSAGE 'Титул Т8 относится к другой перевозке: УИД в титуле ' + impT8Uid() NOWAIT;
+
+    APPLY;
+}

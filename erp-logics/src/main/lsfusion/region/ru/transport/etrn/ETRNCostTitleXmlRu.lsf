@@ -1,0 +1,104 @@
+MODULE ETRNCostTitleXmlRu;
+
+REQUIRE ETRNConditionalTitles;
+
+NAMESPACE ETRN;
+
+// Разбор XML титула Т5 (ON_TRNPUDPER) - первичный учётный документ перевозчика о финансовых
+// последствиях выполненной перевозки. Структура - по схеме Диадока ON_TRNPUDPER_1_973_07_05_01_02.
+// Формат общий для провайдеров: провайдер заводит строку титула, кладёт в неё XML и вызывает разбор.
+
+// ------------------------- Локальные свойства ------------------------- //
+
+impT5IdFile = DATA LOCAL STRING ();
+
+// Документ (шапка)
+impT5DocDate = DATA LOCAL STRING ();
+impT5DocTime = DATA LOCAL STRING ();
+impT5Author = DATA LOCAL STRING ();
+
+// СодФХЖ1 - сведения перевозчика о стоимости перевозки
+impT5Uid = DATA LOCAL STRING ();
+impT5Content = DATA LOCAL STRING ();
+impT5CurrencyCode = DATA LOCAL STRING ();
+impT5CurrencyName = DATA LOCAL STRING ();
+impT5Sum = DATA LOCAL STRING ();
+impT5VatRate = DATA LOCAL STRING ();
+impT5Total = DATA LOCAL STRING ();
+impT5Calc = DATA LOCAL STRING ();
+
+// СумНал - либо сумма НДС, либо отметка "без НДС"
+impT5VatSum = DATA LOCAL STRING ();
+impT5NoVat = DATA LOCAL STRING ();
+
+// ИспрПУД
+impT5IsprNum = DATA LOCAL STRING ();
+impT5IsprDate = DATA LOCAL STRING ();
+
+// ------------------------- Импортная форма (структура схемы ON_TRNPUDPER) ------------------------- //
+
+GROUP impT5Doc EXTID 'Документ';
+GROUP impT5Fact EXTID 'СодФХЖ1' : impT5Doc;
+GROUP impT5SumNal EXTID 'СумНал' : impT5Fact;
+GROUP impT5Ispr EXTID 'ИспрПУД' : impT5Fact;
+
+FORM etrnCostTitleXmlImport
+    PROPERTIES impT5IdFile() EXTID 'ИдФайл' ATTR
+    PROPERTIES IN impT5Doc
+        impT5DocDate() EXTID 'ДатПУДИнфПрв' ATTR,
+        impT5DocTime() EXTID 'ВрПУДИнфПрв' ATTR,
+        impT5Author() EXTID 'НаимЭкСубСост' ATTR
+    PROPERTIES IN impT5Fact
+        impT5Uid() EXTID 'УИД_ТрН' ATTR,
+        impT5Content() EXTID 'СодФХЖ' ATTR,
+        impT5CurrencyCode() EXTID 'ВалКод' ATTR,
+        impT5CurrencyName() EXTID 'ВалНаим' ATTR,
+        impT5Sum() EXTID 'СтТовБезНДС' ATTR,
+        impT5VatRate() EXTID 'НалСт' ATTR,
+        impT5Total() EXTID 'СтТовУчНал' ATTR,
+        impT5Calc() EXTID 'Расчет' ATTR
+    // СумНДС и БезНДС - вложенные элементы, а не атрибуты
+    PROPERTIES IN impT5SumNal impT5VatSum() EXTID 'СумНДС', impT5NoVat() EXTID 'БезНДС'
+    PROPERTIES IN impT5Ispr
+        impT5IsprNum() EXTID 'НомерИспр' ATTR,
+        impT5IsprDate() EXTID 'ДатаИспр' ATTR
+;
+
+// ------------------------- Разбор ------------------------- //
+
+parseETRNCostTitleXml 'Импортировать титул Т5 из файла' (ETRNCostTitle t) {
+    IF NOT titleFile(t) THEN {
+        MESSAGE 'Не загружен файл титула Т5' NOWAIT;
+        RETURN;
+    }
+
+    // файлы формата ФНС - windows-1251, как правило без XML-декларации
+    IMPORT etrnCostTitleXmlImport XML CHARSET 'windows-1251' FROM titleFile(t);
+
+    costDateTime(t) <- DATETIME(toDateTimeFormat(impT5DocDate() + 'T' + impT5DocTime(), 'DD.MM.YYYY"T"HH24:MI:SS'));
+    costAuthor(t) <- ISTRING[1000](impT5Author());
+    costUid(t) <- STRING[255](impT5Uid());
+
+    costContent(t) <- ISTRING[1000](impT5Content());
+    costCalc(t) <- ISTRING[2000](impT5Calc());
+    costCurrencyCode(t) <- STRING[3](impT5CurrencyCode());
+    costCurrencyName(t) <- ISTRING[100](impT5CurrencyName());
+
+    costSum(t) <- NUMERIC[19,2](impT5Sum());
+    costVatRate(t) <- ISTRING[35](impT5VatRate());
+    costVatSum(t) <- NUMERIC[19,2](impT5VatSum());
+    costNoVat(t) <- ISTRING[7](impT5NoVat());
+    costTotal(t) <- NUMERIC[19,2](impT5Total());
+
+    costCorrectionNumber(t) <- INTEGER(impT5IsprNum());
+    costCorrectionDate(t) <- DATE(toDateFormat(impT5IsprDate(), 'DD.MM.YYYY'));
+
+    importedDateTime(t) <- currentDateTime();
+
+    // расхождение УИД означает, что разобран файл от другой перевозки
+    IF costUid(t) AND mintransId(etrn(t)) AND NOT costUid(t) == mintransId(etrn(t)) THEN
+        MESSAGE 'Титул Т5 относится к другой перевозке: УИД в титуле ' + costUid(t) +
+            ', УИД накладной ' + mintransId(etrn(t)) NOWAIT;
+
+    APPLY;
+}
