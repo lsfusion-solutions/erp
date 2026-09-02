@@ -154,6 +154,7 @@ public class DigiHandler extends MultithreadScalesHandler {
         private Integer maxNameLength;
         private Integer maxNameLinesCount;
         private Integer fontSize;
+        private Integer fontSizeSecondLine;
         private boolean clearImages;
 
         public DigiSendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales) {
@@ -217,6 +218,9 @@ public class DigiHandler extends MultithreadScalesHandler {
             maxNameLinesCount = digiSettings.getMaxNameLinesCount();
             fontSize = nvl(digiSettings.getFontSize(), 4);
             clearImages = digiSettings.isClearImages();
+
+            JSONObject infoJSON = getExtInfo(transaction.info, "digi");
+            fontSizeSecondLine = infoJSON != null && infoJSON.has("fontSizeSecondLine") ? infoJSON.getInt("fontSizeSecondLine") : null;
         }
 
         protected boolean clearFiles(DataSocket socket, List<String> localErrors, boolean clearImages) throws IOException {
@@ -417,7 +421,8 @@ public class DigiHandler extends MultithreadScalesHandler {
                 String header = headers.get(i);
 
                 //шрифт наименования
-                bytes.put((byte) fontSize.intValue());
+                Integer lineFontSize = i > 0 && fontSizeSecondLine != null ? fontSizeSecondLine : fontSize;
+                bytes.put((byte) lineFontSize.intValue());
                 //длина наименования
                 bytes.put((byte) header.length());
                 // Наименование товара

@@ -8,16 +8,20 @@ writeFileToSocket (file, type, ip)  INTERNAL 'lsfusion.erp.machinery.scales.Writ
 
 labelFormat 'Формат этикетки' = DATA LabelFormat(GroupScales);
 nameLabelFormat 'Формат этикетки' (GroupScales s) = name(labelFormat(s));
+fontSizeSecondLine 'Размер шрифта наименования со 2-й строки' = DATA INTEGER (GroupScales);
 
 EXTEND FORM groupScales 
-    PROPERTIES (grs) nameLabelFormat SHOWIF sidModel(grs) LIKE 'Digi%';
+    PROPERTIES (grs) SHOWIF sidModel(grs) LIKE 'Digi%' nameLabelFormat, fontSizeSecondLine;
 
 createAttribute(MachineryPriceTransaction mpt) + {
-    IF labelFormat(groupMachinery(mpt)) AND createMachineryPriceTransactionAll() THEN {
+    IF (labelFormat(groupMachinery(mpt)) AND createMachineryPriceTransactionAll()) OR fontSizeSecondLine(groupMachinery(mpt)) THEN {
         LOCAL file = RAWFILE (INTEGER );
-        file(52) <- decode(STRING(file(labelFormat(groupMachinery(mpt)))), 'hex');
-        file(56) <- decode(STRING(fileMessage(labelFormat(groupMachinery(mpt)))), 'hex');
-        info(mpt) <- STRING (JSON FROM digi = JSON FROM customFiles = JSON FROM number = INTEGER num, file = file(num) WHERE num == 52 OR num == 56);
+        IF labelFormat(groupMachinery(mpt)) AND createMachineryPriceTransactionAll() THEN {
+            file(52) <- decode(STRING(file(labelFormat(groupMachinery(mpt)))), 'hex');
+            file(56) <- decode(STRING(fileMessage(labelFormat(groupMachinery(mpt)))), 'hex');
+        }
+        info(mpt) <- STRING (JSON FROM digi = (JSON FROM customFiles = (JSON FROM number = INTEGER num, file = file(num) WHERE file(num)),
+                                               fontSizeSecondLine = fontSizeSecondLine(groupMachinery(mpt))));
     }
 }
 
