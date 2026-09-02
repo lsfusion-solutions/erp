@@ -9,7 +9,7 @@ signAndSendSupplier(EInvoice e) + {
         IF exportedSupplier(e) THEN
             MESSAGE 'Накладная (поставщик) уже отправлена';
         ELSE {
-            IF useV2EDI() THEN {
+            IF useV2TopBy() THEN {
                 signAndSendSupplierEInvoiceV2(e, supplier(e), (OVERRIDE overInvoiceOutputDirTopBy(e), outputDirTopBy()), 'TopBy');
             } ELSE {
                 IF isTN2(e) THEN {
@@ -29,7 +29,7 @@ signAndSendBlrapnSupplier(EInvoice e) + {
         IF exportedBlrapnSupplier(e) THEN
             MESSAGE 'Извещение о прочтении (поставщик) уже отправлено';
         ELSE {
-            IF useV2EDI() THEN {
+            IF useV2TopBy() THEN {
                 signAndSendBlrapnSupplierEInvoiceV2(e, supplier(e), 'TopBy');
             } ELSE signAndSendBlrapnSupplierEInvoice(e, loginProfileTopBy(supplier(e)), passwordProfileTopBy(supplier(e)), urlProfileTopBy(supplier(e)), (OVERRIDE overInvoiceOutputDirTopBy(e), outputDirTopBy()), 'TopBy', TRUE);
         }
@@ -50,7 +50,7 @@ signAndSendConfirmSupplier (EInvoice e) + {
     IF EDIProviderInvoice(customer(e), supplier(e)) == EDIProvider.topBy THEN {
         newNS() <- TRUE;
 
-        IF useV2EDI() THEN {
+        IF useV2TopBy() THEN {
             signAndSendConfirmSupplierV2(e, supplier(e), 'TopBy');
         }
     }
@@ -135,7 +135,7 @@ signAndSendSupplierEInvoiceV2 (EInvoice ei, LegalEntity le, STRING[100] outputDi
                             code(em) <- '9';
                             kind(em) <- EInvoiceMessageKind.out;
                             type(em) <- IF isTN2(ei) THEN EInvoiceMessageType.blrdln ELSE EInvoiceMessageType.blrwbl;
-                            JSONPath(em) <- sentPathV2(outputDir, exportDateTime());
+                            XMLPath(em) <- sentPathV2(outputDir, exportDateTime());
                         }
 
                         IF outputDir THEN {
@@ -208,6 +208,7 @@ signAndSendSupplierCancelEDIV2 (EInvoice ei, LegalEntity le, STRING[100] outputD
                 MESSAGE provider + ' (' + loginProfile(le) + ') Документ не подписан: EWAYBILL ' + (OVERRIDE deliveryNoteNumber(ei), documentId(ei), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError() NOWAIT;
             } ELSE IF base64Signature() THEN {
                 EXPORT JSON FROM id = LONG(documentId(ei)), signatureBase64 = base64Signature(), xmlBody = xmlBody();
+                ewaybill() <- exportFile();
                 logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + 'EWAYBILL/draft/saveSignedCancel request:\n' + exportFile());
                 EXTERNAL HTTP POST url(profile(le)) + 'EWAYBILL/draft/saveSignedCancel' HEADERS headersV2 PARAMS exportFile() TO result;
                 logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + 'response:\n' + result());
@@ -227,7 +228,7 @@ signAndSendSupplierCancelEDIV2 (EInvoice ei, LegalEntity le, STRING[100] outputD
                         code(em) <- '1';
                         kind(em) <- EInvoiceMessageKind.out;
                         type(em) <- IF isTN2(ei) THEN EInvoiceMessageType.blrdln ELSE EInvoiceMessageType.blrwbl;
-                        JSONPath(em) <- sentPathV2(outputDir, exportDateTime());
+                        XMLPath(em) <- sentPathV2(outputDir, exportDateTime());
                     }
 
                     IF outputDir THEN {

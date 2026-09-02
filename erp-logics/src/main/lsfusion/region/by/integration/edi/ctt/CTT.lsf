@@ -136,13 +136,18 @@ FORM importSignDoc
 
 documentDateStart 'Дата с' = DATA LOCAL NESTED DATETIME ();
 documentDateEnd 'Дата по' = DATA LOCAL NESTED DATETIME ();
+
+countDaysReceiveV2 'За сколько дней получать документы (пусто - 7)' = DATA INTEGER ();
+receiveDateStartV2 () = OVERRIDE documentDateStart(), dateTimeToDateTime(subtract(currentDate(), (OVERRIDE countDaysReceiveV2(), 7)), 00:00);
+receiveDateEndV2 () = OVERRIDE documentDateEnd(), currentDateTime();
 idContent = DATA LOCAL STRING(INTEGER);
 name1 = DATA LOCAL STRING();
 gln = DATA LOCAL STRING();
 gln1 = DATA LOCAL STRING();
 id1 = DATA LOCAL STRING();
-last = DATA LOCAL BOOLEAN();
-totalPages = DATA LOCAL INTEGER();
+
+last = DATA LOCAL NESTED BOOLEAN();
+totalPages = DATA LOCAL NESTED INTEGER();
 dateTime = DATA LOCAL STRING(INTEGER);
 documentNumber = DATA LOCAL STRING(INTEGER);
 name1 = DATA LOCAL STRING(INTEGER);
@@ -173,35 +178,41 @@ FORM message
 currentDocId = DATA LOCAL NESTED STRING();
 
 overImportEInvoices ABSTRACT LIST (LegalEntity, STRING);
-receiveMessagesV2 (LegalEntity le, STRING archiveDir, BOOLEAN disableConfirmation, STRING provider) + {
+receiveMessagesV2 (LegalEntity le, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) {
     IF loginProfile(le) AND password(profile(le)) AND url(profile(le)) THEN {
         LOCAL response = FILE ();
-        LOCAL file = RAWFILE ();
         TRY {
-            IF profile(le) THEN {
-                authV2(le);
-                IF token() THEN {
-                    LOCAL NESTED page = INTEGER ();
-                    WHILE TRUE DO {
-                        timeoutHttp() <- 300000;
-                        page() <- page() (+) 1;
+            authV2(le);
+            IF token() THEN {
+                LOCAL NESTED page = INTEGER ();
+                fillStartParams();
+                WHILE TRUE DO {
+                    timeoutHttp() <- 300000;
+                    page() <- page() (+) 1;
 
-                        EXPORT JSON FROM documentDateStart = ZDATETIME(documentDateStart()), documentDateEnd = ZDATETIME(documentDateEnd());
-                        logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveMessages V2 request sent. POST /api/v1/EWAYBILL/' + (OVERRIDE id(filterPageStatus()), id(FilterPageStatus.ALL_)) + '/filteredPage?page=' + page());
-                        EXTERNAL HTTP POST url(profile(le)) + 'EWAYBILL/' + (OVERRIDE id(filterPageStatus()), id(FilterPageStatus.ALL_)) + '/filteredPage?page=' + page() HEADERS headersV2 PARAMS exportFile() TO response;
+                    EXPORT JSON FROM documentDateStart = ZDATETIME(receiveDateStartV2()), documentDateEnd = ZDATETIME(receiveDateEndV2());
+                    logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveMessages V2 request sent. POST /api/v1/EWAYBILL/' + (OVERRIDE id(filterPageStatus()), id(FilterPageStatus.ALL_)) + '/filteredPage?page=' + page());
+                    EXTERNAL HTTP POST url(profile(le)) + 'EWAYBILL/' + (OVERRIDE id(filterPageStatus()), id(FilterPageStatus.ALL_)) + '/filteredPage?page=' + page() HEADERS headersV2 PARAMS exportFile() TO response;
 
-                        IF NOT statusHttp() == 200 THEN {
-                            logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveMessages V2: неожиданный ответ ' + statusHttp());
-                            BREAK;
-                        }
+                    IF NOT statusHttp() == 200 THEN {
+                        logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveMessages V2: неожиданный ответ ' + statusHttp());
+                        BREAK;
+                    }
 
-                        IMPORT importEInvoices JSON FROM response();
-                        IF NOT (GROUP SUM 1 IF id(INTEGER i)) THEN BREAK;
-                        overImportEInvoices(le, provider);
+                    IMPORT importEInvoices JSON FROM response();
+                    IF NOT (GROUP SUM 1 IF id(INTEGER i)) THEN BREAK;
+                    overImportEInvoices(le, provider);
 
-                        FOR id(INTEGER i) AND id1(i) != 'DRAFT' DO {
+                    FOR id(INTEGER i) DO {
+                        IF NOT id1(i) THEN
+                            logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveMessages V2 warning: не заполнен статус документа ' + id(i));
+                        IF id1(i) == 'DRAFT' THEN {
+                            logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveMessages V2: документ ' + id(i) + ' пропущен (черновик)');
+                        } ELSE {
                             EXPORT JSON FROM value = '[' + id(i) + ']';
                             logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveMessages V2 request sent. POST /api/v1/EWAYBILL/downloadArchive/XML\n' + exportFile());
+
+                            unzipped(STRING[100] s) <- NULL;
                             EXTERNAL HTTP POST url(profile(le)) + 'EWAYBILL/downloadArchive/XML' HEADERS headersV2 PARAMS exportFile() TO unzipping;
                             makeUnzipFile();
                             FOR FILE f = unzipped(STRING[100] s) DO {
@@ -209,12 +220,24 @@ receiveMessagesV2 (LegalEntity le, STRING archiveDir, BOOLEAN disableConfirmatio
                                 IMPORT message XML FROM f;
                                 data(i) <- XMLFILE(f);
                                 documentType(i) <- messageType();
+
+                                receivedFileName(i) <- id(i) + '_' + regexpReplace(s, '\\.[^.]*$', '', 'g');
+                                IF archiveDir THEN {
+                                    TRY { mkdir(receivedDir(archiveDir)); }
+                                    WRITE data(i) TO receivedPath(archiveDir, i);
+                                }
                                 overReceiveMessages(i, loginProfile(le), password(profile(le)), url(profile(le)), archiveDir, disableConfirmation, provider);
+                                currentDocId() <- NULL;
                             }
+                            receivedFileName(i) <- NULL;
                         }
-                        IF totalPages() == page() OR last() THEN BREAK;
-                        APPLY;
                     }
+                    APPLY;
+                    IF totalPages() == page() OR last() THEN BREAK;
+                }
+                fillEndParams();
+                IF sendRecipientErrorFailed() == 0 THEN {
+                    MESSAGE (OVERRIDE textMessage(), provider + ' (' + loginProfile(le) + ') Не найдено новых сообщений') NOWAIT;
                 }
             }
         } CATCH {
@@ -225,18 +248,38 @@ receiveMessagesV2 (LegalEntity le, STRING archiveDir, BOOLEAN disableConfirmatio
     }
 }
 
-legalEntityCTT = GROUP MIN LegalEntity l IF loginProfile(l);
-nameLegalEntityCTT 'Организация' = name(legalEntityCTT());
-signer = DATA CustomUser ();
-nameSigner 'Подписант' = name(signer());
+receiveMessagesV2(STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
+    FOR LegalEntity le == [GROUP MIN LegalEntity l BY profile(l)](Profile p) AND login(p) AND password(p) DO {
+        NEWSESSION {
+            lockTopBy(login(p));
+            IF lockResultTopBy() THEN {
+                TRY {
+                    receiveMessagesV2(le, archiveDir, disableConfirmation, provider);
+                } FINALLY {
+                    unlockTopBy(login(p));
+                }
+            } ELSE {
+                MESSAGE provider + ' (' + login(p) + ') Уже выполняется получение сообщений. Подождите...' NOWAIT;
+            }
+        }
+    }
+}
 
-EXTEND FORM integrationData PROPERTIES () nameLegalEntityCTT, nameSigner, documentDateStart, documentDateEnd;
+legalEntityCTT = DATA LegalEntity ();
+nameLegalEntityCTT 'Организация' = name(legalEntityCTT());
+signer = DATA CustomUser (LegalEntity);
+nameSigner 'Подписант' (LegalEntity l) = name(signer(l));
+
+EXTEND FORM integrationData
+    PROPERTIES () nameLegalEntityCTT, countDaysReceiveV2, documentDateStart, documentDateEnd
+    PROPERTIES (let) nameSigner
+;
 DESIGN integrationData {
     col1TopBy {
         NEW v2 {
             caption = 'V2';
             MOVE PROPERTY (nameLegalEntityCTT());
-            MOVE PROPERTY (nameSigner());
+            MOVE PROPERTY (countDaysReceiveV2());
             NEW dates {
                 caption = 'Период';
                 horizontal = TRUE;
@@ -246,21 +289,3 @@ DESIGN integrationData {
         }
     }
 }
-
-META openJSON (class, object, table)
-    JSONPath = DATA STRING[200] (class);
-    openJSON 'Открыть JSON' (class object) {
-        IF JSONPath(object) THEN {
-            LOCAL file = FILE ();
-            TRY { READ 'file://' + JSONPath(object) + '.json' TO file; }
-            IF NOT file() THEN READ 'file://' + JSONPath(object) TO file;
-            open(file());
-        } ELSE {
-            MESSAGE 'Отсутствует ссылка на файл json';
-        }
-    }
-
-    EXTEND FORM table
-        PROPERTIES(object) openJSON GRID
-    ;
-END

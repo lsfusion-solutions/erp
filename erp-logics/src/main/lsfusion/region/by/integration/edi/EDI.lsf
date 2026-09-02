@@ -54,6 +54,10 @@ gln =ABSTRACT CASE STRING[13](EDIProvider);
 //идентификатор провайдера, с которым работают действия обмена
 EDIProvider = ABSTRACT CASE EDIProvider (STRING[100]);
 
+useV2 = ABSTRACT BOOLEAN (EDIProvider);
+useV2 (STRING[100] provider) = useV2(EDIProvider(provider));
+useV2 () = GROUP MAX useV2(EDIProvider p);
+
 FORM EDIProviders 'Провайдеры EDI'
     OBJECTS t = EDIProvider
     PROPERTIES (t) READONLY staticCaption
@@ -192,21 +196,22 @@ importRequestResult(FILE xml, INTEGER status, TEXT root) {
 }
 
 //добавление файлов
-META openXML (class, object, table)
+META openRawData (class, object, table)
     XMLPath = DATA STRING[200] (class);
-    openXML 'Открыть XML' (class object) {
+    openRawData 'Открыть файл' (class object) {
         IF XMLPath(object) THEN {
             LOCAL file = FILE();
-            TRY {READ 'file://' + XMLPath(object) + '.xml' TO file;}
+            IF NOT file() THEN TRY {READ 'file://' + XMLPath(object) + '.xml' TO file;}
+            IF NOT file() THEN TRY {READ 'file://' + XMLPath(object) + '.json' TO file;}
             IF NOT file() THEN READ 'file://' + XMLPath(object) TO file;
             open(file());
         } ELSE {
-            MESSAGE 'Отсутствует ссылка на файл xml';
+            MESSAGE 'Отсутствует ссылка на файл';
         }
     }
 
     EXTEND FORM table
-        PROPERTIES(object) openXML GRID
+        PROPERTIES(object) openRawData GRID
     ;
 END
 
@@ -475,11 +480,3 @@ FORM exportBlrapnNew FORMEXTID 'BLRAPN'
         blrapnCode() EXTID 'Code' IN blrapnErrorOrAcknowledgement,
         blrapnDescription() EXTID 'Description' IN blrapnErrorOrAcknowledgement
 ;
-
-useV2EDI 'Использовать формат V2 (EDI)' = DATA BOOLEAN () PREREAD;
-EXTEND FORM integrationData PROPERTIES () useV2EDI;
-DESIGN integrationData {
-    commonEdi {
-        MOVE PROPERTY (useV2EDI());
-    }
-}

@@ -159,7 +159,7 @@ confirmLog (STRING[100] provider, STRING[100] login, STRING[30] label, INTEGER i
 
 //label уточняет вид документа в логе, silent отключает сообщение пользователю при ошибке
 confirmMessage (INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] provider, STRING[30] label, BOOLEAN silent) {
-    IF NOT useV2EDI() THEN {
+    IF NOT useV2(provider) THEN {
         LOCAL xml = XMLFILE();
         EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
         sendRequestEDI(url, xml());
@@ -355,7 +355,7 @@ overImportSystemmessage ABSTRACT ();
 skipSystemmessage = DATA LOCAL NESTED STRING ();
 
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
-    IF (lower(documentType(i)) == 'systemmessage' OR lower(documentType(i)) == 'aperak') AND NOT useV2EDI() THEN {
+    IF (lower(documentType(i)) == 'systemmessage' OR lower(documentType(i)) == 'aperak') AND NOT useV2(provider) THEN {
         TRY {
             IMPORT systemMessage XML FROM data(i);
             skipSystemmessage() <- NULL;

@@ -9,7 +9,7 @@ signAndSendBlrapnCustomer(EInvoice e) + {
         IF exportedBlrapnCustomer(e) THEN
             MESSAGE 'Извещение о прочтении (покупатель) уже отправлено';
         ELSE {
-            IF useV2EDI() THEN {
+            IF useV2TopBy() THEN {
                 signAndSendBlrapnCustomerEInvoiceV2(e, customer(e), 'TopBy');
             } ELSE signAndSendBlrapnCustomerEInvoice(e, loginProfileTopBy(customer(e)), passwordProfileTopBy(customer(e)), urlProfileTopBy(customer(e)), outputDirTopBy(), 'TopBy', TRUE);
         }
@@ -23,7 +23,7 @@ signAndSendCustomer(EInvoice e) + {
         IF (exportedCustomer(e) OR exportedNoticeCustomer(e)) THEN
             MESSAGE 'Накладная (покупатель) или уведомление об изменении уже отправлены';
         ELSE {
-            IF useV2EDI() THEN {
+            IF useV2TopBy() THEN {
                 signAndSendCustomerEInvoiceV2(e, customer(e), outputDirTopBy(), 'TopBy');
             } ELSE {
                 IF isTN2(e) THEN {
@@ -43,7 +43,7 @@ signAndSendNoticeCustomer(EInvoice e, STRING[1000] d) + {
         IF (exportedCustomer(e) OR exportedNoticeCustomer(e)) THEN 
             MESSAGE 'Накладная (покупатель) или уведомление об изменении уже отправлены';
         ELSE {
-            IF useV2EDI() THEN {
+            IF useV2TopBy() THEN {
                 signAndSendNoticeCustomerV2(e, customer(e), d, 'TopBy');
             } ELSE {
                 IF isTN2(e) THEN {
@@ -82,7 +82,7 @@ signAndSendConfirmCustomer (EInvoice e) + {
         IF imported2551Customer(e) THEN
             MESSAGE 'Подтверждение уже отправлено';
         ELSE {
-            IF useV2EDI() THEN {
+            IF useV2TopBy() THEN {
                 signAndSendConfirmCustomerV2(e, customer(e), 'TopBy');
             }
         }
@@ -96,7 +96,7 @@ signAndSendConfirmCancelCustomer (EInvoice e) + {
         IF imported2650Customer(e) THEN
             MESSAGE 'Подтверждение отмены уже отправлено';
         ELSE {
-            IF useV2EDI() THEN {
+            IF useV2TopBy() THEN {
                 signAndSendConfirmCancelCustomerV2(e, customer(e), 'TopBy');
             }
         }
@@ -106,7 +106,7 @@ signAndSendConfirmCancelCustomer (EInvoice e) + {
 //V2
 
 overCreateEInvoice (EInvoice e) + {
-    documentId(e) <- currentDocId();
+    IF currentDocId() THEN documentId(e) <- currentDocId();
 }
 
 signAndSendBlrapnCustomerEInvoiceV2(EInvoice ei, LegalEntity le, STRING[100] provider) + {
@@ -148,7 +148,7 @@ signAndSendBlrapnCustomerEInvoiceV2(EInvoice ei, LegalEntity le, STRING[100] pro
             number(em) <- STRING[35](resultMilliseconds());
             eInvoice(em) <- ei;
             dateTime(em) <- toDateTimeFormat(toChar(exportDateTime(), 'yyyy-MM-ddThh24:mi:ss'), 'yyyy-MM-ddThh24:mi:ss');
-            blrapnCode() <- '2650';
+            code(em) <- '2650';
             kind(em) <- EInvoiceMessageKind.out;
             type(em) <- IF isTN2(ei) THEN EInvoiceMessageType.blrapn_blrdln ELSE EInvoiceMessageType.blrapn_blrwbl;
         }
@@ -241,7 +241,7 @@ signAndSendCustomerEInvoiceV2 (EInvoice ei, LegalEntity le, STRING[100] outputDi
                             code(em) <- '9';
                             kind(em) <- EInvoiceMessageKind.out;
                             type(em) <- IF isTN2(ei) THEN EInvoiceMessageType.blrdln ELSE EInvoiceMessageType.blrwbl;
-                            JSONPath(em) <- sentPathV2(outputDir, exportDateTime());
+                            XMLPath(em) <- sentPathV2(outputDir, exportDateTime());
                         }
 
                         IF outputDir THEN {
@@ -330,7 +330,7 @@ signAndSendNoticeCustomerV2(EInvoice ei, LegalEntity le, STRING[1000] d, STRING[
             number(em) <- STRING[35](resultMilliseconds());
             eInvoice(em) <- ei;
             dateTime(em) <- toDateTimeFormat(toChar(exportDateTime(), 'yyyy-MM-ddThh24:mi:ss'), 'yyyy-MM-ddThh24:mi:ss');
-            blrapnCode() <- '2750';
+            code(em) <- '2750';
             kind(em) <- EInvoiceMessageKind.out;
             type(em) <- EInvoiceMessageType.blrapn_blrdln;
             description(em) <- d;

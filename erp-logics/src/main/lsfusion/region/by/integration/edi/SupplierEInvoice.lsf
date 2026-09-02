@@ -78,7 +78,7 @@ signAndSendSupplierCancelEDI 'Подписать и отправить отме�
                     exportedSupplier(i) <- NULL WHERE exportedSupplier(i) AND NOT isCancel(i); //если оригинал отправлялся а отмена нет то нужно разрешить отправить отмену
                     isCancel(i) <- TRUE;
                     checkFieldsEInvoice(i);
-                    IF useV2EDI() THEN {
+                    IF useV2(EDIProviderInvoice(customer(i), supplier(i))) THEN {
                         signAndSendSupplierCancelV2(i);
                     } ELSE signAndSendSupplier(i);
                 } ELSE
@@ -143,7 +143,7 @@ EXTEND FORM eInvoices
         FILTER 'Не экспортированы (поставщик)' NOT exportedSupplier(e) 'F8'
         FILTER 'Не импортированы (поставщик)' NOT isImportedSupplier(e) 'F11'
     PROPERTIES() DRAW e TOOLBAR signAndSendSupplierEDI, signAndSendSupplierCancelEDI, signAndSendBlrapnSupplierEDI,
-        signAndSendConfirmSupplierEDI SHOWIF useV2EDI()
+        signAndSendConfirmSupplierEDI SHOWIF useV2()
 ;
 
 DESIGN eInvoices{

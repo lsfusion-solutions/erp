@@ -40,8 +40,8 @@ processCustomerUpdDocument (UpdDocument d, LegalEntity le, STRING[100] archiveDi
 
                     economicEntityName() <- nameCustomer(d);
                     signatureDate16(0) <- STRING(currentDate());
-                    lastName(0) <- lastName(signer());
-                    firstName(0) <- firstName(signer());
+                    lastName(0) <- lastName(signer(le));
+                    firstName(0) <- firstName(signer(le));
                     exported(0) <- TRUE;
                     EXPORT beforeSignForm JSON;
                     logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + 'ROSEU/UPD_PR/5.03/' + innerIdDoc(d) + '/response?base64=true');
@@ -293,7 +293,7 @@ sendCancellationCustomerUpdDocument (UpdDocument d, LegalEntity le, STRING s, ST
                     LOCAL headers = STRING(STRING);
                     headers('Authorization') <- token();
 
-                    EXPORT JSON FROM description = s, firstName = firstName(signer()), lastName = lastName(signer()), jobPost = namePosition(signer());
+                    EXPORT JSON FROM description = s, firstName = firstName(signer(le)), lastName = lastName(signer(le)), jobPost = namePosition(signer(le));
                     logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + 'ROSEU/POA/1.02/' + innerIdDoc(d) + '?base64=true' + '\n' + exportFile());
                     EXTERNAL HTTP POST url(profile(le)) + 'ROSEU/POA/1.02/' + innerIdDoc(d) + '?base64=true' HEADERS headers PARAMS exportFile() TO result;
                     IMPORT importSignDoc JSON FROM result();

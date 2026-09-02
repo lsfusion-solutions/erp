@@ -14,10 +14,6 @@ DESIGN integrationData {
 
 //V2
 
-@openJSON(EInvoice, e, eInvoices);
-
-@openJSON(EInvoiceMessage, m, eInvoices);
-
 GROUP shipFrom;
 GROUP formSettings;
 GROUP uom;
@@ -317,14 +313,12 @@ overImportEInvoices(LegalEntity le, STRING provider) + {
     NEWSESSION NESTED LOCAL {
         LOCAL result = FILE ();
 
-        FOR eInvoiceDeliveryNoteNumber(documentNumber(INTEGER i)) = EInvoice ei DO {
+        FOR eInvoiceDeliveryNoteNumber(documentNumber(INTEGER i)) = EInvoice ei AND NOT (id1(i) == 'DRAFT') ORDER dateTime(i), i DO {
             documentId(ei) <- id(i);
-            IF id1(i) != 'DRAFT' THEN {
-                logToFile('edi', provider + ' (' + loginProfile(le) + ') GET /api/v1/EWAYBILL/' + id(i));
-                EXTERNAL HTTP GET url(profile(le)) + 'EWAYBILL/' + id(i) HEADERS headersV2 TO result;
-                IMPORT importEwaybill JSON FROM result();
-                changeRequestId(ei) <- GROUP LAST id6(INTEGER ii) ORDER signatureDate(ii), signatureTime(ii);
-            }
+            logToFile('edi', provider + ' (' + loginProfile(le) + ') GET /api/v1/EWAYBILL/' + id(i));
+            EXTERNAL HTTP GET url(profile(le)) + 'EWAYBILL/' + id(i) HEADERS headersV2 TO result;
+            IMPORT importEwaybill JSON FROM result();
+            changeRequestId(ei) <- GROUP LAST id6(INTEGER ii) ORDER signatureDate(ii), signatureTime(ii);
         }
         APPLY NESTED LOCAL;
     }
