@@ -227,7 +227,31 @@ userDiadocETRN () = OVERRIDE userDiadoc(currentUser()), (defaultUserDiadocETRN()
 
 acquireRequestedDateTime 'Приглашение в контрагенты отправлено' = DATA DATETIME (Organization);
 
+// по умолчанию приглашение уходит само: без партнёрства документ всё равно не примут,
+// а лишний вопрос только тормозит отправку. Настройка возвращает подтверждение пользователем
+askAcquireCounteragentETRN 'Спрашивать перед отправкой приглашения в контрагенты (ЭТрН)' = DATA BOOLEAN ();
+
+// приглашение регистрируется в Диадоке не мгновенно: ждём перед проверкой партнёрства
+acquireCounteragentDelayETRN 'Пауза после приглашения в контрагенты, сек (ЭТрН)' = DATA INTEGER ();
+acquireCounteragentDelay () = OVERRIDE acquireCounteragentDelayETRN(), 4;
+
+EXTEND FORM options
+    PROPERTIES() askAcquireCounteragentETRN, acquireCounteragentDelayETRN
+;
+
+DESIGN options {
+    transport {
+        MOVE PROPERTY(askAcquireCounteragentETRN());
+        MOVE PROPERTY(acquireCounteragentDelayETRN());
+    }
+}
+
+// приглашение принято Диадоком (задача создана) - вызывающему, чтобы не рапортовать об успехе
+// после отказа POST-запроса
+acquireCounteragentSent = DATA LOCAL BOOLEAN ();
+
 diadocAcquireOrganization 'Пригласить в контрагенты Диадока' (Organization o, STRING myBoxGuid) {
+    acquireCounteragentSent() <- NULL;
     FOR User u == userDiadocETRN() DO {
         getToken(u);
         LOCAL result = FILE ();
@@ -242,26 +266,34 @@ diadocAcquireOrganization 'Пригласить в контрагенты Диа
                 (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException()) NOWAIT;
             RETURN;
         }
-        // AcquireCounteragent асинхронный: успешный POST - лишь принятая задача (TaskId),
-        // ошибки (например, нет права "Управление списком контрагентов" у учётки)
-        // проявляются только в результате задачи - без проверки приглашение теряется молча
+
+        // задача принята - приглашение уже создаётся; отмечаем сразу, иначе при неготовом
+        // результате мы бы считали, что не приглашали, и слали повторно
+        acquireRequestedDateTime(o) <- currentDateTime();
+        acquireCounteragentSent() <- TRUE;
+
+        // до этой паузы не готовы ни результат задачи, ни статус партнёрства
+        sleep(1000 * acquireCounteragentDelay());
+
+        // AcquireCounteragent асинхронный: успешный POST - лишь принятая задача (TaskId).
+        // Результат читаем один раз и только ради диагностики: ошибки вроде отсутствия права
+        // "Управление списком контрагентов" видны только здесь. 404 - задача ещё не отработала,
+        // это не ошибка: появления партнёрства ждём по самому статусу контрагента (вызывающий)
         LOCAL taskId = STRING ();
         IMPORT JSON FROM result() FIELDS () STRING[100] TaskId DO taskId() <- STRING(TaskId);
         IF taskId() THEN {
-            sleep(2000);
             LOCAL taskResult = FILE ();
             TRY {
                 EXTERNAL HTTP GET url() + '/V3/AcquireCounteragentResult?taskId=' + taskId() +
                     '&boxId=' + myBoxGuid
                     HEADERS httpHeadersToken TO taskResult;
-                acquireRequestedDateTime(o) <- currentDateTime();
             } CATCH {
                 fileToString(taskResult(), 'UTF-8');
-                MESSAGE 'Приглашение в контрагенты Диадока не создано: ' +
-                    (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException()) NOWAIT;
+                IF NOT STRING(statusHttp()) == '404' THEN
+                    MESSAGE 'Приглашение в контрагенты Диадока отправлено, но результат с ошибкой: ' +
+                        (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException()) NOWAIT;
             }
-        } ELSE
-            acquireRequestedDateTime(o) <- currentDateTime();
+        }
     }
 }
 
@@ -297,10 +329,30 @@ diadocGetCounteragentStatus (STRING myBoxGuid, STRING counteragentBoxGuid) {
 }
 
 // ------------------------- Единая проверка партнёрства перед отправкой ------------------------- //
+// итог проверки партнёрства (см. checkCounteragent)
+counteragentCheckPassed = DATA LOCAL BOOLEAN ();
+
+// приглашение стороне перевозки. У открытого ящика связь устанавливается сразу, поэтому
+// статус перезапрашиваем: тогда отправку документа прерывать незачем
+acquireCounteragentSide (Box counteragentBox, STRING myBoxGuid, STRING title, STRING side) {
+    FOR Organization org == organization(counteragentBox) DO
+        diadocAcquireOrganization(org, myBoxGuid);
+    IF NOT acquireCounteragentSent() THEN RETURN;   // причина уже показана сообщением
+
+    MESSAGE 'Приглашение стороне (' + side + ') отправлено' NOWAIT;
+
+    // проверяем статус партнёрства - он и решает, примет ли Диадок документ. У открытого ящика
+    // связь устанавливается сразу, у закрытого хватает IsInvitedByMe; пауза уже выдержана
+    diadocGetCounteragentStatus(myBoxGuid, guidBoxId(boxId(counteragentBox)));
+    IF counteragentCurrentStatus() == 'IsMyCounteragent' OR counteragentCurrentStatus() == 'IsInvitedByMe' THEN
+        counteragentCheckPassed() <- TRUE;
+    ELSE
+        MESSAGE 'Повторите отправку документа (' + title + ') после подтверждения партнёрства' NOWAIT;
+}
+
 // Без партнёрства Диадок документ не примет; при непринятом нашем приглашении (IsInvitedByMe)
 // принимает и держит вместе с приглашением. title/side - подстановки в сообщения.
 // Итог - в counteragentCheckPassed: RETURN отсюда вызывающую отправку не прерывает.
-counteragentCheckPassed = DATA LOCAL BOOLEAN ();
 checkCounteragent (STRING myBoxGuid, Box counteragentBox, STRING title, STRING side) {
     counteragentCheckPassed() <- NULL;
     diadocGetCounteragentStatus(myBoxGuid, guidBoxId(boxId(counteragentBox)));
@@ -314,14 +366,12 @@ checkCounteragent (STRING myBoxGuid, Box counteragentBox, STRING title, STRING s
             ') будет доставлен и будет ожидать подтверждения партнёрства' NOWAIT;
     IF counteragentCurrentStatus() AND NOT (counteragentCurrentStatus() == 'IsMyCounteragent' OR
         counteragentCurrentStatus() == 'InvitesMe' OR counteragentCurrentStatus() == 'IsInvitedByMe') THEN {
-        ASK 'Партнёрство со стороной (' + side + ') в Диадоке не установлено - без него документ (' + title + ') не будет принят.
-Отправить приглашение в контрагенты?' DO {
-            FOR Organization org == organization(counteragentBox) DO
-                diadocAcquireOrganization(org, myBoxGuid);
-            MESSAGE 'Приглашение стороне (' + side + ') отправлено. Повторите отправку документа (' + title +
-                ') после подтверждения партнёрства' NOWAIT;
-        }
-        RETURN;
+        IF askAcquireCounteragentETRN() THEN
+            ASK 'Партнёрство со стороной (' + side + ') в Диадоке не установлено - без него документ (' + title + ') не будет принят.
+Отправить приглашение в контрагенты?' DO
+                acquireCounteragentSide(counteragentBox, myBoxGuid, title, side);
+        ELSE acquireCounteragentSide(counteragentBox, myBoxGuid, title, side);
+        RETURN;   // при мгновенной связи флаг уже выставлен приглашением
     }
     counteragentCheckPassed() <- TRUE;
 }
