@@ -9,8 +9,7 @@ NAMESPACE ETRN;
 // перевозчик подписывает Т2/Т4. Поставщик титулы не подписывает: он лишь погрузчик
 // и владелец объекта инфраструктуры пункта погрузки.
 
-purchaseInvoice 'Закупочная накладная (основание)' = DATA Purchase.Invoice (OutgoingETRN) INDEXED;
-seriesNumberPurchaseInvoice 'Закупочная накладная (основание)' (ETRN e) = seriesNumber(purchaseInvoice(e)) CHARWIDTH 10;
+purchaseInvoice 'Накладная (закупка)' = DATA Purchase.Invoice (OutgoingETRN) INDEXED;
 
 etrn (Purchase.Invoice i) = GROUP MAX OutgoingETRN e BY purchaseInvoice(e);
 seriesNumberETRN 'ЭТрН' (Purchase.Invoice i) = seriesNumber(etrn(i)) CHARWIDTH 10;
@@ -98,7 +97,24 @@ DESIGN invoices {
         }
     }
 }
-// -- основание на форме ЭТрН
+
+// ------------------------- Входящая ЭТрН и закупочная накладная ------------------------- //
+// Поставщик передаёт в ИнфПол титула Т1 номер своего счета (INVOIC) - по нему находится наша
+// закупочная накладная, из неё перед Т3 берётся склад, если он не определился по адресу доставки.
+
+purchaseInvoice 'Закупочная накладная (по INVOIC титула)' = DATA Purchase.Invoice (IncomingETRN);
+
+purchaseInvoiceByIncoming (IncomingETRN e) = GROUP MAX Purchase.Invoice i
+    IF number(i) == incomingInvoicNumber(e) AND supplier(i) == shipper(e);
+
+// накладная закупки по перевозке любого направления: у исходящей это основание (самовывоз),
+// у входящей - накладная, найденная по INVOIC титула или выбранная при проведении
+purchaseInvoice 'Накладная (закупка)' = ABSTRACT Purchase.Invoice (ETRN);
+purchaseInvoice[ETRN](OutgoingETRN e) += purchaseInvoice(e);
+purchaseInvoice[ETRN](IncomingETRN e) += purchaseInvoice(e);
+
+// одно имя на оба направления - объявлено после абстракции, чтобы через неё и разрешалось
+seriesNumberPurchaseInvoice 'Накладная (закупка)' (ETRN e) = seriesNumber(purchaseInvoice(e)) CHARWIDTH 10;
 
 EXTEND FORM outgoingEtrn
     PROPERTIES(e) seriesNumberPurchaseInvoice READONLY
@@ -110,20 +126,19 @@ DESIGN outgoingEtrn {
     }
 }
 
+EXTEND FORM incomingEtrn
+    PROPERTIES(e) seriesNumberPurchaseInvoice READONLY
+;
+
+DESIGN incomingEtrn {
+    inHeaderRow {
+        MOVE PROPERTY(seriesNumberPurchaseInvoice(e));
+    }
+}
+
 EXTEND FORM etrns
     PROPERTIES(e) READONLY seriesNumberPurchaseInvoice
 ;
-
-
-// ------------------------- Входящая ЭТрН и закупочная накладная ------------------------- //
-// Поставщик передаёт в ИнфПол титула Т1 номер своего счета (INVOIC) - по нему находится наша
-// закупочная накладная, из неё перед Т3 берётся склад, если он не определился по адресу доставки.
-
-purchaseInvoice 'Закупочная накладная (по INVOIC титула)' = DATA Purchase.Invoice (IncomingETRN);
-seriesNumberPurchaseInvoiceIncoming 'Закупочная накладная' (IncomingETRN e) = seriesNumber(purchaseInvoice(e)) CHARWIDTH 10;
-
-purchaseInvoiceByIncoming (IncomingETRN e) = GROUP MAX Purchase.Invoice i
-    IF number(i) == incomingInvoicNumber(e) AND supplier(i) == shipper(e);
 
 overPrepareT3 (ETRN e) + {
     FOR IncomingETRN ie == e AND NOT (purchaseInvoice(ie) AND customerStock(ie)) AND incomingInvoicNumber(ie) DO NEWSESSION {
