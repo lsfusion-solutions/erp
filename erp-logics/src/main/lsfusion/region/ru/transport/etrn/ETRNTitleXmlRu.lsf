@@ -381,6 +381,18 @@ deliveryZip (STRING text) = STRING[6](deliveryZipExtract(text))
     IF length(deliveryZipExtract(text)) == 6 AND
        (OVERRIDE length(regexpReplace(deliveryZipExtract(text), '[0-9]', '', 'g')), 0) == 0;
 
+// повторный подбор склада перед отправкой Т3: на момент разбора Т1 подразделение
+// Диадока могло быть ещё не привязано к складу. LOCAL-буфер разбора к этому моменту
+// уже пуст, поэтому индекс берётся заново из сохранённых полей документа
+deliveryZipStored (ETRN e) = STRING[6](OVERRIDE deliveryZipCode(e), deliveryZip(STRING(deliveryAddress(e))));
+
+overPrepareT3 (ETRN e) + {
+    IF e IS IncomingETRN AND NOT customerStock(e) AND deliveryZipStored(e) THEN NEWSESSION {
+        customerStock(e) <- stockByDeliveryZip(deliveryZipStored(e)) WHERE countStocksByDeliveryZip(deliveryZipStored(e)) == 1;
+        APPLY;
+    }
+}
+
 // ИдФайл: ON_<тип>_<Ид1>_<Ид2>_<Ид3>_<признак>_<ГГГГММДД>_<GUID>. Разбираем позиционно,
 // а не по ИНН: у роуминговых участников идентификатор вида 2BE<hex>, ИНН в нём нет
 idFilePart (STRING idFile, INTEGER n) = getWord(idFile, '_', n);
