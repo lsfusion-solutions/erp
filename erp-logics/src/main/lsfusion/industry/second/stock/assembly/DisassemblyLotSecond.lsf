@@ -146,6 +146,8 @@ nameAsideCategory 'Категория отложенных' (DisassemblyLot l) =
 cycle 'Цикл' (DisassemblyLot l) = cycle(lot(l));
 descriptionCycle 'Цикл' (DisassemblyLot l) = descriptionCycle(lot(l));
 
+minCycle = GROUP MIN cycle(DisassemblyLot dl) BY disassembly(dl) MATERIALIZED;
+
 mix 'Микс' (DisassemblyLot l) = mix(lot(l));
 captionMix 'Микс' (DisassemblyLot l) = captionMix(lot(l));
 
@@ -377,10 +379,8 @@ averagePriceWeight 'Средневзвеш. цена (за кг.)' (DATE df, DAT
 costForeign 'С/с, евро' (DisassemblyLot l) = costForeign(lot(l));
 disassemblyLotSkuCostForeign 'С/с, евро' (Sku s, DATE df, DATE dt, Stock st) =
     GROUP SUM costForeign(DisassemblyLot l) IF sku(l) == s AND filter(l, df, dt, st);
-disassemblyLotSkuCostForeign 'С/с, евро' (Sku s, DATE df, DATE dt) =
-    GROUP SUM disassemblyLotSkuCostForeign(s, df, dt, Stock st) IF inLotReport(st);
-disassemblyLotCostForeign 'C/c, евро' (DATE df, DATE dt, Stock st) = GROUP SUM costForeign(DisassemblyLot l) IF filter(l, df, dt, st);
-disassemblyLotCostForeign 'C/c, евро' (DATE df, DATE dt, Stock st, Cycle c) = GROUP SUM costForeign(DisassemblyLot l) IF filter(l, df, dt, st) BY cycle(l);
+disassemblyLotSkuCostForeign 'С/с, евро' (Sku s, DATE df, DATE dt) = round2(GROUP SUM disassemblyLotSkuCostForeign(s, df, dt, Stock st) IF inLotReport(st));
+disassemblyLotCostForeign 'C/c, евро' (DATE df, DATE dt, Stock st, Cycle c) = round2([GROUP SUM costForeign(DisassemblyLot l) IF filter(l, df, dt, st) BY cycle(l)](c));
 
 // с исключением
 disassemblyLotCostForeignNew 'C/c, евро' (DATE df, DATE dt) = GROUP SUM costForeign(DisassemblyLot l) IF filter(l, df, dt, Stock st) AND inLotReport(st) AND NOT skipDisassemblyLotReport(l);
@@ -409,7 +409,7 @@ disassemblyLotSkuWeight 'Вес' (DATE df, DATE dt, Sku mix) =
 disassemblyLotSkuAvPrice 'Средневзвешенная цена' (DATE df, DATE dt, Sku mix) = round2(
         disassemblyLotSkuSum(df, dt, mix) / disassemblyLotSkuQuantity(df, dt, mix));
 disassemblyLotSkuCostForeign 'С/с, евро' (DATE df, DATE dt, Sku mix) =
-    GROUP SUM disassemblyLotSkuCostForeign(df, dt, Stock st, mix) IF inLotReport(st);
+    round2(GROUP SUM disassemblyLotSkuCostForeign(df, dt, Stock st, mix) IF inLotReport(st));
 
 disassemblyLotQuantity(SkuGroup g, DATE df, DATE dt) = GROUP SUM disassemblyLotSkuQuantity(Sku sk, df, dt, Stock st) IF inLotReport(st) BY skuGroup(sk);
 disassemblyLotQuantityTree 'Кол-во, шт' (SkuGroup parent, DATE df, DATE dt) = GROUP SUM disassemblyLotQuantity(SkuGroup child, df, dt) IF isParent(child, parent);
@@ -418,7 +418,7 @@ disassemblyLotWeightTree 'Вес, кг' (SkuGroup parent, DATE df, DATE dt) = GR
 disassemblyLotSum(SkuGroup g, DATE df, DATE dt) = GROUP SUM disassemblyLotSkuSum(Sku sk, df, dt, Stock st) IF inLotReport(st) BY skuGroup(sk);
 disassemblyLotSumTree 'Сумма, руб' (SkuGroup parent, DATE df, DATE dt) = GROUP SUM disassemblyLotSum(SkuGroup child, df, dt) IF isParent(child, parent);
 disassemblyLotCostForeign(SkuGroup g, DATE df, DATE dt) = GROUP SUM disassemblyLotSkuCostForeign(Sku sk, df, dt, Stock st) IF inLotReport(st) BY skuGroup(sk);
-disassemblyLotCostForeignTree 'С/с, евро' (SkuGroup parent, DATE df, DATE dt) = GROUP SUM disassemblyLotCostForeign(SkuGroup child, df, dt) IF isParent(child, parent);
+disassemblyLotCostForeignTree 'С/с, евро' (SkuGroup parent, DATE df, DATE dt) = round2(GROUP SUM disassemblyLotCostForeign(SkuGroup child, df, dt) IF isParent(child, parent));
 
 FORM disassemblyLotReport 'Отчёт по оценённым товарам'
     OBJECTS dates = (df = DATE, dt = DATE) PANEL
