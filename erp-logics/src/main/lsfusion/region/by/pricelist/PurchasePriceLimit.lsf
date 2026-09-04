@@ -74,9 +74,12 @@ limitPrice (UserInvoiceDetail detail) += WHEN detail IS UserInvoiceDetail THEN r
                                                     valueRetailVAT(detail)), roundCondition(priceLimitPriceListType(detail), sku(detail)));
 
 skipLocalLimitPrice = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
+extraChangeRetailMarkup  ABSTRACT LIST(UserInvoiceDetail);
+
 WHEN LOCAL FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail], limitPrice[UserInvoiceDetail]
             (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR CHANGED(limitBasePrice(d)) OR CHANGED(limitMarkup(d)) OR CHANGED(valueRetailVAT(d))) AND
             showLimitPrice(d) AND limitMarkup(d) AND NOT skipLocalLimitPrice(d)  NOINLINE DO {
+    extraChangeRetailMarkup(d);
     IF limitPrice(d) < retailPrice(d) THEN {
         retailPrice(d) <- limitPrice(d);
         retailMarkup(d) <- calcRetailMarkup(d);
