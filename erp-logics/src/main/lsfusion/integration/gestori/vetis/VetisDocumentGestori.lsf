@@ -69,7 +69,13 @@ stateGestori 'Состояние' (VetDocument d) = CASE
     ELSE 'Получен'
 CHARWIDTH 32;
 
-expiredBackgroundGestori (VetDocument d) = IF expiryDate(d) AND expiryDate(d) < currentDate() THEN RGB(255, 200, 200);
+// продукция считается просроченной на день раньше: гасить ВСД, годный только до завтра, уже нельзя
+expiredGestori (VetDocument d) = expiryDate(d) AND sum(expiryDate(d), -1) <= currentDate();
+
+expiredBackgroundGestori (VetDocument d) = IF expiredGestori(d) THEN RGB(255, 200, 200);
+
+// приоритет свежих ВСД при автоматическом заполнении объёмов
+priorityExpiryDateVetis() += TRUE;
 
 expiryDateGestori 'Дата окончания срока годности продукции' (VetDocument d) = expiryDate(d);
 
@@ -977,7 +983,7 @@ DESIGN vetDocument {
 // ---- Запрет гашения при истёкшем сроке годности ----
 // гашение формирует запись журнала со сроком годности из ВСД — по просроченной продукции заявку не создавать
 beforeProcessIncomingConsignment(IncomingConsignment c) + {
-    IF expiryDate(vetDocument(c)) < currentDate() THEN {
+    IF expiredGestori(vetDocument(c)) THEN {
         MESSAGE 'Нельзя отправить запрос на гашение ВСД ' + (OVERRIDE uuid(vetDocument(c)), '') +
             ': истёк срок годности продукции (' + STRING(expiryDate(vetDocument(c))) + ').';
         cancelProcessIncomingConsignment() <- TRUE;
@@ -997,7 +1003,7 @@ processIncomingConsignmentsGestori 'Отправить запросы на га�
     skipped() <- 0;
     NEWSESSION { skipMessage() <- TRUE; APPLY; }
     FOR groupProcessConsignmentGestori(VetDocument s) DO {
-        IF expiryDate(s) AND expiryDate(s) < currentDate() THEN
+        IF expiredGestori(s) THEN
             skipped() <- skipped() + 1;
         ELSE {
             process(groupProcessConsignmentGestori(s));
@@ -1119,9 +1125,18 @@ DESIGN Purchase.userInvoice {
     PROPERTY(uuid(vtd)) { caption = 'UUID ВСД'; }
 }
 
+// действия с Ветис выполняются до проведения накладной: партии создаются по связи строки с ВСД
+skipPostedConsignmentVetis() += TRUE;
+
 // количество по позиции нельзя менять после проведения накладной
 CONSTRAINT CHANGED(shipmentQuantity(Purchase.UserInvoiceDetail vd)) AND isPosted(vd) AND NOT CHANGED(isPosted(vd))
     MESSAGE 'Нельзя изменить количество: накладная проведена';
+// ... и независимо от проведения — после отправки заявки в Ветис или гашения
+CONSTRAINT CHANGED(shipmentQuantity(Purchase.UserInvoiceDetail vd)) AND vsdVolumeLockedGestori(vd)
+    MESSAGE 'Нельзя изменить количество: по позиции отправлена заявка в Ветис или выполнено гашение';
+// позицию с отправленной заявкой нельзя удалить (в т.ч. в непроведённой накладной)
+CONSTRAINT DROPPED(vd IS Purchase.UserInvoiceDetail) AND PREV(vsdVolumeLockedGestori(vd))
+    MESSAGE 'Нельзя удалить позицию: по ней отправлена заявка в Ветис или выполнено гашение';
 // объём по ВСД нельзя менять после отправки заявки в Ветис (кроме завершившихся ошибкой) или гашения
 CONSTRAINT CHANGED(VetisPurchase.volume(Purchase.UserInvoiceDetail vd, VetDocument vtd)) AND vsdVolumeLockedGestori(vd)
     MESSAGE 'Нельзя изменить объём по ВСД: отправлена заявка в Ветис или выполнено гашение';
@@ -1282,6 +1297,35 @@ EXTEND FORM Purchase.invoices
     PROPERTIES(i) processCheckInvoiceGestori DRAW vse TOOLBAR SHOWIF toProcessCheckInvoiceGestori(i)
 ;
 
+// ---- Статус ВЕТИС по накладной закупки ----
+
+// строка накладной с подконтрольной продукцией
+controlledDetailGestori (Purchase.InvoiceDetail d) = controlledProduct(sku(d));
+
+// по строке отправлялся запрос в Ветис — есть время последней заявки хотя бы по одной паре «строка — ВСД»
+requestedDetailGestori (Purchase.InvoiceDetail d) = GROUP SUM 1 IF issueDateLastRequest(d, VetDocument vtd);
+
+// строка связана с погашенным ВСД
+utilizedDetailGestori (Purchase.InvoiceDetail d) =
+    GROUP SUM 1 IF VetisPurchase.volume(d, VetDocument vtd) AND status(vtd) == VetDocumentStatus.UTILIZED;
+
+countControlledInvoiceGestori (Purchase.Invoice i) =
+    GROUP SUM 1 IF controlledDetailGestori(Purchase.InvoiceDetail d) BY Purchase.invoice(d);
+countRequestedInvoiceGestori (Purchase.Invoice i) =
+    GROUP SUM 1 IF controlledDetailGestori(Purchase.InvoiceDetail d) AND requestedDetailGestori(d) BY Purchase.invoice(d);
+countUtilizedInvoiceGestori (Purchase.Invoice i) =
+    GROUP SUM 1 IF controlledDetailGestori(Purchase.InvoiceDetail d) AND utilizedDetailGestori(d) BY Purchase.invoice(d);
+
+// статус считается только по подконтрольной продукции; в накладной без неё поле пустое
+vetisStatusInvoiceGestori 'Статус ВЕТИС' (Purchase.Invoice i) = (CASE
+    WHEN countUtilizedInvoiceGestori(i) >= countControlledInvoiceGestori(i) THEN 'Полностью погашен'
+    WHEN countRequestedInvoiceGestori(i) THEN 'Частично погашен'
+    ELSE 'В работе') IF countControlledInvoiceGestori(i) CHARWIDTH 18;
+
+EXTEND FORM Purchase.invoices
+    PROPERTIES(i) READONLY vetisStatusInvoiceGestori
+;
+
 // ---- Форма накладной, вкладка ВЕТИС ----
 
 // объём (поставлено) по строке = фактическое количество × вес единицы товара
@@ -1367,6 +1411,49 @@ showWaybillVDGestori (Purchase.UserInvoice i, VetDocumentType t) {
     SHOW vetDocumentsWaybillGestori DOCKED;
 }
 
+// ---- Аннулированные возвратные ВСД ----
+
+// возвратный ВСД, аннулированный в Меркурии
+withdrawnReturnVDGestori (VetDocument d) =
+    TRUE IF status(d) == VetDocumentStatus.WITHDRAWN AND type(d) == VetDocumentType.RETURNABLE;
+
+// такие ВСД доступны для связи со строками накладной наравне с подтверждёнными
+extraLinkVetDocumentVetis(VetDocument d) += withdrawnReturnVDGestori(d);
+
+// аннулировать можно только подтверждённый возвратный ВСД
+canWithdrawReturnVDGestori (VetDocument d) =
+    TRUE IF type(d) == VetDocumentType.RETURNABLE AND status(d) == VetDocumentStatus.CONFIRMED;
+
+withdrawReturnVDGestori 'Аннулировать' (VetDocument d) {
+    withdraw(d);
+}
+
+// строка, связанная с аннулированным возвратным ВСД, других связей иметь не должна
+CONSTRAINT VetisPurchase.volume(Purchase.UserInvoiceDetail d, VetDocument vtd) AND withdrawnReturnVDGestori(vtd)
+    AND (GROUP SUM 1 IF VetisPurchase.volume(d, VetDocument vtd2) AND NOT vtd2 == vtd)
+    MESSAGE 'Аннулированный возвратный ВСД нельзя связать со строкой, уже связанной с другим ВСД';
+
+// гашение по аннулированному ВСД не отправляем (страховка для путей помимо кнопки «Отправить в ВЕТИС»)
+beforeProcessIncomingConsignment(IncomingConsignment c) + {
+    IF status(vetDocument(c)) == VetDocumentStatus.WITHDRAWN THEN {
+        MESSAGE 'Нельзя отправить запрос на гашение ВСД ' + (OVERRIDE uuid(vetDocument(c)), '') + ': ВСД аннулирован.';
+        cancelProcessIncomingConsignment() <- TRUE;
+    }
+}
+
+// возвратные ВСД по номеру ТТН, не связанные ни с одной строкой накладной
+hasUnlinkedReturnVDGestori (Purchase.UserInvoice i) = GROUP SUM 1
+    IF inWaybillVDGestori(i, VetDocument vtd) AND type(vtd) == VetDocumentType.RETURNABLE
+    AND NOT (GROUP SUM 1 IF VetisPurchase.volume(Purchase.UserInvoiceDetail d, vtd) AND Purchase.userInvoice(d) == i);
+
+EXTEND FORM vetDocuments
+    PROPERTIES(o) withdrawReturnVDGestori READONLYIF NOT canWithdrawReturnVDGestori(o) GRID
+;
+
+EXTEND FORM vetDocumentsWaybillGestori
+    PROPERTIES(o) withdrawReturnVDGestori READONLYIF NOT canWithdrawReturnVDGestori(o) GRID
+;
+
 showTransportWaybillVDGestori 'ВСД' (Purchase.UserInvoice i) {
     showWaybillVDGestori(i, VetDocumentType.TRANSPORT);
 }
@@ -1428,6 +1515,7 @@ EXTEND FORM Purchase.userInvoice
     PROPERTIES(i) showTransportWaybillVDGestori DRAW vtd TOOLBAR
         BACKGROUND (RGB(255,200,200) IF hasProblemWaybillVDGestori(i))
     PROPERTIES(i) showReturnWaybillVDGestori DRAW vtd TOOLBAR
+        BACKGROUND (RGB(255,200,200) IF hasUnlinkedReturnVDGestori(i))
     PROPERTIES(i) showRequestsInvoiceGestori DRAW vd TOOLBAR
 
     FILTERGROUP waybillVDGestori

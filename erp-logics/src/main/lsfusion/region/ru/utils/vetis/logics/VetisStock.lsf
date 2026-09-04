@@ -87,6 +87,15 @@ EXTEND FORM vetDocuments
 // подконтрольная продукция: строки с такими товарами показываются в подборе ВСД/записей журнала безусловно
 controlledProduct 'Подконтрольная продукция' = ABSTRACT BOOLEAN (Sku);
 
+// приоритет ВСД с большим сроком годности при автоматическом заполнении объёмов (включается проектами);
+// без реализации ключ пустой у всех ВСД и порядок заполнения не меняется
+priorityExpiryDateVetis = ABSTRACT BOOLEAN ();
+
+// проекты могут допустить к связи со строками документа ВСД, которые по умолчанию в подбор не попадают
+// (например, аннулированные возвратные)
+extraLinkVetDocumentVetis = ABSTRACT BOOLEAN (VetDocument);
+expiryPriorityVetis (VetDocument vtd) = expiryDate(vtd) IF priorityExpiryDateVetis();
+
 META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, container)
     noConsignorEnterprise 'Отсутствует площадка отправителя' = ABSTRACT BOOLEAN (###doc) PREREAD;
     
@@ -140,7 +149,7 @@ META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, contai
             }
             usedVolumeOtherLocal(VetDocument vtd) <- usedVolumeOther(d, vtd);
             volume(###doc##Detail vd, VetDocument vtd) <-
-                (PARTITION UNGROUP shipmentQuantity LIMIT (volume(vtd) (-) usedVolumeOtherLocal(vtd))/(OVERRIDE factor(sku(vd), unit(vtd)), 1.0) IF number() = issueSeriesNumberWaybill(vtd) AND  matches(vd, vtd)  AND status(vtd) = VetDocumentStatus.CONFIRMED ORDER DESC volume(vtd), vtd BY vd)*(OVERRIDE factor(sku(vd), unit(vtd)), 1.0)
+                (PARTITION UNGROUP shipmentQuantity LIMIT (volume(vtd) (-) usedVolumeOtherLocal(vtd))/(OVERRIDE factor(sku(vd), unit(vtd)), 1.0) IF number() = issueSeriesNumberWaybill(vtd) AND  matches(vd, vtd)  AND status(vtd) = VetDocumentStatus.CONFIRMED ORDER DESC expiryPriorityVetis(vtd), volume(vtd), vtd BY vd)*(OVERRIDE factor(sku(vd), unit(vtd)), 1.0)
                 WHERE doc(vd) = d;
             // суммарно по ВСД не больше свободного остатка: излишек снимается с последних строк
             assignedVolumeLocal(###doc##Detail vd, VetDocument vtd) <- volume(vd, vtd) WHERE doc(vd) = d AND volume(vd, vtd) > 0;
@@ -153,7 +162,7 @@ META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, contai
             assignedVolumeLocal(###doc##Detail vd, VetDocument vtd) <- volume(vd, vtd) WHERE doc(vd) = d AND volume(vd, vtd) > 0;
             shippedVolumeLocal(###doc##Detail vd) <- NUMERIC[16,5](shipmentQuantity(vd) * netWeight(sku(vd))) WHERE doc(vd) = d;
             volume(###doc##Detail vd, VetDocument vtd) <-
-                PARTITION UNGROUP shippedVolumeLocal LIMIT STRICT (assignedVolumeLocal(vd, vtd)) ORDER DESC volume(vtd), vtd BY vd
+                PARTITION UNGROUP shippedVolumeLocal LIMIT STRICT (assignedVolumeLocal(vd, vtd)) ORDER DESC expiryPriorityVetis(vtd), volume(vtd), vtd BY vd
                 WHERE doc(vd) = d AND assignedVolumeLocal(vd, vtd) AND shippedVolumeLocal(vd) > 0;
             fillExpiryDate(d);
         }
@@ -180,7 +189,7 @@ META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, contai
         FILTERS matches(vd, vtd)
     
         FILTERGROUP active
-            FILTER 'Подтвержденные' status(vtd) = VetDocumentStatus.CONFIRMED OR volume(vd, vtd) DEFAULT 
+            FILTER 'Подтвержденные' status(vtd) = VetDocumentStatus.CONFIRMED OR extraLinkVetDocumentVetis(vtd) OR volume(vd, vtd) DEFAULT 
     ;
     
     DESIGN doc {
