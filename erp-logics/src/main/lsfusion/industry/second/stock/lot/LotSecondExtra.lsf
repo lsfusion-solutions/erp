@@ -163,37 +163,3 @@ DESIGN dialogOutLots {
 
 CONSTRAINT DROPPED(Cycle c IS Cycle) AND PREV([GROUP MIN Lot l BY cycle(l)](c))
     MESSAGE 'Запрещено удалять цикл, по которому есть оценённые товары';
-
-META defineCycleFrom(doc, obj, oper, form, form2, container)
-    cycleFrom = DATA Cycle (###doc) INDEXED;
-    descriptionCycleFrom 'Цикл из' (###doc i) = description(cycleFrom(i));
-
-    WHEN LOCAL FORMS ##form CHANGED(stock(###doc i)) DO
-        cycleFrom(i) <- NULL;
-
-    CONSTRAINT (SET(isPosted(###doc i)) OR CHANGED(stock(i))) AND isPosted(i) AND stock(i) IS DepartmentStore AND NOT stock(cycleFrom(i)) == stock(i)
-        AND id(operation(i)) == ##oper AND [GROUP MIN ###doc##Detail d IF isSecond(sku(d)) BY ##doc(d)](i)
-        MESSAGE 'Должен быть указан цикл, из которого товары';
-
-    CONSTRAINT SETCHANGED(cycleFrom(###doc i)) AND (stock(cycleFrom(i)) != stock(i) OR fromDate(cycleFrom(i)) > currentDate())
-        CHECKED BY cycleFrom[###doc]
-        MESSAGE 'Выбран цикл другого магазина, либо цикл ещё не начался';
-
-    changeDescriptionCycleFrom(###doc o)  {
-        DIALOG dialogCycles OBJECTS c = cycleFrom(o) CHANGE LIST description(c);
-    }
-
-    EXTEND FORM ##form
-        PROPERTIES (##obj) descriptionCycleFrom ON CHANGE changeDescriptionCycleFrom(##obj) SHOWIF (id(operation(##obj)) == ##oper AND stock(##obj) IS DepartmentStore)
-    ;
-
-    EXTEND FORM ##form2
-        PROPERTIES (##obj) READONLY descriptionCycleFrom AFTER nameStock(##obj)
-    ;
-
-    DESIGN ##form {
-        container {
-            MOVE PROPERTY (descriptionCycleFrom(##obj));
-        }
-    }
-END
