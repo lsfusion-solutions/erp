@@ -217,3 +217,10 @@ setNULL(MachineryPriceTransaction t){
     statusTransaction(t, STRING s) <- NULL;
     APPLY;
 }
+
+@defineOption(skipCheckItemGroupSet10, 'Не проверять заполнение кода группы товара (Set10)', machinery);
+
+CONSTRAINT SET(in(MachineryPriceTransaction t, Barcode b)) AND isSet10(groupMachinery(t)) AND NOT idItemGroup(sku(b)) 
+    AND NOT skipCheckItemGroupSet10()
+    MESSAGE 'Не задан код группы товара для выгрузки в Set10'
+    PROPERTIES idSku(t, b), name(t, b);
