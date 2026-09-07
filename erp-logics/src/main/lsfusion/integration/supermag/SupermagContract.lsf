@@ -47,6 +47,7 @@ customContractFilter 'Фильтр для контрактов' = DATA STRING ()
 overIdSupermag = DATA STRING[100](Stock) INDEXED;
 stockSupermag (STRING[100] st) = OVERRIDE (GROUP MAX Stock sk IF overIdSupermag(sk) == st), stock(st);
 
+extraUpdatePriceListContract ABSTRACT LIST (UserPriceList, INTEGER);
 //надо грузить все одним действием в договоры и псц потому, что если делать разными действиями срабатывают CONSTRAINTы на соответствие
 importContract 'Импорт из контрактов с поставщиками (в договоры и ПСЦ)' () { 
     LOCAL idCompany = INTEGER (INTEGER);
@@ -132,6 +133,7 @@ importContract 'Импорт из контрактов с поставщикам
         delayPaymentInSuperMag(doc) <- paymentDelay(i);
         isBankDaysInSuperMag(doc) <- isBankDays(i);
         allStocks(doc) <- NULL;
+        extraUpdatePriceListContract(doc, i);
     }   
     
     FOR idDoc(INTEGER i) AND NOT stock(idLE(i)) DO {
