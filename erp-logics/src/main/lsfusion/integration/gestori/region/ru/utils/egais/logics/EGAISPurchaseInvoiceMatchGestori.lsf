@@ -50,7 +50,22 @@ acceptedMark (UserInvoiceDetail d, WayBillMark m) = TRUE IF Purchase.quantity(d,
 quantityAcceptedMark (UserInvoiceDetail d, WayBillPosition p) =
     GROUP SUM 1 IF acceptedMark(d, WayBillMark m) AND wayBillPosition(m) = p;
 
+markedBound (UserInvoiceDetail d) = GROUP SUM 1 IF quantity(d, WayBillPosition p) AND countMarkCodes(p);
+matchMarked (UserInvoiceDetail d, WayBillPosition p) =
+    matchDetailPosition(d, p) AND countMarkCodes(p) AND NOT quantityUserInvoice(p) AND NOT markedBound(d);
+markedPosition = GROUP MIN WayBillPosition p IF matchMarked(UserInvoiceDetail d, p) BY d;
+markedDetail   = GROUP MIN UserInvoiceDetail d IF matchMarked(d, WayBillPosition p) AND markedPosition(d) = p BY p;
+bindMarked (UserInvoiceDetail d, WayBillPosition p) = TRUE IF markedPosition(d) = p AND markedDetail(p) = d;
+
 applyMatch (UserInvoice i) {
+    LOCAL countIterationMarked = INTEGER ();
+    countIterationMarked() <- 0;
+    WHILE (GROUP SUM 1 IF userInvoice(UserInvoiceDetail d) = i AND bindMarked(d, WayBillPosition p)) AND countIterationMarked() < 1000 DO {
+        quantity(UserInvoiceDetail d, WayBillPosition p) <- OVERRIDE quantityAcceptedMark(d, p), 0.0
+            WHERE userInvoice(d) = i AND bindMarked(d, p);
+        countIterationMarked() <- countIterationMarked() + 1;
+    }
+
     // маркированные позиции: привязка равна числу принятых марок
     quantity(UserInvoiceDetail d, WayBillPosition p) <- OVERRIDE quantityAcceptedMark(d, p), 0.0
         WHERE userInvoice(d) = i AND countMarkCodes(p) AND quantity(d, p);
@@ -119,13 +134,32 @@ DESIGN userInvoice {
 WHEN CHANGED(shipmentQuantity(UserInvoiceDetail d)) AND wayBill(userInvoice(d)) DO
     applyMatch(userInvoice(d));
 
+WHEN SETCHANGED(wayBill(UserInvoice i)) DO
+    applyMatch(i);
+
+afterAddDialogTerminalToUserInvoice(UserInvoice i, TerminalDocument td) + {
+    IF wayBill(i) THEN
+        fillMatch(i);
+}
+
+afterAddDetailDialogTerminalUserInvoice(UserInvoice i, TerminalDocument td) + {
+    IF wayBill(i) THEN
+        fillMatch(i);
+}
+
 statusEGAIS 'Статус ЕГАИС' (Invoice i) = status(wayBill(i));
 nameStatusEGAIS 'Статус ЕГАИС' (Invoice i) = name(statusEGAIS(i)) CHARWIDTH 50;
 
 EXTEND FORM invoices
     PROPERTIES(i) READONLY nameStatusEGAIS
     PROPERTIES(w) READONLY regId
+    PROPERTIES(wp) READONLY quantityInvoiceTTN 'Количество по накладной' = quantityInvoice AFTER realQuantity(wp)
 ;
+
+DESIGN invoices {
+    PROPERTY(nameStatus(w)) { charWidth = 50; }
+    PROPERTY(quantityInvoiceTTN);
+}
 
 EXTEND FORM userInvoice
     PROPERTIES(i) READONLY nameStatusEGAIS
@@ -157,6 +191,8 @@ DESIGN integrationData {
     }
 }
 
+hideSyncTTN = ABSTRACT VALUE BOOLEAN (UserInvoice);
+
 hasTTNMatch (UserInvoiceDetail d) = GROUP SUM 1 IF matchDetailPosition(d, WayBillPosition p);
 notInTTN (UserInvoiceDetail d) = wayBill(userInvoice(d)) AND NOT hasTTNMatch(d) AND NOT shipmentQuantity(d);
 
@@ -178,7 +214,6 @@ syncTTN 'Синхронизировать с ТТН' (UserInvoice i) {
     IF deleteMissingTTN() THEN 
         DELETE UserInvoiceDetail d WHERE userInvoice(d) = i AND notInTTN(d);
     
-    // лог расхождений
     dataMatchLog(i) <- matchLog(i);
     
     IF matchLog(i) THEN
@@ -186,5 +221,5 @@ syncTTN 'Синхронизировать с ТТН' (UserInvoice i) {
 }
 
 EXTEND FORM userInvoice
-    PROPERTIES(i) DRAW ed TOOLBAR syncTTN SHOWIF NOT hideFillQuantity(i)
+    PROPERTIES(i) DRAW ed TOOLBAR syncTTN SHOWIF NOT hideFillQuantity(i) AND NOT hideSyncTTN(i)
 ;

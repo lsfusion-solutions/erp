@@ -14,12 +14,19 @@ NAMESPACE EGAISPurchase;
 
 @defineOriginalLastPositionDocumentWayBillAttributes(Purchase, invoice, InvoiceDetail);
 
+checkUnlink = ABSTRACT VALUE STRING (Invoice);
+
 unlink 'Отвязать ТТН' (Invoice i) {
     IF wayBillAct(wayBill(i)) THEN {
         MESSAGE 'Невозможно отвязать, т.к. для ТТН есть акт приемки ЕГАИС';
         RETURN;
     }
-    
+
+    IF checkUnlink(i) THEN {
+        MESSAGE checkUnlink(i);
+        RETURN;
+    }
+
     quantity(UserInvoiceDetail d, WayBillPosition p) <- NULL WHERE userInvoice(d) = i;
     wayBill(i) <- NULL;
 }

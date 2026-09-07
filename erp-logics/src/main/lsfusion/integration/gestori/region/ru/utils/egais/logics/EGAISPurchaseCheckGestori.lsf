@@ -50,6 +50,15 @@ resetCheck 'Сбросить сверку' (UserInvoice i) {
     dataCheckLog(i) <- NULL;
 }
 
+hideSyncTTN(UserInvoice i) += checked(i);
+checkUnlink(Invoice i) += 'Для накладной выполнена сверка с ЕГАИС ТТН. Сначала сбросьте сверку.' IF checked(i);
+
+disableChangeWayBill(UserInvoice i) += TRUE IF checked(i);
+
+CONSTRAINT CHANGED(wayBill(UserInvoice i)) AND checked(i)
+    AND NOT disableEGAISDocumentConstraints()
+    MESSAGE 'После сверки с ЕГАИС ТТН нельзя менять привязанную ТТН. Сначала сбросьте сверку.';
+
 CONSTRAINT CHANGED(shipmentQuantity(UserInvoiceDetail d)) AND checked(userInvoice(d))
     AND NOT disableEGAISDocumentConstraints()
     MESSAGE 'После сверки с ЕГАИС ТТН изменять накладную нельзя. Сначала сбросьте сверку.';
