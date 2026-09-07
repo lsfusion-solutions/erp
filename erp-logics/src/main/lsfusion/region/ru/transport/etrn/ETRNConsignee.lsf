@@ -98,9 +98,17 @@ checkT3 (ETRN e) {
 // реализуется модулями-связками (например, определение склада грузополучателя по закупочной накладной)
 overPrepareT3 ABSTRACT LIST (ETRN);
 
+// партнёрство с перевозчиком (приглашение, если его нет) - у провайдера; итог - в counteragentT3Failed
+checkCounteragentT3 ABSTRACT CASE (ETRN);
+counteragentT3Failed = DATA LOCAL BOOLEAN ();
+
 sendConsigneeSignedETRN 'Подписать и отправить Т3' (ETRN e) {
     checkProvider(e);
     IF NOT provider(e) THEN RETURN;
+    // партнёрство - до проверки полей: приглашение уходит сразу, и пока пользователь дозаполняет
+    // титул, перевозчик его принимает. Незаполненные поля показываем в тот же заход
+    counteragentT3Failed() <- NULL;
+    checkCounteragentT3(e);
     overPrepareT3(e);
     // подписант Т3 подтягивается с карточки нашей стороны; сохраняем сразу:
     // реализация провайдера работает в своей сессии и несохранённого не увидит
@@ -111,10 +119,8 @@ sendConsigneeSignedETRN 'Подписать и отправить Т3' (ETRN e) 
         signerPosition(e) <- overSignerPosition(signerParty(e)) WHERE NOT signerPosition(e) AND overSignerPosition(signerParty(e));
         APPLY;
     }
-    IF NOT skipFieldCheckETRN() THEN {
-        checkT3(e);
-        IF missingT3(e) THEN RETURN;
-    }
+    IF NOT skipFieldCheckETRN() THEN checkT3(e);
+    IF counteragentT3Failed() OR (missingT3(e) AND NOT skipFieldCheckETRN()) THEN RETURN;
     sendConsigneeSigned(e);
 } IMAGE 'apply.png';
 

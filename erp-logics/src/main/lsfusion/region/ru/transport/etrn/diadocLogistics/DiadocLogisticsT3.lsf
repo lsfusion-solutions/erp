@@ -35,9 +35,7 @@ diadocSendT3 (ETRN.ETRN e) {
         MESSAGE 'Не найден ящик Диадока перевозчика (получатель титула Т3). Для входящей перевозки: проверьте ИНН перевозчика на документе и обновите его организацию в справочнике Диадока по ИНН' NOWAIT;
         RETURN;
     }
-
-    checkCounteragent(guidBoxId(diadocBoxId(ETRN.consignee(e))), carrierT3Box(e), 'Т3', 'перевозчик');
-    IF NOT counteragentCheckPassed() THEN RETURN;
+    // партнёрство с перевозчиком проверено раньше, до проверки полей (checkCounteragentT3)
 
     FOR User u == userDiadocETRN() DO NEWSESSION {
         fromBox() <- diadocBox(ETRN.consignee(e));
@@ -96,6 +94,13 @@ diadocSendT3 (ETRN.ETRN e) {
         }
         APPLY;
     }
+}
+
+// без ящиков партнёрство проверять не с кем - об этом скажет сама отправка
+ETRN.checkCounteragentT3 (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvider.diadoc THEN {
+    IF NOT (diadocBox(ETRN.consignee(e)) AND carrierT3Box(e)) THEN RETURN;
+    checkCounteragent(guidBoxId(diadocBoxId(ETRN.consignee(e))), carrierT3Box(e), 'Т3', 'перевозчик');
+    IF NOT counteragentCheckPassed() THEN ETRN.counteragentT3Failed() <- TRUE;
 }
 
 ETRN.sendConsigneeSigned (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvider.diadoc THEN {

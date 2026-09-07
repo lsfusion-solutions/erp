@@ -374,6 +374,10 @@ stockByDeliveryZip (STRING[6] z) = GROUP MAX Stock.Stock st IF zipCode(st) == z;
 // с подразделением Диадока (у подразделения есть код ГАР адреса)
 stockByDeliveryGar = ABSTRACT CASE Stock.Stock (STRING);
 
+// склад по индексу места доставки из собственного источника клиента - последний способ подбора,
+// когда остальные не дали однозначного совпадения
+overStockByDeliveryZip = ABSTRACT CASE Stock.Stock (STRING[6]);
+
 // индекс из текстового адреса: первая слитная группа РОВНО из 6 цифр; извлечение - обратной
 // ссылкой \2 (PG); при несовпадении regexpReplace вернёт исходный текст - отсюда валидация
 deliveryZipExtract (STRING text) = regexpReplace(trim(text), '^.*?(^|[^0-9])([0-9]{6})([^0-9]|$).*$', '\\2', '');
@@ -388,7 +392,9 @@ deliveryZipStored (ETRN e) = STRING[6](OVERRIDE deliveryZipCode(e), deliveryZip(
 
 overPrepareT3 (ETRN e) + {
     IF e IS IncomingETRN AND NOT customerStock(e) AND deliveryZipStored(e) THEN NEWSESSION {
-        customerStock(e) <- stockByDeliveryZip(deliveryZipStored(e)) WHERE countStocksByDeliveryZip(deliveryZipStored(e)) == 1;
+        customerStock(e) <- CASE
+            WHEN countStocksByDeliveryZip(deliveryZipStored(e)) == 1 THEN stockByDeliveryZip(deliveryZipStored(e))
+            WHEN overStockByDeliveryZip(deliveryZipStored(e)) THEN overStockByDeliveryZip(deliveryZipStored(e));
         APPLY;
     }
 }
@@ -491,12 +497,13 @@ parseETRNTitleXml 'Импортировать титул Т1 из файла' (E
         incomingInvoicNumber(ie) <- STRING[100]([GROUP LAST impT1InfValue(INTEGER i) IF impT1InfId(i) == 'INVOIC' ORDER i]());
 
         // склад грузополучателя по приоритету: GLN -> код ГАР -> индекс адреса (только при
-        // однозначности); дальше событие подтянет структурный адрес для Т3
+        // однозначности) -> индекс из источника клиента; дальше событие подтянет структурный адрес для Т3
         IF NOT customerStock(ie) THEN
             customerStock(ie) <- CASE
                 WHEN stockGLN(STRING[13](impT1GPGln())) THEN stockGLN(STRING[13](impT1GPGln()))
                 WHEN stockByDeliveryGar(impT1GPGar()) THEN stockByDeliveryGar(impT1GPGar())
-                WHEN countStocksByDeliveryZip(impT1DeliveryZip()) == 1 THEN stockByDeliveryZip(impT1DeliveryZip());
+                WHEN countStocksByDeliveryZip(impT1DeliveryZip()) == 1 THEN stockByDeliveryZip(impT1DeliveryZip())
+                WHEN overStockByDeliveryZip(impT1DeliveryZip()) THEN overStockByDeliveryZip(impT1DeliveryZip());
     }
 
     // грузоотправителя без карточки не сообщаем: его реквизиты сохранены строками.
