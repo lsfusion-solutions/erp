@@ -749,6 +749,10 @@ balanceBStock(Stock st, DATE dt) =
 turnover(Stock st, DATE df, DATE dt) =
     GROUP SUM NUMERIC[30,2](balanceBDepartmentStore(st,dt)*daysInclBetweenDates(df,dt)/sumSku(st,df,dt));
 
+sumBuxCost 'Сумма продаж по бух. себестоимости' (Stock st, DATE df, DATE dt) =
+    GROUP SUM (costPriceSku(sku(SaleLedger l), stock(l), date(l)) * quantity(l))
+        IF date(l) >= df AND date(l) <= dt AND st = stock(l) AND filterSaleLeger(l) AND inSessionSku(sku(l));
+
 inReturn 'Вкл. возвраты' = DATA LOCAL BOOLEAN ();
 
 FORM groupItogSaleLedgerReport 'Итоговый отчет по продажам'
@@ -758,13 +762,13 @@ FORM groupItogSaleLedgerReport 'Итоговый отчет по продажа�
 
     OBJECTS st = Stock
     PROPERTIES(st) name, id
-    PROPERTIES(st,df,dt) sumRetailPrice, sumSku,
+    PROPERTIES(st,df,dt) sumRetailPrice, sumSku, sumBuxCost,
         profit, rentSku, markup, turnover
     PROPERTIES(st,dt) balanceBDepartmentStore, balanceBStock
     ORDERS name(st)
-    
+
     FILTERS sumRetailPrice(st,df,dt), inSaleReportDialog(st)
-    
+
 ;
 
 sumRetailPrice(DepartmentStore st, DATE df, DATE dt) =
@@ -777,6 +781,10 @@ markup(DepartmentStore st, DATE df, DATE dt) = NUMERIC[30,2](profit(st,df,dt)*10
 turnover(DepartmentStore st, DATE df, DATE dt) =
     GROUP SUM NUMERIC[30,2](balanceBDepartmentStore(st,dt)*daysInclBetweenDates(df,dt)/sumSku(st,df,dt));
 
+sumBuxCost 'Сумма продаж по бух. себестоимости' (DepartmentStore st, DATE df, DATE dt) =
+    GROUP SUM (costPriceSku(sku(ReceiptDetail l), departmentStore(l), date(l)) * quantity(l))
+        IF date(l) >= df AND date(l) <= dt AND st = departmentStore(l) AND filterSaleLeger(l) AND inSessionSku(sku(l));
+
 FORM groupItogReceiptDetailReport 'Итоговый отчет по продажам(розница)'
     OBJECTS dates = (df = DATE, dt = DATE) PANEL
     PROPERTIES df 'Дата с' = VALUE(df), dt 'Дата по' = VALUE(dt),
@@ -784,7 +792,7 @@ FORM groupItogReceiptDetailReport 'Итоговый отчет по продаж
 
     OBJECTS st = DepartmentStore
     PROPERTIES(st) name, id
-    PROPERTIES(st,df,dt) sumRetailPrice, sumSku,
+    PROPERTIES(st,df,dt) sumRetailPrice, sumSku, sumBuxCost,
         profit, rentSku, markup, turnover
     PROPERTIES(st,dt) balanceBDepartmentStore, balanceBStock
     ORDERS name(st)
