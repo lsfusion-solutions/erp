@@ -97,11 +97,15 @@ CONSTRAINT notNullProductionCoeff() AND countProductionNormComponent(sku(Batch b
 productionNorm 'Норма' = productionNorm(component(ComponentDetail d));
 productionCoeffBatch 'Параметры партии' = productionCoeff(batch(ComponentDetail d));
 
-WHEN LOCAL FORMS order CHANGED(batch(ComponentDetail d)) AND component(d) AND productionNorm(component(d)) DO {
+// пересчёт при смене партии рассчитан на одну строку компонента с одной партией; при нескольких партийных
+// строках на компонент количество считает расписывание партий, и пересчёт по строке отключается
+skipRecalcOnChangeBatch = ABSTRACT BOOLEAN (ComponentDetail);
+
+WHEN LOCAL FORMS order CHANGED(batch(ComponentDetail d)) AND component(d) AND productionNorm(component(d)) AND NOT skipRecalcOnChangeBatch(d) DO {
     bruttoQuantity(d) <- calcComponentBruttoQuantity (d);
     BOMQuantity(d)  <- calcComponentBOMQuantity(d);
 }
-WHEN LOCAL FORMS order CHANGED(batch(ComponentDetail d)) AND NOT component(d) AND productionNorm(component(d)) DO {
+WHEN LOCAL FORMS order CHANGED(batch(ComponentDetail d)) AND NOT component(d) AND productionNorm(component(d)) AND NOT skipRecalcOnChangeBatch(d) DO {
     bruttoQuantity(d) <- calcSkuBruttoQuantity (d);
     BOMQuantity(d)  <- calcSkuBOMQuantity(d);
 }
