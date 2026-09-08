@@ -1425,11 +1425,21 @@ VetisPurchase.overMatches(Purchase.UserInvoiceDetail vd, VetDocument vtd) += wit
     AND consigneeBusinessEntity(vtd) == businessEntity(Purchase.supplier(vd))
     AND in(sku(vd), productItem(vtd));
 
-// аннулировать можно только подтверждённый возвратный ВСД
+// заявка на аннуляцию, которая ещё выполняется или уже выполнена; завершившиеся ошибкой не в счёт — их можно повторить
+activeWithdrawVDGestori (VetDocument d) = GROUP MAX WithdrawVetDocumentRequest r
+    IF vetDocument(r) == d AND (notCompleted(r) OR succeeded(r));
+
+// аннулировать можно только подтверждённый возвратный ВСД, по которому нет действующей заявки на аннуляцию
 canWithdrawReturnVDGestori (VetDocument d) =
-    TRUE IF type(d) == VetDocumentType.RETURNABLE AND status(d) == VetDocumentStatus.CONFIRMED;
+    TRUE IF type(d) == VetDocumentType.RETURNABLE AND status(d) == VetDocumentStatus.CONFIRMED AND NOT activeWithdrawVDGestori(d);
 
 withdrawReturnVDGestori 'Аннулировать' (VetDocument d) {
+    // проверка до открытия диалога: данные на форме могут быть уже устаревшими
+    IF activeWithdrawVDGestori(d) THEN {
+        MESSAGE 'По ВСД ' + (OVERRIDE uuid(d), '') + ' запрос на аннуляцию уже ' +
+            (IF succeeded(activeWithdrawVDGestori(d)) THEN 'выполнен' ELSE 'отправлен и ещё обрабатывается') NOWAIT;
+        RETURN;
+    }
     withdraw(d);
 }
 
