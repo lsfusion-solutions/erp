@@ -1420,6 +1420,11 @@ withdrawnReturnVDGestori (VetDocument d) =
 // такие ВСД доступны для связи со строками накладной наравне с подтверждёнными
 extraLinkVetDocumentVetis(VetDocument d) += withdrawnReturnVDGestori(d);
 
+VetisPurchase.overMatches(Purchase.UserInvoiceDetail vd, VetDocument vtd) += withdrawnReturnVDGestori(vtd)
+    AND in(Purchase.customerStock(vd), consignorEnterprise(vtd))
+    AND consigneeBusinessEntity(vtd) == businessEntity(Purchase.supplier(vd))
+    AND in(sku(vd), productItem(vtd));
+
 // аннулировать можно только подтверждённый возвратный ВСД
 canWithdrawReturnVDGestori (VetDocument d) =
     TRUE IF type(d) == VetDocumentType.RETURNABLE AND status(d) == VetDocumentStatus.CONFIRMED;

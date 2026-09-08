@@ -108,14 +108,17 @@ META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, contai
     volumeDetail2 'Объем в документе' (###doc##Detail vd, VetDocument vtd) = PARTITION UNGROUP quantity LIMIT STRICT volume(vtd)/(OVERRIDE factor(sku(vd), unit(vtd)), 1.0) ORDER DESC volume(vtd), vtd BY vd;
     fillVolume 'Выбрать' (###doc##Detail vd, VetDocument vtd) { volume(vd, vtd) <- volumeDetail(vd, vtd); }
     
-    matches (###doc##Detail vd, VetDocument vtd) = (IF noConsignorEnterprise(doc(vd)) THEN
+    overMatches = ABSTRACT BOOLEAN (###doc##Detail, VetDocument);
+
+    matches (###doc##Detail vd, VetDocument vtd) = ((IF noConsignorEnterprise(doc(vd)) THEN
             consignorBusinessEntity(vtd) = consigneeBusinessEntity(vtd) AND NOT consignorEnterprise(vtd)
         ELSE
             consignorBusinessEntity(vtd) = businessEntity(consignor(vd)) AND
             in(consignor##Stock(vd), consignorEnterprise(vtd)))
         AND
             in(consignee##Stock(vd), consigneeEnterprise(vtd)) AND
-            in(sku(vd), productItem(vtd));
+            in(sku(vd), productItem(vtd)))
+        OR overMatches(vd, vtd);
     
     fillExpiryDate 'Заполнить сроки годности' (###doc d) {
         ASK 'Заполнить сроки годности из ВСД ?' DO
