@@ -338,11 +338,12 @@ WHEN (SETCHANGED(sku(Sale.OrderDetail d)) OR SETCHANGED(supplierStock(d)) OR SET
                         ORDER DESC fromDate(pd), pd;
 }
 
+skipSet = ABSTRACT BOOLEAN (Sale.OrderDetail, PreOrderDetail);
 WHEN (SETCHANGED(batch(Sale.OrderDetail d)) OR SETCHANGED(supplierStock(d)) OR SETCHANGED(quantity(d))) AND batchReserve() AND NOT customReserve() DO {
     preOrderDetail(d) <- NULL;
     preOrderDetail(d) <- GROUP LAST PreOrderDetail pd IF calcQuantity(pd) >= quantity(d) AND batch(d) == batch(pd) AND 
                             dateTime(d) >= fromDateTime(pd) AND supplierStock(d) == supplierStock(pd) AND 
-                            (operation(pd) == operation(d) OR in(pd,operation(d)))
+                            (operation(pd) == operation(d) OR in(pd,operation(d))) AND NOT skipSet(d, pd)
                         ORDER DESC fromDate(pd), pd;
 }
 
