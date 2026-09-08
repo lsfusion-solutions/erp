@@ -82,6 +82,11 @@ FORM saleRestrictionExport FORMEXTID 'goods-catalog'
 
 exportSaleRestrictionTI 'Отправить в SET' (SaleDeniedRestriction r) {
     NEWSESSION {
+        // старый путь задвоил бы запрет и навсегда закрыл его от механизма удаления цены
+        IF usePriceDelete(r) THEN {
+            MESSAGE 'Запрет выгружается через удаление цены';
+            RETURN;
+        }
         IF NOT shopIndices(r) THEN{
             MESSAGE 'Не указан код магазина SET10';
             RETURN;
@@ -122,6 +127,11 @@ exportSaleRestrictionTI 'Отправить в SET' (SaleDeniedRestriction r) {
 }
 exportSaleRestrictionWithoutTI 'Отправить в SET(ESB)' (SaleDeniedRestriction r) {
     NEWSESSION {
+        // старый путь задвоил бы запрет и навсегда закрыл его от механизма удаления цены
+        IF usePriceDelete(r) THEN {
+            MESSAGE 'Запрет выгружается через удаление цены';
+            RETURN;
+        }
         IF NOT shopIndices(r) THEN{
             MESSAGE 'Не указан код магазина SET10';
             RETURN;
@@ -342,8 +352,8 @@ CONSTRAINT SET(dateTimeDeletePriceSaleDenied(Stock st)) AND prevDateTimeDeletePr
     AND (GROUP SUM 1 IF createdTime(SaleDeniedRestriction r) AND NOT deleted(r) AND stock(r) = st)
     MESSAGE 'Нельзя менять дату перехода на запрет через удаление цены: по магазину есть незакрытые запреты продаж';
 
-// сравнение по дню, иначе "сейчас" не выставить: пока идёт APPLY, currentDateTime() уходит вперёд
-CONSTRAINT SET(dateTimeDeletePriceSaleDenied(Stock st)) AND toDate(dateTimeDeletePriceSaleDenied(st)) < currentDate()
+// сравнение с PREV, иначе "сейчас" не выставить: пока идёт APPLY, currentDateTime() уходит вперёд
+CONSTRAINT SET(dateTimeDeletePriceSaleDenied(Stock st)) AND dateTimeDeletePriceSaleDenied(st) < PREV(currentDateTime())
     MESSAGE 'Дата перехода на запрет через удаление цены не может быть в прошлом';
 
 in (MachineryPriceTransaction t, SaleDeniedRestriction r) = stock(t) = stock(r) AND in(t, barcode(sku(r))) AND active(r);
