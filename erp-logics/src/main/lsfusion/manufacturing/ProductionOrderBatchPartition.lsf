@@ -42,9 +42,7 @@ replaceSub 'Заменить' = DATA LOCAL NUMERIC[16,5] (Substitute);
 replaceSub 'Заменить' (Sku s) = GROUP SUM replaceSub(Substitute sb) IF toSku(sb) = s;  
 
 createBatchComponentDetailOver  ABSTRACT LIST (Order);
-// пересчёт остатка партии в единицы потребности (например, по параметрам партии); без реализации — 1
-partitionCoeff = ABSTRACT NUMERIC[20,9] (Batch, Order);
-prevCurrentBalanceZero(Sku s, Order o) = GROUP SUM NUMERIC[16,5](prevCurrentBalance(Batch b, componentsStock(o)) / (OVERRIDE partitionCoeff(b, o), 1.0)) IF  dateTime(b)<dateTime(o) AND prevCurrentBalance(b, componentsStock(o)) >0 AND sku(b)==s;
+prevCurrentBalanceZero(Sku s, Order o) = GROUP SUM prevCurrentBalance(Batch b, componentsStock(o)) IF  dateTime(b)<dateTime(o) AND prevCurrentBalance(b, componentsStock(o)) >0 AND sku(b)==s;
 
 returnCreateBatch = DATA LOCAL BOOLEAN (Order);
 createBatchComponentDetailFirst ABSTRACT LIST(Order);
@@ -108,7 +106,7 @@ createBatchComponentDetail 'Рассчитать партии по FIFO' (Order 
         // Расписываем партии по FIFO
         FOR Stock st = componentsStock(o) DO {
             LOCAL balance = NUMERIC[16,5] (Batch);
-            balance (Batch b) <- NUMERIC[16,5](prevCurrentBalance(b, st) / (OVERRIDE partitionCoeff(b, o), 1.0)) WHERE toConsumePart(prevSkuCurrentBalance(b, st)) AND dateTime(b)<dateTime(o) AND prevCurrentBalance(b, st) >0;
+            balance (Batch b) <- prevCurrentBalance(b, st) WHERE toConsumePart(prevSkuCurrentBalance(b, st)) AND dateTime(b)<dateTime(o) AND prevCurrentBalance(b, st) >0;
             
             toConsume(Batch b) <- PARTITION UNGROUP toConsumePart
                                         LIMIT balance(b)
@@ -137,13 +135,13 @@ createBatchComponentDetail 'Рассчитать партии по FIFO' (Order 
         }
         
         LOCAL bruttoQuantity = NUMERIC[16,5] (Sku, BOM, Batch);
-        bruttoQuantity (Sku s, BOM bom, Batch b) <- NUMERIC[16,5](toConsume(s, bom, b) / (OVERRIDE multiplier(s, bom, sku(b)), 1.0) * (OVERRIDE partitionCoeff(b, o), 1.0)); 
+        bruttoQuantity (Sku s, BOM bom, Batch b) <- NUMERIC[16,5](toConsume(s, bom, b) / (OVERRIDE multiplier(s, bom, sku(b)), 1.0)); 
         
         // Исходное количество
         bruttoQuantity(ComponentDetail d) <- bruttoQuantity(bruttoSku(d), BOM(d), batch(d)) WHERE order(d) = o;
         
         // Кол-во с учетом замены
-        substituteQuantity(ComponentDetail d) <- NUMERIC[16,5](toConsume(bruttoSku(d), BOM(d), batch(d)) * (OVERRIDE partitionCoeff(batch(d), o), 1.0)) WHERE order(d) = o AND bruttoSku(d) != sku(batch(d));
+        substituteQuantity(ComponentDetail d) <- toConsume(bruttoSku(d), BOM(d), batch(d)) WHERE order(d) = o AND bruttoSku(d) != sku(batch(d));
         
         DELETE ComponentDetail d WHERE order(d) = o AND NOT d = lastDetail(o, bruttoSku(d), BOM(d), batch(d));
         
@@ -306,7 +304,7 @@ createBatchComponentDetailNew 'Рассчитать партии по FIFO new' 
         // Расписываем партии по FIFO
         FOR Stock st = componentsStock(o) DO {
             LOCAL balance = NUMERIC[16,5] (Batch);
-            balance (Batch b) <- NUMERIC[16,5](prevCurrentBalance(b, st) / (OVERRIDE partitionCoeff(b, o), 1.0)) WHERE toConsumePart(prevSkuCurrentBalance(b, st)) AND dateTime(b)<dateTime(o) AND prevCurrentBalance(b, st) >0;
+            balance (Batch b) <- prevCurrentBalance(b, st) WHERE toConsumePart(prevSkuCurrentBalance(b, st)) AND dateTime(b)<dateTime(o) AND prevCurrentBalance(b, st) >0;
 
             toConsume(Batch b) <- PARTITION UNGROUP toConsumePart
                 LIMIT balance(b)
@@ -335,13 +333,13 @@ createBatchComponentDetailNew 'Рассчитать партии по FIFO new' 
         }
 
         LOCAL bruttoQuantity = NUMERIC[16,5] (Sku, BOM, Batch);
-        bruttoQuantity (Sku s, BOM bom, Batch b) <- NUMERIC[16,5](toConsume(s, bom, b) / (OVERRIDE multiplier(s, bom, sku(b)), 1.0) * (OVERRIDE partitionCoeff(b, o), 1.0));
+        bruttoQuantity (Sku s, BOM bom, Batch b) <- NUMERIC[16,5](toConsume(s, bom, b) / (OVERRIDE multiplier(s, bom, sku(b)), 1.0));
 
         // Исходное количество
         bruttoQuantity(ComponentDetail d) <- bruttoQuantity(bruttoSku(d), BOM(d), batch(d)) WHERE order(d) = o;
 
         // Кол-во с учетом замены
-        substituteQuantity(ComponentDetail d) <- NUMERIC[16,5](toConsume(bruttoSku(d), BOM(d), batch(d)) * (OVERRIDE partitionCoeff(batch(d), o), 1.0)) WHERE order(d) = o AND bruttoSku(d) != sku(batch(d));
+        substituteQuantity(ComponentDetail d) <- toConsume(bruttoSku(d), BOM(d), batch(d)) WHERE order(d) = o AND bruttoSku(d) != sku(batch(d));
 
         DELETE ComponentDetail d WHERE order(d) = o AND NOT d = lastDetail(o, bruttoSku(d), BOM(d), batch(d));
 
@@ -367,11 +365,14 @@ taken (Sku s, BOM b, Component c) = GROUP SUM quantity(Substitute r, b, c) IF fr
 
 multiplier 'Коэффициент замены' = DATA LOCAL NUMERIC[16,5] (Sku, BOM, Sku, Component);
 quantity 'Кол-во к списанию замены' = DATA LOCAL NUMERIC[16,5] (Sku, BOM, Sku, Component);
-toConsume 'Кол-во из партии' = DATA LOCAL NUMERIC[16,5] (Sku, BOM, Batch, Component);
-takenBatch 'Расписано по партиям (замена)' (Sku s, BOM b, Sku sr, Component c) = GROUP SUM toConsume(s, b, Batch bt, c) IF sku(bt) = sr;
+// коэффициент пересчёта потребности компонента в единицы партии (например, по параметрам партии); без реализации — 1
+calcPartitionCoeff = ABSTRACT NUMERIC[20,9] (Batch, Component);
+partitionCoeff = DATA LOCAL NUMERIC[20,9] (Batch, Component); // рассчитан один раз на время расписывания по нужным парам
+toConsume 'Кол-во из партии' = DATA LOCAL NUMERIC[16,5] (Sku, BOM, Batch, Component); // в единицах партии (с коэффициентом)
+takenBatch 'Расписано по партиям (замена)' (Sku s, BOM b, Sku sr, Component c) = GROUP SUM NUMERIC[16,5](toConsume(s, b, Batch bt, c) / (OVERRIDE partitionCoeff(bt, c), 1.0)) IF sku(bt) = sr;
 lastDetail = GROUP LAST ComponentDetail d ORDER d BY order(d), bruttoSku(d), BOM(d), batch(d), component(d);
 
-originalTakenBatch 'Расписано по партиям (в исходном количестве)' (Sku s, BOM b, Component c) = GROUP SUM NUMERIC[16,5](toConsume(s, b, Batch bt, c) / (OVERRIDE multiplier(s, b, sku(bt), c), 1.0));
+originalTakenBatch 'Расписано по партиям (в исходном количестве)' (Sku s, BOM b, Component c) = GROUP SUM NUMERIC[16,5](toConsume(s, b, Batch bt, c) / (OVERRIDE multiplier(s, b, sku(bt), c), 1.0) / (OVERRIDE partitionCoeff(bt, c), 1.0));
 
 lack 'Не хватает' = DATA LOCAL NUMERIC[16,5] (Sku, BOM, Component);
 replaceSub 'Заменить' = DATA LOCAL NUMERIC[16,5] (Substitute, BOM, Component);
@@ -456,28 +457,36 @@ createBatchComponentDetailComponent 'Расписать партии FIFO' (Orde
         // считаем общее количество по товару, который нужно списать
         toConsumePart(Sku r) <- GROUP SUM quantity(Sku s, BOM b, r, Component c);
 
-        // Расписываем партии по FIFO
+        // Расписываем партии по FIFO: последовательно по партиям, потребность строки — в единицах партии
+        // (коэффициент по компоненту и партии), остаток потребности — в единицах компонента
+        LOCAL balance = NUMERIC[16,5] (Batch);
         FOR Stock st = componentsStock(o) DO {
-            LOCAL balance = NUMERIC[16,5] (Batch);
-            balance (Batch b) <- NUMERIC[16,5](prevCurrentBalance(b, st) / (OVERRIDE partitionCoeff(b, o), 1.0)) WHERE toConsumePart(prevSkuCurrentBalance(b, st)) AND dateTime(b)<dateTime(o) AND prevCurrentBalance(b, st) >0;
-
-            toConsume(Batch b) <- PARTITION UNGROUP toConsumePart
-                LIMIT balance(b)
-                ORDER dateTime(b), b
-                BY sku(b);
+            balance (Batch b) <- prevCurrentBalance(b, st) WHERE toConsumePart(prevSkuCurrentBalance(b, st)) AND dateTime(b)<dateTime(o) AND prevCurrentBalance(b, st) >0;
         }
 
-        // Раскидываем партии по строкам заказа
+        partitionCoeff(Batch bt, Component c) <- NULL WHERE partitionCoeff(bt, c);
+        partitionCoeff(Batch bt, Component c) <- calcPartitionCoeff(bt, c) WHERE balance(bt) AND (GROUP SUM 1 IF quantity(Sku s, BOM b, sku(bt), c));
+
+        // кандидаты — партии по FIFO, пока накопленный остаток предыдущих меньше потребности (с запасом на коэффициент > 1)
+        LOCAL maxCoeff = NUMERIC[20,9] (Sku);
+        maxCoeff(Sku r) <- GROUP MAX partitionCoeff(Batch bt, Component c) IF sku(bt) == r;
+        LOCAL cumBalance = NUMERIC[16,5] (Batch);
+        cumBalance(Batch bt) <- PARTITION SUM balance(bt) ORDER dateTime(bt), bt BY sku(bt);
+        LOCAL candidate = BOOLEAN (Batch);
+        candidate(Batch bt) <- TRUE WHERE balance(bt) AND cumBalance(bt) - balance(bt) < toConsumePart(sku(bt)) * (OVERRIDE maxCoeff(sku(bt)), 1.0);
+
+        // LIMIT без STRICT: остаток партии сверх потребности строк не раздаётся, а остаётся в партии
         toConsume(Sku s, BOM b, Batch bt, Component c) <- NULL;
-        FOR toConsume(Batch bt) DO {
-            toConsume(Sku s, BOM b, bt, Component c ) <- PARTITION UNGROUP toConsume
-                LIMIT STRICT quantity(s, b, sku(bt), c) - (OVERRIDE takenBatch(s, b, sku(bt), c), 0.0)
+        FOR candidate(Batch bt) ORDER dateTime(bt), bt DO {
+            toConsume(Sku s, BOM b, bt, Component c) <- PARTITION UNGROUP balance
+                LIMIT (MAX NUMERIC[16,5]((quantity(s, b, sku(bt), c) - (OVERRIDE takenBatch(s, b, sku(bt), c), 0.0)) * (OVERRIDE partitionCoeff(bt, c), 1.0)), 0.0) IF quantity(s, b, sku(bt), c)
                 ORDER s, b, c
                 BY bt;
         }
 
         // Создаем строки по расписанным партиям
-        FOR toConsume(Sku s, BOM b, Batch bt, Component c) AND NOT lastDetail(o, s, b, bt, c) ORDER b, s, dateTime(bt), bt, c NEW d = ComponentDetail DO {
+        // хвосты до 0.00001 от округления в строки не выносим
+        FOR toConsume(Sku s, BOM b, Batch bt, Component c) > 0.00001 AND NOT lastDetail(o, s, b, bt, c) ORDER b, s, dateTime(bt), bt, c NEW d = ComponentDetail DO {
             order(d) <- o;
             bruttoSku(d) <- s;
             component(d)<- c;
@@ -488,13 +497,13 @@ createBatchComponentDetailComponent 'Расписать партии FIFO' (Orde
         }
 
         LOCAL bruttoQuantity = NUMERIC[16,5] (Sku, BOM, Batch, Component);
-        bruttoQuantity (Sku s, BOM bom, Batch b, Component c) <- NUMERIC[16,5](toConsume(s, bom, b, c) / (OVERRIDE multiplier(s, bom, sku(b), c), 1.0) * (OVERRIDE partitionCoeff(b, o), 1.0));
+        bruttoQuantity (Sku s, BOM bom, Batch b, Component c) <- NUMERIC[16,5](toConsume(s, bom, b, c) / (OVERRIDE multiplier(s, bom, sku(b), c), 1.0));
 
         // Исходное количество
         bruttoQuantity(ComponentDetail d) <- bruttoQuantity(bruttoSku(d), BOM(d), batch(d), component(d)) WHERE order(d) = o;
 
         // Кол-во с учетом замены
-        substituteQuantity(ComponentDetail d) <- NUMERIC[16,5](toConsume(bruttoSku(d), BOM(d), batch(d), component(d)) * (OVERRIDE partitionCoeff(batch(d), o), 1.0)) WHERE order(d) = o AND bruttoSku(d) != sku(batch(d));
+        substituteQuantity(ComponentDetail d) <- toConsume(bruttoSku(d), BOM(d), batch(d), component(d)) WHERE order(d) = o AND bruttoSku(d) != sku(batch(d));
 
         DELETE ComponentDetail d WHERE order(d) = o AND NOT d = lastDetail(o, bruttoSku(d), BOM(d), batch(d), component(d));
 
