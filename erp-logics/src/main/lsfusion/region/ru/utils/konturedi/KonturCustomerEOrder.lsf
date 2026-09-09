@@ -771,17 +771,19 @@ returnOrderEDI = GROUP MAX Purchase.UserOrder oo IF include[Purchase.UserOrder,P
 
 GROUP interchangeHeaderRetann EXTID 'interchangeHeader';
 GROUP announcementForReturns;
-GROUP sellerRetann : announcementForReturns;
-GROUP organizationRetann : sellerRetann;
-GROUP russianAddressRetann : sellerRetann;
-GROUP buyerRetann : announcementForReturns;
+// имена тегов по формату Контура: без EXTID в XML уходили имена групп (sellerRetann и т.п.), и Контур такой файл отклонял
+GROUP originOrderRetann EXTID 'originOrder' : announcementForReturns;
+GROUP sellerRetann EXTID 'seller' : announcementForReturns;
+GROUP organizationRetann EXTID 'organization' : sellerRetann;
+GROUP russianAddressRetann EXTID 'russianAddress' : sellerRetann;
+GROUP buyerRetann EXTID 'buyer' : announcementForReturns;
 GROUP organization1Retann EXTID 'organization' : buyerRetann;
 GROUP russianAddress1Retann EXTID 'russianAddress' : buyerRetann;
-GROUP deliveryInfoRetann : announcementForReturns;
-GROUP shipFromRetann : deliveryInfoRetann;
+GROUP deliveryInfoRetann EXTID 'deliveryInfo' : announcementForReturns;
+GROUP shipFromRetann EXTID 'shipFrom' : deliveryInfoRetann;
 GROUP organization2Retann EXTID 'organization' : shipFromRetann;
 GROUP russianAddress2Retann EXTID 'russianAddress' : shipFromRetann;
-GROUP shipToRetann : deliveryInfoRetann;
+GROUP shipToRetann EXTID 'shipTo' : deliveryInfoRetann;
 GROUP organization3Retann EXTID 'organization' : shipToRetann;
 GROUP russianAddress3Retann EXTID 'russianAddress' : shipToRetann;
 GROUP lineItemsRetann EXTID 'lineItems': announcementForReturns;
@@ -865,6 +867,10 @@ FORM retann FORMEXTID 'eDIMessage'
     PROPERTIES IN announcementForReturns ATTR
         numberRetann = number(exportDocumentReturn()) EXTID 'number',
         dateRetann= toChar(currentDateTime(), 'yyyy-MM-dd') EXTID 'date'
+    // заказ, по которому оформлен возврат (если есть)
+    PROPERTIES IN originOrderRetann ATTR
+        originOrderNumberRetann = number(returnOrderEDI()) EXTID 'number',
+        originOrderDateRetann = toChar(date(returnOrderEDI()), 'yyyy-MM-dd') EXTID 'date'
     PROPERTIES IN sellerRetann
         glnRetann = GLNSupplierStockKontur(exportDocumentReturn()) EXTID 'gln'
     PROPERTIES IN organizationRetann
@@ -878,7 +884,7 @@ FORM retann FORMEXTID 'eDIMessage'
         inn2Retann = inn[Organization](customer(exportDocumentReturn())) EXTID 'inn',
         kpp3Retann = kpp[Organization](customer(exportDocumentReturn())) EXTID 'kpp'     
     PROPERTIES IN deliveryInfoRetann
-        availabilityDateRetann = toChar(currentDate(), 'yyyy-MM-dd') EXTID 'availabilityDate'
+        availabilityDateRetann = toChar(currentDateTime(), 'yyyy-MM-ddThh24:mi:ss') EXTID 'availabilityDate'
     PROPERTIES IN shipFromRetann 
         gln2Retann = GLN(customerStock(exportDocumentReturn())) EXTID 'gln'
     PROPERTIES IN shipToRetann 
