@@ -1,6 +1,6 @@
 MODULE BerlioReceive;
 
-REQUIRE NativeMachinery, ItemBerlio, ZReportSection, GiftCard, ZReportFuelLtr, CashOperationCashOrder;
+REQUIRE NativeMachinery, ItemBerlio, ZReportSection, GiftCard, CashOperationCashOrder;
 
 NAMESPACE Berlio;
 
@@ -90,10 +90,10 @@ receiveFromBerlio (GroupCashRegister gcr, STRING fn) {
         LOCAL vid, kind, receipt, npp, dep, skno, index = INTEGER (INTEGER);
         LOCAL shift, lDate, code, cardNum, item = STRING (INTEGER);
         LOCAL idZReport, idReceipt, idReceiptDetail, user = STRING (INTEGER);
-        LOCAL qty, density, weight, price, sum, discountSum, discount, mixCash, mixBank, mixOther = NUMERIC(INTEGER);
+        LOCAL qty, price, sum, discountSum, discount, mixCash, mixBank, mixOther = NUMERIC(INTEGER);
 
         IMPORT DBF CHARSET 'cp866' FROM file() TO shift = SHIFTNO, lDate = DT, time = TM, code = CODE, vid = VID, kind = KIND, qty = REL,
-                density = SOL, weight = RELKG, price = PRICEW, sum = 'SUM', discountSum = DISCSUM, discount = DISCOUNT,
+                price = PRICEW, sum = 'SUM', discountSum = DISCSUM, discount = DISCOUNT,
                 cardNum = CARDNUM, receipt = CHECKNUM, npp = KKM, dep = DEPNO, user = username, skno = SKNO, item = NOMNUM, mixCash = MIXCASH,
                 mixBank = MIXBANK, mixOther = MIXOTHER;
 
@@ -184,8 +184,6 @@ receiveFromBerlio (GroupCashRegister gcr, STRING fn) {
                     idBerlio(d) <- STRING[15](item(r));
                     sku(d) <- OVERRIDE itemIdBerlio(INTEGER(item(r))), itemIdBarcodeBerlio(INTEGER(code(r))), skuBarcode(code(r)) IF length(code(r)) > 3;
                     quantity(d) <- IF vid(r) == 2 THEN -qty(r) ELSE qty(r);
-                    weight(d) <- weight(r) IF weight(r) != 0.0;
-                    density(d) <- density(r) IF density(r) != 0.0;
                     price(d) <- price(r);
                     sum(d) <- sum(r);
                     discountPercent(d) <- -discount(r) IF discount(r) != 0.0;
