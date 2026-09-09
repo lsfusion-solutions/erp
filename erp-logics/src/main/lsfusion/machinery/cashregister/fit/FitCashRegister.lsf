@@ -101,6 +101,9 @@ overPrice4 'Цена4' = ABSTRACT NUMERIC[16,4] (MachineryPriceTransaction, Barc
 overPrice5 'Цена5' = ABSTRACT NUMERIC[16,4] (MachineryPriceTransaction, Barcode);
 overTypeMark 'Цена5' = ABSTRACT NUMERIC[16,4] (MachineryPriceTransaction, Barcode);
 
+useCodePromotion = ABSTRACT BOOLEAN ();
+overCodePromotion 'Код акции' = ABSTRACT INTEGER (MachineryPriceTransaction, Barcode);
+
 price1 'Цена1' (MachineryPriceTransaction m, Barcode b) = OVERRIDE overPrice1(m, b), price(m,b);
 price2 'Цена2' (MachineryPriceTransaction m, Barcode b) = OVERRIDE overPrice2(m, b), price(m,b);
 price3 'Цена3' (MachineryPriceTransaction m, Barcode b) = OVERRIDE overPrice3(m, b), price(m,b);
@@ -178,6 +181,8 @@ sendToFit (MachineryPriceTransaction t) {
                      nameSoundFile = alpha('', 32),                    // 57. Имя звукового файла с изображением товара
                      measureQOC = alpha(STRING(measureQOC(sku(b))), 3),// 58. Мера количества предмета расчета
                      alternativeClassifierLevelCode = numeric(0, 6),   // 59. Код уровня альтернативого классификатора
+                     reserved = alpha('', 32) IF useCodePromotion(),   // 60-62. Кассой не используются
+                     codePromotion = numeric((OVERRIDE overCodePromotion(t, b) IF overCodePromotion(t, b) < 10000, 0), 4) IF useCodePromotion(), // 63. Код акции
                      append0D = '\r' IF append0D()
                 WHERE in(t, b) ORDER b; 
                      
