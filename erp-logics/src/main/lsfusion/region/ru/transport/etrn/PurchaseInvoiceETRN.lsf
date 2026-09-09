@@ -11,8 +11,8 @@ NAMESPACE ETRN;
 
 purchaseInvoice 'Накладная (закупка)' = DATA Purchase.Invoice (OutgoingETRN) INDEXED;
 
-etrn (Purchase.Invoice i) = GROUP MAX OutgoingETRN e BY purchaseInvoice(e);
-seriesNumberETRN 'ЭТрН' (Purchase.Invoice i) = seriesNumber(etrn(i)) CHARWIDTH 10;
+outgoingETRN (Purchase.Invoice i) = GROUP MAX OutgoingETRN e BY purchaseInvoice(e);
+seriesNumberOutgoingETRN 'ЭТрН' (Purchase.Invoice i) = seriesNumber(outgoingETRN(i)) CHARWIDTH 10;
 
 // строки накладной, сгруппированные по грузу товара
 quantity (Purchase.Invoice i, Cargo c) = GROUP SUM quantity(Purchase.InvoiceDetail d) BY invoice(d), cargo(sku(d));
@@ -52,7 +52,7 @@ fill (Purchase.Invoice i, OutgoingETRN e) {
     overFill(i, e);
 }
 
-createETRN 'Создать ЭТрН (самовывоз)' (Purchase.Invoice i) {
+createETRN 'Создать ЭТрН' (Purchase.Invoice i) {
     IF quantityNoCargo(i) THEN {
         MESSAGE CONCAT ' ', 'Не для всех товаров накладной задан груз (ЭПД). Заполните груз для товаров:', namesSkuNoCargo(i) NOWAIT;
         RETURN;
@@ -67,28 +67,33 @@ createETRN 'Создать ЭТрН (самовывоз)' (Purchase.Invoice i) {
 } IMAGE 'add.png';
 
 showETRN 'Просмотреть ЭТрН' (Purchase.Invoice i) {
-    SHOW outgoingEtrn OBJECTS e = etrn(i) READONLY;
+    SHOW outgoingEtrn OBJECTS e = outgoingETRN(i) READONLY;
 }
 
 editETRN 'Редактировать ЭТрН' (Purchase.Invoice i) {
     NEWSESSION {
-        edit(etrn(i));
+        edit(outgoingETRN(i));
     }
 } IMAGE 'edit.png';
 
+purchaseInvoice 'Накладная (закупка)' = ABSTRACT Purchase.Invoice (ETRN);
+purchaseInvoice[ETRN](OutgoingETRN e) += purchaseInvoice(e);
+
+etrn (Purchase.Invoice i) = GROUP MAX ETRN e BY purchaseInvoice(e);
+seriesNumberETRN 'ЭТрН' (Purchase.Invoice i) = seriesNumber(etrn(i)) CHARWIDTH 10;
 
 EXTEND FORM invoices
     PROPERTIES(i) READONLY seriesNumberETRN
-    PROPERTIES createETRN(i) SHOWIF NOT etrn(i),
-        etrnNumber = seriesNumberETRN(i) SHOWIF etrn(i) PANEL READONLY,
-        editETRN(i) SHOWIF etrn(i),
-        showETRN(i) SHOWIF etrn(i)
+    PROPERTIES createETRN(i) SHOWIF NOT outgoingETRN(i),
+        etrnNumber = seriesNumberETRN(i) SHOWIF outgoingETRN(i) PANEL READONLY,
+        editETRN(i) SHOWIF outgoingETRN(i),
+        showETRN(i) SHOWIF outgoingETRN(i)
 ;
 
 DESIGN invoices {
     actionContainer {
         NEW etrnRow {
-            caption = 'ЭТрН';
+            caption = 'ЭТрН (самовывоз)';
             MOVE PROPERTY (createETRN(i));
             MOVE PROPERTY (etrnNumber);
             MOVE PROPERTY (editETRN(i));
@@ -109,8 +114,8 @@ purchaseInvoiceByIncoming (IncomingETRN e) = GROUP MAX Purchase.Invoice i
 
 // накладная закупки по перевозке любого направления: у исходящей это основание (самовывоз),
 // у входящей - накладная, найденная по INVOIC титула или выбранная при проведении
-purchaseInvoice 'Накладная (закупка)' = ABSTRACT Purchase.Invoice (ETRN);
-purchaseInvoice[ETRN](OutgoingETRN e) += purchaseInvoice(e);
+
+
 purchaseInvoice[ETRN](IncomingETRN e) += purchaseInvoice(e);
 
 // одно имя на оба направления - объявлено после абстракции, чтобы через неё и разрешалось
