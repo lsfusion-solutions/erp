@@ -1,6 +1,6 @@
 MODULE DisassemblyLotSecond;
 
-REQUIRE DisassemblyLot, LotExtraSecond, LotPrice, ItemSecond, LotSecondExtra, SkuLedgerLot;
+REQUIRE DisassemblyLot, LotExtraSecond, LotPrice, ItemSecond, LotSecondExtra, SkuLedgerLotSecond;
 
 NAMESPACE Disassembly;
 
@@ -91,7 +91,7 @@ DESIGN disassemblies {
 // создать строки
 @defineOperationProperty(calcQuantityWeightLot, 'Заполнять количество разборки из марок', paramsContainer);
 
-overFillLotDetail ABSTRACT LIST(Disassembly);
+extraCostForeign = ABSTRACT NUMERIC[16,4](Disassembly, Lot);
 
 fillLotDetail 'Заполнить по маркам' (Disassembly a) {
     FOR count(a, Sku s) AND NOT disassemblyDetail(a, s) NEW d = DisassemblyDetail DO {
@@ -109,8 +109,10 @@ fillLotDetail 'Заполнить по маркам' (Disassembly a) {
     IF calcQuantityWeightLot(operation(a)) THEN
         quantity(a) <- IF split(sku(a)) THEN weightDisassemblyLot(a) ELSE countDisassemblyLot(a);
     
-    calculatePrice(a); 
-    overFillLotDetail(a);
+    calculatePrice(a);
+
+    costForeign(Lot l) <- NUMERIC[16,4]((OVERRIDE costForeign(lastOrderBatch(sku(a), stock(a))), extraCostForeign(a,l))
+        * (OVERRIDE weight(l) IF split(sku(a)), 1.0 IF l IS Lot)) WHERE disassemblyLot(a, l);
 }
 
 EXTEND FORM disassembly
