@@ -252,11 +252,20 @@ startReceiving 'Взять в работу' (Receiving receiving) {
     }
 }
 
+beforeCompleteReceiving ABSTRACT LIST (Receiving);
+canceledBeforeCompleteReceiving 'Проверка перед завершением приёмки не пройдена' = DATA LOCAL BOOLEAN ();
+
 overCompleteReceiving ABSTRACT LIST (Receiving);
 extraCompleteReceiving ABSTRACT LIST (Receiving);
 completeReceiving 'Завершить приёмку' (Receiving receiving) {
     NEWSESSION {
         ASK 'Вы уверены, что хотите завершить приёмку всего документа?' DO {
+            canceledBeforeCompleteReceiving() <- NULL;
+            beforeCompleteReceiving(receiving);
+            IF canceledBeforeCompleteReceiving() THEN {
+                CANCEL;
+                RETURN;
+            }
             IF receiving IS Receiving AND NOT countReceivingDetail(receiving) THEN {
                 ASK '<h2><font color=#FF3333>В приёмке нет ни одной строки. Вы уверены в завершении приёмки?! </font></h2>' DO {
                 } ELSE {
