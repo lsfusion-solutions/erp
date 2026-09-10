@@ -108,7 +108,15 @@ defaultNameCustomer = ABSTRACT STRING[255] ();
 notUseRoundPrice = ABSTRACT CASE BOOLEAN (Carrier);
 logOrder ABSTRACT LIST (InternetOrder, FILE);
 
+// точка расширения: полная замена обработки POST /order (напр., своя дедупликация заказов)
+useCustomCreateOrder = ABSTRACT BOOLEAN ();
+customCreateOrder  ABSTRACT (FILE);
+
 createOrder(FILE f){
+    IF useCustomCreateOrder() THEN {
+        customCreateOrder(f);
+        RETURN;
+    }
     LOCAL tokenClient = STRING ();
     tokenClient() <- OVERRIDE getWord(headers('Authorization'), ' ', 2), getWord(headers('authorization'), ' ', 2);;
     logToFile('yandex', CONCAT ' : ', 'Create order');
