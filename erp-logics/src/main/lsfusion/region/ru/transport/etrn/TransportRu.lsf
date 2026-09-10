@@ -69,6 +69,10 @@ FORM truckOwnershipTypes 'Тип владения'
 
 truckOwnershipType (id) = GROUP MAX TruckOwnershipType t BY id(t);
 
+// если Диадок потребует документ-основание ещё для какого-то типа владения - включается
+// признаком по типу (скриптом, на формы не выведен), без правки кода
+needRentGround 'Требует документ-основание владения' = DATA BOOLEAN (TruckOwnershipType);
+
 type 'Тип' = DATA ISTRING[100](Truck) CHARWIDTH 15;
 capacity 'Вместимость, м3' = DATA NUMERIC[16,5](Truck);
 ownershipType 'Тип владения' = DATA TruckOwnershipType (Truck);
@@ -79,7 +83,7 @@ vin 'VIN номер' = DATA STRING[17](Truck) CHARWIDTH 15;
 // документ-основание владения (ОснАрЛиз титула Т1: реквизиты + ИНН владельца). В схеме ФНС блок
 // необязателен, но Диадок требует его при типах владения 3, 4 и 5 (аренда, лизинг, безвозмездное пользование)
 needRentGround (Truck t) = ownershipType(t) == TruckOwnershipType.rent OR ownershipType(t) == TruckOwnershipType.leasing OR
-    ownershipType(t) == TruckOwnershipType.freeUse;
+    ownershipType(t) == TruckOwnershipType.freeUse OR needRentGround(ownershipType(t));
 rentDocName 'Основание владения: наименование документа' = DATA ISTRING[255](Truck) CHARWIDTH 15;
 rentDocNumber 'Основание владения: номер' = DATA ISTRING[255](Truck) CHARWIDTH 12;
 rentDocDate 'Основание владения: дата' = DATA DATE (Truck);
@@ -141,7 +145,7 @@ active 'Активный' (Trailer t) = t IS Trailer AND NOT inactive(t);
 
 // документ-основание владения (ОснАрЛиз титула Т1) - те же типы владения 3, 4 и 5, что у тягача
 needRentGround (Trailer t) = ownershipType(t) == TruckOwnershipType.rent OR ownershipType(t) == TruckOwnershipType.leasing OR
-    ownershipType(t) == TruckOwnershipType.freeUse;
+    ownershipType(t) == TruckOwnershipType.freeUse OR needRentGround(ownershipType(t));
 rentDocName 'Основание владения: наименование документа' = DATA ISTRING[255](Trailer) CHARWIDTH 15;
 rentDocNumber 'Основание владения: номер' = DATA ISTRING[255](Trailer) CHARWIDTH 12;
 rentDocDate 'Основание владения: дата' = DATA DATE (Trailer);
