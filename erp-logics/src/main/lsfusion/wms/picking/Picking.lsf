@@ -427,6 +427,34 @@ namePerformer 'Комплектовщик' (PickingOrder pickingOrder) = name[Co
 performer = performer(pickingOrder(Picking picking));
 namePerformer 'Комплектовщик' (Picking picking) = name[Contact](performer(picking));
 
+CONSTRAINT DROPPED(performer(PickingOrder o)) AND quantityPickings(o) AND o IS PickingOrder
+    MESSAGE 'Запрещено сбрасывать комплектовщика в заказе на комплектацию, по которому уже создана комплектация';
+
+EXTEND CLASS TypeChange {
+    changePerformer 'Изменение комплектовщика'
+}
+
+prevNamePerformer (PickingOrder o) = PREV(namePerformer(o));
+
+WHEN CHANGED(performer(PickingOrder o)) AND o IS PickingOrder AND NOT disableDocumentLog() DO {
+    NEW d = DocumentLog {
+        documentId(d) <- LONG(o);
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);
+        seriesDocument(d) <- series(o);
+        dateDocument(d) <- date(o);
+        typeChange(d) <- TypeChange.changePerformer;
+        note(d) <- STRING[255](CONCAT '', 'Предыдущее значение: ', (OVERRIDE prevNamePerformer(o), 'пусто'),
+                                          '. Новое значение: ', (OVERRIDE namePerformer(o), 'пусто'));
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser());
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();
+        supplierStock(d) <- supplierStock(o);
+        customerStock(d) <- customerStock(o);
+    }
+}
+
 CLASS StatusPicking 'Статус'{
     completely 'Полностью собран',
     partly 'Частично собран',
@@ -475,6 +503,18 @@ nameStatus 'Статус' = nameStatusPicking(pickingOrder(Picking picking));
 backgroundStatus = backgroundStatusPicking(pickingOrder(Picking picking));
 
 accept 'Принять'(PickingOrder pickingOrder)  { 
+    IF quantityPickings(pickingOrder) THEN {
+        MESSAGE 'Запрещено принимать заказ на комплектацию, по которому уже создана комплектация' NOWAIT;
+        RETURN;
+    }
+    IF accepted(pickingOrder) AND performer(pickingOrder) = currentUser() THEN {
+        MESSAGE 'Заказ уже назначен на вас' NOWAIT;
+        RETURN;
+    }
+    IF performer(pickingOrder) != currentUser() THEN {
+        ASK (CONCAT '', 'Заказ уже обрабатывается другим оператором (', namePerformer(pickingOrder), 
+                        '). Вы уверены, что хотите переназначить комплектовщика?') DO { } ELSE RETURN;
+    }
 	NEWSESSION {
 	    accepted(pickingOrder) <- TRUE;
 	    performer(pickingOrder) <- currentUser();
@@ -485,13 +525,23 @@ accept 'Принять'(PickingOrder pickingOrder)  {
 	}
 } TOOLBAR CHANGEKEY 'ctrl ENTER';
 unaccept 'Отменить'(PickingOrder pickingOrder)  { 
-	NEWSESSION {
-	    accepted(pickingOrder) <- NULL;
-	    performer(pickingOrder) <- NULL;
-	    startDate(pickingOrder) <- NULL;
-	    startTime(pickingOrder) <- NULL;
-	    apply();
-	}
+    IF quantityPickings(pickingOrder) THEN {
+        MESSAGE 'Нельзя отменять заказ на комплектацию по которому уже создана комплектация';
+        RETURN;
+    }
+    ASK (CONCAT '', 'Отменить комплектацию по заказу ', seriesNumber(pickingOrder), '?') DO {
+        IF performer(pickingOrder) != currentUser() THEN {
+            ASK (CONCAT '', 'Заказ уже обрабатывается другим оператором (', namePerformer(pickingOrder),
+                '). Вы уверены, что хотите отменить комплектацию по заказу ?') DO {} ELSE RETURN;
+        }
+        NEWSESSION {
+            accepted(pickingOrder) <- NULL;
+            performer(pickingOrder) <- NULL;
+            startDate(pickingOrder) <- NULL;
+            startTime(pickingOrder) <- NULL;
+            apply();
+        }        
+    }
 } TOOLBAR CHANGEKEY 'ctrl DELETE';
 
 FORM packQuantity 'Комплектация'

@@ -14,11 +14,15 @@ acceptPrint 'Принять' (PickingOrder pickingOrder)  {
         IF lockResult() THEN {
             TRY {
                 IF notAccepted(pickingOrder) THEN {
-                    beforeAccepted(pickingOrder);
-                    accept(pickingOrder);
-                    overPrint(pickingOrder);
-                    IF NOT skip(pickingOrder) THEN {
-                        print(pickingOrder);
+                    IF quantityPickings(pickingOrder) THEN {
+                        MESSAGE 'Запрещено принимать заказ на комплектацию, по которому уже создана комплектация' NOWAIT;
+                    } ELSE {
+                        beforeAccepted(pickingOrder);
+                        accept(pickingOrder);
+                        overPrint(pickingOrder);
+                        IF NOT skip(pickingOrder) THEN {
+                            print(pickingOrder);
+                        }
                     }
                 }
             } CATCH {
@@ -155,5 +159,4 @@ NAVIGATOR {
         NEW pickingDashboard;
     }
 }
-
 
