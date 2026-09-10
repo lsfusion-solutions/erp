@@ -69,10 +69,9 @@ EXTEND FORM zReport
     PROPERTIES READONLY idBerlio(d) BEFORE idBarcode(d)
 ;
 
-dateStartlistFilesberlio 'Дата начиная с которой читать файлы в каталоге (YYMM)' = DATA BPISTRING[4]();
 timeShiftOpenBerlio 'Время после которого переносить смену на следующий день' = DATA TIME ();
 EXTEND FORM cashRegisterModel 
-    PROPERTIES () SHOWIF sid(c) == 'berlio' dateStartlistFilesberlio, timeShiftOpenBerlio;
+    PROPERTIES () SHOWIF sid(c) == 'berlio' timeShiftOpenBerlio;
 
 overImportPayment ABSTRACT LIST (Receipt, NUMERIC, NUMERIC, NUMERIC);
 overImport ABSTRACT LIST (ZReport);
@@ -276,11 +275,12 @@ receiveFromBerlio (GroupCashRegister gcr, STRING fn) {
 
 receiveFromBerlio (GroupCashRegister gcr) {
     listFiles(directory(gcr)+'/S');
-    FOR ISTRING fn = fileName(INTEGER i) AND NOT fileIsDirectory(i) 
-        AND right(fileName(i), 3) == 'dbf' AND INTEGER(substr(fileName(i), 2, 2)) == npp(gcr) 
-        AND substr(fileName(i), 4, 4) >= (OVERRIDE dateStartlistFilesberlio(), '2508')
-        AND NOT (GROUP SUM 1 IF fn == berlioFile(ZReport z)) ORDER fn DO {
-            receiveFromBerlio (gcr, fn);
+    LOCAL candidate = BOOLEAN (INTEGER);
+    candidate(INTEGER i) <- TRUE WHERE fileName(i) AND NOT fileIsDirectory(i)
+        AND right(fileName(i), 3) == 'dbf' AND INTEGER(substr(fileName(i), 2, 2)) == npp(gcr)
+        AND substr(fileName(i), 4, 4) >= toChar(sumMonth(currentDate(), -2), 'YYMM');
+    FOR candidate(INTEGER i) AND NOT (GROUP SUM 1 IF fileName(i) == berlioFile(ZReport z)) ORDER fileName(i) DO {
+        receiveFromBerlio(gcr, fileName(i));
     }
 }
 
