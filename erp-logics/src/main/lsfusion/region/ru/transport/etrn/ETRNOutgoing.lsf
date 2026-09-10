@@ -235,7 +235,7 @@ trailerOwnership(OutgoingETRN e) += ISTRING[50](nameOwnershipType(trailer(e))) I
 // формат титула требует у водителя либо ВУ (серия, номер, дата), либо ИНН
 missingDriverId (OutgoingETRN e) = driver(e) AND NOT (licenseSeries(driver(e)) AND licenseNumber(driver(e)) AND licenseDate(driver(e))) AND NOT inn(driver(e));
 
-// документ-основание владения при аренде/лизинге (обязателен в титуле при Ownership 3/4)
+// документ-основание владения (Диадок требует в титуле при Ownership 3/4/5: аренда, лизинг, безвозмездное пользование)
 needRentGroundTruck (OutgoingETRN e) = needRentGround(truck(e));
 truckRentDocName 'Основание владения: наименование' (OutgoingETRN e) = rentDocName(truck(e)) CHARWIDTH 15;
 truckRentDocNumber 'Основание владения: номер' (OutgoingETRN e) = rentDocNumber(truck(e)) CHARWIDTH 12;
@@ -448,7 +448,7 @@ DESIGN outgoingEtrn {
                                 MOVE PROPERTY(truckOwnership(e));
                             }
                             NEW truckRentBox {
-                                caption = 'ТС: документ-основание владения (аренда/лизинг)';
+                                caption = 'ТС: документ-основание владения (аренда, лизинг, безвозмездное пользование)';
                                 horizontal = TRUE;
                                 MOVE PROPERTY(truckRentDocName(e));
                                 MOVE PROPERTY(truckRentDocNumber(e));
@@ -466,7 +466,7 @@ DESIGN outgoingEtrn {
                                 MOVE PROPERTY(trailerOwnership(e));
                             }
                             NEW trailerRentBox {
-                                caption = 'Прицеп: документ-основание владения (аренда/лизинг)';
+                                caption = 'Прицеп: документ-основание владения (аренда, лизинг, безвозмездное пользование)';
                                 horizontal = TRUE;
                                 MOVE PROPERTY(trailerRentDocName(e));
                                 MOVE PROPERTY(trailerRentDocNumber(e));
@@ -686,14 +686,14 @@ missingT1 (OutgoingETRN e) = CONCAT ', ',
     'грузоподъемность ТС' IF truck(e) AND NOT weight(truck(e)),
     'вместимость ТС' IF truck(e) AND NOT capacity(truck(e)),
     'тип владения ТС' IF truck(e) AND NOT ownershipType(truck(e)),
-    'документ-основание владения ТС (аренда/лизинг): наименование, номер, дата, ИНН арендодателя' IF needRentGround(truck(e)) AND NOT hasRentGround(truck(e)),
+    'документ-основание владения ТС (аренда, лизинг, безвозмездное пользование): наименование, номер, дата, ИНН арендодателя' IF needRentGround(truck(e)) AND NOT hasRentGround(truck(e)),
     'рег. номер прицепа' IF trailer(e) AND NOT sid(trailer(e)),
     'тип прицепа' IF trailer(e) AND NOT type(trailer(e)),
     'марка прицепа' IF trailer(e) AND NOT truckModel(trailer(e)),
     'грузоподъемность прицепа' IF trailer(e) AND NOT weight(trailer(e)),
     'вместимость прицепа' IF trailer(e) AND NOT capacity(trailer(e)),
     'тип владения прицепа' IF trailer(e) AND NOT ownershipType(trailer(e)),
-    'документ-основание владения прицепом (аренда/лизинг): наименование, номер, дата, ИНН арендодателя' IF needRentGround(trailer(e)) AND NOT hasRentGround(trailer(e)),
+    'документ-основание владения прицепом (аренда, лизинг, безвозмездное пользование): наименование, номер, дата, ИНН арендодателя' IF needRentGround(trailer(e)) AND NOT hasRentGround(trailer(e)),
     'лицо, по указанию которого может осуществляться переадресовка' IF NOT redirectPerson(e),
     'контактный телефон лица переадресовки' IF NOT redirectPhone(e),
     'заявленные дата и время подачи' IF NOT declaredSupplyDateTime(e),

@@ -76,8 +76,10 @@ nameOwnershipType 'Тип владения' (Truck t) = staticCaption(ownershipT
 sts 'Номер СТС' = DATA STRING[10](Truck);
 vin 'VIN номер' = DATA STRING[17](Truck) CHARWIDTH 15;
 
-// документ-основание владения при аренде/лизинге (ОснАрЛиз титула Т1: реквизиты + ИНН арендодателя)
-needRentGround (Truck t) = ownershipType(t) == TruckOwnershipType.rent OR ownershipType(t) == TruckOwnershipType.leasing;
+// документ-основание владения (ОснАрЛиз титула Т1: реквизиты + ИНН владельца). В схеме ФНС блок
+// необязателен, но Диадок требует его при типах владения 3, 4 и 5 (аренда, лизинг, безвозмездное пользование)
+needRentGround (Truck t) = ownershipType(t) == TruckOwnershipType.rent OR ownershipType(t) == TruckOwnershipType.leasing OR
+    ownershipType(t) == TruckOwnershipType.freeUse;
 rentDocName 'Основание владения: наименование документа' = DATA ISTRING[255](Truck) CHARWIDTH 15;
 rentDocNumber 'Основание владения: номер' = DATA ISTRING[255](Truck) CHARWIDTH 12;
 rentDocDate 'Основание владения: дата' = DATA DATE (Truck);
@@ -102,7 +104,7 @@ DESIGN truck {
             MOVE PROPERTY(vin(t));
         }
         NEW rentGround {
-            caption = 'Документ-основание владения (аренда/лизинг)';
+            caption = 'Документ-основание владения (аренда, лизинг, безвозмездное пользование)';
             lines = 2;
             MOVE PROPERTY(rentDocName(t));
             MOVE PROPERTY(rentDocNumber(t));
@@ -137,8 +139,9 @@ vin 'VIN номер' = DATA STRING[17](Trailer) CHARWIDTH 15;
 inactive 'Неактивный' = DATA BOOLEAN (Trailer);
 active 'Активный' (Trailer t) = t IS Trailer AND NOT inactive(t);
 
-// документ-основание владения при аренде/лизинге (ОснАрЛиз титула Т1)
-needRentGround (Trailer t) = ownershipType(t) == TruckOwnershipType.rent OR ownershipType(t) == TruckOwnershipType.leasing;
+// документ-основание владения (ОснАрЛиз титула Т1) - те же типы владения 3, 4 и 5, что у тягача
+needRentGround (Trailer t) = ownershipType(t) == TruckOwnershipType.rent OR ownershipType(t) == TruckOwnershipType.leasing OR
+    ownershipType(t) == TruckOwnershipType.freeUse;
 rentDocName 'Основание владения: наименование документа' = DATA ISTRING[255](Trailer) CHARWIDTH 15;
 rentDocNumber 'Основание владения: номер' = DATA ISTRING[255](Trailer) CHARWIDTH 12;
 rentDocDate 'Основание владения: дата' = DATA DATE (Trailer);
@@ -170,7 +173,7 @@ DESIGN trailer {
             MOVE PROPERTY(inactive(t));
         }
         NEW rentGround {
-            caption = 'Документ-основание владения (аренда/лизинг)';
+            caption = 'Документ-основание владения (аренда, лизинг, безвозмездное пользование)';
             lines = 2;
             MOVE PROPERTY(rentDocName(t));
             MOVE PROPERTY(rentDocNumber(t));
