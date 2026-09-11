@@ -30,8 +30,6 @@ minOperation = GROUP MIN Operation operation IF [ GROUP SUM 1 IF selected(Order 
 
 @defineOption(groupSkuSaleOrderReplace, 'Группировать строки по товару при объединении заказов (продажа)', optionsContainer);
 
-replace ABSTRACT (OrderDetail, OrderDetail);
-
 replace 'Объединить'(UserOrder order)  { 
     IF countSelectedOrder() THEN {
         IF  countSelectedUserOrder() == countSelectedOrder() THEN {
@@ -45,19 +43,7 @@ replace 'Объединить'(UserOrder order)  {
                         MESSAGE 'У отмеченных и выбранного заказов разные операции, покупатели, поставщики или их склады';               
                     } ELSE {  
                         IF NOT groupSkuSaleOrderReplace() THEN {
-                            FOR selected(Order o) AND order(OrderDetail detail)==o NEW d = UserOrderDetail DO {
-                                userOrder(d) <- order;
-                                sku(d) <- sku(detail);
-                                batch(d) <- batch(detail);
-                                quantity(d) <- quantity(detail);
-                                price(d) <- price(detail);
-                                invoicePrice(d) <- invoicePrice(detail);
-                                priceListType(d) <- priceListType(detail);      
-                                shipmentDataDate(d) <- shipmentDataDate(detail);         
-                                shipmentDataTime(d) <- shipmentDataTime(detail);        
-                                closeDataDate(d) <- closeDataDate(detail);
-                                replace(d, detail);                                         
-                            }
+                            userOrder(OrderDetail d) <- order WHERE selected(order(d));
                         } ELSE {
                             selected(order) <- TRUE;
                                                     
