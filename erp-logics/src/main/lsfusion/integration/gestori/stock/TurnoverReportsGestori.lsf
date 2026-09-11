@@ -449,14 +449,14 @@ computeTurnoverDetailGestori () {
         active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND supplierStock[Sale.InvoiceDetail](ledger)=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
             (ledger IS Sale.InvoiceDetail) AND NOT isCompany(customer(ledger)) AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-    
-    quantitySaleIn(Sku sk, Stock st) <- GROUP SUM cost(SaleLedger ledger, Batch b) IF
-        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND supplierStock[Sale.InvoiceDetail](ledger)=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
-            (ledger IS Sale.InvoiceDetail) AND isCompany(customer(ledger)) AND
+
+    quantitySaleIn(Sku sk, Stock st) <- GROUP SUM cost(PurchaseLedger ledger, Batch b) IF
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND supplierStock[Purchase.InvoiceDetail](ledger)=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+            (ledger IS Purchase.InvoiceDetail) AND isCompany(supplier(ledger)) AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
-    sumSaleIn(Sku sk, Stock st) <- GROUP SUM cost(SaleLedger ledger, Batch b) * priceSku(sk,st,date(ledger)) IF
-        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND supplierStock[Sale.InvoiceDetail](ledger)=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
-            (ledger IS Sale.InvoiceDetail) AND isCompany(customer(ledger)) AND
+    sumSaleIn(Sku sk, Stock st) <- GROUP SUM cost(PurchaseLedger ledger, Batch b) * priceSku(sk,st,date(ledger)) IF
+        active(ledger) AND sku(ledger)=sk AND sku(b)=sk AND supplierStock[Purchase.InvoiceDetail](ledger)=st AND date(ledger)>=dateFrom() AND date(ledger)<=dateTo() AND
+            (ledger IS Purchase.InvoiceDetail) AND isCompany(supplier(ledger)) AND
             inReportSupplierFilter(b) AND inReportStockFilter(st) AND inReportSkuFilter(sk);
 
     quantityReturnPurchase(Sku sk, Stock st) <- GROUP SUM abs(cost(PurchaseLedger ledger, Batch b)) IF
