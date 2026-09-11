@@ -747,21 +747,26 @@ DESIGN userWriteOff {
     }
 }
 
-@defineOperationProperty(quantityFillCheck, 'Должно быть заполнено количество', BOOLEAN, constraintContainer);
+@defineOperationProperty(quantityFillCheck, 'Должно быть заполнено количество положительным значением', BOOLEAN, constraintContainer);
 
-CONSTRAINT (SET (isPosted(UserWriteOffDetail d)) OR CHANGED (quantity(d))) AND isPosted(d) AND quantityFillCheck(operation(d)) AND NOT quantity(d) > 0
+CONSTRAINT (SET(isPosted(UserWriteOffDetail d)) OR CHANGED(quantity(d)) OR SETCHANGED(operation(d))) AND isPosted(d) AND quantityFillCheck(operation(d)) AND NOT quantity(d) > 0
     MESSAGE 'Для текущей операции обязательно заполнение поля "Количество" положительным значением';
 
-@defineOperationProperty(priceFillCheck, 'Должна быть заполнена цена', BOOLEAN, constraintContainer);
+@defineOperationProperty(priceFillCheck, 'Должна быть заполнена цена положительным значением', BOOLEAN, constraintContainer);
 
-CONSTRAINT (SET (isPosted(UserWriteOffDetail d)) OR CHANGED (price(d))) AND isPosted(d) AND priceFillCheck(operation(d)) AND NOT price(d) > 0
-    MESSAGE 'Для текущей операции обязательно заполнение поля "Цена"';
+CONSTRAINT (SET(isPosted(UserWriteOffDetail d)) OR CHANGED(price(d)) OR SETCHANGED(operation(d))) AND isPosted(d) AND priceFillCheck(operation(d)) AND NOT price(d) > 0
+    MESSAGE 'Для текущей операции обязательно заполнение поля "Цена" положительным значением';
 
 @defineOperationProperty(detailsFillCheck, 'Должны быть строки у документа', BOOLEAN, constraintContainer);
 
-CONSTRAINT (SET (isPosted(UserWriteOff doc)) OR DROPPED (countUserWriteOffDetail(doc))) AND isPosted(doc) AND detailsFillCheck(operation(doc)) AND NOT countUserWriteOffDetail(doc)
+CONSTRAINT (SET(isPosted(UserWriteOff doc)) OR DROPPED(countUserWriteOffDetail(doc)) OR SETCHANGED(operation(doc))) AND isPosted(doc) AND detailsFillCheck(operation(doc)) AND NOT countUserWriteOffDetail(doc)
     MESSAGE 'Для текущей операции обязательно наличие строк спецификации';
 
 CONSTRAINT noFractQuantity() AND (CHANGED (sku(UserWriteOffDetail d)) OR CHANGED (quantity(d)))
     AND noDivisibleUOM(UOM(sku(d))) AND INTEGER(quantity(d)) != quantity(d)
     MESSAGE 'Количество должно быть целым';
+
+@defineOperationProperty(reasonCheck, 'Должна быть заполнена причина списания', BOOLEAN, constraintContainer);
+
+CONSTRAINT (SET(isPosted(UserWriteOff w)) OR DROPPED(reason(w)) OR SETCHANGED(operation(w))) AND isPosted(w) AND reasonCheck(operation(w)) AND NOT reason(w)
+    MESSAGE 'Для текущей операции обязательно заполнение поля "Причина списания"';
