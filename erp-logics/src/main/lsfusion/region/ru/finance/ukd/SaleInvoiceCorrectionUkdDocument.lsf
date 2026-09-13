@@ -16,6 +16,13 @@ ukdDocument = GROUP AGGR UkdDocument ei BY invoiceCorrection(ei);
 ukdBaseDocument (UkdDocument ukd) += invoiceCorrection(ukd);
 
 @fillUkdDocument(invoiceCorrection);
+
+fillOver(InvoiceCorrectionDetail cd, Sale.InvoiceDetail d, UkdDocumentDetail ed) + {
+    quantityA(ed) <- OVERRIDE (quantity(d) (+) quantity(cd)), 0.0;
+    sumA(ed) <- OVERRIDE (sum(d) (+) sum(cd)), 0.0;
+    VATSumA(ed) <- OVERRIDE (VATSum(d) (+) VATSum(cd)), 0.0;
+    invoiceSumA(ed) <- OVERRIDE (invoiceSum(d) (+) invoiceSum(cd)), 0.0;
+}
      
 createUkd 'Создать УКД' (InvoiceCorrection invoice)  {
     IF NOT ukdDocument(invoice) THEN NEWSESSION {
