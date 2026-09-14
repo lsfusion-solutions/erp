@@ -50,7 +50,7 @@ WHEN LOCAL FORMS order CHANGED(bruttoSku(ComponentDetail d)) AND NOT CHANGED(com
 skipCheckProduction = DATA BOOLEAN (Order);
 skipCheckComponent = DATA BOOLEAN (Order);
 
-WHEN LOCAL FORMS order (CHANGED(BOM(ProductDetail pd))  OR CHANGED(quantity(pd))) AND BOM(pd) AND quantity(pd) AND NOT isRecComponents(pd) AND isProduction(operation(pd)) DO {
+WHEN LOCAL FORMS order (CHANGED(BOM(ProductDetail pd)) OR CHANGED(quantity(pd)) OR CHANGED(isRecComponents(pd))) AND BOM(pd) AND quantity(pd) AND NOT isRecComponents(pd) AND isProduction(operation(pd)) DO {
     skipCheckProduction(order(pd)) <- TRUE;
     DELETE ComponentDetail cd WHERE productionDetail(cd) = pd;
     FOR BOM(pd) = BOM(Component c) AND quantityProducts(BOM(pd), order(pd)) NEW cd = ComponentDetail DO {
@@ -73,7 +73,7 @@ WHEN LOCAL FORMS order (CHANGED(BOM(ProductDetail pd))  OR CHANGED(quantity(pd))
     }
 }
 
-WHEN LOCAL FORMS order (CHANGED(BOM(ProductDetail pd)) OR CHANGED(quantity(pd))) AND BOM(pd) AND quantity(pd) AND isRecComponents(pd)  AND isProduction(operation(pd))  DO {
+WHEN LOCAL FORMS order (CHANGED(BOM(ProductDetail pd)) OR CHANGED(quantity(pd)) OR CHANGED(isRecComponents(pd))) AND BOM(pd) AND quantity(pd) AND isRecComponents(pd) AND isProduction(operation(pd)) DO {
     skipCheckProduction(order(pd)) <- TRUE;
     DELETE ComponentDetail cd WHERE productionDetail(cd) = pd;
     FOR BOM(pd) = BOM(Component c) AND NUMERIC[91,46] q == recBruttoQuantity(BOM(pd), order(pd), c) ORDER BOM(pd) NEW d = ComponentDetail DO {
