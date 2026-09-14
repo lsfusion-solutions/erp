@@ -187,11 +187,8 @@ exportToTxt 'Экспорт в txt' (LotOrder o) {
     NEWSESSION {
         IF quantityLot(o) > 0 THEN {
             LOCAL exportString = TEXT();
-            exportString() <- '';
+            exportString() <- (GROUP CONCAT TEXT (CONCAT '', id(Lot l), tail(l)) IF lotOrder(l) = o, '\r\n' ORDER l) + '\r\n';
 
-            FOR lotOrder(Lot l) = o DO {
-                exportString() <- exportString() + (CONCAT '', (OVERRIDE id(l), ''), (OVERRIDE tail(l), '')) + '\r\n';
-            }
             stringToFile(exportString(), 'UTF-8', 'txt');
             WRITE CLIENT DIALOG resultFile() TO 'lots_' + (OVERRIDE number(o), '') + '_' + Utils.toChar((dateTime(o)), 'yyyy-MM-ddThh24-mi-ss');
         }    
