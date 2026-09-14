@@ -33,6 +33,8 @@ CONSTRAINT (SET(isDefault(BOM bom)) OR CHANGED(in(bom, Stock st))) AND isDefault
 
 countProductsKirovsky (sku, Stock stock, DATE date) = GROUP SUM 1 IF isActive(BOM(Product p), stock, date) AND isDefault(BOM(p)) AND isProduction(operation(BOM(p))) BY sku(p);
 defaultProductKirovsky (sku, Stock stock, DATE date)= GROUP MIN Product p IF isActive(BOM(p), stock, date) AND isDefault(BOM(p)) AND isProduction(operation(BOM(p))) BY sku(p);
+// изделие производственной спецификации, указанное компонентом напрямую
+productionProduct (Component c) = (material(c) AS Product) IF isProduction(operation(BOM(material(c) AS Product)));
 
 WHEN LOCAL FORMS order CHANGED(sku(ProductDetail d)) AND NOT CHANGED(product(d)) AND countProductsKirovsky(sku(d), componentsStock(d), date(d)) NOINLINE DO{
     product(d) <- defaultProductKirovsky(sku(d), componentsStock(d), date(d));
@@ -74,15 +76,15 @@ WHEN LOCAL FORMS order (CHANGED(BOM(ProductDetail pd))  OR CHANGED(quantity(pd))
 WHEN LOCAL FORMS order (CHANGED(BOM(ProductDetail pd)) OR CHANGED(quantity(pd))) AND BOM(pd) AND quantity(pd) AND isRecComponents(pd)  AND isProduction(operation(pd))  DO {
     skipCheckProduction(order(pd)) <- TRUE;
     DELETE ComponentDetail cd WHERE productionDetail(cd) = pd;
-    FOR BOM(pd) = BOM(Component c) AND NUMERIC[91,46] q == recBruttoQuantity(BOM(pd), order(pd), c) IF material(c) IS Sku ORDER BOM(pd) NEW d = ComponentDetail DO {
+    FOR BOM(pd) = BOM(Component c) AND NUMERIC[91,46] q == recBruttoQuantity(BOM(pd), order(pd), c) ORDER BOM(pd) NEW d = ComponentDetail DO {
         productionDetail(d) <- pd;
         order(d) <- order(pd);
         BOM(d) <- BOM(pd);
-        bruttoSku(d) <- material(c);
+        bruttoSku(d) <- sku(material(c));
         component(d) <- c;
         bruttoQuantity(d) <- q;
         BOMQuantity(d) <- recBOMQuantity(BOM(pd), order(pd), c);
-        product(d) <- defaultProductKirovsky(sku(d), componentsStock(d), date(d));
+        product(d) <- OVERRIDE defaultProductKirovsky(sku(d), componentsStock(d), date(d)), productionProduct(c);
     }
     FOR product(ComponentDetail d) AND isRecComponents(productionDetail(d)) DO expand(d);
 }
@@ -102,6 +104,7 @@ WHEN LOCAL FORMS order (CHANGED(BOM(ComponentDetail cd))  OR CHANGED(quantity(cd
 
 overCreate(ComponentDetail new, ComponentDetail old) + {
     productionDetail(new) <- productionDetail(old);
+    product(new) <- OVERRIDE defaultProductKirovsky(sku(new), componentsStock(new), date(new)), productionProduct(component(new));
 }
 
 WHEN LOCAL FORMS order CHANGED(price(ComponentDetail cd)) OR CHANGED(quantity(cd)) DO {
@@ -282,6 +285,10 @@ WHEN LOCAL FORMS BOM SET(Component c IS Component) AND isElaboration(operation(B
     DELETE c;
 };
 
+EXTEND FORM materials
+    FILTERS NOT (m IS Product AND isElaboration(operation(BOM(m AS Product))))
+;
+
 EXTEND FORM productsChange
     FILTERS isActiveCurrent(BOM(p))
 ;
@@ -339,15 +346,15 @@ copyGestori 'Копировать'(Order order)  {
                     markup(p) <- markup(productDetail);
                     pricePercent(p) <- pricePercent(productDetail);
                     IF isRecComponents(o) THEN {
-                        FOR BOM(p) = BOM(Component c) AND NUMERIC[91,46] q == recBruttoQuantity(BOM(p), order(p), c) IF material(c) IS Sku ORDER BOM(p) NEW d = ComponentDetail DO {
+                        FOR BOM(p) = BOM(Component c) AND NUMERIC[91,46] q == recBruttoQuantity(BOM(p), order(p), c) ORDER BOM(p) NEW d = ComponentDetail DO {
                             productionDetail(d) <- p;
                             order(d) <- order(p);
                             BOM(d) <- BOM(p);
-                            bruttoSku(d) <- material(c);
+                            bruttoSku(d) <- sku(material(c));
                             component(d) <- c;
                             bruttoQuantity(d) <- q;
                             BOMQuantity(d) <- recBOMQuantity(BOM(p), order(p), c);
-                            product(d) <- defaultProductKirovsky(sku(d), componentsStock(d), date(d));
+                            product(d) <- OVERRIDE defaultProductKirovsky(sku(d), componentsStock(d), date(d)), productionProduct(c);
                         }
                         FOR product(ComponentDetail d) AND isRecComponents(productionDetail(d)) DO expand(d);
                     }ELSE {
