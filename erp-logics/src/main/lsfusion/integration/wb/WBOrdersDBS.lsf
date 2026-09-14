@@ -86,6 +86,7 @@ getOrdersDBSNew 'Получить список новых сборочных з�
                 currency(order) <- GROUP MAX Currency c IF sid(c) == currencyCode(i);
                 wbStatus(order) <- WbStatus.new;
                 wbSystemStatus(order) <- WbSystemStatus.waiting;
+                wbIsB2b(order) <- isB2b(i);
 
                 FOR INTEGER ii = [GROUP MAX INTEGER j BY rid(j)](STRING rid) AND Size size == size(chrtId(ii))
                     AND Item item == itemNM(nmId(ii)) AND itemWB(size) == item AND orderRidID(order) == rid INLINE DO NEW detail = InternetOrderDetail {
@@ -520,8 +521,8 @@ getStickerDBS 'Получить стикер' (InternetOrder order) {
 //----Метаданные сборочных заданий DBS-----//
 
 // POST /api/marketplace/v3/dbs/orders/meta/{key}
-// Тело:  {"orders":[{"orderId":N,"<plural>":["v1",...]},...]}  для imei/uin/gtin/sgtin
-//        {"orders":[{"orderId":N,"customsDeclaration":"..."},...]}  для customs-declaration
+// Тело:  {"orders":[{"orderId":N,"sgtins":["v1",...]},...]}  для sgtin — массив
+//        {"orders":[{"orderId":N,"imei":"..."},...]}  для imei/uin/gtin/customsDeclaration — строка
 // Лимит: до 1000 заказов в одном запросе.
 // expiration в DBS-API отсутствует (см. WBOrdersFBS для FBS-варианта).
 sendOrdersMetaDBS 'Передать метаданные сборочных заданий (DBS, пакет)' (OrderMeta m) {
@@ -556,7 +557,8 @@ sendOrdersMetaDBS 'Передать метаданные сборочных за
         LOCAL orderEntry = STRING ();
         LOCAL ordersJson = STRING ();
         LOCAL valueJson = STRING ();
-        LOCAL customsValue = STRING ();
+        LOCAL singleValue = STRING ();
+        LOCAL errorsMeta = TEXT ();
 
         WHILE exported() < total() DO {
             ordersJson() <- NULL;
@@ -565,27 +567,30 @@ sendOrdersMetaDBS 'Передать метаданные сборочных за
                 ORDER o DO {
 
                 orderEntry() <- NULL;
-                customsValue() <- NULL;
+                singleValue() <- NULL;
                 valueJson() <- NULL;
 
-                IF m == OrderMeta.customsDeclaration THEN {
-                    customsValue() <- GROUP MAX valueMeta(InternetOrderDetail d, OrderMeta.customsDeclaration)
-                        IF internetOrder(d) == o AND valueMeta(d, OrderMeta.customsDeclaration);
-                    IF customsValue() THEN {
-                        // Формат ФТС РФ (цифры и слэши) — JSON-эскейпинг не требуется.
-                        orderEntry() <- '\{"orderId":' + number(o) + ',"customsDeclaration":"' + customsValue() + '"\}';
-                    }
-                } ELSE {
+                IF arrayMeta(m) THEN {
                     EXPORT JSON FROM 'value' = valueMeta(InternetOrderDetail d, m)
                         WHERE internetOrder(d) == o AND valueMeta(d, m);
                     fileToString(exportFile(), 'UTF-8');
                     valueJson() <- replace(resultString(), '\n', '');
                     IF valueJson() AND valueJson() != '[]' THEN {
-                        orderEntry() <- '\{"orderId":' + number(o) + ',"' + apiMetaBatchKey(m) + '":' + valueJson() + '\}';
+                        orderEntry() <- CONCAT '', '\{"orderId":' + number(o) + ',"' + apiMetaBatchKey(m) + '":' + valueJson(),
+                            apiMetaBatchExtra(o, m), '\}';
+                    }
+                } ELSE {
+                    singleValue() <- GROUP MAX valueMeta(InternetOrderDetail d, m)
+                        IF internetOrder(d) == o AND valueMeta(d, m);
+                    IF singleValue() THEN {
+                        orderEntry() <- CONCAT '', '\{"orderId":' + number(o) + ',"' + apiMetaBatchKey(m) + '":"' + singleValue() + '"',
+                            apiMetaBatchExtra(o, m), '\}';
                     }
                 }
 
-                IF orderEntry() THEN {
+                IF orderEntry() AND apiMetaBatchError(o, m) THEN {
+                    errorsMeta() <- CONCAT '\n', errorsMeta(), apiMetaBatchError(o, m);
+                } ELSE IF orderEntry() THEN {
                     ordersJson() <- CONCAT ',', ordersJson(), orderEntry();
                 }
             }
@@ -601,6 +606,18 @@ sendOrdersMetaDBS 'Передать метаданные сборочных за
                     fileToString(response());
                     logToFile('WB', resultString());
                     messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+
+                    IF statusHttp() == 200 THEN {
+                        isError(INTEGER i) <- NULL;
+                        orderId(INTEGER i) <- NULL;
+                        resultsErrors(INTEGER i) <- NULL;
+                        detail(INTEGER i) <- NULL;
+                        IMPORT changeStatusResponse JSON FROM response();
+                        FOR isError(INTEGER i) DO {
+                            errorsMeta() <- CONCAT '\n', errorsMeta(), 'Заказ ' + orderId(i) + ': '
+                                + (OVERRIDE (GROUP CONCAT detail(INTEGER e) IF resultsErrors(e) == i, ', ' ORDER e), 'WB не вернул описание ошибки');
+                        }
+                    }
                 } CATCH {
                     logToFile('WB', messageCaughtException());
                     IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
@@ -616,7 +633,7 @@ sendOrdersMetaDBS 'Передать метаданные сборочных за
             exported() <- exported() + getOrdersMetaLimit();
         }
 
-        MESSAGE messageOrder() NOWAIT;
+        MESSAGE (CONCAT '\n', messageOrder(), 'Мета не принята по заказам:' IF errorsMeta(), errorsMeta()) NOWAIT;
     }
 }
 
@@ -651,11 +668,16 @@ sendOrderMetaDBS 'Передать метаданные сборочного з�
     }
 }
 
-// DELETE /api/v3/dbs/orders/{orderId}/meta?key=... (поддерживаются imei/uin/gtin/sgtin)
+// POST /api/marketplace/v3/dbs/orders/meta/delete body: {"key":"imei","orderIds":[<номер заказа>]}
+// Ключ customsDeclaration по документации допустим, но песочница возвращает с 400.
 deleteOrderMetaDBS 'Удалить метаданные сборочного задания' (InternetOrder o, OrderMeta m) {
     NEWSESSION NESTED LOCAL {
         IF NOT number(o) THEN {
             MESSAGE 'У заказа отсутствует номер.';
+            RETURN;
+        }
+        IF m == OrderMeta.expiration THEN {
+            MESSAGE 'Срок годности (expiration) недоступен в DBS-API.';
             RETURN;
         }
         IF NOT apiMetaPath(m) THEN {
@@ -667,22 +689,33 @@ deleteOrderMetaDBS 'Удалить метаданные сборочного з�
         LOCAL messageOrder = STRING ();
         LOCAL response = FILE();
 
-        LOCAL deleteUrl = STRING ();
-        deleteUrl() <- '/api/v3/dbs/orders/' + number(o) + '/meta?key=' + apiMetaPath(m);
-
-        logToFile('WB', 'DELETE: ' + url(CategoryRequest.marketplace) + deleteUrl());
+        stringToFile('\{"key":"' + apiMetaName(m) + '","orderIds":[' + number(o) + ']\}', 'UTF-8', 'json');
+        fileToString(resultFile(), 'UTF-8');
+        logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/marketplace/v3/dbs/orders/meta/delete body: ' + resultString());
 
         TRY {
-            EXTERNAL HTTP DELETE url(CategoryRequest.marketplace) + deleteUrl() HEADERS httpHeaders TO response;
+            EXTERNAL HTTP POST url(CategoryRequest.marketplace) + '/api/marketplace/v3/dbs/orders/meta/delete'
+                HEADERS httpHeaders PARAMS resultFile() TO response;
             fileToString(response());
             logToFile('WB', resultString());
             messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
 
-            IF statusHttp() == 204 THEN {
-                FOR InternetOrderDetail d AND internetOrder(d) == o DO {
-                    orderMetaStatus(d, m) <- NULL;
+            
+            IF statusHttp() == 200 THEN {
+                isError(INTEGER i) <- NULL;
+                orderId(INTEGER i) <- NULL;
+                resultsErrors(INTEGER i) <- NULL;
+                detail(INTEGER i) <- NULL;
+                IMPORT changeStatusResponse JSON FROM response();
+                IF (GROUP SUM 1 IF orderByNumber(orderId(INTEGER i)) == o AND NOT isError(i)) THEN {
+                    FOR InternetOrderDetail d AND internetOrder(d) == o DO {
+                        orderMetaStatus(d, m) <- NULL;
+                    }
+                    APPLY NESTED LOCAL ;
+                } ELSE {
+                    messageOrder() <- CONCAT '\n', messageOrder(),
+                        'Метаданные не удалены: ' + (OVERRIDE (GROUP CONCAT detail(INTEGER e), ', ' ORDER e), 'WB не вернул описание ошибки');
                 }
-                APPLY NESTED LOCAL ;
             }
         } CATCH {
             logToFile('WB', messageCaughtException());

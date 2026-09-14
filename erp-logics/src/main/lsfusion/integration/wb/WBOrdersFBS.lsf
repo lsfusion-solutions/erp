@@ -97,6 +97,7 @@ getOrdersFBSNew 'Получить список новых сборочных з�
                 wbStatus(order) <- WbStatus.new;
                 wbSystemStatus(order) <- WbSystemStatus.waiting;
                 wbIsCancellable(order) <- TRUE;
+                wbIsB2b(order) <- isB2b(i);
                 addressInternetCustomer(order) <- fullAddress(i);
                 deliveryDate(order) <- ddate(i);
                 note(order) <- comment(i);
@@ -229,7 +230,8 @@ getOrdersFBS 'Получить информацию о сборочных зад
                         messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + 'В справочнике системы не найден warehouseId: ' + warehouseId(i);
 
                     addressInternetCustomer(order) <- fullAddress(i);
-                    note(order) <- comment(i);
+                    note(order) <- comment(i);                    
+                    wbIsB2b(order) <- isB2b(i);
 
                     currency(order) <- GROUP MAX Currency c IF sid(c) == currencyCode(i);
 
@@ -625,7 +627,7 @@ EXTEND CLASS StatusPicking {
 
 addToPicking 'Отм.' = DATA LOCAL BOOLEAN (InternetOrderDetail);
 
-orderNumber(InternetOrderDetail d) = number(internetOrder(d));
+orderNumber 'Номер заказа' (InternetOrderDetail d) = number(internetOrder(d));
 
 //https://marketplace-api.wildberries.ru/api/v3/supplies/{supplyId}/deliver
 sendSupplyToDeliver 'Передать поставку в доставку'(Picking p){
@@ -1522,19 +1524,29 @@ sendOrderMeta 'Передать метаданные сборочного зад
             MESSAGE 'Неизвестный тип метаданных.';
             RETURN;
         }
+        
+        IF NOT hasValueMeta(o, m) THEN {
+            MESSAGE 'По заказу ' + number(o) + ' не заполнено значение метаданных «' + caption(m) + '».';
+            RETURN;
+        }
 
         setHttpHeadersIS();
         LOCAL messageOrder = STRING ();
         LOCAL response = FILE();
 
         LOCAL putUrl = STRING ();
-        putUrl() <- (CASE WHEN m == OrderMeta.customsDeclaration THEN '/api/marketplace/v3/orders/' ELSE '/api/v3/orders/')
-            + number(o) + '/meta/' + apiMetaPath(m);
+        putUrl() <- apiMetaBasePath(m) + number(o) + '/meta/' + apiMetaPath(m);
 
-        EXPORT JSON FROM 'value' = valueMeta(InternetOrderDetail d, m)
-            WHERE internetOrder(d) == o AND valueMeta(d, m);
-        fileToString(exportFile(), 'UTF-8');
-        stringToFile('\{"' + apiMetaBodyKey(m) + '":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
+        LOCAL valueJson = STRING ();
+        IF arrayMeta(m) THEN {
+            EXPORT JSON FROM 'value' = valueMeta(InternetOrderDetail d, m)
+                WHERE internetOrder(d) == o AND valueMeta(d, m);
+            fileToString(exportFile(), 'UTF-8');
+            valueJson() <- replace(resultString(), '\n', '');
+        } ELSE {
+            valueJson() <- '"' + (GROUP MAX valueMeta(InternetOrderDetail d, m) IF internetOrder(d) == o) + '"';
+        }
+        stringToFile('\{"' + apiMetaBodyKey(m) + '":' + valueJson() + '\}', 'UTF-8', 'json');
         fileToString(resultFile(), 'UTF-8');
 
         logToFile('WB', 'PUT: ' + url(CategoryRequest.marketplace) + putUrl() + ' body: ' + resultString());
@@ -1569,13 +1581,17 @@ deleteOrderMeta 'Удалить метаданные сборочного зад
             MESSAGE 'Неизвестный тип метаданных.';
             RETURN;
         }
+        IF m == OrderMeta.expiration THEN {
+            MESSAGE 'Срок годности WB удалить не даёт.';
+            RETURN;
+        }
 
         setHttpHeadersIS();
         LOCAL messageOrder = STRING ();
         LOCAL response = FILE();
 
         LOCAL deleteUrl = STRING ();
-        deleteUrl() <- '/api/v3/orders/' + number(o) + '/meta?key=' + apiMetaPath(m);
+        deleteUrl() <- '/api/v3/orders/' + number(o) + '/meta?key=' + apiMetaName(m);
 
         logToFile('WB', 'DELETE: ' + url(CategoryRequest.marketplace) + deleteUrl());
 
@@ -1685,21 +1701,33 @@ EXTEND FORM internetOrder
     PROPERTIES SHOWIF isWBOrderFBS(o) sendOrderMeta(o, mm)
 ;
 
+inPickingOrder 'Включён в комплектацию' (InternetOrder o) =
+    GROUP SUM 1 IF picking(InternetOrderDetail d) AND internetOrder(d) == o;
+
+nameStatusOrder 'Статус заказа' (InternetOrderDetail d) = nameStatus(internetOrder(d));
+dateTimeOrder 'Дата заказа' (InternetOrderDetail d) = dateTime(internetOrder(d));
+
 FORM wbInternetDetailsDialog 'WB заказы'
     OBJECTS d = InternetOrderDetail
-    PROPERTIES (d) addToPicking, orderNumber, nameSku
-    // В поставку можно добавить только заказы в supplierStatus=new (ещё не приписаны
-    // ни к какой поставке); после addOrdersToSupply WB переводит их в confirm.
-    FILTERS isWBOrderFBS(internetOrder(d)) AND wbStatus(internetOrder(d)) == WbStatus.new;
+    PROPERTIES (d) addToPicking
+    PROPERTIES (d) READONLY orderNumber, dateTimeOrder, nameStatusOrder, nameSku, quantity, nameSupplierStock
+    
+    FILTERS isWBOrderFBS(internetOrder(d)),
+            status(internetOrder(d)) == StatusInternetOrder.agreed,
+            wbStatus(internetOrder(d)) == WbStatus.new,
+            NOT inPickingOrder(internetOrder(d))
+;
 
 addDetailsFromWbOrder 'Добавить заказы WB' (Picking p){
     LOCAL added = BOOLEAN();
+    addToPicking(InternetOrderDetail dd) <- NULL;
     DIALOG wbInternetDetailsDialog OBJECTS d INPUT DO {
         FOR addToPicking(InternetOrderDetail dd) DO {
             picking(dd) <- p;
             added() <- TRUE;
         }
     }
+    addToPicking(InternetOrderDetail dd) <- NULL;
     IF NOT added() THEN RETURN;
     APPLY ;
     addOrdersToSupply(p);
@@ -1726,14 +1754,175 @@ isWBOrderPicking 'Содержит заказы FBS WB' (Picking p) =
 
 //internetOrder(d)
 
-openSticker 'Печать стикеров WB' (InternetOrder o) { 
-    open((file(sticker(o), (OVERRIDE stickerExtension(o), lower(nameStickerType()))))); 
-} IMAGE 'print.png' IN print;
-openSticker 'Печать стикеров WB' (InternetOrderDetail d) { 
-    open((file(sticker(internetOrder(d)), (OVERRIDE stickerExtension(internetOrder(d)), lower(nameStickerType()))))); 
+stickerFile 'Стикер' (InternetOrder o) = file(sticker(o), (OVERRIDE stickerExtension(o), lower(nameStickerType())));
+
+openSticker 'Печать стикеров WB' (InternetOrder o) {
+    IF NOT isWBOrderFBS(o) THEN {
+        MESSAGE 'Заказ не является FBS-заказом WB.';
+        RETURN;
+    }
+    IF NOT sticker(o) THEN {
+        LOCAL selectedBefore = BOOLEAN (InternetOrder);
+        selectedBefore(InternetOrder ord) <- isSelected(ord);
+        isSelected(InternetOrder ord) <- NULL;
+        isSelected(o) <- TRUE;
+        getStickers();
+        isSelected(InternetOrder ord) <- selectedBefore(ord);
+    }
+    IF sticker(o) THEN {
+        open(stickerFile(o));
+    } ELSE {
+        MESSAGE 'Стикер по заказу ' + number(o) + ' не получен. WB отдаёт стикеры только по '
+            + 'сборочным заданиям в статусе «На сборке» или «В доставке» — проверьте статус WB '
+            + 'и повторите «Получить стикер».';
+    }
 } IMAGE 'print.png' IN print;
 
+openSticker 'Печать стикеров WB' (InternetOrderDetail d) {
+    openSticker(internetOrder(d));
+} IMAGE 'print.png' IN print;
+
+openStickers 'Печать стикеров WB (отмеченные)' () {
+    IF NOT (GROUP SUM 1 IF isSelected(InternetOrder o) AND isWBOrderFBS(o)) THEN {
+        MESSAGE 'Заказ FBS не выбран.';
+        RETURN;
+    }
+    IF GROUP SUM 1 IF isSelected(InternetOrder o) AND isWBOrderFBS(o) AND NOT sticker(o) THEN {
+        getStickers();
+    }
+    IF NOT (GROUP SUM 1 IF isSelected(InternetOrder o) AND isWBOrderFBS(o) AND sticker(o)) THEN {
+        MESSAGE 'Ни по одному из выбранных заказов стикер не получен.';
+        RETURN;
+    }
+    FOR isSelected(InternetOrder o) AND isWBOrderFBS(o) AND sticker(o) ORDER number(o), o DO {
+        open(stickerFile(o));
+    }
+} IMAGE 'print.png' IN print;
+
+wbScanBarcode 'Штрихкод / марка' = DATA LOCAL STRING[200] () EVENTID 'SCANNER';
+
+freePickingDetail (Picking p, Sku s) =
+    GROUP MAX InternetOrderDetail d IF picking(d) == p AND sku(d) == s
+        AND quantity(d) AND NOT pickingQuantity(d);
+
+scannedLotPicking (Picking p, STRING[200] idLot) =
+    GROUP SUM 1 IF id(InternetOrderDetailLot l) == idLot AND picking(internetOrderDetail(l)) == p;
+
+afterScanPickingLot ABSTRACT LIST (InternetOrderDetail);
+
+scanPickingBarcode (Picking p) {
+    INPUT s = STRING[200] DO {
+        IF NOT p THEN {
+            MESSAGE 'Комплектация не задана.';
+            RETURN;
+        }
+
+        LOCAL idLot = STRING[200] ();
+        LOCAL tailLot = STRING[200] ();
+        LOCAL gtinLot = STRING[14] ();
+        LOCAL locBarcode = STRING[15] ();
+        LOCAL locSku = Sku ();
+
+        idLot() <- NULL;
+        locSku() <- NULL;
+
+        IF length(s) >= (OVERRIDE lotMinLength(), 20) THEN {
+            // Контрольная марка (DataMatrix): код + хвост.
+            idLot() <- barcodeToId(s);
+            tailLot() <- barcodeToTail(s);
+
+            IF NOT idLot() THEN {
+                MESSAGE 'Не удалось разобрать отсканированную марку.';
+                RETURN;
+            }
+            IF scannedLotPicking(p, idLot()) THEN {
+                MESSAGE 'Марка уже отсканирована в этой комплектации.';
+                RETURN;
+            }
+            gtinLot() <- idToGtin(idLot());
+            locSku() <- OVERRIDE Stock.sku[Lot](lot(idLot())), skuFromGtin(gtinLot());
+            IF NOT locSku() THEN {
+                MESSAGE 'По отсканированной марке не найден товар (GTIN ' + gtinLot() + ').';
+                RETURN;
+            }
+        } ELSE {
+            locBarcode() <- processedBarcode(s);
+            locSku() <- skuBarcode(locBarcode());
+            IF NOT locSku() THEN {
+                MESSAGE 'Товар со штрихкодом ' + locBarcode() + ' не найден.';
+                RETURN;
+            }
+        }
+
+        FOR InternetOrderDetail d == freePickingDetail(p, locSku()) DO {
+            IF idLot() THEN NEW l = InternetOrderDetailLot {
+                internetOrderDetail(l) <- d;
+                id(l) <- idLot();
+                tail(l) <- tailLot();
+                quantity(l) <- 1.0;
+            }
+            pickingQuantity(d) <- quantity(d);
+            afterScanPickingLot(d);
+        } ELSE {
+            MESSAGE 'В комплектации не осталось несобранных строк по товару ' + name(locSku()) + '.';
+            RETURN;
+        }
+
+        APPLY;
+        formRefresh();
+    }
+}
+
+FORM wbPickingScan 'Сканирование марок'
+    OBJECTS p = Picking PANEL
+    PROPERTIES (p) READONLY number, series, nameStock, countInternetOrderDetail, pickingQuantityInternetOrderDetail
+    PROPERTIES wbScanBarcode() ON CHANGE scanPickingBarcode(p)
+
+    OBJECTS d = InternetOrderDetail
+    PROPERTIES (d) READONLY orderNumber, idBarcodeSku, nameSku, quantity, pickingQuantity, quantityLot
+    FILTERS picking(d) == p
+
+    FILTERGROUP notPicked
+        FILTER 'Не собранные' NOT pickingQuantity(d) 'F10' DEFAULT
+;
+
+DESIGN wbPickingScan {
+    BOX {
+        size = (900, 700);
+        OBJECTS {
+            NEW scanBox FIRST {
+                MOVE PROPERTY (wbScanBarcode()) {
+                    caption = 'Штрихкод / марка';
+                    font = 'bold 36';
+                    panelCaptionVertical = TRUE;
+                    changeKey = 'F4';
+                    focusable = TRUE;
+                }
+            }
+            NEW headerBox AFTER scanBox {
+                horizontal = TRUE;
+                MOVE PROPERTY (number(p));
+                MOVE PROPERTY (series(p));
+                MOVE PROPERTY (nameStock(p));
+                MOVE PROPERTY (countInternetOrderDetail(p));
+                MOVE PROPERTY (pickingQuantityInternetOrderDetail(p));
+            }
+            MOVE BOX(d) {
+                fill = 1;
+                caption = 'Строки комплектации';
+            }
+        }
+    }
+}
+
+scanPickingMarks 'Сканировать марки' (Picking p) {
+    wbScanBarcode() <- NULL;
+    SHOW wbPickingScan OBJECTS p = p;
+    formRefresh();
+}
+
 EXTEND FORM picking
+    PROPERTIES (p) SHOWIF isWBOrderPicking(p) scanPickingMarks DRAW d TOOLBAR
     PROPERTIES (p) SHOWIF isWBOrderPicking(p) addDetailsFromWbOrder DRAW d TOOLBAR
     PROPERTIES (p) SHOWIF isWBOrderPicking(p) dataPvzDelivery READONLYIF NOT wbIsPickupPointShipmentAllowed(p)
     PROPERTIES (d) SHOWIF isWBOrderPicking(p) moveOrderFBSDialog,
@@ -1748,7 +1937,7 @@ EXTEND FORM internetOrders
     PROPERTIES (o) getWbFbsStatus,
         cancelOrderFBS SHOWIF isWBOrderFBS(o) AND wbIsCancellable(o)
     PROPERTIES() getOrdersFBSNew, getOrdersFBS, actualizeOrdersMeta,
-        listSuppliesFBS, getAcceptanceCoefficients
+        listSuppliesFBS, getAcceptanceCoefficients, openStickers
 ;
 
 EXTEND FORM pickingDashboard
@@ -1796,6 +1985,7 @@ DESIGN internetOrders {
         }
         printContainer {
             MOVE PROPERTY(openSticker(o));
+            MOVE PROPERTY(openStickers());
         }
     }
 }

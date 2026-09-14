@@ -1,0 +1,34 @@
+MODULE WBOrdersCustomsDeclaration;
+
+REQUIRE WBOrders, PurchaseDeclaration, PurchaseDeclarationRegistrationNumber;
+
+NAMESPACE WB;
+
+EXTEND CLASS OrderMeta {
+    customsDeclaration 'Номер ГТД'
+}
+
+apiMetaPath(OrderMeta m) += WHEN m == OrderMeta.customsDeclaration THEN 'customs-declaration';
+apiMetaBodyKey(OrderMeta m) += WHEN m == OrderMeta.customsDeclaration THEN 'customsDeclaration';
+apiMetaBatchKey(OrderMeta m) += WHEN m == OrderMeta.customsDeclaration THEN 'customsDeclaration';
+
+apiMetaBasePath(OrderMeta m) += WHEN m == OrderMeta.customsDeclaration THEN '/api/marketplace/v3/orders/';
+
+registrationNumberDeclaration 'Регистрационный номер ГТД' (InternetOrderDetail d) = overNumber(declaration(batch(d)));
+
+defaultValueMeta(InternetOrderDetail d, OrderMeta m) +=
+    WHEN m == OrderMeta.customsDeclaration AND d IS InternetOrderDetail THEN registrationNumberDeclaration(d);
+
+originCountryCode 'Код страны происхождения' (InternetOrderDetail d) = sid(country(sku(d)));
+originCountryCode (InternetOrder o) = GROUP MAX originCountryCode(InternetOrderDetail d) IF internetOrder(d) == o;
+
+apiMetaBatchExtra(InternetOrder o, OrderMeta m) +=
+    WHEN m == OrderMeta.customsDeclaration AND o IS InternetOrder AND NOT sandbox() THEN
+        ',"originCountryCode":"' + originCountryCode(o) + '"';
+apiMetaBatchError(InternetOrder o, OrderMeta m) +=
+    WHEN m == OrderMeta.customsDeclaration AND o IS InternetOrder AND NOT sandbox() AND NOT originCountryCode(o) THEN
+        'Заказ ' + number(o) + ': не определён код страны происхождения — у товара не указана страна или у страны не заполнен «Код страны».';
+
+EXTEND FORM internetOrder
+    PROPERTIES (d) READONLY SHOWIF isWBOrder(o) registrationNumberDeclaration, originCountryCode
+;

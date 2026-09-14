@@ -1,6 +1,6 @@
 MODULE WBOrders;
 
-REQUIRE WBStockMapping, WBItemMapping, SaleInternetOrder, WBPriceTransaction, SaleInternetPicking;
+REQUIRE WBStockMapping, WBItemMapping, SaleInternetOrder, WBPriceTransaction, SaleInternetPicking, Lot;
 
 NAMESPACE WB;
 
@@ -30,7 +30,7 @@ ordersSkus = DATA LOCAL INTEGER(INTEGER);
 nmId = DATA LOCAL INTEGER (INTEGER);
 rid = DATA LOCAL STRING(INTEGER); // ID сборочного задания в системе Wildberries
 isZeroOrder = DATA LOCAL STRING(INTEGER);
-isB2b = DATA LOCAL STRING(INTEGER);
+isB2b = DATA LOCAL BOOLEAN(INTEGER);
 convertedCurrencyCode = DATA LOCAL NUMERIC(INTEGER);
 fullAddress = DATA LOCAL STRING(INTEGER);
 salePrice = DATA LOCAL NUMERIC(INTEGER);
@@ -96,6 +96,8 @@ nameWbStatus 'Статус WB' (InternetOrder o) = staticCaption(wbStatus(o));
 wbSystemStatus = DATA WbSystemStatus (InternetOrder);
 nameWbSystemStatus 'Системный статус WB' (InternetOrder o) = caption(wbSystemStatus(o));
 
+wbIsB2b 'WB: B2B' = DATA BOOLEAN (InternetOrder);
+
 // ---------------------- Хуки отмены ----------------------
 
 customCancelOrder = ABSTRACT BOOLEAN ();
@@ -107,7 +109,7 @@ customCancelOrderStatus = ABSTRACT CASE StatusInternetOrder();
 orderByNumber(STRING number) = GROUP MAX InternetOrder o IF number(o) = number;
 
 EXTEND FORM internetOrders
-    PROPERTIES(o) READONLY nameWbStatus, nameWbSystemStatus
+    PROPERTIES(o) READONLY nameWbStatus, nameWbSystemStatus, wbIsB2b
 ;
 
 // ---------------------- LOCAL-поля для разбора ответов status/info ----------------------
@@ -181,21 +183,34 @@ dataGetOrdersMetaLimit = DATA INTEGER ();
 getOrdersMetaLimit 'Лимит заказов в запросе статусов метаданных' = OVERRIDE dataGetOrdersMetaLimit(), 100;
 
 CLASS OrderMeta 'Тип метаданных' {
-    imei 'IMEI',
-    uin 'УИН',
     gtin 'GTIN',
     sgtin 'Код маркировки',
-    expiration 'Срок годности',
-    customsDeclaration 'Номер ГТД'
+    expiration 'Срок годности'
 }
 
 orderMetaByName 'Тип меты по имени' (STRING str) = GROUP MAX OrderMeta m IF staticName(m) == 'WB_OrderMeta.' + str;
 
+apiMetaName 'Имя меты в WB' (OrderMeta m) = replace(staticName(m), 'WB_OrderMeta.', '');
+
 requiredMeta 'Обязательная мета' = DATA BOOLEAN (InternetOrderDetail, OrderMeta);
 optionalMeta 'Опциональная мета' = DATA BOOLEAN (InternetOrderDetail, OrderMeta);
+usedMeta 'Запрошена WB' (InternetOrderDetail d, OrderMeta m) = requiredMeta(d, m) OR optionalMeta(d, m);
+
 valueMeta 'Значение меты' = ABSTRACT CASE STRING (InternetOrderDetail, OrderMeta);
 wbValueMeta 'Значение меты (WB)' = DATA STRING (InternetOrderDetail, OrderMeta);
 valueMeta(InternetOrderDetail d, OrderMeta m) += WHEN wbValueMeta(d, m) THEN wbValueMeta(d, m);
+
+gtinSku 'GTIN товара' (InternetOrderDetail d) = gtin(sku(d));
+expiryDateBatch 'Срок годности партии' (InternetOrderDetail d) = expiryDate(batch(d));
+
+defaultValueMeta 'Значение меты (авт.)' = ABSTRACT CASE STRING (InternetOrderDetail, OrderMeta);
+defaultValueMeta(InternetOrderDetail d, OrderMeta m) += WHEN m == OrderMeta.gtin AND d IS InternetOrderDetail THEN gtinSku(d);
+defaultValueMeta(InternetOrderDetail d, OrderMeta m) += WHEN m == OrderMeta.expiration AND d IS InternetOrderDetail THEN toDateDDMMYYYY(expiryDateBatch(d));
+
+valueMeta(InternetOrderDetail d, OrderMeta m) += WHEN NOT wbValueMeta(d, m) AND defaultValueMeta(d, m) THEN defaultValueMeta(d, m);
+
+hasValueMeta 'Есть значение меты' (InternetOrder o, OrderMeta m) =
+    GROUP SUM 1 IF valueMeta(InternetOrderDetail d, m) AND internetOrder(d) == o;
 
 CLASS OrderMetaStatus 'Статус метаданных';
 TABLE orderMetaStatus (OrderMetaStatus);
@@ -223,31 +238,31 @@ hasUnvalidatedRequiredMetaPicking 'Есть невалидированная о�
         AND picking(d) == p
         AND NOT validated(orderMetaStatus(d, m));
 
-apiMetaPath (OrderMeta m) =
-    CASE WHEN m = OrderMeta.imei THEN 'imei'
-        WHEN m = OrderMeta.uin THEN 'uin'
-        WHEN m = OrderMeta.gtin THEN 'gtin'
-        WHEN m = OrderMeta.sgtin THEN 'sgtin'
-        WHEN m = OrderMeta.expiration THEN 'expiration'
-        WHEN m = OrderMeta.customsDeclaration THEN 'customs-declaration';
+apiMetaPath 'Ключ меты' = ABSTRACT CASE STRING[30] (OrderMeta);
+apiMetaPath(OrderMeta m) += WHEN m == OrderMeta.gtin THEN 'gtin';
+apiMetaPath(OrderMeta m) += WHEN m == OrderMeta.sgtin THEN 'sgtin';
+apiMetaPath(OrderMeta m) += WHEN m == OrderMeta.expiration THEN 'expiration';
 
-apiMetaBodyKey (OrderMeta m) =
-    CASE WHEN m = OrderMeta.imei THEN 'imei'
-        WHEN m = OrderMeta.uin THEN 'uin'
-        WHEN m = OrderMeta.gtin THEN 'gtin'
-        WHEN m = OrderMeta.sgtin THEN 'sgtins'
-        WHEN m = OrderMeta.expiration THEN 'expiration'
-        WHEN m = OrderMeta.customsDeclaration THEN 'number';
+apiMetaBasePath 'Базовый путь' = ABSTRACT CASE STRING[50] (OrderMeta);
+apiMetaBasePath(OrderMeta m) += WHEN m IS OrderMeta THEN '/api/v3/orders/';
 
-// Имя поля в теле батч-эндпоинта POST /api/marketplace/v3/(dbs/)orders/meta/{key}
-// (массив строк, кроме customs-declaration — там одиночная строка customsDeclaration).
+apiMetaBodyKey 'Поле в теле запроса' = ABSTRACT CASE STRING[30] (OrderMeta);
+apiMetaBodyKey(OrderMeta m) += WHEN m == OrderMeta.gtin THEN 'gtin';
+apiMetaBodyKey(OrderMeta m) += WHEN m == OrderMeta.sgtin THEN 'sgtins';
+apiMetaBodyKey(OrderMeta m) += WHEN m == OrderMeta.expiration THEN 'expiration';
+
+// Имя поля в теле пакетного запроса DBS POST /api/marketplace/v3/dbs/orders/meta/{key}
+// (массивом или строкой — см. arrayMeta).
 // expiration в DBS-API недоступен (только FBS), поэтому в этом справочнике отсутствует.
-apiMetaBatchKey (OrderMeta m) =
-    CASE WHEN m = OrderMeta.imei THEN 'imeis'
-        WHEN m = OrderMeta.uin THEN 'uins'
-        WHEN m = OrderMeta.gtin THEN 'gtins'
-        WHEN m = OrderMeta.sgtin THEN 'sgtins'
-        WHEN m = OrderMeta.customsDeclaration THEN 'customsDeclaration';
+apiMetaBatchKey 'Поле в теле пакетного запроса' = ABSTRACT CASE STRING[30] (OrderMeta);
+apiMetaBatchKey(OrderMeta m) += WHEN m == OrderMeta.gtin THEN 'gtin';
+apiMetaBatchKey(OrderMeta m) += WHEN m == OrderMeta.sgtin THEN 'sgtins';
+
+apiMetaBatchExtra 'Доп. поля в пакетном запросе' = ABSTRACT CASE STRING (InternetOrder, OrderMeta);
+apiMetaBatchError 'Мета не отправляется' = ABSTRACT CASE STRING (InternetOrder, OrderMeta);
+
+arrayMeta 'Передаётся массивом' = ABSTRACT CASE BOOLEAN (OrderMeta);
+arrayMeta(OrderMeta m) += WHEN m == OrderMeta.sgtin THEN TRUE;
 
 // Локальные данные для импорта ответа .../orders/meta
 metaOrderId = DATA LOCAL STRING(INTEGER);
@@ -288,7 +303,9 @@ EXTEND FORM internetOrder
     PROPERTIES nameMetaType = staticCaption(mm)
     PROPERTIES (d, mm) READONLY requiredMeta, optionalMeta, valueMeta, nameOrderMetaStatus, validatedMeta
     PROPERTIES wbValueMeta(d, mm)
-    //FILTERS requiredMeta(d, mm) OR optionalMeta(d, mm)
+    
+    FILTERGROUP metaUsed
+        FILTER 'Запрошенные WB' usedMeta(d, mm) DEFAULT
 ;
 
 DESIGN internetOrders {
