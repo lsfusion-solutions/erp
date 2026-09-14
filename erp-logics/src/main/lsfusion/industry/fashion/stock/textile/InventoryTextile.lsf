@@ -79,9 +79,16 @@ skuListB 'Товары в пакете (до)' = DATA STRING(Inventory, Packet);
 
 afterRecalculatePackets ABSTRACT LIST (Inventory);
 
+inInventoryArticle 'Модель(отм.)' = ABSTRACT BOOLEAN (Inventory, Article);
+countInventoryArticle (Inventory i) = GROUP SUM 1 IF inInventoryArticle(i, Article a);
+includeInventoryPacket 'Пакет вкл.' (Inventory i, Packet p) =
+    IF countInventoryArticle(i)
+        THEN (TRUE IF (GROUP SUM 1 IF currentQuantity(Article a, p) AND inInventoryArticle(i, a)))
+        ELSE TRUE;
+
 recalculatePackets 'Пересчитать' (Inventory i) {
     LOCAL binB = Bin(Packet);
-    binB(Packet p) <- binB(p, dateTime(i)) WHERE [GROUP MIN Stock st IF include(st, i) AND st==stock(binB(p, dateTime(i)))]();
+    binB(Packet p) <- binB(p, dateTime(i)) WHERE [GROUP MIN Stock st IF include(st, i) AND st==stock(binB(p, dateTime(i)))]() AND includeInventoryPacket(i, p);
 
     quantityB(i, Article a, Bin b) <- NULL;
     quantityB(i, Article a, Bin b) <- [GROUP SUM currentQuantity(a, Packet p) IF binB(p) == b]() WHERE include(stock(b), i);
