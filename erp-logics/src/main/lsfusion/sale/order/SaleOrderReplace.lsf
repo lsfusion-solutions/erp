@@ -27,10 +27,11 @@ minCustomerStock = GROUP MIN Stock customerStock IF [ GROUP SUM 1 IF selected(Or
 countSelectedOperation 'Кол-во операций' = GROUP SUM 1 IF [ GROUP SUM 1 IF selected(Order order) BY operation(order)](Operation operation);
 minOperation = GROUP MIN Operation operation IF [ GROUP SUM 1 IF selected(Order order) BY operation(order)](operation);
 
+@defineOption(replaceHistory, 'Перезаписывать историю строк при объединении', optionsContainer);
 
 @defineOption(groupSkuSaleOrderReplace, 'Группировать строки по товару при объединении заказов (продажа)', optionsContainer);
 
-replace 'Объединить'(UserOrder order)  { 
+replace 'Объединить' (UserOrder order)  { 
     IF countSelectedOrder() THEN {
         IF  countSelectedUserOrder() == countSelectedOrder() THEN {
             IF  additionalCheck() THEN {
@@ -44,6 +45,42 @@ replace 'Объединить'(UserOrder order)  {
                     } ELSE {  
                         IF NOT groupSkuSaleOrderReplace() THEN {
                             userOrder(UserOrderDetail d) <- order WHERE selected(userOrder(d));
+                            
+                            IF replaceHistory() AND NOT disableDocumentLog() THEN {
+                                FOR selected(UserOrder o) INLINE NEW l = DocumentLog DO {
+                                    documentId(l) <- LONG(order);
+                                    typeDocument(l) <- objectClassName(order);
+                                    numberDocument(l) <- number(order);
+                                    seriesDocument(l) <- series(order);
+                                    dateDocument(l) <- date(order);
+                                    typeChange(l) <- TypeChange.addRow;
+                                    note(l) <- STRING[255](CONCAT '', 'Перенесено из заказа ', series(o), number(o),
+                                        ', строк: ' + (GROUP SUM 1 IF userOrder(UserOrderDetail d) == order AND PREV(userOrder(d)) == o));
+                                    hostnameComputer(l) <- hostnameCurrentComputer();
+                                    userLogin(l) <- login(currentUser());
+                                    nameContact(l) <- STRING[100](name(currentUser()));
+                                    dateTimeSession(l) <- currentDateTime();
+                                    supplierStock(l) <- supplierStock(order);
+                                    customerStock(l) <- customerStock(order);
+                                }
+                                
+                                FOR userOrder(UserOrderDetail d) == order AND selected(PREV(userOrder(d))) INLINE NEW l = DocumentDetailLog DO {
+                                    documentId(l) <- LONG(document(d));
+                                    index(l) <- index(d);
+                                    numberDocument(l) <- number(document(d));
+                                    seriesDocument(l) <- series(document(d));
+                                    dateDocument(l) <- date(document(d));
+                                    typeDocument(l) <- objectClassName(document(d));
+                                    sku(l) <- sku(d);
+                                    batch(l) <- CONCAT ', ', 'Код: ' + id(batch(d)), ' Наименование: ' + baseName(d);
+                                    quantity(l) <- quantity(d);
+                                    price(l) <- price(d);
+                                    nameUser(l) <- ISTRING[100](name(currentUser()));
+                                    dateTime(l) <- currentDateTime();
+                                    note(l) <- STRING[20](CONCAT '', 'Из заказа ', PREV(series(userOrder(d))), PREV(number(userOrder(d))));
+                                    overSet(l, d);
+                                }
+                            }
                         } ELSE {
                             selected(order) <- TRUE;
                                                     
