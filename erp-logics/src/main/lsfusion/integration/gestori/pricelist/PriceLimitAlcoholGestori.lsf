@@ -1,6 +1,6 @@
 MODULE PriceLimitAlcoholGestori;
 
-REQUIRE PriceList, EGAISProductType, EGAISItemGestori, ItemSize, MachineryPriceTransaction;
+REQUIRE PriceList, EGAISProductType, EGAISItemGestori, ItemSize, MachineryPriceTransaction, ImportGestoriSettings;
 
 NAMESPACE PriceLimitAlcohol;
 
@@ -44,11 +44,15 @@ toValueAlcohol 'Содержание алкоголя по, %' = DATA NUMERIC[10
 
 minPrice 'Цена за заданный объем' = DATA NUMERIC[16,5](AlcoholLimitDetail) NONULL;
 
+idGestori 'Код GESTORI' = DATA INTEGER (AlcoholLimit) IN documentPrm;
+alcoholLimitGestori = GROUP AGGR AlcoholLimit a BY idGestori(a);
+
 FORM alcoholLimit 'Минимальные цены на алкоголь'
 
     OBJECTS r = AlcoholLimit PANEL
     PROPERTIES READONLY r 'Код' = STRING(r)
     PROPERTIES (r) isPosted, date, time, fromDate, toDate, note, idProductTypes ON CHANGE changeProductTypes(r)
+    PROPERTIES (r) READONLY idGestori
 
     PROPERTIES (r) READONLY countAlcoholLimitDetail
 
@@ -118,7 +122,7 @@ FORM alcoholLimits 'Минимальные цены на алкоголь'
 
     OBJECTS r = AlcoholLimit
     PROPERTIES READONLY r 'Код' = STRING(r)
-    PROPERTIES (r) READONLY isPosted, date, time, fromDate, toDate, note, idProductTypes
+    PROPERTIES (r) READONLY isPosted, date, time, fromDate, toDate, note, idProductTypes, idGestori
     PROPERTIES (r) READONLY countAlcoholLimitDetail
 
     PROPERTIES (r) NEWSESSION NEW, EDIT, deleter=DELETE
@@ -182,16 +186,17 @@ useCustomAlcoholLimitPrice = ABSTRACT BOOLEAN ();
 
 skipAlcoholLimitPrice = ABSTRACT VALUE BOOLEAN (AlcoholLimitDetail);
 
+// диапазон крепости как в GESTORI: нижняя граница не входит, верхняя входит
 alcoholLimitDetail (Item s, DATETIME dt) = GROUP
     LAST AlcoholLimitDetail ad ORDER dateTime(ad), ad
     WHERE isPosted(ad) AND productType(s) == productType(ad) AND toDate(dt) >= fromDate(alcoholLimit(ad)) AND
-        toDate(dt) <= toDate(alcoholLimit(ad)) AND value(alcohol(s)) >= fromValueAlcohol(ad) AND value(alcohol(s)) < toValueAlcohol(ad);
+        toDate(dt) <= toDate(alcoholLimit(ad)) AND value(alcohol(s)) > fromValueAlcohol(ad) AND value(alcohol(s)) <= toValueAlcohol(ad);
 
 minAlcoholLimitPriceCalc (Item s, DATETIME dt) = GROUP
     LAST NUMERIC[16,4](ceil(minPrice(AlcoholLimitDetail ad)*volume(s)*100/volume(ad))/100)
     ORDER dateTime(ad), ad
     WHERE isPosted(ad) AND productType(s) == productType(ad) AND toDate(dt) >= fromDate(alcoholLimit(ad)) AND
-        toDate(dt) <= toDate(alcoholLimit(ad)) AND value(alcohol(s)) >= fromValueAlcohol(ad) AND value(alcohol(s)) < toValueAlcohol(ad);
+        toDate(dt) <= toDate(alcoholLimit(ad)) AND value(alcohol(s)) > fromValueAlcohol(ad) AND value(alcohol(s)) <= toValueAlcohol(ad);
 
 //minAlcoholLimitPriceRBCalc (Item s, DATETIME dt) = GROUP
 //    LAST minPrice(AlcoholLimitDetail ad, Alcohol a)
@@ -266,7 +271,7 @@ EXTEND FORM alcoholLimits
     OBJECTS i = Item
     PROPERTIES (i) READONLY idBarcode, id, name, volume, nameProductType
     PROPERTIES 'Минимальная цена (дата начала)' = minAlcoholLimitPrice(i, toDateTime(fromDate(r))), 'Минимальная цена (текущая дата)' = minAlcoholLimitPrice(i, currentDateTime())
-    FILTERS [GROUP SUM 1 IF productType(Item i1) == productType(AlcoholLimitDetail d1) AND value(alcohol(i1)) >= fromValueAlcohol(d1) AND value(alcohol(i1)) < toValueAlcohol(d1) BY alcoholLimit(d1), i1](r, i)
+    FILTERS [GROUP SUM 1 IF productType(Item i1) == productType(AlcoholLimitDetail d1) AND value(alcohol(i1)) > fromValueAlcohol(d1) AND value(alcohol(i1)) <= toValueAlcohol(d1) BY alcoholLimit(d1), i1](r, i)
     ;
 
 DESIGN alcoholLimits {
@@ -304,3 +309,91 @@ defaultMinPrice = ABSTRACT NUMERIC[16,4] (Barcode, Stock);
 dataMinPrice(Barcode b, Stock st) += OVERRIDE minAlcoholLimitPrice(sku(b), currentDateTime()), singleMinPrice(sku(b), currentDate()), defaultMinPrice(b, st);
 
 dateMinPrice (Sku s, DATETIME dt) = OVERRIDE fromDate(alcoholLimitDetail(s, dt)), date(singleMinPrice(s, dt));
+
+// в GESTORI код вида продукции числовой, у кодов ФСРАР с ведущим нулём ('010', '0201') он теряется
+productTypeGestori (STRING code) = OVERRIDE EGAIS.productType(STRING[5](code)), EGAIS.productType(STRING[5]('0' + code));
+
+importAlcoholLimits 'Импорт МРЦ на алкоголь' () {
+    LOCAL today = STRING[100] ();
+    LOCAL actual = STRING[1000] ();
+    today() <- 'TO_DATE(\'' + toDateISO(currentDate()) + '\',\'YYYY-MM-DD\')';
+    actual() <- '((h.VidAlcMrcDate <= ' + today() + ' AND h.VidAlcMrcDateAct >= ' + today() + ') OR h.VidAlcMrcDate > ' + today() + ')';
+
+    LOCAL idDoc = INTEGER (INTEGER);
+    LOCAL dateFrom = DATE (INTEGER);
+    LOCAL dateTo = DATE (INTEGER);
+    LOCAL comment = ISTRING[500] (INTEGER);
+    LOCAL codes = TEXT (INTEGER);
+
+    LOCAL file = FILE ();
+    EXTERNAL SQL ImportGestori.connectionString()
+        EXEC 'SELECT h.VidAlcMrcNum, h.VidAlcMrcDate, h.VidAlcMrcDateAct, SUBSTR(h.Comment, 1, 500), SUBSTR(h.VidAlcList, 1, 1000) FROM Pub.VidAlcMrc1 AS h WHERE '
+        + actual() + ' WITH (NOLOCK)' TO file;
+
+    IMPORT TABLE FROM file() TO idDoc, dateFrom, dateTo, comment, codes;
+
+    FOR idDoc(INTEGER i) AND dateFrom(i) AND dateTo(i) AND NOT alcoholLimitGestori(idDoc(i)) DO NEW a = AlcoholLimit {
+        idGestori(a) <- idDoc(i);
+    }
+
+    // документ пересобирается целиком: строки в GESTORI могли удалить или изменить
+    FOR AlcoholLimit a == alcoholLimitGestori(idDoc(INTEGER i)) AND dateFrom(i) AND dateTo(i) DO {
+        fromDate(a) <- dateFrom(i);
+        toDate(a) <- dateTo(i);
+        note(a) <- comment(i);
+        in(a, EGAIS.ProductType t) <- NULL;
+        DELETE AlcoholLimitDetail d WHERE alcoholLimit(d) == a;
+        isPosted(a) <- TRUE;
+    }
+
+    // разделитель в списке кодов не зафиксирован
+    FOR AlcoholLimit a == alcoholLimitGestori(idDoc(INTEGER i)) AND dateFrom(i) AND dateTo(i)
+        AND TEXT list == replace(replace(codes(i), ';', ','), ' ', ',')
+        AND iterate(INTEGER j, 1, wordCount(list, ','))
+        AND EGAIS.ProductType t == productTypeGestori(STRING(trim(getWord(list, ',', j)))) DO {
+        in(a, t) <- TRUE;
+    }
+
+    // документ пропал из выборки, хотя ещё действует — в GESTORI его удалили или сократили срок;
+    // проводку снимаем, чтобы он не участвовал в расчёте и не блокировал пересечение периодов
+    isPosted(AlcoholLimit a) <- NULL WHERE idGestori(a) AND isPosted(a) AND toDate(a) >= currentDate()
+        AND NOT (GROUP SUM 1 IF idDoc(INTEGER i) == idGestori(a) AND dateFrom(i) AND dateTo(i));
+
+    LOCAL idDocDetail = INTEGER (INTEGER);
+    LOCAL codeType = INTEGER (INTEGER);
+    LOCAL volume = NUMERIC[10,4] (INTEGER);
+    LOCAL alcoholFrom = NUMERIC[10,2] (INTEGER);
+    LOCAL alcoholTo = NUMERIC[10,2] (INTEGER);
+    LOCAL price = NUMERIC[16,5] (INTEGER);
+
+    EXTERNAL SQL ImportGestori.connectionString()
+        EXEC 'SELECT s.VidAlcMrcNum, s.CodeVidAlc, s.Volume, s.ProcAlcFrom, s.ProcAlcTo, s.RetPriceMRC FROM Pub.VidAlcMrc2 AS s '
+        + 'JOIN Pub.VidAlcMrc1 AS h ON h.VidAlcMrcNum = s.VidAlcMrcNum WHERE ' + actual() + ' WITH (NOLOCK)' TO file;
+
+    IMPORT TABLE FROM file() TO idDocDetail, codeType, volume, alcoholFrom, alcoholTo, price;
+
+    FOR AlcoholLimit a == alcoholLimitGestori(idDocDetail(INTEGER i)) AND isPosted(a)
+        AND EGAIS.ProductType t == productTypeGestori(STRING(codeType(i))) AND volume(i) > 0 AND price(i) > 0
+        ORDER codeType(i), volume(i), alcoholFrom(i), i DO NEW d = AlcoholLimitDetail {
+        alcoholLimit(d) <- a;
+        productType(d) <- t;
+        volume(d) <- volume(i);
+        fromValueAlcohol(d) <- OVERRIDE alcoholFrom(i), 0.0;
+        toValueAlcohol(d) <- OVERRIDE alcoholTo(i), 100.0;
+        minPrice(d) <- price(i);
+    }
+
+    // строка вида, не указанного в шапке, иначе не пройдёт проверку документа
+    in(AlcoholLimit a, EGAIS.ProductType t) <- TRUE WHERE idGestori(a) AND (GROUP SUM 1 IF in(a, EGAIS.ProductType t1))
+        AND (GROUP SUM 1 IF alcoholLimit(AlcoholLimitDetail d) == a AND productType(d) == t);
+
+    LOCAL unknown = TEXT ();
+    unknown() <- GROUP CONCAT STRING(INTEGER c) IF [GROUP SUM 1 IF alcoholLimitGestori(idDocDetail(INTEGER i)) AND NOT productTypeGestori(STRING(codeType(i))) BY codeType(i)](c), ', ' ORDER c;
+    IF unknown() THEN
+        MESSAGE 'Не найдены виды продукции ЕГАИС с кодами: ' + unknown() + '.\nСтроки МРЦ по ним не загружены.';
+
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importAlcoholLimits();
+DESIGN integrationData { gestoriButtons { MOVE PROPERTY (importAlcoholLimits()); } }
