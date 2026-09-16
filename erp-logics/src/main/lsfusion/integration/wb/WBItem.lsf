@@ -132,6 +132,10 @@ in 'Вкл.' = DATA BOOLEAN (ItemSubGroup, Attribute);
 notNull 'Обязательный' = DATA BOOLEAN (ItemSubGroup, Attribute);
 popular 'Популярный' = DATA BOOLEAN (ItemSubGroup, Attribute);
 
+index (ItemSubGroup g, Attribute a) = PARTITION SUM 1 IF in(g, a)
+    ORDER (IF notNull(g, a) THEN 0 ELSE 1), name(a), a BY g;
+left (ItemSubGroup g, Attribute a) = mod(index(g, a), 2) = 1;
+
 hasSizes (Item i) = in(itemSubGroup(i), attribute('54337'));
 
 value 'Значение' = ABSTRACT STRING (Item, Attribute);
@@ -301,7 +305,8 @@ FORM item 'Товар'
     ORDERS name(i)
 
     OBJECTS attr = Attribute
-    PROPERTIES value(i, attr) ON CHANGE { edit(i, attr); } SHOWIF in(itemSubGroup(i), attr) COLUMNS (attr) HEADER name(attr)
+    PROPERTIES valueL = value(i, attr) ON CHANGE { edit(i, attr); } SHOWIF left(itemSubGroup(i), attr) COLUMNS (attr) HEADER name(attr)
+    PROPERTIES valueR = value(i, attr) ON CHANGE { edit(i, attr); } SHOWIF in(itemSubGroup(i), attr) AND NOT left(itemSubGroup(i), attr) COLUMNS (attr) HEADER name(attr)
     PROPERTIES READONLY notNull=notNull(itemSubGroup(i), attr) SHOWIF NULL, name(attr) SHOWIF NULL
     ORDERS notNull DESC, name(attr)
     FILTERS in(itemSubGroup(i), attr)
@@ -368,8 +373,16 @@ DESIGN item {
             NEW itemDetail {
                 caption = 'Дополнительные характеристики';
                 fill = 1;
-                MOVE PROPERTY(value(i, attr)) {
-                    class = 'attribute-property';
+                horizontal = TRUE;
+                class = 'attribute-property';
+                MOVE PROPERTY(valueL) {
+                    fill = 1;
+                    panelColumnVertical = TRUE;
+                    valueClass = 'not-null' IF notNull(itemSubGroup(i), attr) AND NOT value(i, attr);
+                }
+                MOVE PROPERTY(valueR) {
+                    fill = 1;
+                    panelColumnVertical = TRUE;
                     valueClass = 'not-null' IF notNull(itemSubGroup(i), attr) AND NOT value(i, attr);
                 }
             }
