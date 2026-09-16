@@ -66,6 +66,14 @@ resultCheckOrderStatus(STRING s) += WHEN s = 'canceled' THEN StatusInternetOrder
 internetOrderResultCheck (STRING id) = OVERRIDE internetOrderByUuid(id),
     (GROUP MAX InternetOrder o IF idAggregator(o) = id);
 
+// на этом адресе агрегатор авторизуется токеном, который выдаём ему мы, а не полученным через oauth
+tokenResultCheck 'Токен резалт-чеков' = DATA STRING (YandexEdaAuth);
+authResultCheck (STRING token) = GROUP MAX YandexEdaAuth a IF tokenResultCheck(a) = token;
+
+EXTEND FORM integrationData
+    PROPERTIES (yandex) tokenResultCheck
+;
+
 // строки резалт-чека доступны реализациям через checkMarking/positionsMarkings
 afterResultCheckDetails ABSTRACT LIST (INTEGER, InternetOrderDetail);
 afterResultCheck ABSTRACT LIST (InternetOrder);
@@ -73,7 +81,7 @@ afterResultCheck ABSTRACT LIST (InternetOrder);
 resultCheck (FILE f) {
     LOCAL tokenClient = STRING ();
     tokenClient() <- OVERRIDE getWord(headers('Authorization'), ' ', 2), getWord(headers('authorization'), ' ', 2);
-    IF NOT auth(yandexEdaSession(tokenClient())) THEN {
+    IF NOT (authResultCheck(tokenClient()) OR auth(yandexEdaSession(tokenClient()))) THEN {
         statusHttpTo() <- 401;
         EXPORT JSON FROM code = 100, description = 'Не найден токен авторизации';
         RETURN;
