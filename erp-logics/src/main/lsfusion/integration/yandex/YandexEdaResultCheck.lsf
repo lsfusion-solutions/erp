@@ -1,0 +1,124 @@
+MODULE YandexEdaResultCheck;
+
+REQUIRE YandexEdaOrder, SaleInternetPicking;
+
+NAMESPACE YandexEda;
+
+// Итоговый состав заказа, который агрегатор присылает по факту сборки, передачи курьеру,
+// доставки или отмены: https://yandex.ru/support/picker-app/ru/partner/result-check
+// Адрес эндпоинта (/exec/result-check) настраивается на стороне агрегатора.
+
+checkOrderId = DATA LOCAL STRING();
+checkStatus = DATA LOCAL STRING[20]();
+checkShopId = DATA LOCAL STRING();
+checkTotalPrice = DATA LOCAL STRING();
+checkDiscountTotalPrice = DATA LOCAL STRING();
+checkStatusSetAt = DATA LOCAL STRING();
+checkDeliveredDateTime = DATA LOCAL STRING();
+checkCanceledDateTime = DATA LOCAL STRING();
+
+// суммы и цены агрегатор передаёт строками
+checkProductId = DATA LOCAL STRING(INTEGER);
+checkQuantity = DATA LOCAL NUMERIC[16,5](INTEGER);
+checkOriginalQuantity = DATA LOCAL NUMERIC[16,5](INTEGER);
+checkPrice = DATA LOCAL STRING(INTEGER);
+checkDiscountPrice = DATA LOCAL STRING(INTEGER);
+checkUnitPrice = DATA LOCAL STRING(INTEGER);
+checkDiscountUnitPrice = DATA LOCAL STRING(INTEGER);
+
+positionsMarkings = DATA LOCAL INTEGER(INTEGER);
+checkMarking = DATA LOCAL STRING(INTEGER);
+
+FORM resultCheck FORMEXTID 'null'
+    PROPERTIES() checkOrderId EXTID 'externalOrderId', checkStatus EXTID 'status', checkShopId EXTID 'shopId',
+        checkTotalPrice EXTID 'totalPrice', checkDiscountTotalPrice EXTID 'discountTotalPrice',
+        checkStatusSetAt EXTID 'statusSetAt', checkDeliveredDateTime EXTID 'deliveredDateTime',
+        checkCanceledDateTime EXTID 'canceledDateTime'
+
+    OBJECTS positions = INTEGER
+    PROPERTIES(positions) checkProductId EXTID 'productId', checkQuantity EXTID 'quantity',
+        checkOriginalQuantity EXTID 'originalQuantity', checkPrice EXTID 'price',
+        checkDiscountPrice EXTID 'discountPrice', checkUnitPrice EXTID 'unitPrice',
+        checkDiscountUnitPrice EXTID 'discountUnitPrice'
+    FILTERS imported(positions)
+
+    OBJECTS markings = INTEGER
+    PROPERTIES(markings) checkMarking EXTID 'value'
+    FILTERS positionsMarkings(markings) == positions
+    FILTERS imported(markings)
+;
+
+statusResultCheck 'Статус резалт-чека' = DATA STRING[20] (InternetOrder);
+dateTimeResultCheck 'Дата/время резалт-чека' = DATA STRING (InternetOrder);
+
+EXTEND FORM internetOrder
+    PROPERTIES (o) READONLY statusResultCheck, dateTimeResultCheck
+;
+
+resultCheckOrderStatus = ABSTRACT CASE StatusInternetOrder (STRING);
+resultCheckOrderStatus(STRING s) += WHEN s = 'ready' THEN StatusInternetOrder.picked;
+resultCheckOrderStatus(STRING s) += WHEN s = 'done' THEN StatusInternetOrder.delivery;
+resultCheckOrderStatus(STRING s) += WHEN s = 'delivered' THEN StatusInternetOrder.delivered;
+resultCheckOrderStatus(STRING s) += WHEN s = 'canceled' THEN StatusInternetOrder.closed;
+
+// externalOrderId — это uuid, отданный агрегатору при создании заказа; заказы,
+// созданные не через POST /order, ищем по его собственному номеру
+internetOrderResultCheck (STRING id) = OVERRIDE internetOrderByUuid(id),
+    (GROUP MAX InternetOrder o IF idAggregator(o) = id);
+
+// строки резалт-чека доступны реализациям через checkMarking/positionsMarkings
+afterResultCheckDetails ABSTRACT LIST (INTEGER, InternetOrderDetail);
+afterResultCheck ABSTRACT LIST (InternetOrder);
+
+resultCheck (FILE f) {
+    LOCAL tokenClient = STRING ();
+    tokenClient() <- OVERRIDE getWord(headers('Authorization'), ' ', 2), getWord(headers('authorization'), ' ', 2);
+    IF NOT auth(yandexEdaSession(tokenClient())) THEN {
+        statusHttpTo() <- 401;
+        EXPORT JSON FROM code = 100, description = 'Не найден токен авторизации';
+        RETURN;
+    }
+    fileToString(f);
+    logToFile('yandex', CONCAT ' : ', 'IN result-check', resultString());
+    IMPORT resultCheck JSON FROM f;
+
+    LOCAL order = InternetOrder ();
+    order() <- internetOrderResultCheck(checkOrderId());
+    IF NOT order() THEN {
+        orderNotFound();
+        RETURN;
+    }
+
+    statusResultCheck(order()) <- checkStatus();
+    dateTimeResultCheck(order()) <- STRING(OVERRIDE checkStatusSetAt(), checkDeliveredDateTime(), checkCanceledDateTime());
+    status(InternetOrder o) <- resultCheckOrderStatus(checkStatus()) WHERE o = order();
+
+    IF NOT checkStatus() = 'canceled' THEN {
+        LOCAL detail = InternetOrderDetail (INTEGER);
+        detail(INTEGER i) <- GROUP MAX InternetOrderDetail d IF internetOrder(d) = order() AND sku(d) = itemById(checkProductId(i));
+
+        // замены сборщика: агрегатор вернул позицию, которой в заказе не было
+        FOR checkProductId(INTEGER i) AND itemById(checkProductId(i)) AND NOT detail(i) NEW d = InternetOrderDetail DO {
+            internetOrder(d) <- order();
+            sku(d) <- itemById(checkProductId(i));
+            quantity(d) <- OVERRIDE checkOriginalQuantity(i), checkQuantity(i);
+            price(d) <- NUMERIC[16,4](checkUnitPrice(i));
+        }
+        detail(INTEGER i) <- GROUP MAX InternetOrderDetail d IF internetOrder(d) = order() AND sku(d) = itemById(checkProductId(i));
+
+        FOR checkProductId(INTEGER i) AND InternetOrderDetail d = detail(i) DO {
+            pickingQuantity(d) <- checkQuantity(i);
+            IF checkDiscountUnitPrice(i) THEN discountPrice(d) <- NUMERIC[16,4](checkDiscountUnitPrice(i));
+            afterResultCheckDetails(i, d);
+        }
+    }
+
+    afterResultCheck(order());
+    APPLY;
+    headersTo('Content-Type') <- 'application/json';
+    IF canceled() THEN {
+        statusHttpTo() <- 500;
+        EXPORT JSON FROM result = 'error', description = applyMessage();
+    }
+    ELSE EXPORT JSON FROM result = 'OK';
+}@@noauth EXTID 'result-check';
