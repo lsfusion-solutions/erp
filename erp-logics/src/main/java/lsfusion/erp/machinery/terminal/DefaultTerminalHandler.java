@@ -594,7 +594,7 @@ public class DefaultTerminalHandler {
                 
                 if (terminalHandlerLotLM != null) {
                     barcodeQuery.addProperty("lotType", terminalHandlerLotLM.findProperty("lotType[Barcode]").getExpr(session.getModifier(), barcodeExpr));
-                    barcodeQuery.addProperty("lotExpiryDate", terminalHandlerLotLM.findProperty("lotExpiryDate[Barcode, Stock]").getExpr(session.getModifier(), barcodeExpr, stockObject.getExpr()));
+                    barcodeQuery.addProperty("minExpiryDate", terminalHandlerLotLM.findProperty("minExpiryDate[Barcode, Stock]").getExpr(session.getModifier(), barcodeExpr, stockObject.getExpr()));
                 }
                 
                 if (terminalHandlerLotByLM != null) {
@@ -648,9 +648,9 @@ public class DefaultTerminalHandler {
                     boolean ukz = terminalHandlerLotByLM != null && entry.get("ukz") != null;
                     String nameUkzType = terminalHandlerLotByLM == null ? null : (String) entry.get("nameUkzType");
                     
-                    LocalDate lotExpiryDate = terminalHandlerLotLM == null ? null : (LocalDate) entry.get("lotExpiryDate");
+                    LocalDate minExpiryDate = terminalHandlerLotLM == null ? null : (LocalDate) entry.get("minExpiryDate");
                     if (!userInfo.idApplication.equalsIgnoreCase(ID_APPLICATION_ORDER))
-                        lotExpiryDate = null;
+                        minExpiryDate = null;
                     
                     String GTIN = null;
                     if (ediGtinLM != null && idBarcode.equals(mainBarcode) ) //чтобы для GTIN параметры брались из основного штрихкода, особенно amount
@@ -659,7 +659,7 @@ public class DefaultTerminalHandler {
                     result.add(new TerminalBarcode(idBarcode, overNameSku, price, quantityBarcodeStock, idSkuBarcode,
                             nameManufacturer, isWeight, mainBarcode, color, extInfo, fld3, fld4, fld5, unit, flags, image,
                             nameCountry, amount, capacity, GTIN, fileNameImage, trustAcceptPercent,
-                            nvl(hasImage, false), background_color, idCategory, isSplit, quantityBarcodeDefect, lotType, ukz, nameUkzType, lotExpiryDate));
+                            nvl(hasImage, false), background_color, idCategory, isSplit, quantityBarcodeDefect, lotType, ukz, nameUkzType, minExpiryDate));
                 }
             }
         }
@@ -1141,7 +1141,9 @@ public class DefaultTerminalHandler {
                 " fld2 TEXT," +
                 " fld3 TEXT," +
                 " ticket TEXT," +
-                " flags INTEGER)";
+                " flags INTEGER," +
+                " trust_accept INTEGER DEFAULT 0," +
+                " trust_accept_percent REAL DEFAULT NULL)";
         statement.executeUpdate(sql);
         statement.close();
     }
@@ -1150,7 +1152,7 @@ public class DefaultTerminalHandler {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO ana VALUES(?, ?, ?, ?, ?, ?, ?);";
+                String sql = "INSERT OR REPLACE INTO ana VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?);";
                 statement = connection.prepareStatement(sql);
                 for (TerminalLegalEntity legalEntity : customANAList) {
                     if (legalEntity.idLegalEntity != null) {
@@ -1161,6 +1163,8 @@ public class DefaultTerminalHandler {
                         statement.setObject(5, formatValue(legalEntity.field3)); //fld3
                         statement.setObject(6, formatValue(legalEntity.extInfo)); //ticket
                         statement.setObject(7, formatValue(legalEntity.flags == null ? "0" : legalEntity.flags));
+                        statement.setObject(8, legalEntity.trustAccept ? 1 : 0); //trust_accept
+                        statement.setObject(9, legalEntity.trustAcceptPercent); //trust_accept_percent
                         statement.addBatch();
                     }
                 }
@@ -2013,6 +2017,8 @@ public class DefaultTerminalHandler {
                         QueryBuilder<Object, Object> customANAQuery = new QueryBuilder<>(customANAKeys);
                         customANAQuery.addProperty("id", propertyID.getExpr(customANAExpr));
                         customANAQuery.addProperty("name", propertyName.getExpr(customANAExpr));
+                        customANAQuery.addProperty("trustAccept", terminalHandlerLM.findProperty("terminalTrustAccept[STRING]").getExpr(propertyID.getExpr(customANAExpr)));
+                        customANAQuery.addProperty("trustAcceptPercent", terminalHandlerLM.findProperty("terminalTrustAcceptPercent[STRING]").getExpr(propertyID.getExpr(customANAExpr)));
 
                         addCustomField(userInfo.user, customANAExpr, customANAQuery, extInfoProperty, "extInfo");
                         addCustomField(userInfo.user, customANAExpr, customANAQuery, field1Property, "field1");
@@ -2048,7 +2054,9 @@ public class DefaultTerminalHandler {
                             String field2 = StringUtils.trim((String) customANAEntry.get("field2"));
                             String field3 = StringUtils.trim((String) customANAEntry.get("field3"));
                             Long flags = (Long) customANAEntry.get("flags");
-                            customANAList.add(new TerminalLegalEntity(prefix + idCustomANA, nameCustomANA, extInfo, field1, field2, field3, flags));
+                            boolean trustAccept = customANAEntry.get("trustAccept") != null;
+                            BigDecimal trustAcceptPercent = (BigDecimal) customANAEntry.get("trustAcceptPercent");
+                            customANAList.add(new TerminalLegalEntity(prefix + idCustomANA, nameCustomANA, extInfo, field1, field2, field3, flags, trustAccept, trustAcceptPercent));
                         }
                     }
                 }
@@ -2364,10 +2372,12 @@ public class DefaultTerminalHandler {
         public String field1;
         public String field2;
         public String field3;
-
         public Long flags;
+        public boolean trustAccept;
+        public BigDecimal trustAcceptPercent;
 
-        public TerminalLegalEntity(String idLegalEntity, String nameLegalEntity, String extInfo, String field1, String field2, String field3, Long flags) {
+        public TerminalLegalEntity(String idLegalEntity, String nameLegalEntity, String extInfo, String field1, String field2, String field3, Long flags,
+                                   boolean trustAccept, BigDecimal trustAcceptPercent) {
             this.idLegalEntity = idLegalEntity;
             this.nameLegalEntity = nameLegalEntity;
             this.extInfo = extInfo;
@@ -2375,6 +2385,8 @@ public class DefaultTerminalHandler {
             this.field2 = field2;
             this.field3 = field3;
             this.flags = flags;
+            this.trustAccept = trustAccept;
+            this.trustAcceptPercent = trustAcceptPercent;
         }
     }
 

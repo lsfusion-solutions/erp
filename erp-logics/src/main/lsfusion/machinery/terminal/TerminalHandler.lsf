@@ -79,6 +79,15 @@ dataTrustAcceptPercent = DATA NUMERIC[6,2] (Item);
 trustAcceptPercent 'Процент доверительной приемки' (Item i) = OVERRIDE dataTrustAcceptPercent(i), trustAcceptPercent(itemGroup(i)) IN itemBase;
 trustAcceptPercent (Barcode b) = trustAcceptPercent(sku(b));
 
+// Признак и процент доверительной приемки для Stock
+trustAccept 'Доверительная приемка' = DATA BOOLEAN (Stock);
+overTrustAccept = ABSTRACT BOOLEAN (Stock);
+trustAcceptPercent 'Процент доверительной приемки' = DATA NUMERIC[6,2] (Stock) CHARWIDTH 10;
+overTrustAcceptPercent = ABSTRACT NUMERIC[6,2] (Stock);
+
+terminalTrustAccept(STRING id) = overTrustAccept(stock(id));
+terminalTrustAcceptPercent(STRING id) = overTrustAcceptPercent(stock(id));
+
 EXTEND FORM itemGroup PROPERTIES(g) trustAcceptPercent;
 EXTEND FORM itemGroups PROPERTIES(g) READONLYIF isReadonly() trustAcceptPercent BACKGROUND RGB(190,190,190) IF dataTrustAcceptPercent(g);
 EXTEND FORM item PROPERTIES (i) trustAcceptPercent;
@@ -612,6 +621,7 @@ checkItemLotsCount 'Контроль количества марок' = DATA BOO
 banInvalidLot 'Запрет невалидной марки' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 banUnloadDocumentWithLotCountDiff 'Запрет выгрузки документа с несоответствующим количеством марок' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 allowAcceptBox 'Разрешить приемку короба' = DATA BOOLEAN (TerminalDocumentTypePreferences);
+quantityFromAcceptedLots 'Количество товара по принятым маркам' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 
 //goodsField1 'Инфо-поле 1 для товара' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 //goodsField2 'Инфо-поле 2 для товара' = DATA BOOLEAN (TerminalDocumentTypePreferences);
@@ -686,8 +696,9 @@ FORM terminalDocumentTypePreferences 'Настройки документа' FOR
         onlineLotValidate,
         banInvalidLot,
         checkItemLotsCount,
-        banUnloadDocumentWithLotCountDiff, 
-        allowAcceptBox
+        banUnloadDocumentWithLotCountDiff,
+        allowAcceptBox,
+        quantityFromAcceptedLots
 
 //        goodsField1, goodsField2, goodsField3, goodsField4, goodsField5
 ;
@@ -810,6 +821,7 @@ DESIGN terminalDocumentTypePreferences {
             MOVE PROPERTY(checkItemLotsCount(o));
             MOVE PROPERTY(banUnloadDocumentWithLotCountDiff(o));
             MOVE PROPERTY(allowAcceptBox(o));
+            MOVE PROPERTY(quantityFromAcceptedLots(o));
         }
     }
     MOVE TOOLBARBOX;
