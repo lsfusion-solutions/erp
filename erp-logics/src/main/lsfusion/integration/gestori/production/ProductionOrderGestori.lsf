@@ -118,6 +118,9 @@ WHEN LOCAL FORMS order CHANGED(price(ComponentDetail cd)) OR CHANGED(quantity(cd
     }
 }
 
+WHEN LOCAL FORMS order (CHANGED(sumComponentDetailCustom(BOM(ProductDetail pd), order(pd))) OR CHANGED(pricePercent(pd))) AND
+    quantity(pd) AND isProduction(operation(pd)) DO fillPrice(pd);
+
 WHEN LOCAL FORMS order isElaboration(operation(ComponentDetail cd)) AND CHANGED(GROUP SUM quantity(ProductDetail idetail) IF  componentDetail(idetail) =cd) DO {
     FOR isElaboration(operation(cd)) AND componentDetail(ProductDetail pd) = cd DO fillPrice(pd);
     FOR isElaboration(operation(cd)) AND NOT sum(cd) = (GROUP SUM sum(ProductDetail pd) IF componentDetail(pd) = cd) AND
@@ -214,7 +217,7 @@ WHEN LOCAL FORMS operation SET(isProduction(Operation o)) DO isElaboration(o) <-
 WHEN LOCAL FORMS operation SET(isElaboration(Operation o)) DO isProduction(o) <- NULL;
 
 WHEN LOCAL FORMS order SETCHANGED(operation(Order o)) DO isRecComponents(o) <- isRecComponents(operation(o));
-WHEN LOCAL FORMS order SET(ProductDetail pd IS ProductDetail) DO isRecComponents(pd) <- isRecComponents(order(pd));
+isRecComponents(ProductDetail pd) <- isRecComponents(order(pd)) WHEN SET(pd IS ProductDetail);
 
 EXTEND FORM operation
     PROPERTIES(o) isRecComponents, isProduction, isElaboration
@@ -243,13 +246,13 @@ NAVIGATOR {
 //    DELETE pd;
 //};
 
-WHEN LOCAL FORMS order SET(ComponentDetail cd IS ComponentDetail) AND isProduction(operation(cd)) AND NOT skipCheckProduction(order(cd)) DO {
+WHEN LOCAL FORMS order SET(ComponentDetail cd IS ComponentDetail) AND isProduction(operation(cd)) AND NOT productionDetail(cd) DO {
     MESSAGE 'Это производство';
     DELETE cd;
 };
 
 WHEN LOCAL FORMS order (CHANGED(bruttoQuantity(ComponentDetail d)) OR CHANGED(cost(d)) OR (CHANGED(price(d)) AND PREV(price(d))) OR (CHANGED(sum(d)) AND PREV(sum(d))) OR
-    CHANGED(component(d)) OR CHANGED(bruttoSku(d)) OR CHANGED(BOM(d))) AND isProduction(operation(d)) AND NOT skipCheckProduction(order(d)) DO {
+    CHANGED(component(d)) OR CHANGED(bruttoSku(d)) OR CHANGED(BOM(d))) AND NOT SET(d IS ComponentDetail) AND isProduction(operation(d)) AND NOT skipCheckProduction(order(d)) DO {
     MESSAGE 'Это производство';
     component(d) <- PREV(component(d));
     BOM(d) <- PREV(BOM(d));
