@@ -354,6 +354,15 @@ printConsignmentTorg13 'ТОРГ-13' (Consignment consignment) {
     PRINT consignmentTorg13 OBJECTS c = consignment;
 } IMAGE 'print.png' IN print;
 
+overPrintNumber 'Номер (печать)' = ABSTRACT STRING[50] (Consignment);
+printNumber 'Номер (печать)' (Consignment c) = OVERRIDE overPrintNumber(c), number(c);
+
+seriesNumberContract 'Номер договора' (Consignment c) = seriesNumber(contract(c));
+dateFromContract 'Дата договора' (Consignment c) = dateFrom(contract(c));
+
+printVATPercent 'Печатать знак % в ставке НДС' = ABSTRACT BOOLEAN (Consignment);
+printVATPercent (ConsignmentDetail d) = printVATPercent(consignment(d));
+
 FORM consignmentTorg12 'ТОРГ-12'
     OBJECTS c=Consignment PANEL
 
@@ -361,9 +370,9 @@ FORM consignmentTorg12 'ТОРГ-12'
                    OKDPSupplier,
                    fullNameCustomer, addressCustomer, emailCustomer, siteCustomer, phoneCustomer, OKPOCustomer, INNCustomer,
                    nameSupplierStock,
-                   date, number,
+                   date, number, printNumber,
                    nameCustomerStock, 
-                   descriptionContract,
+                   descriptionContract, seriesNumberContract, dateFromContract,
                    nameIssuanceExecuted, positionIssuanceExecuted, 
                    nameForwarder, positionForwarder,
                    nameGoodsConsignment, positionGoodsConsignment,
@@ -373,7 +382,7 @@ FORM consignmentTorg12 'ТОРГ-12'
     PROPERTIES(d) nameSku, barCode, shortNameUOM, idUOM,  
                   quantity, 
                   nameTransportPack, amountPack, packQuantity, grossWeight, 
-                  price, sum, vat, sumVAT, sumConsignment, useEmptyVAT
+                  price, sum, vat, sumVAT, sumConsignment, useEmptyVAT, printVATPercent
         
     FILTERS consignment(d) == c,
             quantity(d),
@@ -1012,7 +1021,7 @@ FORM consignmentInvoiceRu 'Счет-фактура'
     OBJECTS c = Consignment PANEL
     PROPERTIES(c) nameSupplier, addressSupplier, addressCustomer, nameCustomer,
         innSupplier, kppSupplier, innCustomer, kppCustomer, paymentDocument, nameChief, nameBooker,
-        nameCurrency, sidCurrency, number, date, shipmentBase, addressSupplierStock, addressCustomerStock,
+        nameCurrency, sidCurrency, number, printNumber, date, shipmentBase, addressSupplierStock, addressCustomerStock,
         quantityConsignmentDetail, sumConsignmentDetail, VATSumConsignmentDetail, countConsignmentDetail
 
     OBJECTS d = ConsignmentDetail
