@@ -28,9 +28,11 @@ volumeUserInvoiceDetail 'Объём (топливо, всего), л' (userInvoi
 
 overBackgroundDensity =  ABSTRACT CASE COLOR (UserInvoiceDetail);
 
+skipShowVolumeFuel = ABSTRACT VALUE BOOLEAN (Invoice);
+
 EXTEND FORM userInvoice
-    PROPERTIES(i) SHOWIF showFuel(i) volumeUserInvoiceDetail
-    PROPERTIES(d) READONLYIF NOT (isFuel(sku(d)) OR extraIsFuel(sku(d))) SHOWIF (showQuantity(i) AND showFuel(i)) volume BACKGROUND backgroundQuantity(d) AFTER quantity(d)
+    PROPERTIES(i) SHOWIF (showFuel(i) AND NOT skipShowVolumeFuel(i)) volumeUserInvoiceDetail
+    PROPERTIES(d) READONLYIF NOT (isFuel(sku(d)) OR extraIsFuel(sku(d))) SHOWIF (showQuantity(i) AND showFuel(i) AND NOT skipShowVolumeFuel(i)) volume BACKGROUND backgroundQuantity(d) AFTER quantity(d)
     PROPERTIES(d) READONLYIF NOT (isFuel(sku(d)) OR extraIsFuel(sku(d))) SHOWIF showFuel(i) density AFTER volume(d) ON CHANGE changeDensity(d) ON CONTEXTMENU fillDensity15C(d) ON CONTEXTMENU fillDensityFromTable(d) BACKGROUND overBackgroundDensity(d)
     PROPERTIES(d) READONLYIF NOT (isFuel(sku(d)) OR extraIsFuel(sku(d))) SHOWIF showFuel(i) temperature
 ;
@@ -47,8 +49,8 @@ overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDe
 }
 
 EXTEND FORM invoices
-    PROPERTIES(i) READONLY SHOWIF showFuel(i) BACKGROUND background(i) volumeInvoiceDetail AFTER quantityInvoiceDetail(i)
-    PROPERTIES(d) READONLY SHOWIF showFuel(i) volume AFTER quantity(d)
+    PROPERTIES(i) READONLY SHOWIF (showFuel(i) AND NOT skipShowVolumeFuel(i)) BACKGROUND background(i) volumeInvoiceDetail AFTER quantityInvoiceDetail(i)
+    PROPERTIES(d) READONLY SHOWIF (showFuel(i) AND NOT skipShowVolumeFuel(i)) volume AFTER quantity(d)
     PROPERTIES(d) READONLY SHOWIF showFuel(i) density AFTER volume(d)
     PROPERTIES(d) READONLY SHOWIF showFuel(i) temperature
 ;
