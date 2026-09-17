@@ -270,17 +270,20 @@ confirmEDIFile (STRING id) {
     }
 }
 
+receivedFile = DATA LOCAL FILE ();
+//тело из БД, иначе из архива: WRITE дописывает расширение, если в имени его нет или оно нестандартное (.edoc)
+readReceivedFile (EDIFile f) {
+    receivedFile() <- data(f);
+    IF NOT receivedFile() AND receivedPath(f) THEN TRY { READ 'file://' + receivedPath(f) + '.xml' TO receivedFile; }
+    IF NOT receivedFile() AND receivedPath(f) THEN TRY { READ 'file://' + receivedPath(f) TO receivedFile; }
+}
+
 open 'Открыть' (EDIFile f) {
-    IF data(f) THEN {
-        open(data(f));
+    readReceivedFile(f);
+    IF receivedFile() THEN {
+        open(receivedFile());
     } ELSE {
-        LOCAL file = FILE();
-        TRY { READ 'file://' + receivedPath(f) TO file; }
-        IF file() THEN {
-            open(file());
-        } ELSE {
-            MESSAGE 'Файл не найден: ' + (OVERRIDE receivedPath(f), 'путь не задан');
-        }
+        MESSAGE 'Файл не найден: ' + (OVERRIDE receivedPath(f), 'путь не задан');
     }
 } TOOLBAR;
 

@@ -76,7 +76,8 @@ registerEDIFiles (STRING[100] login, STRING[100] archiveDir, STRING[100] provide
             FOR documentType(INTEGER i) AND EDIFile f = ediFile(id(i)) AND NOT login(profile(f)) = login DO
                 logToFile('edi', provider + ' (' + login + ') Register file ' + id(i) + ' warning: already received by ' + (OVERRIDE login(profile(f)), 'NULL'));
             lastReceivedDateTime(EDIFile f) <- currentDateTime() WHERE [GROUP SUM 1 IF documentType(INTEGER i) BY id(i)](id(f));
-            //REST-маршрут регистрирует без тела, SOAP-проход той же очереди приносит его позже — дозаполняем пустое
+            //запись могла быть создана другим маршрутом той же очереди без тела или даты — дозаполняем пустое
+            documentDate(EDIFile f) <- [GROUP MAX documentDate(INTEGER i) BY id(i)](id(f)) WHERE [GROUP MAX documentDate(INTEGER i) BY id(i)](id(f)) AND NOT documentDate(f);
             FOR documentType(INTEGER i) AND data(i) AND EDIFile f = ediFile(id(i)) AND NOT data(f) DO
                 fillEDIFile(f, i, archiveDir);
             FOR documentType(INTEGER i) AND NOT ediFile(id(i)) DO {
@@ -118,6 +119,9 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
                 } ELSE {
                     IMPORT XML ROOT 'Data' FROM sendRequestEDIResponse() TO data = 'Data', id = 'Id', documentType = 'DocumentType', documentDate = 'DocumentDate';
                 }
+                //остаются от предыдущего приёма в том же действии (REST-проход ЭДиН, другой профиль) под чужими номерами строк
+                receivedFileName(INTEGER i) <- NULL;
+                countSignatures(INTEGER i) <- NULL;
 
                 fillStartParams();
 
@@ -192,13 +196,8 @@ processEDIFile 'Обработать' (EDIFile f) {
             MESSAGE 'Не задан профиль подключения у сообщения ' + id(f) NOWAIT;
             RETURN;
         }
-        IF data(f) THEN {
-            data(0) <- XMLFILE(data(f));
-        } ELSE {
-            LOCAL file = FILE();
-            TRY { READ 'file://' + receivedPath(f) TO file; }
-            data(0) <- XMLFILE(file());
-        }
+        readReceivedFile(f);
+        data(0) <- XMLFILE(receivedFile());
         id(0) <- id(f);
         documentType(0) <- documentType(f);
         documentDate(0) <- documentDate(f);

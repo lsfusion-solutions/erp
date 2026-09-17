@@ -180,12 +180,12 @@ GROUP headers;
 headersEDN = DATA LOCAL NESTED TEXT (TEXT);
 
 downloadFileName = DATA LOCAL STRING(INTEGER);
-processedDateTime = DATA LOCAL ZDATETIME(INTEGER);
 
+//дата — время обработки у провайдера, как DocumentDate в SOAP-выдаче той же очереди
 FORM getDocumentsEDN
     OBJECTS data = INTEGER
     PROPERTIES(data) IN headers
-        id EXTID 'documentId', downloadFileName, documentType EXTID 'type', processedDateTime;
+        id EXTID 'documentId', downloadFileName, documentType EXTID 'type', documentDate EXTID 'processedDateTime';
 
 overReceiveMessagesEDN ABSTRACT LIST (INTEGER, STRING[100], STRING[100], TEXT, STRING[100], BOOLEAN, STRING[100]);
 
@@ -235,7 +235,7 @@ receiveMessagesEDN (STRING[100] login, STRING[100] password, TEXT url, STRING[10
 
                 registerEDIFiles(login, archiveDir, provider);
 
-                FOR documentType(INTEGER i) ORDER processedDateTime(i) DO {
+                FOR documentType(INTEGER i) ORDER documentDate(i), i DO {
                     logToFile('edi', provider + ' (' + login + ') Check Message type:' + documentType(i) + ' id:' + id(i));
                     overReceiveMessagesEDN(i, login, password, url, archiveDir, disableConfirmation, provider);
                 }
