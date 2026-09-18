@@ -18,10 +18,6 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
             overImportBlrwbr();
             IF NOT skipBlrwbr() THEN {
                 FOR EInvoice ei == eInvoiceDeliveryNoteNumber(blrwbrDeliveryNoteNumber()) DO {
-                    IF NOT disableConfirmation THEN {
-                        confirmMessage(i, login, password, url, provider);
-                    }
-                    blrwbrCount() <- blrwbrCount() + 1;
                     NEWSESSION NESTED LOCAL {
                         IF isCancel(ei) THEN {
                             importedSupplierCancel(ei) <- TRUE;
@@ -42,6 +38,16 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                             XMLPath(m) <- receivedPath(archiveDir, i);
                         }
                         APPLY NESTED LOCAL;
+                        IF canceled() THEN {
+                            logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' failed: ' + applyMessage());
+                            invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
+                        } ELSE {
+                            IF NOT disableConfirmation THEN {
+                                confirmMessage(i, login, password, url, provider);
+                            }
+                            logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' succeeded');
+                            blrwbrCount() <- blrwbrCount() + 1;
+                        }
                     }
                 } ELSE {
                     logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' failed: EInvoice ' + (OVERRIDE blrwbrDeliveryNoteNumber(), 'NULL') + ' not found');
@@ -53,6 +59,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
         } CATCH {
             logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EInvoice ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE 'Ошибка при импорте накладной ' + id(i) +'. Обратитесь к администратору' NOWAIT;
+            invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
         }
     }
 }
@@ -68,10 +75,6 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
             overImportBlrdnr();
             IF NOT skipBlrdnr() THEN {
                 FOR EInvoice ei == eInvoiceDeliveryNoteNumber(blrdnrDeliveryNoteNumber()) DO {
-                    IF NOT disableConfirmation THEN {
-                        confirmMessage(i, login, password, url, provider);
-                    }
-                    blrwbrCount() <- blrwbrCount() + 1;
                     NEWSESSION NESTED LOCAL {
                         IF isCancel(ei) THEN {
                             importedSupplierCancel(ei) <- TRUE;
@@ -92,6 +95,16 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                             XMLPath(m) <- receivedPath(archiveDir, i);
                         }
                         APPLY NESTED LOCAL;
+                        IF canceled() THEN {
+                            logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' failed: ' + applyMessage());
+                            invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
+                        } ELSE {
+                            IF NOT disableConfirmation THEN {
+                                confirmMessage(i, login, password, url, provider);
+                            }
+                            logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' succeeded');
+                            blrwbrCount() <- blrwbrCount() + 1;
+                        }
                     }
                 } ELSE {
                     logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' failed: EInvoice ' + (OVERRIDE blrdnrDeliveryNoteNumber(), 'NULL') + ' not found');
@@ -103,6 +116,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
         } CATCH {
             logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse Message ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE 'Ошибка при импорте сообщения ' + id(i) +'. Обратитесь к администратору' NOWAIT;
+            invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
         }
     }
 }

@@ -49,6 +49,8 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
             IF NOT skipInvoice() THEN {
                 IMPORT importEInvoice XML FROM data(i);
                 validate(upper(documentType(i)), FILE(data(i)));
+                IF validateError() THEN
+                    logToFile('edi', provider + ' (' + login + ') Import EInvoice ' + id(i) + ' warning: XSD validation: ' + validateError());
                 currentDocumentType() <- STRING[6](upper(documentType(i)));
                 NEWSESSION NESTED LOCAL {
                     createEInvoice();
@@ -712,6 +714,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                     toMilliseconds(blrapnDateTime());
                                     blrapn(ec) <- STRING[14](resultMilliseconds());
                                     logToFile('edi', provider + ' SendECreditNote ' + actDifNumber(ec) + ' request succeeded');
+                                    //извещение уже отправлено, поэтому подтверждаем до сохранения: при повторной обработке оно ушло бы снова
                                     IF NOT disableConfirmation THEN {
                                         confirmMessage(i, login, password, url, provider);
                                     }
@@ -741,6 +744,13 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                             XMLPath(m) <- receivedPath(archiveDir, i);
                                         }
                                         APPLY NESTED LOCAL;
+                                        IF canceled() THEN {
+                                            logToFile('edi', provider + ' (' + login + ') Import ECreditNote ' + id(i) + ' failed: ' + applyMessage());
+                                            eCreditNotesFailed() <- eCreditNotesFailed() + 1;
+                                        } ELSE {
+                                            logToFile('edi', provider + ' (' + login + ') Import ECreditNote ' + id(i) + ' succeeded');
+                                            blradfCount() <- blradfCount() + 1;
+                                        }
                                     }
                                 }
                             } ELSE {
@@ -750,10 +760,6 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                             logToFile('edi', provider + ' Parse Message ' + id(i) + ' error: Alias or Password for EDSService not found');
                         }
                     } ELSE {
-                        IF NOT disableConfirmation THEN {
-                            confirmMessage(i, login, password, url, provider);
-                        }
-                        blradfCount() <- blradfCount() + 1;
                         NEWSESSION NESTED LOCAL {
                             importedCustomer(ec) <- TRUE;
                             
@@ -769,6 +775,16 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                 XMLPath(m) <- receivedPath(archiveDir, i);
                             }
                             APPLY NESTED LOCAL;
+                            IF canceled() THEN {
+                                logToFile('edi', provider + ' (' + login + ') Import ECreditNote ' + id(i) + ' failed: ' + applyMessage());
+                                eCreditNotesFailed() <- eCreditNotesFailed() + 1;
+                            } ELSE {
+                                IF NOT disableConfirmation THEN {
+                                    confirmMessage(i, login, password, url, provider);
+                                }
+                                logToFile('edi', provider + ' (' + login + ') Import ECreditNote ' + id(i) + ' succeeded');
+                                blradfCount() <- blradfCount() + 1;
+                            }
                         }
                     }
                 }
@@ -781,6 +797,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
         } CATCH {
             logToFile('edi', CONCAT '\n', provider + ' Parse Message ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE 'Ошибка при импорте сообщения ' + id(i) +'. Обратитесь к администратору' NOWAIT;
+            eCreditNotesFailed() <- eCreditNotesFailed() + 1;
         }
     }
 }
@@ -875,7 +892,7 @@ signAndSendBlrapnCustomerECreditNote(ECreditNote ec, STRING[100] login, STRING[1
 
 overReceiveBlrapn (ECreditNoteMessage m, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, STRING[100] provider) + {
 
-    IF code(m) == '2750' AND ECreditNoteMessageType.blrapn_blradf THEN {
+    IF code(m) == '2750' AND type(m) == ECreditNoteMessageType.blrapn_blradf THEN {
         importedNoticeCustomer(eCreditNote(m)) <- TRUE;
         numberNoticeCustomer(eCreditNote(m)) <- blrapnDocumentNumber();
         dateNoticeCustomer(eCreditNote(m)) <- blrapnDateTime();
@@ -930,7 +947,6 @@ overReceiveBlrapn (ECreditNoteMessage m, STRING[100] login, STRING[100] password
                         disableConfirmation(m) <- TRUE;
                     } ELSE {
                         logToFile('edi', provider + ' (' + login + ') SendBlrapnECreditNote ' + actDifNumber(eCreditNote(m)) + ' request succeeded');
-                        invoiceMessagesSucceeded() <- invoiceMessagesSucceeded() + 1;
                         NEWSESSION NESTED LOCAL {
                             exportedBlrapnCustomer(eCreditNote(m)) <- TRUE;
                             NEW em = ECreditNoteMessage {
@@ -945,9 +961,13 @@ overReceiveBlrapn (ECreditNoteMessage m, STRING[100] login, STRING[100] password
                             APPLY NESTED LOCAL;
                         }
                     }
+                } ELSE {
+                    logToFile('edi', provider + ' (' + login + ') Parse Message ' + actDifNumber(eCreditNote(m)) + ' error: BLRAPN ' + actDifNumber(eCreditNote(m)) + ' не подписан: служба подписи не вернула ни результата, ни ошибки');
+                    disableConfirmation(m) <- TRUE;
                 }
             } ELSE {
                 logToFile('edi', provider + ' (' + login + ') Parse Message ' + actDifNumber(eCreditNote(m)) + ' error: не заданы параметры EDSService');
+                disableConfirmation(m) <- TRUE;
             }
         }
     }
