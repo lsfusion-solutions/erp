@@ -747,6 +747,13 @@ numberCopiesConsignmentData = DATA INTEGER (Consignment);
 countCopies 'Кол-во экз. УПД' (Consignment c) = OVERRIDE numberCopiesConsignmentData(c), numberCopiesConsignment(), 1;
 
 doubleSided 'Двухсторонний' = DATA LOCAL BOOLEAN ();
+
+// редакция формы по дате документа: с даты подписания постановления, до 16.08.2024 без редакции
+decreeEdition1137 'Редакция постановления № 1137' (DATE d) = CASE
+    WHEN d >= 2026_01_23 THEN '(в редакции постановления Правительства Российской Федерации от 23 января 2026 г. № 26)'
+    WHEN d >= 2024_08_16 THEN '(в редакции постановления Правительства Российской Федерации от 16 августа 2024 г. № 1096)';
+decreeEditionInvoiceRu 'Редакция постановления (счет-фактура)' (Consignment c) = decreeEdition1137(date(c));
+decreeEditionUpd 'Редакция постановления (УПД)' (Consignment c) = decreeEdition1137(dateAttrUpd(c));
 consignmentUpdReportOver = ABSTRACT STRING ();
 consignmentUpdReport () = OVERRIDE consignmentUpdReportOver(), 'Consignment_consignmentUpd.jrxml';
 consignmentUpdReportFileOver = ABSTRACT STRING ();
@@ -757,7 +764,7 @@ FORM consignmentUpd 'Универсальный передаточный док�
 
     PROPERTIES (c) fullNameSupplier, addressSupplier, INNSupplier, KPPSupplier, nameShipper, addressShipper,
                    fullNameCustomer, addressCustomer, INNCustomer, KPPCustomer, nameCustomerStock, nameCustomerStore,
-                   date, numberAttrUpd, dateAttrUpd, overNumberCorrectionUpd, overDateCorrectionUpd, 
+                   date, numberAttrUpd, dateAttrUpd, decreeEditionUpd, overNumberCorrectionUpd, overDateCorrectionUpd, 
                    descriptionContractAttrUpd,
                    transportationInfoAttrUpd,
                    addressCustomerStock,
@@ -1021,7 +1028,7 @@ FORM consignmentInvoiceRu 'Счет-фактура'
     OBJECTS c = Consignment PANEL
     PROPERTIES(c) nameSupplier, addressSupplier, addressCustomer, nameCustomer,
         innSupplier, kppSupplier, innCustomer, kppCustomer, paymentDocument, nameChief, nameBooker,
-        nameCurrency, sidCurrency, number, printNumber, date, shipmentBase, addressSupplierStock, addressCustomerStock,
+        nameCurrency, sidCurrency, number, printNumber, date, decreeEditionInvoiceRu, shipmentBase, addressSupplierStock, addressCustomerStock,
         quantityConsignmentDetail, sumConsignmentDetail, VATSumConsignmentDetail, countConsignmentDetail
 
     OBJECTS d = ConsignmentDetail
