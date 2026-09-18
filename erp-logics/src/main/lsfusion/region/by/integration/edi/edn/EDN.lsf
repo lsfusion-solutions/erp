@@ -237,7 +237,11 @@ receiveMessagesEDN (STRING[100] login, STRING[100] password, TEXT url, STRING[10
 
                 FOR documentType(INTEGER i) ORDER documentDate(i), i DO {
                     logToFile('edi', provider + ' (' + login + ') Check Message type:' + documentType(i) + ' id:' + id(i));
+                    startReceiveResult();
+                    processedEDIFile() <- NULL;
                     overReceiveMessagesEDN(i, login, password, url, archiveDir, disableConfirmation, provider);
+                    //не взятые ветками ЭДиН сообщения разбирает SOAP-проход
+                    IF processedEDIFile() THEN checkReceiveResult(i, login, provider);
                 }
 
                 fillEndParams();

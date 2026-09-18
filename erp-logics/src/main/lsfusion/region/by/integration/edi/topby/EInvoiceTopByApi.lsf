@@ -95,6 +95,11 @@ disableConfirmation = DATA LOCAL BOOLEAN (ECreditNoteMessage);
 overReceiveBlrapn ABSTRACT LIST (ECreditNoteMessage, STRING[100], STRING[100], TEXT, STRING[100], STRING[100]);
 overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     IF (lower(blrapnReferenceDocumentType()) == 'blrapn' AND actDifDate(eCreditNoteActDifNumber(blrapnDeliveryNoteId())) == DATE(blrapnDeliveryNoteDate())) OR lower(blrapnReferenceDocumentType()) == 'blradf' THEN {
+        IF NOT eCreditNoteActDifNumber(blrapnDeliveryNoteId()) THEN {
+            logToFile('edi', provider + ' (' + login + ') Import ECreditNoteMessage ' + id(i) + ' failed: ECreditNote ' + (OVERRIDE blrapnDeliveryNoteId(), 'NULL') + ' not found');
+            creditNoteMessagesFailed() <- creditNoteMessagesFailed() + 1;
+            RETURN;
+        }
         NEWSESSION NESTED LOCAL {
             LOCAL eCreditNote = ECreditNote();
             eCreditNote() <- eCreditNoteActDifNumber(blrapnDeliveryNoteId());

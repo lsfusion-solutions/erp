@@ -85,6 +85,10 @@ sendPurchaseOrder (EOrder o, STRING[100] login, STRING[100] password, TEXT url, 
 overImportOrdrsp ABSTRACT (EOrderResponse);
 
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
+    IF lower(documentType(i)) == 'ordrsp' AND skipImportOrders() THEN {
+        logToFile('edi', provider + ' (' + login + ') Import EOrderResponse ' + id(i) + ' skipped: orders are received via REST API');
+        messagesSkipped() <- messagesSkipped() + 1;
+    }
     IF lower(documentType(i)) == 'ordrsp' AND NOT skipImportOrders() THEN {
         TRY {
             IMPORT ordrsp XML FROM data(i);
@@ -183,6 +187,10 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
 overReceiveMessageDesadv ABSTRACT ();
 
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
+    IF lower(documentType(i)) == 'desadv' AND skipImportOrders() THEN {
+        logToFile('edi', provider + ' (' + login + ') Import EOrderDespatchAdvice ' + id(i) + ' skipped: orders are received via REST API');
+        messagesSkipped() <- messagesSkipped() + 1;
+    }
     IF lower(documentType(i)) == 'desadv' AND NOT skipImportOrders() THEN {
         TRY {
             IMPORT desadv XML FROM data(i);

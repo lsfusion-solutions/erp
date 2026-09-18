@@ -132,8 +132,10 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
                 
                 FOR documentType(INTEGER i) ORDER documentDate(i), i DO {
                     logToFile('edi', CONCAT ' ', provider + ' (' + login + ') Check Message type:' + documentType(i) + ' id:' + id(i), 'DocumentDate:' + documentDate(i));
+                    startReceiveResult();
                     beforeOverReceiveMessages(i, login, archiveDir);
                     overReceiveMessages(i, login, password, url, archiveDir, disableConfirmation, provider);
+                    checkReceiveResult(i, login, provider);
                 }
 
                 fillEndParams();
@@ -204,6 +206,7 @@ processEDIFile 'Обработать' (EDIFile f) {
         receivedFileName(0) <- receivedFileName(f);
         newNS() <- newNS(profile(f));
         fillStartParams();
+        startReceiveResult();
         logToFile('edi', provider(profile(f)) + ' (' + login(profile(f)) + ') Process file ' + id(f));
         processedEDIFile() <- NULL;
         overProcessEDIFile(f, 0);
@@ -215,6 +218,7 @@ processEDIFile 'Обработать' (EDIFile f) {
             beforeOverReceiveMessages(0, login(profile(f)), archiveDir(profile(f)));
             overReceiveMessages(0, login(profile(f)), password(profile(f)), url(profile(f)), archiveDir(profile(f)), disableConfirmation(profile(f)), provider(profile(f)));
         }
+        checkReceiveResult(0, login(profile(f)), provider(profile(f)));
         fillEndParams();
         MESSAGE (OVERRIDE textMessage(), 'Сообщение ' + id(f) + ' обработано') NOWAIT;
     }
@@ -363,6 +367,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                 overReceiveSystemMessage(i, login, password, url, archiveDir, disableConfirmation, provider);
             } ELSE {
                 logToFile('edi', provider + ' (' + login + ') Import systemmessage ' + id(i) + ' skipped: ' + skipSystemmessage());
+                messagesSkipped() <- messagesSkipped() + 1;
             }
         } CATCH {
             logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EOrderMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
@@ -398,6 +403,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                 overReceiveBlrapn(i, login, password, url, archiveDir, disableConfirmation, provider);
             } ELSE {
                 logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' skipped: ' + skipBlrapn());
+                messagesSkipped() <- messagesSkipped() + 1;
             }
         } CATCH {
             logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EInvoiceMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());

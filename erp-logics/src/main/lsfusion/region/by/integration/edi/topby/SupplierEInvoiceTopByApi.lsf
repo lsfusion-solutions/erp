@@ -43,9 +43,12 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                         }
                         APPLY NESTED LOCAL;
                     }
+                } ELSE {
+                    logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' failed: EInvoice ' + (OVERRIDE blrwbrDeliveryNoteNumber(), 'NULL') + ' not found');
                 }
             } ELSE {
                 logToFile('edi', provider + ' (' + login + ') Import EInvoice ' + id(i) + ' skipped: ' + skipBlrwbr());
+                messagesSkipped() <- messagesSkipped() + 1;
             }
         } CATCH {
             logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EInvoice ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
@@ -90,9 +93,12 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                         }
                         APPLY NESTED LOCAL;
                     }
+                } ELSE {
+                    logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' failed: EInvoice ' + (OVERRIDE blrdnrDeliveryNoteNumber(), 'NULL') + ' not found');
                 }
             } ELSE {
                 logToFile('edi', provider + ' (' + login + ') Import EInvoice ' + id(i) + ' skipped: ' + skipBlrdnr());
+                messagesSkipped() <- messagesSkipped() + 1;
             }
         } CATCH {
             logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse Message ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());

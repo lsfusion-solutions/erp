@@ -56,6 +56,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                 }
             } ELSE {
                 logToFile('edi', provider + ' (' + login + ') Import EInvoice ' + id(i) + ' skipped: ' + skipInvoice());
+                messagesSkipped() <- messagesSkipped() + 1;
             }
         } CATCH {
             logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EInvoice ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
@@ -742,6 +743,8 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                         APPLY NESTED LOCAL;
                                     }
                                 }
+                            } ELSE {
+                                logToFile('edi', provider + ' (' + login + ') Import ECreditNote ' + id(i) + ' error: BLRAPN ' + actDifNumber(ec) + ' не подписан: служба подписи не вернула ни результата, ни ошибки');
                             }
                         } ELSE {
                             logToFile('edi', provider + ' Parse Message ' + id(i) + ' error: Alias or Password for EDSService not found');

@@ -286,6 +286,8 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                                 APPLY NESTED LOCAL;
                                             }
                                         }
+                                    } ELSE {
+                                        logToFile('edi', provider + ' (' + login + ') Import EDocument ' + id(i) + ' error: BLRAPN ' + documentID(ed) + ' не подписан: служба подписи не вернула ни результата, ни ошибки');
                                     }
                                 } ELSE {
                                     logToFile('edi', provider + ' (' + login + ') Import EDocument ' + id(i) + ' error: не заданы параметры EDSService');
@@ -302,6 +304,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                 }
             }  ELSE {
                 logToFile('edi', provider + ' (' + login + ') Import EDocument ' + id(i) + ' skipped: ' + skipBlrdoc());
+                messagesSkipped() <- messagesSkipped() + 1;
             }
         } CATCH {
             logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EDocument ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());

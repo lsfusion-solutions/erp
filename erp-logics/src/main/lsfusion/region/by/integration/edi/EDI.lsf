@@ -339,6 +339,8 @@ blrwbrCount = DATA LOCAL NESTED INTEGER();
 blrwbrSendCount = DATA LOCAL NESTED INTEGER();
 blradfCount = DATA LOCAL NESTED INTEGER();
 messagesConfirmed = DATA LOCAL NESTED INTEGER();
+messagesSkipped = DATA LOCAL NESTED INTEGER();
+messagesWithoutResult = DATA LOCAL NESTED INTEGER();
 
 fillStartParams() {
     textMessage() <- NULL;
@@ -367,6 +369,8 @@ fillStartParams() {
     blrwbrSendCount() <- 0;
     blradfCount() <- 0;
     messagesConfirmed() <- 0;
+    messagesSkipped() <- 0;
+    messagesWithoutResult() <- 0;
 }
 
 fillEndParams() {
@@ -394,6 +398,27 @@ fillEndParams() {
     IF blrwbrSendCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Отвечено на ' + blrwbrSendCount() + ' BLRDNR/BLRDNR';
     IF blradfCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено ' + blradfCount() + ' BLRADF';
     IF messagesConfirmed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Пропущено ' + messagesConfirmed() + ' сообщений';
+    IF messagesSkipped() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не обработано по настройкам: ' + messagesSkipped();
+    IF messagesWithoutResult() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Сообщений без результата обработки: ' + messagesWithoutResult() + ' (см. лог edi)';
+}
+
+//ветки приёма отмечают итог сообщения счётчиками; если ни один не изменился, ветка завершилась без результата или ветки для сообщения нет
+countReceiveResults () = sendRecipientErrorFailed() (+) supplierOrdersSucceeded() (+) supplierOrdersFailed() (+) orderMessagesSucceeded() (+) orderMessagesFailed()
+    (+) responsesSucceeded() (+) responsesFailed() (+) despatchAdvicesSucceeded() (+) despatchAdvicesFailed() (+) invoiceMessagesSucceeded() (+) invoiceMessagesFailed()
+    (+) eInvoicesSucceeded() (+) eInvoicesFailed() (+) creditNoteMessagesSucceeded() (+) creditNoteMessagesFailed() (+) eCreditNotesSucceeded() (+) eCreditNotesFailed()
+    (+) documentMessagesSucceeded() (+) documentMessagesFailed() (+) eDocumentsSucceeded() (+) eDocumentsFailed() (+) blrwbrCount() (+) blrwbrSendCount() (+) blradfCount()
+    (+) messagesConfirmed() (+) messagesSkipped() (+) messagesWithoutResult();
+receiveResultsBefore = DATA LOCAL NESTED INTEGER ();
+
+startReceiveResult () {
+    receiveResultsBefore() <- countReceiveResults();
+}
+
+checkReceiveResult (INTEGER i, STRING[100] login, STRING[100] provider) {
+    IF (OVERRIDE countReceiveResults(), 0) = (OVERRIDE receiveResultsBefore(), 0) THEN {
+        logToFile('edi', CONCAT ' ', provider + ' (' + login + ') Message', documentType(i), id(i), 'warning: no result, not processed by any branch');
+        messagesWithoutResult() <- messagesWithoutResult() + 1;
+    }
 }
 //
 
