@@ -245,14 +245,15 @@ receivedDir = DATA STRING (EDIFile);
 receivedFileName = DATA STRING (EDIFile);
 receivedPath 'Файл в архиве' (EDIFile f) = receivedDir(f) + '/' + (OVERRIDE receivedFileName(f), id(f)) CHARWIDTH 60;
 
-countDaysClearEDIFileData 'За сколько дней хранить тела сообщений EDI (пусто - 30)' = DATA INTEGER ();
+countDaysClearEDIFileData 'За сколько дней хранить тела обработанных сообщений EDI (пусто - 30)' = DATA INTEGER ();
 
 EXTEND FORM options PROPERTIES countDaysClearEDIFileData();
 DESIGN options { log { MOVE PROPERTY(countDaysClearEDIFileData()); } }
 
+//тело необработанного сообщения хранится до снятия с очереди по сроку (TopByApi)
 clearApplicationLog () + {
     NEWSESSION {
-        data(EDIFile f) <- NULL WHERE data(f) AND DATE(receivedDateTime(f)) <= subtract(currentDate(), (OVERRIDE countDaysClearEDIFileData(), 30));
+        data(EDIFile f) <- NULL WHERE data(f) AND DATE(processedDateTime(f)) <= subtract(currentDate(), (OVERRIDE countDaysClearEDIFileData(), 30));
         APPLY;
     }
 }

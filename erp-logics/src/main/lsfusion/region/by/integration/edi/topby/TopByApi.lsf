@@ -30,11 +30,21 @@ provider = ABSTRACT STRING[100] (SoapProfile);
 newNS = ABSTRACT BOOLEAN (SoapProfile);
 archiveDir = ABSTRACT STRING[100] (SoapProfile);
 disableConfirmation = ABSTRACT BOOLEAN (SoapProfile);
-//необработанные сообщения старше этого числа дней снимаются с очереди провайдера
+//необработанные сообщения старше этого числа дней (пусто - 60) снимаются с очереди провайдера
 confirmUnprocessedDays = ABSTRACT INTEGER (SoapProfile);
 
 soapProfile (STRING[100] login) = GROUP MIN SoapProfile p BY login(p);
 profile = DATA SoapProfile (EDIFile);
+
+//необработанное сообщение с такой датой снимается с очереди, его тело в БД не хранится
+outdated (EDIFile f) = DATE(OVERRIDE documentDate(f), receivedDateTime(f)) <= subtract(currentDate(), (OVERRIDE confirmUnprocessedDays(profile(f)), 60));
+
+clearApplicationLog () + {
+    NEWSESSION {
+        data(EDIFile f) <- NULL WHERE data(f) AND NOT processedDateTime(f) AND outdated(f);
+        APPLY;
+    }
+}
 
 skipImportOrders = DATA LOCAL NESTED BOOLEAN ();
 
@@ -78,9 +88,10 @@ registerEDIFiles (STRING[100] login, STRING[100] archiveDir, STRING[100] provide
             FOR documentType(INTEGER i) AND EDIFile f = ediFile(id(i)) AND NOT login(profile(f)) = login DO
                 logToFile('edi', provider + ' (' + login + ') Register file ' + id(i) + ' warning: already received by ' + (OVERRIDE login(profile(f)), 'NULL'));
             lastReceivedDateTime(EDIFile f) <- currentDateTime() WHERE [GROUP SUM 1 IF documentType(INTEGER i) BY id(i)](id(f));
-            //запись могла быть создана другим маршрутом той же очереди без тела или даты — дозаполняем пустое
+            //запись могла быть создана другим маршрутом той же очереди без тела или даты — дозаполняем пустое;
+            //тело обработанных и просроченных не нужно, иначе оно возвращалось бы после каждой чистки
             documentDate(EDIFile f) <- [GROUP MAX documentDate(INTEGER i) BY id(i)](id(f)) WHERE [GROUP MAX documentDate(INTEGER i) BY id(i)](id(f)) AND NOT documentDate(f);
-            FOR documentType(INTEGER i) AND data(i) AND EDIFile f = ediFile(id(i)) AND NOT data(f) DO
+            FOR documentType(INTEGER i) AND data(i) AND EDIFile f = ediFile(id(i)) AND NOT data(f) AND NOT processedDateTime(f) AND NOT outdated(f) DO
                 fillEDIFile(f, i, archiveDir);
             FOR documentType(INTEGER i) AND NOT ediFile(id(i)) DO {
                 NEW f = EDIFile {
@@ -182,8 +193,7 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
                 //необработанные сообщения старше срока из настроек снимаются с очереди, чтобы не приходить при каждом приёме;
                 //пропущенные по настройкам остаются в очереди для тех, кто их читает
                 IF NOT disableConfirmation THEN
-                    FOR documentType(INTEGER i) AND NOT receiveSkipped(i) AND EDIFile f = ediFile(id(i)) AND NOT processedDateTime(f)
-                            AND DATE(OVERRIDE documentDate(f), receivedDateTime(f)) <= subtract(currentDate(), confirmUnprocessedDays(profile(f))) DO TRY {
+                    FOR documentType(INTEGER i) AND NOT receiveSkipped(i) AND EDIFile f = ediFile(id(i)) AND NOT processedDateTime(f) AND outdated(f) DO TRY {
                         sendConfirmMessage(i, login, password, url, provider, 'unprocessed expired', TRUE);
                         IF NOT requestError() THEN {
                             markEDIFile(id(i), NULL, TRUE);

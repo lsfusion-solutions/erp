@@ -67,7 +67,7 @@ migrateProfileEDN() {
 archiveDirEDN 'Папка принятых сообщений' = DATA STRING[100] ();
 outputDirEDN 'Папка отправленных сообщений' = DATA STRING[100] ();
 disableConfirmationEDN 'Отключить подтверждение сообщений' = DATA BOOLEAN ();
-confirmUnprocessedDaysEDN 'Подтверждать необработанные сообщения старше, дней' = DATA INTEGER ();
+confirmUnprocessedDaysEDN 'Подтверждать необработанные сообщения старше, дней (пусто - 60)' = DATA INTEGER ();
 enableJavaStackEDN 'Включить логирование Java stack trace' = DATA BOOLEAN ();
 
 provider(EDNProfile p) += 'EDN' IF p IS EDNProfile;
@@ -277,8 +277,7 @@ receiveMessagesEDN (STRING[100] login, STRING[100] password, TEXT url, STRING[10
                 }
 
                 IF NOT disableConfirmation THEN
-                    FOR documentType(INTEGER i) AND NOT receiveSkipped(i) AND EDIFile f = ediFile(id(i)) AND NOT processedDateTime(f)
-                            AND DATE(OVERRIDE documentDate(f), receivedDateTime(f)) <= subtract(currentDate(), confirmUnprocessedDays(profile(f))) DO TRY {
+                    FOR documentType(INTEGER i) AND NOT receiveSkipped(i) AND EDIFile f = ediFile(id(i)) AND NOT processedDateTime(f) AND outdated(f) DO TRY {
                         sendConfirmDocument(i, login, password, url, 'unprocessed expired');
                         IF NOT requestError() THEN {
                             markEDIFile(id(i), NULL, TRUE);
