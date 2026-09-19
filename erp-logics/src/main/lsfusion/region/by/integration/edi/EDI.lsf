@@ -257,14 +257,16 @@ clearApplicationLog () + {
     }
 }
 
-//подтверждение уходит провайдеру в ходе обработки, поэтому отмечает и её; при появлении
-//подтверждения-на-получении даты разнести. Тело в БД больше не нужно, если файл записан на диск
-confirmEDIFile (STRING id) {
+//processed - ветка приёма обработала сообщение, confirmed - провайдер принял подтверждение получения;
+//после подтверждения тело в БД не нужно, если файл записан на диск
+markEDIFile (STRING id, BOOLEAN processed, BOOLEAN confirmed) {
     NEWSESSION {
         FOR EDIFile f = ediFile(id) DO {
-            confirmedDateTime(f) <- currentDateTime();
-            processedDateTime(f) <- currentDateTime();
-            IF receivedDir(f) THEN data(f) <- NULL;
+            IF processed THEN processedDateTime(f) <- currentDateTime();
+            IF confirmed THEN {
+                confirmedDateTime(f) <- currentDateTime();
+                IF receivedDir(f) THEN data(f) <- NULL;
+            }
             APPLY;
         }
     }
@@ -287,8 +289,8 @@ open 'Открыть' (EDIFile f) {
     }
 } TOOLBAR;
 
-//зелёный — обработан, янтарный — получен повторно (вероятно, не обработан и не подтверждён)
-background (EDIFile f) = OVERRIDE (RGB(212, 237, 218) IF processedDateTime(f)), (RGB(255, 243, 205) IF lastReceivedDateTime(f));
+//зелёный — обработан, серый — снят с очереди без обработки, янтарный — получен повторно (вероятно, не обработан и не подтверждён)
+background (EDIFile f) = OVERRIDE (RGB(212, 237, 218) IF processedDateTime(f)), (RGB(233, 236, 239) IF confirmedDateTime(f)), (RGB(255, 243, 205) IF lastReceivedDateTime(f));
 
 EXTEND FORM integrationData
     OBJECTS ef = EDIFile LAST 
@@ -341,6 +343,7 @@ blradfCount = DATA LOCAL NESTED INTEGER();
 messagesConfirmed = DATA LOCAL NESTED INTEGER();
 messagesSkipped = DATA LOCAL NESTED INTEGER();
 messagesWithoutResult = DATA LOCAL NESTED INTEGER();
+messagesExpired = DATA LOCAL NESTED INTEGER();
 
 fillStartParams() {
     textMessage() <- NULL;
@@ -371,6 +374,7 @@ fillStartParams() {
     messagesConfirmed() <- 0;
     messagesSkipped() <- 0;
     messagesWithoutResult() <- 0;
+    messagesExpired() <- 0;
 }
 
 fillEndParams() {
@@ -400,6 +404,7 @@ fillEndParams() {
     IF messagesConfirmed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Пропущено ' + messagesConfirmed() + ' сообщений';
     IF messagesSkipped() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не обработано по настройкам: ' + messagesSkipped();
     IF messagesWithoutResult() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Сообщений без результата обработки: ' + messagesWithoutResult() + ' (см. лог edi)';
+    IF messagesExpired() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Снято с очереди без обработки по сроку: ' + messagesExpired();
 }
 
 //ветки приёма отмечают итог сообщения счётчиками; если ни один не изменился, ветка завершилась без результата или ветки для сообщения нет
@@ -409,9 +414,13 @@ countReceiveResults () = sendRecipientErrorFailed() (+) supplierOrdersSucceeded(
     (+) documentMessagesSucceeded() (+) documentMessagesFailed() (+) eDocumentsSucceeded() (+) eDocumentsFailed() (+) blrwbrCount() (+) blrwbrSendCount() (+) blradfCount()
     (+) messagesConfirmed() (+) messagesSkipped() (+) messagesWithoutResult();
 receiveResultsBefore = DATA LOCAL NESTED INTEGER ();
+receiveSkippedBefore = DATA LOCAL NESTED INTEGER ();
+//пропущено по настройкам в текущем приёме: такое сообщение не снимается с очереди по сроку
+receiveSkipped = DATA LOCAL BOOLEAN (INTEGER);
 
 startReceiveResult () {
     receiveResultsBefore() <- countReceiveResults();
+    receiveSkippedBefore() <- messagesSkipped();
 }
 
 checkReceiveResult (INTEGER i, STRING[100] login, STRING[100] provider) {
@@ -419,6 +428,7 @@ checkReceiveResult (INTEGER i, STRING[100] login, STRING[100] provider) {
         logToFile('edi', CONCAT ' ', provider + ' (' + login + ') Message', documentType(i), id(i), 'warning: no result, not processed by any branch');
         messagesWithoutResult() <- messagesWithoutResult() + 1;
     }
+    receiveSkipped(i) <- TRUE IF (OVERRIDE messagesSkipped(), 0) > (OVERRIDE receiveSkippedBefore(), 0);
 }
 //
 

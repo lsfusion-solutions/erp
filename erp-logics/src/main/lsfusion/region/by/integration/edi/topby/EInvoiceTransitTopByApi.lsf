@@ -27,9 +27,7 @@ overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, 
                         logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' failed: ' + applyMessage());
                         invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
                     } ELSE {
-                        IF NOT disableConfirmation THEN {
-                            confirmMessage(i, login, password, url, provider);
-                        }
+                        confirmMessage(i, login, password, url, provider, disableConfirmation);
                         logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' succeeded');
                         invoiceMessagesSucceeded() <- invoiceMessagesSucceeded() + 1;
                     }
@@ -37,10 +35,8 @@ overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, 
             }
         } ELSE {
             IF confirmNotFoundInvoices() THEN {
-                IF NOT disableConfirmation THEN {
-                    confirmMessage(i, login, password, url, provider);
-                    messagesConfirmed() <- messagesConfirmed() + 1;
-                }
+                confirmMessage(i, login, password, url, provider, disableConfirmation);
+                messagesConfirmed() <- messagesConfirmed() + 1;
             } ELSE {
                 
             }
@@ -54,9 +50,7 @@ overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, 
 overReceiveSystemMessage(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     IF documentType() == 'BLRSPT' THEN {
         logToFile('edi', provider + ' (' + login + ') System Message Message ' + id(i) + ' skipped for documentType ' + documentType());
-        IF NOT disableConfirmation THEN {
-            confirmMessage(i, login, password, url, provider, NULL, TRUE);
-        }
+        confirmMessage(i, login, password, url, provider, NULL, TRUE, disableConfirmation);
         messagesConfirmed() <- messagesConfirmed() + 1;
         RETURN;
     }

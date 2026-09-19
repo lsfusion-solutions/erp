@@ -67,11 +67,13 @@ migrateProfileEDN() {
 archiveDirEDN 'Папка принятых сообщений' = DATA STRING[100] ();
 outputDirEDN 'Папка отправленных сообщений' = DATA STRING[100] ();
 disableConfirmationEDN 'Отключить подтверждение сообщений' = DATA BOOLEAN ();
+confirmUnprocessedDaysEDN 'Подтверждать необработанные сообщения старше, дней' = DATA INTEGER ();
 enableJavaStackEDN 'Включить логирование Java stack trace' = DATA BOOLEAN ();
 
 provider(EDNProfile p) += 'EDN' IF p IS EDNProfile;
 archiveDir(EDNProfile p) += archiveDirEDN() IF p IS EDNProfile;
 disableConfirmation(EDNProfile p) += disableConfirmationEDN() IF p IS EDNProfile;
+confirmUnprocessedDays(EDNProfile p) += confirmUnprocessedDaysEDN() IF p IS EDNProfile;
 
 document = DATA LOCAL RAWFILE();
 GROUP signatures EXTID 'signatures';
@@ -199,6 +201,32 @@ fillContentEDN (INTEGER i, TEXT url) {
     }
 }
 
+//итог — requestError()
+sendConfirmDocument (INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[30] label) {
+    headersEDN('Authorization') <- 'Basic ' + encodeText(login + ':' + password, 'base64');
+    EXTERNAL HTTP url +'/documents/'+id(i)+ '/mark-downloaded' HEADERS headersEDN;
+    sendRequestEDIStatus() <- statusHttp();
+    logToFile('edi', confirmLog('EDN', login, label, i) + ': request sent');
+
+    importRequestResult();
+    IF requestError() THEN {
+        logToFile('edi', confirmLog('EDN', login, label, i) + ': ' + requestError());
+        MESSAGE 'EDN (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+    } ELSE {
+        logToFile('edi', confirmLog('EDN', login, label, i) + ': request succeeded');
+    }
+}
+
+//итог ветки приёма: сообщение отмечается обработанным и подтверждается провайдеру, если подтверждение не отключено
+confirmDocument (INTEGER i, STRING[100] login, STRING[100] password, TEXT url, BOOLEAN disableConfirmation) {
+    IF disableConfirmation THEN {
+        markEDIFile(id(i), TRUE, NULL);
+    } ELSE {
+        sendConfirmDocument(i, login, password, url, NULL);
+        markEDIFile(id(i), TRUE, TRUE IF NOT requestError());
+    }
+}
+
 receiveMessagesEDN (STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) {
     TRY {
         IF login AND password THEN {
@@ -240,9 +268,25 @@ receiveMessagesEDN (STRING[100] login, STRING[100] password, TEXT url, STRING[10
                     startReceiveResult();
                     processedEDIFile() <- NULL;
                     overReceiveMessagesEDN(i, login, password, url, archiveDir, disableConfirmation, provider);
-                    //не взятые ветками ЭДиН сообщения разбирает SOAP-проход
-                    IF processedEDIFile() THEN checkReceiveResult(i, login, provider);
+                    //не взятые ветками ЭДиН сообщения разбирает и снимает с очереди по сроку SOAP-проход
+                    IF processedEDIFile() THEN {
+                        checkReceiveResult(i, login, provider);
+                    } ELSE {
+                        receiveSkipped(i) <- TRUE;
+                    }
                 }
+
+                IF NOT disableConfirmation THEN
+                    FOR documentType(INTEGER i) AND NOT receiveSkipped(i) AND EDIFile f = ediFile(id(i)) AND NOT processedDateTime(f)
+                            AND DATE(OVERRIDE documentDate(f), receivedDateTime(f)) <= subtract(currentDate(), confirmUnprocessedDays(profile(f))) DO TRY {
+                        sendConfirmDocument(i, login, password, url, 'unprocessed expired');
+                        IF NOT requestError() THEN {
+                            markEDIFile(id(i), NULL, TRUE);
+                            messagesExpired() <- messagesExpired() + 1;
+                        }
+                    } CATCH {
+                        logToFile('edi', CONCAT '\n', confirmLog(provider, login, 'unprocessed expired', i) + ' error:', messageCaughtException());
+                    }
 
                 fillEndParams();
                 IF sendRecipientErrorFailed() == 0 THEN {
@@ -315,21 +359,6 @@ overReceiveMessagesEDN(INTEGER i, STRING[100] login, STRING[100] password, TEXT 
     }
 }
 
-confirmDocument(INTEGER i, STRING[100] login, STRING[100] password, TEXT url) {
-    headersEDN('Authorization') <- 'Basic ' + encodeText(login + ':' + password, 'base64');
-    EXTERNAL HTTP url +'/documents/'+id(i)+ '/mark-downloaded' HEADERS headersEDN;
-    logToFile('edi', 'EDN (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
-
-    importRequestResult();
-    IF requestError() THEN {
-        logToFile('edi', 'EDN (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-        MESSAGE 'EDN (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
-    } ELSE {
-        logToFile('edi', 'EDN (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
-        confirmEDIFile(id(i));
-    }
-}
-
 //порядок как в receiveEDN: сначала ветки ЭДиН (заказы в формате docuway), остальное разбирают ветки СТТ
 overProcessEDIFile(EDIFile f, INTEGER i) + {
     IF useDocuway() THEN {
@@ -356,7 +385,7 @@ receiveEDN 'Получить сообщения' () {
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() receiveEDN, archiveDirEDN, outputDirEDN, disableConfirmationEDN, useDocuway
+    PROPERTIES() receiveEDN, archiveDirEDN, outputDirEDN, disableConfirmationEDN, confirmUnprocessedDaysEDN, useDocuway
 
     OBJECTS lete = LegalEntity
     FILTERS isCompany(lete)
@@ -374,6 +403,7 @@ DESIGN integrationData {
                     MOVE PROPERTY(archiveDirEDN());
                     MOVE PROPERTY(outputDirEDN());
                     MOVE PROPERTY(disableConfirmationEDN());
+                    MOVE PROPERTY(confirmUnprocessedDaysEDN());
                     MOVE PROPERTY(useDocuway());
                     MOVE PROPERTY(receiveEDN());
                 }

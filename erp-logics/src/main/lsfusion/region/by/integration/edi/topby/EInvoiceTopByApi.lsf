@@ -54,8 +54,8 @@ overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, 
                         logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' failed: ' + applyMessage());
                         invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
                     } ELSE {
-                        IF NOT disableConfirmation AND NOT disableConfirmation(m) THEN {
-                            confirmMessage(i, login, password, url, provider);
+                        IF NOT disableConfirmation(m) THEN {
+                            confirmMessage(i, login, password, url, provider, disableConfirmation);
                         }
                         logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' succeeded');
                         invoiceMessagesSucceeded() <- invoiceMessagesSucceeded() + 1;
@@ -64,10 +64,8 @@ overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, 
             }
         } ELSE {
             IF confirmNotFoundInvoices() THEN {
-                IF NOT disableConfirmation THEN {
-                    confirmMessage(i, login, password, url, provider, 'not found document', NULL);
-                    messagesConfirmed() <- messagesConfirmed() + 1;
-                }
+                confirmMessage(i, login, password, url, provider, 'not found document', NULL, disableConfirmation);
+                messagesConfirmed() <- messagesConfirmed() + 1;
             }
             logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' failed: ' + 'EInvoice ' + (OVERRIDE blrapnDeliveryNoteId(), 'NULL') + ' not found');
             invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
@@ -81,9 +79,7 @@ overReceiveSystemMessage(INTEGER i, STRING[100] login, STRING[100] password, TEX
     IF documentType() == 'BLRWBL' OR documentType() == 'BLRWBR' OR documentType() == 'BLRDLN' OR documentType() == 'BLRDNR' 
         OR documentType() == 'BLRADF' OR documentType() == 'BLRSPT' OR documentType() == 'BLRAPN' THEN {
         logToFile('edi', provider + ' (' + login + ') System Message ' + id(i) + ' skipped for documentType ' + documentType());
-        IF NOT disableConfirmation THEN {
-            confirmMessage(i, login, password, url, provider, NULL, TRUE);
-        }
+        confirmMessage(i, login, password, url, provider, NULL, TRUE, disableConfirmation);
         messagesConfirmed() <- messagesConfirmed() + 1;
         RETURN;
     }
@@ -125,8 +121,8 @@ overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, 
                     logToFile('edi', provider + ' Import ECreditNoteMessage ' + id(i) + ' failed: ' + applyMessage());
                     creditNoteMessagesFailed() <- creditNoteMessagesFailed() + 1;
                 } ELSE {
-                    IF NOT disableConfirmation AND NOT disableConfirmation(m) THEN {
-                        confirmMessage(i, login, password, url, provider);
+                    IF NOT disableConfirmation(m) THEN {
+                        confirmMessage(i, login, password, url, provider, disableConfirmation);
                     }
                     logToFile('edi', provider + ' Import ECreditNoteMessage ' + id(i) + ' succeeded');
                     creditNoteMessagesSucceeded() <- creditNoteMessagesSucceeded() + 1;

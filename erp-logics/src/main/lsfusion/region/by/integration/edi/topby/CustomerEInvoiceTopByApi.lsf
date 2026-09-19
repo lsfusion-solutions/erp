@@ -33,9 +33,7 @@ processEInvoiceMessage (INTEGER i, STRING[100] login, STRING[100] password, TEXT
         logToFile('edi', provider + ' (' + login + ') Import EInvoice ' + id(i) + ' failed: ' + applyMessage());
         eInvoicesFailed() <- eInvoicesFailed() + 1;
     } ELSE {
-        IF NOT disableConfirmation THEN {
-            confirmMessage(i, login, password, url, provider);
-        }
+        confirmMessage(i, login, password, url, provider, disableConfirmation);
         logToFile('edi', provider + ' (' + login + ') Import EInvoice ' + id(i) + ' succeeded');
         eInvoicesSucceeded() <- eInvoicesSucceeded() + 1;
     }
@@ -715,9 +713,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                     blrapn(ec) <- STRING[14](resultMilliseconds());
                                     logToFile('edi', provider + ' SendECreditNote ' + actDifNumber(ec) + ' request succeeded');
                                     //извещение уже отправлено, поэтому подтверждаем до сохранения: при повторной обработке оно ушло бы снова
-                                    IF NOT disableConfirmation THEN {
-                                        confirmMessage(i, login, password, url, provider);
-                                    }
+                                    confirmMessage(i, login, password, url, provider, disableConfirmation);
                                     NEWSESSION NESTED LOCAL {
                                         exportedBlrapnCustomer(ec) <- TRUE;
                                         NEW em = ECreditNoteMessage {
@@ -779,9 +775,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                 logToFile('edi', provider + ' (' + login + ') Import ECreditNote ' + id(i) + ' failed: ' + applyMessage());
                                 eCreditNotesFailed() <- eCreditNotesFailed() + 1;
                             } ELSE {
-                                IF NOT disableConfirmation THEN {
-                                    confirmMessage(i, login, password, url, provider);
-                                }
+                                confirmMessage(i, login, password, url, provider, disableConfirmation);
                                 logToFile('edi', provider + ' (' + login + ') Import ECreditNote ' + id(i) + ' succeeded');
                                 blradfCount() <- blradfCount() + 1;
                             }

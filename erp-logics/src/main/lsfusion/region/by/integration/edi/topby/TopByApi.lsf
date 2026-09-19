@@ -30,6 +30,8 @@ provider = ABSTRACT STRING[100] (SoapProfile);
 newNS = ABSTRACT BOOLEAN (SoapProfile);
 archiveDir = ABSTRACT STRING[100] (SoapProfile);
 disableConfirmation = ABSTRACT BOOLEAN (SoapProfile);
+//необработанные сообщения старше этого числа дней снимаются с очереди провайдера
+confirmUnprocessedDays = ABSTRACT INTEGER (SoapProfile);
 
 soapProfile (STRING[100] login) = GROUP MIN SoapProfile p BY login(p);
 profile = DATA SoapProfile (EDIFile);
@@ -102,6 +104,45 @@ registerEDIFiles (STRING[100] login, STRING[100] archiveDir, STRING[100] provide
     }
 }
 
+FORM confirmDocument
+    PROPERTIES ATTR =IF newNS() THEN 'http://softclub.by/' ELSE 'http://topby.by/' EXTID 'xmlns:top'
+    OBJECTS login = TEXT, password = TEXT, documentId = TEXT
+    PROPERTIES IN confirmDocumentReceived VALUE(login) EXTID 'top:username', VALUE(password) EXTID 'top:password', VALUE(documentId) EXTID 'top:documentId'
+    FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+;
+
+confirmLog (STRING[100] provider, STRING[100] login, STRING[30] label, INTEGER i) = provider + ' (' + login + ') ConfirmDocumentReceived ' + (OVERRIDE label, 'document') + ' ' + id(i);
+
+//label уточняет вид документа в логе, silent отключает сообщение пользователю при ошибке; итог — requestError()
+sendConfirmMessage (INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] provider, STRING[30] label, BOOLEAN silent) {
+    LOCAL xml = XMLFILE();
+    EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
+    sendRequestEDI(url, xml());
+    logToFile('edi', confirmLog(provider, login, label, i) + ': request sent');
+    importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
+    IF requestError() THEN {
+        logToFile('edi', confirmLog(provider, login, label, i) + ': ' + requestError());
+        IF NOT silent THEN
+            MESSAGE provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+    } ELSE {
+        logToFile('edi', confirmLog(provider, login, label, i) + ': request succeeded');
+    }
+}
+
+//итог ветки приёма: сообщение отмечается обработанным и подтверждается провайдеру, если подтверждение не отключено
+confirmMessage (INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] provider, STRING[30] label, BOOLEAN silent, BOOLEAN disableConfirmation) {
+    IF disableConfirmation OR useV2(provider) THEN {
+        markEDIFile(id(i), TRUE, NULL);
+    } ELSE {
+        sendConfirmMessage(i, login, password, url, provider, label, silent);
+        markEDIFile(id(i), TRUE, TRUE IF NOT requestError());
+    }
+}
+
+confirmMessage (INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] provider, BOOLEAN disableConfirmation) {
+    confirmMessage(i, login, password, url, provider, NULL, NULL, disableConfirmation);
+}
+
 receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) {
     TRY {
         IF login AND password THEN {
@@ -138,6 +179,20 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
                     checkReceiveResult(i, login, provider);
                 }
 
+                //необработанные сообщения старше срока из настроек снимаются с очереди, чтобы не приходить при каждом приёме;
+                //пропущенные по настройкам остаются в очереди для тех, кто их читает
+                IF NOT disableConfirmation THEN
+                    FOR documentType(INTEGER i) AND NOT receiveSkipped(i) AND EDIFile f = ediFile(id(i)) AND NOT processedDateTime(f)
+                            AND DATE(OVERRIDE documentDate(f), receivedDateTime(f)) <= subtract(currentDate(), confirmUnprocessedDays(profile(f))) DO TRY {
+                        sendConfirmMessage(i, login, password, url, provider, 'unprocessed expired', TRUE);
+                        IF NOT requestError() THEN {
+                            markEDIFile(id(i), NULL, TRUE);
+                            messagesExpired() <- messagesExpired() + 1;
+                        }
+                    } CATCH {
+                        logToFile('edi', CONCAT '\n', confirmLog(provider, login, 'unprocessed expired', i) + ' error:', messageCaughtException());
+                    }
+
                 fillEndParams();
                 IF sendRecipientErrorFailed() == 0 THEN {
                     MESSAGE (OVERRIDE textMessage(), provider + '(' + login + ') Не найдено новых сообщений') NOWAIT;
@@ -151,39 +206,6 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
         logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
         MESSAGE provider + '(' + login + ') Сообщения не получены. Обратитесь к администратору' NOWAIT;
     }
-}
-
-
-FORM confirmDocument
-    PROPERTIES ATTR =IF newNS() THEN 'http://softclub.by/' ELSE 'http://topby.by/' EXTID 'xmlns:top'
-    OBJECTS login = TEXT, password = TEXT, documentId = TEXT
-    PROPERTIES IN confirmDocumentReceived VALUE(login) EXTID 'top:username', VALUE(password) EXTID 'top:password', VALUE(documentId) EXTID 'top:documentId'
-    FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
-;
-
-confirmLog (STRING[100] provider, STRING[100] login, STRING[30] label, INTEGER i) = provider + ' (' + login + ') ConfirmDocumentReceived ' + (OVERRIDE label, 'document') + ' ' + id(i);
-
-//label уточняет вид документа в логе, silent отключает сообщение пользователю при ошибке
-confirmMessage (INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] provider, STRING[30] label, BOOLEAN silent) {
-    IF NOT useV2(provider) THEN {
-        LOCAL xml = XMLFILE();
-        EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
-        sendRequestEDI(url, xml());
-        logToFile('edi', confirmLog(provider, login, label, i) + ': request sent');
-        importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
-        IF requestError() THEN {
-            logToFile('edi', confirmLog(provider, login, label, i) + ': ' + requestError());
-            IF NOT silent THEN
-                MESSAGE provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
-        } ELSE {
-            logToFile('edi', confirmLog(provider, login, label, i) + ': request succeeded');
-            confirmEDIFile(id(i));
-        }
-    }
-}
-
-confirmMessage (INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] provider) {
-    confirmMessage(i, login, password, url, provider, NULL, NULL);
 }
 
 //ветки провайдера, работающие с другим форматом файлов (заказы ЭДиН в docuway): как и при приёме,
@@ -249,7 +271,7 @@ open 'Просмотреть' (INTEGER r) {
 confirmDocumentSoap 'Подтвердить получение' (INTEGER r, STRING login, STRING password, STRING url) {
     EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(r) XML TO xmlFile;
     sendRequestEDI(url, xmlFile());
-    confirmEDIFile(id(r));
+    markEDIFile(id(r), NULL, TRUE);
     id(r) <- NULL;
 } CONFIRM TOOLBAR;
 
@@ -345,9 +367,7 @@ overReceiveSystemMessage ABSTRACT LIST FIRST(INTEGER, STRING[100], STRING[100], 
 overReceiveSystemMessage(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     IF documentType() == 'SYSTEMMESSAGE' THEN { //системное сообщение на системное сообщение пока игнорируем.
         logToFile('edi', provider + ' (' + login + ') System Message ' + id(i) + ' skipped for documentType ' + documentType());
-        IF NOT disableConfirmation THEN {
-            confirmMessage(i, login, password, url, provider);
-        }
+        confirmMessage(i, login, password, url, provider, disableConfirmation);
         messagesConfirmed() <- messagesConfirmed() + 1;
     } ELSE {
         logToFile('edi', provider + ' (' + login + ') System Message ' + id(i) + ' warning: unsupported documentType ' + (OVERRIDE documentType(), 'NULL'));
@@ -382,9 +402,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
 overReceiveBlrapn ABSTRACT LIST FIRST(INTEGER, STRING[100], STRING[100], TEXT, STRING[100], BOOLEAN, STRING[100] );
 overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     logToFile('edi', provider + ' (' + login + ') Parse System Message ' + id(i) + ' warning: unsupported Reference documentType ' + (OVERRIDE blrapnReferenceDocumentType(), 'NULL'));
-    IF NOT disableConfirmation THEN {
-        confirmMessage(i, login, password, url, provider, 'unsupported document', TRUE);
-    }
+    confirmMessage(i, login, password, url, provider, 'unsupported document', TRUE, disableConfirmation);
     messagesConfirmed() <- messagesConfirmed() + 1;
 }
 

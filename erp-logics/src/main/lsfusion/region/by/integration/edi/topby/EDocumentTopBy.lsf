@@ -31,9 +31,7 @@ overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, 
                         logToFile('edi', provider + ' (' + login + ') Import EDocumentMessage ' + id(i) + ' failed: ' + applyMessage());
                         documentMessagesFailed() <- documentMessagesFailed() + 1;
                     } ELSE {
-                        IF NOT disableConfirmation THEN {
-                            confirmMessage(i, login, password, url, provider);
-                        }
+                        confirmMessage(i, login, password, url, provider, disableConfirmation);
                         logToFile('edi', provider + ' (' + login + ') Import EDocumentMessage ' + id(i) + ' succeeded');
                         documentMessagesSucceeded() <- documentMessagesSucceeded() + 1;
                     }
@@ -41,10 +39,8 @@ overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, 
             }
         } ELSE {
             IF confirmNotFoundDocuments() THEN {
-                IF NOT disableConfirmation THEN {
-                    confirmMessage(i, login, password, url, provider);
-                    messagesConfirmed() <- messagesConfirmed() + 1;
-                }
+                confirmMessage(i, login, password, url, provider, disableConfirmation);
+                messagesConfirmed() <- messagesConfirmed() + 1;
             } ELSE {
                 
             }
@@ -79,9 +75,7 @@ overReceiveSystemMessage(INTEGER i, STRING[100] login, STRING[100] password, TEX
                         logToFile('edi', provider + ' (' + login + ') Import EDocumentMessage ' + id(i) + ' failed: ' + applyMessage());
                         documentMessagesFailed() <- documentMessagesFailed() + 1;
                     } ELSE {
-                        IF NOT disableConfirmation THEN {
-                            confirmMessage(i, login, password, url, provider);
-                        }
+                        confirmMessage(i, login, password, url, provider, disableConfirmation);
                         logToFile('edi', provider + ' (' + login + ') Import EDocumentMessage ' + id(i) + ' succeeded');
                         documentMessagesSucceeded() <- documentMessagesSucceeded() + 1;
                     }
@@ -89,10 +83,8 @@ overReceiveSystemMessage(INTEGER i, STRING[100] login, STRING[100] password, TEX
             }
         } ELSE {
             IF confirmNotFoundDocuments() THEN {
-                IF NOT disableConfirmation THEN {
-                    confirmMessage(i, login, password, url, provider);
-                    messagesConfirmed() <- messagesConfirmed() + 1;
-                }
+                confirmMessage(i, login, password, url, provider, disableConfirmation);
+                messagesConfirmed() <- messagesConfirmed() + 1;
             } ELSE {
                 
             }
@@ -103,9 +95,7 @@ overReceiveSystemMessage(INTEGER i, STRING[100] login, STRING[100] password, TEX
     }
     IF documentType() == 'BLRAPN' OR documentType() == 'SYSTEMMESSAGE' THEN {
         logToFile('edi', provider + ' (' + login + ') Parse Document Message ' + id(i) + ' skipped for documentType ' + documentType());
-        IF NOT disableConfirmation THEN {
-            confirmMessage(i, login, password, url, provider);
-        }
+        confirmMessage(i, login, password, url, provider, disableConfirmation);
         messagesConfirmed() <- messagesConfirmed() + 1;
         RETURN;
     }
@@ -267,9 +257,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                             MESSAGE provider + ' (' + login + ') Извещение о прочтении отмены документа ' + documentID(ed) + ' не выгружено: ' + requestError() NOWAIT;
                                         } ELSE {
                                             logToFile('edi', provider + ' (' + login + ') SendBlrapnEDocument ' + documentID(ed) + ' request succeeded');
-                                            IF NOT disableConfirmation THEN {
-                                                confirmMessage(i, login, password, url, provider);
-                                            }
+                                            confirmMessage(i, login, password, url, provider, disableConfirmation);
                                             logToFile('edi', provider + ' (' + login + ') Import EDocument ' + id(i) + ' succeeded');
                                             eDocumentsSucceeded() <- eDocumentsSucceeded() + 1;
                                             NEWSESSION NESTED LOCAL {
@@ -293,9 +281,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                     logToFile('edi', provider + ' (' + login + ') Import EDocument ' + id(i) + ' error: не заданы параметры EDSService');
                                 }
                             } ELSE {
-                                IF NOT disableConfirmation THEN {
-                                    confirmMessage(i, login, password, url, provider);
-                                }
+                                confirmMessage(i, login, password, url, provider, disableConfirmation);
                                 logToFile('edi', provider + ' (' + login + ') Import EDocument ' + id(i) + ' succeeded');
                                 eDocumentsSucceeded() <- eDocumentsSucceeded() + 1;
                             }

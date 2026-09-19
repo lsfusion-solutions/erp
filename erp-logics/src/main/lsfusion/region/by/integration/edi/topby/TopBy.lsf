@@ -58,6 +58,7 @@ migrateProfileTopBy() {
 archiveDirTopBy 'Папка принятых сообщений' = DATA STRING[100] ();
 outputDirTopBy 'Папка отправленных сообщений' = DATA STRING[100] ();
 disableConfirmationTopBy 'Отключить подтверждение сообщений' = DATA BOOLEAN ();
+confirmUnprocessedDaysTopBy 'Подтверждать необработанные сообщения старше, дней' = DATA INTEGER ();
 receiveSupplierMessagesTopBy 'Получать сообщения для поставщика' = DATA BOOLEAN ();
 useV2TopBy 'Использовать новое API (V2)' = DATA BOOLEAN () PREREAD;
 
@@ -65,6 +66,7 @@ provider(TopByProfile p) += 'TopBy' IF p IS TopByProfile;
 newNS(TopByProfile p) += TRUE IF p IS TopByProfile;
 archiveDir(TopByProfile p) += archiveDirTopBy() IF p IS TopByProfile;
 disableConfirmation(TopByProfile p) += disableConfirmationTopBy() IF p IS TopByProfile;
+confirmUnprocessedDays(TopByProfile p) += confirmUnprocessedDaysTopBy() IF p IS TopByProfile;
 useV2(EDIProvider p) += useV2TopBy() IF p == EDIProvider.topBy;
 
 lockedTopBy = DATA User (STRING) TABLE stringEDI;
@@ -130,7 +132,7 @@ listMessagesTopBy 'Просмотр очереди' (LegalEntity le) {
 } TOOLBAR;
 
 EXTEND FORM integrationData
-    PROPERTIES() archiveDirTopBy, outputDirTopBy, disableConfirmationTopBy, useV2TopBy, receiveTopBy
+    PROPERTIES() archiveDirTopBy, outputDirTopBy, disableConfirmationTopBy, confirmUnprocessedDaysTopBy, useV2TopBy, receiveTopBy
     
     OBJECTS let = LegalEntity
     FILTERS isCompany(let)
@@ -148,6 +150,7 @@ DESIGN integrationData {
                     MOVE PROPERTY(archiveDirTopBy());
                     MOVE PROPERTY(outputDirTopBy());
                     MOVE PROPERTY(disableConfirmationTopBy());
+                    MOVE PROPERTY(confirmUnprocessedDaysTopBy());
                     MOVE PROPERTY(useV2TopBy());
                     MOVE PROPERTY(receiveTopBy());
                 }

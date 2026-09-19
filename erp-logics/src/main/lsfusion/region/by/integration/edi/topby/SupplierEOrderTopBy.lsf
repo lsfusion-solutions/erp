@@ -62,9 +62,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
             IMPORT importOrders XML FROM data(i);
             IF ordersDocumentType() == 31 OR (ordersDocumentType() == 9 AND Sale.userOrder(ordersSupplierGLN() + '/' + ordersDocumentNumber())) THEN {
                 logToFile('edi', provider + ' (' + login + ') Parse Order ' + id(i) + ' skipped for documentType ' + ordersDocumentType());
-                IF NOT disableConfirmation THEN {
-                    confirmMessage(i, login, password, url, provider);
-                }
+                confirmMessage(i, login, password, url, provider, disableConfirmation);
                 supplierOrdersFailed() <- supplierOrdersFailed() + 1;
             } ELSE {
                 NEWSESSION NESTED LOCAL {
@@ -109,9 +107,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                             logToFile('edi', provider + ' (' + login + ') Import Order ' + id(i) + ' failed: ' + applyMessage());
                             supplierOrdersFailed() <- supplierOrdersFailed() + 1;
                         } ELSE {
-                            IF NOT disableConfirmation THEN {
-                                confirmMessage(i, login, password, url, provider);
-                            }
+                            confirmMessage(i, login, password, url, provider, disableConfirmation);
                             logToFile('edi', provider + ' (' + login + ') Import Order ' + id(i) + ' succeeded');
                             supplierOrdersSucceeded() <- supplierOrdersSucceeded() + 1;
                         }
