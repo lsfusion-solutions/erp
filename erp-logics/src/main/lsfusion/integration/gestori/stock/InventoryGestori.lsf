@@ -1,6 +1,6 @@
 MODULE InventoryGestori;
 
-REQUIRE SaleReportsRu, DateSkuLedger, PurchaseReturnShipment, SaleReturnShipment, RangeSimple, RangeLevel, ItemGestori, ReportFileNameGestori;
+REQUIRE SaleReportsRu, DateSkuLedger, PurchaseReturnShipment, SaleReturnShipment, RangeSimple, RangeLevel, ItemGestori, ReportFileNameGestori, SaleInvoiceGestori;
 
 NAMESPACE Inventory;
 
@@ -954,8 +954,12 @@ trnActiveDocSku (SkuLedger sl, Stock stock, Operation.Operation op, TrnDirection
         AND date(stockDocumentLedger(sl)) >= dateFrom()
         AND date(stockDocumentLedger(sl)) <= dateTo();
 
+// поставка по накладной продажи: сумма по поставленному количеству в ценах накладной (с НДС), а не учётная,
+// иначе строка «Отгружено в отпускных ценах» показывает учётную сумму
+trnSaleShippedSum (StockDocumentLedger l) = -Sale.shipmentInvoiceSum(Sale.invoice(l AS Sale.InvoiceShipment));
+
 trnSumLedger 'Сумма (накл.)' (Stock stock, Operation.Operation op, TrnDirection dir, LegalEntity cp, TrnDocKind dk) =
-    GROUP SUM sumItem(StockDocumentLedger l) IF trnActiveDoc(l, stock, op, dir, cp, dk);
+    GROUP SUM (OVERRIDE trnSaleShippedSum(StockDocumentLedger l), sumItem(l)) IF trnActiveDoc(l, stock, op, dir, cp, dk);
 
 trnSkuCountLedger 'Кол-во позиций (накл.)' (Stock stock, Operation.Operation op, TrnDirection dir, LegalEntity cp, TrnDocKind dk) =
     GROUP SUM 1 IF trnActiveDoc(StockDocumentLedger l, stock, op, dir, cp, dk);
