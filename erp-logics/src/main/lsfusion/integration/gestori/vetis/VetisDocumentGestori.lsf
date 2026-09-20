@@ -1363,6 +1363,46 @@ DESIGN Purchase.userInvoice {
 CONSTRAINT totalVolumeVDGestori(VetDocument s) > volume(s)
     MESSAGE 'Суммарный объём по строкам, связанным с ВСД, превышает объём продукции';
 
+// ---- Запрет проведения накладной закупки (п. 2.18) ----
+
+// ВСД считается непогашенным, пока по нему не пришёл статус «Погашен»;
+// аннулированные ВСД погасить нельзя, поэтому проведению они не мешают
+notUtilizedVDInvoiceGestori (Purchase.UserInvoiceDetail d, VetDocument vtd) =
+    VetisPurchase.volume(d, vtd) AND NOT status(vtd) == VetDocumentStatus.UTILIZED
+                                 AND NOT status(vtd) == VetDocumentStatus.WITHDRAWN;
+
+countNotUtilizedInvoiceGestori (Purchase.UserInvoice i) =
+    GROUP SUM 1 IF notUtilizedVDInvoiceGestori(Purchase.UserInvoiceDetail d, VetDocument vtd) BY Purchase.userInvoice(d);
+
+CONSTRAINT SET(isPosted(Purchase.UserInvoice i)) AND countNotUtilizedInvoiceGestori(i)
+    MESSAGE 'Нельзя провести накладную: по строкам есть непогашенные ВСД: ' +
+        (GROUP CONCAT (CONCAT '', Purchase.nameSku(Purchase.UserInvoiceDetail d), ' — ', uuid(VetDocument vtd),
+            (' (срок годности истёк)' IF expiredGestori(vtd))), '; '
+         ORDER d, vtd IF notUtilizedVDInvoiceGestori(d, vtd) AND Purchase.userInvoice(d) == i);
+
+// расхождение объёма между строкой накладной и связанными с ней ВСД, в процентах от объёма поставлено;
+// если объём поставлено не задан, а по ВСД он есть, расхождение считается полным
+percentDiffVolumeInvoiceGestori (Purchase.UserInvoiceDetail d) = CASE
+    WHEN volumeShippedGestori(d) > 0.0 THEN
+        NUMERIC[16,5](abs(volumeShippedGestori(d) (-) VetisPurchase.volumeVetDocument(d)) * 100.0 / volumeShippedGestori(d))
+    WHEN VetisPurchase.volumeVetDocument(d) > 0.0 THEN 100.0;
+
+maxPercentDiffVolumeGestori 'Допустимое расхождение объема с ВСД, %' = DATA NUMERIC[8,2] ();
+EXTEND FORM options PROPERTIES() maxPercentDiffVolumeGestori;
+
+overPercentDiffVolumeInvoiceGestori (Purchase.UserInvoiceDetail d) =
+    VetisPurchase.volumeVetDocument(d) AND percentDiffVolumeInvoiceGestori(d) > (OVERRIDE maxPercentDiffVolumeGestori(), 5.0);
+
+countOverPercentDiffInvoiceGestori (Purchase.UserInvoice i) =
+    GROUP SUM 1 IF overPercentDiffVolumeInvoiceGestori(Purchase.UserInvoiceDetail d) BY Purchase.userInvoice(d);
+
+CONSTRAINT SET(isPosted(Purchase.UserInvoice i)) AND countOverPercentDiffInvoiceGestori(i)
+    MESSAGE 'Нельзя провести накладную: расхождение объема со связанными ВСД больше допустимого по строкам: ' +
+        (GROUP CONCAT (CONCAT '', Purchase.nameSku(Purchase.UserInvoiceDetail d), ' (поставлено ',
+            STRING(NUMERIC[16,5](OVERRIDE volumeShippedGestori(d), 0.0)), ', по ВСД ',
+            STRING(NUMERIC[16,5](OVERRIDE VetisPurchase.volumeVetDocument(d), 0.0)), ')'), '; '
+         ORDER d IF overPercentDiffVolumeInvoiceGestori(d) AND Purchase.userInvoice(d) == i);
+
 // ---- Накладная закупки: работа с ВСД по номеру товарно-транспортной накладной ----
 
 // номер ТТН — реквизит проекта, реализуется в клиентских модулях
