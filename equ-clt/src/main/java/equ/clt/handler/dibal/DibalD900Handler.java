@@ -23,13 +23,13 @@ public class DibalD900Handler extends DibalD500Handler {
     }
 
     @Override
-    List<byte[]> getImageData(ScalesItem item, String idItemGroup) {
+    List<byte[]> getImageData(ScalesItem item, Integer pluNumber, String idItemGroup) {
         List<byte[]> data = new ArrayList<>();
         if(item.groupImage != null) {
             data.addAll(createImageCommands(item.groupImage.getBytes(), idItemGroup));
         }
         if(item.itemImage != null) {
-            data.addAll(createImageCommands(item.itemImage.getBytes(), String.valueOf(item.pluNumber + 100)));
+            data.addAll(createImageCommands(item.itemImage.getBytes(), String.valueOf(pluNumber + 100)));
         }
         return data;
     }

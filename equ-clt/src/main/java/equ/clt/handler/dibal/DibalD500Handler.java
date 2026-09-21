@@ -14,6 +14,7 @@ import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import javax.naming.CommunicationException;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.net.Inet4Address;
 import java.net.ServerSocket;
 import java.nio.ByteBuffer;
@@ -76,7 +77,8 @@ public class DibalD500Handler extends MultithreadScalesHandler {
     }
 
     private void loadItem(TCPPort port, Set<String> loadedGroups, ScalesItem item) throws IOException {
-        if(item.pluNumber != null) {
+        Integer pluNumber = getPluNumber(item);
+        if(pluNumber != null) {
             JSONObject infoJSON = getExtInfo(item.info);
             String idItemGroup = infoJSON != null ? infoJSON.getString("numberGroup") : "1";
             String nameItemGroup = infoJSON != null ? infoJSON.getString("nameGroup") : "Все";
@@ -84,8 +86,8 @@ public class DibalD500Handler extends MultithreadScalesHandler {
 
             List<byte[]> itemData = new ArrayList<>();
 
-            itemData.add(getItemL2Bytes(item));
-            itemData.add(getItemH3Bytes(item, idItemGroup, tareWeight));
+            itemData.add(getItemL2Bytes(item, pluNumber));
+            itemData.add(getItemH3Bytes(item, pluNumber, idItemGroup, tareWeight));
             itemData.addAll(getItemDescriptionBytes(item));
 
             if (idItemGroup != null && !loadedGroups.contains(idItemGroup)) {
@@ -94,7 +96,7 @@ public class DibalD500Handler extends MultithreadScalesHandler {
                 loadedGroups.add(idItemGroup);
             }
 
-            itemData.addAll(getImageData(item, idItemGroup));
+            itemData.addAll(getImageData(item, pluNumber, idItemGroup));
 
 
             sendCommand(port, Bytes.concat(itemData.toArray(new byte[0][])));
@@ -102,10 +104,18 @@ public class DibalD500Handler extends MultithreadScalesHandler {
     }
 
     //implement in D900
-    List<byte[]> getImageData(ScalesItem item, String idItemGroup) {
+    List<byte[]> getImageData(ScalesItem item, Integer pluNumber, String idItemGroup) {
         return new ArrayList<>();
     }
 
+    //если PLU у товара не задан, вместо него используется штрихкод
+    private Integer getPluNumber(ScalesItem item) {
+        try {
+            return item.pluNumber != null ? item.pluNumber : Integer.parseInt(item.idBarcode);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
 
 
     private JSONObject getExtInfo(String extInfo) {
@@ -148,7 +158,7 @@ public class DibalD500Handler extends MultithreadScalesHandler {
         return bytes.array();
     }
 
-    private byte[] getItemL2Bytes(ScalesItem item) {
+    private byte[] getItemL2Bytes(ScalesItem item, Integer pluNumber) {
         ByteBuffer bytes = ByteBuffer.allocate(130);
 
         //6 bytes
@@ -160,7 +170,7 @@ public class DibalD500Handler extends MultithreadScalesHandler {
         //code, 6 bytes
         bytes.put(getBytes(prependZeroes(item.idBarcode, 6)));
 
-        //quick code, 3 bytes
+        //quick code, 3 bytes (нулевой, если у товара нет PLU: штрихкод сюда не помещается)
         bytes.put(getBytes(prependZeroes(item.pluNumber, 3)));
 
         //name, 24 bytes
@@ -173,7 +183,7 @@ public class DibalD500Handler extends MultithreadScalesHandler {
         bytes.put(getNameBytes(item.name, 2));
 
         //price, 8 bytes
-        bytes.put(getBytes(prependZeroes(safeMultiply(item.price, 100).intValue(), 8)));
+        bytes.put(getBytes(prependZeroes(item.price == null ? 0 : item.price.multiply(BigDecimal.valueOf(100)).intValue(), 8)));
 
         //offer price, 8 bytes
         bytes.put(getBytes(fillZeroes(8)));
@@ -185,7 +195,7 @@ public class DibalD500Handler extends MultithreadScalesHandler {
         bytes.put(getBytes(fillSpaces(3)));
 
         //reference, 9 bytes
-        bytes.put(getBytes(prependZeroes(item.pluNumber, 9)));
+        bytes.put(getBytes(prependZeroes(pluNumber, 9)));
 
         //free, 6 bytes
         bytes.put(getBytes(fillSpaces(6)));
@@ -193,7 +203,7 @@ public class DibalD500Handler extends MultithreadScalesHandler {
         return bytes.array();
     }
 
-    private byte[] getItemH3Bytes(ScalesItem item, String idItemGroup, int tareWeight) {
+    private byte[] getItemH3Bytes(ScalesItem item, Integer pluNumber, String idItemGroup, int tareWeight) {
         ByteBuffer bytes = ByteBuffer.allocate(130);
 
         //6 bytes
@@ -260,7 +270,7 @@ public class DibalD500Handler extends MultithreadScalesHandler {
         bytes.put(getBytes(fillSpaces(13)));
 
         //color logo (lsb), 4 bytes (image id)
-        bytes.put(getBytes(prependZeroes(item.pluNumber + 100, 4)));
+        bytes.put(getBytes(prependZeroes(pluNumber + 100, 4)));
 
         //exact best before hour, 4 bytes
         bytes.put(getBytes(fillZeroes(4)));
