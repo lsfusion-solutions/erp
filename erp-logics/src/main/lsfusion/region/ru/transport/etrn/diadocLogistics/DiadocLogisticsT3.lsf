@@ -109,6 +109,8 @@ ETRN.checkCounteragentT3 (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvi
 // кнопка "Пригласить перевозчика": то же приглашение, что уходит при отправке Т3,
 // но отдельно - чтобы позвать перевозчика заранее и не ждать отказа отправки
 ETRN.inviteCarrier (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvider.diadoc THEN {
+    // nested-свойство живёт до закрытия формы: чистим, чтобы не показать причину от прошлого нажатия
+    counteragentCheckMessage() <- NULL;
     IF NOT diadocBox(ETRN.consignee(e)) THEN {
         MESSAGE 'Не найден ящик Диадока грузополучателя' NOWAIT;
         RETURN;
@@ -120,9 +122,11 @@ ETRN.inviteCarrier (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvider.di
 
     checkCounteragent(guidBoxId(diadocBoxId(ETRN.consignee(e))), carrierT3Box(e), 'Т3', 'перевозчик');
 
-    // итог складываем в одно nested-свойство до новой сессии: counteragentCheckPassed в неё не протягивается
-    counteragentCheckMessage() <- OVERRIDE counteragentCheckMessage(),
-        TEXT('Партнёрство с перевозчиком подтверждено') IF counteragentCheckPassed();
+    // итог складываем в одно nested-свойство до новой сессии: counteragentCheckPassed в неё не протягивается.
+    // Успех важнее промежуточных сообщений: при встречном приглашении связь устанавливается сразу,
+    // даже если отправка нашего приглашения по дороге дала ошибку
+    counteragentCheckMessage() <- OVERRIDE TEXT('Партнёрство с перевозчиком подтверждено') IF counteragentCheckPassed(),
+        counteragentCheckMessage();
 
     NEWSESSION {
         ETRN.exchangeMessage(e) <- counteragentCheckMessage();
