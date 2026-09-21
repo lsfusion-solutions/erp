@@ -128,7 +128,7 @@ exportCashiers 'Экспорт кассиров Set10' (){
     } ELSE MESSAGE 'Не задан адрес сервера Set10';
 }
 
-in 'Отм' = DATA LOCAL BOOLEAN (Employee);
+inCashier 'Отм' = DATA LOCAL BOOLEAN (Employee);
 
 FORM printCashier
     OBJECTS c = Employee
@@ -136,11 +136,11 @@ FORM printCashier
 ;
 
 printCashier 'Печать' (Employee e){
-    IF NOT (GROUP SUM 1 IF in(Employee ee)) THEN {
-        in(e) <- TRUE;
+    IF NOT (GROUP SUM 1 IF inCashier(Employee ee)) THEN {
+        inCashier(e) <- TRUE;
     }
-    PRINT printCashier FILTERS in(c);
-    in(Employee ee) <- NULL; 
+    PRINT printCashier FILTERS inCashier(c);
+    inCashier(Employee ee) <- NULL;
 }
 
 showStore (Employee e, Store s) = GROUP SUM 1 IF accessCompany(e, Stock stock) AND store(stock) = s;
@@ -151,7 +151,7 @@ FORM cashiersSet 'Кассиры Set10'
     PROPERTIES name(s) SELECTOR 
     
     OBJECTS c = Employee
-    PROPERTIES (c) READONLY in CHANGEABLE, name, 'Роль' = nameRole, tabNumCashier, idBarcode, passwordCashier, nameStock, isLocked
+    PROPERTIES (c) READONLY inCashier CHANGEABLE, name, 'Роль' = nameRole, tabNumCashier, idBarcode, passwordCashier, nameStock, isLocked
     PROPERTIES TOOLBAR exportCashiers(), printCashier(c)
     FILTERS isCashier(c)
     FILTERGROUP cashiers
