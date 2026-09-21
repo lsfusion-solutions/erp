@@ -36,12 +36,14 @@ confirmUnprocessedDays = ABSTRACT INTEGER (SoapProfile);
 soapProfile (STRING[100] login) = GROUP MIN SoapProfile p BY login(p);
 profile = DATA SoapProfile (EDIFile);
 
-//необработанное сообщение с такой датой снимается с очереди, его тело в БД не хранится
+//необработанное сообщение с такой датой снимается с очереди провайдера
 outdated (EDIFile f) = DATE(OVERRIDE documentDate(f), receivedDateTime(f)) <= subtract(currentDate(), (OVERRIDE confirmUnprocessedDays(profile(f)), 60));
 
+//тело просроченного сообщения чистится только при наличии файла в архиве: без архива его больше негде взять,
+//а с очереди провайдера сообщение уже снято
 clearApplicationLog () + {
     NEWSESSION {
-        data(EDIFile f) <- NULL WHERE data(f) AND NOT processedDateTime(f) AND outdated(f);
+        data(EDIFile f) <- NULL WHERE data(f) AND NOT processedDateTime(f) AND outdated(f) AND receivedDir(f);
         APPLY;
     }
 }

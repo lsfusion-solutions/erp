@@ -426,6 +426,9 @@ signAndSendSenderEDocument (EDocument ed, STRING[100] login, STRING[100] passwor
                                         XMLPath(em) <- outputDir + '/sent/documents/' + toChar(currentDate(),'yyyyMMdd') + '/' + name();
                                     }
                                     APPLY NESTED LOCAL;
+                                    IF canceled() THEN {
+                                        logToFile('edi', provider + ' (' + login + ') SendEDocument ' + (OVERRIDE number(ed), documentID(ed), STRING[35](resultMilliseconds())) + ': apply canceled ' + applyMessage());
+                                    }
                                 //}
                             }
                         }
@@ -591,6 +594,9 @@ signAndSendSenderEDocumentV2(EDocument d, LegalEntity le, STRING[100] outputDir,
                             }
                         }
                         APPLY;
+                        IF canceled() THEN {
+                            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendEDocument ' + (OVERRIDE number(d), id(d), STRING[35](resultMilliseconds())) + ': apply canceled ' + applyMessage());
+                        }
                     } ELSE {
                         logToFile('edi', provider + ' (' + loginProfile(le) + ') SendEDocument: ошибка при аутентификации');
                         MESSAGE provider + ' (' + loginProfile(le) + ') Документ не выгружен: ошибка при аутентификации' NOWAIT;
@@ -682,6 +688,9 @@ signAndSendBlrapnSenderEDocumentV2(EDocument d, LegalEntity le, STRING[100] outp
                         }
                         exportedSender(d) <- TRUE; //оставить пока используется старая версия 
                         APPLY;
+                        IF canceled() THEN {
+                            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendBlrapnEDocument ' + (OVERRIDE number(d), id(d), STRING[35](resultMilliseconds())) + ': apply canceled ' + applyMessage());
+                        }
                     }
                 } ELSE {
                     logToFile('edi', provider + ' (' + loginProfile(le) + ') SendBlrapnEDocument: ошибка при аутентификации');
@@ -789,6 +798,9 @@ signAndSendBlrapnReceiverEDocument (EDocument ed, STRING[100] login, STRING[100]
                                 XMLPath(em) <- outputDir + '/sent/documents/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                             }
                             APPLY NESTED LOCAL;
+                            IF canceled() THEN {
+                                logToFile('edi', provider + ' (' + login + ') SendBlrapnEDocument ' + documentID(ed) + ': apply canceled ' + applyMessage());
+                            }
                         }
                     }
                 } ELSE {
@@ -863,6 +875,9 @@ signAndSendBlrapnReceiverEDocumentV2(EDocument d, LegalEntity le, STRING[100] ou
                         }
                     }
                     APPLY;
+                    IF canceled() THEN {
+                        logToFile('edi', provider + ' (' + loginProfile(le) + ') SendEDocument ' + (OVERRIDE number(d), id(d), STRING[35](resultMilliseconds())) + ': apply canceled ' + applyMessage());
+                    }
                 } ELSE {
                     logToFile('edi', provider + ' (' + loginProfile(le) + ') SendEDocument: ошибка при аутентификации');
                     MESSAGE provider + ' (' + loginProfile(le) + ') Документ не выгружен: ошибка при аутентификации' NOWAIT;
@@ -976,6 +991,9 @@ signAndSendReceiverEDocument (EDocument ed, STRING[100] login, STRING[100] passw
                                         XMLPath(em) <- outputDir + '/sent/documents/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrdoc-' + toChar(exportBlrdocDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                                     }
                                     APPLY NESTED LOCAL;
+                                    IF canceled() THEN {
+                                        logToFile('edi', provider + ' (' + login + ') SendEDocument ' + documentID(ed) + ': apply canceled ' + applyMessage());
+                                    }
                                 }
                             }
                         } ELSE {
@@ -1073,6 +1091,9 @@ signAndSendReceiverEDocumentV2(EDocument d, LegalEntity le, STRING[100] outputDi
                         }
                     }
                     APPLY;
+                    IF canceled() THEN {
+                        logToFile('edi', provider + ' (' + loginProfile(le) + ') SendEDocumentResponse ' + (OVERRIDE number(d), id(d), STRING[35](resultMilliseconds())) + ': apply canceled ' + applyMessage());
+                    }
                 } ELSE {
                     logToFile('edi', provider + ' (' + loginProfile(le) + ') SendEDocumentResponse: ошибка при аутентификации');
                     MESSAGE provider + ' (' + loginProfile(le) + ') Документ не выгружен: ошибка при аутентификации' NOWAIT;
