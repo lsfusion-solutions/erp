@@ -15,9 +15,7 @@ NAMESPACE Vetis;
 waybillByTypeGestori (VetDocument d, INTEGER t) = GROUP MIN VetReferenceDocument rd IF vetDocument(rd) = d AND type(rd) = t;
 waybillGestori (VetDocument d) = OVERRIDE waybillByTypeGestori(d, 1), waybillByTypeGestori(d, 5), waybillByTypeGestori(d, 6),
                                           waybillByTypeGestori(d, 23), waybillByTypeGestori(d, 16), waybill(d);
-// в поле «Накладная» — только номер документа (без серии)
 issueSeriesNumberWaybillGestori 'Накладная' (VetDocument d) = issueNumber(waybillGestori(d));
-// отбор/отображение накладной по всему Ветис — по приоритету типов Gestori (в т.ч. фильтр «Заполнить по номеру»)
 issueSeriesNumberWaybillOverride(VetDocument d) += issueSeriesNumberWaybillGestori(d);
 
 waybillDate 'Дата накладной' (VetDocument d) = issueDate(waybillGestori(d));
@@ -74,7 +72,6 @@ expiredGestori (VetDocument d) = expiryDate(d) AND sum(expiryDate(d), -1) <= cur
 
 expiredBackgroundGestori (VetDocument d) = IF expiredGestori(d) THEN RGB(255, 200, 200);
 
-// приоритет свежих ВСД при автоматическом заполнении объёмов
 priorityExpiryDateVetis() += TRUE;
 
 expiryDateGestori 'Дата окончания срока годности продукции' (VetDocument d) = expiryDate(d);
@@ -100,12 +97,10 @@ seriesNumberInvoicePDGestori 'Номер накладной' (Purchase.InvoiceDe
 dateInvoicePDGestori 'Дата накладной' (Purchase.InvoiceDetail pid) = date(invoice(pid));
 postedInvoicePDGestori 'Проведена' (Purchase.InvoiceDetail pid) = isPosted(pid);
 
-// связь ВСД со строками накладной продажи-возврата (приём возврата от покупателя по ВСД)
 seriesNumberInvoiceSRGestori 'Номер накладной' (SaleReturn.InvoiceDetail srd) = seriesNumber(invoice(srd));
 dateInvoiceSRGestori 'Дата накладной' (SaleReturn.InvoiceDetail srd) = date(invoice(srd));
 postedInvoiceSRGestori 'Проведена' (SaleReturn.InvoiceDetail srd) = isPosted(srd);
 
-// запрет удаления ВСД при наличии связей
 hasInvoiceDetailVDGestori (VetDocument d) = GROUP SUM 1 IF VetisPurchase.volume(Purchase.InvoiceDetail pid, d);
 hasShipmentDetailVDGestori (VetDocument d) = GROUP SUM 1 IF VetisPurchase.volume(Purchase.ShipmentDetail sd, d);
 hasOutgoingConsignmentVDGestori (VetDocument d) = GROUP MAX OutgoingConsignment c IF vetDocument(c) = d;
@@ -170,7 +165,6 @@ nameProductItemForUuidGestori 'Продукция' () = nameProductItem(vetDocum
 enterpriseInputGestori = DATA LOCAL Enterprise ();
 nameEnterpriseInputGestori 'Площадка' () = name(enterpriseInputGestori());
 
-// площадки собственных ХС, связанные со складами/магазинами, к которым имеет доступ пользователь
 accessEnterpriseGestori (Enterprise e) = own(owner(e)) AND (accessCompany(currentUser(), e) OR NOT limitAccess(currentUser()));
 
 FORM dialogAccessEnterprisesGestori 'Площадки'
@@ -209,12 +203,10 @@ getVetDocumentByUUIDGestori 'Запросить ВСД по UUID' (VetDocument d
     uuidInputGestori() <- uuid(d);
     enterpriseInputGestori() <- consigneeEnterprise(d);
     DIALOG fetchVetDocumentByUuidDialog DO {
-        // все параметры поиска обязательны
         IF NOT (uuidInputGestori() AND enterpriseInputGestori()) THEN {
             MESSAGE 'Укажите все параметры поиска';
             RETURN;
         }
-        // контроль корректности UUID и приведение к маске
         LOCAL cleaned = STRING();
         cleaned() <- cleanGuidSEGestori(trim(uuidInputGestori()));
         IF NOT isHexGuidGestori(cleaned()) THEN {
@@ -428,14 +420,11 @@ DESIGN vetDocuments {
         }
     }
     PROPERTY(expiryDate(o)) { hide = TRUE; }
-    // накладная по приоритету типов документов
     PROPERTY(issueSeriesNumberWaybill(o)) { hide = TRUE; }
-    // переименование полей списка
     PROPERTY(uuid(o)) { caption = 'UUID ВСД'; }
     PROPERTY(guidConsignorEnterprise(o)) { caption = 'GUID площадки отправителя'; }
     PROPERTY(guidConsigneeEnterprise(o)) { caption = 'GUID площадки получателя'; }
     PROPERTY(guidProductItem(o)) { caption = 'GUID номенклатуры продукции'; }
-    // коды типа документа и связи
     PROPERTY(type(rd)) { caption = 'Код типа документа'; }
     PROPERTY(relationshipType(rd)) { caption = 'Код типа связи'; }
 
@@ -492,7 +481,6 @@ idProductTypeGestori 'Код типа продукции' (VetDocument d) = id(p
 guidUnitGestori 'GUID ед.изм.' (VetDocument d) = guid(unit(d));
 guidPurposeGestori 'GUID назначения груза' (VetDocument d) = guid(purpose(d));
 
-// фактический возврат: по частично принятым входящим партиям (принято меньше объёма ВСД)
 returnVolumeGestori 'Вес-объем факт.возврат' (VetDocument d) =
     NUMERIC[17,6](GROUP SUM (volume(vetDocument(IncomingConsignment c)) - volume(c)) IF vetDocument(c) = d AND returnedDelivery(c));
 
@@ -570,13 +558,10 @@ EXTEND FORM importVetDocument
 // дата последнего обновления ВСД (сырое значение vd:lastUpdateDate для точного сравнения)
 lastUpdateVetisGestori 'Дата последнего обновления ВСД' = DATA STRING (VetDocument);
 
-// пропуск обработки, если ВСД не менялся
 skipImportVetDocument(STRING u, STRING lu) += vetDocument(u) IS VetDocument AND lastUpdateVetisGestori(vetDocument(u)) = lu;
 
-// UUID назначения груза
 uuid 'UUID' = DATA STRING[50] (Purpose) CHARWIDTH 36;
 
-// справочник «Тип упаковки»
 CLASS PackingTypeGestori 'Тип упаковки';
 TABLE packingTypeGestori (PackingTypeGestori);
 
@@ -609,7 +594,6 @@ NAVIGATOR {
     }
 }
 
-// парсинг uuid/GLN тегов ВСД
 beConsignorUuidImport = DATA LOCAL STRING ();
 entConsignorUuidImport = DATA LOCAL STRING ();
 beConsigneeUuidImport = DATA LOCAL STRING ();
@@ -672,7 +656,6 @@ EXTEND FORM importVetDocument
                     pkgPackingTypeNameImport EXTID 'dt:name' IN pkgPackingTypeImportGroup
 ;
 
-// проверки «запись не найдена / UUID не задан или отличается» → запрос в Ветис
 checkLoadBEGestori (STRING g, STRING u) {
     IF g AND (NOT businessEntity(g) OR (u AND NOT uuid(businessEntity(g)) = u)) THEN {
         IF NOT businessEntity(g) THEN NEWSESSION {
@@ -706,7 +689,6 @@ checkLoadUnitGestori (STRING g, STRING u) {
 }
 
 afterApplyImportVetDocument(VetDocument d) + {
-    // ХС и площадки отправителя/получателя, перевозчик
     checkLoadBEGestori(STRING(consignorBusinessEntityGuid()), STRING(beConsignorUuidImport()));
     checkLoadEnterpriseGestori(STRING(consignorEnterpriseGuid()), STRING(entConsignorUuidImport()));
     checkLoadBEGestori(STRING(consigneeBusinessEntityGuid()), STRING(beConsigneeUuidImport()));
@@ -763,7 +745,6 @@ afterImportVetDocument(VetDocument d) + {
             quantityPackGestori(d) <- NUMERIC[16,5](pkgQuantityImport(i));
     }
 
-    // дозаполнение записи номенклатуры данными из vd:productItem
     skipOwnConstraint() <- TRUE; // импорт из Ветис не должен требовать реквизиты и слать запросы обратно в Ветис
     FOR ProductItem i = productItem(d) DO {
         code(i) <- ISTRING(piCodeImport()) WHERE NOT code(i) AND piCodeImport();
@@ -795,12 +776,10 @@ afterImportVetDocument(VetDocument d) + {
 
     // дата/время последнего изменения Ветис (vd:lastUpdateDate — ISO с зоной)
     updateDateTimeGestori(d) <- DATETIME(replace(left(lastUpdateDate(), 19), 'T', ' '));
-    // происхождение и владелец
     countryOriginGuidGestori(d) <- ocGuidImport();
     producersOriginGuidGestori(d) <- (GROUP CONCAT oprEnterpriseGuidImport(INTEGER i), ', ' ORDER i);
     producersOriginRoleGestori(d) <- (GROUP CONCAT oprRoleImport(INTEGER i), ', ' ORDER i);
     ownerBEGuidGestori(d) <- ownerBatchGuidImport();
-    // транспорт/маршрут
     transportTypeGestori(d) <- INTEGER(transportTypeImport());
     transportNumbersGestori(d) <- STRING(CONCAT ', ', vehicleNumberImport(), trailerNumberImport(), containerNumberImport(),
                                                       wagonNumberImport(), shipNameImport(), flightNumberImport());
@@ -809,7 +788,6 @@ afterImportVetDocument(VetDocument d) + {
                                                           'судно' IF shipNameImport(), 'рейс' IF flightNumberImport());
     finalizedGestori(d) <- TRUE IF finalizedImport() = 'true';
     shipmentRouteGestori(d) <- shipmentRouteImport();
-    // GLN площадок отправителя и получателя
     IF (OVERRIDE glnConsignorImport(), glnConsignorEntImport()) THEN
         FOR Enterprise e = consignorEnterprise(d) DO
             gln(e) <- STRING(OVERRIDE glnConsignorImport(), glnConsignorEntImport());
@@ -817,7 +795,6 @@ afterImportVetDocument(VetDocument d) + {
         FOR Enterprise e = consigneeEnterprise(d) DO
             gln(e) <- STRING(OVERRIDE glnConsigneeImport(), glnConsigneeEntImport());
 
-    // дата последнего обновления ВСД
     lastUpdateVetisGestori(d) <- lastUpdateDate();
 
     // справочник «Тип упаковки» — записи из данных ВСД (by-guid операции в API нет)
@@ -975,7 +952,6 @@ DESIGN vetDocument {
         }
     }
     referenceDocument { caption = 'Связанные документы'; }
-    // коды и описания типов
     PROPERTY(type(rd)) { caption = 'Код типа документа'; }
     PROPERTY(relationshipType(rd)) { caption = 'Код типа связи'; }
 }
@@ -1020,8 +996,6 @@ EXTEND FORM incomingConsignments
 ;
 
 // ---- различить два поля «Объем продукции» в списке входящих партий ----
-// volume — объём по строке документа поставки (фактическое количество, пересчитанное в единицы ВСД)
-// volumeVetDocument — объём продукции из самого ВСД
 
 DESIGN incomingConsignments {
     PROPERTY(volume(c)) { caption = 'Объем продукции фактический'; }
@@ -1037,7 +1011,6 @@ isValidTrailerNumberGestori = FORMULA NULL BOOLEAN 'CASE WHEN $1 ~* \'^[АВЕК
 invalidSidTruckGestori (Truck t) = sid(t) AND NOT isValidVehicleNumberGestori(sid(t));
 invalidTrailerTruckGestori (Truck t) = trailer(t) AND NOT isValidTrailerNumberGestori(trailer(t));
 
-// форма «Исходящие партии»: переименования колонок
 DESIGN outgoingConsignments {
     PROPERTY(guidStockEntry(c)) { caption = 'GUID складского журнала'; }
     PROPERTY(uuidVetDocument(c)) { caption = 'UUID ВСД'; }
@@ -1045,7 +1018,6 @@ DESIGN outgoingConsignments {
 
 // ---- Отправка транспортной партии: проверки перед отправкой (все пути отправки идут через processOutgoingConsignment) ----
 // рейс (машина) исходящей партии = truck(trip(накладной)); без него в запрос не попадёт номер ТС
-// обязательные данные запроса оформления транспортной партии, которых не хватает в исходящей партии
 missingDataOutgoingGestori 'Не заполнены данные' (OutgoingConsignment oc) = CONCAT ', ',
     'объем продукции' IF NOT volume(oc),
     'GUID записи журнала' IF NOT guidStockEntry(oc),
@@ -1080,10 +1052,8 @@ beforeProcessOutgoingConsignment() + {
     }
 }
 
-// каждая исходящая партия отправляется отдельной заявкой
 requestPerOutgoingConsignment() += TRUE;
 
-// документ-основание ВСД: серия и номер накладной, номер строки
 relatedDocumentNumber (OutgoingConsignment c) += CONCAT ' ',
     waybillSeries(c), waybillNumber(c), ('стр. ' + STRING(detailIndex(c))) IF detailIndex(c);
 relatedDocumentDate (OutgoingConsignment c) += waybillDate(c);
@@ -1116,7 +1086,6 @@ EXTEND FORM Purchase.userInvoice
     PROPERTIES(vd, vtd) fullReturnInvoiceGestori READONLYIF vsdVolumeLockedGestori(vd) GRID
 ;
 
-// вкладка ВСД: колонка «Накладная» из issueSeriesNumberWaybillGestori; «Код» → «UUID ВСД»
 EXTEND FORM Purchase.userInvoice
     PROPERTIES(vtd) READONLY issueSeriesNumberWaybillGestori AFTER issueSeriesNumberWaybill(vtd)
 ;
@@ -1128,27 +1097,20 @@ DESIGN Purchase.userInvoice {
 // действия с Ветис выполняются до проведения накладной: партии создаются по связи строки с ВСД
 skipPostedConsignmentVetis() += TRUE;
 
-// количество по позиции нельзя менять после проведения накладной
 CONSTRAINT CHANGED(shipmentQuantity(Purchase.UserInvoiceDetail vd)) AND isPosted(vd) AND NOT CHANGED(isPosted(vd))
     MESSAGE 'Нельзя изменить количество: накладная проведена';
-// ... и независимо от проведения — после отправки заявки в Ветис или гашения
 CONSTRAINT CHANGED(shipmentQuantity(Purchase.UserInvoiceDetail vd)) AND vsdVolumeLockedGestori(vd)
     MESSAGE 'Нельзя изменить количество: по позиции отправлена заявка в Ветис или выполнено гашение';
-// позицию с отправленной заявкой нельзя удалить (в т.ч. в непроведённой накладной)
 CONSTRAINT DROPPED(vd IS Purchase.UserInvoiceDetail) AND PREV(vsdVolumeLockedGestori(vd))
     MESSAGE 'Нельзя удалить позицию: по ней отправлена заявка в Ветис или выполнено гашение';
-// объём по ВСД нельзя менять после отправки заявки в Ветис (кроме завершившихся ошибкой) или гашения
 CONSTRAINT CHANGED(VetisPurchase.volume(Purchase.UserInvoiceDetail vd, VetDocument vtd)) AND vsdVolumeLockedGestori(vd)
     MESSAGE 'Нельзя изменить объём по ВСД: отправлена заявка в Ветис или выполнено гашение';
 
-// принятый вес по позиции не может превышать вес в ВСД
 CONSTRAINT VetisPurchase.volume(Purchase.UserInvoiceDetail vd, VetDocument vtd) > volume(vtd)
     MESSAGE 'Связанный со строкой объем превышает объем продукции по ВСД';
 
-// число позиций накладной, связанных с данным ВСД (по объёму)
 countDetailVDInvoiceGestori (Purchase.UserInvoice inv, VetDocument s) =
     GROUP SUM 1 IF VetisPurchase.volume(Purchase.UserInvoiceDetail d, s) > 0 AND Purchase.userInvoice(d) = inv;
-// один ВСД нельзя связывать с разными накладными
 countInvoiceVDGestori (VetDocument s) = GROUP SUM 1 IF countDetailVDInvoiceGestori(Purchase.UserInvoice inv, s);
 CONSTRAINT countInvoiceVDGestori(VetDocument s) > 1
     MESSAGE 'Один ВСД нельзя связывать с разными накладными';
@@ -1158,7 +1120,6 @@ forbidMultiDetailVDGestori 'Запрещать связывать ВСД с не
 CONSTRAINT forbidMultiDetailVDGestori() AND countDetailVDInvoiceGestori(Purchase.UserInvoice inv, VetDocument s) > 1
     AND status(s) = VetDocumentStatus.CONFIRMED
     MESSAGE 'Нельзя связывать один ВСД с несколькими позициями одного документа';
-// настройка — на форме Администрирование → Интеграция, вкладка ВЕТИС
 EXTEND FORM integrationData PROPERTIES() forbidMultiDetailVDGestori;
 DESIGN integrationData {
     vetis {
@@ -1180,7 +1141,6 @@ processVDGestori 'Отправить в ВЕТИС' (VetDocument s) {
 
 // форма «Входящие партии»: отправка по строке группируется по ВСД (не слать один ВСД несколькими запросами);
 // время/статус заявки — на уровне ВСД (одинаковы для всех партий одного UUID ВСД);
-// колонки «Тип»/«Статус» → «Тип ВСД»/«Статус ВСД»
 processRowICGestori 'Отправить в ВЕТИС' (IncomingConsignment c) {
     processVDGestori(vetDocument(c));
 }
@@ -1221,7 +1181,6 @@ DESIGN Purchase.invoices {
     PROPERTY(volume(vd, vtd)) { caption = 'Объем по строке'; }
 }
 
-// суммарный принятый объём по всем строкам, связанным с ВСД
 totalVolumeVDGestori 'Объем всего' (VetDocument s) = GROUP SUM VetisPurchase.volume(Purchase.UserInvoiceDetail d, s);
 
 // связь «многие ко многим»: ВСД не сходится, если суммарный объём связанных с ним строк отличается от объёма продукции;
@@ -1229,7 +1188,6 @@ totalVolumeVDGestori 'Объем всего' (VetDocument s) = GROUP SUM VetisPu
 diffVolumeVDInvoiceGestori (Purchase.UserInvoiceDetail d, VetDocument vtd) =
     VetisPurchase.volume(d, vtd) AND (OVERRIDE totalVolumeVDGestori(vtd), 0.0) != volume(vtd);
 
-// «Объем продукции» с подсветкой расхождения — базовая колонка скрывается
 volumeVDInvoiceGestori 'Объем продукции' (VetDocument s) = volume(s);
 
 EXTEND FORM Purchase.invoices
@@ -1250,7 +1208,6 @@ DESIGN Purchase.invoices {
 returnIncomingGestori (IncomingConsignment c) =
     TRUE IF NUMERIC[16,5](OVERRIDE processVolume(c), 0.0) < volumeVetDocument(c);
 
-// действия по строке входящей партии
 processCheckRowInvoiceGestori 'Получить условия регионализации' (Purchase.InvoiceDetail vd, VetDocument vtd) {
     processCheck(VetisPurchase.incomingConsignment(vd, vtd));
 }
@@ -1259,7 +1216,6 @@ showRegionalizationRowInvoiceGestori 'Показать условия регио
     showRegionalizationConditions(VetisPurchase.incomingConsignment(vd, vtd));
 }
 
-// время/статус запроса условий и признаки доступности действий по строке партии
 issueDateCheckInvoiceGestori 'Время получения условий регионализации' (Purchase.InvoiceDetail vd, VetDocument vtd) =
     issueDateLastCheckRequest(VetisPurchase.incomingConsignment(vd, vtd));
 nameStatusCheckInvoiceGestori 'Статус получения условий регионализации' (Purchase.InvoiceDetail vd, VetDocument vtd) =
@@ -1281,7 +1237,6 @@ hasRegionalizationRowInvoiceGestori (Purchase.InvoiceDetail vd, VetDocument vtd)
     hasRegionalization(VetisPurchase.incomingConsignment(vd, vtd))
     AND returnIncomingGestori(VetisPurchase.incomingConsignment(vd, vtd));
 
-// по документу: партии с возвратом, по которым получение условий не заблокировано
 toProcessCheckInvoiceGestori (Purchase.Invoice i) = GROUP SUM 1 IF
     toProcessCheckRowInvoiceGestori(Purchase.InvoiceDetail d, VetDocument vtd) AND Purchase.invoice(d) = i;
 
@@ -1299,13 +1254,11 @@ EXTEND FORM Purchase.invoices
 
 // ---- Статус ВЕТИС по накладной закупки ----
 
-// строка накладной с подконтрольной продукцией
 controlledDetailGestori (Purchase.InvoiceDetail d) = controlledProduct(sku(d));
 
 // по строке отправлялся запрос в Ветис — есть время последней заявки хотя бы по одной паре «строка — ВСД»
 requestedDetailGestori (Purchase.InvoiceDetail d) = GROUP SUM 1 IF issueDateLastRequest(d, VetDocument vtd);
 
-// строка связана с погашенным ВСД
 utilizedDetailGestori (Purchase.InvoiceDetail d) =
     GROUP SUM 1 IF VetisPurchase.volume(d, VetDocument vtd) AND status(vtd) == VetDocumentStatus.UTILIZED;
 
@@ -1328,10 +1281,8 @@ EXTEND FORM Purchase.invoices
 
 // ---- Форма накладной, вкладка ВЕТИС ----
 
-// объём (поставлено) по строке = фактическое количество × вес единицы товара
 volumeShippedGestori 'Объем (поставлено)' (Purchase.UserInvoiceDetail d) = NUMERIC[16,5](shipmentQuantity(d) * netWeight(sku(d)));
 
-// расхождение объёма поставлено с объёмом по строке (пустые значения считаются нулём)
 diffVolumeShippedInvoiceGestori (Purchase.UserInvoiceDetail d) =
     (OVERRIDE volumeShippedGestori(d), 0.0) != (OVERRIDE VetisPurchase.volumeVetDocument(d), 0.0);
 
@@ -1345,7 +1296,6 @@ EXTEND FORM Purchase.userInvoice
         FILTER 'Расхождение объемов' diffVolumeVDInvoiceGestori(vd, vtd)
 ;
 
-// «Объем продукции» с подсветкой расхождения — базовая колонка скрывается
 EXTEND FORM Purchase.userInvoice
     PROPERTIES READONLY volumeVDCardInvoiceGestori = volumeVDInvoiceGestori(vtd)
         BACKGROUND (RGB(255,200,200) IF diffVolumeVDInvoiceGestori(vd, vtd)) BEFORE expiryDate(vtd)
@@ -1359,17 +1309,19 @@ DESIGN Purchase.userInvoice {
     PROPERTY(volume(vtd)) { hide = TRUE; }
 }
 
-// суммарный объём по строкам ВСД не должен превышать объём продукции
 CONSTRAINT totalVolumeVDGestori(VetDocument s) > volume(s)
     MESSAGE 'Суммарный объём по строкам, связанным с ВСД, превышает объём продукции';
 
-// ---- Запрет проведения накладной закупки (п. 2.18) ----
+waybillNumberInvoiceGestori 'Номер ТТН' = ABSTRACT STRING[48] (Purchase.UserInvoice);
 
-// ВСД считается непогашенным, пока по нему не пришёл статус «Погашен»;
-// аннулированные ВСД погасить нельзя, поэтому проведению они не мешают
+inWaybillVDGestori (Purchase.UserInvoice i, VetDocument vtd) =
+    TRUE IF waybillNumberInvoiceGestori(i) AND issueSeriesNumberWaybillGestori(vtd) == waybillNumberInvoiceGestori(i);
+
 notUtilizedVDInvoiceGestori (Purchase.UserInvoiceDetail d, VetDocument vtd) =
     VetisPurchase.volume(d, vtd) AND NOT status(vtd) == VetDocumentStatus.UTILIZED
-                                 AND NOT status(vtd) == VetDocumentStatus.WITHDRAWN;
+                                 AND NOT status(vtd) == VetDocumentStatus.WITHDRAWN
+                                 AND (inWaybillVDGestori(Purchase.userInvoice(d), vtd)
+                                      OR NOT waybillNumberInvoiceGestori(Purchase.userInvoice(d)));
 
 countNotUtilizedInvoiceGestori (Purchase.UserInvoice i) =
     GROUP SUM 1 IF notUtilizedVDInvoiceGestori(Purchase.UserInvoiceDetail d, VetDocument vtd) BY Purchase.userInvoice(d);
@@ -1380,18 +1332,48 @@ CONSTRAINT SET(isPosted(Purchase.UserInvoice i)) AND countNotUtilizedInvoiceGest
             (' (срок годности истёк)' IF expiredGestori(vtd))), '; '
          ORDER d, vtd IF notUtilizedVDInvoiceGestori(d, vtd) AND Purchase.userInvoice(d) == i);
 
-// расхождение объёма между строкой накладной и связанными с ней ВСД, в процентах от объёма поставлено;
-// если объём поставлено не задан, а по ВСД он есть, расхождение считается полным
+hasVDInvoiceGestori (Purchase.UserInvoiceDetail d) = GROUP SUM 1 IF VetisPurchase.volume(d, VetDocument vtd);
+
+countLinkedVDInvoiceGestori (Purchase.UserInvoice i) =
+    GROUP SUM 1 IF hasVDInvoiceGestori(Purchase.UserInvoiceDetail d) BY Purchase.userInvoice(d);
+
+noVDInvoiceGestori (Purchase.UserInvoiceDetail d) = controlledDetailGestori(d) AND NOT hasVDInvoiceGestori(d);
+
+countNoVDInvoiceGestori (Purchase.UserInvoice i) =
+    GROUP SUM 1 IF noVDInvoiceGestori(Purchase.UserInvoiceDetail d) BY Purchase.userInvoice(d);
+
+CONSTRAINT SET(isPosted(Purchase.UserInvoice i)) AND countNoVDInvoiceGestori(i)
+    MESSAGE 'Нельзя провести накладную: по подконтрольной продукции не выбран ВСД: ' +
+        (GROUP CONCAT Purchase.nameSku(Purchase.UserInvoiceDetail d), '; '
+         ORDER d IF noVDInvoiceGestori(d) AND Purchase.userInvoice(d) == i);
+
+volumeOwnVDInvoiceGestori (Purchase.UserInvoiceDetail d) =
+    GROUP SUM VetisPurchase.volume(d, VetDocument vtd) IF inWaybillVDGestori(Purchase.userInvoice(d), vtd)
+        OR NOT waybillNumberInvoiceGestori(Purchase.userInvoice(d));
+
 percentDiffVolumeInvoiceGestori (Purchase.UserInvoiceDetail d) = CASE
     WHEN volumeShippedGestori(d) > 0.0 THEN
-        NUMERIC[16,5](abs(volumeShippedGestori(d) (-) VetisPurchase.volumeVetDocument(d)) * 100.0 / volumeShippedGestori(d))
-    WHEN VetisPurchase.volumeVetDocument(d) > 0.0 THEN 100.0;
+        NUMERIC[16,5](abs(volumeShippedGestori(d) (-) volumeOwnVDInvoiceGestori(d)) * 100.0 / volumeShippedGestori(d))
+    WHEN volumeOwnVDInvoiceGestori(d) > 0.0 THEN 100.0;
 
 maxPercentDiffVolumeGestori 'Допустимое расхождение объема с ВСД, %' = DATA NUMERIC[8,2] ();
 EXTEND FORM options PROPERTIES() maxPercentDiffVolumeGestori;
 
 overPercentDiffVolumeInvoiceGestori (Purchase.UserInvoiceDetail d) =
-    VetisPurchase.volumeVetDocument(d) AND percentDiffVolumeInvoiceGestori(d) > (OVERRIDE maxPercentDiffVolumeGestori(), 5.0);
+    volumeOwnVDInvoiceGestori(d) AND netWeight(sku(d)) > 0.0
+        AND percentDiffVolumeInvoiceGestori(d) > (OVERRIDE maxPercentDiffVolumeGestori(), 5.0);
+
+// без веса единицы товара объём поставлено не считается, и расхождение с ВСД вышло бы полным
+noNetWeightInvoiceGestori (Purchase.UserInvoiceDetail d) =
+    volumeOwnVDInvoiceGestori(d) AND NOT netWeight(sku(d)) > 0.0;
+
+countNoNetWeightInvoiceGestori (Purchase.UserInvoice i) =
+    GROUP SUM 1 IF noNetWeightInvoiceGestori(Purchase.UserInvoiceDetail d) BY Purchase.userInvoice(d);
+
+CONSTRAINT SET(isPosted(Purchase.UserInvoice i)) AND countNoNetWeightInvoiceGestori(i)
+    MESSAGE 'Нельзя провести накладную: не заполнен вес единицы товара, расхождение с ВСД не рассчитать: ' +
+        (GROUP CONCAT Purchase.nameSku(Purchase.UserInvoiceDetail d), '; '
+         ORDER d IF noNetWeightInvoiceGestori(d) AND Purchase.userInvoice(d) == i);
 
 countOverPercentDiffInvoiceGestori (Purchase.UserInvoice i) =
     GROUP SUM 1 IF overPercentDiffVolumeInvoiceGestori(Purchase.UserInvoiceDetail d) BY Purchase.userInvoice(d);
@@ -1400,24 +1382,13 @@ CONSTRAINT SET(isPosted(Purchase.UserInvoice i)) AND countOverPercentDiffInvoice
     MESSAGE 'Нельзя провести накладную: расхождение объема со связанными ВСД больше допустимого по строкам: ' +
         (GROUP CONCAT (CONCAT '', Purchase.nameSku(Purchase.UserInvoiceDetail d), ' (поставлено ',
             STRING(NUMERIC[16,5](OVERRIDE volumeShippedGestori(d), 0.0)), ', по ВСД ',
-            STRING(NUMERIC[16,5](OVERRIDE VetisPurchase.volumeVetDocument(d), 0.0)), ')'), '; '
+            STRING(NUMERIC[16,5](OVERRIDE volumeOwnVDInvoiceGestori(d), 0.0)), ')'), '; '
          ORDER d IF overPercentDiffVolumeInvoiceGestori(d) AND Purchase.userInvoice(d) == i);
 
-// ---- Накладная закупки: работа с ВСД по номеру товарно-транспортной накладной ----
-
-// номер ТТН — реквизит проекта, реализуется в клиентских модулях
-waybillNumberInvoiceGestori 'Номер ТТН' = ABSTRACT STRING[48] (Purchase.UserInvoice);
-
-// ВСД выписан по этой ТТН (поле «Накладная» ВСД совпадает с номером ТТН накладной)
-inWaybillVDGestori (Purchase.UserInvoice i, VetDocument vtd) =
-    TRUE IF waybillNumberInvoiceGestori(i) AND issueSeriesNumberWaybillGestori(vtd) == waybillNumberInvoiceGestori(i);
-
-// номенклатура ВСД не связана с товаром системы либо связана с товаром, которого нет в накладной
 noSkuInInvoiceVDGestori (Purchase.UserInvoice i, VetDocument vtd) = TRUE IF vtd IS VetDocument AND
     NOT (GROUP SUM 1 IF in(Item.Item it, productItem(vtd))
          AND (GROUP SUM 1 IF sku(Purchase.UserInvoiceDetail d) == it AND Purchase.userInvoice(d) == i));
 
-// ВСД по ТТН, которые не удастся сопоставить со строками накладной
 problemWaybillVDGestori (Purchase.UserInvoice i, VetDocument vtd) =
     inWaybillVDGestori(i, vtd) AND noSkuInInvoiceVDGestori(i, vtd);
 
@@ -1453,11 +1424,9 @@ showWaybillVDGestori (Purchase.UserInvoice i, VetDocumentType t) {
 
 // ---- Аннулированные возвратные ВСД ----
 
-// возвратный ВСД, аннулированный в Меркурии
 withdrawnReturnVDGestori (VetDocument d) =
     TRUE IF status(d) == VetDocumentStatus.WITHDRAWN AND type(d) == VetDocumentType.RETURNABLE;
 
-// такие ВСД доступны для связи со строками накладной наравне с подтверждёнными
 extraLinkVetDocumentVetis(VetDocument d) += withdrawnReturnVDGestori(d);
 
 VetisPurchase.overMatches(Purchase.UserInvoiceDetail vd, VetDocument vtd) += withdrawnReturnVDGestori(vtd)
@@ -1465,16 +1434,13 @@ VetisPurchase.overMatches(Purchase.UserInvoiceDetail vd, VetDocument vtd) += wit
     AND consigneeBusinessEntity(vtd) == businessEntity(Purchase.supplier(vd))
     AND in(sku(vd), productItem(vtd));
 
-// заявка на аннуляцию, которая ещё выполняется или уже выполнена; завершившиеся ошибкой не в счёт — их можно повторить
 activeWithdrawVDGestori (VetDocument d) = GROUP MAX WithdrawVetDocumentRequest r
     IF vetDocument(r) == d AND (notCompleted(r) OR succeeded(r));
 
-// аннулировать можно только подтверждённый возвратный ВСД, по которому нет действующей заявки на аннуляцию
 canWithdrawReturnVDGestori (VetDocument d) =
     TRUE IF type(d) == VetDocumentType.RETURNABLE AND status(d) == VetDocumentStatus.CONFIRMED AND NOT activeWithdrawVDGestori(d);
 
 withdrawReturnVDGestori 'Аннулировать' (VetDocument d) {
-    // проверка до открытия диалога: данные на форме могут быть уже устаревшими
     IF activeWithdrawVDGestori(d) THEN {
         MESSAGE 'По ВСД ' + (OVERRIDE uuid(d), '') + ' запрос на аннуляцию уже ' +
             (IF succeeded(activeWithdrawVDGestori(d)) THEN 'выполнен' ELSE 'отправлен и ещё обрабатывается') NOWAIT;
@@ -1483,12 +1449,10 @@ withdrawReturnVDGestori 'Аннулировать' (VetDocument d) {
     withdraw(d);
 }
 
-// строка, связанная с аннулированным возвратным ВСД, других связей иметь не должна
 CONSTRAINT VetisPurchase.volume(Purchase.UserInvoiceDetail d, VetDocument vtd) AND withdrawnReturnVDGestori(vtd)
     AND (GROUP SUM 1 IF VetisPurchase.volume(d, VetDocument vtd2) AND NOT vtd2 == vtd)
     MESSAGE 'Аннулированный возвратный ВСД нельзя связать со строкой, уже связанной с другим ВСД';
 
-// гашение по аннулированному ВСД не отправляем (страховка для путей помимо кнопки «Отправить в ВЕТИС»)
 beforeProcessIncomingConsignment(IncomingConsignment c) + {
     IF status(vetDocument(c)) == VetDocumentStatus.WITHDRAWN THEN {
         MESSAGE 'Нельзя отправить запрос на гашение ВСД ' + (OVERRIDE uuid(vetDocument(c)), '') + ': ВСД аннулирован.';
@@ -1496,7 +1460,6 @@ beforeProcessIncomingConsignment(IncomingConsignment c) + {
     }
 }
 
-// возвратные ВСД по номеру ТТН, не связанные ни с одной строкой накладной
 hasUnlinkedReturnVDGestori (Purchase.UserInvoice i) = GROUP SUM 1
     IF inWaybillVDGestori(i, VetDocument vtd) AND type(vtd) == VetDocumentType.RETURNABLE
     AND NOT (GROUP SUM 1 IF VetisPurchase.volume(Purchase.UserInvoiceDetail d, vtd) AND Purchase.userInvoice(d) == i);
@@ -1519,7 +1482,6 @@ showReturnWaybillVDGestori 'Возвратные ВСД' (Purchase.UserInvoice i
 
 // ---- Заявки в Ветис, связанные с накладной закупки ----
 
-// накладная, к которой относится входящая партия
 invoiceIncomingGestori (IncomingConsignment c) = GROUP MAX Purchase.userInvoice(Purchase.UserInvoiceDetail d)
     IF VetisPurchase.incomingConsignment(d, VetDocument vtd) == c;
 
@@ -1579,22 +1541,17 @@ EXTEND FORM Purchase.userInvoice
 
 // ---- Накладные продажи, вкладка ВЕТИС (записи журнала / исходящие партии) ----
 
-// объём (поставлено) по строке = фактическое количество × вес единицы товара
 volumeShippedSaleGestori 'Объем (поставлено)' (Sale.InvoiceDetail d) = NUMERIC[16,5](shipmentQuantity(d) * netWeight(sku(d)));
 
-// суммарный объём по строкам, связанным с записью журнала, по которым ещё не созданы ВСД
 totalVolumeSEGestori 'Объем всего' (StockEntry se) = GROUP SUM VetisSale.volume(Sale.UserInvoiceDetail d, se) IF NOT VetisSale.vetDocument(d, se);
 
-// по исходящей партии создан ВСД или отправлен запрос на формирование транспортной партии (кроме завершившихся ошибкой)
 lockedOutgoingGestori (OutgoingConsignment oc) =
     TRUE IF notCompleted(lastRequest(oc)) OR succeeded(lastRequest(oc)) OR vetDocument(oc);
 
-// строка заблокирована: по исходящей партии отправлен запрос (кроме завершившихся ошибкой) или сформирована транспортная партия (есть ВСД)
 seVolumeLockedSaleGestori (Sale.UserInvoiceDetail d) = GROUP SUM 1 IF VetisSale.outgoingConsignment(d, StockEntry se) IS OutgoingConsignment
     AND (notCompleted(lastRequest(VetisSale.outgoingConsignment(d, se))) OR succeeded(lastRequest(VetisSale.outgoingConsignment(d, se)))
          OR vetDocument(VetisSale.outgoingConsignment(d, se)));
 
-// расхождение объёма поставлено с объёмом по строке (пустые значения считаются нулём)
 diffVolumeShippedSaleGestori (Sale.UserInvoiceDetail d) =
     (OVERRIDE volumeShippedSaleGestori(d), 0.0) != (OVERRIDE VetisSale.volumeStockEntry(d), 0.0);
 // связь «многие ко многим»: строка не сходится, если объём поставлено отличается от суммарного объёма
@@ -1640,7 +1597,6 @@ DESIGN Sale.invoices {
 
 // ---- условия регионализации по исходящим партиям накладной продажи ----
 
-// действия по строке исходящей партии
 processCheckRowSaleGestori 'Получить условия регионализации' (Sale.InvoiceDetail vd, StockEntry se) {
     processCheck(VetisSale.outgoingConsignment(vd, se));
 }
@@ -1649,7 +1605,6 @@ showRegionalizationRowSaleGestori 'Показать условия регион�
     showRegionalizationConditions(VetisSale.outgoingConsignment(vd, se));
 }
 
-// время/статус запроса условий и признаки доступности действий по строке партии
 issueDateCheckSaleGestori 'Время получения условий регионализации' (Sale.InvoiceDetail vd, StockEntry se) =
     issueDateLastCheckRequest(VetisSale.outgoingConsignment(vd, se));
 nameStatusCheckSaleGestori 'Статус получения условий регионализации' (Sale.InvoiceDetail vd, StockEntry se) =
@@ -1669,7 +1624,6 @@ toProcessCheckRowSaleGestori (Sale.InvoiceDetail vd, StockEntry se) =
 hasRegionalizationRowSaleGestori (Sale.InvoiceDetail vd, StockEntry se) =
     hasRegionalization(VetisSale.outgoingConsignment(vd, se));
 
-// по документу: партии, по которым получение условий не заблокировано
 toProcessCheckSaleGestori (Sale.Invoice i) = GROUP SUM 1 IF
     VetisSale.outgoingConsignment(Sale.InvoiceDetail d, StockEntry se) IS OutgoingConsignment
     AND NOT lockedCheckOutgoingGestori(VetisSale.outgoingConsignment(d, se)) AND Sale.invoice(d) = i;
@@ -1682,7 +1636,6 @@ processCheckSaleGestori 'Получить условия регионализа�
     in(OutgoingConsignment oc) <- NULL;
 }
 
-// исходящие партии накладной: всего и те, по которым ещё нет ВСД и отправленных запросов
 hasOutgoingSaleGestori (Sale.Invoice i) = GROUP SUM 1 IF
     VetisSale.outgoingConsignment(Sale.InvoiceDetail d, StockEntry se) IS OutgoingConsignment AND Sale.invoice(d) = i;
 
@@ -1712,11 +1665,9 @@ CONSTRAINT CHANGED(VetisSale.volume(Sale.UserInvoiceDetail d, StockEntry se)) AN
     MESSAGE 'Суммарный объём по строкам, связанным с записью журнала, превышает текущий остаток записи журнала'
     PROPERTIES guidSEGestori(se), numberSEGestori(se), volumeSEGestori(se), nameProductItemSEGestori(se);
 
-// суммарный объём по связанным записям журнала не может превышать объём по строке
 CONSTRAINT VetisSale.volumeStockEntry(Sale.UserInvoiceDetail d) > volumeShippedSaleGestori(d)
     MESSAGE 'Суммарный объём по записям журнала превышает объём по строке накладной';
 
-// запрет изменения количества и объёма по записям журнала после отправки запроса/формирования транспортной партии
 CONSTRAINT CHANGED(shipmentQuantity(Sale.UserInvoiceDetail d)) AND seVolumeLockedSaleGestori(d) AND NOT CHANGED(seVolumeLockedSaleGestori(d))
     MESSAGE 'Нельзя изменить количество: по исходящим партиям отправлены запросы в Ветис или сформирована транспортная партия';
 CONSTRAINT CHANGED(VetisSale.volume(Sale.UserInvoiceDetail d, StockEntry se)) AND seVolumeLockedSaleGestori(d) AND NOT CHANGED(seVolumeLockedSaleGestori(d))
@@ -1726,7 +1677,6 @@ WHEN CHANGED(shipmentQuantity(Sale.UserInvoiceDetail d)) AND VetisSale.volume(d,
         AND NOT seVolumeLockedSaleGestori(d) DO
     VetisSale.fillVolume(d, se);
 
-// если связей с записями журнала ещё нет — при изменении количества заполнить позицию автоматически
 WHEN CHANGED(shipmentQuantity(Sale.UserInvoiceDetail d)) AND NOT VetisSale.volumeStockEntry(d) DO
     VetisSale.volume(d, StockEntry se) <- NUMERIC[16,5](VetisSale.calcQuantity(d, se) * (OVERRIDE factor(sku(d), Vetis.unit(se)), 1.0));
 
@@ -1743,7 +1693,6 @@ EXTEND FORM applicationRequests
     FILTERS NOT filterSaleInvoiceRequestGestori() OR invoiceSaleRequestGestori(r) = filterSaleInvoiceRequestGestori()
 ;
 
-// кнопка на накладной продажи: заявки, отфильтрованные по накладной
 showVetisRequestsSaleGestori 'Заявки' (Sale.Invoice i) {
     filterSaleInvoiceRequestGestori() <- i;
     SHOW applicationRequests;
@@ -1755,19 +1704,15 @@ EXTEND FORM Sale.userInvoice
 
 // ---- Накладные закупки (возврат), вкладка ВЕТИС (записи журнала / исходящие партии) ----
 
-// объём (поставлено) по строке = фактическое количество × вес единицы товара
 volumeShippedReturnGestori 'Объем (поставлено)' (PurchaseReturn.InvoiceDetail d) = NUMERIC[16,5](shipmentQuantity(d) * netWeight(sku(d)));
 
-// суммарный объём по строкам, связанным с записью журнала, по которым ещё не созданы ВСД
 totalVolumeSEReturnGestori 'Объем всего' (StockEntry se) =
     GROUP SUM VetisPurchaseReturn.volume(PurchaseReturn.UserInvoiceDetail d, se) IF NOT VetisPurchaseReturn.vetDocument(d, se);
 
-// строка заблокирована: по исходящей партии отправлен запрос (кроме завершившихся ошибкой) или сформирована транспортная партия (есть ВСД)
 seVolumeLockedReturnGestori (PurchaseReturn.UserInvoiceDetail d) = GROUP SUM 1 IF VetisPurchaseReturn.outgoingConsignment(d, StockEntry se) IS OutgoingConsignment
     AND (notCompleted(lastRequest(VetisPurchaseReturn.outgoingConsignment(d, se))) OR succeeded(lastRequest(VetisPurchaseReturn.outgoingConsignment(d, se)))
          OR vetDocument(VetisPurchaseReturn.outgoingConsignment(d, se)));
 
-// расхождение объёма поставлено с объёмом по строке (пустые значения считаются нулём)
 diffVolumeShippedReturnGestori (PurchaseReturn.UserInvoiceDetail d) =
     (OVERRIDE volumeShippedReturnGestori(d), 0.0) != (OVERRIDE VetisPurchaseReturn.volumeStockEntry(d), 0.0);
 // связь «многие ко многим»: строка не сходится, если объём поставлено отличается от суммарного объёма
@@ -1818,7 +1763,6 @@ CONSTRAINT CHANGED(VetisPurchaseReturn.volume(PurchaseReturn.UserInvoiceDetail d
 
 // ---- условия регионализации по исходящим партиям накладной закупки (возврат) ----
 
-// действия по строке исходящей партии
 processCheckRowReturnGestori 'Получить условия регионализации' (PurchaseReturn.InvoiceDetail vd, StockEntry se) {
     processCheck(VetisPurchaseReturn.outgoingConsignment(vd, se));
 }
@@ -1827,7 +1771,6 @@ showRegionalizationRowReturnGestori 'Показать условия регио�
     showRegionalizationConditions(VetisPurchaseReturn.outgoingConsignment(vd, se));
 }
 
-// по документу: партии, по которым получение условий не заблокировано (в т.ч. повторное — актуализация)
 toProcessCheckReturnGestori (PurchaseReturn.Invoice i) = GROUP SUM 1 IF
     VetisPurchaseReturn.outgoingConsignment(PurchaseReturn.InvoiceDetail d, StockEntry se) IS OutgoingConsignment
     AND NOT lockedCheckOutgoingGestori(VetisPurchaseReturn.outgoingConsignment(d, se)) AND PurchaseReturn.invoice(d) = i;
@@ -1840,7 +1783,6 @@ processCheckReturnGestori 'Получить условия регионализ�
     in(OutgoingConsignment oc) <- NULL;
 }
 
-// время/статус запроса условий и признаки доступности действий по строке партии
 issueDateCheckReturnGestori 'Время получения условий регионализации' (PurchaseReturn.InvoiceDetail vd, StockEntry se) =
     issueDateLastCheckRequest(VetisPurchaseReturn.outgoingConsignment(vd, se));
 nameStatusCheckReturnGestori 'Статус получения условий регионализации' (PurchaseReturn.InvoiceDetail vd, StockEntry se) =
@@ -1862,11 +1804,9 @@ DESIGN PurchaseReturn.invoices {
     PROPERTY(uuidVetDocument(vd, se)) { caption = 'GUID ВСД'; }
 }
 
-// суммарный объём по связанным записям журнала не может превышать объём по строке
 CONSTRAINT VetisPurchaseReturn.volumeStockEntry(PurchaseReturn.UserInvoiceDetail d) > volumeShippedReturnGestori(d)
     MESSAGE 'Суммарный объём по записям журнала превышает объём по строке накладной';
 
-// запрет изменения количества и объёма по записям журнала после отправки запроса/формирования транспортной партии
 CONSTRAINT CHANGED(shipmentQuantity(PurchaseReturn.UserInvoiceDetail d)) AND seVolumeLockedReturnGestori(d) AND NOT CHANGED(seVolumeLockedReturnGestori(d))
     MESSAGE 'Нельзя изменить количество: по исходящим партиям отправлены запросы в Ветис или сформирована транспортная партия';
 CONSTRAINT CHANGED(VetisPurchaseReturn.volume(PurchaseReturn.UserInvoiceDetail d, StockEntry se)) AND seVolumeLockedReturnGestori(d) AND NOT CHANGED(seVolumeLockedReturnGestori(d))
@@ -1885,7 +1825,6 @@ EXTEND FORM applicationRequests
     FILTERS NOT filterReturnInvoiceRequestGestori() OR invoiceReturnRequestGestori(r) = filterReturnInvoiceRequestGestori()
 ;
 
-// кнопка на накладной закупки (возврат): заявки, отфильтрованные по накладной
 showVetisRequestsReturnGestori 'Заявки' (PurchaseReturn.Invoice i) {
     filterReturnInvoiceRequestGestori() <- i;
     SHOW applicationRequests;
@@ -1902,12 +1841,10 @@ EXTEND FORM PurchaseReturn.userInvoice
 vsdVolumeLockedSaleReturnGestori (SaleReturn.UserInvoiceDetail vd) =
     GROUP SUM 1 IF VetisSaleReturn.incomingConsignment(vd, VetDocument vtd) IS Vetis.IncomingConsignment AND NOT VetisSaleReturn.toProcess(vd, vtd);
 
-// вкладка ВСД: колонка «Накладная» из issueSeriesNumberWaybillGestori
 EXTEND FORM SaleReturn.userInvoice
     PROPERTIES(vtd) READONLY issueSeriesNumberWaybillGestori AFTER issueSeriesNumberWaybill(vtd)
 ;
 
-// количество по позиции нельзя менять после проведения накладной либо после отправки заявки/гашения
 CONSTRAINT CHANGED(shipmentQuantity(SaleReturn.UserInvoiceDetail vd)) AND isPosted(vd) AND NOT CHANGED(isPosted(vd))
     MESSAGE 'Нельзя изменить количество: накладная проведена';
 CONSTRAINT CHANGED(shipmentQuantity(SaleReturn.UserInvoiceDetail vd)) AND vsdVolumeLockedSaleReturnGestori(vd)
@@ -1919,11 +1856,9 @@ lockedPostedSaleReturnGestori (SaleReturn.UserInvoice i) =
     GROUP SUM 1 IF VetisSaleReturn.volume(SaleReturn.UserInvoiceDetail vd, VetDocument vtd) AND SaleReturn.userInvoice(vd) = i;
 CONSTRAINT DROPPED(isPosted(SaleReturn.UserInvoice i)) AND lockedPostedSaleReturnGestori(i)
     MESSAGE 'Нельзя отменить проведение: по позициям сформированы входящие партии или отправлены заявки в Ветис';
-// объём по ВСД нельзя менять после отправки заявки в Ветис (кроме завершившихся ошибкой) или гашения
 CONSTRAINT CHANGED(VetisSaleReturn.volume(SaleReturn.UserInvoiceDetail vd, VetDocument vtd)) AND vsdVolumeLockedSaleReturnGestori(vd)
     MESSAGE 'Нельзя изменить объём по ВСД: отправлена заявка в Ветис или выполнено гашение';
 
-// позицию нельзя удалить, пока накладная проведена либо по позиции отправлена заявка или выполнено гашение
 // поля удаляемой позиции для таблицы в сообщении — значения на момент до удаления
 // параметры не типизированы: класс проверяется в PREV, иначе для удалённого объекта значения были бы NULL
 numberDroppedSaleReturnGestori 'Номер' (vd) = SaleReturn.number(PREV(SaleReturn.userInvoice[SaleReturn.UserInvoiceDetail](vd)));
@@ -1939,7 +1874,6 @@ CONSTRAINT DROPPED(vd IS SaleReturn.UserInvoiceDetail) AND isPosted(PREV(SaleRet
 CONSTRAINT DROPPED(vd IS SaleReturn.UserInvoiceDetail) AND PREV(vsdVolumeLockedSaleReturnGestori(vd))
     MESSAGE 'Нельзя удалить позицию: по ней отправлена заявка в Ветис или выполнено гашение';
 
-// связанный со строкой объём не может превышать объём продукции по ВСД
 uuidVDMessageGestori 'UUID ВСД' (VetDocument s) = uuid(s);
 volumeRowSaleReturnGestori 'Объем по строке' (SaleReturn.UserInvoiceDetail vd, VetDocument vtd) = VetisSaleReturn.volume(vd, vtd);
 nameOperationSaleReturnGestori 'Наименование операции' (SaleReturn.UserInvoiceDetail vd) = SaleReturn.nameOperation(SaleReturn.userInvoice(vd));
@@ -1955,10 +1889,8 @@ CONSTRAINT VetisSaleReturn.volume(SaleReturn.UserInvoiceDetail vd, VetDocument v
         indexSaleReturnGestori(vd), idSkuSaleReturnGestori(vd), nameSkuSaleReturnGestori(vd),
         uuidVDMessageGestori(vtd), volume(vtd), volumeRowSaleReturnGestori(vd, vtd);
 
-// число позиций накладной, связанных с данным ВСД (по объёму)
 countDetailVDSaleReturnGestori (SaleReturn.UserInvoice inv, VetDocument s) =
     GROUP SUM 1 IF VetisSaleReturn.volume(SaleReturn.UserInvoiceDetail d, s) >= 0 AND SaleReturn.userInvoice(d) = inv;
-// один ВСД нельзя связывать с разными накладными
 countInvoiceVDSaleReturnGestori (VetDocument s) = GROUP SUM 1 IF countDetailVDSaleReturnGestori(SaleReturn.UserInvoice inv, s);
 CONSTRAINT countInvoiceVDSaleReturnGestori(VetDocument s) > 1
     MESSAGE 'Один ВСД нельзя связывать с разными накладными';
@@ -1968,12 +1900,10 @@ CONSTRAINT forbidMultiDetailVDGestori() AND countDetailVDSaleReturnGestori(SaleR
     AND status(s) = VetDocumentStatus.CONFIRMED
     MESSAGE 'Нельзя связывать один ВСД с несколькими позициями одного документа';
 
-// при изменении количества по связанной с ВСД позиции пересчитывать выбранный объём
 WHEN CHANGED(shipmentQuantity(SaleReturn.UserInvoiceDetail vd)) AND VetisSaleReturn.volume(vd, VetDocument vtd) > 0
         AND NOT vsdVolumeLockedSaleReturnGestori(vd) DO
     VetisSaleReturn.fillVolume(vd, vtd);
 
-// суммарный принятый объём по всем строкам, связанным с ВСД
 totalVolumeVDSaleReturnGestori 'Объем всего' (VetDocument s) = GROUP SUM VetisSaleReturn.volume(SaleReturn.UserInvoiceDetail d, s);
 
 // связь «многие ко многим»: ВСД не сходится, если суммарный объём связанных с ним строк отличается от объёма продукции;
@@ -1981,7 +1911,6 @@ totalVolumeVDSaleReturnGestori 'Объем всего' (VetDocument s) = GROUP S
 diffVolumeVDSaleReturnGestori (SaleReturn.UserInvoiceDetail vd, VetDocument vtd) =
     VetisSaleReturn.volume(vd, vtd) AND (OVERRIDE totalVolumeVDSaleReturnGestori(vtd), 0.0) != volume(vtd);
 
-// «Объем продукции» с подсветкой расхождения — базовая колонка скрывается
 volumeVDSaleReturnGestori 'Объем продукции' (VetDocument s) = volume(s);
 
 // список накладных продажи (возврат): время/статус/ошибка заявки по ВСД — одинаковы для всех строк этого ВСД
@@ -2017,7 +1946,6 @@ DESIGN SaleReturn.invoices {
 
 // ---- Форма накладной продажи (возврат), вкладка ВЕТИС ----
 
-// объём (поставлено) по строке = фактическое количество × вес единицы товара
 volumeShippedSaleReturnGestori 'Объем (поставлено)' (SaleReturn.UserInvoiceDetail d) = NUMERIC[16,5](shipmentQuantity(d) * netWeight(sku(d)));
 
 // свободный остаток ВСД (без учёта текущей пары) и свободный остаток строки по «Объем (поставлено)»
@@ -2076,11 +2004,9 @@ DESIGN SaleReturn.userInvoice {
     PROPERTY(fillVolume(i)) { hide = TRUE; }
 }
 
-// расхождение объёма поставлено с объёмом, связанным с ВСД по строке (пустые значения считаются нулём)
 diffVolumeShippedSaleReturnGestori (SaleReturn.UserInvoiceDetail vd) =
     (OVERRIDE volumeShippedSaleReturnGestori(vd), 0.0) != (OVERRIDE VetisSaleReturn.volumeVetDocument(vd), 0.0);
 
-// суммарный объём по связанным со строкой ВСД не может превышать объём (поставлено) по строке
 totalVolumeRowSaleReturnGestori 'Объем по строке (сумма по ВСД)' (SaleReturn.UserInvoiceDetail vd) = VetisSaleReturn.volumeVetDocument(vd);
 
 CONSTRAINT VetisSaleReturn.volumeVetDocument(SaleReturn.UserInvoiceDetail vd) > (OVERRIDE volumeShippedSaleReturnGestori(vd), 0.0)
@@ -2146,18 +2072,15 @@ EXTEND FORM SaleReturn.userInvoice
         SHOWIF errorConsignmentSaleReturnGestori(vd, vtd) GRID
 ;
 
-// суммарный объём по строкам ВСД не должен превышать объём продукции
 CONSTRAINT totalVolumeVDSaleReturnGestori(VetDocument s) > volume(s)
     MESSAGE 'Суммарный объём по строкам, связанным с ВСД, превышает объём продукции'
     PROPERTIES uuidVDMessageGestori(s), nameProductItem(s), volume(s);
 
 // ---- Накладные продажи компании: ВСД в связанную накладную закупки ----
 
-// объём ВСД, оформленных по исходящим партиям строки накладной продажи
 volumeVDSaleInvoiceGestori (Sale.InvoiceDetail sd, VetDocument vtd) =
     GROUP SUM VetisSale.volume(sd, StockEntry se) IF vetDocument(VetisSale.outgoingConsignment(sd, se)) = vtd;
 
-// количество поставлено по строке накладной закупки
 shipmentQuantitySaleInvoiceGestori (SalePurchaseInvoice.PurchaseInvoiceDetail pd) = Purchase.shipmentQuantity(pd);
 
 // вес единицы товара в единицах измерения ВСД
@@ -2172,7 +2095,6 @@ VetisPurchase.volume(SalePurchaseInvoice.PurchaseInvoiceDetail pd, VetDocument v
         ORDER DESC volumeVDSaleInvoiceGestori(SalePurchaseInvoice.invoiceDetail(pd), vtd), vtd BY pd)
     * factorSaleInvoiceGestori(pd, vtd));
 
-// накладная закупки, созданная по накладной продажи
 purchaseInvoiceSaleGestori (Sale.Invoice i) = SalePurchaseInvoice.purchaseInvoice(i);
 
 // поставка по накладной закупки: без неё входящую партию оформлять нельзя
