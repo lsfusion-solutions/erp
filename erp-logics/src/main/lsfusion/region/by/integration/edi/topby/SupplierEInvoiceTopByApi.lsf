@@ -462,18 +462,17 @@ overReceiveBlrapn (EInvoiceMessage m, STRING[100] login, STRING[100] password, T
                     } ELSE {
                         logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice ' + deliveryNoteNumber(eInvoice(m)) + ' request succeeded');
                         invoiceMessagesSucceeded() <- invoiceMessagesSucceeded() + 1;
-                        NEWSESSION NESTED LOCAL {
-                            exportedBlrapnSupplier(eInvoice(m)) <- TRUE;
-                            NEW em = EInvoiceMessage {
-                                number(em) <- STRING[35](resultMilliseconds());
-                                eInvoice(em) <- eInvoice(m);
-                                dateTime(em) <- toDateTimeFormat(toChar(blrapnDateTime(),'yyyy-MM-ddThh24:mi:ss'),'yyyy-MM-ddThh24:mi:ss');
-                                code(em) <- blrapnCode();
-                                kind(em) <- EInvoiceMessageKind.out;
-                                type(em) <- type(m);
-                                XMLPath(em) <- archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
-                            }
-                            APPLY NESTED LOCAL;
+                        //в сессии ветки: вложенная сессия не видит сообщение m, созданное веткой и ещё не сохранённое,
+                        //поэтому eInvoice(m) в ней пусто и запись не проходит по NONULL
+                        exportedBlrapnSupplier(eInvoice(m)) <- TRUE;
+                        NEW em = EInvoiceMessage {
+                            number(em) <- STRING[35](resultMilliseconds());
+                            eInvoice(em) <- eInvoice(m);
+                            dateTime(em) <- toDateTimeFormat(toChar(blrapnDateTime(),'yyyy-MM-ddThh24:mi:ss'),'yyyy-MM-ddThh24:mi:ss');
+                            code(em) <- blrapnCode();
+                            kind(em) <- EInvoiceMessageKind.out;
+                            type(em) <- type(m);
+                            XMLPath(em) <- archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                         }
                     }
                 }

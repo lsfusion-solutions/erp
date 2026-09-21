@@ -124,22 +124,20 @@ signAndSendBlrapnCustomerEInvoice(EInvoice ei, STRING[100] login, STRING[100] pa
                         } ELSE {
                             logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice ' + deliveryNoteNumber(ei) + ' request succeeded');
                             IF interactive THEN MESSAGE provider + ' (' + login + ') Извещение о прочтении накладной ' + deliveryNoteNumber(ei) + ' выгружено' NOWAIT;
-//                            NEWSESSION NESTED LOCAL {
-                                exportedBlrapnCustomer(ei) <- TRUE;
-                                NEW em = EInvoiceMessage {
-                                    number(em) <- STRING[35](resultMilliseconds());
-                                    eInvoice(em) <- ei;
-                                    dateTime(em) <- toDateTimeFormat(toChar(blrapnDateTime(), 'yyyy-MM-ddThh24:mi:ss'), 'yyyy-MM-ddThh24:mi:ss');
-                                    code(em) <- blrapnCode();
-                                    kind(em) <- EInvoiceMessageKind.out;
-                                    type(em) <- IF isTN2(ei) THEN EInvoiceMessageType.blrapn_blrdln ELSE EInvoiceMessageType.blrapn_blrwbl;
-                                    XMLPath(em) <- outputDir + '/sent/invoices/' + toChar(currentDate(), 'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(), 'YYYY-MM-DD-HH24-MI-SS-MS');
-                                }
-                                APPLY NESTED LOCAL;
-                                IF canceled() THEN {
-                                    logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice: apply canceled ' + applyMessage());
-                                }
-//                            }
+                            exportedBlrapnCustomer(ei) <- TRUE;
+                            NEW em = EInvoiceMessage {
+                                number(em) <- STRING[35](resultMilliseconds());
+                                eInvoice(em) <- ei;
+                                dateTime(em) <- toDateTimeFormat(toChar(blrapnDateTime(), 'yyyy-MM-ddThh24:mi:ss'), 'yyyy-MM-ddThh24:mi:ss');
+                                code(em) <- blrapnCode();
+                                kind(em) <- EInvoiceMessageKind.out;
+                                type(em) <- IF isTN2(ei) THEN EInvoiceMessageType.blrapn_blrdln ELSE EInvoiceMessageType.blrapn_blrwbl;
+                                XMLPath(em) <- outputDir + '/sent/invoices/' + toChar(currentDate(), 'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(), 'YYYY-MM-DD-HH24-MI-SS-MS');
+                            }
+                            APPLY NESTED LOCAL;
+                            IF canceled() THEN {
+                                logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice: apply canceled ' + applyMessage());
+                            }
                         }
                     }
                 } ELSE {
@@ -941,18 +939,17 @@ overReceiveBlrapn (ECreditNoteMessage m, STRING[100] login, STRING[100] password
                         disableConfirmation(m) <- TRUE;
                     } ELSE {
                         logToFile('edi', provider + ' (' + login + ') SendBlrapnECreditNote ' + actDifNumber(eCreditNote(m)) + ' request succeeded');
-                        NEWSESSION NESTED LOCAL {
-                            exportedBlrapnCustomer(eCreditNote(m)) <- TRUE;
-                            NEW em = ECreditNoteMessage {
-                                number(em) <- STRING[35](resultMilliseconds());
-                                eCreditNote(em) <- eCreditNote(m);
-                                dateTime(em) <- toDateTimeFormat(toChar(blrapnDateTime(), 'yyyy-MM-ddThh24:mi:ss'), 'yyyy-MM-ddThh24:mi:ss');
-                                code(em) <- blrapnCode();
-                                kind(em) <- EInvoiceMessageKind.out;
-                                type(em) <- type(m);
-                                XMLPath(em) <- archiveDir + '/sent/invoices/' + toChar(currentDate(), 'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(), 'YYYY-MM-DD-HH24-MI-SS-MS');
-                            }
-                            APPLY NESTED LOCAL;
+                        //в сессии ветки: вложенная сессия не видит сообщение m, созданное веткой и ещё не сохранённое,
+                        //поэтому eCreditNote(m) в ней пусто и запись не проходит по NONULL
+                        exportedBlrapnCustomer(eCreditNote(m)) <- TRUE;
+                        NEW em = ECreditNoteMessage {
+                            number(em) <- STRING[35](resultMilliseconds());
+                            eCreditNote(em) <- eCreditNote(m);
+                            dateTime(em) <- toDateTimeFormat(toChar(blrapnDateTime(), 'yyyy-MM-ddThh24:mi:ss'), 'yyyy-MM-ddThh24:mi:ss');
+                            code(em) <- blrapnCode();
+                            kind(em) <- EInvoiceMessageKind.out;
+                            type(em) <- type(m);
+                            XMLPath(em) <- archiveDir + '/sent/invoices/' + toChar(currentDate(), 'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(), 'YYYY-MM-DD-HH24-MI-SS-MS');
                         }
                     }
                 } ELSE {
