@@ -44,8 +44,7 @@ unloadingWeightMethod 'Метод определения массы груза' 
 nameUnloadingWeightMethod 'Метод определения массы груза' (ETRN e) = name(unloadingWeightMethod(e)) CHARWIDTH 15;
 
 acceptedQuantityPlaces 'Общее количество принятых грузовых мест' = ABSTRACT INTEGER (ETRN);
-quantityPlacesETRNDetail = GROUP SUM quantityPlaces(ETRNDetail d) BY etrn(d);
-WHEN LOCAL CHANGED(quantityPlacesETRNDetail(ETRN e)) DO acceptedQuantityPlaces(e) <- quantityPlacesETRNDetail(e);
+// заполнение - ниже, после объявления полей строк
 acceptedCondition 'Общие сведения о фактическом состоянии груза, тары, упаковки, маркировки и опломбирования' = ABSTRACT STRING (ETRN) CHARWIDTH 15;
 WHEN LOCAL SET(ETRN e IS ETRN) DO acceptedCondition(e) <- 'Новое';
 grossWeightETRNDetail = GROUP SUM grossWeight(ETRNDetail d) BY etrn(d);
@@ -67,6 +66,18 @@ acceptedVolume 'Принятый объем, м3' = DATA NUMERIC[17,3](ETRNDetai
 acceptedNetWeight 'Принятая масса нетто, кг' = DATA NUMERIC[17,3](ETRNDetail);
 acceptedGrossWeight 'Принятая масса брутто, кг' = DATA NUMERIC[17,3](ETRNDetail);
 acceptedQuantityPallets 'Принято паллет' = DATA INTEGER (ETRNDetail);
+
+// -- Общее количество принятых мест: принятые по строкам, иначе заявленные из Т1, иначе 0.
+// Ноль выделен отдельно: GROUP SUM нулевой суммы возвращает NULL, а поставщики присылают КолМестГр="0"
+
+acceptedQuantityPlacesETRNDetail = GROUP SUM acceptedQuantityPlaces(ETRNDetail d) BY etrn(d);
+quantityPlacesETRNDetail = GROUP SUM quantityPlaces(ETRNDetail d) BY etrn(d);
+zeroQuantityPlacesETRNDetail = GROUP SUM 1 IF (acceptedQuantityPlaces(ETRNDetail d) == 0 OR quantityPlaces(d) == 0) BY etrn(d);
+
+calcAcceptedQuantityPlaces (ETRN e) = OVERRIDE acceptedQuantityPlacesETRNDetail(e), quantityPlacesETRNDetail(e),
+                                               0 IF zeroQuantityPlacesETRNDetail(e);
+
+WHEN LOCAL CHANGED(calcAcceptedQuantityPlaces(ETRN e)) DO acceptedQuantityPlaces(e) <- calcAcceptedQuantityPlaces(e);
 
 // -- Проверка обязательных полей титула Т3 (приказ ФНС, раздел VI)
 // Проверяется при отправке: черновик можно сохранять частично заполненным.
@@ -98,9 +109,15 @@ checkT3 (ETRN e) {
 // реализуется модулями-связками (например, определение склада грузополучателя по закупочной накладной)
 overPrepareT3 ABSTRACT LIST (ETRN);
 
-// партнёрство с перевозчиком (приглашение, если его нет) - у провайдера; итог - в counteragentT3Failed
+// партнёрство с перевозчиком (приглашение, если его нет) - у провайдера; итог - в counteragentT3Failed,
+// причина отказа - в counteragentT3Message (её пишет провайдер, показываем на документе)
 checkCounteragentT3 ABSTRACT CASE (ETRN);
 counteragentT3Failed = DATA LOCAL BOOLEAN ();
+// NESTED: причину читаем внутри NEWSESSION при записи в документ
+counteragentT3Message = DATA LOCAL NESTED TEXT ();
+
+// приглашение перевозчика в контрагенты отдельной кнопкой - реализация у провайдера
+inviteCarrier ABSTRACT CASE (ETRN);
 
 sendConsigneeSignedETRN 'Подписать и отправить Т3' (ETRN e) {
     checkProvider(e);
@@ -108,6 +125,7 @@ sendConsigneeSignedETRN 'Подписать и отправить Т3' (ETRN e) 
     // партнёрство - до проверки полей: приглашение уходит сразу, и пока пользователь дозаполняет
     // титул, перевозчик его принимает. Незаполненные поля показываем в тот же заход
     counteragentT3Failed() <- NULL;
+    counteragentT3Message() <- NULL;
     checkCounteragentT3(e);
     overPrepareT3(e);
     // подписант Т3 подтягивается с карточки нашей стороны; сохраняем сразу:
@@ -120,9 +138,28 @@ sendConsigneeSignedETRN 'Подписать и отправить Т3' (ETRN e) 
         APPLY;
     }
     IF NOT skipFieldCheckETRN() THEN checkT3(e);
-    IF counteragentT3Failed() OR (missingT3(e) AND NOT skipFieldCheckETRN()) THEN RETURN;
+    // раньше здесь был молчаливый RETURN: причину знал только провайдер, и то сообщением.
+    // Пишем её в документ - действие вызывается и планировщиком, где сообщения читать некому
+    IF counteragentT3Failed() THEN {
+        NEWSESSION {
+            exchangeMessage(e) <- OVERRIDE counteragentT3Message(),
+                TEXT('Т3 не отправлен: не подтверждено партнёрство с перевозчиком у провайдера ЭПД. Если приглашение отправлено, повторите отправку после того, как перевозчик его примет');
+            APPLY;
+        }
+        MESSAGE exchangeMessage(e) NOWAIT;
+        RETURN;
+    }
+    IF missingT3(e) AND NOT skipFieldCheckETRN() THEN RETURN;
     sendConsigneeSigned(e);
 } IMAGE 'apply.png';
+
+// приглашение отправляется и само, при отправке Т3; кнопка нужна, чтобы позвать перевозчика
+// заранее - партнёрство устанавливается не мгновенно, а без него провайдер титул не примет
+inviteCarrierETRN 'Пригласить перевозчика' (ETRN e) {
+    checkProvider(e);
+    IF NOT provider(e) THEN RETURN;
+    inviteCarrier(e);
+}
 
 // ------------------------- Формы ------------------------- //
 
@@ -131,13 +168,15 @@ accepted (ETRN e) = acceptResult(e) = ETRNAcceptResult.accepted;
 
 
 EXTEND FORM etrns
-    PROPERTIES(e) sendConsigneeSignedETRN SHOWIF (roleConsignee(e) AND NOT readonlyT3(e))
+    PROPERTIES(e) inviteCarrierETRN SHOWIF (roleConsignee(e) AND NOT readonlyT3(e)),
+                  sendConsigneeSignedETRN SHOWIF (roleConsignee(e) AND NOT readonlyT3(e))
 ;
 
 DESIGN etrns {
     actionsTab {
         NEW actionsT3 BEFORE actionsCommon {
             caption = 'Т3: Приемка (грузополучатель)';
+            MOVE PROPERTY(inviteCarrierETRN(e));
             MOVE PROPERTY(sendConsigneeSignedETRN(e));
         }
     }

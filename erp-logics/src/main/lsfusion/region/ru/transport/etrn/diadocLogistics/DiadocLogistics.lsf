@@ -250,8 +250,14 @@ DESIGN options {
 // после отказа POST-запроса
 acquireCounteragentSent = DATA LOCAL BOOLEAN ();
 
+// причина, по которой партнёрство не подтверждено - вызывающий пишет её в документ:
+// сообщений на экране для этого мало, документ обрабатывает и планировщик
+counteragentCheckMessage = DATA LOCAL NESTED TEXT ();
+
 diadocAcquireOrganization 'Пригласить в контрагенты Диадока' (Organization o, STRING myBoxGuid) {
     acquireCounteragentSent() <- NULL;
+    IF NOT userDiadocETRN() THEN
+        counteragentCheckMessage() <- 'Приглашение не отправлено: у пользователя не указан пользователь Диадока';
     FOR User u == userDiadocETRN() DO {
         getToken(u);
         LOCAL result = FILE ();
@@ -262,8 +268,9 @@ diadocAcquireOrganization 'Пригласить в контрагенты Диа
                 HEADERS httpHeadersToken PARAMS exportFile() TO result;
         } CATCH {
             fileToString(result(), 'UTF-8');
-            MESSAGE 'Не удалось отправить приглашение в контрагенты Диадока: ' +
-                (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException()) NOWAIT;
+            counteragentCheckMessage() <- TEXT('Не удалось отправить приглашение в контрагенты Диадока: ' +
+                (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException()));
+            MESSAGE counteragentCheckMessage() NOWAIT;
             RETURN;
         }
 
@@ -335,9 +342,17 @@ counteragentCheckPassed = DATA LOCAL BOOLEAN ();
 // приглашение стороне перевозки. У открытого ящика связь устанавливается сразу, поэтому
 // статус перезапрашиваем: тогда отправку документа прерывать незачем
 acquireCounteragentSide (Box counteragentBox, STRING myBoxGuid, STRING title, STRING side) {
+    IF NOT organization(counteragentBox) THEN
+        counteragentCheckMessage() <- TEXT('Приглашение не отправлено: у ящика стороны (' + side + ') нет организации в справочнике Диадока');
     FOR Organization org == organization(counteragentBox) DO
         diadocAcquireOrganization(org, myBoxGuid);
-    IF NOT acquireCounteragentSent() THEN RETURN;   // причина уже показана сообщением
+    IF NOT acquireCounteragentSent() THEN {
+        // причину обычно записал diadocAcquireOrganization; если нет - хотя бы сам факт
+        counteragentCheckMessage() <- OVERRIDE counteragentCheckMessage(),
+            TEXT('Приглашение стороне (' + side + ') не отправлено, причина неизвестна');
+        MESSAGE counteragentCheckMessage() NOWAIT;
+        RETURN;
+    }
 
     MESSAGE 'Приглашение стороне (' + side + ') отправлено' NOWAIT;
 
@@ -346,8 +361,10 @@ acquireCounteragentSide (Box counteragentBox, STRING myBoxGuid, STRING title, ST
     diadocGetCounteragentStatus(myBoxGuid, guidBoxId(boxId(counteragentBox)));
     IF counteragentCurrentStatus() == 'IsMyCounteragent' OR counteragentCurrentStatus() == 'IsInvitedByMe' THEN
         counteragentCheckPassed() <- TRUE;
-    ELSE
-        MESSAGE 'Повторите отправку документа (' + title + ') после подтверждения партнёрства' NOWAIT;
+    ELSE {
+        counteragentCheckMessage() <- TEXT('Приглашение стороне (' + side + ') отправлено, но партнёрство ещё не подтверждено. Повторите отправку документа (' + title + ') позже');
+        MESSAGE counteragentCheckMessage() NOWAIT;
+    }
 }
 
 // Без партнёрства Диадок документ не примет; при непринятом нашем приглашении (IsInvitedByMe)
@@ -355,8 +372,12 @@ acquireCounteragentSide (Box counteragentBox, STRING myBoxGuid, STRING title, ST
 // Итог - в counteragentCheckPassed: RETURN отсюда вызывающую отправку не прерывает.
 checkCounteragent (STRING myBoxGuid, Box counteragentBox, STRING title, STRING side) {
     counteragentCheckPassed() <- NULL;
+    counteragentCheckMessage() <- NULL;
     diadocGetCounteragentStatus(myBoxGuid, guidBoxId(boxId(counteragentBox)));
-    IF counteragentCurrentStatus() == 'CheckFailed' THEN RETURN;   // сообщение уже показано
+    IF counteragentCurrentStatus() == 'CheckFailed' THEN {   // сообщение уже показано
+        counteragentCheckMessage() <- TEXT('Не удалось проверить партнёрство со стороной (' + side + ') в Диадоке');
+        RETURN;
+    }
     // встречное приглашение подтверждает связь сразу
     IF counteragentCurrentStatus() == 'InvitesMe' THEN
         FOR Organization org == organization(counteragentBox) DO
