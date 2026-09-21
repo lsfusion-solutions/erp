@@ -1597,15 +1597,20 @@ getNewEvents 'Получить новые сообщения' (User u, Box box) 
             //lastEvent() <- GROUP LAST BoxEvent e IF e IS BoxEvent ORDER timestampTicks(e), e;
             
             eventTimestampTicks(INTEGER i) <- NULL;
-            
+            // сбрасывается до запроса: иначе после неудачного ответа остаётся значение предыдущего пакета,
+            // и цикл бесконечно повторяет запрос с тем же afterEventId
+            totalCountType() <- NULL;
+            totalCount() <- NULL;
+
             TRY {
-                EXTERNAL HTTP GET url() + '/GetNewEvents?boxId=' + boxId(box) + (OVERRIDE '&afterEventId=' + lastEventId(box),'') HEADERS httpHeadersToken TO result;
-                //fileToString(result(), 'UTF-8');                
+                EXTERNAL HTTP GET url() + '/GetNewEvents?boxId=' + boxId(box) + (OVERRIDE '&afterEventId=' + lastEventId(box),'') + r'&limit=500' HEADERS httpHeadersToken TO result;
+                //fileToString(result(), 'UTF-8');
                 IMPORT importEvents JSON FROM result();
             } CATCH {
                 fileToString(result(), 'UTF-8');
                 MESSAGE 'Ошибка получения сообщений ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
             }
+            IF NOT totalCountType() THEN BREAK;
 
             FOR eventId(INTEGER i) AND NOT boxEvent(eventId(i)) NEW e = BoxEvent DO {
                 eventId(e) <- eventId(i);
@@ -1867,8 +1872,13 @@ getNewEvents 'Получить новые сообщения' (User u, Box box) 
             }
             
             lastEventId(box) <- OVERRIDE (GROUP LAST eventId(INTEGER i) ORDER eventTimestampTicks(i)), lastEventId(box);
+            // каждый пакет применяется отдельно: при обрыве следующий запуск продолжает с сохранённого
+            // lastEventId. NESTED LOCAL обязателен — обычный APPLY очистит локальные свойства цикла
+            APPLY NESTED LOCAL;
+            // дочитываем в этом же запуске, только пока событий много; остаток разбирается следующим
+            // срабатыванием, поэтому задание не растягивается на весь вал
+            IF NOT totalCount() >= 500 THEN BREAK;
         }
-        APPLY;
     }
 }
 
