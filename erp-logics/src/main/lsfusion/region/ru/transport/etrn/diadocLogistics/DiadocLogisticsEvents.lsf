@@ -353,8 +353,11 @@ processETRNEvent (ETRN.ETRNEvent ev) {
         // diadocStage по ним не срабатывает; этап только продвигается вперёд (отсюда сравнения id)
         IF (docFunction(ev) == 'reception' AND signedTitle(ev, 1)) OR ETRN.status(ev) == 'QR' THEN
             ETRN.stage(et) <- ETRN.ETRNStage.loading WHERE NOT id(ETRN.stage(et)) >= 2;
-        IF docFunction(ev) == 'delivery' AND signedTitle(ev, 0) THEN
+        IF docFunction(ev) == 'delivery' AND signedTitle(ev, 0) THEN {
             ETRN.stage(et) <- ETRN.ETRNStage.acceptance WHERE NOT id(ETRN.stage(et)) >= 3;
+            // наш Т3 принят Диадоком - сообщение о неудачной отправке устарело
+            ETRN.exchangeMessage(et) <- NULL WHERE ETRN.roleConsignee(et);
+        }
         IF docFunction(ev) == 'delivery' AND signedTitle(ev, 1) THEN
             ETRN.stage(et) <- ETRN.ETRNStage.unloading;
     }

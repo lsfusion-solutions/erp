@@ -78,6 +78,11 @@ diadocSendT3 (ETRN.ETRN e) {
             }
 
             postMessage(u);
+            // ограничение DiadocMessage на партнёрство считает по локальному кэшу статусов организаций;
+            // для ЭПД партнёрство проверено вживую до отправки. Ящики сбрасываем, иначе APPLY отменяется
+            // и уже созданный в Диадоке документ в базу не попадает (22.09, ЭТрН 00000040997)
+            fromBox() <- NULL;
+            toBox() <- NULL;
             // postMessage глотает HTTP-ошибки (MESSAGE внутри) - успех определяем по созданному документу
             IF createdDocument() THEN {
                 diadocDeliveryDocument(e) <- createdDocument();

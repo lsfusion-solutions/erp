@@ -357,19 +357,21 @@ acquireCounteragentSide (Box counteragentBox, STRING myBoxGuid, STRING title, ST
     MESSAGE 'Приглашение стороне (' + side + ') отправлено' NOWAIT;
 
     // проверяем статус партнёрства - он и решает, примет ли Диадок документ. У открытого ящика
-    // связь устанавливается сразу, у закрытого хватает IsInvitedByMe; пауза уже выдержана
+    // связь устанавливается сразу; при нашем непринятом приглашении (IsInvitedByMe) Диадок документ
+    // принимает с предупреждением "не действует отношение партнёрства" (проверено 22.09: Т3 ушёл,
+    // этап продвинулся событием); пауза уже выдержана
     diadocGetCounteragentStatus(myBoxGuid, guidBoxId(boxId(counteragentBox)));
     IF counteragentCurrentStatus() == 'IsMyCounteragent' OR counteragentCurrentStatus() == 'IsInvitedByMe' THEN
         counteragentCheckPassed() <- TRUE;
     ELSE {
-        counteragentCheckMessage() <- TEXT('Приглашение стороне (' + side + ') отправлено, но партнёрство ещё не подтверждено. Повторите отправку документа (' + title + ') позже');
+        counteragentCheckMessage() <- TEXT('Приглашение стороне (' + side + ') отправлено, но ещё не зарегистрировано в Диадоке. Повторите отправку документа (' + title + ') через минуту');
         MESSAGE counteragentCheckMessage() NOWAIT;
     }
 }
 
-// Без партнёрства Диадок документ не примет; при непринятом нашем приглашении (IsInvitedByMe)
-// принимает и держит вместе с приглашением. title/side - подстановки в сообщения.
-// Итог - в counteragentCheckPassed: RETURN отсюда вызывающую отправку не прерывает.
+// Без партнёрства Диадок документ не примет; при нашем непринятом приглашении (IsInvitedByMe)
+// принимает с предупреждением и держит вместе с приглашением (22.09: Т3 по 00000040997 ушёл так).
+// title/side - подстановки в сообщения. Итог - в counteragentCheckPassed: RETURN отсюда вызывающую отправку не прерывает.
 checkCounteragent (STRING myBoxGuid, Box counteragentBox, STRING title, STRING side) {
     counteragentCheckPassed() <- NULL;
     counteragentCheckMessage() <- NULL;
@@ -384,14 +386,16 @@ checkCounteragent (STRING myBoxGuid, Box counteragentBox, STRING title, STRING s
             diadocAcquireOrganization(org, myBoxGuid);
     IF counteragentCurrentStatus() == 'IsInvitedByMe' THEN
         MESSAGE 'Сторона (' + side + ') еще не приняла приглашение в контрагенты: документ (' + title +
-            ') будет доставлен и будет ожидать подтверждения партнёрства' NOWAIT;
+            ') будет доставлен и будет ожидать подтверждения партнёрства (Диадок покажет предупреждение)' NOWAIT;
     IF counteragentCurrentStatus() AND NOT (counteragentCurrentStatus() == 'IsMyCounteragent' OR
         counteragentCurrentStatus() == 'InvitesMe' OR counteragentCurrentStatus() == 'IsInvitedByMe') THEN {
-        IF askAcquireCounteragentETRN() THEN
+        // ELSE без скобок прилипает к ASK, а не к IF: при выключенном вопросе приглашение не уходило вовсе
+        IF askAcquireCounteragentETRN() THEN {
             ASK 'Партнёрство со стороной (' + side + ') в Диадоке не установлено - без него документ (' + title + ') не будет принят.
 Отправить приглашение в контрагенты?' DO
                 acquireCounteragentSide(counteragentBox, myBoxGuid, title, side);
-        ELSE acquireCounteragentSide(counteragentBox, myBoxGuid, title, side);
+            ELSE counteragentCheckMessage() <- TEXT('Приглашение стороне (' + side + ') не отправлено: отказ пользователя');
+        } ELSE acquireCounteragentSide(counteragentBox, myBoxGuid, title, side);
         RETURN;   // при мгновенной связи флаг уже выставлен приглашением
     }
     counteragentCheckPassed() <- TRUE;
