@@ -11,9 +11,9 @@ hasItemByIdBarcode 'Существует Item с таким штрихкодом
 
 id 'Артикул продавца(vendorCode)' = DATA STRING (Item) NONULL IN id;
 item (id) = GROUP AGGR Item i BY id(i);
-nmID 'Артикул WB' = DATA INTEGER (Item);
+nmID 'Артикул WB' = DATA LONG (Item);
 itemNM (id) = GROUP AGGR Item i BY nmID(i);
-imtID 'Внутренний код WB' = DATA INTEGER (Item);
+imtID 'Внутренний код WB' = DATA LONG (Item);
 name 'Наименование' = DATA STRING (Item) NONULL IN id;
 description 'Описание' = DATA STRING (Item);
 unitName 'Ед.измерения' = DATA STRING (Item);
@@ -60,7 +60,7 @@ CONSTRAINT DROPPED(ItemSubGroup sg IS ItemSubGroup) AND [GROUP SUM 1 BY PREV(ite
 
 CLASS Size 'Размер';
 
-chrtID 'ID размера' = DATA INTEGER (Size);
+chrtID 'ID размера' = DATA LONG (Size);
 size = GROUP AGGR Size s BY chrtID(s);
 
 techSize 'Размер' = DATA STRING (Size) NONULL;
@@ -1214,7 +1214,7 @@ filterTagIDs = DATA LOCAL STRING (INTEGER);
 objectIDs = DATA LOCAL STRING(INTEGER);
 filterObjectIDs = DATA LOCAL STRING (INTEGER);
 limit = DATA LOCAL INTEGER ();
-nmID = DATA LOCAL INTEGER ();
+nmID = DATA LOCAL LONG ();
 updatedAt = DATA LOCAL STRING();
 trashedAt = DATA LOCAL STRING();
 ascending = DATA LOCAL BOOLEAN ();
@@ -1229,7 +1229,7 @@ cardsCharacteristics = DATA LOCAL INTEGER(INTEGER);
 value = DATA LOCAL STRING(INTEGER);
 characteristicsValue = DATA LOCAL INTEGER(INTEGER);
 nmUUID = DATA LOCAL STRING(INTEGER);
-nmID1 = DATA LOCAL INTEGER (INTEGER);
+nmID1 = DATA LOCAL LONG (INTEGER);
 description = DATA LOCAL STRING(INTEGER);
 video = DATA LOCAL STRING(INTEGER);
 title = DATA LOCAL STRING(INTEGER);
@@ -1244,7 +1244,7 @@ cardsTags = DATA LOCAL INTEGER(INTEGER);
 color = DATA LOCAL STRING(INTEGER);
 name1 = DATA LOCAL STRING(INTEGER);
 id1 = DATA LOCAL STRING (INTEGER);
-imtID = DATA LOCAL INTEGER (INTEGER);
+imtID = DATA LOCAL LONG (INTEGER);
 createdAt = DATA LOCAL STRING(INTEGER);
 cardsSizes = DATA LOCAL INTEGER(INTEGER);
 skus = DATA LOCAL STRING(INTEGER);
@@ -1443,6 +1443,14 @@ postItems 'Получить список карточек товаров' () {
                 logToFile('WB', resultString());
                 stringToFile(resultString(), 'UTF-8', 'json');
                 IMPORT importItems JSON FROM resultFile();
+                
+                FOR cardsSizes(INTEGER ii) >= 0 AND NOT LONG(chrtID(ii)) INLINE DO
+                    logToFile('WB', 'Пропущен размер: артикул продавца ' + (OVERRIDE vendorCode(cardsSizes(ii)), '<нет>') +
+                        ', chrtID=' + (OVERRIDE chrtID(ii), '<нет>') + ', techSize=' + (OVERRIDE techSize(ii), '<нет>'));
+
+                IF (GROUP SUM 1 IF cardsSizes(INTEGER ii) >= 0 AND NOT LONG(chrtID(ii))) THEN
+                    MESSAGE 'Пропущены размеры с незаполненным или некорректным chrtID: ' +
+                        (GROUP SUM 1 IF cardsSizes(INTEGER ii) >= 0 AND NOT LONG(chrtID(ii))) + ' шт. Подробности в логе WB' NOWAIT;
 
                 FOR INTEGER i = [GROUP MAX INTEGER i1 BY vendorCode(i1)](STRING id) AND NOT item(id) AND itemSubGroup(subjectID(i)) INLINE DO NEW item = Item {
                     id(item) <- id;
@@ -1461,17 +1469,18 @@ postItems 'Получить список карточек товаров' () {
                     height(item) <- height(i);
                     weightBrutto(item) <- weightBrutto(i);
 
-                    FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsSizes(i1) == i BY chrtID(i1)](STRING chrtID) AND NOT size(INTEGER(chrtID)) INLINE DO {
+                    FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsSizes(i1) == i BY chrtID(i1)](STRING chrtID) AND
+                        LONG(chrtID) AND NOT size(LONG(chrtID)) INLINE DO {
                         IF (GROUP MAX Size s IF itemWB(s)==item AND techSize(s) == techSize(ii) AND wbSize(s) == wbSize(ii)) THEN 
-                            chrtID(GROUP MAX Size s IF itemWB(s)==item AND techSize(s) == techSize(ii) AND wbSize(s) == wbSize(ii)) <- INTEGER(chrtID);
+                            chrtID(GROUP MAX Size s IF itemWB(s)==item AND techSize(s) == techSize(ii) AND wbSize(s) == wbSize(ii)) <- LONG(chrtID);
                         ELSE IF hasSizes(item) THEN NEW s = Size {
-                            chrtID(s) <- INTEGER(chrtID);
+                            chrtID(s) <- LONG(chrtID);
                         } ELSE IF NOT hasSizes(item) THEN {
-                            chrtID(GROUP MAX Size s IF itemWB(s)==item) <- INTEGER(chrtID);
+                            chrtID(GROUP MAX Size s IF itemWB(s)==item) <- LONG(chrtID);
                         }
                     }
                     
-                    FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsSizes(i1) == i BY chrtID(i1)](STRING chrtID) AND Size s == size(INTEGER(chrtID)) INLINE DO {
+                    FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsSizes(i1) == i BY chrtID(i1)](STRING chrtID) AND Size s == size(LONG(chrtID)) INLINE DO {
                         itemWB(s) <- item;
                         techSize(s) <- techSize(ii);
                         wbSize(s) <- wbSize(ii);
@@ -1487,7 +1496,7 @@ postItems 'Получить список карточек товаров' () {
                         IF hasSizes(item) THEN DELETE Barcode barcode WHERE size(barcode)==s AND NOT (GROUP SUM 1 IF sizesSkus(INTEGER jj)==ii AND skus(jj)==id(barcode));
                     }
                     //удаляем размеры, которых нет на WB для данного товара
-                    IF hasSizes(item) THEN DELETE Size size WHERE itemWB(size)==item AND NOT (GROUP SUM 1 IF cardsSizes(INTEGER jj)==i AND INTEGER(chrtID(jj))==chrtID(size));
+                    IF hasSizes(item) THEN DELETE Size size WHERE itemWB(size)==item AND NOT (GROUP SUM 1 IF cardsSizes(INTEGER jj)==i AND LONG(chrtID(jj))==chrtID(size));
 
                     FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsCharacteristics(i1) == i BY id(i1)](STRING charcID) AND Attribute as == attribute(charcID) INLINE DO
                         CASE
@@ -1586,6 +1595,15 @@ postTrashItems 'Получить список карточек товаров в
                 lastTrashedAt() <- trashedAt();
                 stringToFile(resultString(), 'UTF-8', 'json');
                 IMPORT importItems JSON FROM resultFile();
+                
+                FOR cardsSizes(INTEGER ii) >= 0 AND NOT LONG(chrtID(ii)) INLINE DO
+                    logToFile('WB', 'Пропущен размер: артикул продавца ' + (OVERRIDE vendorCode(cardsSizes(ii)), '<нет>') +
+                        ', chrtID=' + (OVERRIDE chrtID(ii), '<нет>') + ', techSize=' + (OVERRIDE techSize(ii), '<нет>'));
+
+                IF (GROUP SUM 1 IF cardsSizes(INTEGER ii) >= 0 AND NOT LONG(chrtID(ii))) THEN
+                    MESSAGE 'Пропущены размеры с незаполненным или некорректным chrtID: ' +
+                        (GROUP SUM 1 IF cardsSizes(INTEGER ii) >= 0 AND NOT LONG(chrtID(ii))) + ' шт. Подробности в логе WB' NOWAIT;
+
                 FOR INTEGER i = [GROUP MAX INTEGER i1 BY vendorCode(i1)](STRING id) AND NOT item(id) AND itemSubGroup(subjectID(i)) INLINE DO NEW item = Item {
                     id(item) <- id;
                 }
@@ -1600,11 +1618,12 @@ postTrashItems 'Получить список карточек товаров в
                     height(item) <- height(i);
                     weightBrutto(item) <- weightBrutto(i);
 
-                    FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsSizes(i1) == i BY chrtID(i1)](STRING chrtID) AND NOT size(INTEGER(chrtID)) INLINE DO NEW s = Size {
-                        chrtID(s) <- INTEGER(chrtID);
+                    FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsSizes(i1) == i BY chrtID(i1)](STRING chrtID) AND
+                        LONG(chrtID) AND NOT size(LONG(chrtID)) INLINE DO NEW s = Size {
+                        chrtID(s) <- LONG(chrtID);
                     }
 
-                    FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsSizes(i1) == i BY chrtID(i1)](STRING chrtID) AND Size s == size(INTEGER(chrtID)) INLINE DO {
+                    FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsSizes(i1) == i BY chrtID(i1)](STRING chrtID) AND Size s == size(LONG(chrtID)) INLINE DO {
                         itemWB(s) <- item;
                         techSize(s) <- techSize(ii);
                         wbSize(s) <- wbSize(ii);
@@ -1617,7 +1636,7 @@ postTrashItems 'Получить список карточек товаров в
                         DELETE Barcode barcode WHERE size(barcode)==s AND NOT (GROUP SUM 1 IF sizesSkus(INTEGER jj)==ii AND skus(jj)==id(barcode));
                     }
                     //удаляем размеры, которых нет на WB для данного товара
-                    DELETE Size size WHERE itemWB(size)==item AND NOT (GROUP SUM 1 IF cardsSizes(INTEGER jj)==i AND INTEGER(chrtID(jj))==chrtID(size));
+                    DELETE Size size WHERE itemWB(size)==item AND NOT (GROUP SUM 1 IF cardsSizes(INTEGER jj)==i AND LONG(chrtID(jj))==chrtID(size));
 
                     FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsCharacteristics(i1) == i BY id(i1)](STRING charcID) AND Attribute as == attribute(charcID) INLINE DO
                         CASE
