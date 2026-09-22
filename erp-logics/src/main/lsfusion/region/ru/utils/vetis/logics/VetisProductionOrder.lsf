@@ -8,16 +8,11 @@ NAMESPACE VetisSale;
 
 volume 'Объем в документе' = DATA NUMERIC[16,5] (ComponentDetail, StockEntry);
 
-// единица измерения записи журнала может быть не заполнена — тогда она доопределяется (ВСД, номенклатура),
-// иначе пересчёт количества в объём шёл бы с коэффициентом 1 и давал завышенный объём
 overUnitStockEntry = ABSTRACT Unit (StockEntry);
 unitEntry (StockEntry s) = OVERRIDE unit(s), overUnitStockEntry(s) MATERIALIZED; // материализация: OVERRIDE-каскад с GROUP LAST иначе инлайнится в каждый пересчёт объёма и раздувает запрос (SQLTooLongQuery)
 factorEntry (ComponentDetail vd, StockEntry s) = OVERRIDE factor(sku(vd), unitEntry(s)), 1.0;
 
 volumeDetail 'Объем в документе' (ComponentDetail vd, StockEntry s) = NUMERIC[16,5](bruttoQuantity(vd) * factorEntry(vd, s));
-// объём при ручном выборе: не больше непокрытого остатка строки (поставлено − связанное с записями)
-// и не больше свободного остатка записи (объём продукции − распределённое строками);
-// по уже связанной записи не выполняется, при расчётном объёме <= 0 связь не создаётся
 fillVolume 'Выбрать' (ComponentDetail d, StockEntry s) {
     IF NOT volume(d, s) THEN {
         LOCAL calc = NUMERIC[16,5] ();
@@ -32,7 +27,6 @@ bruttoQuantity (ComponentDetail vd, StockEntry s) = volume(s) / factorEntry(vd, 
 
 matches (ComponentDetail vd, StockEntry s) = in(componentsStock(vd), enterprise(s)) AND in(s, GROUP MIN ProductItem pi IF in(sku(vd), pi)) AND active(s);
 
-// подбор с учётом свободного остатка записи журнала: объём продукции минус уже распределённое строками документов
 usedVolumeOtherLocal = DATA LOCAL NUMERIC[16,5] (StockEntry);
 remainderVolumeLocal = DATA LOCAL NUMERIC[16,5] (StockEntry);
 assignedVolumeLocal = DATA LOCAL NUMERIC[16,5] (ComponentDetail, StockEntry);
@@ -40,8 +34,6 @@ calcVolumeLocal = DATA LOCAL NUMERIC[16,5] (ComponentDetail, StockEntry);
 
 freeQuantity (ComponentDetail vd, StockEntry s) = (volume(s) (-) usedVolumeOtherLocal(s)) / factorEntry(vd, s);
 
-// распределяется только непокрытый остаток по строке: количество минус уже связанное с записями журнала;
-// существующие связи (в т.ч. по строкам с отправленными заявками) не перезаписываются
 assignedQuantity (ComponentDetail vd) = GROUP SUM volume(vd, StockEntry s) / factorEntry(vd, s);
 restQuantity (ComponentDetail vd) = NUMERIC[16,5](bruttoQuantity(vd) (-) assignedQuantity(vd));
 
@@ -72,8 +64,11 @@ volumeStockEntry 'Объем в документе' (ComponentDetail d) = GROUP 
 CONSTRAINT CHANGED(volume(ComponentDetail d, StockEntry s)) AND volume(d, s) AND expiryDate(s) < currentDate()
     MESSAGE 'Запрещено связывать строку производственного заказа с записью журнала с истёкшим сроком годности';
 
+checkQuantityPrevLinkVetis = ABSTRACT VALUE BOOLEAN ();
+
 // изменять количество по строке можно только после удаления связи с записями складского журнала
-CONSTRAINT CHANGED(Production.quantity(ComponentDetail d)) AND (GROUP SUM 1 IF volume(d, StockEntry s))
+CONSTRAINT CHANGED(Production.quantity(ComponentDetail d))
+    AND (IF checkQuantityPrevLinkVetis() THEN PREV(volumeStockEntry(d)) ELSE volumeStockEntry(d))
     MESSAGE 'Запрещено изменять количество по строке производственного заказа: строка связана с записями складского журнала, сначала удалите связь';
 
 EXTEND FORM order
