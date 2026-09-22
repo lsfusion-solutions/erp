@@ -1,6 +1,7 @@
 MODULE VetisProductionOrderGestori;
 
-REQUIRE VetisProductionOrder, VetisRegisterProductionOperation, VetisStockEntryGestori, VetisDocumentGestori;
+REQUIRE VetisProductionOrder, VetisRegisterProductionOperation, VetisStockEntryGestori, VetisDocumentGestori,
+        VetisItemPackingTypeGestori;
 
 PRIORITY Production;
 
@@ -212,7 +213,10 @@ GROUP packageListProdReqGestori EXTID 'vd:packageList';
 GROUP packingTypeProdReqGestori EXTID 'dt:packingType';
 GROUP productMarksProdReqGestori EXTID 'dt:productMarks';
 
-packingTypeProdReqGestori (ProductItem pi) = packingTypeGlobalIDGestori(STRING(packagingType(pi)));
+packingTypeSkuGestori (Stock.Sku s) = GROUP MAX packingTypeItemGestori(i) IF i == s;
+
+packingTypeProdReqGestori (Production.ProductDetail pd, ProductItem pi) = OVERRIDE
+    packingTypeGlobalIDGestori(STRING(packagingType(pi))), packingTypeSkuGestori(sku(pd));
 
 // маркировка изделия: активные штрихкоды товара с множителем 1 через запятую, иначе GTIN номенклатуры
 barcodesProdReqGestori (Production.ProductDetail pd) =
@@ -225,12 +229,32 @@ productMarksProdReqGestori (Production.ProductDetail pd, ProductItem pi) =
 EXTEND FORM registerProductionOperationRequest
     OBJECTS packageProdReq = (pd1 = Production.ProductDetail, pi1 = ProductItem) EXTID 'dt:package' IN packageListProdReqGestori
     PROPERTIES ='2' DRAW packageProdReq EXTID 'dt:level'
-    PROPERTIES IN packingTypeProdReqGestori =guid(packingTypeProdReqGestori(pi1)) EXTID 'bs:guid'
+    PROPERTIES IN packingTypeProdReqGestori =guid(packingTypeProdReqGestori(pd1, pi1)) EXTID 'bs:guid',
+        =globalID(packingTypeProdReqGestori(pd1, pi1)) EXTID 'dt:globalID'
     PROPERTIES =(OVERRIDE packagingQuantity(pi1), INTEGER(Production.quantity(pd1))) EXTID 'dt:quantity'
     PROPERTIES IN productMarksProdReqGestori
         =productMarksProdReqGestori(pd1, pi1) EXTID 'value',
         =(STRING[20]('UNDEFINED') IF productMarksProdReqGestori(pd1, pi1)) EXTID 'class' ATTR
-    FILTERS pd1 == pd, pi1 == pi, (packingTypeProdReqGestori(pi1) OR productMarksProdReqGestori(pd1, pi1))
+    FILTERS pd1 == pd, pi1 == pi, (packingTypeProdReqGestori(pd1, pi1) OR productMarksProdReqGestori(pd1, pi1))
+;
+
+// ---- Упаковка сырья в запросе (vd:rawBatch/vd:packageList) ----
+
+GROUP packageListRawReqGestori EXTID 'vd:packageList';
+GROUP packingTypeRawReqGestori EXTID 'dt:packingType';
+
+productItemRawReqGestori (Production.ComponentDetail d) = GROUP MIN ProductItem pi IF in(sku(d), pi);
+
+packingTypeRawReqGestori (Production.ComponentDetail d) = OVERRIDE
+    packingTypeGlobalIDGestori(STRING(packagingType(productItemRawReqGestori(d)))), packingTypeSkuGestori(sku(d));
+
+EXTEND FORM registerProductionOperationRequest
+    OBJECTS packageRawReq = (d1 = Production.ComponentDetail, se1 = StockEntry) EXTID 'dt:package' IN packageListRawReqGestori
+    PROPERTIES ='2' DRAW packageRawReq EXTID 'dt:level'
+    PROPERTIES IN packingTypeRawReqGestori =guid(packingTypeRawReqGestori(d1)) EXTID 'bs:guid',
+        =globalID(packingTypeRawReqGestori(d1)) EXTID 'dt:globalID'
+    PROPERTIES =(OVERRIDE packagingQuantity(productItemRawReqGestori(d1)), 1) EXTID 'dt:quantity'
+    FILTERS d1 == d, se1 == se, packingTypeRawReqGestori(d1)
 ;
 
 // ---- Дозаполнение производственного ВСД данными упаковки и маркировки из ответа ----
