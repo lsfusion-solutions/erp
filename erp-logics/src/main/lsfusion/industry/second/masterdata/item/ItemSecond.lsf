@@ -114,3 +114,13 @@ CONSTRAINT DROPPED(Item i IS Item) AND ([GROUP MIN SkuLedger g BY PREV(sku(g))](
     MESSAGE 'Запрещено удалять этот товар';
 
 @defineOption(errorTelegramUserNames, 'Имена в Telegram для обращения в сообщениях об ошибках', STRING, commons);
+
+@defineOption(skipCheckIdLotBarcode, 'Разрешить создание равных штрихкода товара и кода марки', items);
+
+CONSTRAINT SETCHANGED(id(Lot l)) AND [GROUP MIN Barcode b IF b IS Barcode BY id(b)](id(l))
+    AND NOT skipCheckIdLotBarcode()
+    MESSAGE 'Запрещён код оценённого товара/марки, равный существующему штрихкоду товара';
+
+CONSTRAINT SETCHANGED(id(Barcode b)) AND [GROUP MIN Lot l IF l IS Lot BY id(l)](id(b))
+    AND NOT skipCheckIdLotBarcode()
+    MESSAGE 'Запрещён штрихкод товара, равный коду существующего оценённого товара/марки';
