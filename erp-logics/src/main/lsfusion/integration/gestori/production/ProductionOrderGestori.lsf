@@ -89,7 +89,7 @@ WHEN LOCAL FORMS order (CHANGED(BOM(ProductDetail pd)) OR CHANGED(quantity(pd)) 
     FOR product(ComponentDetail d) AND isRecComponents(productionDetail(d)) DO expand(d);
 }
 
-WHEN LOCAL FORMS order (CHANGED(BOM(ComponentDetail cd))  OR CHANGED(quantity(cd))) AND BOM(cd) AND quantity(cd) AND isElaboration(operation(cd)) DO {
+fillProductsElaborationGestori (ComponentDetail cd) {
     DELETE ProductDetail pd WHERE  componentDetail(pd) = cd;
     FOR NUMERIC[35,19] q == quantityComponents(BOM(cd), order(cd)) AND BOM(cd) = BOM(Product product) NEW d = ProductDetail DO {
         componentDetail(d) <- cd;
@@ -102,9 +102,21 @@ WHEN LOCAL FORMS order (CHANGED(BOM(ComponentDetail cd))  OR CHANGED(quantity(cd
     }
 }
 
+WHEN LOCAL FORMS order (CHANGED(BOM(ComponentDetail cd))  OR CHANGED(quantity(cd))) AND BOM(cd) AND quantity(cd) AND isElaboration(operation(cd)) DO {
+    fillProductsElaborationGestori(cd);
+}
+
 overCreate(ComponentDetail new, ComponentDetail old) + {
     productionDetail(new) <- productionDetail(old);
     product(new) <- OVERRIDE defaultProductKirovsky(sku(new), componentsStock(new), date(new)), productionProduct(component(new));
+}
+
+overCreate(ComponentDetail d) + {
+    IF isElaboration(operation(d)) AND NOT component(d) AND countComponentsKirovsky(sku(d), componentsStock(d), date(d)) THEN {
+        component(d) <- defaultComponentKirovsky(sku(d), componentsStock(d), date(d));
+        BOM(d) <- BOM(defaultComponentKirovsky(sku(d), componentsStock(d), date(d)));
+        fillProductsElaborationGestori(d);
+    }
 }
 
 WHEN LOCAL FORMS order CHANGED(price(ComponentDetail cd)) OR CHANGED(quantity(cd)) DO {
@@ -899,4 +911,10 @@ NAVIGATOR {
     manufacturingReports {
         NEW productionReport;
     }
+}
+
+WHEN LOCAL FORMS order (CHANGED(BOM(ComponentDetail cd)) OR CHANGED(quantity(cd)) OR CHANGED(component(cd)))
+    AND cd IS ComponentDetail AND BOM(cd) AND quantity(cd) AND component(cd) AND isElaboration(operation(cd))
+    AND NOT (GROUP SUM 1 IF componentDetail(ProductDetail pd) == cd) DO {
+    fillProductsElaborationGestori(cd);
 }
