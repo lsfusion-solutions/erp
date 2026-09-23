@@ -115,7 +115,7 @@ receiveFromBerlio (GroupCashRegister gcr, STRING fn) {
         mixBank(INTEGER r) <- -mixBank(r) WHERE vid(r) == 2;
         mixOther(INTEGER r) <- -mixOther(r) WHERE vid(r) == 2;
 
-        FOR [GROUP SUM 1 IF npp(INTEGER rr) == npp(CashRegister crr) BY crr](CashRegister cr) DO {
+        FOR [GROUP SUM 1 IF npp(INTEGER rr) == npp(CashRegister crr) BY crr](CashRegister cr) AND groupCashRegister(cr) == gcr DO {
 
             idZReport(INTEGER r) <- (CONCAT '_', nppGroupMachinery(cr), npp(cr), shift(r), shiftDate(r)) IF npp(cr) == npp(r);
             idReceipt(INTEGER r) <- (CONCAT '_', idZReport(r), receipt(r)) IF index(r) AND npp(cr) == npp(r);
@@ -277,8 +277,8 @@ receiveFromBerlio (GroupCashRegister gcr) {
     listFiles(directory(gcr)+'/S');
     LOCAL candidate = BOOLEAN (INTEGER);
     candidate(INTEGER i) <- TRUE WHERE fileName(i) AND NOT fileIsDirectory(i)
-        AND right(fileName(i), 3) == 'dbf' AND INTEGER(substr(fileName(i), 2, 2)) == npp(gcr)
-        AND substr(fileName(i), 4, 4) >= toChar(sumMonth(currentDate(), -2), 'YYMM');
+        AND right(fileName(i), 3) == 'dbf' AND INTEGER(substr(fileName(i), 2, length(getWord(fileName(i), '.', 1)) - 5)) == npp(gcr)
+        AND right(getWord(fileName(i), '.', 1), 4) >= toChar(sumMonth(currentDate(), -2), 'YYMM');
     FOR candidate(INTEGER i) AND NOT (GROUP SUM 1 IF fileName(i) == berlioFile(ZReport z)) ORDER fileName(i) DO {
         receiveFromBerlio(gcr, fileName(i));
     }
