@@ -122,9 +122,10 @@ errorLastRequest 'Ошибка заявки' (OutgoingConsignment o) = error(las
 
 toProcess 'К отправке' (OutgoingConsignment o) = o IS OutgoingConsignment AND 
         NOT notCompleted(lastRequest(o)) AND // не обрабатывается заявка 
-        (NOT succeeded(lastRequest(o)) OR // не успешно обработана заявка 
+        (NOT succeeded(lastRequest(o)) OR // не успешно обработана заявка
          status(vetDocument(o)) = VetDocumentStatus.WITHDRAWN) // или документ аннулировали
-        MATERIALIZED INDEXED;  
+        AND NOT lockedProcessVetis(o)
+        MATERIALIZED INDEXED;
 
 in = GROUP SUM 1 IF in(OutgoingConsignment c) BY transportStorageType(c); 
 

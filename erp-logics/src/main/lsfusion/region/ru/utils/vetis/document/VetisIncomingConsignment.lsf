@@ -10,6 +10,8 @@ TABLE incomingConsignment(IncomingConsignment);
 deliveryDate 'Дата оформления' = ABSTRACT DATETIME (IncomingConsignment);
 volume 'Объем продукции' = ABSTRACT NUMERIC[16,5] (IncomingConsignment);
 
+lockedProcessVetis 'Отправка запрещена' = ABSTRACT BOOLEAN (IncomingConsignment) MATERIALIZED;
+
 vetDocument = ABSTRACT VetDocument (IncomingConsignment) MATERIALIZED INDEXED;
 uuidVetDocument 'Код ВСД' (IncomingConsignment c) = uuid(vetDocument(c));
 
@@ -58,7 +60,10 @@ NAVIGATOR {
 META defineDocumentIncomingConsignment (doc, caption)
     CLASS ###doc##IncomingConsignment 'Входящая партия (ветис) на основе поставки'##caption : IncomingConsignment;
     
-    incomingConsignment = AGGR ###doc##IncomingConsignment WHERE volume(###doc##Detail doc##Detail, VetDocument vetDocument) AND (isPosted(doc##Detail) OR skipPostedConsignmentVetis()) MATERIALIZED INDEXED;
+    incomingConsignment = AGGR ###doc##IncomingConsignment WHERE volume(###doc##Detail doc##Detail, VetDocument vetDocument) AND (isPosted(doc##Detail) OR allowConsignmentVetis()) MATERIALIZED INDEXED;
+
+    lockedDetailVetis = ABSTRACT BOOLEAN (###doc##Detail);
+    lockedProcessVetis(###doc##IncomingConsignment c) += lockedDetailVetis(doc##Detail(c));
     vetDocument(###doc##IncomingConsignment c) += vetDocument(c);
     deliveryDate(###doc##IncomingConsignment c) += dateTime(doc##Detail(c));
     volume(###doc##IncomingConsignment c) += volume(doc##Detail(c), vetDocument(c));

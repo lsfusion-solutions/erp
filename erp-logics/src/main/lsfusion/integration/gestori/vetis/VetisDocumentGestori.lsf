@@ -1095,7 +1095,39 @@ DESIGN Purchase.userInvoice {
 }
 
 // действия с Ветис выполняются до проведения накладной: партии создаются по связи строки с ВСД
-skipPostedConsignmentVetis() += TRUE;
+allowConsignmentVetis() += TRUE;
+
+// после проведения документа запросы в Ветис по нему не отправляются
+forbidPostedProcessGestori 'Запрет отправки запросов в Ветис по проведенному документу' = DATA BOOLEAN ();
+
+VetisPurchase.lockedDetailVetis(Purchase.ShipmentDetail d) += Purchase.isPosted(d) AND forbidPostedProcessGestori();
+VetisSaleReturn.lockedDetailVetis(SaleReturn.ShipmentDetail d) += SaleReturn.isPosted(d) AND forbidPostedProcessGestori();
+VetisSale.lockedDetailVetis(Sale.ShipmentDetail d) += Sale.isPosted(d) AND forbidPostedProcessGestori();
+VetisPurchaseReturn.lockedDetailVetis(PurchaseReturn.ShipmentDetail d) += PurchaseReturn.isPosted(d) AND forbidPostedProcessGestori();
+
+EXTEND FORM integrationData
+    PROPERTIES() forbidPostedProcessGestori
+;
+
+DESIGN integrationData {
+    vetis {
+        MOVE PROPERTY(forbidPostedProcessGestori());
+    }
+}
+
+beforeProcessIncomingConsignment(IncomingConsignment c) + {
+    IF lockedProcessVetis(c) THEN {
+        MESSAGE 'Нельзя отправить запрос в Ветис: документ проведён';
+        cancelProcessIncomingConsignment() <- TRUE;
+    }
+}
+
+beforeProcessOutgoingConsignment() + {
+    IF (GROUP SUM 1 IF in(OutgoingConsignment oc) AND lockedProcessVetis(oc)) THEN {
+        MESSAGE 'Нельзя отправить запрос в Ветис: документ проведён';
+        cancelProcessOutgoingConsignment() <- TRUE;
+    }
+}
 
 CONSTRAINT CHANGED(shipmentQuantity(Purchase.UserInvoiceDetail vd)) AND isPosted(vd) AND NOT CHANGED(isPosted(vd))
     MESSAGE 'Нельзя изменить количество: накладная проведена';

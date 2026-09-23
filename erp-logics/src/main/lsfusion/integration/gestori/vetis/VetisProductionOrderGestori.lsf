@@ -78,7 +78,8 @@ nameStatusVetDocumentComponentGestori 'Статус ВСД' (Production.Componen
 // --- Скрытие кнопок, когда весь состав отправлен (созданы ВСД или отправлены запросы) ---
 
 toProcessProductionGestori (Production.Order o) =
-    GROUP SUM 1 IF VetisSale.volume(Production.ComponentDetail d, StockEntry se) AND NOT requested(d, se) AND Production.order(d) == o;
+    (GROUP SUM 1 IF VetisSale.volume(Production.ComponentDetail d, StockEntry se) AND NOT requested(d, se) AND Production.order(d) == o)
+        AND NOT (Production.isPosted(o) AND forbidPostedProcessGestori());
 coveredAllProductionGestori (Production.Order o) =
     (GROUP SUM 1 IF VetisSale.volume(Production.ComponentDetail d, StockEntry se) AND Production.order(d) == o) AND NOT toProcessProductionGestori(o);
 

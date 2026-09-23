@@ -116,9 +116,10 @@ rejectedCheck 'Отмена' (ApplicationRequest r, OutgoingConsignment o) =
     checkStatus(r, o) = CheckRequestStatus.REJECTED OR checkStatus(r, o) = CheckRequestStatus.REJECTED;
 
 toProcessCheck 'Получить условия регионализации' (OutgoingConsignment o) = o IS OutgoingConsignment AND
-    NOT notCompleted(lastCheckRequest(o)) AND // не обрабатывается заявка 
-    (NOT succeededCheck(lastCheckRequest(o), o) OR // не успешно обработана заявка 
+    NOT notCompleted(lastCheckRequest(o)) AND // не обрабатывается заявка
+    (NOT succeededCheck(lastCheckRequest(o), o) OR // не успешно обработана заявка
         rejectedCheck(lastCheckRequest(o), o)) // или Отмена
+    AND NOT lockedProcessVetis(o)
             MATERIALIZED INDEXED;
 
 processCheckOutgoingConsignment () {
@@ -195,6 +196,7 @@ rejectedCheck 'Отмена' (ApplicationRequest r, IncomingConsignment o) =
 toProcessCheck 'Получить условия регионализации' (IncomingConsignment o) = o IS IncomingConsignment AND
     NOT notCompleted(lastCheckRequest(o)) AND
     (NOT succeededCheck(lastCheckRequest(o), o) OR rejectedCheck(lastCheckRequest(o), o))
+    AND NOT lockedProcessVetis(o)
         MATERIALIZED INDEXED;
 
 processCheck 'Получить условия регионализации' (IncomingConsignment c) {
