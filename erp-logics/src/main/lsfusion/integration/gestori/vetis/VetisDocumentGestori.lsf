@@ -577,15 +577,31 @@ FORM packingTypesGestori 'Типы упаковки'
     PROPERTIES(o) READONLY guid, globalID, name
 ;
 
-// выбор типа упаковки для карточки номенклатуры (хранится Код) — реализация ABSTRACT-хука из VetisProductItemGestori
 FORM dialogPackingTypeSelectGestori 'Тип упаковки'
     OBJECTS o = PackingTypeGestori
     PROPERTIES(o) READONLY globalID, name
     LIST PackingTypeGestori OBJECT o
 ;
-changePackagingTypeGestori(ProductItem p) + {
-    DIALOG dialogPackingTypeSelectGestori OBJECTS o INPUT DO
+
+nameGestori 'Тип упаковки' (PackingTypeGestori t) = CONCAT ' ', globalID(t), name(t) CHARWIDTH 30;
+
+// у номенклатуры хранится код; если кода нет в справочнике, показывается сам код
+namePackagingTypeGestori 'Тип упаковки' (ProductItem p) =
+    OVERRIDE nameGestori(packingTypeGlobalIDGestori(STRING(packagingType(p)))), packagingType(p) CHARWIDTH 50;
+
+changePackagingTypeGestori (ProductItem p) {
+    DIALOG dialogPackingTypeSelectGestori OBJECTS o = packingTypeGlobalIDGestori(STRING(packagingType(p))) INPUT NULL DO
         packagingType(p) <- globalID(o);
+}
+
+EXTEND FORM productItem
+    PROPERTIES(o) READONLYIF readonlyProductItem(o) namePackagingTypeGestori ON CHANGE changePackagingTypeGestori(o)
+;
+
+DESIGN productItem {
+    mainColumnGestori {
+        MOVE PROPERTY(namePackagingTypeGestori(o)) BEFORE PROPERTY(packagingQuantity(o));
+    }
 }
 
 NAVIGATOR {
