@@ -15,6 +15,8 @@ DESIGN integrationData {
         MOVE PROPERTY(useShortNameEmployee());
     }
 }
+skipLookup = ABSTRACT VALUE BOOLEAN(Sku);
+filterLookup(Sku s) = s IS Sku AND NOT skipLookup(s);
 
 loadLookups () + { 
     loadLookup('stock_name', [ GROUP CONCAT TEXT('"' + TEXT(Stock st) + '":"' + escapeJSONValue(name(st)) + '"'), ',' ORDER st]());
@@ -25,18 +27,18 @@ loadLookups () + {
     loadLookup('manufacturer_name', [ GROUP CONCAT TEXT('"' + TEXT(Manufacturer m) + '":"' + escapeJSONValue(name(m))  + '"'), ',' ORDER m]());
     loadLookup('country_name', [ GROUP CONCAT TEXT('"' + TEXT(Country c) + '":"' + escapeJSONValue(name(c))  + '"'), ',' ORDER c]());
     loadLookup('UOM_name', [ GROUP CONCAT TEXT('"' + TEXT(UOM u) + '":"' + escapeJSONValue(name(u))  + '"'), ',' ORDER u]());
-    loadLookup('sku_name', [ GROUP CONCAT TEXT('"' + TEXT(Sku s) + '":"' + escapeJSONValue(name(s))  + '"'), ',' ORDER s]());
-    loadLookup('sku_barcode', [ GROUP CONCAT TEXT('"' + TEXT(Sku s) + '":"' + escapeJSONValue(idBarcode(s))  + '"'), ',' ORDER s]());
-    loadLookup('sku_id', [ GROUP CONCAT TEXT('"' + TEXT(Sku s) + '":"' + escapeJSONValue(id(s))  + '"'), ',' ORDER s]());
-    loadLookup('sku_brand', [ GROUP CONCAT TEXT('"' + TEXT(Sku s) + '":"' + TEXT(brand(s))  + '"'), ',' ORDER s]());
-    loadLookup('sku_country', [ GROUP CONCAT TEXT('"' + TEXT(Sku s) + '":"' + TEXT(country(s))  + '"'), ',' ORDER s]());
-    loadLookup('sku_group', [ GROUP CONCAT TEXT('"' + TEXT(Sku s) + '":"' + TEXT(skuGroup(s))  + '"'), ',' ORDER s]());
-    loadLookup('sku_group1', [ GROUP CONCAT TEXT('"' + TEXT(Sku s) + '":"' + TEXT(skuGroup2(s))  + '"'), ',' ORDER s]());
-    loadLookup('sku_group2', [ GROUP CONCAT TEXT('"' + TEXT(Sku s) + '":"' + TEXT(skuGroup3(s))  + '"'), ',' ORDER s]());
-    loadLookup('sku_group3', [ GROUP CONCAT TEXT('"' + TEXT(Sku s) + '":"' + TEXT(skuGroup4(s))  + '"'), ',' ORDER s]());
-    loadLookup('sku_group4', [ GROUP CONCAT TEXT('"' + TEXT(Sku s) + '":"' + TEXT(skuGroup5(s))  + '"'), ',' ORDER s]());
-    loadLookup('sku_group5', [ GROUP CONCAT TEXT('"' + TEXT(Sku s) + '":"' + TEXT(skuGroup6(s))  + '"'), ',' ORDER s]());
-    loadLookup('sku_manufacturer', [ GROUP CONCAT TEXT('"' + TEXT(Sku s) + '":"' + TEXT(manufacturer(s))  + '"'), ',' ORDER s]());
+    loadLookup('sku_name', [ GROUP CONCAT TEXT('"' + TEXT(Sku s) IF filterLookup(s) + '":"' + escapeJSONValue(name(s))  + '"'), ',' ORDER s]());
+    loadLookup('sku_barcode', [ GROUP CONCAT TEXT('"' + TEXT(Sku s) IF filterLookup(s) + '":"' + escapeJSONValue(idBarcode(s))  + '"'), ',' ORDER s]());
+    loadLookup('sku_id', [ GROUP CONCAT TEXT('"' + TEXT(Sku s) IF filterLookup(s) + '":"' + escapeJSONValue(id(s))  + '"'), ',' ORDER s]());
+    loadLookup('sku_brand', [ GROUP CONCAT TEXT('"' + TEXT(Sku s) IF filterLookup(s) + '":"' + TEXT(brand(s))  + '"'), ',' ORDER s]());
+    loadLookup('sku_country', [ GROUP CONCAT TEXT('"' + TEXT(Sku s) IF filterLookup(s) + '":"' + TEXT(country(s))  + '"'), ',' ORDER s]());
+    loadLookup('sku_group', [ GROUP CONCAT TEXT('"' + TEXT(Sku s) IF filterLookup(s) + '":"' + TEXT(skuGroup(s))  + '"'), ',' ORDER s]());
+    loadLookup('sku_group1', [ GROUP CONCAT TEXT('"' + TEXT(Sku s) IF filterLookup(s) + '":"' + TEXT(skuGroup2(s))  + '"'), ',' ORDER s]());
+    loadLookup('sku_group2', [ GROUP CONCAT TEXT('"' + TEXT(Sku s) IF filterLookup(s) + '":"' + TEXT(skuGroup3(s))  + '"'), ',' ORDER s]());
+    loadLookup('sku_group3', [ GROUP CONCAT TEXT('"' + TEXT(Sku s) IF filterLookup(s) + '":"' + TEXT(skuGroup4(s))  + '"'), ',' ORDER s]());
+    loadLookup('sku_group4', [ GROUP CONCAT TEXT('"' + TEXT(Sku s) IF filterLookup(s) + '":"' + TEXT(skuGroup5(s))  + '"'), ',' ORDER s]());
+    loadLookup('sku_group5', [ GROUP CONCAT TEXT('"' + TEXT(Sku s) IF filterLookup(s) + '":"' + TEXT(skuGroup6(s))  + '"'), ',' ORDER s]());
+    loadLookup('sku_manufacturer', [ GROUP CONCAT TEXT('"' + TEXT(Sku s) IF filterLookup(s) + '":"' + TEXT(manufacturer(s))  + '"'), ',' ORDER s]());
     IF useShortNameEmployee() THEN {
         loadLookup('employee_name', [ GROUP CONCAT TEXT('"' + TEXT(Employee e) + '":"' + escapeJSONValue(shortName(e))  + '"'), ',' ORDER e]());
     } ELSE {

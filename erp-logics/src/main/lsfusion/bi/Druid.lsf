@@ -92,6 +92,8 @@ ingestBatch (STRING[100] id, STRING[100] file, DATE date)  {
     runImportTask(id, file, date);
 }
 
+skipDeleteLookup  'Не удалять справочники перед загрузкой' = DATA BOOLEAN () PREREAD;
+
 loadLookups 'Загрузить справочники'  ABSTRACT LIST ( );
 loadLookups () + { 
     stringToFile('\{\}', 'UTF-8', 'json');
@@ -105,7 +107,7 @@ loadLookup (STRING[100] id, TEXT json)  {
         stringToFile('\{ "version": "' + lpad(TEXT([ FORMULA LONG 'SELECT EXTRACT (epoch FROM ($1))'](currentDateTime())), 12, '0') + '", "lookupExtractorFactory": \{ "type": "map", "injective" : true, "map": \{' + json + ' \} \} \}', 'UTF-8', 'json');
         LOCAL result = FILE();
 //        WRITE resultFile() TO 'file://d:/temp/test';
-        TRY { 
+        IF NOT skipDeleteLookup() THEN TRY { 
             EXTERNAL HTTP DELETE 'http://' + host() + ':8081/druid/coordinator/v1/lookups/config/__default/' + id TO result;
         }
         TRY {
@@ -122,11 +124,12 @@ loadLookup (STRING[100] id, TEXT json)  {
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() loadLookups
+    PROPERTIES() loadLookups, skipDeleteLookup
 ;
 
 DESIGN integrationData {
     druid {
+        MOVE PROPERTY(skipDeleteLookup());
         MOVE PROPERTY(loadLookups());
     }
 }
