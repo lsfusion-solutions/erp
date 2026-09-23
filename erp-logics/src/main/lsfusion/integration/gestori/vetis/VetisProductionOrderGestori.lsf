@@ -208,6 +208,22 @@ DESIGN vetDocument {
 }
 
 
+// ---- Настройки выгрузки упаковки в запросе оформления производственной партии ----
+
+sendRawPackageGestori 'Отправлять данные об упаковках компонентов при оформлении производственной партии' = DATA BOOLEAN ();
+sendProductPackageGestori 'Отправлять данные об упаковках изделий при оформлении производственной партии' = DATA BOOLEAN ();
+
+EXTEND FORM integrationData
+    PROPERTIES() sendRawPackageGestori, sendProductPackageGestori
+;
+
+DESIGN integrationData {
+    vetis {
+        MOVE PROPERTY(sendRawPackageGestori());
+        MOVE PROPERTY(sendProductPackageGestori());
+    }
+}
+
 // ---- Упаковка производимой партии в запросе (vd:productiveBatch/vd:packageList) ----
 // тип упаковки и кол-во берутся с карточки номенклатуры изделия, маркировка - со штрихкодов товара;
 // сегмент добавляется, если задан хотя бы один из них (тип упаковки должен быть найден в справочнике)
@@ -238,8 +254,25 @@ EXTEND FORM registerProductionOperationRequest
     PROPERTIES IN productMarksProdReqGestori
         =productMarksProdReqGestori(pd1, pi1) EXTID 'value',
         =(STRING[20]('UNDEFINED') IF productMarksProdReqGestori(pd1, pi1)) EXTID 'class' ATTR
-    FILTERS pd1 == pd, pi1 == pi, (packingTypeProdReqGestori(pd1, pi1) OR productMarksProdReqGestori(pd1, pi1))
+    FILTERS pd1 == pd, pi1 == pi,
+        (packingTypeProdReqGestori(pd1, pi1) OR productMarksProdReqGestori(pd1, pi1)) AND sendProductPackageGestori()
 ;
+
+// при включённой выгрузке упаковки изделий тип упаковки обязателен: без него запрос не отправляется
+packingTypeProductGestori (Production.ProductDetail pd) =
+    GROUP MAX packingTypeProdReqGestori(pd, ProductItem pi) IF in(Production.sku(pd), pi);
+
+noPackingTypeProductGestori (Production.Order o) =
+    GROUP CONCAT (Production.nameSku(Production.ProductDetail pd) IF Production.order(pd) == o
+        AND (GROUP SUM 1 IF in(Production.sku(pd), ProductItem pi)) AND NOT packingTypeProductGestori(pd)), ', '
+    ORDER Production.nameSku(pd), pd;
+
+beforeRegisterProductionOperation(Production.Order o) + {
+    IF sendProductPackageGestori() AND noPackingTypeProductGestori(o) THEN {
+        MESSAGE 'Нельзя отправить запрос в Ветис: не указан тип упаковки для изделий: ' + noPackingTypeProductGestori(o);
+        cancelRegisterProductionOperation() <- TRUE;
+    }
+}
 
 // ---- Упаковка сырья в запросе (vd:rawBatch/vd:packageList) ----
 
@@ -257,7 +290,7 @@ EXTEND FORM registerProductionOperationRequest
     PROPERTIES IN packingTypeRawReqGestori =guid(packingTypeRawReqGestori(d1)) EXTID 'bs:guid',
         =globalID(packingTypeRawReqGestori(d1)) EXTID 'dt:globalID'
     PROPERTIES =(OVERRIDE packagingQuantity(productItemRawReqGestori(d1)), 1) EXTID 'dt:quantity'
-    FILTERS d1 == d, se1 == se, packingTypeRawReqGestori(d1)
+    FILTERS d1 == d, se1 == se, packingTypeRawReqGestori(d1) AND sendRawPackageGestori()
 ;
 
 // ---- Дозаполнение производственного ВСД данными упаковки и маркировки из ответа ----

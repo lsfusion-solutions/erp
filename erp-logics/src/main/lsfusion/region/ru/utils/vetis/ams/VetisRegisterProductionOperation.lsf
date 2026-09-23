@@ -127,7 +127,14 @@ FORM registerProductionOperationRequest FORMEXTID 'merc=http://api.vetrf.ru/sche
 ;
 
 
+cancelRegisterProductionOperation = DATA LOCAL BOOLEAN ();
+beforeRegisterProductionOperation ABSTRACT LIST (Order);
+
 registerProductionOperationRequest 'Заказ производство' (Order o) {
+    cancelRegisterProductionOperation() <- NULL;
+    beforeRegisterProductionOperation(o);
+    IF cancelRegisterProductionOperation() THEN RETURN;
+
     NEWSESSION {
         NEW r = RegisterProductionOperationRequest {
             productionOrder(r) <- o;
