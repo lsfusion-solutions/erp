@@ -62,27 +62,20 @@ DESIGN userWriteOff {
 }
 
 cycleFrom = DATA Cycle (UserWriteOff) INDEXED;
-descriptionCycleFrom 'Цикл из' (UserWriteOff i) = description(cycleFrom(i));
+descriptionCycleFrom 'Цикл' (UserWriteOff i) = description(cycleFrom(i));
 
 WHEN LOCAL FORMS userWriteOff CHANGED(stock(UserWriteOff i)) DO
     cycleFrom(i) <- NULL;
 
 @defineOperationProperty(isCycleFrom, 'Должен быть указан цикл', constraintContainer);
 
-onStarted () + { 
-    IF operation('second') AND NOT isCycleFrom(operation('second')) THEN NEWSESSION {
-        isCycleFrom(operation('second')) <- TRUE;
-        APPLY;
-    }
-}
-
 CONSTRAINT (SET(isPosted(UserWriteOff i)) OR CHANGED(stock(i))) AND isPosted(i) AND stock(i) IS DepartmentStore AND NOT stock(cycleFrom(i)) == stock(i)
     AND isCycleFrom(operation(i)) AND [GROUP MIN UserWriteOffDetail d IF isSecond(sku(d)) BY userWriteOff(d)](i)
-    MESSAGE 'Должен быть указан цикл, из которого товары';
+    MESSAGE 'Должен быть указан цикл, к которому привязано списание';
 
-CONSTRAINT SETCHANGED(cycleFrom(UserWriteOff i)) AND (stock(cycleFrom(i)) != stock(i) OR fromDate(cycleFrom(i)) > currentDate())
+CONSTRAINT SETCHANGED(cycleFrom(UserWriteOff i)) AND stock(cycleFrom(i)) != stock(i)
     CHECKED BY cycleFrom[UserWriteOff]
-    MESSAGE 'Выбран цикл другого магазина, либо цикл ещё не начался';
+    MESSAGE 'Выбран цикл другого магазина';
 
 changeDescriptionCycleFrom(UserWriteOff o)  {
     DIALOG dialogCycles OBJECTS c = cycleFrom(o) CHANGE LIST description(c);
