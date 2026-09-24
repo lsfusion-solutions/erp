@@ -243,6 +243,13 @@ DESIGN operation {
     }
 }
 
+// то же, что общая настройка denyRepeatSkuOrder, но по операции; при включённой общей срабатывает только её ограничение
+@defineOperationProperty(denyRepeatSku, 'Запретить повтор изделий в производственном заказе', constraintContainer);
+
+CONSTRAINT (SETCHANGED(sku(ProductDetail d)) OR SETCHANGED(order(d)) OR SETCHANGED(operation(d)))
+    AND denyRepeatSku(operation(d)) AND NOT denyRepeatSkuOrder() AND countRepeatSkuOrder(sku(d), order(d)) > 1
+    MESSAGE 'Изделие может быть включено в заказ только один раз';
+
 @defineOperationProperty(isPrice, 'Запрет проведения производственного заказа с нулевой ценой компонент или изделий', BOOLEAN, constraintContainer);
 
 CONSTRAINT SET(isPosted(Order o)) AND isPrice(operation(o)) AND ((GROUP SUM 1 IF NOT(price(ProductDetail pd)) AND order(pd) = o) OR  (GROUP SUM 1 IF NOT(price(ComponentDetail cd)) AND order(cd) = o))
