@@ -71,4 +71,6 @@ overExplicitLot = ABSTRACT VALUE BOOLEAN (Sku);
 
 overExplicitLot(Sku sku) += explicitLot(skuGroup(sku));
 
-explicitLot 'Обязательное указание марки' (Sku s) = (overExplicitLot(s) AND lotType(s)) OR explicitLot(lotType(s)) MATERIALIZED IN itemBase;
+skipExplicitLot = ABSTRACT VALUE BOOLEAN (Sku);
+
+explicitLot 'Обязательное указание марки' (Sku s) = ((overExplicitLot(s) AND lotType(s)) OR explicitLot(lotType(s))) IF NOT skipExplicitLot(s) MATERIALIZED IN itemBase;
