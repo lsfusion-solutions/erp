@@ -70,6 +70,13 @@ internetOrderResultCheck (STRING id) = OVERRIDE internetOrderByUuid(id),
 tokenResultCheck 'Токен резалт-чеков' = DATA STRING (YandexEdaAuth);
 authResultCheck (STRING token) = GROUP MAX YandexEdaAuth a IF tokenResultCheck(a) = token;
 
+// агрегатор запроса: нужен реализациям, заводящим заказ по резалт-чеку
+checkAuth = DATA LOCAL YandexEdaAuth ();
+
+// точка расширения: агрегатор может не создавать заказ через POST /order, тогда его
+// заводят по резалт-чеку. Строки заполнит общий код ниже — как замены сборщика
+createResultCheckOrder ABSTRACT LIST ();
+
 EXTEND FORM integrationData
     PROPERTIES (yandex) tokenResultCheck
 ;
@@ -81,7 +88,8 @@ afterResultCheck ABSTRACT LIST (InternetOrder);
 resultCheck (FILE f) {
     LOCAL tokenClient = STRING ();
     tokenClient() <- OVERRIDE getWord(headers('Authorization'), ' ', 2), getWord(headers('authorization'), ' ', 2);
-    IF NOT (authResultCheck(tokenClient()) OR auth(yandexEdaSession(tokenClient()))) THEN {
+    checkAuth() <- OVERRIDE authResultCheck(tokenClient()), auth(yandexEdaSession(tokenClient()));
+    IF NOT checkAuth() THEN {
         statusHttpTo() <- 401;
         EXPORT JSON FROM code = 100, description = 'Не найден токен авторизации';
         RETURN;
@@ -92,6 +100,10 @@ resultCheck (FILE f) {
 
     LOCAL order = InternetOrder ();
     order() <- internetOrderResultCheck(checkOrderId());
+    IF NOT order() THEN {
+        createResultCheckOrder();
+        order() <- internetOrderResultCheck(checkOrderId());
+    }
     IF NOT order() THEN {
         orderNotFound();
         RETURN;
