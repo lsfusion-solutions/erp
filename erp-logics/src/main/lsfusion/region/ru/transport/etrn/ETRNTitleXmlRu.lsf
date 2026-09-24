@@ -421,12 +421,16 @@ impT1OpZakFirstInn () = [GROUP LAST (OVERRIDE impT1OpZakInn(INTEGER i), impT1OpZ
     IF impT1OpZakInn(i) OR impT1OpZakInnIP(i) ORDER i]();
 impT1OpZakFirstKpp () = [GROUP LAST impT1OpZakKpp(INTEGER i) IF impT1OpZakKpp(i) ORDER i]();
 
+// клиентские признаки карточки перевозчика (роль, группа организаций и т.п.) - у клиента
+overFillCarrierCard ABSTRACT LIST (LegalEntity);
+
 // телефон и КПП перевозчика - в карточку контрагента, только незаполненные
 // (вызывается и из провайдерского модуля после автосоздания карточки)
 fillCarrierCardFromT1 (IncomingETRN ie) {
     FOR LegalEntity l == carrier(ie) DO {
         dataPhone(l, currentDate()) <- STRING[100](impT1PerPhone()) WHERE impT1PerPhone() AND NOT phone(l);
         dataKpp(l, currentDate()) <- STRING[9](impT1PerKpp()) WHERE impT1PerKpp() AND NOT kpp(l);
+        overFillCarrierCard(l);
     }
 }
 
