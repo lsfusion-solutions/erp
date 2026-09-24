@@ -338,3 +338,44 @@ afterProcessProductionVetDocument(RegisterProductionOperationRequest r, VetDocum
             quantityPackGestori(d) <- NUMERIC[16,5](pkgQuantityProdRGestori(j));
     }
 }
+
+// --- Контроль при проведении производственного заказа ---
+
+controlledComponentGestori (Production.ComponentDetail d) =
+    controlledProduct(sku(d)) AND bruttoQuantity(d) > 0 AND NOT forbidVetisGestori(componentsStock(order(d)));
+
+// производственная партия оформлена: по последней заявке с этой парой получен ВСД, и он не аннулирован
+registeredComponentGestori (Production.ComponentDetail d, StockEntry se) =
+    TRUE IF vetDocument(lastRequestComponentGestori(d, se))
+        AND NOT status(vetDocument(lastRequestComponentGestori(d, se))) == VetDocumentStatus.WITHDRAWN;
+
+noSEComponentGestori (Production.ComponentDetail d) = controlledComponentGestori(d) AND NOT VetisSale.volumeStockEntry(d);
+
+notRegisteredSEComponentGestori (Production.ComponentDetail d) = controlledComponentGestori(d) AND
+    (GROUP SUM 1 IF VetisSale.volume(d, StockEntry se) AND NOT registeredComponentGestori(d, se));
+
+countNotRegisteredComponentGestori (Production.Order o) =
+    GROUP SUM 1 IF noSEComponentGestori(Production.ComponentDetail d) OR notRegisteredSEComponentGestori(d) BY order(d);
+
+CONSTRAINT SET(Production.isPosted(Production.Order o)) AND countNotRegisteredComponentGestori(o)
+    MESSAGE 'Нельзя провести производственный заказ: по подконтрольной продукции не оформлены производственные партии:\n' +
+        (GROUP CONCAT ((CONCAT '', nameSku(Production.ComponentDetail d),
+                (IF noSEComponentGestori(d) THEN ' — не связана с записями журнала' ELSE ' — производственная партия не оформлена'))
+            IF (noSEComponentGestori(d) OR notRegisteredSEComponentGestori(d)) AND order(d) == o), '\n'
+         ORDER d);
+
+partlySEComponentGestori (Production.ComponentDetail d) = controlledComponentGestori(d) AND VetisSale.volumeStockEntry(d)
+    AND NOT (netWeight[Stock.Sku](sku(d)) > 0.0 AND VetisSale.volumeStockEntry(d) >= volumeShippedProductionGestori(d));
+
+countPartlySEComponentGestori (Production.Order o) =
+    GROUP SUM 1 IF partlySEComponentGestori(Production.ComponentDetail d) BY order(d);
+
+CONSTRAINT SET(Production.isPosted(Production.Order o)) AND countPartlySEComponentGestori(o)
+    MESSAGE 'Нельзя провести производственный заказ: строки связаны с записями журнала не в полном объеме:\n' +
+        (GROUP CONCAT ((IF NOT netWeight[Stock.Sku](sku(Production.ComponentDetail d)) > 0.0
+                THEN (CONCAT '', nameSku(d), ' — не заполнен вес единицы товара')
+                ELSE (CONCAT '', nameSku(d), ' (по строке ',
+                    STRING(NUMERIC[16,5](volumeShippedProductionGestori(d))), ', по записям журнала ',
+                    STRING(NUMERIC[16,5](VetisSale.volumeStockEntry(d))), ')'))
+            IF partlySEComponentGestori(d) AND order(d) == o), '\n'
+         ORDER d);
