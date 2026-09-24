@@ -2237,3 +2237,141 @@ DESIGN PurchaseReturn.userInvoice { vetis { showIf = NOT forbidVetisPurchaseRetu
 DESIGN PurchaseReturn.invoices { vetis { showIf = NOT forbidVetisPurchaseReturnGestori(i); } }
 DESIGN SaleReturn.userInvoice { vetis { showIf = NOT forbidVetisSaleReturnGestori(i); } }
 DESIGN SaleReturn.invoices { vetis { showIf = NOT forbidVetisSaleReturnGestori(i); } }
+
+// ---- Контроль при проведении: накладные продажи (возврат) ----
+
+controlledSaleReturnGestori (SaleReturn.UserInvoiceDetail d) =
+    controlledProduct(sku(d)) AND shipmentQuantity(d) > 0 AND NOT forbidVetisSaleReturnGestori(SaleReturn.userInvoice(d));
+
+notUtilizedVDSaleReturnGestori (SaleReturn.UserInvoiceDetail d, VetDocument vtd) =
+    controlledSaleReturnGestori(d) AND VetisSaleReturn.volume(d, vtd)
+        AND NOT status(vtd) == VetDocumentStatus.UTILIZED AND NOT status(vtd) == VetDocumentStatus.WITHDRAWN;
+
+countNotUtilizedSaleReturnGestori (SaleReturn.UserInvoice i) =
+    GROUP SUM 1 IF notUtilizedVDSaleReturnGestori(SaleReturn.UserInvoiceDetail d, VetDocument vtd) BY SaleReturn.userInvoice(d);
+
+CONSTRAINT SET(isPosted(SaleReturn.UserInvoice i)) AND countNotUtilizedSaleReturnGestori(i)
+    MESSAGE 'Нельзя провести накладную: по строкам есть непогашенные ВСД:\n' +
+        (GROUP CONCAT ((CONCAT '', SaleReturn.nameSku(SaleReturn.UserInvoiceDetail d), ' — ', uuid(VetDocument vtd),
+            (' (срок годности истёк)' IF expiredGestori(vtd)))
+            IF notUtilizedVDSaleReturnGestori(d, vtd) AND SaleReturn.userInvoice(d) == i), '\n'
+         ORDER d, vtd);
+
+// связь с нулевым объёмом (полный возврат) тоже считается выбранным ВСД
+noVDSaleReturnGestori (SaleReturn.UserInvoiceDetail d) =
+    controlledSaleReturnGestori(d) AND NOT (GROUP SUM 1 IF VetisSaleReturn.volume(d, VetDocument vtd));
+
+countNoVDSaleReturnGestori (SaleReturn.UserInvoice i) =
+    GROUP SUM 1 IF noVDSaleReturnGestori(SaleReturn.UserInvoiceDetail d) BY SaleReturn.userInvoice(d);
+
+CONSTRAINT SET(isPosted(SaleReturn.UserInvoice i)) AND countNoVDSaleReturnGestori(i)
+    MESSAGE 'Нельзя провести накладную: по подконтрольной продукции не выбран ВСД:\n' +
+        (GROUP CONCAT (SaleReturn.nameSku(SaleReturn.UserInvoiceDetail d)
+            IF noVDSaleReturnGestori(d) AND SaleReturn.userInvoice(d) == i), '\n'
+         ORDER d);
+
+// процент считается от веса по ВСД, как у накладных закупки
+overPercentDiffSaleReturnGestori (SaleReturn.UserInvoiceDetail d) =
+    controlledSaleReturnGestori(d) AND VetisSaleReturn.volumeVetDocument(d) > 0.0 AND netWeight(sku(d)) > 0.0
+        AND NUMERIC[16,5](abs(volumeShippedSaleReturnGestori(d) (-) VetisSaleReturn.volumeVetDocument(d)) * 100.0
+                          / VetisSaleReturn.volumeVetDocument(d)) > (OVERRIDE maxPercentDiffVolumeGestori(), 5.0);
+
+noNetWeightSaleReturnGestori (SaleReturn.UserInvoiceDetail d) =
+    controlledSaleReturnGestori(d) AND VetisSaleReturn.volumeVetDocument(d) > 0.0 AND NOT netWeight(sku(d)) > 0.0;
+
+countOverPercentDiffSaleReturnGestori (SaleReturn.UserInvoice i) =
+    GROUP SUM 1 IF overPercentDiffSaleReturnGestori(SaleReturn.UserInvoiceDetail d) OR noNetWeightSaleReturnGestori(d)
+        BY SaleReturn.userInvoice(d);
+
+CONSTRAINT SET(isPosted(SaleReturn.UserInvoice i)) AND countOverPercentDiffSaleReturnGestori(i)
+    MESSAGE 'Нельзя провести накладную: расхождение объема со связанными ВСД больше допустимого по строкам:\n' +
+        (GROUP CONCAT ((IF noNetWeightSaleReturnGestori(SaleReturn.UserInvoiceDetail d)
+                THEN (CONCAT '', SaleReturn.nameSku(d), ' — не заполнен вес единицы товара')
+                ELSE (CONCAT '', SaleReturn.nameSku(d), ' (поставлено ',
+                    STRING(NUMERIC[16,5](OVERRIDE volumeShippedSaleReturnGestori(d), 0.0)), ', по ВСД ',
+                    STRING(NUMERIC[16,5](VetisSaleReturn.volumeVetDocument(d))), ')'))
+            IF (overPercentDiffSaleReturnGestori(d) OR noNetWeightSaleReturnGestori(d)) AND SaleReturn.userInvoice(d) == i), '\n'
+         ORDER d);
+
+// ---- Контроль при проведении: документы, связанные с записями журнала ----
+
+// транспортная партия оформлена: получен ВСД, и он не аннулирован
+registeredOutgoingGestori (OutgoingConsignment oc) =
+    TRUE IF vetDocument(oc) AND NOT status(vetDocument(oc)) == VetDocumentStatus.WITHDRAWN;
+
+// накладные продажи
+
+controlledSaleGestori (Sale.UserInvoiceDetail d) =
+    controlledProduct(sku(d)) AND shipmentQuantity(d) > 0 AND NOT forbidVetisSaleGestori(Sale.userInvoice(d));
+
+noSESaleGestori (Sale.UserInvoiceDetail d) = controlledSaleGestori(d) AND NOT VetisSale.volumeStockEntry(d);
+
+notRegisteredSESaleGestori (Sale.UserInvoiceDetail d) = controlledSaleGestori(d) AND
+    (GROUP SUM 1 IF VetisSale.volume(d, StockEntry se) AND NOT registeredOutgoingGestori(VetisSale.outgoingConsignment(d, se)));
+
+countNotRegisteredSaleGestori (Sale.UserInvoice i) =
+    GROUP SUM 1 IF noSESaleGestori(Sale.UserInvoiceDetail d) OR notRegisteredSESaleGestori(d) BY Sale.userInvoice(d);
+
+CONSTRAINT SET(isPosted(Sale.UserInvoice i)) AND countNotRegisteredSaleGestori(i)
+    MESSAGE 'Нельзя провести накладную: по подконтрольной продукции не оформлены транспортные партии:\n' +
+        (GROUP CONCAT ((CONCAT '', Sale.nameSku(Sale.UserInvoiceDetail d),
+                (IF noSESaleGestori(d) THEN ' — не связана с записями журнала' ELSE ' — транспортная партия не оформлена'))
+            IF (noSESaleGestori(d) OR notRegisteredSESaleGestori(d)) AND Sale.userInvoice(d) == i), '\n'
+         ORDER d);
+
+// превышение объёма строки запрещено отдельным ограничением, здесь — недобор (или вес единицы не задан)
+partlySESaleGestori (Sale.UserInvoiceDetail d) = controlledSaleGestori(d) AND VetisSale.volumeStockEntry(d)
+    AND NOT (netWeight(sku(d)) > 0.0 AND VetisSale.volumeStockEntry(d) >= volumeShippedSaleGestori(d));
+
+countPartlySESaleGestori (Sale.UserInvoice i) =
+    GROUP SUM 1 IF partlySESaleGestori(Sale.UserInvoiceDetail d) BY Sale.userInvoice(d);
+
+CONSTRAINT SET(isPosted(Sale.UserInvoice i)) AND countPartlySESaleGestori(i)
+    MESSAGE 'Нельзя провести накладную: строки связаны с записями журнала не в полном объеме:\n' +
+        (GROUP CONCAT ((IF NOT netWeight(sku(Sale.UserInvoiceDetail d)) > 0.0
+                THEN (CONCAT '', Sale.nameSku(d), ' — не заполнен вес единицы товара')
+                ELSE (CONCAT '', Sale.nameSku(d), ' (поставлено ',
+                    STRING(NUMERIC[16,5](volumeShippedSaleGestori(d))), ', по записям журнала ',
+                    STRING(NUMERIC[16,5](VetisSale.volumeStockEntry(d))), ')'))
+            IF partlySESaleGestori(d) AND Sale.userInvoice(d) == i), '\n'
+         ORDER d);
+
+// накладные закупки (возврат)
+
+controlledPurchaseReturnGestori (PurchaseReturn.UserInvoiceDetail d) =
+    controlledProduct(sku(d)) AND shipmentQuantity(d) > 0 AND NOT forbidVetisPurchaseReturnGestori(PurchaseReturn.userInvoice(d));
+
+noSEPurchaseReturnGestori (PurchaseReturn.UserInvoiceDetail d) =
+    controlledPurchaseReturnGestori(d) AND NOT VetisPurchaseReturn.volumeStockEntry(d);
+
+notRegisteredSEPurchaseReturnGestori (PurchaseReturn.UserInvoiceDetail d) = controlledPurchaseReturnGestori(d) AND
+    (GROUP SUM 1 IF VetisPurchaseReturn.volume(d, StockEntry se)
+        AND NOT registeredOutgoingGestori(VetisPurchaseReturn.outgoingConsignment(d, se)));
+
+countNotRegisteredPurchaseReturnGestori (PurchaseReturn.UserInvoice i) =
+    GROUP SUM 1 IF noSEPurchaseReturnGestori(PurchaseReturn.UserInvoiceDetail d) OR notRegisteredSEPurchaseReturnGestori(d)
+        BY PurchaseReturn.userInvoice(d);
+
+CONSTRAINT SET(isPosted(PurchaseReturn.UserInvoice i)) AND countNotRegisteredPurchaseReturnGestori(i)
+    MESSAGE 'Нельзя провести накладную: по подконтрольной продукции не оформлены транспортные партии:\n' +
+        (GROUP CONCAT ((CONCAT '', PurchaseReturn.nameSku(PurchaseReturn.UserInvoiceDetail d),
+                (IF noSEPurchaseReturnGestori(d) THEN ' — не связана с записями журнала' ELSE ' — транспортная партия не оформлена'))
+            IF (noSEPurchaseReturnGestori(d) OR notRegisteredSEPurchaseReturnGestori(d)) AND PurchaseReturn.userInvoice(d) == i), '\n'
+         ORDER d);
+
+partlySEPurchaseReturnGestori (PurchaseReturn.UserInvoiceDetail d) =
+    controlledPurchaseReturnGestori(d) AND VetisPurchaseReturn.volumeStockEntry(d)
+        AND NOT (netWeight(sku(d)) > 0.0 AND VetisPurchaseReturn.volumeStockEntry(d) >= volumeShippedReturnGestori(d));
+
+countPartlySEPurchaseReturnGestori (PurchaseReturn.UserInvoice i) =
+    GROUP SUM 1 IF partlySEPurchaseReturnGestori(PurchaseReturn.UserInvoiceDetail d) BY PurchaseReturn.userInvoice(d);
+
+CONSTRAINT SET(isPosted(PurchaseReturn.UserInvoice i)) AND countPartlySEPurchaseReturnGestori(i)
+    MESSAGE 'Нельзя провести накладную: строки связаны с записями журнала не в полном объеме:\n' +
+        (GROUP CONCAT ((IF NOT netWeight(sku(PurchaseReturn.UserInvoiceDetail d)) > 0.0
+                THEN (CONCAT '', PurchaseReturn.nameSku(d), ' — не заполнен вес единицы товара')
+                ELSE (CONCAT '', PurchaseReturn.nameSku(d), ' (поставлено ',
+                    STRING(NUMERIC[16,5](volumeShippedReturnGestori(d))), ', по записям журнала ',
+                    STRING(NUMERIC[16,5](VetisPurchaseReturn.volumeStockEntry(d))), ')'))
+            IF partlySEPurchaseReturnGestori(d) AND PurchaseReturn.userInvoice(d) == i), '\n'
+         ORDER d);
