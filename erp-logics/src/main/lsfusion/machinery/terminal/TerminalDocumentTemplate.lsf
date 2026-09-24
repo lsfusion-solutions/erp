@@ -1,6 +1,6 @@
 MODULE TerminalDocumentTemplate;
 
-REQUIRE System, Terminal, LegalEntity;
+REQUIRE System, Terminal, LegalEntity, Warehouse;
 
 NAMESPACE TerminalDocumentTemplate;
 
@@ -29,9 +29,9 @@ CONSTRAINT NOT type(TerminalTemplate t) AND t IS TerminalTemplate MESSAGE 'Не 
 company 'Компания' = DATA LegalEntity (TerminalTemplate);
 nameCompany 'Компания' (TerminalTemplate t) = name(company(t)) CHARWIDTH 50;
 
-supplier = DATA LegalEntity (TerminalTemplate);
+supplier = DATA Warehouse (TerminalTemplate);
 idSupplier(TerminalTemplate t) = id(supplier(t));
-nameSupplier 'Поставщик' (TerminalTemplate t) = name(supplier(t))  CHARWIDTH 50;
+nameSupplier 'Склад поставщика' (TerminalTemplate t) = name(supplier(t))  CHARWIDTH 50;
 
 //CONSTRAINT  stock(TerminalTemplate d) AND NOT isCompany(stock(d)) CHECKED BY stock[TerminalTemplate]
 //    MESSAGE 'Для документа выбран склад, который не является складом компании';
@@ -85,7 +85,7 @@ filterCompany = DATA LOCAL NESTED LegalEntity ();
 nameFilterCompany 'Компания' = name(filterCompany()) CHARWIDTH 15;
 filterCompany (TerminalTemplate t) = company(t) == filterCompany() OR (t IS TerminalTemplate AND NOT filterCompany());
 
-filterSupplier = DATA LOCAL NESTED LegalEntity ();
+filterSupplier = DATA LOCAL NESTED Stock ();
 nameFilterSupplier 'Поставщик' = name(filterSupplier()) CHARWIDTH 15;
 filterSupplier (TerminalTemplate t) = supplier(t) == filterSupplier() OR (t IS TerminalTemplate AND NOT filterSupplier());
 
@@ -115,26 +115,26 @@ DESIGN changeCompany {
     }
 }
 
-FORM changeSupplier 'Выбор поставщика'
-    TREE groupTree lg = LegalEntityGroup PARENT parent(lg)
-    PROPERTIES order(lg) READONLY, lgTreeName = name(lg) READONLY
-    FILTERS [GROUP SUM 1 IF isParent(lg, LegalEntity le) AND isSupplier(le)]()
-    ORDERS order(lg)
+FORM changeSupplier 'Выбор склада поставщика'
+    TREE groupTree wg = WarehouseGroup PARENT parent(wg)
+    PROPERTIES order(wg) READONLY, wgTreeName = name(wg) READONLY
+    FILTERS [GROUP SUM 1 IF isParent(wg, Warehouse w) AND isSupplier(w)]()
+    ORDERS order(wg)
 
-    OBJECTS l = LegalEntity
-    PROPERTIES READONLY name(l), id(l) SHOWIF showIDs()
-    ORDERS name(l)
-    FILTERS isSupplier(l)
-    FILTERS isParent(lg, l) OR
-        l IS LegalEntity AND NOT lg IS LegalEntityGroup OR
-        l IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroup(l)
+    OBJECTS w = Warehouse
+    PROPERTIES READONLY name(w), id(w) SHOWIF showIDs()
+    ORDERS name(w)
+    FILTERS isSupplier(w)
+    FILTERS isParent(wg, w) OR
+        w IS Warehouse AND NOT wg IS WarehouseGroup OR
+        w IS Warehouse AND wg IS WarehouseGroup AND NOT warehouseGroup(w)
 ;
 
 DESIGN changeSupplier {
     BOX { size = (1024, 768); fill = 5;
         NEW box { horizontal = TRUE; fill = 5;
             MOVE BOX(TREE groupTree);
-            MOVE BOX(l);
+            MOVE BOX(w);
         } MOVE TOOLBARBOX;
     }
 }
@@ -146,8 +146,8 @@ changeFilterCompany() {
 }
 
 changeFilterSupplier() {
-    DIALOG changeSupplier OBJECTS l INPUT NULL DO {
-        filterSupplier() <- l;
+    DIALOG changeSupplier OBJECTS w INPUT NULL DO {
+        filterSupplier() <- w;
     }
 }
 
@@ -158,8 +158,8 @@ changeCompany(TerminalTemplate t) {
 }
 
 changeSupplier(TerminalTemplate t) {
-    DIALOG changeSupplier OBJECTS l INPUT NULL DO {
-        supplier(t) <- l;
+    DIALOG changeSupplier OBJECTS w INPUT NULL DO {
+        supplier(t) <- w;
     }
 }
 
@@ -347,7 +347,7 @@ saveDocumentTemplate(FILE file) {
         number(t) <- number();
         type(t) <- terminalDocumentType(idType());
         number(t) <- number();
-        supplier(t) <- legalEntity(idSupplier());
+        supplier(t) <- stock(idSupplier());
         note(t) <- note();
         createdUser(t) <- customUserLogin(userLogin());
         company(t) <- legalEntity(stock(customUserLogin(userLogin())));
