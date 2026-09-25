@@ -39,6 +39,7 @@ processEInvoiceMessage (INTEGER i, STRING[100] login, STRING[100] password, TEXT
     }
 }
 
+providerEInvoice = DATA LOCAL EDIProvider();
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     IF lower(documentType(i)) == 'blrdln' OR lower(documentType(i)) == 'blrwbl' THEN {
         TRY {
@@ -51,6 +52,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                     logToFile('edi', provider + ' (' + login + ') Import EInvoice ' + id(i) + ' warning: XSD validation: ' + validateError());
                 currentDocumentType() <- STRING[6](upper(documentType(i)));
                 NEWSESSION NESTED LOCAL {
+                    providerEInvoice() <- EDIProvider(provider);
                     createEInvoice();
                     processEInvoiceMessage(i, login, password, url, archiveDir, disableConfirmation, provider);
                 }
