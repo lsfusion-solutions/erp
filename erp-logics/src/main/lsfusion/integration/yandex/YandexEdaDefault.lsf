@@ -52,11 +52,10 @@ onlineCategory(Group g) += WHEN g IS CustomGroup AND customGroupType(g) = yandex
 
 skipFilter = ABSTRACT BOOLEAN (Item);
 
-// без веса килограмм подставляем только весовым — у них цена и так за кг; штучным
-// вместо выдуманного веса measure не передаём вовсе.
-// Условие по netWeightYandex, а не по netWeight: иначе при переопределении netWeightYandex
-// в measure уйдут два ключа value/unit — свой и этот
-defaultMeasureYandex (Item i) = TRUE IF NOT netWeightYandex(i) AND isCatchWeight(i) = TTRUE;
+// measure обязателен: без него агрегатор отфильтровывает товар, поэтому при незаполненном
+// весе подставляем килограмм. Условие по netWeightYandex, а не по netWeight: иначе при
+// переопределении netWeightYandex в measure уйдут два ключа value/unit — свой и этот
+defaultMeasureYandex (Item i) = TRUE IF NOT netWeightYandex(i);
 
 EXTEND FORM nomenclature
     PROPERTIES IN measure =  IF defaultMeasureYandex(i) THEN 1000 EXTID 'value', = IF defaultMeasureYandex(i) THEN 'GRM' EXTID 'unit'
