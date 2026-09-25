@@ -12,15 +12,15 @@ diadocSendT1 (ETRN.OutgoingETRN e) {
     IF diadocReceptionDocument(e) THEN
         ASK 'Т1 уже отправлен в Диадок (есть связанный документ перевозки). Отправить повторно (в Диадоке создастся ещё один документ)?' DO { } ELSE RETURN;
     IF NOT diadocBox(ETRN.shipper(e)) THEN {
-        MESSAGE 'Не найден ящик Диадока грузоотправителя' NOWAIT;
+        MESSAGE ETRN.captionMessage(e) + ': не найден ящик Диадока грузоотправителя' NOWAIT;
         RETURN;
     }
     IF missingDiadocBoxes(e) THEN {
-        MESSAGE CONCAT ' ', 'Не найдены ящики участников:', missingDiadocBoxes(e) NOWAIT;
+        MESSAGE CONCAT ' ', ETRN.captionMessage(e) + ': не найдены ящики участников:', missingDiadocBoxes(e) NOWAIT;
         RETURN;
     }
 
-    checkCounteragent(guidBoxId(diadocBoxId(ETRN.shipper(e))), diadocBox(ETRN.carrier(e)), 'Т1', 'перевозчик');
+    checkCounteragent(guidBoxId(diadocBoxId(ETRN.shipper(e))), diadocBox(ETRN.carrier(e)), 'Т1, ' + ETRN.captionMessage(e), 'перевозчик');
     IF NOT counteragentCheckPassed() THEN RETURN;
 
     FOR User u == userDiadocETRN() DO NEWSESSION {
@@ -63,10 +63,10 @@ diadocSendT1 (ETRN.OutgoingETRN e) {
                 ETRN.exchangeStatus(e) <- ETRN.ETRNExchangeStatus.signed;
                 ETRN.exchangeMessage(e) <- NULL;
             } ELSE
-                ETRN.exchangeMessage(e) <- 'Т1 не отправлен (Диадок): ошибка PostMessage';
+                ETRN.exchangeMessage(e) <- ETRN.captionMessage(e) + ': Т1 не отправлен (Диадок) - ошибка PostMessage';
         } CATCH {
             fileToString(result(), 'UTF-8');
-            ETRN.exchangeMessage(e) <- 'Ошибка отправки Т1 (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+            ETRN.exchangeMessage(e) <- ETRN.captionMessage(e) + ': ошибка отправки Т1 (Диадок) - ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
             MESSAGE ETRN.exchangeMessage(e) NOWAIT;
         }
         APPLY;

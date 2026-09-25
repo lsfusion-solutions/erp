@@ -24,15 +24,15 @@ diadocSendT3 (ETRN.ETRN e) {
     IF diadocDeliveryDocument(e) THEN
         ASK 'Т3 уже отправлен в Диадок (есть связанный delivery-документ). Отправить повторно (в Диадоке создастся ещё один документ)?' DO { } ELSE RETURN;
     IF NOT (receptionDocMessageId(e) AND receptionDocEntityId(e)) THEN {
-        MESSAGE 'Нет reception-документа перевозки (Т1) в Диадоке (события не получены)' NOWAIT;
+        MESSAGE ETRN.captionMessage(e) + ': нет reception-документа перевозки (Т1) в Диадоке (события не получены)' NOWAIT;
         RETURN;
     }
     IF NOT diadocBox(ETRN.consignee(e)) THEN {
-        MESSAGE 'Не найден ящик Диадока грузополучателя' NOWAIT;
+        MESSAGE ETRN.captionMessage(e) + ': не найден ящик Диадока грузополучателя' NOWAIT;
         RETURN;
     }
     IF NOT carrierT3Box(e) THEN {
-        MESSAGE 'Не найден ящик Диадока перевозчика (получатель титула Т3). Для входящей перевозки: проверьте ИНН перевозчика на документе и обновите его организацию в справочнике Диадока по ИНН' NOWAIT;
+        MESSAGE ETRN.captionMessage(e) + ': не найден ящик Диадока перевозчика (получатель титула Т3). Для входящей перевозки: проверьте ИНН перевозчика на документе и обновите его организацию в справочнике Диадока по ИНН' NOWAIT;
         RETURN;
     }
     // партнёрство с перевозчиком проверено раньше, до проверки полей (checkCounteragentT3)
@@ -49,7 +49,7 @@ diadocSendT3 (ETRN.ETRN e) {
         IF fwdOnlyETRN(e) THEN {
             IF NOT fwdT2EntityId(e) THEN diadocFindFwdTitles(e);
             IF NOT fwdT2EntityId(e) THEN {
-                ETRN.exchangeMessage(e) <- 'Т3 не отправлен: перевозчик еще не подписал титул Т2 (приём груза). Дождитесь получения Т2 и повторите';
+                ETRN.exchangeMessage(e) <- ETRN.captionMessage(e) + ': Т3 не отправлен - перевозчик еще не подписал титул Т2 (приём груза). Дождитесь получения Т2 и повторите';
                 MESSAGE ETRN.exchangeMessage(e) NOWAIT;
                 APPLY;
                 RETURN;
@@ -91,10 +91,10 @@ diadocSendT3 (ETRN.ETRN e) {
                 // этап продвигаем сразу по своей отправке, не дожидаясь события ленты
                 ETRN.stage(e) <- ETRN.ETRNStage.acceptance WHERE NOT ETRN.id(ETRN.stage(e)) >= 3;
             } ELSE
-                ETRN.exchangeMessage(e) <- 'Т3 не отправлен (Диадок): ошибка PostMessage';
+                ETRN.exchangeMessage(e) <- ETRN.captionMessage(e) + ': Т3 не отправлен (Диадок) - ошибка PostMessage';
         } CATCH {
             fileToString(result(), 'UTF-8');
-            ETRN.exchangeMessage(e) <- 'Ошибка отправки Т3 (Диадок): ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+            ETRN.exchangeMessage(e) <- ETRN.captionMessage(e) + ': ошибка отправки Т3 (Диадок) - ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
             MESSAGE ETRN.exchangeMessage(e) NOWAIT;
         }
         APPLY;
@@ -104,7 +104,7 @@ diadocSendT3 (ETRN.ETRN e) {
 // без ящиков партнёрство проверять не с кем - об этом скажет сама отправка
 ETRN.checkCounteragentT3 (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvider.diadoc THEN {
     IF NOT (diadocBox(ETRN.consignee(e)) AND carrierT3Box(e)) THEN RETURN;
-    checkCounteragent(guidBoxId(diadocBoxId(ETRN.consignee(e))), carrierT3Box(e), 'Т3', 'перевозчик');
+    checkCounteragent(guidBoxId(diadocBoxId(ETRN.consignee(e))), carrierT3Box(e), 'Т3, ' + ETRN.captionMessage(e), 'перевозчик');
     IF NOT counteragentCheckPassed() THEN {
         ETRN.counteragentT3Failed() <- TRUE;
         ETRN.counteragentT3Message() <- counteragentCheckMessage();
@@ -117,20 +117,20 @@ ETRN.inviteCarrier (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvider.di
     // nested-свойство живёт до закрытия формы: чистим, чтобы не показать причину от прошлого нажатия
     counteragentCheckMessage() <- NULL;
     IF NOT diadocBox(ETRN.consignee(e)) THEN {
-        MESSAGE 'Не найден ящик Диадока грузополучателя' NOWAIT;
+        MESSAGE ETRN.captionMessage(e) + ': не найден ящик Диадока грузополучателя' NOWAIT;
         RETURN;
     }
     IF NOT carrierT3Box(e) THEN {
-        MESSAGE 'Не найден ящик Диадока перевозчика. Проверьте ИНН перевозчика на документе и обновите его организацию в справочнике Диадока по ИНН' NOWAIT;
+        MESSAGE ETRN.captionMessage(e) + ': не найден ящик Диадока перевозчика. Проверьте ИНН перевозчика на документе и обновите его организацию в справочнике Диадока по ИНН' NOWAIT;
         RETURN;
     }
 
-    checkCounteragent(guidBoxId(diadocBoxId(ETRN.consignee(e))), carrierT3Box(e), 'Т3', 'перевозчик');
+    checkCounteragent(guidBoxId(diadocBoxId(ETRN.consignee(e))), carrierT3Box(e), 'Т3, ' + ETRN.captionMessage(e), 'перевозчик');
 
     // итог складываем в одно nested-свойство до новой сессии: counteragentCheckPassed в неё не протягивается.
     // Успех важнее промежуточных сообщений: при встречном приглашении связь устанавливается сразу,
     // даже если отправка нашего приглашения по дороге дала ошибку
-    counteragentCheckMessage() <- OVERRIDE TEXT('Партнёрство с перевозчиком подтверждено') IF counteragentCheckPassed(),
+    counteragentCheckMessage() <- OVERRIDE TEXT(ETRN.captionMessage(e) + ': партнёрство с перевозчиком подтверждено') IF counteragentCheckPassed(),
         counteragentCheckMessage();
 
     NEWSESSION {

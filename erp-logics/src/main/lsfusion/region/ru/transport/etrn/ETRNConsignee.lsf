@@ -98,7 +98,7 @@ missingT3 (ETRN e) = CONCAT ', ',
 
 checkT3 (ETRN e) {
     IF missingT3(e) THEN {
-        MESSAGE CONCAT '\n', 'Не заполнены обязательные поля титула Т3:', missingT3(e) NOWAIT;
+        MESSAGE CONCAT '\n', captionMessage(e) + ': не заполнены обязательные поля титула Т3:', missingT3(e) NOWAIT;
         RETURN;
     }
 }
@@ -143,7 +143,7 @@ sendConsigneeSignedETRN 'Подписать и отправить Т3' (ETRN e) 
     IF counteragentT3Failed() THEN {
         NEWSESSION {
             exchangeMessage(e) <- OVERRIDE counteragentT3Message(),
-                TEXT('Т3 не отправлен: не подтверждено партнёрство с перевозчиком у провайдера ЭПД. Если приглашение отправлено, повторите отправку после того, как перевозчик его примет');
+                TEXT(captionMessage(e) + ': Т3 не отправлен - не подтверждено партнёрство с перевозчиком у провайдера ЭПД. Если приглашение отправлено, повторите отправку после того, как перевозчик его примет');
             APPLY;
         }
         MESSAGE exchangeMessage(e) NOWAIT;

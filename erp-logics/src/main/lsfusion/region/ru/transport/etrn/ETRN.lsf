@@ -86,6 +86,9 @@ date '{document.date.of} {document.of.document}' = ABSTRACT DATE (ETRN) IN docum
 time '{document.time.of} {document.of.document}' = ABSTRACT TIME (ETRN) IN documentHeader;
 dateTime '{document.date.time.of} {document.of.document}' (ETRN o) = dateTimeToDateTime(date(o), time(o)) MATERIALIZED INDEXED;
 
+// подпись документа для сообщений: при пакетной отправке без неё не понять, о каком документе речь
+captionMessage (ETRN o) = STRING(CONCAT ' ', 'ЭТрН', seriesNumber(o), 'от ' + toChar(date(o), 'DD.MM.YYYY'));
+
 WHEN LOCAL SET(ETRN o IS ETRN) INLINE DO {
     IF o IS ETRN AND NOT date(o) THEN date(o) <- currentDate();
     IF o IS ETRN AND NOT time(o) THEN time(o) <- currentTime();
