@@ -159,7 +159,7 @@ postInfCustomer 'Получить информацию о клиенте сбо�
 
         logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/v3/dbs/orders/client');
 
-        EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrderDBS(order);
+        EXPORT JSON FROM 'value' = LONG(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrderDBS(order);
         fileToString(exportFile(), 'UTF-8');
         stringToFile('\{"orders":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
         TRY {
@@ -223,7 +223,7 @@ getWbStatuses 'Получить статусы заказов' () {
 
         logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/marketplace/v3/dbs/orders/status/info');
 
-        EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrderDBS(order);
+        EXPORT JSON FROM 'value' = LONG(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrderDBS(order);
         fileToString(exportFile(), 'UTF-8');
         stringToFile('\{"ordersIds":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
         fileToString(resultFile(), 'UTF-8');
@@ -303,7 +303,7 @@ requestBody = DATA LOCAL NESTED FILE();
 composeRequestBody(WbStatus wbStatus){
     IF wbStatus == WbStatus.confirm OR wbStatus == WbStatus.cancel OR wbStatus == WbStatus.deliver THEN
         {
-            EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrderDBS(order) AND NOT wbStatus(order) == wbStatus;
+            EXPORT JSON FROM 'value' = LONG(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrderDBS(order) AND NOT wbStatus(order) == wbStatus;
             fileToString(exportFile(), 'UTF-8');
             stringToFile('\{"ordersIds":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
             fileToString(resultFile(), 'UTF-8');
@@ -313,7 +313,7 @@ composeRequestBody(WbStatus wbStatus){
     ELSE IF wbStatus == WbStatus.receive OR wbStatus == WbStatus.reject THEN
         {
 
-            EXPORT JSON FROM 'orders' = JSON FROM 'orderId' = INTEGER(number(InternetOrder order)), 'code' = wbCode(order) WHERE isSelected(order) AND isWBOrderDBS(order) AND NOT wbStatus(order) == wbStatus;
+            EXPORT JSON FROM 'orders' = JSON FROM 'orderId' = LONG(number(InternetOrder order)), 'code' = wbCode(order) WHERE isSelected(order) AND isWBOrderDBS(order) AND NOT wbStatus(order) == wbStatus;
             fileToString(exportFile(), 'UTF-8');
             logToFile('WB', 'body: ' + resultString());
             requestBody() <- exportFile();
@@ -478,7 +478,7 @@ getStickersDBS 'Получить стикеры' () {
 
         logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + postUrl());
 
-        EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrderDBS(order);
+        EXPORT JSON FROM 'value' = LONG(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrderDBS(order);
         fileToString(exportFile(), 'UTF-8');
         stringToFile('\{"orders":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
         fileToString(resultFile(), 'UTF-8');
