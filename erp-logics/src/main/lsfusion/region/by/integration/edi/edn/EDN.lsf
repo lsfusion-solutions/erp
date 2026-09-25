@@ -182,12 +182,12 @@ GROUP headers;
 headersEDN = DATA LOCAL NESTED TEXT (TEXT);
 
 downloadFileName = DATA LOCAL STRING(INTEGER);
+processedDateTime = DATA LOCAL ZDATETIME(INTEGER);
 
-//дата — время обработки у провайдера, как DocumentDate в SOAP-выдаче той же очереди
 FORM getDocumentsEDN
     OBJECTS data = INTEGER
     PROPERTIES(data) IN headers
-        id EXTID 'documentId', downloadFileName, documentType EXTID 'type', documentDate EXTID 'processedDateTime';
+        id EXTID 'documentId', downloadFileName, documentType EXTID 'type', processedDateTime;
 
 overReceiveMessagesEDN ABSTRACT LIST (INTEGER, STRING[100], STRING[100], TEXT, STRING[100], BOOLEAN, STRING[100]);
 
@@ -243,6 +243,7 @@ receiveMessagesEDN (STRING[100] login, STRING[100] password, TEXT url, STRING[10
                 MESSAGE  provider + ' (' + login + ') Сообщения не получены: ' + requestError() NOWAIT;
             } ELSE {
                 IMPORT getDocumentsEDN JSON FROM sendRequestEDIResponse();
+                documentDate(INTEGER r) <- DATETIME(processedDateTime(r));
 
                 fillStartParams();
                 IF (GROUP SUM 1 IF documentType(INTEGER i)) > 0 THEN textMessage() <- CONCAT '\n', textMessage(), provider + '(' + login + ') Сообщений в очереди: ' + (GROUP SUM 1 IF documentType(INTEGER i));
