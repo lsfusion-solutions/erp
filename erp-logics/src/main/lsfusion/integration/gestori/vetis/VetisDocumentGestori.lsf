@@ -2254,7 +2254,7 @@ CONSTRAINT SET(isPosted(SaleReturn.UserInvoice i)) AND countNotUtilizedSaleRetur
     MESSAGE 'Нельзя провести накладную: по строкам есть непогашенные ВСД:\n' +
         (GROUP CONCAT ((CONCAT '', SaleReturn.nameSku(SaleReturn.UserInvoiceDetail d), ' — ', uuid(VetDocument vtd),
             (' (срок годности истёк)' IF expiredGestori(vtd)))
-            IF notUtilizedVDSaleReturnGestori(d, vtd) AND SaleReturn.userInvoice(d) == i), '\n'
+            IF notUtilizedVDSaleReturnGestori(d, vtd) AND SET(isPosted(SaleReturn.userInvoice(d)))), '\n'
          ORDER d, vtd);
 
 // связь с нулевым объёмом (полный возврат) тоже считается выбранным ВСД
@@ -2267,7 +2267,7 @@ countNoVDSaleReturnGestori (SaleReturn.UserInvoice i) =
 CONSTRAINT SET(isPosted(SaleReturn.UserInvoice i)) AND countNoVDSaleReturnGestori(i)
     MESSAGE 'Нельзя провести накладную: по подконтрольной продукции не выбран ВСД:\n' +
         (GROUP CONCAT (SaleReturn.nameSku(SaleReturn.UserInvoiceDetail d)
-            IF noVDSaleReturnGestori(d) AND SaleReturn.userInvoice(d) == i), '\n'
+            IF noVDSaleReturnGestori(d) AND SET(isPosted(SaleReturn.userInvoice(d)))), '\n'
          ORDER d);
 
 // процент считается от веса по ВСД, как у накладных закупки
@@ -2290,7 +2290,7 @@ CONSTRAINT SET(isPosted(SaleReturn.UserInvoice i)) AND countOverPercentDiffSaleR
                 ELSE (CONCAT '', SaleReturn.nameSku(d), ' (поставлено ',
                     STRING(NUMERIC[16,5](OVERRIDE volumeShippedSaleReturnGestori(d), 0.0)), ', по ВСД ',
                     STRING(NUMERIC[16,5](VetisSaleReturn.volumeVetDocument(d))), ')'))
-            IF (overPercentDiffSaleReturnGestori(d) OR noNetWeightSaleReturnGestori(d)) AND SaleReturn.userInvoice(d) == i), '\n'
+            IF (overPercentDiffSaleReturnGestori(d) OR noNetWeightSaleReturnGestori(d)) AND SET(isPosted(SaleReturn.userInvoice(d)))), '\n'
          ORDER d);
 
 // ---- Контроль при проведении: документы, связанные с записями журнала ----
@@ -2316,7 +2316,7 @@ CONSTRAINT SET(isPosted(Sale.UserInvoice i)) AND countNotRegisteredSaleGestori(i
     MESSAGE 'Нельзя провести накладную: по подконтрольной продукции не оформлены транспортные партии:\n' +
         (GROUP CONCAT ((CONCAT '', Sale.nameSku(Sale.UserInvoiceDetail d),
                 (IF noSESaleGestori(d) THEN ' — не связана с записями журнала' ELSE ' — транспортная партия не оформлена'))
-            IF (noSESaleGestori(d) OR notRegisteredSESaleGestori(d)) AND Sale.userInvoice(d) == i), '\n'
+            IF (noSESaleGestori(d) OR notRegisteredSESaleGestori(d)) AND SET(isPosted(Sale.userInvoice(d)))), '\n'
          ORDER d);
 
 // превышение объёма строки запрещено отдельным ограничением, здесь — недобор (или вес единицы не задан)
@@ -2333,7 +2333,7 @@ CONSTRAINT SET(isPosted(Sale.UserInvoice i)) AND countPartlySESaleGestori(i)
                 ELSE (CONCAT '', Sale.nameSku(d), ' (поставлено ',
                     STRING(NUMERIC[16,5](volumeShippedSaleGestori(d))), ', по записям журнала ',
                     STRING(NUMERIC[16,5](VetisSale.volumeStockEntry(d))), ')'))
-            IF partlySESaleGestori(d) AND Sale.userInvoice(d) == i), '\n'
+            IF partlySESaleGestori(d) AND SET(isPosted(Sale.userInvoice(d)))), '\n'
          ORDER d);
 
 // накладные закупки (возврат)
@@ -2356,7 +2356,7 @@ CONSTRAINT SET(isPosted(PurchaseReturn.UserInvoice i)) AND countNotRegisteredPur
     MESSAGE 'Нельзя провести накладную: по подконтрольной продукции не оформлены транспортные партии:\n' +
         (GROUP CONCAT ((CONCAT '', PurchaseReturn.nameSku(PurchaseReturn.UserInvoiceDetail d),
                 (IF noSEPurchaseReturnGestori(d) THEN ' — не связана с записями журнала' ELSE ' — транспортная партия не оформлена'))
-            IF (noSEPurchaseReturnGestori(d) OR notRegisteredSEPurchaseReturnGestori(d)) AND PurchaseReturn.userInvoice(d) == i), '\n'
+            IF (noSEPurchaseReturnGestori(d) OR notRegisteredSEPurchaseReturnGestori(d)) AND SET(isPosted(PurchaseReturn.userInvoice(d)))), '\n'
          ORDER d);
 
 partlySEPurchaseReturnGestori (PurchaseReturn.UserInvoiceDetail d) =
@@ -2373,5 +2373,5 @@ CONSTRAINT SET(isPosted(PurchaseReturn.UserInvoice i)) AND countPartlySEPurchase
                 ELSE (CONCAT '', PurchaseReturn.nameSku(d), ' (поставлено ',
                     STRING(NUMERIC[16,5](volumeShippedReturnGestori(d))), ', по записям журнала ',
                     STRING(NUMERIC[16,5](VetisPurchaseReturn.volumeStockEntry(d))), ')'))
-            IF partlySEPurchaseReturnGestori(d) AND PurchaseReturn.userInvoice(d) == i), '\n'
+            IF partlySEPurchaseReturnGestori(d) AND SET(isPosted(PurchaseReturn.userInvoice(d)))), '\n'
          ORDER d);

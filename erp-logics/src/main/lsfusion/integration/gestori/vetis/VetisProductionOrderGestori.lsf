@@ -361,7 +361,7 @@ CONSTRAINT SET(Production.isPosted(Production.Order o)) AND countNotRegisteredCo
     MESSAGE 'Нельзя провести производственный заказ: по подконтрольной продукции не оформлены производственные партии:\n' +
         (GROUP CONCAT ((CONCAT '', nameSku(Production.ComponentDetail d),
                 (IF noSEComponentGestori(d) THEN ' — не связана с записями журнала' ELSE ' — производственная партия не оформлена'))
-            IF (noSEComponentGestori(d) OR notRegisteredSEComponentGestori(d)) AND order(d) == o), '\n'
+            IF (noSEComponentGestori(d) OR notRegisteredSEComponentGestori(d)) AND SET(Production.isPosted(order(d)))), '\n'
          ORDER d);
 
 partlySEComponentGestori (Production.ComponentDetail d) = controlledComponentGestori(d) AND VetisSale.volumeStockEntry(d)
@@ -377,5 +377,5 @@ CONSTRAINT SET(Production.isPosted(Production.Order o)) AND countPartlySECompone
                 ELSE (CONCAT '', nameSku(d), ' (по строке ',
                     STRING(NUMERIC[16,5](volumeShippedProductionGestori(d))), ', по записям журнала ',
                     STRING(NUMERIC[16,5](VetisSale.volumeStockEntry(d))), ')'))
-            IF partlySEComponentGestori(d) AND order(d) == o), '\n'
+            IF partlySEComponentGestori(d) AND SET(Production.isPosted(order(d)))), '\n'
          ORDER d);
