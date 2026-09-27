@@ -1783,9 +1783,13 @@ volumeShippedReturnGestori 'Объем (поставлено)' (PurchaseReturn.I
 totalVolumeSEReturnGestori 'Объем всего' (StockEntry se) =
     GROUP SUM VetisPurchaseReturn.volume(PurchaseReturn.UserInvoiceDetail d, se) IF NOT VetisPurchaseReturn.vetDocument(d, se);
 
-seVolumeLockedReturnGestori (PurchaseReturn.UserInvoiceDetail d) = GROUP SUM 1 IF VetisPurchaseReturn.outgoingConsignment(d, StockEntry se) IS OutgoingConsignment
+// связь строки с записью журнала заблокирована, если по её исходящей партии отправлен запрос в Ветис
+// (кроме завершившихся ошибкой) или создан ВСД
+lockedPairReturnGestori (PurchaseReturn.UserInvoiceDetail d, StockEntry se) = VetisPurchaseReturn.outgoingConsignment(d, se) IS OutgoingConsignment
     AND (notCompleted(lastRequest(VetisPurchaseReturn.outgoingConsignment(d, se))) OR succeeded(lastRequest(VetisPurchaseReturn.outgoingConsignment(d, se)))
          OR vetDocument(VetisPurchaseReturn.outgoingConsignment(d, se)));
+
+seVolumeLockedReturnGestori (PurchaseReturn.UserInvoiceDetail d) = GROUP SUM 1 IF lockedPairReturnGestori(d, StockEntry se);
 
 diffVolumeShippedReturnGestori (PurchaseReturn.UserInvoiceDetail d) =
     (OVERRIDE volumeShippedReturnGestori(d), 0.0) != (OVERRIDE VetisPurchaseReturn.volumeStockEntry(d), 0.0);
@@ -1812,6 +1816,65 @@ DESIGN PurchaseReturn.userInvoice {
     PROPERTY(volumeStockEntry(vd)) { caption = 'Объем по строке'; }
     PROPERTY(guid(se)) { caption = 'GUID записи журнала'; }
     PROPERTY(volume(vd, se)) { caption = 'Объем по строке'; }
+}
+
+// свободный остаток записи журнала и непокрытый объём строки — без учёта текущей пары
+freeVolumeSEReturnGestori (PurchaseReturn.UserInvoiceDetail vd, StockEntry se) = NUMERIC[16,5](MAX
+    volume(se) (-) (totalVolumeSEReturnGestori(se) (-) (VetisPurchaseReturn.volume(vd, se) IF NOT VetisPurchaseReturn.vetDocument(vd, se))), 0.0);
+freeVolumeRowReturnGestori (PurchaseReturn.UserInvoiceDetail vd, StockEntry se) = NUMERIC[16,5](MAX
+    volumeShippedReturnGestori(vd) (-) (VetisPurchaseReturn.volumeStockEntry(vd) (-) VetisPurchaseReturn.volume(vd, se)), 0.0);
+
+fillVolumeRowReturnGestori 'Выбрать' (PurchaseReturn.UserInvoiceDetail vd, StockEntry se) {
+    IF lockedPairReturnGestori(vd, se) THEN {
+        MESSAGE 'Нельзя изменить объём по записи журнала: по исходящей партии отправлен запрос в Ветис или сформирована транспортная партия';
+        RETURN;
+    }
+    IF NOT (MIN freeVolumeSEReturnGestori(vd, se), freeVolumeRowReturnGestori(vd, se)) > 0 THEN {
+        MESSAGE 'Свободный остаток записи журнала или непокрытый объём строки равен нулю: связывание не выполнено';
+        RETURN;
+    }
+    VetisPurchaseReturn.volume(vd, se) <- NUMERIC[16,5](MIN freeVolumeSEReturnGestori(vd, se), freeVolumeRowReturnGestori(vd, se));
+}
+
+// заблокированные связи не меняются; непокрытый объём строк раскладывается по записям журнала в порядке срока годности,
+// уже заданные связи сохраняются — строка без непокрытого объёма не меняется
+fillVolumeReturnGestori 'Заполнить' (PurchaseReturn.UserInvoice i) {
+    FOR PurchaseReturn.userInvoice(PurchaseReturn.UserInvoiceDetail vd) = i ORDER PurchaseReturn.index(vd), vd DO
+        FOR VetisPurchaseReturn.matches(vd, StockEntry se) AND NOT lockedPairReturnGestori(vd, se) ORDER expiryDate(se), se DO
+            IF (MIN freeVolumeSEReturnGestori(vd, se), freeVolumeRowReturnGestori(vd, se)) > 0 THEN
+                VetisPurchaseReturn.volume(vd, se) <- NUMERIC[16,5](MIN freeVolumeSEReturnGestori(vd, se), freeVolumeRowReturnGestori(vd, se));
+}
+
+EXTEND FORM PurchaseReturn.userInvoice
+    PROPERTIES(vd, se) fillVolumeRowReturnGestori GRID
+    PROPERTIES(i) fillVolumeReturnGestori DRAW vd TOOLBAR
+;
+DESIGN PurchaseReturn.userInvoice {
+    PROPERTY(fillVolume(vd, se)) { hide = TRUE; }
+    PROPERTY(fillVolume(i)) { hide = TRUE; }
+}
+
+// аннуляция ВСД не отправляется повторно: ВСД уже аннулирован или по нему есть необработанный или выполненный запрос
+withdrawRowReturnGestori 'Аннулировать ВСД' (PurchaseReturn.InvoiceDetail vd, StockEntry se) {
+    IF status(VetisPurchaseReturn.vetDocument(vd, se)) == VetDocumentStatus.WITHDRAWN THEN {
+        MESSAGE 'ВСД ' + (OVERRIDE uuid(VetisPurchaseReturn.vetDocument(vd, se)), '') + ' уже аннулирован' NOWAIT;
+        RETURN;
+    }
+    IF activeWithdrawVDGestori(VetisPurchaseReturn.vetDocument(vd, se)) THEN {
+        MESSAGE 'По ВСД ' + (OVERRIDE uuid(VetisPurchaseReturn.vetDocument(vd, se)), '') + ' запрос на аннуляцию уже ' +
+            (IF succeeded(activeWithdrawVDGestori(VetisPurchaseReturn.vetDocument(vd, se))) THEN 'выполнен' ELSE 'отправлен и ещё обрабатывается') NOWAIT;
+        RETURN;
+    }
+    withdraw(VetisPurchaseReturn.vetDocument(vd, se));
+} CONFIRM;
+
+EXTEND FORM PurchaseReturn.invoices
+    PROPERTIES(vd, se) withdrawRowReturnGestori GRID
+        READONLYIF NOT (status(VetisPurchaseReturn.vetDocument(vd, se)) = VetDocumentStatus.CONFIRMED
+                        AND NOT activeWithdrawVDGestori(VetisPurchaseReturn.vetDocument(vd, se)))
+;
+DESIGN PurchaseReturn.invoices {
+    PROPERTY(withdraw(vd, se)) { hide = TRUE; }
 }
 
 // ---- Список накладных закупки (возврат), вкладка ВЕТИС ----
@@ -1883,8 +1946,10 @@ CONSTRAINT VetisPurchaseReturn.volumeStockEntry(PurchaseReturn.UserInvoiceDetail
 
 CONSTRAINT CHANGED(shipmentQuantity(PurchaseReturn.UserInvoiceDetail d)) AND seVolumeLockedReturnGestori(d) AND NOT CHANGED(seVolumeLockedReturnGestori(d))
     MESSAGE 'Нельзя изменить количество: по исходящим партиям отправлены запросы в Ветис или сформирована транспортная партия';
-CONSTRAINT CHANGED(VetisPurchaseReturn.volume(PurchaseReturn.UserInvoiceDetail d, StockEntry se)) AND seVolumeLockedReturnGestori(d) AND NOT CHANGED(seVolumeLockedReturnGestori(d))
-    MESSAGE 'Нельзя изменить объём по записи журнала: по исходящим партиям отправлены запросы в Ветис или сформирована транспортная партия';
+// блокировка проверяется по состоянию до изменений: так нельзя и удалить заблокированную связь (партия при этом исчезает),
+// а новая связь строки с другой записью журнала допускается
+CONSTRAINT CHANGED(VetisPurchaseReturn.volume(PurchaseReturn.UserInvoiceDetail d, StockEntry se)) AND PREV(lockedPairReturnGestori(d, se))
+    MESSAGE 'Нельзя изменить объём по записи журнала: по исходящей партии отправлен запрос в Ветис или сформирована транспортная партия';
 
 // ---- Заявки ВЕТИС по накладной закупки (возврат) ----
 
