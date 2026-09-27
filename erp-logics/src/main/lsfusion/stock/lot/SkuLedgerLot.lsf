@@ -83,10 +83,11 @@ CONSTRAINT checkCurrentBalanceLot() AND NOT skipCheckCurrentBalanceLot(currentUs
     MESSAGE 'Количество КМ на остатках превышает текущий остаток по товару';
 
 skipCheckCurrentBalance = ABSTRACT BOOLEAN (Stock);
-CONSTRAINT checkCurrentBalanceLot() AND NOT skipCheckCurrentBalanceLot(currentUser()) AND NOT skipCheckCurrentBalance(Stock st) AND SET(currentBalance(Lot l, st) < 0) 
+skipCheckCurrentBalance = ABSTRACT VALUE BOOLEAN (Lot);
+CONSTRAINT checkCurrentBalanceLot() AND NOT skipCheckCurrentBalanceLot(currentUser()) AND NOT skipCheckCurrentBalance(Stock st) AND NOT skipCheckCurrentBalance(Lot l) AND SET(currentBalance(l, st) < 0) 
     MESSAGE 'Остаток по КМ на складе становится меньше 0';
 
-CONSTRAINT checkCurrentBalanceLot() AND NOT skipCheckCurrentBalanceLot(currentUser()) AND SET(currentBalance(Lot l) > 1)
+CONSTRAINT checkCurrentBalanceLot() AND NOT skipCheckCurrentBalanceLot(currentUser()) AND NOT skipCheckCurrentBalance(Lot l) AND SET(currentBalance(l) > 1)
     MESSAGE 'Остаток по КМ по всем складам становится больше 1';
     
 EXTEND FORM currentBalanceSkuStock
