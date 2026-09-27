@@ -2018,6 +2018,43 @@ DESIGN SaleReturn.invoices {
     PROPERTY(volume(vtd)) { hide = TRUE; }
 }
 
+// условия регионализации по входящим партиям накладной продажи (возврат) — как у накладной закупки
+processCheckRowSaleReturnGestori 'Получить условия регионализации' (SaleReturn.InvoiceDetail vd, VetDocument vtd) {
+    processCheck(VetisSaleReturn.incomingConsignment(vd, vtd));
+}
+
+showRegionalizationRowSaleReturnGestori 'Показать условия регионализации' (SaleReturn.InvoiceDetail vd, VetDocument vtd) {
+    showRegionalizationConditions(VetisSaleReturn.incomingConsignment(vd, vtd));
+}
+
+issueDateCheckSaleReturnGestori 'Время получения условий регионализации' (SaleReturn.InvoiceDetail vd, VetDocument vtd) =
+    issueDateLastCheckRequest(VetisSaleReturn.incomingConsignment(vd, vtd));
+nameStatusCheckSaleReturnGestori 'Статус получения условий регионализации' (SaleReturn.InvoiceDetail vd, VetDocument vtd) =
+    nameStatusLastCheckRequest(VetisSaleReturn.incomingConsignment(vd, vtd));
+
+toProcessCheckRowSaleReturnGestori (SaleReturn.InvoiceDetail vd, VetDocument vtd) =
+    returnIncomingGestori(VetisSaleReturn.incomingConsignment(vd, vtd))
+    AND NOT lockedCheckIncomingGestori(VetisSaleReturn.incomingConsignment(vd, vtd));
+
+hasRegionalizationRowSaleReturnGestori (SaleReturn.InvoiceDetail vd, VetDocument vtd) =
+    hasRegionalization(VetisSaleReturn.incomingConsignment(vd, vtd))
+    AND returnIncomingGestori(VetisSaleReturn.incomingConsignment(vd, vtd));
+
+toProcessCheckSaleReturnGestori (SaleReturn.Invoice i) = GROUP SUM 1 IF
+    toProcessCheckRowSaleReturnGestori(SaleReturn.InvoiceDetail d, VetDocument vtd) AND SaleReturn.invoice(d) = i;
+
+processCheckSaleReturnGestori 'Получить условия регионализации' (SaleReturn.Invoice i) {
+    FOR toProcessCheckRowSaleReturnGestori(SaleReturn.InvoiceDetail d, VetDocument vtd) AND SaleReturn.invoice(d) = i DO
+        processCheck(VetisSaleReturn.incomingConsignment(d, vtd));
+}
+
+EXTEND FORM SaleReturn.invoices
+    PROPERTIES(vd, vtd) READONLY issueDateCheckSaleReturnGestori, nameStatusCheckSaleReturnGestori
+    PROPERTIES(vd, vtd) processCheckRowSaleReturnGestori READONLYIF NOT toProcessCheckRowSaleReturnGestori(vd, vtd) GRID,
+                       showRegionalizationRowSaleReturnGestori READONLYIF NOT hasRegionalizationRowSaleReturnGestori(vd, vtd) GRID
+    PROPERTIES(i) processCheckSaleReturnGestori DRAW vse TOOLBAR SHOWIF toProcessCheckSaleReturnGestori(i)
+;
+
 // ---- Форма накладной продажи (возврат), вкладка ВЕТИС ----
 
 volumeShippedSaleReturnGestori 'Объем (поставлено)' (SaleReturn.UserInvoiceDetail d) = NUMERIC[16,5](shipmentQuantity(d) * netWeight(sku(d)));
