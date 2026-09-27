@@ -1378,7 +1378,7 @@ CONSTRAINT SET(isPosted(Purchase.UserInvoice i)) AND countNotUtilizedInvoiceGest
     MESSAGE 'Нельзя провести накладную: по строкам есть непогашенные ВСД:\n' +
         (GROUP CONCAT ((CONCAT '', Purchase.nameSku(Purchase.UserInvoiceDetail d), ' — ', uuid(VetDocument vtd),
             (' (срок годности истёк)' IF expiredGestori(vtd)))
-            IF notUtilizedVDInvoiceGestori(d, vtd) AND Purchase.userInvoice(d) == i), '\n'
+            IF notUtilizedVDInvoiceGestori(d, vtd) AND SET(isPosted(Purchase.userInvoice(d)))), '\n'
          ORDER d, vtd);
 
 hasVDInvoiceGestori (Purchase.UserInvoiceDetail d) = GROUP SUM 1 IF VetisPurchase.volume(d, VetDocument vtd);
@@ -1397,7 +1397,7 @@ countNoVDInvoiceGestori (Purchase.UserInvoice i) =
 CONSTRAINT SET(isPosted(Purchase.UserInvoice i)) AND countNoVDInvoiceGestori(i)
     MESSAGE 'Нельзя провести накладную: по подконтрольной продукции не выбран ВСД:\n' +
         (GROUP CONCAT (Purchase.nameSku(Purchase.UserInvoiceDetail d)
-            IF noVDInvoiceGestori(d) AND Purchase.userInvoice(d) == i), '\n'
+            IF noVDInvoiceGestori(d) AND SET(isPosted(Purchase.userInvoice(d)))), '\n'
          ORDER d);
 
 volumeOwnVDInvoiceGestori (Purchase.UserInvoiceDetail d) =
@@ -1426,7 +1426,7 @@ countNoNetWeightInvoiceGestori (Purchase.UserInvoice i) =
 CONSTRAINT SET(isPosted(Purchase.UserInvoice i)) AND countNoNetWeightInvoiceGestori(i)
     MESSAGE 'Нельзя провести накладную: не заполнен вес единицы товара, расхождение с ВСД не рассчитать:\n' +
         (GROUP CONCAT (Purchase.nameSku(Purchase.UserInvoiceDetail d)
-            IF noNetWeightInvoiceGestori(d) AND Purchase.userInvoice(d) == i), '\n'
+            IF noNetWeightInvoiceGestori(d) AND SET(isPosted(Purchase.userInvoice(d)))), '\n'
          ORDER d);
 
 countOverPercentDiffInvoiceGestori (Purchase.UserInvoice i) =
@@ -1437,7 +1437,7 @@ CONSTRAINT SET(isPosted(Purchase.UserInvoice i)) AND countOverPercentDiffInvoice
         (GROUP CONCAT ((CONCAT '', Purchase.nameSku(Purchase.UserInvoiceDetail d), ' (поставлено ',
             STRING(NUMERIC[16,5](OVERRIDE volumeShippedGestori(d), 0.0)), ', по ВСД ',
             STRING(NUMERIC[16,5](OVERRIDE volumeOwnVDInvoiceGestori(d), 0.0)), ')')
-            IF overPercentDiffVolumeInvoiceGestori(d) AND Purchase.userInvoice(d) == i), '\n'
+            IF overPercentDiffVolumeInvoiceGestori(d) AND SET(isPosted(Purchase.userInvoice(d)))), '\n'
          ORDER d);
 
 noSkuInInvoiceVDGestori (Purchase.UserInvoice i, VetDocument vtd) = TRUE IF vtd IS VetDocument AND
@@ -1533,9 +1533,9 @@ countPartlyLinkedWithdrawnVDGestori (Purchase.UserInvoice i) =
 CONSTRAINT SET(isPosted(Purchase.UserInvoice i)) AND countPartlyLinkedWithdrawnVDGestori(i)
     MESSAGE 'Нельзя провести накладную: аннулированные возвратные ВСД связаны со строками не в полном объеме:\n' +
         (GROUP CONCAT ((CONCAT '', uuid(VetDocument vtd), ' (связано ',
-            STRING(NUMERIC[16,5](OVERRIDE linkedVolumeVDInvoiceGestori(i, vtd), 0.0)), ' из ',
+            STRING(NUMERIC[16,5](OVERRIDE linkedVolumeVDInvoiceGestori(Purchase.UserInvoice ii, vtd), 0.0)), ' из ',
             STRING(NUMERIC[16,5](OVERRIDE volume(vtd), 0.0)), ')')
-            IF partlyLinkedWithdrawnVDGestori(i, vtd)), '\n'
+            IF partlyLinkedWithdrawnVDGestori(ii, vtd) AND SET(isPosted(ii))), '\n'
          ORDER vtd);
 
 EXTEND FORM vetDocuments
