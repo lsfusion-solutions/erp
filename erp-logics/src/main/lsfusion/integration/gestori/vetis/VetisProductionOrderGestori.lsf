@@ -379,3 +379,20 @@ CONSTRAINT SET(Production.isPosted(Production.Order o)) AND countPartlySECompone
                     STRING(NUMERIC[16,5](VetisSale.volumeStockEntry(d))), ')'))
             IF partlySEComponentGestori(d) AND SET(Production.isPosted(order(d)))), '\n'
          ORDER d);
+
+// отправка запроса в Ветис: объём строк компонентов должен быть полностью связан с записями журнала
+beforeRegisterProductionOperation(Production.Order o) + {
+    IF countPartlySEComponentGestori(o) THEN {
+        MESSAGE 'Нельзя отправить запрос в Ветис: строки связаны с записями журнала не в полном объеме:
+' +
+            (GROUP CONCAT ((IF NOT netWeight[Stock.Sku](sku(Production.ComponentDetail d)) > 0.0
+                    THEN (CONCAT '', nameSku(d), ' — не заполнен вес единицы товара')
+                    ELSE (CONCAT '', nameSku(d), ' (по строке ',
+                        STRING(NUMERIC[16,5](volumeShippedProductionGestori(d))), ', по записям журнала ',
+                        STRING(NUMERIC[16,5](VetisSale.volumeStockEntry(d))), ')'))
+                IF partlySEComponentGestori(d) AND order(d) == o), '
+'
+             ORDER d);
+        cancelRegisterProductionOperation() <- TRUE;
+    }
+}

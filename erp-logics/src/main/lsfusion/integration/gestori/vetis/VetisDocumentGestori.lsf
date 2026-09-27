@@ -1622,9 +1622,9 @@ totalVolumeSEGestori 'Объем всего' (StockEntry se) = GROUP SUM VetisSa
 lockedOutgoingGestori (OutgoingConsignment oc) =
     TRUE IF notCompleted(lastRequest(oc)) OR succeeded(lastRequest(oc)) OR vetDocument(oc);
 
-seVolumeLockedSaleGestori (Sale.UserInvoiceDetail d) = GROUP SUM 1 IF VetisSale.outgoingConsignment(d, StockEntry se) IS OutgoingConsignment
-    AND (notCompleted(lastRequest(VetisSale.outgoingConsignment(d, se))) OR succeeded(lastRequest(VetisSale.outgoingConsignment(d, se)))
-         OR vetDocument(VetisSale.outgoingConsignment(d, se)));
+lockedPairSaleGestori (Sale.UserInvoiceDetail d, StockEntry se) = lockedOutgoingGestori(VetisSale.outgoingConsignment(d, se));
+
+seVolumeLockedSaleGestori (Sale.UserInvoiceDetail d) = GROUP SUM 1 IF lockedPairSaleGestori(d, StockEntry se);
 
 diffVolumeShippedSaleGestori (Sale.UserInvoiceDetail d) =
     (OVERRIDE volumeShippedSaleGestori(d), 0.0) != (OVERRIDE VetisSale.volumeStockEntry(d), 0.0);
@@ -1651,6 +1651,55 @@ DESIGN Sale.userInvoice {
     PROPERTY(volumeStockEntry(vd)) { caption = 'Объем по строке'; }
     PROPERTY(guid(se)) { caption = 'GUID записи журнала'; }
     PROPERTY(volume(vd, se)) { caption = 'Объем по строке'; }
+}
+
+// свободный остаток записи журнала и непокрытый объём строки — без учёта текущей пары
+freeVolumeSESaleGestori (Sale.UserInvoiceDetail vd, StockEntry se) = NUMERIC[16,5](MAX
+    volume(se) (-) (totalVolumeSEGestori(se) (-) (VetisSale.volume(vd, se) IF NOT VetisSale.vetDocument(vd, se))), 0.0);
+freeVolumeRowSaleGestori (Sale.UserInvoiceDetail vd, StockEntry se) = NUMERIC[16,5](MAX
+    volumeShippedSaleGestori(vd) (-) (VetisSale.volumeStockEntry(vd) (-) VetisSale.volume(vd, se)), 0.0);
+
+fillVolumeRowSaleGestori 'Выбрать' (Sale.UserInvoiceDetail vd, StockEntry se) {
+    IF lockedPairSaleGestori(vd, se) THEN {
+        MESSAGE 'Нельзя изменить объём по записи журнала: по исходящей партии отправлен запрос в Ветис или сформирована транспортная партия';
+        RETURN;
+    }
+    IF NOT (MIN freeVolumeSESaleGestori(vd, se), freeVolumeRowSaleGestori(vd, se)) > 0 THEN {
+        MESSAGE 'Свободный остаток записи журнала или непокрытый объём строки равен нулю: связывание не выполнено';
+        RETURN;
+    }
+    VetisSale.volume(vd, se) <- NUMERIC[16,5](MIN freeVolumeSESaleGestori(vd, se), freeVolumeRowSaleGestori(vd, se));
+}
+
+// заблокированные связи не меняются; непокрытый объём строк раскладывается по записям журнала в порядке срока годности,
+// уже заданные связи сохраняются — строка без непокрытого объёма не меняется
+fillVolumeSaleGestori 'Заполнить' (Sale.Invoice i) {
+    FOR Sale.invoice(Sale.UserInvoiceDetail vd) = i ORDER Sale.index(vd), vd DO
+        FOR VetisSale.matches(vd, StockEntry se) AND NOT lockedPairSaleGestori(vd, se) ORDER expiryDate(se), se DO
+            IF (MIN freeVolumeSESaleGestori(vd, se), freeVolumeRowSaleGestori(vd, se)) > 0 THEN
+                VetisSale.volume(vd, se) <- NUMERIC[16,5](MIN freeVolumeSESaleGestori(vd, se), freeVolumeRowSaleGestori(vd, se));
+}
+
+fillVolumeApplySaleGestori 'Заполнить' (Sale.Invoice i) {
+    fillVolumeSaleGestori(i);
+    APPLY;
+}
+
+EXTEND FORM Sale.userInvoice
+    PROPERTIES(vd, se) fillVolumeRowSaleGestori GRID
+    PROPERTIES(i) fillVolumeSaleGestori DRAW vd TOOLBAR
+;
+DESIGN Sale.userInvoice {
+    PROPERTY(fillVolume(vd, se)) { hide = TRUE; }
+    PROPERTY(fillVolume(i)) { hide = TRUE; }
+}
+
+EXTEND FORM Sale.invoices
+    PROPERTIES(i) fillVolumeApplySaleGestori DRAW vse TOOLBAR
+        SHOWIF VetisSale.hasProductItemInvoice(i) AND NOT VetisSale.lockedVetisInvoice(i)
+;
+DESIGN Sale.invoices {
+    PROPERTY(fillVolumeApply(i)) { hide = TRUE; }
 }
 
 // ---- Список накладных продажи, вкладка ВЕТИС ----
@@ -1744,8 +1793,10 @@ CONSTRAINT VetisSale.volumeStockEntry(Sale.UserInvoiceDetail d) > volumeShippedS
 
 CONSTRAINT CHANGED(shipmentQuantity(Sale.UserInvoiceDetail d)) AND seVolumeLockedSaleGestori(d) AND NOT CHANGED(seVolumeLockedSaleGestori(d))
     MESSAGE 'Нельзя изменить количество: по исходящим партиям отправлены запросы в Ветис или сформирована транспортная партия';
-CONSTRAINT CHANGED(VetisSale.volume(Sale.UserInvoiceDetail d, StockEntry se)) AND seVolumeLockedSaleGestori(d) AND NOT CHANGED(seVolumeLockedSaleGestori(d))
-    MESSAGE 'Нельзя изменить объём по записи журнала: по исходящим партиям отправлены запросы в Ветис или сформирована транспортная партия';
+// блокировка проверяется по состоянию до изменений: так нельзя и удалить заблокированную связь (партия при этом исчезает),
+// а новая связь строки с другой записью журнала допускается
+CONSTRAINT CHANGED(VetisSale.volume(Sale.UserInvoiceDetail d, StockEntry se)) AND PREV(lockedPairSaleGestori(d, se))
+    MESSAGE 'Нельзя изменить объём по записи журнала: по исходящей партии отправлен запрос в Ветис или сформирована транспортная партия';
 
 WHEN CHANGED(shipmentQuantity(Sale.UserInvoiceDetail d)) AND VetisSale.volume(d, StockEntry se) > 0
         AND NOT seVolumeLockedSaleGestori(d) DO
@@ -1785,9 +1836,7 @@ totalVolumeSEReturnGestori 'Объем всего' (StockEntry se) =
 
 // связь строки с записью журнала заблокирована, если по её исходящей партии отправлен запрос в Ветис
 // (кроме завершившихся ошибкой) или создан ВСД
-lockedPairReturnGestori (PurchaseReturn.UserInvoiceDetail d, StockEntry se) = VetisPurchaseReturn.outgoingConsignment(d, se) IS OutgoingConsignment
-    AND (notCompleted(lastRequest(VetisPurchaseReturn.outgoingConsignment(d, se))) OR succeeded(lastRequest(VetisPurchaseReturn.outgoingConsignment(d, se)))
-         OR vetDocument(VetisPurchaseReturn.outgoingConsignment(d, se)));
+lockedPairReturnGestori (PurchaseReturn.UserInvoiceDetail d, StockEntry se) = lockedOutgoingGestori(VetisPurchaseReturn.outgoingConsignment(d, se));
 
 seVolumeLockedReturnGestori (PurchaseReturn.UserInvoiceDetail d) = GROUP SUM 1 IF lockedPairReturnGestori(d, StockEntry se);
 
@@ -1838,11 +1887,16 @@ fillVolumeRowReturnGestori 'Выбрать' (PurchaseReturn.UserInvoiceDetail vd
 
 // заблокированные связи не меняются; непокрытый объём строк раскладывается по записям журнала в порядке срока годности,
 // уже заданные связи сохраняются — строка без непокрытого объёма не меняется
-fillVolumeReturnGestori 'Заполнить' (PurchaseReturn.UserInvoice i) {
-    FOR PurchaseReturn.userInvoice(PurchaseReturn.UserInvoiceDetail vd) = i ORDER PurchaseReturn.index(vd), vd DO
+fillVolumeReturnGestori 'Заполнить' (PurchaseReturn.Invoice i) {
+    FOR PurchaseReturn.invoice(PurchaseReturn.UserInvoiceDetail vd) = i ORDER PurchaseReturn.index(vd), vd DO
         FOR VetisPurchaseReturn.matches(vd, StockEntry se) AND NOT lockedPairReturnGestori(vd, se) ORDER expiryDate(se), se DO
             IF (MIN freeVolumeSEReturnGestori(vd, se), freeVolumeRowReturnGestori(vd, se)) > 0 THEN
                 VetisPurchaseReturn.volume(vd, se) <- NUMERIC[16,5](MIN freeVolumeSEReturnGestori(vd, se), freeVolumeRowReturnGestori(vd, se));
+}
+
+fillVolumeApplyReturnGestori 'Заполнить' (PurchaseReturn.Invoice i) {
+    fillVolumeReturnGestori(i);
+    APPLY;
 }
 
 EXTEND FORM PurchaseReturn.userInvoice
@@ -1873,8 +1927,13 @@ EXTEND FORM PurchaseReturn.invoices
         READONLYIF NOT (status(VetisPurchaseReturn.vetDocument(vd, se)) = VetDocumentStatus.CONFIRMED
                         AND NOT activeWithdrawVDGestori(VetisPurchaseReturn.vetDocument(vd, se)))
 ;
+EXTEND FORM PurchaseReturn.invoices
+    PROPERTIES(i) fillVolumeApplyReturnGestori DRAW vse TOOLBAR
+        SHOWIF VetisPurchaseReturn.hasProductItemInvoice(i) AND NOT VetisPurchaseReturn.lockedVetisInvoice(i)
+;
 DESIGN PurchaseReturn.invoices {
     PROPERTY(withdraw(vd, se)) { hide = TRUE; }
+    PROPERTY(fillVolumeApply(i)) { hide = TRUE; }
 }
 
 // ---- Список накладных закупки (возврат), вкладка ВЕТИС ----
@@ -2477,3 +2536,30 @@ CONSTRAINT SET(isPosted(PurchaseReturn.UserInvoice i)) AND countPartlySEPurchase
                     STRING(NUMERIC[16,5](VetisPurchaseReturn.volumeStockEntry(d))), ')'))
             IF partlySEPurchaseReturnGestori(d) AND SET(isPosted(PurchaseReturn.userInvoice(d)))), '\n'
          ORDER d);
+
+// ---- Отправка запроса по исходящим партиям: объём строки должен быть полностью связан с записями журнала ----
+
+beforeProcessOutgoingConsignment() + {
+    LOCAL partlyLines = TEXT ();
+    partlyLines() <- CONCAT '
+',
+        (GROUP CONCAT ((IF NOT netWeight(sku(Sale.UserInvoiceDetail d)) > 0.0
+                THEN (CONCAT '', Sale.nameSku(d), ' — не заполнен вес единицы товара')
+                ELSE (CONCAT '', Sale.nameSku(d), ' (поставлено ', STRING(NUMERIC[16,5](volumeShippedSaleGestori(d))),
+                    ', по записям журнала ', STRING(NUMERIC[16,5](VetisSale.volumeStockEntry(d))), ')'))
+            IF partlySESaleGestori(d) AND (GROUP SUM 1 IF in(VetisSale.outgoingConsignment(d, StockEntry se)))), '
+'
+         ORDER d),
+        (GROUP CONCAT ((IF NOT netWeight(sku(PurchaseReturn.UserInvoiceDetail p)) > 0.0
+                THEN (CONCAT '', PurchaseReturn.nameSku(p), ' — не заполнен вес единицы товара')
+                ELSE (CONCAT '', PurchaseReturn.nameSku(p), ' (поставлено ', STRING(NUMERIC[16,5](volumeShippedReturnGestori(p))),
+                    ', по записям журнала ', STRING(NUMERIC[16,5](VetisPurchaseReturn.volumeStockEntry(p))), ')'))
+            IF partlySEPurchaseReturnGestori(p) AND (GROUP SUM 1 IF in(VetisPurchaseReturn.outgoingConsignment(p, StockEntry sp)))), '
+'
+         ORDER p);
+    IF partlyLines() THEN {
+        MESSAGE 'Нельзя отправить запрос в Ветис: строки связаны с записями журнала не в полном объеме:
+' + partlyLines();
+        cancelProcessOutgoingConsignment() <- TRUE;
+    }
+}
