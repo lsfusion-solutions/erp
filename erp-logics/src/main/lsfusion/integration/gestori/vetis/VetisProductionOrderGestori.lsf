@@ -97,15 +97,20 @@ checkQuantityPrevLinkVetis() += TRUE;
 // --- Запрет редактирования после отправки запросов в Ветис ---
 
 // заявка без зафиксированного состава (создана до его появления) блокирует все строки своего заказа
+requestedPairComponentGestori (Production.ComponentDetail d, StockEntry se) =
+    GROUP SUM 1 IF volume(RegisterProductionOperationRequest r, d, se) AND (notCompleted(r) OR succeeded(r));
+
+lockedPairComponentGestori (Production.ComponentDetail d, StockEntry se) =
+    requestedPairComponentGestori(d, se) OR hasLegacyRequest(order(d));
+
 lockedComponentGestori (Production.ComponentDetail d) =
-    OVERRIDE (GROUP SUM 1 IF volume(RegisterProductionOperationRequest r, d, StockEntry se) AND (notCompleted(r) OR succeeded(r))),
-        hasLegacyRequest(order(d));
+    OVERRIDE (GROUP SUM 1 IF requestedPairComponentGestori(d, StockEntry se)), hasLegacyRequest(order(d));
 
 CONSTRAINT CHANGED(Production.quantity(Production.ComponentDetail d)) AND lockedComponentGestori(d)
     MESSAGE 'Запрещено изменять количество по строке производственного заказа: по строке отправлен запрос в Ветис';
 
-CONSTRAINT CHANGED(VetisSale.volume(Production.ComponentDetail d, StockEntry se)) AND lockedComponentGestori(d)
-    MESSAGE 'Запрещено изменять объём по записям журнала: по строке отправлен запрос в Ветис';
+CONSTRAINT CHANGED(VetisSale.volume(Production.ComponentDetail d, StockEntry se)) AND PREV(lockedPairComponentGestori(d, se))
+    MESSAGE 'Запрещено изменять объём по записи журнала: по связи строки с этой записью отправлен запрос в Ветис';
 
 // строку нельзя удалить (в т.ч. удалением заказа), пока по ней есть незавершённые или успешные запросы
 CONSTRAINT DROPPED(d IS Production.ComponentDetail) AND PREV(lockedComponentGestori(d))
