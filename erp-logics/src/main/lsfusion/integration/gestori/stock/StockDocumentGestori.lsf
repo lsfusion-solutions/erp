@@ -152,15 +152,17 @@ DESIGN store {
 }
 useRangeGestori 'Использовать ограничения ассортиментной матрицы' (DepartmentStore s) = useRangeGestori(store(s));
 
+skipRangeGestori = ABSTRACT BOOLEAN ();
+
 CONSTRAINT (SETCHANGED(sku(SkuLedger d)) OR SETCHANGED(stock(d)) OR SETCHANGED(date(d)) OR SETCHANGED(isPosted(d))) AND isPosted(d)
     AND useRangeGestori(stock(d)) AND NOT (d IS SaleZReportSkuLedger OR d IS ReturnZReportSkuLedger)
     AND NOT disableRangeControl(currentUser()) AND denyNotInRange() AND sku(d) IS Item AND NOT countRange(sku(d), stock(d), date(d))
-    AND NOT disparityItem(sku(d))
+    AND NOT disparityItem(sku(d)) AND NOT skipRangeGestori()
     MESSAGE 'Запрещено использовать товары не включенные в ассортимент';
 
 CONSTRAINT (SET(isPosted(Purchase.OrderDetail d)) OR SETCHANGED(sku(d)) OR SETCHANGED(customerStock(d))) AND isPosted(d) AND useRangeGestori(customerStock(d))
     AND NOT disableRangeControl(currentUser()) AND denyNotInRange() AND sku(d) IS Item AND NOT countRange(sku(d), stock(d), date(d))
-    AND NOT disparityItem(sku(d))
+    AND NOT disparityItem(sku(d)) AND NOT skipRangeGestori()
     MESSAGE 'В заказ включены товары не включенные в ассортимент';
 
 skipOpen(Purchase.UserInvoice i) += WHEN postedTime(i) AND date(i) < documentsClosedDate(customer(i)) THEN TRUE;

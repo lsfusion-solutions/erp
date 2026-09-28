@@ -6,6 +6,8 @@ NAMESPACE Range;
 
 rangePurchaseOrderDefault = ABSTRACT BOOLEAN (Stock);
 
+skipRangeControl = ABSTRACT BOOLEAN ();
+
 disableRangeControl 'Не контролировать по матрице' = DATA BOOLEAN (Sku) IN itemBase;
 
 @defineItemGroupValue(disableRangeControl, 'Не контролировать по матрице', BOOLEAN);
@@ -33,6 +35,7 @@ CONSTRAINT (SET (isPosted(Purchase.InvoiceDetail d))
     AND useRange(customerStock(d))
     AND isItem(sku(d))
     AND NOT overDisableRangeControl(sku(d))
+    AND NOT skipRangeControl()
     AND shipmentQuantity(d) > 0.0
     AND NOT countRange(sku(d), customerStock(d), date(d))
     MESSAGE 'Запрещено проводить накладную с товаром, не включенным в ассортимент склада покупателя'
@@ -43,6 +46,7 @@ CONSTRAINT (SET (isPosted(Purchase.OrderDetail d))
     AND useRange(customerStock(d))
     AND isItem(sku(d))
     AND NOT overDisableRangeControl(sku(d))
+    AND NOT skipRangeControl()
     AND NOT countRange(sku(d), customerStock(d), date(d))
     MESSAGE 'Запрещено проводить заказ с товаром, не включенным в ассортимент склада покупателя'
     ;
