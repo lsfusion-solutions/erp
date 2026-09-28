@@ -301,6 +301,12 @@ FORM statusInfoResponse
 // перетирания — пусть переопределит customSetFbsStatus в TRUE.
 customSetFbsStatus = ABSTRACT BOOLEAN ();
 
+statusInternetOrderFBS (WbStatus ws, WbSystemStatus wss) = CASE
+    WHEN wss = WbSystemStatus.sold THEN StatusInternetOrder.delivered
+    WHEN wss = WbSystemStatus.canceled_by_client THEN StatusInternetOrder.wbRefusedByClient
+    WHEN wss = WbSystemStatus.canceled OR wss = WbSystemStatus.defect OR wss = WbSystemStatus.canceled_by_carrier THEN StatusInternetOrder.cancel
+    ELSE statusInternetOrder(ws);
+
 //https://marketplace-api-sandbox.wildberries.ru/api/v3/orders/status
 getWbFbsStatuses 'Получить статусы заказов FBS' () {
     NEWSESSION NESTED LOCAL {
@@ -337,7 +343,7 @@ getWbFbsStatuses 'Получить статусы заказов FBS' () {
                             status(o) <- OVERRIDE customCancelOrderStatus(), StatusInternetOrder.closed;
                         }
                     } ELSE IF NOT customSetFbsStatus() THEN {
-                        status(o) <- statusInternetOrder(ws);
+                        status(o) <- statusInternetOrderFBS(ws, wss);
                     }
                     wbStatus(o) <- ws;
                     wbSystemStatus(o) <- wss;

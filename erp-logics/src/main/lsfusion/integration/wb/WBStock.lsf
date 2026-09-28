@@ -310,14 +310,13 @@ postStock 'Создать склад продавца (собственный)' 
             LOCAL messageStock = STRING ();
             LOCAL statusText = STRING ();
             LOCAL status = STRING ();
-            LOCAL isCreatedWB = BOOLEAN (Stock);
             errorText(w) <- NULL WHERE error(w);
             error(w) <- NULL WHERE error(w);
 
-            logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/v3/warehouses');
-            EXPORT JSON FROM name = name(w), officeId = id(distributionCenter(w)) WHERE isCreatedWB(w);
+            EXPORT JSON FROM name = name(w), officeId = id(distributionCenter(w));
             
             fileToString(exportFile(), 'UTF-8');
+            logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/v3/warehouses body: ' + resultString());
             stringToFile(resultString(),'UTF-8', 'json');
             
             TRY {
@@ -364,14 +363,13 @@ updateStock 'Обновить склад продавца (собственны�
             LOCAL messageStock = STRING ();
             LOCAL statusText = STRING ();
             LOCAL status = STRING ();
-            LOCAL isUpdatedWB = BOOLEAN (Stock);
             errorText(w) <- NULL WHERE error(w);
             error(w) <- NULL WHERE error(w);
 
-            logToFile('WB', 'PUT: ' + url(CategoryRequest.marketplace) + '/api/v3/warehouses');
-            EXPORT JSON FROM name = name(w), officeId = id(distributionCenter(w)) WHERE isUpdatedWB(w);
+            EXPORT JSON FROM name = name(w), officeId = id(distributionCenter(w));
 
             fileToString(exportFile(), 'UTF-8');
+            logToFile('WB', 'PUT: ' + url(CategoryRequest.marketplace) + '/api/v3/warehouses/' + id(w) + ' body: ' + resultString());
             stringToFile(resultString(), 'UTF-8', 'json');
 
             TRY {
@@ -421,7 +419,7 @@ deleteStock 'Удалить склад продавца (собственный)
             errorText(w) <- NULL WHERE error(w);
             error(w) <- NULL WHERE error(w);
     
-            logToFile('WB', 'DELETE: ' + url(CategoryRequest.marketplace) + '/api/v3/warehouses/');
+            logToFile('WB', 'DELETE: ' + url(CategoryRequest.marketplace) + '/api/v3/warehouses/' + id(w));
     
             TRY {
                 EXTERNAL HTTP DELETE url(CategoryRequest.marketplace) + '/api/v3/warehouses/' +id(w) HEADERS httpHeaders  TO response;
