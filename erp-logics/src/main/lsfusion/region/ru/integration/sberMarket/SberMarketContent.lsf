@@ -179,7 +179,10 @@ value(Sku i, STRING s) += WHEN s = 'is_excisable' AND i IS Sku AND NOT useCustom
 
 
 online = ABSTRACT CASE BOOLEAN (Sku);
-online (Sku s) += WHEN groupTypeSberMarket() AND group(groupTypeSberMarket(), s) THEN TRUE;
+// причины исключить товар из выгрузки задаются в конфигурациях
+skipOnline = ABSTRACT CASE BOOLEAN (Sku);
+// без кода товар не выгрузить ни в одну ручку: offer_id обязателен
+online (Sku s) += WHEN groupTypeSberMarket() AND group(groupTypeSberMarket(), s) AND id(s) AND NOT skipOnline(s) THEN TRUE;
 
 position = PARTITION SUM 1 ORDER (Sku s) BY online(s);
 
@@ -220,6 +223,9 @@ FORM items FORMEXTID 'null'
 ;
 sort = DATA LOCAL INTEGER (Sku);
 
+// вызывается только если отправлены все части выгрузки
+afterSendItems ABSTRACT LIST ();
+
 sendItems 'Выгрузить товары'(){
     sort(Sku s) <- PARTITION SUM 1 IF online(s) ORDER s;
     auth();
@@ -258,6 +264,7 @@ sendItems 'Выгрузить товары'(){
             RETURN;
         }
     }
+    afterSendItems();
 }
 
 
