@@ -37,6 +37,11 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
     public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoList) throws IOException {
         if (stopListInfo != null && !stopListInfo.exclude) {
             processStopListLogger.info(getLogPrefix() + "Send StopList # " + stopListInfo.number);
+            //don't connect to scales without plu
+            if (stopListInfo.stopListItemMap.values().stream().noneMatch(this::isPLU)) {
+                processStopListLogger.info(String.format(getLogPrefix() + "StopList #%s: no items to delete, %s scales skipped", stopListInfo.number, machineryInfoList.size()));
+                return;
+            }
             for (MachineryInfo scales : machineryInfoList) {
                 if (scales.port != null) {
                     List<String> localErrors = new ArrayList<>();
@@ -52,7 +57,7 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
                             for (StopListItem item : stopListInfo.stopListItemMap.values()) {
                                 count++;
                                 if (globalError < 5) {
-                                    if (item.idBarcode != null && item.idBarcode.length() <= 5) {
+                                    if (isPLU(item)) {
                                         processStopListLogger.info(String.format(getLogPrefix() + "IP %s, StopList #%s, deleting item #%s (barcode %s)", scales.port, stopListInfo.number, count, item.idBarcode));
                                         int attempts = 0;
                                         Boolean result = null;
@@ -261,6 +266,10 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
         return bytes.array();
     }
 
+    private boolean isPLU(ItemInfo item) {
+        return item.idBarcode != null && item.idBarcode.length() <= 5;
+    }
+
     private int getPluNumber(ItemInfo item) {
         return item.pluNumber != null ? item.pluNumber : Integer.parseInt(item.idBarcode);
     }
@@ -341,7 +350,7 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
                         for (ScalesItem item : transaction.itemsList) {
                             count++;
                             if (notInterruptedTransaction(transaction.id) && globalError < 5) {
-                                if (item.idBarcode != null && item.idBarcode.length() <= 5) {
+                                if (isPLU(item)) {
                                     processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
                                     int attempts = 0;
                                     Boolean result = null;
