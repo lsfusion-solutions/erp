@@ -121,9 +121,15 @@ FORM exportPlain
     FILTERS active(stockDocumentLedger(l)), inExport(operation(stockDocumentLedger(l))), inExport(stock(l)), date(l) >= dateFrom(), date(l) <= dateTo()
 ;
 
+useOverExportPeriod 'Период не по количеству дней' = ABSTRACT BOOLEAN ();
+overDateFrom = ABSTRACT DATE ();
+overDateTo = ABSTRACT DATE ();
+
 export() {
-    
-    IF exportPeriod() THEN {
+    IF useOverExportPeriod() AND overDateFrom() AND overDateTo() THEN {
+        dateFrom() <- overDateFrom();
+        dateTo() <- overDateTo();
+    } ELSE IF exportPeriod() AND NOT useOverExportPeriod() THEN {
         dateFrom() <- sum(currentDate(), -exportPeriod());
         dateTo() <- sum(currentDate(), -1);
     } ELSE {
@@ -159,7 +165,7 @@ open 'Открыть' () {
 }
 
 EXTEND FORM integrationData 
-    PROPERTIES () exportPath, nameExportType, exportPeriod, write, open
+    PROPERTIES () exportPath, nameExportType, exportPeriod SHOWIF NOT useOverExportPeriod(), write, open
 
     OBJECTS oe = Operation.Operation
     PROPERTIES(oe) objectClassName READONLY, inExport, name READONLY, nameReturn READONLY
