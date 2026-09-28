@@ -905,10 +905,10 @@ overFillSumData(StatisticReport report) + {
             resetParamsBy(d);
 
             soldSum(d) <- NUMERIC[16,3](totalMarkupSumSoldBy(s, st, dFrom, dTo));
-            soldSum(d) <- NUMERIC[16,3](soldSum(d) / 1000);
+         //   soldSum(d) <- NUMERIC[16,3](soldSum(d) / 1000);
 
             soldSumResident(d) <- NUMERIC[16,3](totalMarkupSumResidentSoldBy(s, st, dFrom, dTo));
-            soldSumResident(d) <- NUMERIC[16,3](soldSumResident(d)/ 1000);
+           // soldSumResident(d) <- NUMERIC[16,3](soldSumResident(d)/ 1000);
         }
     }
 }
@@ -926,10 +926,30 @@ overFillSumLegalEntityData(StatisticReport report) + {
             resetParamsBy(d);
 
             soldSum(d) <- NUMERIC[16,3](totalMarkupSumSoldBy(s, c, dFrom, dTo));
-            soldSum(d) <- NUMERIC[16,3](soldSum(d) / 1000);
 
             soldSumResident(d) <- NUMERIC[16,3](totalMarkupSumResidentSoldBy(s, c, dFrom, dTo));
-            soldSumResident(d) <- NUMERIC[16,3](soldSumResident(d)/ 1000);
+        }
+    }
+}
+
+totalMarkupSumSoldBy 'Надбавка проданного, руб.' (StatisticGroup group, legalEntity, region, DATE dateFrom, DATE dateTo)=
+    GROUP SUM markupSumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isParent(group, sku) AND NOT skipSale(stock)
+    BY legalEntity(stock), region(stock);
+
+totalMarkupSumResidentSoldBy 'Надбавка проданного отеч., руб.' (StatisticGroup group, legalEntity, region, DATE dateFrom, DATE dateTo)=
+    GROUP SUM markupSumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF resident (group, sku) AND NOT skipSale(stock)
+    BY legalEntity(stock), region(stock);
+
+overFillSumRegionData(StatisticReport report) + {
+    IF id(statisticGroupType(report)) == 'OKRB' AND name(report) == '4-у (реализованная ТН)' THEN {
+        FOR StatisticGroup s == statisticGroup(StatisticReportDetail d) AND statisticReport(d) == report AND
+            LegalEntity c == company(report) AND Region r == region(report) AND
+            DATE dFrom == fromDate(report) AND DATE dTo == toDate(report) NOINLINE DO {
+            resetParamsBy(d);
+
+            soldSum(d) <- NUMERIC[16,3](totalMarkupSumSoldBy(s, c, r, dFrom, dTo));
+
+            soldSumResident(d) <- NUMERIC[16,3](totalMarkupSumResidentSoldBy(s, c, r, dFrom, dTo));
         }
     }
 }
