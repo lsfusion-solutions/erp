@@ -1,0 +1,277 @@
+MODULE POSReceiptLogImport;
+
+REQUIRE POSReceiptLog;
+
+NAMESPACE POS;
+
+restoredFromLog 'Восстановлен из лога' = DATA DATETIME (ZReport);
+restoredFromLog 'Восстановлен из лога' = DATA DATETIME (Receipt);
+
+EXTEND FORM zReports
+    PROPERTIES(z) READONLY restoredFromLog
+    PROPERTIES(b) READONLY restoredFromLog
+
+    FILTERGROUP restoredFromLog
+        FILTER 'Восстановленные из лога' restoredFromLog(b)
+;
+
+zReport (CashRegister c, STRING[48] n, DATETIME s) =
+    GROUP MAX ZReport z IF cashRegister(z) == c AND number(z) == n AND shiftStart(z) == s;
+logReceiptByNumber (ZReport z, INTEGER n, DATETIME dt) =
+    GROUP MAX Receipt r IF zReport(r) == z AND number(r) == n AND dateTime(r) == dt;
+
+logEmployee (LONG id) = GROUP MAX Employee e IF e IS Employee AND LONG(e) == id;
+logBatch (LONG id) = GROUP MAX Batch b IF b IS Batch AND id == LONG(b);
+
+logFiles          'Файлов обработано'   = DATA LOCAL NESTED INTEGER ();
+logFilesFailed    'Файлов с ошибкой'    = DATA LOCAL NESTED INTEGER ();
+logReceipts       'Чеков в файлах'      = DATA LOCAL NESTED INTEGER ();
+logExists         'Уже есть в базе'     = DATA LOCAL NESTED INTEGER ();
+logCreated        'Создано'             = DATA LOCAL NESTED INTEGER ();
+logNoCashRegister 'Касса не найдена'    = DATA LOCAL NESTED INTEGER ();
+logNoSku          'Товар не найден'     = DATA LOCAL NESTED INTEGER ();
+logSkipped        'Пропущено'           =
+    logReceipts() (-) logExists() (-) logCreated() (-) logNoCashRegister();
+logErrors         'Ошибки'              = DATA LOCAL NESTED TEXT ();
+
+importReceiptLogFile (FILE f, DepartmentStore ds) {
+    LOCAL col01 = STRING[100] (INTEGER);
+    LOCAL col02 = STRING[100] (INTEGER);
+    LOCAL col03 = STRING[100] (INTEGER);
+    LOCAL col04 = STRING[100] (INTEGER);
+    LOCAL col05 = STRING[100] (INTEGER);
+    LOCAL col06 = STRING[100] (INTEGER);
+    LOCAL col07 = STRING[100] (INTEGER);
+    LOCAL col08 = STRING[100] (INTEGER);
+    LOCAL col09 = STRING[100] (INTEGER);
+    LOCAL col10 = STRING[100] (INTEGER);
+    LOCAL col11 = STRING[100] (INTEGER);
+    LOCAL col12 = STRING[100] (INTEGER);
+
+    LOCAL rowCashRegister = CashRegister (INTEGER);
+    LOCAL rowDateTime = DATETIME (INTEGER);
+    LOCAL rowZReport = ZReport (INTEGER);
+    LOCAL rowReceipt = Receipt (INTEGER);
+    LOCAL rowBlock = INTEGER (INTEGER);
+    LOCAL rowSku = Sku (INTEGER);
+    LOCAL rowBatch = Batch (INTEGER);
+
+    IMPORT CSV ';' NOHEADER NOESCAPE CHARSET 'UTF-8' FROM f TO
+        col01, col02, col03, col04, col05, col06,
+        col07, col08, col09, col10, col11, col12;
+
+    rowCashRegister(INTEGER i) <- cashRegisterNppGroupCashRegister(INTEGER(col05(i)), INTEGER(col06(i))) WHERE col01(i) == 'RECEIPT';
+    rowDateTime(INTEGER i) <- dateTimeToDateTime(DATE(col08(i)), TIME(col09(i))) WHERE col01(i) == 'RECEIPT';
+
+    logReceipts() <- logReceipts() (+) (GROUP SUM 1 IF col01(INTEGER i) == 'RECEIPT');
+    logNoCashRegister() <- logNoCashRegister() (+) (GROUP SUM 1 IF col01(INTEGER i) == 'RECEIPT' AND NOT rowCashRegister(i));
+    
+    FOR [GROUP SUM 1 BY rowCashRegister(INTEGER i), STRING[48](col03(i)), DATETIME(col12(i))](CashRegister c, STRING[48] n, DATETIME s)
+        AND stock(c) == ds AND NOT zReport(c, n, s) NEW z = ZReport DO {
+        cashRegister(z) <- c;
+        departmentStore(z) <- ds;
+        date(z) <- DATE(s);
+        time(z) <- TIME(s);                                     
+        number(z) <- n;
+        shiftStart(z) <- s;
+        restoredFromLog(z) <- currentDateTime();
+        isPosted(z) <- TRUE;
+    }
+
+    rowZReport(INTEGER i) <- zReport(rowCashRegister(i), STRING[48](col03(i)), DATETIME(col12(i))) WHERE stock(rowCashRegister(i)) == ds;
+    
+    logExists() <- logExists() (+) (GROUP SUM 1 IF logReceiptByNumber(rowZReport(INTEGER i), INTEGER(col04(i)), rowDateTime(i)));
+
+    FOR INTEGER x == [GROUP MAX INTEGER i BY rowZReport(i), INTEGER(col04(i)), rowDateTime(i)](ZReport z, INTEGER n, DATETIME dt)
+        AND NOT logReceiptByNumber(z, n, dt) NEW r = Receipt DO {
+        zReport(r) <- z;
+        number(r) <- n;
+        date(r) <- DATE(col08(x));
+        time(r) <- TIME(col09(x));
+        employee(r) <- logEmployee(LONG(col10(x)));
+        dataSkip(r) <- TRUE IF col11(x) == '1';
+        fiscalSkip(r) <- TRUE;
+        restoredFromLog(r) <- currentDateTime();
+        rowReceipt(x) <- r;
+        logCreated() <- logCreated() (+) 1;
+    }
+    
+    rowBlock(INTEGER i) <- (GROUP MAX INTEGER j IF col01(j) == 'RECEIPT' AND col02(j) == col02(i) AND j <= i)
+        WHERE col01(i) == 'SALE' OR col01(i) == 'RETURN' OR col01(i) == 'PAYMENT';
+
+    rowSku(INTEGER i) <- (OVERRIDE sku(col04(i)), skuBarcode(STRING[15](col03(i)), date(rowReceipt(rowBlock(i)))))
+        WHERE rowReceipt(rowBlock(i)) AND (col01(i) == 'SALE' OR col01(i) == 'RETURN');
+    
+    rowBatch(INTEGER i) <- logBatch(LONG(col05(i))) WHERE sku(logBatch(LONG(col05(i)))) == rowSku(i);
+    
+    FOR col01(INTEGER i) == 'SALE' AND Receipt r == rowReceipt(rowBlock(i)) NEW d = ReceiptSaleDetail DO {
+        receipt(d) <- r;
+        idBarcode(d) <- STRING[15](col03(i));
+        sku(d) <- rowSku(i);
+        batch(d) <- rowBatch(i);
+        quantity(d) <- NUMERIC[16,5](col06(i));
+        price(d) <- NUMERIC[16,4](col07(i));
+        sum(d) <- NUMERIC[18,4](col08(i));
+        discountSum(d) <- NUMERIC[18,4](col09(i));
+        valueVAT(d) <- NUMERIC[10,5](col10(i));
+        sumVAT(d) <- NUMERIC[18,4](col11(i));
+    }
+    
+    FOR col01(INTEGER i) == 'RETURN' AND Receipt r == rowReceipt(rowBlock(i)) NEW d = ReceiptReturnDetail DO {
+        receipt(d) <- r;
+        idBarcode(d) <- STRING[15](col03(i));
+        sku(d) <- rowSku(i);
+        batch(d) <- rowBatch(i);
+        quantity(d) <- NUMERIC[16,5](col06(i));
+        price(d) <- NUMERIC[16,4](col07(i));
+        sum(d) <- NUMERIC[18,4](col08(i));
+        discountSum(d) <- NUMERIC[18,4](col09(i));
+        valueVAT(d) <- NUMERIC[10,5](col10(i));
+        sumVAT(d) <- NUMERIC[18,4](col11(i));
+    }
+
+    logNoSku() <- logNoSku() (+) (GROUP SUM 1 IF (col01(INTEGER i) == 'SALE' OR col01(i) == 'RETURN')
+        AND rowReceipt(rowBlock(i)) AND NOT rowSku(i));
+
+    // оплаты
+    FOR col01(INTEGER i) == 'PAYMENT' AND Receipt r == rowReceipt(rowBlock(i)) NEW p = Payment DO {
+        receipt(p) <- r;
+        paymentType(p) <- typePaymentSID(col03(i));
+        sum(p) <- NUMERIC[18,4](col04(i));
+    }
+}
+
+importReceiptLog 'Создать чеки по логам' (DepartmentStore ds, DATE dFrom, DATE dTo) {
+    logFiles() <- NULL;
+    logFilesFailed() <- NULL;
+    logReceipts() <- NULL;
+    logExists() <- NULL;
+    logCreated() <- NULL;
+    logNoCashRegister() <- NULL;
+    logNoSku() <- NULL;
+    logErrors() <- NULL;
+
+    IF NOT (GROUP SUM 1 IF stock(CashRegister c) == ds AND receiptLogDirectory(c)) THEN {
+        MESSAGE 'Для касс магазина не задан каталог для логов чеков';
+        RETURN;
+    }
+
+    // каталог задаётся общей настройкой или на группе касс, поэтому у магазина их может быть несколько
+    FOR [GROUP SUM 1 IF stock(CashRegister c) == ds BY receiptLogDirectory(c)](STRING[200] dir) DO {
+        listFiles(dir);
+        
+        FOR STRING[250] fn == fileName(INTEGER j) AND NOT fileIsDirectory(j) AND right(fn, 4) == '.csv'
+            AND left(fn, length(id(ds)) + 1) == id(ds) + '_'
+            AND left(right(fn, 14), 10) >= logDate(dFrom) AND left(right(fn, 14), 10) <= logDate(dTo) ORDER fn DO {
+            TRY {
+                NEWSESSION {
+                    LOCAL importFile = FILE ();
+                    LOCAL prevCreated = INTEGER ();
+                    LOCAL prevNoSku = INTEGER ();
+                    prevCreated() <- logCreated();
+                    prevNoSku() <- logNoSku();
+
+                    READ dir + '/' + fn TO importFile;
+                    importReceiptLogFile(importFile(), ds);
+                    APPLY;
+                    IF canceled() THEN {
+                        logCreated() <- prevCreated();
+                        logNoSku() <- prevNoSku();
+                        logFilesFailed() <- logFilesFailed() (+) 1;
+                        logErrors() <- CONCAT '\n', logErrors(), fn + ': ' + applyMessage();
+                    } ELSE
+                        logFiles() <- logFiles() (+) 1;
+                }
+            } CATCH {
+                logFilesFailed() <- logFilesFailed() (+) 1;
+                logErrors() <- CONCAT '\n', logErrors(), fn + ': ' + messageCaughtException();
+                logToFile('receiptLog', CONCAT '\n', fn + ': ' + messageCaughtException(),
+                    lsfStackTraceCaughtException(), javaStackTraceCaughtException());
+            }
+        }
+    }
+
+    IF NOT (logFiles() (+) logFilesFailed()) THEN
+        MESSAGE 'Файлы логов за период не найдены';
+}
+
+restoreReceiptLog 'Создать чеки по логам' (DepartmentStore ds, DATE dFrom, DATE dTo) {
+    importReceiptLog(ds, dFrom, dTo);
+    formRefresh();
+    IF logFiles() (+) logFilesFailed() THEN
+        MESSAGE CONCAT '\n',
+            'Файлов обработано: ' + (OVERRIDE logFiles(), 0),
+            'Файлов с ошибкой: '  + (OVERRIDE logFilesFailed(), 0),
+            'Чеков в файлах: '    + (OVERRIDE logReceipts(), 0),
+            'Уже есть в базе: '   + (OVERRIDE logExists(), 0),
+            'Создано: '           + (OVERRIDE logCreated(), 0),
+            'Касса не найдена: '  + (OVERRIDE logNoCashRegister(), 0),
+            'Пропущено: '         + (OVERRIDE logSkipped(), 0),
+            'Товар не найден: '   + (OVERRIDE logNoSku(), 0),
+            ('Ошибки:\n' + logErrors());
+}
+
+FORM receiptLogImport 'Восстановление чеков по логам'
+    OBJECTS ds = DepartmentStore PANEL
+    PROPERTIES(ds) SELECTOR name
+
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
+    PROPERTIES valFrom = VALUE(dFrom), valTo = VALUE(dTo)
+
+    FILTERS isCompany(ds)
+
+    PROPERTIES restoreReceiptLog(ds, dFrom, dTo)
+    PROPERTIES() READONLY logFiles, logFilesFailed, logReceipts, logExists, logCreated, logNoCashRegister, logSkipped, logNoSku, logErrors
+
+    OBJECTS r = Receipt
+    PROPERTIES(r) READONLY restoredFromLog, numberCashRegister, numberZReport, number, date, time, nameEmployee,
+                           sumReceiptDetail, countReceiptDetail, sumCashPayment, sumCardPayment
+    FILTERS restoredFromLog(r),
+            departmentStore(r) == ds,
+            date(r) >= dFrom, date(r) <= dTo
+    ORDERS date(r), time(r), number(r)
+;
+
+DESIGN receiptLogImport {
+    NEW top {
+        horizontal = TRUE;
+        alignment = STRETCH;
+        MOVE BOX(dates) {
+            caption = 'Период';
+            PROPERTY(valFrom) { caption = 'Дата (с)'; }
+            PROPERTY(valTo) { caption = 'Дата (по)'; }
+        }
+        MOVE BOX(ds) {
+            fill = 1;
+            MOVE PROPERTY(name(ds));
+        }
+        MOVE PROPERTY(restoreReceiptLog(ds, dFrom, dTo));
+    }
+    NEW protocol {
+        caption = 'Протокол';
+        lines = 4;
+        MOVE PROPERTY(logFiles());
+        MOVE PROPERTY(logFilesFailed());
+        MOVE PROPERTY(logReceipts());
+        MOVE PROPERTY(logExists());
+        MOVE PROPERTY(logCreated());
+        MOVE PROPERTY(logNoCashRegister());
+        MOVE PROPERTY(logSkipped());
+        MOVE PROPERTY(logNoSku());
+    }
+    MOVE PROPERTY(logErrors()) {
+        alignment = STRETCH;
+        captionVertical = TRUE;
+        autoSize = TRUE;
+    }
+    MOVE BOX(r) { caption = 'Восстановленные чеки'; }
+    MOVE TOOLBARBOX;
+}
+
+@extendFormFilterStockAccess(ds, receiptLogImport);
+
+NAVIGATOR {
+    ZReportNavigator {
+        NEW receiptLogImport;
+    }
+}

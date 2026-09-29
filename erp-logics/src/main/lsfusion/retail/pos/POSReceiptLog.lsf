@@ -1,0 +1,88 @@
+MODULE POSReceiptLog;
+
+REQUIRE POS;
+
+NAMESPACE POS;
+
+receiptLogDirectory 'Каталог для логов чеков' = DATA STRING[200] ();
+
+EXTEND FORM options
+    PROPERTIES() receiptLogDirectory
+;
+DESIGN options {
+    pos {
+        MOVE PROPERTY(receiptLogDirectory());
+    }
+}
+
+dataReceiptLogDirectory 'Каталог для логов чеков' = DATA STRING[200] (GroupCashRegister);
+receiptLogDirectory (CashRegister c) = OVERRIDE dataReceiptLogDirectory(groupCashRegister(c)), receiptLogDirectory();
+
+EXTEND FORM groupCashRegister
+    PROPERTIES(grc) dataReceiptLogDirectory
+;
+DESIGN groupCashRegister {
+    topContainer {
+        MOVE PROPERTY(dataReceiptLogDirectory(grc));
+    }
+}
+
+logDate = FORMULA STRING[10] 'to_char(($1),\'YYYY-MM-DD\')';
+logTime = FORMULA STRING[8] 'to_char(($1),\'HH24:MI:SS\')';
+logDateTime = FORMULA STRING[19] 'to_char(($1),\'YYYY-MM-DD HH24:MI:SS\')';
+
+logReceipt (Receipt r) = STRING(LONG(r));
+
+receiptLogHeader (Receipt r) = CONCAT ';', 'RECEIPT', logReceipt(r),
+    (OVERRIDE STRING(number(zReport(r))), ''),
+    (OVERRIDE STRING(number(r)), ''),
+    (OVERRIDE STRING(nppGroupMachinery(cashRegister(r))), ''),
+    (OVERRIDE STRING(npp(cashRegister(r))), ''),
+    (OVERRIDE id(departmentStore(zReport(r))), ''),
+    (OVERRIDE logDate(date(r)), ''),
+    (OVERRIDE logTime(time(r)), ''),
+    (OVERRIDE STRING(LONG(employee(r))), ''),
+    (IF dataSkip(r) THEN '1' ELSE '0'),
+    (OVERRIDE logDateTime(shiftStart(zReport(r))), '');
+
+receiptLogDetail (ReceiptDetail d) = CONCAT ';',
+    (IF d IS ReceiptSaleDetail THEN 'SALE' ELSE 'RETURN'), logReceipt(receipt(d)),
+    (OVERRIDE idBarcode(d), ''),
+    (OVERRIDE id(sku(d)), ''),
+    (OVERRIDE STRING(LONG(batch(d))), ''),
+    (OVERRIDE STRING(quantity(d)), ''),
+    (OVERRIDE STRING(price(d)), ''),
+    (OVERRIDE STRING(sum(d)), ''),
+    (OVERRIDE STRING(discountSum(d)), ''),
+    (OVERRIDE STRING(valueVAT(d)), ''),
+    (OVERRIDE STRING(sumVAT(d)), '');
+
+receiptLogPayment (Payment p) = CONCAT ';', 'PAYMENT', logReceipt(receipt(p)),
+    (OVERRIDE sidPaymentType(p), ''),
+    (OVERRIDE STRING(sum(p)), '');
+
+receiptLogText 'Лог чека' (Receipt r) = CONCAT '\n',
+    receiptLogHeader(r),
+    (GROUP CONCAT receiptLogDetail(ReceiptDetail d) IF receipt(d) == r, '\n' ORDER number(d), d),
+    (GROUP CONCAT receiptLogPayment(Payment p) IF receipt(p) == r, '\n' ORDER p);
+
+receiptLogFileName (Receipt r) = CONCAT '_',
+    (OVERRIDE id(departmentStore(zReport(r))), ''),
+    (OVERRIDE STRING(nppGroupMachinery(cashRegister(r))), ''),
+    (OVERRIDE STRING(npp(cashRegister(r))), ''),
+    (OVERRIDE logDate(date(r)), '');
+
+writeReceiptLog 'Записать лог чека' (Receipt r) {
+    IF NOT PREV(r IS Receipt) OR (GROUP SUM 1 IF receipt(Payment p) == r AND NOT PREV(p IS Payment)) THEN RETURN;
+    IF NOT receiptLogDirectory(cashRegister(r)) THEN RETURN;
+    TRY {
+        mkdir(receiptLogDirectory(cashRegister(r)));
+        stringToFile(receiptLogText(r) + '\n', 'UTF-8', 'csv');
+        WRITE resultFile() TO receiptLogDirectory(cashRegister(r)) + '/' + receiptLogFileName(r) APPEND;
+    } CATCH {
+        logToFile('receiptLog', 'Чек ' + (OVERRIDE STRING(number(r)), '') + ' от ' + (OVERRIDE logDate(date(r)), '')
+            + ': лог не записан. ' + messageCaughtException());
+    }
+}
+
+afterPostPrint(Receipt r) + { writeReceiptLog(r); }
