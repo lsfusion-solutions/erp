@@ -1,9 +1,12 @@
 package equ.clt.handler;
 
+import com.google.common.base.Throwables;
+import equ.api.ItemInfo;
 import equ.api.MachineryInfo;
 import equ.api.SendTransactionBatch;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.TransactionScalesInfo;
+import equ.api.stoplist.StopListInfo;
 import equ.clt.EquipmentServer;
 import org.apache.commons.lang3.StringUtils;
 
@@ -11,6 +14,7 @@ import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.function.BiFunction;
 
 public abstract class MultithreadScalesHandler extends DefaultScalesHandler {
 
@@ -117,6 +121,52 @@ public abstract class MultithreadScalesHandler extends DefaultScalesHandler {
     }
 
     protected abstract SendTransactionTask getTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales);
+
+    //sends stop-list to all scales in parallel, taskFactory creates the task for one scales, the task returns errors
+    protected void sendStopListParallel(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoSet,
+                                        BiFunction<StopListInfo, ScalesInfo, Callable<List<String>>> taskFactory) {
+        if (stopListInfo == null || stopListInfo.exclude)
+            return;
+        processStopListLogger.info(String.format(getLogPrefix() + "Send StopList # %s to %s scales", stopListInfo.number, machineryInfoSet.size()));
+        try {
+            Collection<Callable<List<String>>> taskList = new LinkedList<>();
+            int skipped = 0;
+            for (MachineryInfo machinery : machineryInfoSet) {
+                if (machinery.port != null && machinery instanceof ScalesInfo) {
+                    //don't connect to scales with nothing to delete
+                    if (hasItemsToDelete(stopListInfo, (ScalesInfo) machinery))
+                        taskList.add(taskFactory.apply(stopListInfo, (ScalesInfo) machinery));
+                    else
+                        skipped++;
+                }
+            }
+            if (skipped > 0)
+                processStopListLogger.info(String.format(getLogPrefix() + "StopList #%s: no items to delete, %s scales skipped", stopListInfo.number, skipped));
+
+            if (!taskList.isEmpty()) {
+                ExecutorService singleTransactionExecutor = EquipmentServer.getFixedThreadPool(taskList.size(), "SendStopList");
+                try {
+                    List<Future<List<String>>> threadResults = singleTransactionExecutor.invokeAll(taskList);
+                    for (Future<List<String>> threadResult : threadResults) {
+                        if (!threadResult.get().isEmpty())
+                            processStopListLogger.error(threadResult.get().get(0));
+                    }
+                } finally {
+                    singleTransactionExecutor.shutdown();
+                }
+            }
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    protected boolean hasItemsToDelete(StopListInfo stopListInfo, ScalesInfo scales) {
+        return stopListInfo.stopListItemMap.values().stream().anyMatch(this::isPLU);
+    }
+
+    protected boolean isPLU(ItemInfo item) {
+        return item.idBarcode != null && item.idBarcode.length() <= 5;
+    }
 
     protected abstract class SendTransactionTask implements Callable<SendTransactionResult> {
         protected TransactionScalesInfo transaction;
