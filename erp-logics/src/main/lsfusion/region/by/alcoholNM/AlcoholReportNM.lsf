@@ -370,8 +370,7 @@ DESIGN alcoholReportDetailing{
         PROPERTY (nameAlcoholSupplierType(i)){charWidth=10;}
     }
 }
-fillDetailing 'Показать детализацию' (AlcoholReportDetail a){
-    
+resetDetailing (AlcoholReportDetail a) {
     volumeOriginal(InvoiceDetail d)<- NULL;
     volumeConversion(InvoiceDetail d)<- NULL;
     volumeOriginal(InventorySkuDetail d)<- NULL;
@@ -380,7 +379,24 @@ fillDetailing 'Показать детализацию' (AlcoholReportDetail a){
     volumeConversion(WriteOffDetail d)<- NULL;   
     toDetailing(AlcoholReportDetail dd)<- TRUE IF dd==a; 
     volumeConversion(AlcoholReportDetail dd)<- NULL; 
+}
+
+showDetailing (AlcoholReportDetail a, Group sk) {
+    volumeConversion(InvoiceDetail d)<- NUMERIC[18,6](volumeOriginal(d)/(OVERRIDE conversionFactor(sk), 1.0 IF sk IS StatisticGroup)) WHERE volumeOriginal(d);
+    volumeConversion(InventorySkuDetail d)<- NUMERIC[18,6](volumeOriginal(d)/(OVERRIDE conversionFactor(sk), 1.0 IF sk IS StatisticGroup)) WHERE volumeOriginal(d);
+    volumeConversion(WriteOffDetail d)<- NUMERIC[18,6](volumeOriginal(d)/(OVERRIDE conversionFactor(sk), 1.0 IF sk IS StatisticGroup)) WHERE volumeOriginal(d);
     
+    volumeConversion(a)<- (GROUP SUM volumeConversion(InvoiceDetail d));
+    volumeConversion(a)<- volumeConversion(a) (+) (GROUP SUM volumeConversion(InventorySkuDetail d));
+    volumeConversion(a)<- volumeConversion(a) (+) (GROUP SUM volumeConversion(WriteOffDetail d));
+    
+    NEWSESSION SHOW alcoholReportDetailing DOCKED NOWAIT;
+}
+
+// Прикладная логика может заменить расчёт своей реализацией
+fillDetailing 'Показать детализацию' ABSTRACT CASE (AlcoholReportDetail);
+fillDetailing (AlcoholReportDetail a) + WHEN a IS AlcoholReportDetail THEN {
+    resetDetailing(a);
     FOR DATE fromDate = fromDate(alcoholReport(a)) AND DATE toDate = toDate(alcoholReport(a)) AND group(a)== Group sk NOINLINE DO { 
 
         IF alcoholDirectionType(a)==AlcoholDirectionType.income THEN {
@@ -418,19 +434,29 @@ fillDetailing 'Показать детализацию' (AlcoholReportDetail a){
             }         
         }        
         
-        volumeConversion(InvoiceDetail d)<- NUMERIC[18,6](volumeOriginal(d)/(OVERRIDE conversionFactor(sk), 1.0 IF sk IS StatisticGroup)) WHERE volumeOriginal(d);
-        volumeConversion(InventorySkuDetail d)<- NUMERIC[18,6](volumeOriginal(d)/(OVERRIDE conversionFactor(sk), 1.0 IF sk IS StatisticGroup)) WHERE volumeOriginal(d);
-        volumeConversion(WriteOffDetail d)<- NUMERIC[18,6](volumeOriginal(d)/(OVERRIDE conversionFactor(sk), 1.0 IF sk IS StatisticGroup)) WHERE volumeOriginal(d);
-        
-        volumeConversion(a)<- (GROUP SUM volumeConversion(InvoiceDetail d));
-        volumeConversion(a)<- volumeConversion(a) (+) (GROUP SUM volumeConversion(InventorySkuDetail d));
-        volumeConversion(a)<- volumeConversion(a) (+) (GROUP SUM volumeConversion(WriteOffDetail d));
-        
-        NEWSESSION SHOW alcoholReportDetailing DOCKED NOWAIT;
+        showDetailing(a, sk);
     }  
 }
 fillQuantitySupplierOver ABSTRACT LIST(AlcoholReport);
-fillQuantitySupplier 'Заполнить по поставщикам' (AlcoholReport r)  { 
+
+updateIndexAlcoholReportDetails (AlcoholReport r) {
+    LOCAL int = INTEGER();
+    int() <- NULL;
+    int() <-1;
+
+    FOR r == alcoholReport(AlcoholReportDetail d) AND alcoholDirectionType(d) == AlcoholDirectionType.income ORDER name(legalEntity(d)), id(group(d)) DO {
+        dataIndex(d) <- int();
+        int() <-  int() + 1;
+    }    
+    FOR r == alcoholReport(AlcoholReportDetail d) AND NOT alcoholDirectionType(d) == AlcoholDirectionType.income ORDER name(legalEntity(d)), id(group(d)) DO {
+        dataIndex(d) <- int();
+        int() <-  int() + 1;
+    }              
+}
+
+// Прикладная логика может заменить расчёт своей реализацией
+fillQuantitySupplier 'Заполнить по поставщикам' ABSTRACT CASE (AlcoholReport);
+fillQuantitySupplier (AlcoholReport r) + WHEN r IS AlcoholReport THEN { 
     //recalculateAlcoholSupplierTypes(r);
     DELETE AlcoholReportDetail detail WHERE alcoholReport(detail) == r;
     fillQuantitySupplierOver(r);
@@ -466,18 +492,7 @@ fillQuantitySupplier 'Заполнить по поставщикам' (AlcoholRe
             quantity(d) <- NUMERIC[18,6](q);
         }    
     }         
-    LOCAL int = INTEGER();
-    int() <- NULL;
-    int() <-1;
-
-    FOR r == alcoholReport(AlcoholReportDetail d) AND alcoholDirectionType(d) == AlcoholDirectionType.income ORDER name(legalEntity(d)), id(group(d)) DO {
-        dataIndex(d) <- int();
-        int() <-  int() + 1;
-    }    
-    FOR r == alcoholReport(AlcoholReportDetail d) AND NOT alcoholDirectionType(d) == AlcoholDirectionType.income ORDER name(legalEntity(d)), id(group(d)) DO {
-        dataIndex(d) <- int();
-        int() <-  int() + 1;
-    }              
+    updateIndexAlcoholReportDetails(r);
 } 
 
 calcPrevAlcoholReport (AlcoholReport r) = PARTITION PREV r ORDER toDate(r), r 
@@ -488,19 +503,11 @@ seriesNumberPrevReport 'Предыдущая декларация' (AlcoholRepor
 
 fillQuantityTotalOver ABSTRACT LIST (AlcoholReport);
 
-fillQuantityTotal 'Заполнить сводную' (AlcoholReport r)  {
-    //recalculateAlcoholSupplierTypes(r); 
-    IF [GROUP SUM quantity(AlcoholReportDetail d) IF alcoholDirectionType(d) == AlcoholDirectionType.income AND (alcoholSupplierType(d) = AlcoholSupplierType.none OR NOT alcoholSupplierType(d)) BY alcoholReport(d)](r) THEN {
-        MESSAGE 'Есть строки, у которых не заполнен "Тип поставщика алкоголя"';
-    }
-    ELSE {
-        quantity(AlcoholParameter d, Group sk, r) <- NULL WHERE groupType(sk) == groupType(r); 
-        // остаток до
-        IF NOT prevAlcoholReport(r) THEN {
-            quantity(AlcoholParameter d, Group sk, r) <- NUMERIC[18,6](balanceB(sk,fromDate(r))) WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param2 AND NOT skipAlcohol(sk); 
-        } ELSE {
-            quantity(AlcoholParameter d, Group sk, r) <- quantity(AlcoholParameter.param5, sk, prevAlcoholReport(r)) WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param2 AND NOT skipAlcohol(sk);  
-        }  
+emptySupplierTypeQuantity (AlcoholReport r) = GROUP SUM quantity(AlcoholReportDetail d) IF alcoholReport(d) == r AND alcoholDirectionType(d) == AlcoholDirectionType.income 
+    AND (alcoholSupplierType(d) = AlcoholSupplierType.none OR NOT alcoholSupplierType(d));
+
+// Приход и расход по строкам "По поставщикам"
+fillQuantityTotalMovement (AlcoholReport r) {
         // приход
         quantity(AlcoholParameter d, Group sk, r) <- NUMERIC[18,6](volumeIncome(r, sk, AlcoholSupplierType.manufacturer)) 
                 WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param311 AND NOT skipAlcohol(sk);   
@@ -542,14 +549,10 @@ fillQuantityTotal 'Заполнить сводную' (AlcoholReport r)  {
                                                         quantity(AlcoholParameter.param45, sk, r) (+)  
                                                         quantity(AlcoholParameter.param46, sk, r))
                 WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param4 AND NOT skipAlcohol(sk);         
-                
-                
-                                                  
-        // остаток после
-        quantity(AlcoholParameter d, Group sk, r) <- NUMERIC[18,6](balanceA(sk,toDate(r))) WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param5 AND NOT skipAlcohol(sk);
+}
 
-        fillQuantityTotalOver(r);
-//--        
+// Итог по всем группам и итоговые строки
+fillQuantityTotalDetails (AlcoholReport r) {
         FOR AlcoholParameter d IS AlcoholParameter AND alcoholType(r)== type(d) DO {
             quantity(d, Group sk, r) <- (GROUP SUM quantity(d, Group g, r) IF NOT skipAlcohol(g))
                     WHERE groupType(sk) == groupType(r)  AND id(sk) == '1000';           
@@ -571,6 +574,29 @@ fillQuantityTotal 'Заполнить сводную' (AlcoholReport r)  {
             legalEntity(d) <- c;
             quantity(d) <- NUMERIC[18,6](q);     
         } 
+}
+
+// Прикладная логика может заменить расчёт своей реализацией
+fillQuantityTotal 'Заполнить сводную' ABSTRACT CASE (AlcoholReport);
+fillQuantityTotal (AlcoholReport r) + WHEN r IS AlcoholReport THEN {
+    //recalculateAlcoholSupplierTypes(r); 
+    IF emptySupplierTypeQuantity(r) THEN {
+        MESSAGE 'Есть строки, у которых не заполнен "Тип поставщика алкоголя"';
+    }
+    ELSE {
+        quantity(AlcoholParameter d, Group sk, r) <- NULL WHERE groupType(sk) == groupType(r); 
+        // остаток до
+        IF NOT prevAlcoholReport(r) THEN {
+            quantity(AlcoholParameter d, Group sk, r) <- NUMERIC[18,6](balanceB(sk,fromDate(r))) WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param2 AND NOT skipAlcohol(sk); 
+        } ELSE {
+            quantity(AlcoholParameter d, Group sk, r) <- quantity(AlcoholParameter.param5, sk, prevAlcoholReport(r)) WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param2 AND NOT skipAlcohol(sk);  
+        }  
+        fillQuantityTotalMovement(r);
+        // остаток после
+        quantity(AlcoholParameter d, Group sk, r) <- NUMERIC[18,6](balanceA(sk,toDate(r))) WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param5 AND NOT skipAlcohol(sk);
+
+        fillQuantityTotalOver(r);
+        fillQuantityTotalDetails(r);
     }         
 }
 
