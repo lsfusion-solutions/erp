@@ -1,10 +1,16 @@
 package equ.clt.handler;
 
+import lsfusion.base.Pair;
+
 import javax.naming.CommunicationException;
 import java.io.BufferedInputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+
+import static equ.clt.handler.HandlerUtils.defaultConnectTimeout;
+import static equ.clt.handler.HandlerUtils.openSocket;
+import static equ.clt.handler.HandlerUtils.parseHostPort;
 
 public class TCPPort {
     private Socket socket = null;
@@ -19,9 +25,14 @@ public class TCPPort {
         this.ipPort = var2;
     }
 
+    public static TCPPort fromAddress(String address, int defaultPort) {
+        Pair<String, Integer> hostPort = parseHostPort(address, defaultPort);
+        return new TCPPort(hostPort.first, hostPort.second);
+    }
+
     public void open() throws CommunicationException {
         try {
-            this.socket = new Socket(this.ipAddress, this.ipPort);
+            this.socket = openSocket(this.ipAddress, this.ipPort, defaultConnectTimeout, 0);
             this.socket.setSendBufferSize(1);
             this.inStream = this.socket.getInputStream();
             this.bisStream = new BufferedInputStream(this.socket.getInputStream());

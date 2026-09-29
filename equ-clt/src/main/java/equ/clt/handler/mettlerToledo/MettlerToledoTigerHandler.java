@@ -97,8 +97,7 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
     }
 
     private TCPPort getTCPPort(MachineryInfo scales) {
-        String[] hostPort = scales.port.split(":");
-        return hostPort.length == 1 ? new TCPPort(scales.port, 3001) : new TCPPort(hostPort[0], Integer.parseInt(hostPort[1]));
+        return TCPPort.fromAddress(scales.port, 3001);
     }
 
     @Override

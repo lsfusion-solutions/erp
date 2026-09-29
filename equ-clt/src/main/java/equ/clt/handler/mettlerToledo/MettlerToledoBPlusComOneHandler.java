@@ -253,8 +253,7 @@ public class MettlerToledoBPlusComOneHandler extends MultithreadScalesHandler {
         protected SendTransactionResult run() {
             String error = null;
 
-            String[] hostPort = scales.port.split(":");
-            TCPSocket socket = hostPort.length == 1 ? new TCPSocket(scales.port, 3001) : new TCPSocket(hostPort[0], Integer.parseInt(hostPort[1]));
+            TCPSocket socket = TCPSocket.fromAddress(scales.port, 3001);
 
             try {
 

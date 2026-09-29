@@ -2,6 +2,7 @@ package equ.clt.handler;
 
 import com.google.common.base.Throwables;
 import equ.api.MachineryInfo;
+import lsfusion.base.Pair;
 import org.json.JSONObject;
 import org.springframework.util.FileCopyUtils;
 
@@ -9,6 +10,8 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.*;
@@ -16,6 +19,8 @@ import java.util.concurrent.*;
 import static lsfusion.base.BaseUtils.nvl;
 
 public class HandlerUtils {
+
+    public static final int defaultConnectTimeout = 10000; //10 seconds
 
     public static BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
         if (operand1 == null && operand2 == null)
@@ -154,5 +159,25 @@ public class HandlerUtils {
                 directorySet.add(machinery.directory);
         }
         return directorySet;
+    }
+
+    //host or host:port
+    public static Pair<String, Integer> parseHostPort(String address, int defaultPort) {
+        String[] hostPort = address.split(":");
+        return hostPort.length == 1 ? Pair.create(address, defaultPort) : Pair.create(hostPort[0], Integer.parseInt(hostPort[1]));
+    }
+
+    //timeouts in milliseconds, 0 - infinite
+    public static Socket openSocket(String host, int port, int connectTimeout, int soTimeout) throws IOException {
+        Socket socket = new Socket();
+        try {
+            if (soTimeout > 0)
+                socket.setSoTimeout(soTimeout);
+            socket.connect(new InetSocketAddress(host, port), connectTimeout);
+        } catch (IOException e) {
+            socket.close();
+            throw e;
+        }
+        return socket;
     }
 }

@@ -3,8 +3,9 @@ package equ.clt.handler.digi;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.net.Socket;
+
+import static equ.clt.handler.HandlerUtils.openSocket;
 
 public class DataSocket {
     String ip;
@@ -17,9 +18,7 @@ public class DataSocket {
     }
 
     public void open() throws IOException {
-        socket = new Socket();
-        socket.setSoTimeout(60000);
-        socket.connect(new InetSocketAddress(ip, getPort(ip)), 60000);
+        socket = openSocket(ip, getPort(ip), 60000, 60000);
         outputStream = new DataOutputStream(socket.getOutputStream());
         inputStream = new DataInputStream(socket.getInputStream());
     }

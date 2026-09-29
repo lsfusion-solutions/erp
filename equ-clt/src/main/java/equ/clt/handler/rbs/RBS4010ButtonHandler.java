@@ -282,8 +282,7 @@ public class RBS4010ButtonHandler extends MultithreadScalesHandler {
         @Override
         protected SendTransactionResult run() {
             
-            String[] hostPort = scales.port.split(":");
-            port = hostPort.length == 1 ? new TCPPort(scales.port, 2000) : new TCPPort(hostPort[0], Integer.parseInt(hostPort[1]));
+            port = TCPPort.fromAddress(scales.port, 2000);
     
             String error = null;
             boolean cleared = false;

@@ -105,8 +105,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                             String ip = scales.port;
                             if (ip != null) {
                                 ips.add(ip);
-                                String[] hostPort = ip.split(":");
-                                UDPPort port = hostPort.length == 1 ? new UDPPort(ip, 1111, 10000) : new UDPPort(hostPort[0], Integer.parseInt(hostPort[1]), 10000);
+                                UDPPort port = UDPPort.fromAddress(ip, 1111, 10000);
 
                                 Map<String, Integer> pluNumbers = getPluNumbersMap(transaction, localErrors);
                                 if (localErrors.isEmpty()) {

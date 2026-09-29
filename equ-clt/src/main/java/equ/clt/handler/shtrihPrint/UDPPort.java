@@ -1,5 +1,7 @@
 package equ.clt.handler.shtrihPrint;
 
+import lsfusion.base.Pair;
+
 import javax.naming.CommunicationException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -9,6 +11,8 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
+
+import static equ.clt.handler.HandlerUtils.parseHostPort;
 
 public class UDPPort {
     private DatagramSocket socket = null;
@@ -22,6 +26,11 @@ public class UDPPort {
         this.ipAddress = InetAddress.getByName(ipAddress);
         this.ipPort = ipPort;
         this.timeout = timeout;
+    }
+
+    public static UDPPort fromAddress(String address, int defaultPort, int timeout) throws UnknownHostException {
+        Pair<String, Integer> hostPort = parseHostPort(address, defaultPort);
+        return new UDPPort(hostPort.first, hostPort.second, timeout);
     }
 
     public void open() throws CommunicationException {

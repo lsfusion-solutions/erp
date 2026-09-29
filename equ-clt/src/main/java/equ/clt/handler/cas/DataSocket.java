@@ -1,10 +1,15 @@
 package equ.clt.handler.cas;
 
+import lsfusion.base.Pair;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.Socket;
+
+import static equ.clt.handler.HandlerUtils.defaultConnectTimeout;
+import static equ.clt.handler.HandlerUtils.openSocket;
+import static equ.clt.handler.HandlerUtils.parseHostPort;
 
 public class DataSocket {
     String ip;
@@ -18,8 +23,13 @@ public class DataSocket {
         this.port = port;
     }
 
+    public static DataSocket fromAddress(String address, int defaultPort) {
+        Pair<String, Integer> hostPort = parseHostPort(address, defaultPort);
+        return new DataSocket(hostPort.first, hostPort.second);
+    }
+
     public void open() throws IOException {
-        socket = new Socket(InetAddress.getByName(ip), port);
+        socket = openSocket(ip, port, defaultConnectTimeout, 0);
         outputStream = new DataOutputStream(socket.getOutputStream());
         inputStream = new DataInputStream(socket.getInputStream());
     }

@@ -428,7 +428,6 @@ public class CL5000JHandler extends MultithreadScalesHandler {
     }
 
     private DataSocket getDataSocket(String address) {
-        String[] hostPort = address.split(":");
-        return hostPort.length == 1 ? new DataSocket(address, 20304) : new DataSocket(hostPort[0], Integer.parseInt(hostPort[1]));
+        return DataSocket.fromAddress(address, 20304);
     }
 }

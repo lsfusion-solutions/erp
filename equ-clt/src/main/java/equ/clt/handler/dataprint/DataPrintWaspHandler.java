@@ -346,8 +346,7 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
         @Override
         protected SendTransactionResult run() {
             
-            String[] hostPort = scales.port.split(":");
-            TCPPort port = hostPort.length == 1 ? new TCPPort(scales.port, 33581) : new TCPPort(hostPort[0], Integer.parseInt(hostPort[1]));
+            TCPPort port = TCPPort.fromAddress(scales.port, 33581);
     
             String error = null;
             boolean cleared = false;

@@ -1,11 +1,15 @@
 package equ.clt.handler.mettlerToledo;
 
+import lsfusion.base.Pair;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+
+import static equ.clt.handler.HandlerUtils.openSocket;
+import static equ.clt.handler.HandlerUtils.parseHostPort;
 
 public class TCPSocket {
     String ip;
@@ -19,10 +23,13 @@ public class TCPSocket {
         this.port = port;
     }
 
+    public static TCPSocket fromAddress(String address, int defaultPort) {
+        Pair<String, Integer> hostPort = parseHostPort(address, defaultPort);
+        return new TCPSocket(hostPort.first, hostPort.second);
+    }
+
     public void open() throws IOException {
-        socket = new Socket();
-        socket.setSoTimeout(60000);
-        socket.connect(new InetSocketAddress(ip, port), 60000);
+        socket = openSocket(ip, port, 60000, 60000);
         outputStream = new DataOutputStream(socket.getOutputStream());
         inputStream = new DataInputStream(socket.getInputStream());
     }
