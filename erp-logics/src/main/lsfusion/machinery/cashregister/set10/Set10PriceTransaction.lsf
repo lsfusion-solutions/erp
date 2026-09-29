@@ -139,20 +139,25 @@ sendRequsetGoods(FILE f, STRING type, MachineryPriceTransaction t){
 isCorrect (MachineryPriceTransaction t) = IF (GROUP SUM 1 IF statusTransaction(t, STRING s) = 'correct')
     = (GROUP SUM 1 IF statusTransaction(t, STRING s)) THEN TRUE;
 
+// заполняет status(), status_message() и resultString() ответом Set10 по TI
+requestFeedback (STRING[100] tiRequest, STRING caption) {
+    LOCAL answer = FILE ();
+    ti() <- tiRequest;
+    EXPORT getFeedbackRequest XML;
+    LOCAL headersSet = STRING (STRING);
+    headersSet('Content-Type') <- 'application/xml';
+    EXTERNAL HTTP POST urlServerSet10() + 'SET-ERPIntegration/SET/FeedbackWS' HEADERS headersSet 
+        PARAMS exportFile() TO answer;
+    fileToString(answer());
+    IF useOutSet10Log() THEN logToFile('set10', (CONCAT ' ', 'Get Feedback', caption, resultString()));
+    IMPORT getFeedbackAnswer XML FROM answer();
+}
+
 getFeedback(MachineryPriceTransaction t){
     LOCAL message = STRING ();
     FOR statusTransaction(t, STRING s) != 'correct' DO{
-        LOCAL answer = FILE ();
         TRY{
-            ti() <- statusTransaction(t, s);
-            EXPORT getFeedbackRequest XML;
-            LOCAL headersSet = STRING (STRING);
-            headersSet('Content-Type') <- 'application/xml';
-            EXTERNAL HTTP POST urlServerSet10() + 'SET-ERPIntegration/SET/FeedbackWS' HEADERS headersSet 
-                PARAMS exportFile() TO answer;
-            fileToString(answer());
-            IF useOutSet10Log() THEN logToFile('set10', (CONCAT ' ', 'Get Feedback', s, resultString()));
-            IMPORT getFeedbackAnswer XML FROM answer();
+            requestFeedback(statusTransaction(t, s), s);
             CASE
                 WHEN status() = '2' THEN message() <- CONCAT '\n', message(), s, status_message();
                 WHEN status() = '3' THEN statusTransaction(t, s) <- status_message();
@@ -177,15 +182,23 @@ customSend ABSTRACT LIST (MachineryPriceTransaction);
 
 afterExportTransaction ABSTRACT LIST (MachineryPriceTransaction);
 
-sendSet10Transaction(MachineryPriceTransaction t){
+sendSet10Goods(MachineryPriceTransaction t){
     EXPORT goodsCatalog OBJECTS m = t XML;
     sendRequsetGoods(exportFile(), 'item', t);
-
+}
+sendSet10Barcodes(MachineryPriceTransaction t){
     EXPORT barcodesCatalog OBJECTS m = t XML;
     sendRequsetGoods(exportFile(), 'barcode', t);
-
+}
+sendSet10Price(MachineryPriceTransaction t){
     EXPORT priceEntry OBJECTS m = t XML;
     sendRequsetGoods(exportFile(), 'price', t);
+}
+
+sendSet10Transaction(MachineryPriceTransaction t){
+    sendSet10Goods(t);
+    sendSet10Barcodes(t);
+    sendSet10Price(t);
     afterExportTransaction(t);
 }
 
@@ -206,9 +219,12 @@ sendPriceTransaction (MachineryPriceTransaction t){
 
 skipSendMachineryPriceTransaction = ABSTRACT BOOLEAN (MachineryPriceTransaction);
 
+// загрузки, которые отправляет не этот обработчик (например, пакетная выгрузка в конце модуля)
+skipSendSet10Transaction = ABSTRACT VALUE BOOLEAN (MachineryPriceTransaction);
+
 sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
     IF handlerModel(groupMachinery(t)) = 'lsf.set10' AND countBarcodes(t) AND t IS CashRegisterPriceTransaction AND NOT skipSendMachineryPriceTransaction(t)
-        AND notSucceeded(t) THEN NEWSESSION {
+        AND notSucceeded(t) AND NOT skipSendSet10Transaction(t) THEN NEWSESSION {
         sendPriceTransaction(t);
     }
 }
@@ -224,3 +240,216 @@ CONSTRAINT SET(in(MachineryPriceTransaction t, Barcode b)) AND isSet10(groupMach
     AND NOT skipCheckItemGroupSet10()
     MESSAGE 'Не задан код группы товара для выгрузки в Set10'
     PROPERTIES idSku(t, b), name(t, b);
+
+// ============================================================================
+// Пакетная выгрузка (sendMachineryPriceTransactionsPackage): карты и ШК уходят одним
+// пакетом на несколько загрузок, цены — по каждой загрузке отдельно.
+// Загрузки пакета помечены uid, обычная выгрузка их пропускает.
+
+uid 'УИД пакета Set10' = DATA STRING[100] (MachineryPriceTransaction) INDEXED;
+skipSendSet10Transaction(MachineryPriceTransaction t) += TRUE IF uid(t);
+
+dataCountPackageSet10 = DATA INTEGER ();
+countPackageSet10 'Загрузок в пакете Set10' () = OVERRIDE dataCountPackageSet10(), 30;
+
+EXTEND FORM integrationData
+    PROPERTIES countPackageSet10();
+
+DESIGN integrationData {
+    pane {
+        set10 {
+            MOVE PROPERTY (countPackageSet10());
+        }
+    }
+}
+
+TABLE set10Package (STRING[100], STRING);
+// TI общих файлов пакета (item, barcode), после фидбека — ответ Set10; в статусах загрузки остаются только цены
+statusPackage 'Статус пакета Set10' = DATA STRING[100] (STRING[100], STRING) TABLE set10Package;
+
+// атрибуты ШК берутся из самой поздней загрузки пакета, в которую он входит
+packageTransaction = DATA LOCAL MachineryPriceTransaction (STRING[100], Barcode);
+
+shopIndices 'Магазины Set10' (STRING[100] u, Barcode b) = 
+    GROUP CONCAT STRING[20] s IF [GROUP SUM 1 IF in(MachineryPriceTransaction t, b) BY uid(t), idStoreSet(groupMachinery(t))](u, s), ' ' ORDER s;
+
+FORM goodsCatalogPackage FORMEXTID 'goods-catalog'
+    OBJECTS u = STRING[100] PANEL
+
+    OBJECTS good = Barcode.Barcode
+    PROPERTIES = name(packageTransaction(u, good), good) EXTID 'name', = (OVERRIDE VAT(packageTransaction(u, good), good), 0) EXTID 'vat',
+        = idSku(good) EXTID 'marking-of-the-good' ATTR, = IF packageTransaction(u, good) THEN 'false' EXTID 'delete-from-cash',
+        = (OVERRIDE productType(sku(good)), 'ProductPieceEntity') EXTID 'product-type', = age(sku(good)) EXTID 'age-limit',
+        = shopIndices(u, good) EXTID 'shop-indices'
+    PROPERTIES IN measure_type = shortNameUOM(packageTransaction(u, good), good) EXTID 'id' ATTR, 
+        = shortNameUOM(packageTransaction(u, good), good) EXTID 'name'
+
+    PROPERTIES IN group = idItemGroup(sku(good)) EXTID 'id' ATTR, = canonicalNameItemGroup(sku(good)) EXTID 'name'
+
+    OBJECTS plugin_property = STRING EXTID 'plugin-property'
+    PROPERTIES = value(plugin_property, good, packageTransaction(u, good)) ATTR EXTID 'value', VALUE(plugin_property) EXTID 'key' ATTR
+    FILTERS value(plugin_property, good, packageTransaction(u, good))
+
+    FILTERS packageTransaction(u, good)
+;
+
+// Теги в XML идут по номеру строки объявления: группа plugin-property выводится перед первым свойством, объявленным ниже неё.
+// Это свойство никогда не заполняется, но ставит plugin-property сразу за своими тегами — расширения из других модулей 
+// (маркировка, вес) идут после неё, как в goodsCatalog, независимо от номеров строк в их модулях.
+tagsOrderPackage = DATA LOCAL BOOLEAN (Barcode);
+EXTEND FORM goodsCatalogPackage PROPERTIES tagsOrderPackage(good) EXTID 'tags-order';
+
+weightCodePackage (STRING[100] u, BPSTRING[2] wc, Barcode b) = 
+    GROUP SUM 1 IF in(MachineryPriceTransaction t, b) BY uid(t), weightCode(groupMachinery(t));
+
+FORM barcodesCatalogPackage FORMEXTID 'goods-catalog'
+    OBJECTS u = STRING[100] PANEL
+
+    OBJECTS good = Barcode.Barcode EXTID 'bar-code'
+    PROPERTIES = idSku(good) EXTID 'marking-of-the-good' ATTR, id(good) EXTID 'code' ATTR ,
+        = IF primary(good) THEN 'true' ELSE 'false' EXTID 'default-code'
+    FILTERS packageTransaction(u, good)
+
+    // весовой префикс у групп касс может отличаться — строка на каждый префикс
+    OBJECTS barcodeWeight = (wc = BPSTRING[2], barcode = Barcode.Barcode) EXTID 'bar-code'
+    PROPERTIES = idSku(barcode) EXTID 'marking-of-the-good' ATTR, = wc + id(barcode) EXTID 'code' ATTR ,
+        = IF barcode IS Barcode.Barcode THEN 'false' EXTID 'default-code'
+    FILTERS weightCodePackage(u, wc, barcode) AND passScales(sku(barcode)) AND split(sku(barcode)) AND length(id(barcode)) < 13
+;
+
+// загрузки, которые обычная выгрузка отправила бы тремя файлами через sendSet10Transaction
+readyPackageSet10 (MachineryPriceTransaction t) = process(t) AND handlerModel(groupMachinery(t)) = 'lsf.set10' AND countBarcodes(t)
+    AND t IS CashRegisterPriceTransaction AND NOT skipSendMachineryPriceTransaction(t) AND NOT customSend(t)
+    AND NOT uid(t) AND NOT (GROUP SUM 1 IF statusTransaction(t, STRING s));
+
+// номер пакета отобранной загрузки; NESTED — переживает APPLY и видна в NEWSESSION обработки пакета
+packageSet10 = DATA LOCAL NESTED INTEGER (MachineryPriceTransaction);
+
+// отобранное в пакеты не уходит обычной выгрузкой в этом запуске, даже если пакет не отправился — повтор пакетом в следующем
+skipSendSet10Transaction(MachineryPriceTransaction t) += TRUE IF packageSet10(t);
+
+// снять пакет: его загрузки уйдут заново, как новые
+resetPackageSet10 (STRING[100] u) {
+    statusPackage(u, STRING s) <- NULL WHERE statusPackage(u, s);
+    statusTransaction(MachineryPriceTransaction t, STRING s) <- NULL WHERE uid(t) = u AND statusTransaction(t, s);
+    uid(MachineryPriceTransaction t) <- NULL WHERE uid(t) = u;
+}
+
+sendPackageSet10 (INTEGER n, STRING[100] u) {
+    NEWSESSION {
+        uid(MachineryPriceTransaction t) <- u WHERE packageSet10(t) = n AND readyPackageSet10(t);
+        APPLY;
+        // пакет не сохранился — пропускаем его, остальные пакеты отправляются
+        IF canceled() THEN RETURN;
+        
+        TRY {
+            packageTransaction(u, Barcode b) <- GROUP LAST MachineryPriceTransaction t ORDER dateTime(t), t WHERE uid(t) = u AND in(t, b);
+            // файлы переживают APPLY внутри sendRequsetGoods
+            LOCAL NESTED goods = FILE ();
+            LOCAL NESTED barcodes = FILE ();
+            EXPORT goodsCatalogPackage OBJECTS u = u XML TO goods;
+            EXPORT barcodesCatalogPackage OBJECTS u = u XML TO barcodes;
+            
+            // sendRequsetGoods пишет TI в статус загрузки — отправляем от последней загрузки пакета и переносим TI на пакет
+            FOR MachineryPriceTransaction h = (GROUP LAST MachineryPriceTransaction t ORDER dateTime(t), t WHERE uid(t) = u) DO {
+                sendRequsetGoods(goods(), 'item', h);
+                IF statusTransaction(h, 'item') THEN
+                    sendRequsetGoods(barcodes(), 'barcode', h);
+                
+                statusPackage(u, STRING type) <- statusTransaction(h, type) WHERE type = 'item' OR type = 'barcode';
+                statusTransaction(h, STRING type) <- NULL WHERE type = 'item' OR type = 'barcode';
+                
+                // Set10 не принял файл — цены без карт и ШК не шлём, снимаем только этот пакет, его загрузки уйдут заново следующим запуском
+                IF NOT statusPackage(u, 'item') OR NOT statusPackage(u, 'barcode') THEN {
+                    FOR uid(MachineryPriceTransaction t) = u DO
+                        addMachineryError(t, 'Ошибка загрузки пакета ' + (IF statusPackage(u, 'item') THEN 'barcode' ELSE 'item'), 
+                                          'УИД пакета ' + u);
+                    resetPackageSet10(u);
+                }
+                APPLY;
+            }
+        } CATCH {
+            FOR uid(MachineryPriceTransaction t) = u DO
+                addMachineryError(t, 'Ошибка загрузки пакета', messageCaughtException());
+            resetPackageSet10(u);
+            APPLY;
+        }
+    }
+}
+
+// фидбек по общим файлам — один запрос на TI пакета
+getFeedbackPackageSet10 (STRING[100] u) {
+    FOR statusPackage(u, STRING type) != 'correct' DO NEWSESSION {
+        // пакет мог быть снят ошибкой по предыдущему файлу
+        IF statusPackage(u, type) THEN TRY {
+            requestFeedback(statusPackage(u, type), type + ' ' + u);
+            IF status() = '3' THEN statusPackage(u, type) <- status_message();
+            ELSE IF NOT status() = '2' THEN {
+                // как fault в getFeedback: пакет уйдёт заново целиком
+                FOR uid(MachineryPriceTransaction t) = u DO
+                    addMachineryError(t, (CONCAT ' : ', type, status_message()), resultString());
+                resetPackageSet10(u);
+            }
+        } CATCH {
+            FOR uid(MachineryPriceTransaction t) = u DO
+                addMachineryError(t, (CONCAT ' : ', type, status_message()), resultString());
+        }
+        APPLY;
+    }
+}
+
+// аналог sendPriceTransaction для загрузки из пакета: отправка цен, а после подтверждения пакета — фидбек по ценам
+sendPriceTransactionPackage (MachineryPriceTransaction t) {
+    TRY {
+        IF NOT statusTransaction(t, 'price') THEN {
+            NEWSESSION { dateTimeProcessing(t) <- currentDateTime(); APPLY; }
+            // переживает APPLY внутри sendRequsetGoods
+            LOCAL NESTED errorsBefore = INTEGER ();
+            errorsBefore() <- OVERRIDE quantityMachineryPriceTransactionError(t), 0;
+            sendSet10Price(t);
+            // на исключение ошибку пишет sendRequsetGoods, а ответ return <> true проходит молча
+            IF NOT statusTransaction(t, 'price') AND NOT (OVERRIDE quantityMachineryPriceTransactionError(t), 0) > errorsBefore() THEN {
+                addMachineryError(t, 'Ошибка загрузки price', 'Set10 не принял файл цен');
+                APPLY;
+            }
+            afterExportTransaction(t);
+        } ELSE IF NOT (GROUP SUM 1 IF statusPackage(uid(t), STRING s) != 'correct') THEN 
+            getFeedback(t);
+    }
+    CATCH {
+        addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), 'Ошибка при выполнении операции ', 
+            messageCaughtException()), messageCaughtException());
+    }
+}
+
+packageRunSet10 = DATA LOCAL NESTED BOOLEAN ();
+
+// загрузки из пакетов доводит любая выгрузка — и пакетная, и обычная (например, после возврата на старое действие)
+sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
+    IF uid(t) AND handlerModel(groupMachinery(t)) = 'lsf.set10' AND countBarcodes(t) AND t IS CashRegisterPriceTransaction 
+        AND NOT skipSendMachineryPriceTransaction(t) AND notSucceeded(t) THEN NEWSESSION {
+        // в пакетной выгрузке фидбек по пакетам уже запрошен в её начале
+        IF NOT packageRunSet10() THEN getFeedbackPackageSet10(uid(t));
+        // пакет мог быть снят ошибкой — тогда загрузка уйдёт заново
+        IF uid(t) THEN sendPriceTransactionPackage(t);
+    }
+}
+
+sendMachineryPriceTransactionsPackage 'Загрузка прайса в оборудование (native, пакеты Set10)' () {
+    packageRunSet10() <- TRUE;
+    
+    // 1. фидбек по общим файлам ранее отправленных пакетов
+    FOR [GROUP SUM 1 IF process(MachineryPriceTransaction t) BY uid(t)](STRING[100] u) DO
+        getFeedbackPackageSet10(u);
+    
+    // 2. новые пакеты: отмечаем все загрузки к отправке, режем по countPackageSet10() в порядке времени, отправляем по очереди
+    packageSet10(MachineryPriceTransaction t) <- 
+        ((PARTITION SUM 1 IF readyPackageSet10(t) ORDER dateTime(t), t) + countPackageSet10() - 1) / countPackageSet10();
+    FOR [GROUP SUM 1 BY packageSet10(MachineryPriceTransaction t)](INTEGER n) ORDER n DO {
+        generateUUID();
+        sendPackageSet10(n, STRING[100](generatedUUID()));
+    }
+    
+    // 3. обычная выгрузка: загрузкам из пакетов — цены и их фидбек, остальному — как всегда
+    sendMachineryPriceTransactions();
+}
