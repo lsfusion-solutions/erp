@@ -25,9 +25,9 @@ quantity(FRegLedgerInit l) += dataQuantity(l);
 
 egaisDbUrl() = ImportGestori.connectionString();
 
-// если не задан, справки Б и начальные остатки импортируются по всем складам
-initImportStock = DATA Stock ();
-nameInitImportStock 'Склад (справки Б, начальные остатки)' () = name(initImportStock());
+// коды складов Gestori через запятую; если не заданы, справки Б и начальные остатки импортируются по всем складам
+initImportStocks 'Коды складов (справки Б, начальные остатки)' = DATA STRING[500] ();
+initImportStockCodes () = rtrim(ltrim(replace(initImportStocks(), ' ', ''), ','), ',');
 
 // --- Локальные переменные для импорта ---
 
@@ -244,7 +244,7 @@ importEgaisF2 'Импорт справок Б ЕГАИС' () {
              'FROM Pub.PartsShop ps ' +
              'JOIN Pub.Parts p ON ps.CodeParts = p.CodeParts ' +
              'JOIN Pub.EgaisFirm ef ON ef.cod_firm = ps.cod_shop' +
-             (IF initImportStock() THEN ' WHERE ps.cod_shop = ' + id(initImportStock()) ELSE '')
+             (IF initImportStockCodes() THEN ' WHERE ps.cod_shop IN (' + initImportStockCodes() + ')' ELSE '')
         TO file;
 
     IMPORT TABLE FROM file() TO noteLocalIdEgais, noteLocalIdNoteA, noteLocalIdShip;
@@ -263,9 +263,9 @@ importEgaisF2 'Импорт справок Б ЕГАИС' () {
              'SUBSTR(n.NumTtn, 1, 500), n.DateTtn, n.DateShip, n.Quan ' +
              'FROM Pub.EgaisNote n ' +
              'WHERE n.NoteType = 1' +
-             (IF initImportStock() THEN ' AND n.IdNoteEgais IN (SELECT p.IdNoteBPr FROM Pub.PartsShop ps ' +
-                                        'JOIN Pub.Parts p ON ps.CodeParts = p.CodeParts ' +
-                                        'WHERE ps.cod_shop = ' + id(initImportStock()) + ')' ELSE '')
+             (IF initImportStockCodes() THEN ' AND n.IdNoteEgais IN (SELECT p.IdNoteBPr FROM Pub.PartsShop ps ' +
+                                             'JOIN Pub.Parts p ON ps.CodeParts = p.CodeParts ' +
+                                             'WHERE ps.cod_shop IN (' + initImportStockCodes() + '))' ELSE '')
         TO file;
 
     IMPORT TABLE FROM file() TO
@@ -293,13 +293,13 @@ importEgaisBalances 'Импорт начальных остатков ЕГАИС
     EXTERNAL SQL egaisDbUrl()
         EXEC 'SELECT ps.cod_shop, ps.QuanRest, SUBSTR(p.IdNoteBPr, 1, 20) ' +
              'FROM Pub.PartsShop ps JOIN Pub.Parts p ON ps.CodeParts = p.CodeParts' +
-             (IF initImportStock() THEN ' WHERE ps.cod_shop = ' + id(initImportStock()) ELSE '')
+             (IF initImportStockCodes() THEN ' WHERE ps.cod_shop IN (' + initImportStockCodes() + ')' ELSE '')
         TO file;
 
     IMPORT TABLE FROM file() TO balLocalCodShop, balLocalQuan, balLocalIdNoteBPr;
 
     // склад остатка восстанавливается только из номера
-    DELETE FRegLedgerInit l WHERE l IS FRegLedgerInit AND (NOT initImportStock() OR dataNumber(l) = 'НАЧ-' + id(initImportStock()));
+    DELETE FRegLedgerInit l WHERE l IS FRegLedgerInit AND (NOT initImportStockCodes() OR isWordInCSV(substrFrom(dataNumber(l), 5), initImportStockCodes()));
 
     FOR balLocalIdNoteBPr(INTEGER i) AND f2Reg(balLocalIdNoteBPr(i)) DO NEW l = FRegLedgerInit {
         dataF2Reg(l) <- f2Reg(balLocalIdNoteBPr(i));
@@ -347,7 +347,7 @@ importEgaisAll 'Импорт начальных данных ЕГАИС' () {
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() importEgaisAll, nameInitImportStock,
+    PROPERTIES() importEgaisAll, initImportStocks,
                  importEgaisUtm, importEgaisClients, importEgaisProducts,
                  importEgaisF1, importEgaisF2, importEgaisBalances, importEgaisMarkCodes
 ;
@@ -356,7 +356,7 @@ DESIGN integrationData {
     gestori {
         NEW egaisInitImport {
             caption = 'Начальный импорт ЕГАИС';
-            MOVE PROPERTY(nameInitImportStock());
+            MOVE PROPERTY(initImportStocks());
             MOVE PROPERTY(importEgaisAll());
             MOVE PROPERTY(importEgaisUtm());
             MOVE PROPERTY(importEgaisClients());
