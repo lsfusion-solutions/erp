@@ -1,0 +1,205 @@
+MODULE VetisSchedulerGestori;
+
+REQUIRE VetisAMSGestori, VetisEnterpriseGestori, VetisWithdrawVetDocument, VetisCheckShipmentRegionalization,
+        VetisPrepareOutgoingConsignment, VetisProductItemExport, StockList;
+
+NAMESPACE Vetis;
+
+// Действия для планировщика заданий. Параметры задаются в строке задания через запятую, пустое значение или 0 - «не задано».
+// Площадки задаются кодом списка складов: берутся площадки его складов компании.
+
+inactive 'Неактивная' = DATA BOOLEAN (Enterprise);
+
+EXTEND FORM enterprise PROPERTIES(o) inactive;
+DESIGN enterprise {
+    tabProperties {
+        MOVE PROPERTY(inactive(o));
+    }
+}
+EXTEND FORM enterprises PROPERTIES(o) READONLY inactive;
+
+CONSTRAINT SETCHANGED(enterprise(VetDocumentListRequest r)) AND inactive(enterprise(r))
+    CHECKED BY enterprise[VetDocumentListRequest]
+    MESSAGE 'Площадка неактивна: запрос ВСД по ней не отправляется';
+
+CONSTRAINT SETCHANGED(enterprise(StockEntryListRequest r)) AND inactive(enterprise(r))
+    CHECKED BY enterprise[StockEntryListRequest]
+    MESSAGE 'Площадка неактивна: запрос записей журнала по ней не отправляется';
+
+// --- Кнопка «Запросить изменившиеся ВСД» без неактивных площадок (вместо getVetDocumentChangesListRequestGestori) ---
+
+getVetDocumentChangesListRequestActive 'Запросить изменившиеся ВСД' () {
+    beginDateChangesVD() <- dateTimeToDateTime(currentDate(), TIME('00:00:00'));
+    endDateChangesVD() <- dateTimeToDateTime(currentDate(), TIME('23:59:59'));
+    DIALOG getVetDocumentChangesListRequestParams DO {
+        NEWSESSION NESTED LOCAL {
+            createdVDRequest(VetDocumentListRequest r) <- NULL;
+            FOR Enterprise e AND own(owner(e)) AND NOT inactive(e) AND (GROUP SUM 1 IF enterprise(Stock st) = e AND isCompany(legalEntity(st))) AND
+                (NOT limitAccess(currentUser()) OR accessCompany(currentUser(), e)) NEW r = VetDocumentListRequest DO {
+                businessEntity(r) <- owner(e);
+                changes(r) <- TRUE;
+                offset(r) <- 0;
+                count(r) <- 1000;
+                beginDate(r) <- beginDateChangesVD();
+                endDate(r) <- endDateChangesVD();
+                enterprise(r) <- e;
+                createdVDRequest(r) <- TRUE;
+            }
+            APPLY NESTED LOCAL;
+            IF canceled() THEN RETURN;
+            skipMessage() <- TRUE;
+            FOR createdVDRequest(VetDocumentListRequest r) DO
+                getVetDocumentListRequest(r);
+            skipMessage() <- NULL;
+            APPLY NESTED LOCAL;
+            LOCAL skipped = INTEGER ();
+            skipped() <- GROUP SUM 1 IF own(owner(Enterprise e)) AND inactive(e) AND (GROUP SUM 1 IF enterprise(Stock st) = e AND isCompany(legalEntity(st)));
+            MESSAGE CONCAT '\n',
+                (IF (GROUP SUM 1 IF createdVDRequest(VetDocumentListRequest r) AND id(r))
+                    THEN 'Отправлено ' + (GROUP SUM 1 IF createdVDRequest(VetDocumentListRequest r) AND id(r)) + ' запросов'
+                    ELSE 'Запросы не отправлены'),
+                'Неактивные площадки пропущены: ' + skipped();
+        }
+    }
+}
+
+EXTEND FORM applicationRequests
+    PROPERTIES() getVetDocumentChangesListRequestActive
+;
+
+DESIGN applicationRequests {
+    actions {
+        MOVE PROPERTY(getVetDocumentChangesListRequestActive()) BEFORE PROPERTY(getVetDocumentChangesListRequestGestori());
+        PROPERTY(getVetDocumentChangesListRequestGestori()) { hide = TRUE; }
+    }
+}
+
+schedulerStockList (STRING id) = stockList(STRING[100](id)) IF NOT (id = '0' OR id = '');
+
+// площадка входит в список складов планировщика; без списка - все свои площадки со складами компании
+inSchedulerList (Enterprise e, STRING listId) = own(owner(e)) AND
+    (GROUP SUM 1 IF enterprise(Stock st) = e AND isCompany(legalEntity(st))
+        AND (NOT schedulerStockList(listId) OR in(schedulerStockList(listId), st)));
+
+logScheduler (STRING message) {
+    logToFile('vetis', 'Планировщик Ветис: ' + message);
+}
+
+// --- 1. Отправка запросов на получение ВСД ---
+
+sendVetDocumentListRequestScheduler (Enterprise e, INTEGER changes, INTEGER type, DATETIME beginDate, DATETIME endDate, INTEGER status) {
+    NEWSESSION {
+        NEW r = VetDocumentListRequest {
+            businessEntity(r) <- owner(e);
+            enterprise(r) <- e;
+            changes(r) <- TRUE IF changes = 1;
+            type(r) <- CASE
+                WHEN type = 1 THEN VetDocumentType.TRANSPORT
+                WHEN type = 2 THEN VetDocumentType.RETURNABLE
+                WHEN type = 3 THEN VetDocumentType.PRODUCTIVE
+                WHEN type = 4 THEN VetDocumentType.INCOMING
+                WHEN type = 5 THEN VetDocumentType.OUTGOING;
+            status(r) <- CASE
+                WHEN status = 1 THEN VetDocumentStatus.CONFIRMED
+                WHEN status = 2 THEN VetDocumentStatus.WITHDRAWN
+                WHEN status = 3 THEN VetDocumentStatus.UTILIZED;
+            beginDate(r) <- beginDate;
+            endDate(r) <- endDate;
+            offset(r) <- 0;
+            count(r) <- 1000;
+            skipMessage() <- TRUE;
+            getVetDocumentListRequest(r);
+            APPLY;
+            IF canceled() THEN
+                logScheduler(CONCAT ' ', 'запрос ВСД по площадке', name(e), 'не создан:', applyMessage());
+        }
+    }
+}
+
+getVetDocumentListRequestScheduler 'Ветис: отправка запросов на получение ВСД (планировщик)'
+    (INTEGER changes, INTEGER type, INTEGER minutes, INTEGER status, STRING listId, INTEGER threads) {
+    IF NOT minutes > 0 THEN {
+        logScheduler('не задан период (отступ назад в минутах)');
+        RETURN;
+    }
+    IF NOT (listId = '0' OR listId = '') AND listId AND NOT schedulerStockList(listId) THEN {
+        logScheduler('не найден список складов с кодом ' + listId);
+        RETURN;
+    }
+    LOCAL endDate = DATETIME ();
+    endDate() <- currentDateTime();
+
+    NEWEXECUTOR {
+        FOR inSchedulerList(Enterprise e, listId) AND NOT inactive(e) DO
+            NEWTHREAD NEWSESSION NEWSQL sendVetDocumentListRequestScheduler(e, changes, type, sumMinutes(endDate(), -minutes), endDate(), status);
+    } THREADS (MAX threads, 1);
+}
+
+// --- 2. Получение ответов по необработанным заявкам ---
+
+// вид заявки кодом параметра планировщика: 1 список ВСД, 2 записи журнала, 3 входящая партия, 4 транспортная партия,
+// 5 производственная партия, 6 аннулирование ВСД, 7 условия регионализации, 8 номенклатура, 9 ВСД по UUID, 10 запись журнала по GUID
+inScheduler (ApplicationRequest r, INTEGER code) = notCompleted(r) AND (NOT code > 0 OR code = CASE
+    WHEN r IS VetDocumentListRequest THEN 1
+    WHEN r IS StockEntryListRequest THEN 2
+    WHEN r IS ProcessIncomingConsignmentRequest THEN 3
+    WHEN r IS PrepareOutgoingConsignmentRequest THEN 4
+    WHEN r IS RegisterProductionOperationRequest THEN 5
+    WHEN r IS WithdrawVetDocumentRequest THEN 6
+    WHEN r IS CheckShipmentRegionalization THEN 7
+    WHEN r IS ProductItemRequest THEN 8
+    WHEN r IS GetVetDocumentByUuidRequest THEN 9
+    WHEN r IS GetStockEntryByGuidRequest THEN 10);
+
+processEnterpriseRequestsScheduler (Enterprise e, INTEGER code) {
+    FOR inScheduler(ApplicationRequest r, code) AND toReceive(r) AND enterpriseRequestGestori(r) = e ORDER r DO
+        receiveApplicationRequest(r);
+    FOR inScheduler(ApplicationRequest r, code) AND toProcess(r) AND enterpriseRequestGestori(r) = e ORDER r DO
+        process(r);
+}
+
+processRequestsScheduler 'Ветис: получение ответов по необработанным заявкам (планировщик)'
+    (INTEGER code, STRING listId, INTEGER threads) {
+    IF NOT (listId = '0' OR listId = '') AND listId AND NOT schedulerStockList(listId) THEN {
+        logScheduler('не найден список складов с кодом ' + listId);
+        RETURN;
+    }
+    // без списка складов - заявки всех площадок, со списком - только площадок его складов; неактивные площадки пропускаются
+    NEWEXECUTOR {
+        FOR Enterprise e IS Enterprise AND NOT inactive(e)
+            AND (GROUP SUM 1 IF inScheduler(ApplicationRequest r, code) AND enterpriseRequestGestori(r) = e)
+            AND (NOT schedulerStockList(listId) OR inSchedulerList(e, listId)) DO
+            NEWTHREAD NEWSESSION NEWSQL processEnterpriseRequestsScheduler(e, code);
+    } THREADS (MAX threads, 1);
+
+    // заявки без площадки - только без списка складов
+    IF NOT schedulerStockList(listId) THEN {
+        FOR inScheduler(ApplicationRequest r, code) AND toReceive(r) AND NOT enterpriseRequestGestori(r) ORDER r DO
+            receiveApplicationRequest(r);
+        FOR inScheduler(ApplicationRequest r, code) AND toProcess(r) AND NOT enterpriseRequestGestori(r) ORDER r DO
+            process(r);
+    }
+}
+
+// --- Кнопка «Обмен с Ветис» без заявок неактивных площадок (вместо processRequests) ---
+
+processRequestsActive 'Обмен с Ветис' () {
+    FOR toReceive(ApplicationRequest r) AND NOT inactive(enterpriseRequestGestori(r)) ORDER r DO {
+        receiveApplicationRequest(r);
+    }
+    FOR toProcess(ApplicationRequest r) AND NOT inactive(enterpriseRequestGestori(r)) ORDER r DO {
+        process(r);
+    }
+}
+
+EXTEND FORM applicationRequests
+    PROPERTIES() processRequestsActive DRAW r TOOLBAR
+;
+
+DESIGN applicationRequests {
+    PROPERTY(processRequests()) { hide = TRUE; }
+    actions {
+        PROPERTY(getVetDocumentListRequestGestori()) { hide = TRUE; }
+        PROPERTY(getStockEntryListRequestGestori()) { hide = TRUE; }
+    }
+}
