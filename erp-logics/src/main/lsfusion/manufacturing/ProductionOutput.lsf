@@ -238,6 +238,12 @@ outputProductsSum(ProductDetail productDetail) <- calcOutputSum(productDetail)
          CHANGED (price(productDetail)) OR
          CHANGED (productsStock(productDetail));
 
+
+roundPriceFirst = ABSTRACT INTEGER (ProductDetail);
+roundPriceCalc(ProductDetail d) = OVERRIDE roundPriceFirst(d) , defaultRound(currency(d));
+
+retVATSum 'Сумма НДС' (ProductDetail productDetail) = NUMERIC[18,4](round([ X*Y/(100+Y)](outputProductsSum(productDetail), valueVAT(productDetail)), roundPriceCalc(productDetail)));
+
 overFillOutputQuantityProductDetail  ABSTRACT ( Order);
 fillOutputQuantityProductDetail 'Заполнить из остатков' (Order order)  { 
     createOutput(order) <- TRUE;
