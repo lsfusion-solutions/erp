@@ -359,34 +359,53 @@ public class CL5000JHandler extends MultithreadScalesHandler {
     @Override
     public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoList) throws IOException {
         CASSettings settings = springContext.containsBean("casSettings") ? (CASSettings) springContext.getBean("casSettings") : new CASSettings();
-        boolean disableStopLists = settings.isDisableStopLists();
-        if (stopListInfo != null && !stopListInfo.exclude && !disableStopLists) {
-            casLogger.info(getLogPrefix() + "Send StopList # " + stopListInfo.number);
-            if (!machineryInfoList.isEmpty()) {
-                for (MachineryInfo scales : machineryInfoList) {
-                    if (scales.port != null) {
-                        DataSocket socket = getDataSocket(scales.port);
-                        try {
-                            casLogger.info(getLogPrefix() + "Sending StopList to scale " + scales.port);
-                            socket.open();
-                            short weightCode = getWeightCode(scales);
-                            for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
-                                int pluNumber = getPluNumber(item.pluNumber, getBarcode(item));
-                                casLogger.error(String.format(getLogPrefix() + "Sending StopList - Deleting item %s at scales %s", pluNumber, scales.port));
-                                int reply = deletePlu(socket, weightCode, pluNumber);
-                                if (reply != 0)
-                                    casLogger.error(String.format(getLogPrefix() + "Failed to delete item %s at scales %s", getErrorMessage(pluNumber), scales.port));
-                            }
+        if (!settings.isDisableStopLists())
+            sendStopListParallel(stopListInfo, machineryInfoList, SendStopListTask::new);
+    }
 
-                        } catch (Exception e) {
-                            casLogger.error(String.format(getLogPrefix() + "Send StopList %s to scales %s error", stopListInfo.number, scales.port), e);
-                        } finally {
-                            casLogger.info(getLogPrefix() + "Finally disconnecting..." + scales.port);
-                            socket.close();
-                        }
+    //all items are deleted, plu number is taken from barcode if not set
+    @Override
+    protected boolean hasItemsToDelete(StopListInfo stopListInfo, ScalesInfo scales) {
+        return !stopListInfo.stopListItemMap.isEmpty();
+    }
+
+    class SendStopListTask implements Callable<List<String>> {
+        StopListInfo stopListInfo;
+        ScalesInfo scales;
+
+        public SendStopListTask(StopListInfo stopListInfo, ScalesInfo scales) {
+            this.stopListInfo = stopListInfo;
+            this.scales = scales;
+        }
+
+        @Override
+        public List<String> call() throws IOException {
+            List<String> localErrors = new ArrayList<>();
+            DataSocket socket = getDataSocket(scales.port);
+            try {
+                casLogger.info(getLogPrefix() + "Sending StopList to scale " + scales.port);
+                socket.open();
+                short weightCode = getWeightCode(scales);
+                for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
+                    int pluNumber = getPluNumber(item.pluNumber, getBarcode(item));
+                    casLogger.info(String.format(getLogPrefix() + "Sending StopList - Deleting item %s at scales %s", pluNumber, scales.port));
+                    int reply = deletePlu(socket, weightCode, pluNumber);
+                    if (reply != 0) {
+                        String error = String.format(getLogPrefix() + "Failed to delete item %s at scales %s", getErrorMessage(pluNumber), scales.port);
+                        casLogger.error(error);
+                        localErrors.add(error);
                     }
                 }
+
+            } catch (Exception e) {
+                String error = String.format(getLogPrefix() + "Send StopList %s to scales %s error", stopListInfo.number, scales.port);
+                casLogger.error(error, e);
+                localErrors.add(error + '\n' + ExceptionUtils.getStackTraceString(e));
+            } finally {
+                casLogger.info(getLogPrefix() + "Finally disconnecting..." + scales.port);
+                socket.close();
             }
+            return localErrors;
         }
     }
 
