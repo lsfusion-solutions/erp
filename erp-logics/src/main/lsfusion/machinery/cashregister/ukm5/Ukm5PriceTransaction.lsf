@@ -289,12 +289,15 @@ overReferenceWeight(Sku s) = OVERRIDE (IF weightSize(s) = 5 OR weightSize(s) = 6
 
 droppedScale = DATA TBOOLEAN (Item);
 
-WHEN ([GROUP SUM 1 IF DROPPED(lowWeight(Sku s)) OR DROPPED(weightControlBypassUkm5(s)) OR DROPPED(isCatchWeight(s)) OR DROPPED(overSliced(s)) BY s](Sku sku)) AND droppedScale(sku) = TFALSE DO {
+// != TTRUE, а не = TFALSE: TFALSE появляется только после выгрузки, у остальных NULL и снятие терялось
+WHEN ([GROUP SUM 1 IF DROPPED(lowWeight(Sku s)) OR DROPPED(overSkipKppControl(s)) OR DROPPED(weightControlBypassUkm5(s))
+    OR DROPPED(isCatchWeight(s)) OR DROPPED(overSliced(s)) BY s](Sku sku)) AND NOT droppedScale(sku) == TTRUE DO {
     droppedScale(sku) <- TTRUE;
 }
 
-// КВП: весовые, типы 5 и 6, заданные дельты, изменённый тип
-needUpdateScale(Item i) = isCatchWeight(i) OR overSliced(i) OR weightControlBypassUkm5(i) OR minDelta(i) OR maxDelta(i) OR droppedScale(i) == TTRUE;
+// КВП: любой ненулевой weightSize, заданные дельты, снятый признак
+needUpdateScale(Item i) = isCatchWeight(i) OR overSliced(i) OR lowWeight(i) OR overSkipKppControl(i)
+    OR weightControlBypassUkm5(i) OR minDelta(i) OR maxDelta(i) OR droppedScale(i) == TTRUE;
 
 FORM importSecurityScale 'Импорт эталонных весов КВП и работа с типами товаров'
     OBJECTS t = MachineryPriceTransaction

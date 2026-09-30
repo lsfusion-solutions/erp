@@ -41,6 +41,7 @@ beforeExportPickList ABSTRACT LIST ();
 exportPickList 'Экспорт пик-листа УКМ5'(){
     NEWSESSION {
         LOCAL answer = FILE ();
+        LOCAL answerString = STRING ();
         beforeExportPickList();
         EXPORT pickList JSON;
         LOCAL group = GroupMachinery();
@@ -49,9 +50,18 @@ exportPickList 'Экспорт пик-листа УКМ5'(){
         TRY{
             EXTERNAL HTTP POST urlUkm5ServerImport() + '/api/v1/import/picklists' PARAMS exportFile() TO answer;
             fileToString(answer());
-            IF statusHttp() = 200 THEN MESSAGE 'Загрузка пик-листа успешно завершена.';
+            answerString() <- resultString();
+            logToFile('ukm5', CONCAT ' : ', 'Ответ ' + statusHttp(), answerString());
+            IF failedHttp() THEN {
+                MESSAGE 'Пик-лист не загружен. Код ответа ' + statusHttp() + '\n' + (OVERRIDE answerString(), '<пустой ответ>');
+            } ELSE {
+                MESSAGE 'Загрузка пик-листа успешно завершена.';
+            }
         }
-        CATCH MESSAGE messageCaughtException();
+        CATCH {
+            logToFile('ukm5', CONCAT ' : ', 'ERROR', messageCaughtException());
+            MESSAGE messageCaughtException();
+        }
     }
 }
 
