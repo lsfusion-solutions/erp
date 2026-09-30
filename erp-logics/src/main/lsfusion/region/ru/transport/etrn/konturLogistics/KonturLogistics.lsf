@@ -103,8 +103,7 @@ EXTEND FORM konturBoxes
 
 // ------------------------- Формирование JSON титула Т1 ------------------------- //
 // Модель ConsignorReceptionTitle (POST /v1/transportations/documents/consignor-reception).
-// TODO: имена вложенных полей сверить с моделью на тестовой площадке —
-// с точностью до верхнеуровневых блоков структура подтверждена документацией.
+// TODO: имена вложенных полей сверить на тестовой площадке - верхний уровень подтверждён документацией.
 
 konturDate (DATE d) = toChar(d, 'YYYY-MM-DD');
 konturDateTime (DATETIME d) = toChar(d, 'YYYY-MM-DD"T"HH24:MI:SS');
@@ -492,29 +491,9 @@ konturStage (STRING[100] status) = CASE
     WHEN status LIKE 'WaybillDeliveryWaitCarrier%' THEN ETRNStage.unloading
     WHEN status = 'Completed' THEN ETRNStage.unloading;
 
-// QR-код перевозки не запрашиваем: мы не перевозчик, водитель получает QR в своём приложении
-//konturImportQR (ETRN e) {
-//    setKonturAuth(konturOurParty(e));
-//    IF NOT transportationId(e) THEN {
-//        MESSAGE 'Для ЭТрН не получен идентификатор перевозки у провайдера';
-//        RETURN;
-//    }
-//    TRY {
-//        EXTERNAL HTTP GET konturUrl() + '/v1/transportations/' + transportationId(e) + '/qr' +
-//            (OVERRIDE '?diadocBoxId=' + konturBoxId(), '')
-//            HEADERS konturHeaders TO konturResult;
-//        qrCode(e) <- konturResult();
-//        APPLY;
-//    } CATCH {
-//        fileToString(konturResult(), 'UTF-8');
-//        MESSAGE CONCAT ' ', 'Ошибка получения QR-кода:', statusHttp(), resultString(), messageCaughtException();
-//    }
-//}
-
 // ------------------------- Импорт данных перевозки ------------------------- //
 // GET /v2/transportations/{id}: участники (Participants.V2) и груз (CargoInfo.cargoItems).
-// TODO: сверить на тестовой площадке ключи верхнего уровня ответа (participants, cargo, status)
-// и структуру Weight/Volume (предположительно поле value).
+// TODO: сверить на тестовой площадке ключи верхнего уровня ответа и структуру Weight/Volume.
 
 GROUP konturImpParticipants EXTID 'participants';
 GROUP konturImpCargo EXTID 'cargo';
@@ -707,9 +686,8 @@ importedEventsContinueFromId = DATA LOCAL STRING[100] ();
 
 GROUP konturImpEventDetails EXTID 'details';
 
-// тип титула из деталей события (события DocumentSignedBySender/Recipient: ConsignorTitle=Т1,
-// CarrierReceptionTitle=Т2, ConsigneeTitle=Т3, CarrierDeliveryTitle=Т4, CarrierPaymentTitle=Т5,
-// ConsignorPaymentTitle=Т6, RedirectTitle=Т7, RelayTitle=Т8, ConsignorReaddressTitle=Т9, RejectTitle=отказ)
+// тип титула из деталей события: ConsignorTitle=Т1, CarrierReceptionTitle=Т2, ConsigneeTitle=Т3, CarrierDeliveryTitle=Т4,
+// CarrierPaymentTitle=Т5, ConsignorPaymentTitle=Т6, RedirectTitle=Т7, RelayTitle=Т8, ConsignorReaddressTitle=Т9, RejectTitle=отказ
 konturDocumentType 'Тип титула (Контур)' = DATA STRING[100](ETRNEvent) CHARWIDTH 15;
 konturDocumentId 'ИД титула (Контур)' = DATA STRING[100](ETRNEvent) CHARWIDTH 15;
 konturRejectionReason 'Причина отказа (Контур)' = DATA STRING[1000](ETRNEvent) CHARWIDTH 15;
@@ -989,12 +967,6 @@ importPrintForm (ETRN e) + WHEN provider(e) = ETRNProvider.kontur THEN {
         konturImportPrintForm(e);
     }
 }
-
-//importQR (ETRN e) + WHEN provider(e) = ETRNProvider.kontur THEN {
-//    NEWSESSION {
-//        konturImportQR(e);
-//    }
-//}
 
 importEvents (ETRNProvider p) + WHEN p = ETRNProvider.kontur THEN {
     NEWSESSION {

@@ -4,9 +4,8 @@ REQUIRE ETRNExchange, ETRNIncoming, TransportRu, Cargo, LegalEntityRu, Utils, ED
 
 NAMESPACE ETRN;
 
-// Разбор XML титула ЭТрН по приказу ФНС N ЕД-7-26/1065@ (раздел II) в документ ЭТрН.
-// Формат приказа - единый для обоих API (Kontur.Логистика и Диадок), поэтому общий модуль.
-// Провайдер кладёт входящий XML в titleFile(ETRN) и вызывает parseETRNTitleXml.
+// Разбор XML титула по приказу ФНС N ЕД-7-26/1065@ (раздел II). Формат единый для обоих API,
+// поэтому модуль общий: провайдер кладёт XML в titleFile(ETRN) и вызывает parseETRNTitleXml.
 
 // ------------------------- Импорт титула Т1 из XML-файла ------------------------- //
 // Для входящих перевозок, где мы грузополучатель/перевозчик; файл титула - поле
@@ -39,9 +38,8 @@ impT1GOInn = DATA LOCAL STRING ();
 impT1GOName = DATA LOCAL STRING ();
 impT1GOKpp = DATA LOCAL STRING ();
 
-// СвЗак / ЗакУсл - заказчик услуг по перевозке. Когда грузоотправитель экспедитор
-// (ГОЭксп=1), схема обязывает указать СвЗак; иначе заказчик может оказаться
-// только в описании груза (ЗакУсл), поэтому читаем оба места
+// СвЗак / ЗакУсл - заказчик услуг: при грузоотправителе-экспедиторе (ГОЭксп=1) схема обязывает СвЗак,
+// иначе заказчик может оказаться только в описании груза - поэтому читаем оба места
 impT1ZakInn = DATA LOCAL STRING ();
 impT1ZakInnIP = DATA LOCAL STRING ();
 impT1ZakName = DATA LOCAL STRING ();
@@ -385,9 +383,8 @@ deliveryZip (STRING text) = STRING[6](deliveryZipExtract(text))
     IF length(deliveryZipExtract(text)) == 6 AND
        (OVERRIDE length(regexpReplace(deliveryZipExtract(text), '[0-9]', '', 'g')), 0) == 0;
 
-// повторный подбор склада перед отправкой Т3: на момент разбора Т1 подразделение
-// Диадока могло быть ещё не привязано к складу. LOCAL-буфер разбора к этому моменту
-// уже пуст, поэтому индекс берётся заново из сохранённых полей документа
+// повторный подбор перед Т3: на момент разбора Т1 подразделение Диадока могло быть ещё не привязано
+// к складу, а LOCAL-буфер разбора уже пуст - индекс берётся из сохранённых полей документа
 deliveryZipStored (ETRN e) = STRING[6](OVERRIDE deliveryZipCode(e), deliveryZip(STRING(deliveryAddress(e))));
 
 overPrepareT3 (ETRN e) + {

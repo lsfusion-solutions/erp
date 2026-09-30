@@ -5,11 +5,8 @@ REQUIRE DiadocLogistics, DiadocOrderRequest, DiadocForwardingOrder, ETRNConditio
 NAMESPACE Diadoc;
 
 // ------------------------- Приём событий ЭТрН и заказов-заявок через Диадок (V5) ------------------------- //
-// GetDocflowEvents (V5) - лента изменений документов ящика, корректная для многотитульных
-// документов (GetDocument V3 их официально не поддерживает). Двухфазная схема ETRNExchange:
-// importEvents читает ленту постранично (курсор AfterIndexKey) в журнал ETRNEvent,
-// processEvent привязывает событие к документу и продвигает статусы.
-// kl-id / mt-id - в Details статусов OuterDocflow KlMt (fallback - CustomData документа).
+// GetDocflowEvents (V5) - лента изменений, корректная для многотитульных документов (GetDocument V3
+// их не поддерживает); kl-id / mt-id - в Details статусов OuterDocflow KlMt, fallback - CustomData.
 // TODO: сверить на тестовой площадке ключи kl-id/mt-id и справочник статусов KlMt.
 
 // ------------------------- Курсор ленты по ящику ------------------------- //
@@ -78,8 +75,7 @@ FORM exportDocflowEventsRequest
 
 // ------------------------- Ответ GetDocflowEvents (V5) ------------------------- //
 // DocflowEventV5: { EventId, Timestamp{Ticks}, DocumentId{MessageId,EntityId}, IndexKey,
-//                   Document{DocumentInfo{FullVersion, Metadata[], CustomData[]},
-//                            Docflow{Titles[], OuterDocflows[]}} }
+//   Document{DocumentInfo{FullVersion, Metadata[], CustomData[]}, Docflow{Titles[], OuterDocflows[]}} }
 
 GROUP evTimestamp EXTID 'Timestamp';
 GROUP evDocumentId EXTID 'DocumentId';
@@ -302,8 +298,7 @@ processETRNEvent (ETRN.ETRNEvent ev) {
                     // fwd-трансляция чужого титула идёт без kl-id: перевозку опознаём по УИД Минтранса
                     ETRN.etrnMintrans(ETRN.mintransId(ev));
 
-    // новая входящая создаётся только по reception (Т1) или fwd (трансляция титулов);
-    // условные документы (cost/readdress/relay) ждут привязки по kl-id.
+    // новая входящая создаётся только по reception (Т1) или fwd; условные документы ждут привязки по kl-id.
     // Для fwd обязателен ИД перевозки: без него выходят пустышки, у реальных перевозок он всегда есть
     IF NOT e() AND ((docFunction(ev) == 'reception' AND (entityId(ev) OR ETRN.transportationId(ev)))
                  OR (docFunction(ev) == 'fwd' AND ETRN.transportationId(ev))) THEN NEW ne = ETRN.IncomingETRN {

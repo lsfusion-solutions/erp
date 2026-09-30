@@ -5,10 +5,8 @@ REQUIRE ETRNExchange, ETRNConsignee, ETRNOutgoing, LegalEntityRu,
 
 NAMESPACE Diadoc;
 
-// Реализация обмена ЭТрН через Диадок API (продукт Diadoc.Логистика):
-// генерация XML титулов методом GenerateTitleXml из упрощённого UserDataXml,
-// подпись КЭП и отправка через PostMessage / PostMessagePatch.
-// Переиспользует инфраструктуру Диадока: авторизация, ящики, сообщения.
+// Обмен ЭТрН через Диадок (продукт Diadoc.Логистика): XML титула строит GenerateTitleXml
+// из упрощённого UserDataXml, отправка - поверх инфраструктуры Диадока (ящики, сообщения).
 
 // провайдер ЭПД - Диадок (в отличие от Kontur.Логистики)
 EXTEND CLASS ETRN.ETRNProvider { diadoc 'Диадок (Логистика)' }
@@ -53,9 +51,8 @@ diadocTimePeriod (TIME from, TIME to) = CONCAT '-', toChar(from, 'HH24:MI'),
 
 // ------------------------- Настройки на форме «Интеграция» ------------------------- //
 
-// пользователь для фоновых заданий (планировщика): у служебной учётки планировщика
-// нет своего логина Диадока - без этой настройки фоновое получение событий
-// выполняется вхолостую (цикл не находит пользователя и не делает ни одного запроса)
+// у служебной учётки планировщика нет своего логина Диадока: без этой настройки
+// фоновое получение событий отрабатывает вхолостую, не сделав ни одного запроса
 defaultUserDiadocETRN 'Пользователь Диадок для ЭПД (планировщик)' = DATA User ();
 loginDefaultUserDiadocETRN 'Пользователь Диадок для ЭПД (планировщик)' = login(defaultUserDiadocETRN()) CHARWIDTH 20;
 
@@ -218,12 +215,8 @@ DESIGN outgoingEtrn {
 userDiadocETRN () = OVERRIDE userDiadoc(currentUser()), (defaultUserDiadocETRN() IF currentUser() IS SystemUser);
 
 // ------------------------- Партнёрство с перевозчиком (контрагенты Диадока) ------------------------- //
-// Для отправки Т3 по входящей перевозке ящики грузополучателя и перевозчика должны быть
-// связаны партнёрством. Приглашение отправляется при отправке Т3 (DiadocLogisticsT3,
-// с подтверждением пользователем) методом AcquireCounteragent: при открытом ящике
-// перевозчика связь устанавливается сразу, при закрытом - после подтверждения с его
-// стороны; повторный вызов при существующих отношениях безвреден (а при InvitesMe -
-// принимает приглашение).
+// Ящики сторон должны быть связаны партнёрством; приглашение уходит при отправке титула.
+// AcquireCounteragent безвреден при существующих отношениях, при InvitesMe принимает встречное.
 
 acquireRequestedDateTime 'Приглашение в контрагенты отправлено' = DATA DATETIME (Organization);
 
@@ -282,10 +275,8 @@ diadocAcquireOrganization 'Пригласить в контрагенты Диа
         // до этой паузы не готовы ни результат задачи, ни статус партнёрства
         sleep(1000 * acquireCounteragentDelay());
 
-        // AcquireCounteragent асинхронный: успешный POST - лишь принятая задача (TaskId).
-        // Результат читаем один раз и только ради диагностики: ошибки вроде отсутствия права
-        // "Управление списком контрагентов" видны только здесь. 404 - задача ещё не отработала,
-        // это не ошибка: появления партнёрства ждём по самому статусу контрагента (вызывающий)
+        // AcquireCounteragent асинхронный: POST возвращает лишь принятую задачу. Результат читаем
+        // ради диагностики (напр. нет права "Управление списком контрагентов"); 404 = ещё не отработала
         LOCAL taskId = STRING ();
         IMPORT JSON FROM result() FIELDS () STRING[100] TaskId DO taskId() <- STRING(TaskId);
         IF taskId() THEN {
@@ -318,11 +309,8 @@ diadocGetCounteragentStatus (STRING myBoxGuid, STRING counteragentBoxGuid) {
             IMPORT JSON FROM result() FIELDS () STRING[100] CurrentStatus DO
                 counteragentCurrentStatus() <- STRING(CurrentStatus);
         } CATCH {
-            // 404 с текстом "Trust relationship ... not found" - не сбой, а легитимный ответ
-            // "контрагента нет в списке": возвращается статусом, чтобы вызывающий предложил
-            // приглашение. Прочая HTTP-ошибка (кривой ящик и т.п.) - показывается сырой
-            // ошибкой и возвращается статусом CheckFailed: отправка вызывающим прерывается,
-            // она обречена. Сбои без HTTP-ответа (сеть) основную операцию не блокируют
+            // 404 с "Trust relationship ... not found" - легитимное "нет в списке контрагентов",
+            // отдаём статусом; прочая HTTP-ошибка - CheckFailed, отправка обречена и прерывается
             fileToString(result(), 'UTF-8');
             IF STRING(statusHttp()) == '404' AND resultString() LIKE '%Trust relationship%' THEN
                 counteragentCurrentStatus() <- 'NotInCounteragentList';
@@ -356,10 +344,8 @@ acquireCounteragentSide (Box counteragentBox, STRING myBoxGuid, STRING title, ST
 
     MESSAGE 'Приглашение стороне (' + side + ') отправлено: документ (' + title + ')' NOWAIT;
 
-    // проверяем статус партнёрства - он и решает, примет ли Диадок документ. У открытого ящика
-    // связь устанавливается сразу; при нашем непринятом приглашении (IsInvitedByMe) Диадок документ
-    // принимает с предупреждением "не действует отношение партнёрства" (проверено 22.09: Т3 ушёл,
-    // этап продвинулся событием); пауза уже выдержана
+    // статус партнёрства и решает, примет ли Диадок документ: при нашем непринятом приглашении
+    // (IsInvitedByMe) принимает с предупреждением - 22.09 Т3 ушёл и этап продвинулся событием
     diadocGetCounteragentStatus(myBoxGuid, guidBoxId(boxId(counteragentBox)));
     IF counteragentCurrentStatus() == 'IsMyCounteragent' OR counteragentCurrentStatus() == 'IsInvitedByMe' THEN
         counteragentCheckPassed() <- TRUE;
@@ -369,9 +355,7 @@ acquireCounteragentSide (Box counteragentBox, STRING myBoxGuid, STRING title, ST
     }
 }
 
-// Без партнёрства Диадок документ не примет; при нашем непринятом приглашении (IsInvitedByMe)
-// принимает с предупреждением и держит вместе с приглашением (22.09: Т3 по 00000040997 ушёл так).
-// title/side - подстановки в сообщения. Итог - в counteragentCheckPassed: RETURN отсюда вызывающую отправку не прерывает.
+// Итог - в counteragentCheckPassed: RETURN отсюда вызывающую отправку не прерывает.
 checkCounteragent (STRING myBoxGuid, Box counteragentBox, STRING title, STRING side) {
     counteragentCheckPassed() <- NULL;
     counteragentCheckMessage() <- NULL;

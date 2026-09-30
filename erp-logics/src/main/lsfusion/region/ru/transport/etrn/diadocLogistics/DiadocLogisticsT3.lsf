@@ -11,9 +11,8 @@ NAMESPACE Diadoc;
 // для входящих перевозок своего объекта Document нет - координаты reception-документа
 // берутся из ленты docflow-событий (receptionDoc*)
 
-// ящик перевозчика: ручной выбор -> идентификатор участника ЭДО из титула (факт обмена,
-// точнее эвристики diadocBox при нескольких организациях с одним ИНН) -> карточка
-// контрагента -> ИНН из титула (у входящей перевозки перевозчика в справочнике может не быть)
+// ящик перевозчика: ручной выбор -> идентификатор участника ЭДО из титула (точнее diadocBox
+// при нескольких организациях с одним ИНН) -> карточка контрагента -> ИНН из титула
 carrierT3Box (ETRN.ETRN e) = OVERRIDE manualDiadocBox(ETRN.carrier(e)),
     [GROUP LAST Box b IF organization(b) == organizationParticipantId(ETRN.incomingCarrierParticipantId(e)) ORDER b](),
     diadocBox(ETRN.carrier(e)),
@@ -43,9 +42,8 @@ diadocSendT3 (ETRN.ETRN e) {
 
         getToken(u);
 
-        // ИдФайл титула Т3 - ON_TRNACLGRPO_<перевозчик>_<грузоотправитель>_<грузополучатель>;
-        // перевозчик попадает в документооборот только со своим Т2, до этого Диадок оставляет
-        // его слот пустым и отбивает генерацию (400 Invalid generated title: Metadata errors)
+        // перевозчик попадает в документооборот только со своим Т2: до этого Диадок оставляет его
+        // слот пустым и отбивает генерацию (400 Invalid generated title: Metadata errors)
         IF fwdOnlyETRN(e) THEN {
             IF NOT fwdT2EntityId(e) THEN diadocFindFwdTitles(e);
             IF NOT fwdT2EntityId(e) THEN {
@@ -78,9 +76,8 @@ diadocSendT3 (ETRN.ETRN e) {
             }
 
             postMessage(u);
-            // ограничение DiadocMessage на партнёрство считает по локальному кэшу статусов организаций;
-            // для ЭПД партнёрство проверено вживую до отправки. Ящики сбрасываем, иначе APPLY отменяется
-            // и уже созданный в Диадоке документ в базу не попадает (22.09, ЭТрН 00000040997)
+            // ограничение DiadocMessage на партнёрство считает по локальному кэшу, а для ЭПД оно проверено
+            // вживую; без сброса ящиков APPLY отменяется и созданный в Диадоке документ в базу не попадает
             fromBox() <- NULL;
             toBox() <- NULL;
             // postMessage глотает HTTP-ошибки (MESSAGE внутри) - успех определяем по созданному документу
@@ -127,9 +124,8 @@ ETRN.inviteCarrier (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvider.di
 
     checkCounteragent(guidBoxId(diadocBoxId(ETRN.consignee(e))), carrierT3Box(e), 'Т3, ' + ETRN.captionMessage(e), 'перевозчик');
 
-    // итог складываем в одно nested-свойство до новой сессии: counteragentCheckPassed в неё не протягивается.
-    // Успех важнее промежуточных сообщений: при встречном приглашении связь устанавливается сразу,
-    // даже если отправка нашего приглашения по дороге дала ошибку
+    // итог - в nested-свойство: counteragentCheckPassed в новую сессию не протягивается. Успех важнее
+    // промежуточных ошибок: при встречном приглашении связь устанавливается сразу
     counteragentCheckMessage() <- OVERRIDE TEXT(ETRN.captionMessage(e) + ': партнёрство с перевозчиком подтверждено') IF counteragentCheckPassed(),
         counteragentCheckMessage();
 

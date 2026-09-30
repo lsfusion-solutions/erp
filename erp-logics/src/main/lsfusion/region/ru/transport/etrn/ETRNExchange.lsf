@@ -157,8 +157,7 @@ exchangeMessage 'Сообщение обмена' = ABSTRACT TEXT (ETRN);
 titleFile 'Файл титула (XML)' = ABSTRACT FILE (ETRN);
 hasTitleFile 'Есть титул XML' (ETRN e) = TRUE IF titleFile(e);
 
-// файлы приказа - windows-1251, но веб-клиент отдаёт их браузеру с charset=UTF-8 в HTTP-заголовке
-// (по стандарту важнее XML-декларации) - браузер падает с "Encoding error" на кириллице.
+// файлы приказа в windows-1251, но веб-клиент отдаёт их с charset=UTF-8 и браузер падает на кириллице.
 // Открываем UTF-8-копию; оригинал в базе не меняем - его байты подписаны КЭП
 openTitleXml (FILE f) {
     fileToString(f, 'windows-1251');
@@ -174,8 +173,6 @@ downloadTitleFile 'Скачать оригинал' (ETRN e) {
     WRITE CLIENT DIALOG titleFile(e) TO 'Титул_' + (OVERRIDE seriesNumber(e), 'ЭТрН');
 }
 printForm 'Печатная форма (PDF)' = ABSTRACT FILE (ETRN);
-// QR-код перевозки не запрашиваем: мы не перевозчик, водитель получает QR в своём приложении
-//qrCode 'QR-код перевозки' = DATA FILE (ETRN); // GIF; обновляется провайдером после подписания Т7/Т8
 
 // признак того, что по входящему документу загружен полный состав данных из титула Т1
 titleImportedDateTime 'Дата/время загрузки данных титула' = ABSTRACT DATETIME (ETRN);
@@ -210,7 +207,6 @@ lastEventId 'ИД последнего полученного события' = 
 // черновики / передача на подпись / согласование водителем - специфика Контур.Логистики (модуль KonturLogistics)
 sendSigned 'Подписать и отправить Т1' ABSTRACT CASE (ETRN);   // формирование XML Т1 + подпись КЭП + отправка (POST documents)
 importPrintForm 'Получить печатную форму' ABSTRACT CASE (ETRN);
-//importQR 'Получить QR-код' ABSTRACT CASE (ETRN);   // QR не запрашиваем - водитель получает его в своём приложении
 importEvents 'Получить события' ABSTRACT CASE (ETRNProvider);   // приём новых событий в журнал (без продвижения документов)
 processEvent 'Обработать событие' ABSTRACT CASE (ETRNEvent);   // продвижение документа по событию
 
@@ -252,45 +248,14 @@ showPrintForm 'Печатная форма' (ETRN e) {
     IF printForm(e) THEN open(printForm(e));
 } IMAGE 'print.png';
 
-//showQR 'QR-код перевозки' (ETRN e) {
-//    // QR может обновляться на стороне провайдера (переадресовка, замена водителя/ТС) - запрашиваем всегда
-//    IF provider(e) THEN importQR(e);
-//    IF qrCode(e) THEN open(qrCode(e));
-//    ELSE MESSAGE 'QR-код перевозки не получен';
-//}
-//
-//sendQRToDriver 'Отправить QR-код водителю на email' (ETRN e) {
-//    IF NOT driver(e) THEN {
-//        MESSAGE 'В ЭТрН не указан водитель';
-//        RETURN;
-//    }
-//    IF NOT email(driver(e)) THEN {
-//        MESSAGE 'У водителя не задан e-mail (карточка водителя, блок «Реквизиты для ЭПД»)';
-//        RETURN;
-//    }
-//    IF provider(e) THEN importQR(e); // актуальный QR перед отправкой
-//    IF NOT qrCode(e) THEN {
-//        MESSAGE 'QR-код перевозки не получен';
-//        RETURN;
-//    }
-//
-//    EMAIL SUBJECT 'QR-код перевозки ЭТрН ' + seriesNumber(e)
-//        TO email(driver(e))
-//        BODY (CONCAT ' ', 'QR-код перевозки ЭТрН', seriesNumber(e), 'во вложении. Предъявляется при проверке.')
-//        ATTACH qrCode(e) NAME ('qr_' + seriesNumber(e));
-//
-//    MESSAGE 'QR-код отправлен водителю на ' + email(driver(e));
-//}
-
 // 1. приём новых событий в журнал (без продвижения документов) - для планировщика
 importETRNEvents 'Получить события ЭПД' () {
     FOR ETRNProvider p IS ETRNProvider DO
         importEvents(p);
 }
 
-// 2. продвижение документов по событиям журнала - для планировщика. Каждое событие в своей
-// сессии: ошибка по одному документу не мешает остальным, отметка обработки не ставится -
-// событие повторит попытку в следующий запуск
+// 2. продвижение документов по событиям журнала - для планировщика; каждое событие в своей сессии,
+// при ошибке отметка обработки не ставится и событие повторит попытку в следующий запуск
 processedMessage 'Ошибка обработки' = DATA STRING[1000](ETRNEvent) CHARWIDTH 15;
 
 // дозагрузка данных по документу после успешной обработки события (например, Т2 по заявке)
@@ -369,7 +334,6 @@ EXTEND FORM etrns
     PROPERTIES(e) READONLY nameProvider, nameExchangeStatus, providerStatus,
                            nextAction BACKGROUND backgroundNextAction(e)
     PROPERTIES(e) showPrintForm
-                  //, showQR, sendQRToDriver SHOWIF driver(e) - QR не запрашиваем: водитель получает его в своём приложении
     PROPERTIES importIncomingETRN() DRAW e, processIncomingETRN() DRAW e,
                importETRNEvents() DRAW e, processETRNEventsInteractive() DRAW e
     PROPERTIES exchangeMessagePanel = exchangeMessage(e) READONLY PANEL
@@ -386,8 +350,6 @@ DESIGN etrns {
             NEW actionsCommon {
                 caption = 'Провайдер';
                 MOVE PROPERTY(showPrintForm(e));
-                //MOVE PROPERTY(showQR(e));
-                //MOVE PROPERTY(sendQRToDriver(e));
                 MOVE PROPERTY(importIncomingETRN());
                 MOVE PROPERTY(processIncomingETRN());
                 MOVE PROPERTY(importETRNEvents());
