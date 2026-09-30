@@ -11,7 +11,6 @@ import equ.api.scales.TransactionScalesInfo;
 import equ.clt.handler.MultithreadScalesHandler;
 import equ.clt.handler.TCPPort;
 import lsfusion.base.ExceptionUtils;
-import lsfusion.base.Pair;
 import org.apache.commons.codec.binary.Hex;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
@@ -105,8 +104,8 @@ public class MassaKRL10Handler extends MultithreadScalesHandler {
             byte byte1 = stream.readByte();
             byte byte2 = stream.readByte();
             if (byte0 == (byte) 0xF8 && byte1 == (byte) 0x55 && byte2 == (byte) 0xCE) {
-                byte lengthByte1 = stream.readByte();
-                byte lengthByte2 = stream.readByte();
+                stream.readByte(); //length byte 1
+                stream.readByte(); //length byte 2
                 byte code = stream.readByte();
                 if (code == (byte) 0x51) { //51 ok, 54 error
                     result = true;
@@ -116,22 +115,6 @@ public class MassaKRL10Handler extends MultithreadScalesHandler {
             throw Throwables.propagate(e);
         }
         return result;
-    }
-
-    protected List<ScalesInfo> getEnabledScalesList(TransactionScalesInfo transaction, List<MachineryInfo> succeededScalesList) {
-        List<ScalesInfo> enabledScalesList = new ArrayList<>();
-        for (ScalesInfo scales : transaction.machineryInfoList) {
-            if (scales.succeeded)
-                succeededScalesList.add(scales);
-            else if (scales.enabled)
-                enabledScalesList.add(scales);
-        }
-        if (enabledScalesList.isEmpty())
-            for (ScalesInfo scales : transaction.machineryInfoList) {
-                if (!scales.succeeded)
-                    enabledScalesList.add(scales);
-            }
-        return enabledScalesList;
     }
 
     private byte[] receiveReply(List<String> errors, TCPPort port, String ip) {
@@ -407,8 +390,8 @@ public class MassaKRL10Handler extends MultithreadScalesHandler {
             byte byte1 = stream.readByte();
             byte byte2 = stream.readByte();
             if (byte0 == (byte) 0xF8 && byte1 == (byte) 0x55 && byte2 == (byte) 0xCE) {
-                byte lengthByte1 = stream.readByte();
-                byte lengthByte2 = stream.readByte();
+                stream.readByte(); //length byte 1
+                stream.readByte(); //length byte 2
                 byte code = stream.readByte();
                 if (code == (byte) 0x42) { //42 ok, 43 error
                     byte fileType = stream.readByte();
@@ -473,33 +456,8 @@ public class MassaKRL10Handler extends MultithreadScalesHandler {
 
     @Override
     public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoList) {
-        //todo: Единственный пока способ реализации стоп-листов - считывать из весов все товары,
-        //удалять ненужные и загружать назад.
-        /*try {
-            if (!stopListInfo.stopListItemMap.isEmpty() && !stopListInfo.exclude) {
-                processStopListLogger.info(logPrefix + "Starting sending StopLists to " + machineryInfoList.size() + " scales...");
-                Collection<Callable<List<String>>> taskList = new LinkedList<>();
-                for (MachineryInfo machinery : machineryInfoList) {
-                    TCPPort port = new TCPPort(machinery.port, 1025);
-                    if (machinery.port != null && machinery instanceof ScalesInfo) {
-                        taskList.add(new SendStopListTask(stopListInfo, (ScalesInfo) machinery, port));
-                    }
-                }
-
-                if (!taskList.isEmpty()) {
-                    ExecutorService singleTransactionExecutor = EquipmentServer.getFixedThreadPool(taskList.size(), "MassaKRL10SendStopList");
-                    List<Future<List<String>>> threadResults = singleTransactionExecutor.invokeAll(taskList);
-                    for (Future<List<String>> threadResult : threadResults) {
-                        if (!threadResult.get().isEmpty())
-                            processStopListLogger.error(threadResult.get().get(0));
-                        //throw new RuntimeException(threadResult.get().get(0));
-                    }
-                    singleTransactionExecutor.shutdown();
-                }
-            }
-        } catch (Exception e) {
-            throw Throwables.propagate(e);
-        }*/
+        /*Единственный пока способ реализации стоп-листов - считывать из весов все товары,
+        удалять ненужные и загружать назад*/
     }
 
     @Override
