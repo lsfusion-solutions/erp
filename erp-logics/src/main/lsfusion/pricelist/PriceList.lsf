@@ -149,8 +149,8 @@ WHEN LOCAL SETCHANGED(toDate(UserPriceList o)) AND NOT toTime(o) AND NOT skipCha
 @defineDocumentInterfaceDataLegalEntity(priceList, company, 'Организация');
 userPriceList (legalEntity) = GROUP MAX UserPriceList userPriceList BY company(userPriceList);
 @defineDocumentInterfaceDataStock(priceList, stock, 'Склад организации', company);
-CONSTRAINT company(UserPriceList priceList) AND companyStock(priceList) AND NOT
-in(company(priceList), companyStock(priceList))
+CONSTRAINT (SETCHANGED(company(UserPriceList priceList)) OR SETCHANGED(companyStock(priceList))) AND company(priceList) AND companyStock(priceList) 
+    AND NOT in(company(priceList), companyStock(priceList))
     CHECKED BY companyStock[UserPriceList]
         MESSAGE 'Организация и склад организации для прайса не имеют связи';
 
