@@ -23,6 +23,7 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.*;
+import java.util.concurrent.Callable;
 
 import static equ.clt.ProcessMonitorEquipmentServer.notInterruptedTransaction;
 import static lsfusion.base.BaseUtils.nvl;
@@ -49,28 +50,44 @@ public class DigiHandler extends MultithreadScalesHandler {
 
     @Override
     public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoList) throws IOException {
-        if (getSettings().isEnableStopList() && stopListInfo != null && !stopListInfo.exclude) {
-            processStopListLogger.info(getLogPrefix() + "Send StopList # " + stopListInfo.number);
-            if (!machineryInfoList.isEmpty()) {
-                for (MachineryInfo scales : machineryInfoList) {
-                    if (scales.port != null) {
-                        DataSocket socket = new DataSocket(scales.port);
-                        try {
-                            processStopListLogger.info(getLogPrefix() + "Sending StopList to scale " + scales.port);
-                            socket.open();
-                            String result = deletePlu(socket, scales.port, filePLU, stopListInfo.stopListItemMap.values());
-                            if (result != null)
-                                processStopListLogger.error(result);
+        if (getSettings().isEnableStopList())
+            sendStopListParallel(stopListInfo, machineryInfoList, SendStopListTask::new);
+    }
 
-                        } catch (Exception e) {
-                            processStopListLogger.error(String.format(getLogPrefix() + "Send StopList %s to scales %s error", stopListInfo.number, scales.port), e);
-                        } finally {
-                            processStopListLogger.info(getLogPrefix() + "Finally disconnecting..." + scales.port);
-                            socket.close();
-                        }
-                    }
-                }
+    //all items are deleted by one command, plu number is taken from barcode if not set
+    @Override
+    protected boolean hasItemsToDelete(StopListInfo stopListInfo, ScalesInfo scales) {
+        return !stopListInfo.stopListItemMap.isEmpty();
+    }
+
+    class SendStopListTask implements Callable<List<String>> {
+        StopListInfo stopListInfo;
+        ScalesInfo scales;
+
+        public SendStopListTask(StopListInfo stopListInfo, ScalesInfo scales) {
+            this.stopListInfo = stopListInfo;
+            this.scales = scales;
+        }
+
+        //errors are logged by sendStopListParallel
+        @Override
+        public List<String> call() throws IOException {
+            List<String> localErrors = new ArrayList<>();
+            DataSocket socket = new DataSocket(scales.port);
+            try {
+                processStopListLogger.info(getLogPrefix() + "Sending StopList to scale " + scales.port);
+                socket.open();
+                String result = deletePlu(socket, scales.port, filePLU, stopListInfo.stopListItemMap.values());
+                if (result != null)
+                    localErrors.add(result);
+
+            } catch (Exception e) {
+                localErrors.add(String.format(getLogPrefix() + "Send StopList %s to scales %s error", stopListInfo.number, scales.port) + '\n' + ExceptionUtils.getStackTraceString(e));
+            } finally {
+                processStopListLogger.info(getLogPrefix() + "Finally disconnecting..." + scales.port);
+                socket.close();
             }
+            return localErrors;
         }
     }
 
@@ -80,7 +97,6 @@ public class DigiHandler extends MultithreadScalesHandler {
             pluNumbers.add(fillLeadingZeroes(getPluNumberForPluRecord(item), 8));
         }
         processTransactionLogger.info(getLogPrefix() + String.format("Deleting %s plu at scales %s", items.size(), port));
-        processStopListLogger.info(getLogPrefix() + "tmp: " + StringUtils.join(pluNumbers, "")); //todo: remove temp log
         byte[] deletePlu = getHexBytes(StringUtils.join(pluNumbers, ""));
         int reply = sendRecord(socket, cmdDeleteRecord, file, deletePlu);
         return reply == 0 ? null :  String.format("Deleting %s plu at scales %s failed. Error: %s\n", items.size(), port, reply);
