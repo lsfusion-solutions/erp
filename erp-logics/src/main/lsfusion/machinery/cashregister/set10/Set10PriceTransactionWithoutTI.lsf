@@ -98,7 +98,8 @@ FORM answerWithoutTi FORMEXTID 'soap=http://schemas.xmlsoap.org/soap/envelope/:E
     PROPERTIES() IN getGoodsCatalogWithoutTiResponse returnWithoutTi EXTID 'return';
 ;
 
-sendRequestGoodsWithoutTI(FILE f, STRING type, MachineryPriceTransaction t){
+// отправка файла в шину без отметки «выгружено»; ответ шины — в returnWithoutTi()
+postRequestGoodsWithoutTI(FILE f, STRING type, MachineryPriceTransaction t){
     fileToString(f);
     LOCAL sizeESB = INTEGER ();
     sizeESB() <- length(resultString());
@@ -130,14 +131,18 @@ sendRequestGoodsWithoutTI(FILE f, STRING type, MachineryPriceTransaction t){
         fileToString(answer());
         IF useOutSetESBLog() THEN logToFile('setESB', (CONCAT ' ', 'Send Request Goods Without TI', 'Type:' + type,
                                                       'Transaction:' + LONG(t), 'Response:' + resultString()));
-        IF returnWithoutTi() = 'true' THEN {
-            succeeded(t) <- TRUE;
-            dateTimeSucceeded(t) <- currentDateTime();
-        }
     } CATCH {
         fileToString(answer());
         addMachineryError(t, 'Ошибка загрузки ' + type, (CONCAT '\n', messageCaughtException(), resultString()));
         APPLY;
+    }
+}
+
+sendRequestGoodsWithoutTI(FILE f, STRING type, MachineryPriceTransaction t){
+    postRequestGoodsWithoutTI(f, type, t);
+    IF returnWithoutTi() = 'true' THEN {
+        succeeded(t) <- TRUE;
+        dateTimeSucceeded(t) <- currentDateTime();
     }
     APPLY;
 }
@@ -161,4 +166,22 @@ customSend(MachineryPriceTransaction t) + {
     IF useESB() AND t IS CashRegisterPriceTransaction THEN {
         sendESBTransactionWithoutTI(t);
     }
+}
+
+// ============================================================================
+// Пакетная выгрузка через шину (см. блок пакетов в Set10PriceTransaction).
+// У шины нет TI и фидбека: принятый общий файл сразу подтверждён, загрузка выгружена, как только приняты её цены.
+// ============================================================================
+
+packageCustomSendSet10(MachineryPriceTransaction t) += TRUE IF useESB() AND t IS CashRegisterPriceTransaction;
+
+sendPackageFileSet10(FILE f, STRING type, MachineryPriceTransaction h) + WHEN useESB() AND f IS FILE AND type IS STRING AND h IS MachineryPriceTransaction THEN {
+    postRequestGoodsWithoutTI(f, type, h);
+    IF returnWithoutTi() = 'true' THEN statusTransaction(h, type) <- 'correct';
+    APPLY;
+}
+
+sendPackagePriceSet10(MachineryPriceTransaction t) + WHEN useESB() AND t IS MachineryPriceTransaction THEN {
+    EXPORT priceEntry OBJECTS m = t XML;
+    sendRequestGoodsWithoutTI(exportFile(), 'price', t);
 }

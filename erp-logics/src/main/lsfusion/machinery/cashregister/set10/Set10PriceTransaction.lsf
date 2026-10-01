@@ -317,9 +317,23 @@ FORM barcodesCatalogPackage FORMEXTID 'goods-catalog'
     FILTERS weightCodePackage(u, wc, barcode) AND passScales(sku(barcode)) AND split(sku(barcode)) AND length(id(barcode)) < 13
 ;
 
-// загрузки, которые обычная выгрузка отправила бы тремя файлами через sendSet10Transaction
+// Отправка через шину ESB (Set10PriceTransactionWithoutTI) тоже собирается в пакеты: там разрешаются её загрузки
+// со своей отправкой (customSend) и подменяется отправка общих файлов и цен. По умолчанию — отправка с TI.
+packageCustomSendSet10 = ABSTRACT VALUE BOOLEAN (MachineryPriceTransaction);
+
+// общий файл пакета; принятый файл записывает статус type в загрузку h, его переносим на пакет
+sendPackageFileSet10 ABSTRACT CASE (FILE, STRING, MachineryPriceTransaction);
+sendPackageFileSet10(FILE f, STRING type, MachineryPriceTransaction h) + WHEN f IS FILE AND type IS STRING AND h IS MachineryPriceTransaction THEN { 
+    sendRequsetGoods(f, type, h); 
+}
+
+// цены загрузки пакета; принятые: статус price (TI) или загрузка сразу выгружена (шина без фидбека)
+sendPackagePriceSet10 ABSTRACT CASE (MachineryPriceTransaction);
+sendPackagePriceSet10(MachineryPriceTransaction t) + WHEN t IS MachineryPriceTransaction THEN { sendSet10Price(t); }
+
+// загрузки, которые обычная выгрузка отправила бы тремя файлами
 readyPackageSet10 (MachineryPriceTransaction t) = process(t) AND handlerModel(groupMachinery(t)) = 'lsf.set10' AND countBarcodes(t)
-    AND t IS CashRegisterPriceTransaction AND NOT skipSendMachineryPriceTransaction(t) AND NOT customSend(t)
+    AND t IS CashRegisterPriceTransaction AND NOT skipSendMachineryPriceTransaction(t) AND (NOT customSend(t) OR packageCustomSendSet10(t))
     AND NOT uid(t) AND NOT (GROUP SUM 1 IF statusTransaction(t, STRING s));
 
 // номер пакета отобранной загрузки; NESTED — переживает APPLY и видна в NEWSESSION обработки пакета
@@ -352,9 +366,9 @@ sendPackageSet10 (INTEGER n, STRING[100] u) {
             
             // sendRequsetGoods пишет TI в статус загрузки — отправляем от последней загрузки пакета и переносим TI на пакет
             FOR MachineryPriceTransaction h = (GROUP LAST MachineryPriceTransaction t ORDER dateTime(t), t WHERE uid(t) = u) DO {
-                sendRequsetGoods(goods(), 'item', h);
+                sendPackageFileSet10(goods(), 'item', h);
                 IF statusTransaction(h, 'item') THEN
-                    sendRequsetGoods(barcodes(), 'barcode', h);
+                    sendPackageFileSet10(barcodes(), 'barcode', h);
                 
                 statusPackage(u, STRING type) <- statusTransaction(h, type) WHERE type = 'item' OR type = 'barcode';
                 statusTransaction(h, STRING type) <- NULL WHERE type = 'item' OR type = 'barcode';
@@ -406,9 +420,10 @@ sendPriceTransactionPackage (MachineryPriceTransaction t) {
             // переживает APPLY внутри sendRequsetGoods
             LOCAL NESTED errorsBefore = INTEGER ();
             errorsBefore() <- OVERRIDE quantityMachineryPriceTransactionError(t), 0;
-            sendSet10Price(t);
-            // на исключение ошибку пишет sendRequsetGoods, а ответ return <> true проходит молча
-            IF NOT statusTransaction(t, 'price') AND NOT (OVERRIDE quantityMachineryPriceTransactionError(t), 0) > errorsBefore() THEN {
+            sendPackagePriceSet10(t);
+            // на исключение ошибку пишет отправка, а ответ return <> true проходит молча
+            IF NOT statusTransaction(t, 'price') AND NOT succeeded(t) 
+                AND NOT (OVERRIDE quantityMachineryPriceTransactionError(t), 0) > errorsBefore() THEN {
                 addMachineryError(t, 'Ошибка загрузки price', 'Set10 не принял файл цен');
                 APPLY;
             }
