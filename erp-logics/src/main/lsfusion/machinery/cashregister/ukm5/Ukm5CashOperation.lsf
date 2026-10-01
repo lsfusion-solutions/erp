@@ -19,6 +19,9 @@ FORM moneyOperations
     FILTERS imported(elements)
 ;
 
+// в moneyOperations нет dateClose, поэтому дата в ключе Z-отчёта берётся из opDate
+idZReportCash (INTEGER i) = storeId(i) + '_' + shiftId(i) + '_' + posId(i) + '_' + toChar(DATE(opDate(i)), 'ddMMyyyy');
+
 idCashDocument(INTEGER i) = DATE(opDate(i)) + '_' + storeId(i) + '_' + posId(i) + '_' + shiftId(i) + '_' + localNumber(i);
 
 importMoneyOperations(FILE f){
@@ -35,7 +38,7 @@ importMoneyOperations(FILE f){
         date(o) <- DATE(opDate(x));
         time(o) <- TIME(opDate(x));
         sumCash (o) <- NUMERIC[18,4](amount(x));
-        zReport(o) <- zReport(idZReport(x));
+        zReport(o) <- zReport(idZReportCash(x));
     }
     
     //изъятия
@@ -49,7 +52,7 @@ importMoneyOperations(FILE f){
         date(o) <- DATE(opDate(x));
         time(o) <- TIME(opDate(x));
         sumCash (o) <- NUMERIC[18,4](amount(x));
-        zReport(o) <- zReport(idZReport(x));
+        zReport(o) <- zReport(idZReportCash(x));
     }
     APPLY NESTED LOCAL;
 }
