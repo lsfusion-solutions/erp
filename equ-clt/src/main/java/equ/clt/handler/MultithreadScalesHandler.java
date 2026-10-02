@@ -73,26 +73,29 @@ public abstract class MultithreadScalesHandler extends DefaultScalesHandler {
                         beforeStartTransactionExecutor();
                         try {
                             ExecutorService singleTransactionExecutor = EquipmentServer.getFixedThreadPool(getThreadPoolSize(taskList), "SendTransaction");
-                            List<Future<SendTransactionResult>> threadResults = singleTransactionExecutor.invokeAll(taskList);
-                            for (Future<SendTransactionResult> threadResult : threadResults) {
-                                SendTransactionResult result = threadResult.get();
-                                if (result.localErrors.isEmpty())
-                                    succeededScalesList.add(result.scales);
-                                else {
-                                    String error = result.localErrors.get(0);
-                                    int secondOccurrence = StringUtils.ordinalIndexOf(error, "\n", 2);
-                                    brokenPortsMap.put(result.scales.port, error.substring(0, secondOccurrence > 0 ? secondOccurrence : error.length()));
-                                    errors.put(result.scales.port, result.localErrors);
+                            try {
+                                List<Future<SendTransactionResult>> threadResults = singleTransactionExecutor.invokeAll(taskList);
+                                for (Future<SendTransactionResult> threadResult : threadResults) {
+                                    SendTransactionResult result = threadResult.get();
+                                    if (result.localErrors.isEmpty())
+                                        succeededScalesList.add(result.scales);
+                                    else {
+                                        String error = result.localErrors.get(0);
+                                        int secondOccurrence = StringUtils.ordinalIndexOf(error, "\n", 2);
+                                        brokenPortsMap.put(result.scales.port, error.substring(0, secondOccurrence > 0 ? secondOccurrence : error.length()));
+                                        errors.put(result.scales.port, result.localErrors);
+                                    }
+                                    if(result.cleared)
+                                        clearedScalesList.add(result.scales);
+                                    if(result.interrupted) {
+                                        interrupted = true;
+                                        singleTransactionExecutor.shutdownNow();
+                                        break;
+                                    }
                                 }
-                                if(result.cleared)
-                                    clearedScalesList.add(result.scales);
-                                if(result.interrupted) {
-                                    interrupted = true;
-                                    singleTransactionExecutor.shutdownNow();
-                                    break;
-                                }
+                            } finally {
+                                singleTransactionExecutor.shutdown();
                             }
-                            singleTransactionExecutor.shutdown();
                         } finally {
                             afterFinishTransactionExecutor();
                         }
