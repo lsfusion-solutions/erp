@@ -314,23 +314,38 @@ importEgaisBalances 'Импорт начальных остатков ЕГАИС
 // --- 7. Импорт кодов маркировки ---
 
 importEgaisMarkCodes 'Импорт кодов маркировки ЕГАИС' () {
-    LOCAL file = FILE();
+    LOCAL shopsFile = FILE();
+    LOCAL shopCode = INTEGER (INTEGER);
 
     EXTERNAL SQL egaisDbUrl()
-        EXEC 'SELECT SUBSTR(em.bar_cod, 1, 160), SUBSTR(p.IdNoteBPr, 1, 20) ' +
-             'FROM Pub.EgaisMarkItem em JOIN Pub.Parts p ON em.CodeParts = p.CodeParts ' +
-             'WHERE LENGTH(SUBSTR(em.bar_cod, 1, 160)) = 150'
-        TO file;
+        EXEC 'SELECT DISTINCT ps.cod_shop FROM Pub.PartsShop ps WHERE ps.QuanRest > 0' +
+             (IF initImportStockCodes() THEN ' AND ps.cod_shop IN (' + initImportStockCodes() + ')' ELSE '')
+        TO shopsFile;
 
-    IMPORT TABLE FROM file() TO markLocalBarCod, markLocalIdNoteBPr;
+    IMPORT TABLE FROM shopsFile() TO shopCode;
 
-    FOR markLocalBarCod(INTEGER i) AND NOT markCode(markLocalBarCod(i)) DO NEW m = MarkCode {
-        id(m) <- markLocalBarCod(i);
+    // результат запроса целиком сериализуется в память (предел 2 ГБ), поэтому коды выбираются отдельным запросом на склад
+    FOR INTEGER code = shopCode(INTEGER s) ORDER s DO NEWSESSION {
+        LOCAL file = FILE();
+
+        EXTERNAL SQL egaisDbUrl()
+            EXEC 'SELECT SUBSTR(em.bar_cod, 1, 160), SUBSTR(p.IdNoteBPr, 1, 20) ' +
+                 'FROM Pub.PartsShop ps JOIN Pub.Parts p ON ps.CodeParts = p.CodeParts ' +
+                 'JOIN Pub.EgaisMarkItem em ON em.CodeParts = p.CodeParts ' +
+                 'WHERE ps.cod_shop = ' + TEXT(code) + ' AND ps.QuanRest > 0 ' +
+                 'AND em.Sts IN (3, 4) AND LENGTH(SUBSTR(em.bar_cod, 1, 160)) = 150'
+            TO file;
+
+        IMPORT TABLE FROM file() TO markLocalBarCod, markLocalIdNoteBPr;
+
+        FOR [GROUP SUM 1 BY markLocalBarCod(INTEGER i)](STRING[200] barCode) AND NOT markCode(barCode) DO NEW m = MarkCode {
+            id(m) <- barCode;
+        }
+        FOR markLocalBarCod(INTEGER i) AND MarkCode m = markCode(markLocalBarCod(i)) DO
+            dataF2Reg(m) <- f2Reg(markLocalIdNoteBPr(i));
+
+        APPLY;
     }
-    FOR markLocalBarCod(INTEGER i) AND MarkCode m = markCode(markLocalBarCod(i)) DO
-        dataF2Reg(m) <- f2Reg(markLocalIdNoteBPr(i));
-
-    APPLY;
 }
 
 // --- Мастер-действие ---
