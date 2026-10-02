@@ -46,3 +46,17 @@ EXTEND FORM userInvoice
 DESIGN userInvoice {
     PROPERTY(showLots(ed)) {showIf = NULL;}
 }
+
+quantityLot 'Кол-во марок' (UserInvoiceDetail d, F2Reg r) = GROUP SUM quantity(d, Lot l) IF f2Reg(markCode(id(l))) = r;
+
+// при добавлении марки в строку (ввод штрихкода марки) строка сразу связывается со справкой Б марки
+WHEN LOCAL FORMS userInvoice CHANGED(quantityLot(UserInvoiceDetail d, F2Reg r)) AND (GROUP SUM 1 IF CHANGED(quantity(d, Lot l)))
+    AND lotType(sku(d)) AND NOT hideFillQuantity(userInvoice(d)) AND NOT CHANGED(quantity(d, r)) DO
+    quantity(d, r) <- quantityLot(d, r);
+
+backgroundQuantity (UserInvoiceDetail d, F2Reg r) = RGB(255,212,212)
+    IF lotType(sku(d)) AND (quantity(d, r) OR quantityLot(d, r)) AND NOT quantity(d, r) = quantityLot(d, r);
+
+DESIGN userInvoice {
+    PROPERTY(quantity(ed, re)) { background = backgroundQuantity(ed, re); }
+}

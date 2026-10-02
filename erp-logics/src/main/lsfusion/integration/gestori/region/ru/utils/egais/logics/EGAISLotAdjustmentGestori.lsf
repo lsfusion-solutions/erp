@@ -14,9 +14,6 @@ NAMESPACE EGAIS;
 inEGAISLot 'Числится в ЕГАИС за организацией' (Lot l, Stock st) =
     TRUE IF client(f2Reg(markCode(id(l)))) = client(st);
 
-incorrectLot 'Не числится в ЕГАИС' (Lot l, LotAdjustment a) =
-    currentBalance(l, stock(a)) AND NOT inEGAISLot(l, stock(a));
-
 EXTEND FORM lotAdjustment
     FILTERGROUP egaisBalance
         FILTER 'Числится в ЕГАИС за организацией' inEGAISLot(ks, stock(i)) DEFAULT
@@ -50,8 +47,10 @@ importTerminalDocumentLotAccum 'Импорт из ТСД' (LotAdjustment a) {
         used(TerminalDocument ttd) <- TRUE WHERE include(ttd);
         importedTerminalDocument(a, TerminalDocument ttd) <- TRUE WHERE include(ttd);
 
-        FOR id(TerminalLotDetail tl) AND include(terminalDocument(tl)) AND NOT lot(id(tl)) DO NEW l = Lot {
-            id(l) <- id(tl);
+        // марка, отсканированная в нескольких документах ТСД, создается один раз
+        FOR TerminalLotDetail tl = [GROUP MIN TerminalLotDetail t IF include(terminalDocument(t)) BY id(t)](STRING[200] idl)
+            AND NOT lot(idl) DO NEW l = Lot {
+            id(l) <- idl;
             tail(l) <- tail(tl);
             sku(l) <- sku(terminalDocumentDetail(tl));
         }
@@ -65,38 +64,48 @@ importTerminalDocumentLotAccum 'Импорт из ТСД' (LotAdjustment a) {
         LOCAL scanned = NUMERIC[16,5] (Lot, Stock);
         LOCAL scannedSku = NUMERIC[16,5] (Sku, Stock);
 
-        scanned(Lot l, Stock st) <- [GROUP SUM quantity(TerminalLotDetail ld) IF imported(terminalDocument(ld)) BY id(ld), stock(terminalDocument(ld))](id(l), st);
+        // марка, отсканированная в нескольких документах ТСД, учитывается один раз
+        scanned(Lot l, Stock st) <- [GROUP MAX quantity(TerminalLotDetail ld) IF imported(terminalDocument(ld)) BY id(ld), stock(terminalDocument(ld))](id(l), st);
         scannedSku(Sku s, Stock st) <- [GROUP SUM quantity(TerminalLotDetail ld) IF imported(terminalDocument(ld)) BY sku(lot(id(ld))), stock(terminalDocument(ld))](s, st);
 
-        // строки только по корректным маркам
-        FOR scannedSku(sku(Lot l), stock(a)) AND (scanned(l, stock(a)) OR currentBalance(l, stock(a)))
-            AND NOT scanned(l, stock(a)) == currentBalance(l, stock(a))
-            AND NOT incorrectLot(l, a) AND lotAdjustmentDetail(l, a) DO
-            quantity(lotAdjustmentDetail(l, a)) <- scanned(l, stock(a)) (-) currentBalance(l, stock(a));
+        // остаток марки без учета самого документа: строки проведенного документа уже вошли в текущий остаток
+        LOCAL balance = NUMERIC[16,5] (Lot);
+        balance(Lot l) <- currentBalance(l, stock(a)) (-) (quantity(lotAdjustmentDetail(l, a)) IF isPosted(a))
+            WHERE scannedSku(sku(l), stock(a)) OR lotAdjustmentDetail(l, a);
 
-        FOR scannedSku(sku(Lot l), stock(a)) AND (scanned(l, stock(a)) OR currentBalance(l, stock(a)))
-            AND NOT scanned(l, stock(a)) == currentBalance(l, stock(a))
-            AND NOT incorrectLot(l, a) AND NOT lotAdjustmentDetail(l, a)
+        // марка на остатке, но не числится в ЕГАИС за организацией
+        LOCAL incorrect = BOOLEAN (Lot);
+        incorrect(Lot l) <- TRUE WHERE balance(l) AND NOT inEGAISLot(l, stock(a));
+
+        // строки только по корректным маркам
+        FOR scannedSku(sku(Lot l), stock(a)) AND (scanned(l, stock(a)) OR balance(l))
+            AND NOT scanned(l, stock(a)) == balance(l)
+            AND NOT incorrect(l) AND lotAdjustmentDetail(l, a) DO
+            quantity(lotAdjustmentDetail(l, a)) <- scanned(l, stock(a)) (-) balance(l);
+
+        FOR scannedSku(sku(Lot l), stock(a)) AND (scanned(l, stock(a)) OR balance(l))
+            AND NOT scanned(l, stock(a)) == balance(l)
+            AND NOT incorrect(l) AND NOT lotAdjustmentDetail(l, a)
             DO NEW d = LotAdjustmentDetail {
             lotAdjustment(d) <- a;
             lot(d) <- l;
-            quantity(d) <- scanned(l, stock(a)) (-) currentBalance(l, stock(a));
+            quantity(d) <- scanned(l, stock(a)) (-) balance(l);
         }
 
         // марка в следующей порции
         DELETE LotAdjustmentDetail d WHERE lotAdjustment(d) == a
             AND scannedSku(sku(lot(d)), stock(a))
-            AND scanned(lot(d), stock(a)) == currentBalance(lot(d), stock(a));
+            AND scanned(lot(d), stock(a)) == balance(lot(d));
 
         // некорректные марки
-        DELETE LotAdjustmentDetail d WHERE lotAdjustment(d) == a AND incorrectLot(lot(d), a);
+        DELETE LotAdjustmentDetail d WHERE lotAdjustment(d) == a AND incorrect(lot(d));
 
         include(TerminalDocument ttd) <- NULL;
         
         LOCAL incorrectList = TEXT ();
-        incorrectList() <- GROUP CONCAT id(Lot l) IF incorrectLot(l, a) AND scannedSku(sku(l), stock(a))
-            AND (scanned(l, stock(a)) OR currentBalance(l, stock(a)))
-            AND NOT scanned(l, stock(a)) == currentBalance(l, stock(a)), '\n' ORDER id(l);
+        incorrectList() <- GROUP CONCAT id(Lot l) IF incorrect(l) AND scannedSku(sku(l), stock(a))
+            AND (scanned(l, stock(a)) OR balance(l))
+            AND NOT scanned(l, stock(a)) == balance(l), '\n' ORDER id(l);
         IF incorrectList() THEN
             MESSAGE 'Марки не числятся в ЕГАИС за организацией, в документ не включены :\n' + incorrectList();
     }

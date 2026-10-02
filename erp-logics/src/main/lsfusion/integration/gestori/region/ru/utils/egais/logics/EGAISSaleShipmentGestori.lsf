@@ -48,11 +48,14 @@ overCheckProcess(Shipment s) += 'Количество в позиции доку
 notCorrect(ShipmentDetail d, F2Reg r) = minProduct(sku(d)) AND quantity(d, r) AND lotType(sku(d)) AND NOT quantity(d, r) == [GROUP SUM quantity(d, Lot l) BY f2Reg(markCode(id(l)))](r);
 notCorrectInvoice(ShipmentDetail d, F2Reg r) = minProduct(sku(d)) AND quantity(d, r) AND lotType(sku(d)) AND NOT quantity(d, r) == [GROUP SUM quantity(invoiceDetail(d), Lot l) BY f2Reg(markCode(id(l)))](r);
 
-overCheckProcess(Shipment s) += 'Количество в позиции по справке Б должно соответствовать количеству привязанных марок'
-    IF s IS UserShipment AND [GROUP SUM 1 IF notCorrect(ShipmentDetail d, F2Reg r) BY shipment(d)](s);
+overCheckProcess(Shipment s) += 'Количество в позиции по справке Б должно соответствовать количеству привязанных марок. Строки: ' +
+    (GROUP CONCAT STRING(index(ShipmentDetail d)) IF shipment(d) = s AND (GROUP SUM 1 IF notCorrect(d, F2Reg r)), ', ' ORDER index(d), d)
+    IF s IS UserShipment;
 
-overCheckProcess(Shipment s) += 'Количество в позиции по справке Б должно соответствовать количеству привязанных марок'
-    IF NOT s IS UserShipment AND [GROUP SUM 1 IF notCorrectInvoice(ShipmentDetail d, F2Reg r) BY shipment(d)](s);
+overCheckProcess(Shipment s) += 'Количество в позиции по справке Б должно соответствовать количеству привязанных марок. Строки: ' +
+    (GROUP CONCAT STRING(index(invoiceDetail(ShipmentDetail d))) IF shipment(d) = s AND (GROUP SUM 1 IF notCorrectInvoice(d, F2Reg r)), ', '
+        ORDER index(invoiceDetail(d)), d)
+    IF NOT s IS UserShipment;
 
 overCheckProcess(Shipment s) += 'Срок годности товара истек'
     IF [GROUP SUM 1 IF expiryDate(ShipmentDetail d) < currentDate() BY shipment(d)](s);
@@ -65,6 +68,12 @@ overCheckProcess(Shipment s) += 'Не задана марка ТС'
 
 overCheckProcess(Shipment s) += 'Не задан номер ТС'
     IF s IS Shipment AND NOT sid(truck(trip(s)));
+
+overCheckProcess(Shipment s) += STRING(CONCAT '\n',
+        'Склад отправителя «' + name(supplierStock(s)) + '» не связан с организацией ЕГАИС' IF NOT client(supplierStock(s)),
+        'Не задан склад получателя' IF NOT customerStock(s),
+        'Склад получателя «' + name(customerStock(s)) + '» не связан с организацией ЕГАИС' IF NOT client(customerStock(s)))
+    IF s IS Shipment;
 
 overProcessFillWayBill(Shipment s) +{
     transportRegNumber(wayBill(s)) <- CONCAT ' ', nameTruckModel(truck(trip(s))), sid(truck(trip(s)));

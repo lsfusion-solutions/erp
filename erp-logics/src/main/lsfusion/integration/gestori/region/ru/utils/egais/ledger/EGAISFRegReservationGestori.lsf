@@ -5,22 +5,26 @@ REQUIRE EGAISActWriteOffExchangeGestori, EGAISFRegLedgerGestori,
 
 NAMESPACE EGAIS;
 
-reservedActWriteOff (F2Reg r) = GROUP SUM overQuantity(ActWriteOffPosition p)
-    IF f2Reg(p) = r
-    AND NOT canceled(actWriteOff(p))
+reservedQuantity 'Кол-во' (ActWriteOffPosition p) = overQuantity(p)
+    IF NOT canceled(actWriteOff(p))
     AND NOT posted(actWriteOff(p));
 
-reservedSale (F2Reg r) = GROUP SUM EGAISSale.quantity(Sale.ShipmentDetail d, r)
+reservedActWriteOff (F2Reg r) = GROUP SUM reservedQuantity(ActWriteOffPosition p) IF f2Reg(p) = r;
+
+reservedQuantity 'Кол-во' = ABSTRACT NUMERIC[16,5] (SkuLedger, F2Reg);
+
+reservedQuantity (Sale.ShipmentDetail d, F2Reg r) += EGAISSale.quantity(d, r)
     IF NOT EGAISSale.wayBill(Sale.shipment(d));
 
-reservedReturn (F2Reg r) = GROUP SUM EGAISPurchaseReturn.quantity(PurchaseReturn.ShipmentDetail d, r)
+reservedQuantity (PurchaseReturn.ShipmentDetail d, F2Reg r) += EGAISPurchaseReturn.quantity(d, r)
     IF NOT EGAISPurchaseReturn.wayBill(PurchaseReturn.shipment(d));
 
-reservedWriteOff (F2Reg r) = GROUP SUM quantity(WriteOffDetail d, r)
+reservedQuantity (WriteOffDetail d, F2Reg r) += quantity(d, r)
     IF NOT actWriteOff(writeOff(d));
 
-reservedF2Reg 'Текущий резерв' (F2Reg r) =
-    reservedActWriteOff(r) (+) reservedSale(r) (+) reservedReturn(r) (+) reservedWriteOff(r);
+reservedDocument (F2Reg r) = GROUP SUM reservedQuantity(SkuLedger l, r);
+
+reservedF2Reg 'Текущий резерв' (F2Reg r) = reservedActWriteOff(r) (+) reservedDocument(r);
 
 availableF2Reg 'Доступно по справке Б' (F2Reg r) = currentBalance(r) (-) reservedF2Reg(r);
 
@@ -33,7 +37,26 @@ EXTEND FORM actWriteOff
 
 EXTEND FORM balanceReg
     PROPERTIES(r) READONLY reservedF2Reg AFTER currentBalance(r)
+
+    OBJECTS rl = SkuLedger
+    PROPERTIES(rl) READONLY description, nameStock, date, seriesNumberDocument, isPosted
+    PROPERTIES(rl, r) READONLY reservedQuantity
+    FILTERS reservedQuantity(rl, r)
+
+    OBJECTS ra = ActWriteOffPosition
+    PROPERTIES(ra) READONLY objectClassName, nameStock, date, number, reservedQuantity
+    FILTERS f2Reg(ra) = r, reservedQuantity(ra)
 ;
+
+DESIGN balanceReg {
+    tabPane {
+        NEW reserve AFTER BOX(l) {
+            caption = 'Резерв';
+            MOVE BOX(rl) { caption = 'Документы системы'; }
+            MOVE BOX(ra) { caption = 'Документы ЕГАИС'; }
+        }
+    }
+}
 
 CONSTRAINT SET(availableF2Reg(F2Reg r) < 0) AND CHANGED(reservedF2Reg(r))
     AND NOT disableEGAISDocumentConstraints()

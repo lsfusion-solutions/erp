@@ -1,6 +1,6 @@
 MODULE EGAISQueryRestsv2Gestori;
 
-REQUIRE EGAISQueryRestsv2, EGAISTicketGestori;
+REQUIRE EGAISQueryRestsv2, EGAISTicketGestori, EGAISUTMGestori;
 
 NAMESPACE EGAIS;
 
@@ -22,3 +22,13 @@ DESIGN integrationData {
 }
 
 skipCreateActChargeOn(InDoc d) += d IS InDoc AND NOT createActChargeOnBYQueryRest();
+
+onlyActiveUtmClients = DATA LOCAL BOOLEAN ();
+
+EXTEND FORM queryRestsv2Params
+    EVENTS ON INIT { onlyActiveUtmClients() <- TRUE; }
+;
+
+EXTEND FORM dialogClients
+    FILTERS (utm(o) AND NOT inactive(utm(o))) OR NOT onlyActiveUtmClients()
+;
