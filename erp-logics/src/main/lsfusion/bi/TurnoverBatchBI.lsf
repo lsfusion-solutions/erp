@@ -29,14 +29,23 @@ sumPurchase = DATA LOCAL NUMERIC[40,12] (Batch, Stock);
 
 overInitExportTurnoverBatch(DATE dFrom, DATE dTo) ABSTRACT LIST;
 
-exportTurnoverBatch 'Выгрузить Оборачиваемость (по партиям)' (DATE dFrom, DATE dTo)  { 
+// переопределение базового расчета accountPriceB
+overUseAccountPriceBatch = ABSTRACT BOOLEAN ();
+
+//переопределение базового значения signedQuantity
+overSignedQuantityTurn = ABSTRACT NUMERIC[16,5] (Batch, Stock, DATE);
+useOverSignedQuantityTurn = ABSTRACT BOOLEAN ();
+signedQuantityTurn (Batch b, Stock st, DATE d) = IF useOverSignedQuantityTurn() THEN overSignedQuantityTurn(b, st, d) ELSE signedQuantity(b, st, d);
+
+exportTurnoverBatch 'Выгрузить Оборачиваемость (по партиям)' (DATE dFrom, DATE dTo)  {
     balanceBatch(Batch b, Stock st) <- balanceA(b, st, dTo);
     IF exportBalanceBBatch() THEN {
-        balanceBBatch(Batch b, Stock st) <- balanceBatch(b, st) (-) signedQuantity(b, st, dTo);
+        balanceBBatch(Batch b, Stock st) <- balanceBatch(b, st) (-) signedQuantityTurn(b, st, dTo);
     }
     
     accountPrice(Batch b, Stock st) <- NULL;
-    accountPrice(Batch b, Stock st) <- accountPriceB(b, st, DATETIME(sum(dTo, 1))) WHERE balanceBatch(b, st) OR quantityPurchase(b, st, dTo) OR quantitySold(b, st, dTo);
+    IF NOT overUseAccountPriceBatch() THEN
+        accountPrice(Batch b, Stock st) <- accountPriceB(b, st, DATETIME(sum(dTo, 1))) WHERE balanceBatch(b, st) OR quantityPurchase(b, st, dTo) OR quantitySold(b, st, dTo);
 
     quantityPurchase(Batch b, Stock st) <- NULL;
     sumVATPurchase(Batch b, Stock st) <- NULL;
@@ -87,11 +96,12 @@ exportTurnoverBatch 'Выгрузить Оборачиваемость (по п�
 
         ingestBatch('turnoverBatch', ingestBatchFile(), date());
 
-        balanceBatch(Batch b, Stock st) <- balanceBatch(b, st) (-) signedQuantity(b, st, date()) WHERE signedQuantity(b, st, date());
-        accountPrice(Batch b, Stock st) <- accountPriceB(b, st, DATETIME(date())) WHERE balanceBatch(b, st) OR quantityPurchase(b, st, subtract(date(), 1)) OR quantitySold(b, st, subtract(date(), 1));
+        balanceBatch(Batch b, Stock st) <- balanceBatch(b, st) (-) signedQuantityTurn(b, st, date()) WHERE signedQuantityTurn(b, st, date());
+        IF NOT overUseAccountPriceBatch() THEN
+            accountPrice(Batch b, Stock st) <- accountPriceB(b, st, DATETIME(date())) WHERE balanceBatch(b, st) OR quantityPurchase(b, st, subtract(date(), 1)) OR quantitySold(b, st, subtract(date(), 1));
         date() <- subtract(date(), 1);
         IF exportBalanceBBatch() THEN
-            balanceBBatch(Batch b, Stock st) <- balanceBBatch(b, st) (-) signedQuantity(b, st, date()) WHERE signedQuantity(b, st, date());
+            balanceBBatch(Batch b, Stock st) <- balanceBBatch(b, st) (-) signedQuantityTurn(b, st, date()) WHERE signedQuantityTurn(b, st, date());
     }
     
     runKillTask('turnoverBatch', dFrom, dTo);
