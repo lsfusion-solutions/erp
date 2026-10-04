@@ -222,9 +222,11 @@ META defineDocumentStockEntry (doc, stock, quantity, obj, container)
 
     quantity (###doc##Detail vd, StockEntry s) = volume(s) / OVERRIDE factor(sku(vd), unit(s)), 1.0;
     
-    matches (###doc##Detail vd, StockEntry s) = in(stock(vd), enterprise(s)) AND in(s, GROUP MIN ProductItem pi IF in(sku(vd), pi)) AND active(s);
-    
-    calcQuantity(###doc##Detail vd, StockEntry s) = 
+    overMatches = ABSTRACT BOOLEAN (###doc##Detail, StockEntry);
+    matches (###doc##Detail vd, StockEntry s) = (in(stock(vd), enterprise(s)) AND in(s, GROUP MIN ProductItem pi IF in(sku(vd), pi)) AND active(s))
+        OR overMatches(vd, s);
+
+    calcQuantity(###doc##Detail vd, StockEntry s) =
         PARTITION UNGROUP quantity LIMIT quantity(vd, s) IF matches(vd, s) ORDER expiryDate(s), s BY vd;
 
     fillVolume 'Заполнить' (###doc d) {

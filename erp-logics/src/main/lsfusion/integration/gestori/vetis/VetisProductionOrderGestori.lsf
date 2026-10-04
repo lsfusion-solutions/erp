@@ -25,6 +25,10 @@ hasProductItemProductionGestori (Production.Order o) =
 
 // --- Форма редактирования производственного заказа: вкладка ВЕТИС ---
 
+// у товара может быть несколько номенклатур Ветис: подходят записи журнала любой из них, а не только первой
+VetisSale.overMatches (Production.ComponentDetail vd, StockEntry se) += in(componentsStock(vd), enterprise(se)) AND active(se)
+    AND (GROUP SUM 1 IF in(se, ProductItem pi) AND in(sku(vd), pi));
+
 // объём по строке в пересчёте на вес нетто товара
 volumeShippedProductionGestori 'Объем (поставлено)' (Production.ComponentDetail d) =
     NUMERIC[16,5](bruttoQuantity(d) * netWeight[Stock.Sku](sku(d)));
@@ -284,18 +288,19 @@ beforeRegisterProductionOperation(Production.Order o) + {
 GROUP packageListRawReqGestori EXTID 'vd:packageList';
 GROUP packingTypeRawReqGestori EXTID 'dt:packingType';
 
-productItemRawReqGestori (Production.ComponentDetail d) = GROUP MIN ProductItem pi IF in(sku(d), pi);
+// номенклатура сырья — по записи журнала, а не по товару: у товара их может быть несколько
+productItemRawReqGestori (StockEntry se) = GROUP MIN ProductItem pi IF in(se, pi);
 
-packingTypeRawReqGestori (Production.ComponentDetail d) = OVERRIDE
-    packingTypeGlobalIDGestori(STRING(packagingType(productItemRawReqGestori(d)))), packingTypeSkuGestori(sku(d));
+packingTypeRawReqGestori (Production.ComponentDetail d, StockEntry se) = OVERRIDE
+    packingTypeGlobalIDGestori(STRING(packagingType(productItemRawReqGestori(se)))), packingTypeSkuGestori(sku(d));
 
 EXTEND FORM registerProductionOperationRequest
     OBJECTS packageRawReq = (d1 = Production.ComponentDetail, se1 = StockEntry) EXTID 'dt:package' IN packageListRawReqGestori
     PROPERTIES ='2' DRAW packageRawReq EXTID 'dt:level'
-    PROPERTIES IN packingTypeRawReqGestori =guid(packingTypeRawReqGestori(d1)) EXTID 'bs:guid',
-        =globalID(packingTypeRawReqGestori(d1)) EXTID 'dt:globalID'
-    PROPERTIES =(OVERRIDE packagingQuantity(productItemRawReqGestori(d1)), 1) EXTID 'dt:quantity'
-    FILTERS d1 == d, se1 == se, packingTypeRawReqGestori(d1) AND sendRawPackageGestori()
+    PROPERTIES IN packingTypeRawReqGestori =guid(packingTypeRawReqGestori(d1, se1)) EXTID 'bs:guid',
+        =globalID(packingTypeRawReqGestori(d1, se1)) EXTID 'dt:globalID'
+    PROPERTIES =(OVERRIDE packagingQuantity(productItemRawReqGestori(se1)), 1) EXTID 'dt:quantity'
+    FILTERS d1 == d, se1 == se, packingTypeRawReqGestori(d1, se1) AND sendRawPackageGestori()
 ;
 
 // ---- Дозаполнение производственного ВСД данными упаковки и маркировки из ответа ----

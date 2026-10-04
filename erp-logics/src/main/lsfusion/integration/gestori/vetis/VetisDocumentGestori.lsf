@@ -1655,6 +1655,10 @@ DESIGN Sale.userInvoice {
     PROPERTY(volume(vd, se)) { caption = 'Объем по строке'; }
 }
 
+// у товара может быть несколько номенклатур Ветис: подходят записи журнала любой из них, а не только первой
+VetisSale.overMatches (Sale.UserInvoiceDetail vd, StockEntry se) += in(supplierStock(vd), enterprise(se)) AND active(se)
+    AND (GROUP SUM 1 IF in(se, ProductItem pi) AND in(sku(vd), pi));
+
 // свободный остаток записи журнала и непокрытый объём строки — без учёта текущей пары
 freeVolumeSESaleGestori (Sale.UserInvoiceDetail vd, StockEntry se) = NUMERIC[16,5](MAX
     volume(se) (-) (totalVolumeSEGestori(se) (-) (VetisSale.volume(vd, se) IF NOT VetisSale.vetDocument(vd, se))), 0.0);
@@ -1881,6 +1885,9 @@ DESIGN PurchaseReturn.userInvoice {
     PROPERTY(guid(se)) { caption = 'GUID записи журнала'; }
     PROPERTY(volume(vd, se)) { caption = 'Объем по строке'; }
 }
+
+VetisPurchaseReturn.overMatches (PurchaseReturn.UserInvoiceDetail vd, StockEntry se) += in(customerStock(vd), enterprise(se)) AND active(se)
+    AND (GROUP SUM 1 IF in(se, ProductItem pi) AND in(sku(vd), pi));
 
 // свободный остаток записи журнала и непокрытый объём строки — без учёта текущей пары
 freeVolumeSEReturnGestori (PurchaseReturn.UserInvoiceDetail vd, StockEntry se) = NUMERIC[16,5](MAX

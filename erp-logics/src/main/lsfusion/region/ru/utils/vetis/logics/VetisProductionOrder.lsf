@@ -25,7 +25,9 @@ fillVolume 'Выбрать' (ComponentDetail d, StockEntry s) {
 
 bruttoQuantity (ComponentDetail vd, StockEntry s) = volume(s) / factorEntry(vd, s);
 
-matches (ComponentDetail vd, StockEntry s) = in(componentsStock(vd), enterprise(s)) AND in(s, GROUP MIN ProductItem pi IF in(sku(vd), pi)) AND active(s);
+overMatches = ABSTRACT BOOLEAN (ComponentDetail, StockEntry);
+matches (ComponentDetail vd, StockEntry s) = (in(componentsStock(vd), enterprise(s)) AND in(s, GROUP MIN ProductItem pi IF in(sku(vd), pi)) AND active(s))
+    OR overMatches(vd, s);
 
 usedVolumeOtherLocal = DATA LOCAL NUMERIC[16,5] (StockEntry);
 remainderVolumeLocal = DATA LOCAL NUMERIC[16,5] (StockEntry);
