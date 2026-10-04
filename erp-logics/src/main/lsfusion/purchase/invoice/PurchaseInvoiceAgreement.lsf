@@ -284,7 +284,9 @@ DESIGN agreement {
 }
 
 minSumSupplier 'Минимальная сумма заказа' (UserOrder o) = minSupplierSumOrder(agreement(o)) IN documentSum CHARWIDTH 13;
-backgroundMinSumSupplier (UserOrder o) = RGB (255,100,100) IF minSumSupplier(o) > sumUserOrderDetail(o);
+overSumMinSumSupplier = ABSTRACT VALUE NUMERIC[18,4] (UserOrder);
+sumMinSumSupplier (UserOrder o) = OVERRIDE overSumMinSumSupplier(o), sumUserOrderDetail(o);
+backgroundMinSumSupplier (UserOrder o) = RGB (255,100,100) IF minSumSupplier(o) > sumMinSumSupplier(o);
 
 EXTEND FORM userOrder 
     PROPERTIES(o) READONLY minSumSupplier BACKGROUND backgroundMinSumSupplier(o) 
@@ -292,8 +294,8 @@ EXTEND FORM userOrder
 
 @defineOperationProperty(forbidMinSumSupplierAgreement, 'Запретить проведение заказов с суммой, ниже минимальной по соглашению', constraintContainer);
 minSumSupplierSkip = ABSTRACT VALUE BOOLEAN (UserOrder);
-CONSTRAINT (SET(isPosted(UserOrder o)) OR CHANGED(sumUserOrderDetail(o)) OR SETCHANGED(operation(o)) OR CHANGED(minSumSupplierSkip(o))) AND isPosted(o)
-    AND minSumSupplier(o) AND NOT minSumSupplier(o) <= sumUserOrderDetail(o) AND forbidMinSumSupplierAgreement(operation(o)) AND NOT minSumSupplierSkip(o)
+CONSTRAINT (SET(isPosted(UserOrder o)) OR CHANGED(sumMinSumSupplier(o)) OR SETCHANGED(operation(o)) OR CHANGED(minSumSupplierSkip(o))) AND isPosted(o)
+    AND minSumSupplier(o) AND NOT minSumSupplier(o) <= sumMinSumSupplier(o) AND forbidMinSumSupplierAgreement(operation(o)) AND NOT minSumSupplierSkip(o)
     MESSAGE 'Запрещено проведение заказов с суммой, ниже минимальной по соглашению';
 
 maxDeviationQuantityOrder 'Макс. к-во' (InvoiceDetail d) = maxDeviationQuantity(orderDetail(d));
