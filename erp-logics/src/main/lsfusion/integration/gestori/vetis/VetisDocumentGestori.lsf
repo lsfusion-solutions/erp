@@ -1116,7 +1116,9 @@ allowConsignmentVetis() += TRUE;
 // после проведения документа запросы в Ветис по нему не отправляются
 forbidPostedProcessGestori 'Запрет отправки запросов в Ветис по проведенному документу' = DATA BOOLEAN ();
 
-VetisPurchase.lockedDetailVetis(Purchase.ShipmentDetail d) += Purchase.isPosted(d) AND forbidPostedProcessGestori();
+// накладная закупки, созданная из накладной продажи, проводится вместе с ней, а гашение ВСД выполняется при проведении
+VetisPurchase.lockedDetailVetis(Purchase.ShipmentDetail d) += Purchase.isPosted(d) AND forbidPostedProcessGestori()
+    AND NOT (Purchase.invoiceDetail(d) IS SalePurchaseInvoice.PurchaseInvoiceDetail);
 VetisSaleReturn.lockedDetailVetis(SaleReturn.ShipmentDetail d) += SaleReturn.isPosted(d) AND forbidPostedProcessGestori();
 VetisSale.lockedDetailVetis(Sale.ShipmentDetail d) += Sale.isPosted(d) AND forbidPostedProcessGestori();
 VetisPurchaseReturn.lockedDetailVetis(PurchaseReturn.ShipmentDetail d) += PurchaseReturn.isPosted(d) AND forbidPostedProcessGestori();
@@ -2348,6 +2350,26 @@ processIncomingSaleGestori 'Оформить входящую партию' (Sal
 
 EXTEND FORM Sale.invoices
     PROPERTIES(i) processIncomingSaleGestori DRAW vse TOOLBAR SHOWIF toProcessIncomingSaleGestori(i)
+;
+
+// гашение при проведении накладной продажи: запросы в Ветис уходят после сохранения, вне транзакции проведения
+processIncomingPostedSaleGestori (Sale.Invoice i) {
+    IF Sale.isPosted(i) AND toProcessIncomingSaleGestori(i) THEN
+        VetisPurchase.process(purchaseInvoiceSaleGestori(i));
+}
+
+AFTER Sale.post(Sale.UserInvoice i) DO processIncomingPostedSaleGestori(i);
+
+postingSaleGestori = DATA LOCAL NESTED BOOLEAN (Sale.Invoice);
+
+EXTEND FORM Sale.userInvoice
+    EVENTS ON APPLY BEFORE { postingSaleGestori(i) <- SET(Sale.isPosted(i)); },
+           ON APPLY AFTER {
+               IF postingSaleGestori(i) THEN {
+                   postingSaleGestori(i) <- NULL;
+                   processIncomingPostedSaleGestori(i);
+               }
+           }
 ;
 
 // ---- Запреты работы с ВЕТИС по складу ----
