@@ -69,6 +69,7 @@ public class CL5000JHandler extends MultithreadScalesHandler {
 
             boolean cleared = false;
             DataSocket socket = getDataSocket(scales.port);
+            SendItemsLog sendItemsLog = null;
 
             try {
                 socket.open();
@@ -82,7 +83,7 @@ public class CL5000JHandler extends MultithreadScalesHandler {
                 }
 
                 if (cleared || !needToClear) {
-                    casLogger.info(getLogPrefix() + "Sending items..." + scales.port);
+                    sendItemsLog = new SendItemsLog(casLogger, scales.port, transaction.id, transaction.itemsList.size());
 
                     short weightCode = getWeightCode(scales);
                     short pieceCode = getPieceCode(scales);
@@ -95,7 +96,7 @@ public class CL5000JHandler extends MultithreadScalesHandler {
 
                                 int barcode = getBarcode(item);
                                 int pluNumber = getPluNumber(item.pluNumber, barcode);
-                                casLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
+                                sendItemsLog.sending(count, item.idBarcode);
                                 int reply = sendItem(socket, item, weightCode, pieceCode, pluNumber, barcode, item.name,
                                         item.price == null ? 0 : item.price.multiply(BigDecimal.valueOf(priceMultiplier)).intValue(),
                                         HandlerUtils.trim(item.description, null, descriptionLength - 1), useWeightCodeInBarcodeNumber, maxNameLength);
@@ -127,6 +128,8 @@ public class CL5000JHandler extends MultithreadScalesHandler {
             } catch (Exception e) {
                 logError(localErrors, String.format(getLogPrefix() + "IP %s error, transaction %s;", scales.port, transaction.id), e);
             } finally {
+                if (sendItemsLog != null)
+                    sendItemsLog.finish();
                 casLogger.info(getLogPrefix() + "Finally disconnecting..." + scales.port);
                 socket.close();
             }

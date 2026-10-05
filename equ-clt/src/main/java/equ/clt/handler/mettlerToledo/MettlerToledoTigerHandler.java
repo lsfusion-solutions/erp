@@ -333,6 +333,7 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
             List<String> localErrors = new ArrayList<>();
             boolean cleared = false;
             TCPPort port = getTCPPort(scales);
+            SendItemsLog sendItemsLog = null;
             try {
                 port.open();
 
@@ -345,13 +346,13 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
                         cleared = clearPlu(port) && clearExtraText(port);
                     }
                     if (cleared || !needToClear) {
-                        processTransactionLogger.info(getLogPrefix() + "Sending items..." + scales.port);
+                        sendItemsLog = new SendItemsLog(processTransactionLogger, scales.port, transaction.id, transaction.itemsList.size());
                         int count = 0;
                         for (ScalesItem item : transaction.itemsList) {
                             count++;
                             if (notInterruptedTransaction(transaction.id) && globalError < 5) {
                                 if (isPLU(item)) {
-                                    processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
+                                    sendItemsLog.sending(count, item.idBarcode);
                                     int attempts = 0;
                                     Boolean result = null;
                                     while ((result == null || !result) && attempts < 3) {
@@ -374,6 +375,8 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
             } catch (Exception e) {
                 logError(localErrors, String.format(getLogPrefix() + "IP %s error, transaction %s;", scales.port, transaction.id), e);
             } finally {
+                if (sendItemsLog != null)
+                    sendItemsLog.finish();
                 try {
                     port.close();
                 } catch (CommunicationException ignored) {

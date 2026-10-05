@@ -33,6 +33,41 @@ public abstract class DefaultScalesHandler extends ScalesHandler {
 
     protected abstract String getLogPrefix();
 
+    //log of items sending to one scales: start, progress every minute and the list of sent items at the end instead of a line per item
+    protected class SendItemsLog {
+        private static final long progressInterval = 60000; //1 minute
+
+        private final Logger logger;
+        private final String prefix;
+        private final int total;
+        private final List<String> barcodes = new ArrayList<>();
+        private int lastNumber;
+        private long lastProgressTime;
+
+        public SendItemsLog(Logger logger, String ip, Long transactionId, int total) {
+            this.logger = logger;
+            this.prefix = getLogPrefix() + String.format("IP %s, Transaction #%s, ", ip, transactionId);
+            this.total = total;
+            this.lastProgressTime = System.currentTimeMillis();
+            logger.info(prefix + String.format("start sending %s items", total));
+        }
+
+        //number - position of the item in the transaction
+        public void sending(int number, String barcode) {
+            barcodes.add(barcode);
+            lastNumber = number;
+            long now = System.currentTimeMillis();
+            if (now - lastProgressTime >= progressInterval) {
+                logger.info(prefix + String.format("sending item #%s of %s", number, total));
+                lastProgressTime = now;
+            }
+        }
+
+        public void finish() {
+            logger.info(prefix + String.format("sent %s items (last #%s of %s): %s", barcodes.size(), lastNumber, total, StringUtils.join(barcodes, ",")));
+        }
+    }
+
     protected JSONObject getExtInfo(String extInfo, String id) {
         return extInfo != null && !extInfo.isEmpty() ? new JSONObject(extInfo).optJSONObject(id) : null;
     }

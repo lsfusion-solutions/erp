@@ -108,6 +108,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
                 localErrors.add(openPortResult + ", transaction: " + transaction.id + ";");
             } else {
                 int globalError = 0;
+                SendItemsLog sendItemsLog = null;
                 try {
                     boolean needToClear = !transaction.itemsList.isEmpty() && transaction.snapshot && !scales.cleared;
                     if (needToClear) {
@@ -115,7 +116,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
                     }
 
                     if(cleared || !needToClear) {
-                        processTransactionLogger.info("Bizerba: Sending items..." + scales.port);
+                        sendItemsLog = new SendItemsLog(processTransactionLogger, scales.port, transaction.id, transaction.itemsList.size());
                         if (localErrors.isEmpty()) {
                             synchronizeTime(localErrors, port, scales.port);
 
@@ -132,7 +133,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
                                 count++;
                                 if (notInterruptedTransaction(transaction.id) && globalError < 5) {
                                     if (item.idBarcode != null && item.idBarcode.length() <= 6) {
-                                        processTransactionLogger.info(String.format("Bizerba: IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
+                                        sendItemsLog.sending(count, item.idBarcode);
                                         int attempts = 0;
                                         String result = null;
                                         while((result == null || !result.equals("0")) && attempts < 3) {
@@ -156,6 +157,8 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
                 } catch (Exception e) {
                     logError(localErrors, String.format("Bizerba: IP %s error, transaction %s;", scales.port, transaction.id), e);
                 } finally {
+                    if (sendItemsLog != null)
+                        sendItemsLog.finish();
                     processTransactionLogger.info("Bizerba: Finally disconnecting..." + scales.port);
                     try {
                         port.close();
