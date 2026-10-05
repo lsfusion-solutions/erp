@@ -49,6 +49,8 @@ createPickingCustom 'Создать комплектацию ИМ' (InternetOrde
 overProcessPickingInternetOrder ABSTRACT LIST (TerminalDocument, InternetOrderDetail);
 countPicked = GROUP SUM 1 IF status(picking(InternetOrderDetail d)) = StatusPicking.picked BY internetOrder(d);
 
+banEmptyPicking = ABSTRACT BOOLEAN ();
+
 process(TerminalDocument document) + {
     IF idTerminalDocumentType(document)=='15' THEN {
         LOCAL in = BOOLEAN (Picking);
@@ -59,6 +61,10 @@ process(TerminalDocument document) + {
         IF (GROUP SUM 1 IF in(Picking p)) THEN {
             LOCAL q = NUMERIC[16,5] (Sku);
             q(Sku sku) <- [GROUP SUM quantity(TerminalDocumentDetail tdd) IF terminalDocument(tdd) = document BY sku(tdd)](sku);
+
+            IF banEmptyPicking() AND NOT (GROUP SUM 1 IF q(Sku sku) > 0) THEN {
+                throwException('Комплектация ' + parentDocument(document) + ' пустая: не собран ни один товар');
+            }
 
             FOR raplace(TerminalDocumentDetail detail) IF terminalDocument(detail) = document AND Sku sk = skuBarcode(raplace(detail))
                 NEW id = InternetOrderDetail DO{
