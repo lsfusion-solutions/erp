@@ -2380,15 +2380,14 @@ processIncomingPostedSaleGestori (Sale.Invoice i) {
 
 AFTER Sale.post(Sale.UserInvoice i) DO processIncomingPostedSaleGestori(i);
 
-postingSaleGestori = DATA LOCAL NESTED BOOLEAN (Sale.Invoice);
+postedBeforeApplySaleGestori = DATA LOCAL NESTED BOOLEAN (Sale.Invoice);
 
 EXTEND FORM Sale.userInvoice
-    EVENTS ON APPLY BEFORE { postingSaleGestori(i) <- SET(Sale.isPosted(i)); },
+    EVENTS ON APPLY BEFORE { postedBeforeApplySaleGestori(i) <- PREV(Sale.isPosted(i)); },
            ON APPLY AFTER {
-               IF postingSaleGestori(i) THEN {
-                   postingSaleGestori(i) <- NULL;
+               IF NOT postedBeforeApplySaleGestori(i) THEN
                    processIncomingPostedSaleGestori(i);
-               }
+               postedBeforeApplySaleGestori(i) <- NULL;
            }
 ;
 
