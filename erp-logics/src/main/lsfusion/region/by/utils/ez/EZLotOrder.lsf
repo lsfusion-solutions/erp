@@ -310,16 +310,18 @@ typographyContract 'Договор типографии' = DATA STRING (LotOrder
 
 listidOrderEZ (LotOrder o)= GROUP CONCAT STRING(idOrderExt (o, STRING[14] gtin)), ', ' ORDER gtin;
 
-quantityNotOrdered (LotOrder o, STRING[14] gtin) = GROUP SUM quantity(LotOrderDetail d)
-    IF lotOrder(d) = o AND gtin = gtin(d) AND NOT idOrderEZ(d);
+// отправляемое количество
+quantityOrdering = DATA LOCAL NUMERIC[16,5] (LotOrderDetail);
+quantityOrdering (LotOrder o, STRING[14] gtin) = GROUP SUM quantityOrdering(LotOrderDetail d)
+    IF lotOrder(d) = o AND gtin = gtin(d);
 
 listGTINJSON100 (LotOrder o, INTEGER i) =
-    GROUP CONCAT STRING(CONCAT '','"', (STRING[14] gtin), '": \{ "count": ', INTEGER(quantityNotOrdered(o, gtin)), ', ',
+    GROUP CONCAT STRING(CONCAT '','"', (STRING[14] gtin), '": \{ "count": ', INTEGER(quantityOrdering(o, gtin)), ', ',
         '"label_type": ', id(identificationMeansType(o)),
         ', "typography_id": ' + idTypography(o),
         ', "typography_doc": ' + typographyContract(o),
         ' \}'), ', '
-        IF quantityNotOrdered(o, gtin) AND indexGtin100(o, gtin) == i ORDER gtin;
+        IF quantityOrdering(o, gtin) AND indexGtin100(o, gtin) == i ORDER gtin;
                                               
 addGroupOrdersJSON100 (LotOrder o, INTEGER i) = CONCAT '', '\{ "group": "' + codeGroup(type(o)) + '", ' + 
                                                     '"orders": \{ ' + listGTINJSON100(o, i) + ' \} \}';     
@@ -351,8 +353,9 @@ addGroupOrders (LotOrder o) + {
             RETURN;
         }
 
-        FOR listGTINJSON100(o, INTEGER k) DO {
+        FOR [GROUP SUM 1 IF lotOrder(LotOrderDetail d) = o AND NOT idOrderEZ(d) BY indexGtin100(d)](INTEGER k) DO {
             NEWSESSION {
+                quantityOrdering(LotOrderDetail d) <- quantity(d) IF lotOrder(d) = o AND NOT idOrderEZ(d);
                 stringToFile(addGroupOrdersJSON100(o, k));
 
                 LOCAL result = FILE();
@@ -385,7 +388,7 @@ addGroupOrders (LotOrder o) + {
                                 subJson() <- STRING(jsonAttributeValue1(ordersJson(), i));
                                 FOR iterate(INTEGER j, 1, jsonAttributeCount2(subJson())) DO {
                                     IF 'id' == jsonAttributeKey2(subJson(), j) THEN {
-                                        idOrderEZ(LotOrderDetail d) <- replace(STRING(jsonAttributeValue2(subJson(), j)), '"', '') WHERE gtin(d) == gtin AND o == lotOrder(d) AND NOT idOrderEZ(d);
+                                        idOrderEZ(LotOrderDetail d) <- replace(STRING(jsonAttributeValue2(subJson(), j)), '"', '') WHERE gtin(d) == gtin AND o == lotOrder(d) AND quantityOrdering(d);
                                     } ELSE IF 'created_at' == jsonAttributeKey2(subJson(), j) THEN {
                                         createdTime(o) <- toDateTimeFormat(replace(STRING(jsonAttributeValue2(subJson(), j)), '"', ''), 'yyyy-MM-dd hh24:mi:ss');
                                     }
@@ -401,7 +404,7 @@ addGroupOrders (LotOrder o) + {
 
                             FOR iterate(INTEGER j, 1, jsonAttributeCount1(subJson())) DO {
                                 IF 'id' == jsonAttributeKey1(subJson(), j) THEN {
-                                    idOrderEZ(LotOrderDetail d) <- replace(STRING(jsonAttributeValue1(subJson(), j)), '"', '') WHERE gtin(d) == gtin AND o == lotOrder(d) AND NOT idOrderEZ(d);
+                                    idOrderEZ(LotOrderDetail d) <- replace(STRING(jsonAttributeValue1(subJson(), j)), '"', '') WHERE gtin(d) == gtin AND o == lotOrder(d) AND quantityOrdering(d);
                                 } ELSE IF 'created_at' == jsonAttributeKey1(subJson(), j) THEN {
                                     createdTime(o) <- toDateTimeFormat(replace(STRING(jsonAttributeValue1(subJson(), j)), '"', ''), 'yyyy-MM-ddThh24:mi:ss');
                                 }
