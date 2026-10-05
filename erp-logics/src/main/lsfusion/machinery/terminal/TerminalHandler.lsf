@@ -80,9 +80,7 @@ trustAcceptPercent 'Процент доверительной приемки' (I
 trustAcceptPercent (Barcode b) = trustAcceptPercent(sku(b));
 
 // Признак и процент доверительной приемки для Stock
-trustAccept 'Доверительная приемка' = DATA BOOLEAN (Stock);
 overTrustAccept = ABSTRACT BOOLEAN (Stock);
-trustAcceptPercent 'Процент доверительной приемки' = DATA NUMERIC[6,2] (Stock) CHARWIDTH 10;
 overTrustAcceptPercent = ABSTRACT NUMERIC[6,2] (Stock);
 
 terminalTrustAccept(STRING id) = overTrustAccept(stock(id));
@@ -183,6 +181,11 @@ filterGoods(Barcode b, Stock st, User u) = b IS Barcode AND st IS Stock AND u IS
     OR overGoods(b, st, u));
 
 extraBarcodes = ABSTRACT STRING (Sku, Stock);
+
+//срок годности
+minExpiryDateBatch (Barcode b, Stock s) = GROUP MIN expiryDate(Batch batch) IF currentBalance(batch, s) AND sku(batch) = sku(b);
+overMinExpiryDate = ABSTRACT DATE (Barcode, Stock);
+minExpiryDate(Barcode b, Stock s) = overMinExpiryDate(b, s);
 
 //партии    
 countDaysFilterBatches 'Количество дней для выгрузки партий' = DATA INTEGER ();
@@ -610,14 +613,12 @@ noGroupItemOrder 'Не группировать по товару' = DATA BOOLEA
 
 //Маркировка
 isMarking 'Маркировка' = DATA BOOLEAN (TerminalDocumentTypePreferences);
-//scanBoxLotMode 'Режим сканирования "короб-марка"' = DATA BOOLEAN (TerminalDocumentTypePreferences);
-allowScanLotFirst 'Разрешить сканирование марки без сканирования кода товара' = DATA BOOLEAN (TerminalDocumentTypePreferences);
-checkLotBalance 'Контроль остатка марок' = DATA BOOLEAN (TerminalDocumentTypePreferences);
+checkLotBalance 'Запретить ввод марки без остатка' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 allowDeleteLot 'Разрешить удаление марки' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 allowNewLot 'Разрешить ввод новой марки' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 allowCreateBox 'Разрешить создание короба' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 onlineLotValidate 'Online валидация кодов маркировки' = DATA BOOLEAN (TerminalDocumentTypePreferences);
-checkItemLotsCount 'Контроль количества марок' = DATA BOOLEAN (TerminalDocumentTypePreferences);
+checkItemLotsCount 'Сверять количество с принятыми марками' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 banInvalidLot 'Запрет невалидной марки' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 banUnloadDocumentWithLotCountDiff 'Запрет выгрузки документа с несоответствующим количеством марок' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 allowAcceptBox 'Разрешить приемку короба' = DATA BOOLEAN (TerminalDocumentTypePreferences);
@@ -688,7 +689,6 @@ FORM terminalDocumentTypePreferences 'Настройки документа' FOR
         noGroupItemOrder,
 
         isMarking,
-        allowScanLotFirst,
         checkLotBalance,
         allowDeleteLot,
         allowNewLot,
@@ -814,7 +814,6 @@ DESIGN terminalDocumentTypePreferences {
             MOVE PROPERTY(checkLotBalance(o));
             MOVE PROPERTY(allowDeleteLot(o));
             MOVE PROPERTY(allowNewLot(o));
-            MOVE PROPERTY(allowScanLotFirst(o));
             MOVE PROPERTY(allowCreateBox(o));
             MOVE PROPERTY(onlineLotValidate(o));
             MOVE PROPERTY(banInvalidLot(o));
