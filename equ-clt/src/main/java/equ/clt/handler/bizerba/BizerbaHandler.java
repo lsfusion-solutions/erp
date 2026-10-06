@@ -186,7 +186,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
             (transaction ? processTransactionLogger : processStopListLogger).info("Bizerba: Connecting..." + ip);
             port.open();
         } catch (Exception e) {
-            (transaction ? processTransactionLogger : processStopListLogger).error("Bizerba Error: ", e);
+            (transaction ? processTransactionLogger : processStopListLogger).error(String.format("Bizerba: IP %s, connection error: ", ip), e);
             return e.getMessage();
         }
         return null;

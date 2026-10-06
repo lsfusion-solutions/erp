@@ -46,7 +46,7 @@ public class DibalD500Handler extends MultithreadScalesHandler {
             processTransactionLogger.info(getLogPrefix() + "Connecting..." + ip);
             port.open();
         } catch (Exception e) {
-            processTransactionLogger.error("Error: ", e);
+            processTransactionLogger.error(getLogPrefix() + String.format("IP %s, connection error: ", ip), e);
             return e.getMessage();
         }
         return null;

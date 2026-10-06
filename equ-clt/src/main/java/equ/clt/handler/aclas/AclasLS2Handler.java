@@ -401,7 +401,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                 }
                 error = getErrorDescription(result);
                 if(error != null) {
-                    aclasls2Logger.error(getLogPrefix() + error);
+                    aclasls2Logger.error(getLogPrefix() + String.format("transaction %s, ip %s, %s", transaction.id, scales.port, error));
                 }
             } catch (Throwable t) {
                 interrupted = t instanceof InterruptedException;
