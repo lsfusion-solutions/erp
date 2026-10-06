@@ -105,6 +105,10 @@ getOrdersDBSNew 'Получить список новых сборочных з�
                     }
                 }
 
+                // товар задания не сопоставлен с ERP
+                IF NOT (GROUP SUM 1 IF internetOrder(InternetOrderDetail d) == order) THEN
+                    messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + 'Заказ ' + number + ' создан без строк: не сопоставлен товар WB';
+
             }
             afterGetOrdersDBSNew();
             messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + messageStatusHTTP(STRING(statusHttp()));
@@ -206,6 +210,38 @@ FORM statusInfoResponseDBS
     PROPERTIES(errors) errors EXTID 'value'
     FILTERS ordersErrors(errors) == orders;
 
+// TRUE = ERP-статусы заказов DBS ведутся вручную, синк их не меняет.
+customSetDbsStatus = ABSTRACT BOOLEAN ();
+
+// Аналог FBS: ERP-статус ведёт синк, системный статус уточняет маппинг.
+statusInternetOrderDBS (WbStatus ws, WbSystemStatus wss) = CASE
+    WHEN wss = WbSystemStatus.sold THEN StatusInternetOrder.delivered
+    WHEN wss = WbSystemStatus.canceled_by_client THEN StatusInternetOrder.wbRefusedByClient
+    WHEN wss = WbSystemStatus.canceled OR wss = WbSystemStatus.defect OR wss = WbSystemStatus.canceled_by_carrier THEN StatusInternetOrder.cancel
+    ELSE statusInternetOrder(ws);
+
+// Трансляция пары статусов WB в ERP для одного заказа; общая для bulk- и одиночного синка.
+applyDbsStatusMapping (InternetOrder o, WbStatus ws, WbSystemStatus wss) {
+    IF wss = WbSystemStatus.declined_by_client
+        AND (PREV(status(o)) = StatusInternetOrder.new OR PREV(status(o)) = StatusInternetOrder.agreed)
+        AND subtractSeconds(currentDateTime(), dateTime(o)) <= 3600 THEN {
+        IF customCancelOrder() THEN {
+            overCancelOrder(o);
+        } ELSE {
+            status(o) <- OVERRIDE customCancelOrderStatus(), StatusInternetOrder.closed;
+        }
+        // фиксируем отмену в wbStatus до APPLY, иначе триггер отправит эхо-POST cancel.
+        wbStatus(o) <- WbStatus.cancel;
+    } ELSE IF NOT customSetDbsStatus() THEN {
+        // синк ведёт ERP-статус, как в FBS; OVERRIDE страхует от неизвестного WB-статуса.
+        status(o) <- OVERRIDE statusInternetOrderDBS(ws, wss), status(o);
+        wbStatus(o) <- ws;
+    } ELSE {
+        wbStatus(o) <- ws;
+    }
+    wbSystemStatus(o) <- wss;
+}
+
 // https://marketplace-api.wildberries.ru/api/marketplace/v3/dbs/orders/status/info
 getWbStatuses 'Получить статусы заказов' () {
     NEWSESSION NESTED LOCAL {
@@ -239,16 +275,7 @@ getWbStatuses 'Получить статусы заказов' () {
 
                 FOR orderId(INTEGER i) AND InternetOrder o == orderByNumber(orderId(i))
                     AND WbStatus ws = wbStatus(supplierStatus(i)) AND WbSystemStatus wss = wbSystemStatus(wbStatus(i)) DO {
-                    IF wss = WbSystemStatus.declined_by_client AND PREV(status(o)) = StatusInternetOrder.new AND subtractSeconds(dateTime(o), currentDateTime()) <= 3600 THEN {
-                        IF customCancelOrder() THEN {
-                            overCancelOrder(o);
-                        } ELSE {
-                            status(o) <- OVERRIDE customCancelOrderStatus(), StatusInternetOrder.closed;
-                        }
-                    }
-                    wbStatus(o) <- ws;
-                    wbSystemStatus(o) <- wss;
-                    //status(o) <- statusInternetOrder(ws);
+                    applyDbsStatusMapping(o, ws, wss);
                 }
                 APPLY NESTED LOCAL ;
             }
@@ -329,6 +356,86 @@ changeOrdersDBSStatusCondition (WbStatus ws, InternetOrder o) =
         WHEN ws = WbStatus.reject AND wbStatus(o) = WbStatus.deliver AND NOT customFilterChangeOrdersDBSStatus(ws, o) THEN TRUE
         WHEN ws = WbStatus.cancel AND (wbStatus(o) = WbStatus.new OR wbStatus(o) = WbStatus.confirm) AND NOT customFilterChangeOrdersDBSStatus(ws, o) THEN TRUE
 ;
+
+// Одиночный синк статуса одного заказа (триггеры) — без isSelected.
+syncDbsOrderStatus (InternetOrder order) {
+    NEWSESSION NESTED LOCAL {
+        setHttpHeadersIS();
+        LOCAL response = FILE();
+
+        EXPORT JSON FROM 'value' = LONG(number(InternetOrder o)) WHERE o == order;
+        fileToString(exportFile(), 'UTF-8');
+        stringToFile('\{"ordersIds":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
+        fileToString(resultFile(), 'UTF-8');
+        logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/marketplace/v3/dbs/orders/status/info body: ' + resultString());
+
+        TRY {
+            EXTERNAL HTTP POST url(CategoryRequest.marketplace) + '/api/marketplace/v3/dbs/orders/status/info' HEADERS httpHeaders PARAMS resultFile() TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            IF statusHttp() == 200 THEN {
+                IMPORT statusInfoResponseDBS JSON FROM response();
+                FOR orderId(INTEGER i) AND InternetOrder o == orderByNumber(orderId(i))
+                    AND WbStatus ws = wbStatus(supplierStatus(i)) AND WbSystemStatus wss = wbSystemStatus(wbStatus(i)) DO {
+                    applyDbsStatusMapping(o, ws, wss);
+                }
+                APPLY NESTED LOCAL ;
+            }
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+        } FINALLY {
+            afterSendRequestIS();
+        }
+    }
+}
+
+// Прямой перевод одного заказа (триггеры): только confirm/deliver/cancel —
+// receive/reject требуют код покупателя и выполняются кнопками с вводом кода.
+changeOrdersDBSStatus (WbStatus wbStatus, InternetOrder order) {
+    IF NOT isWBOrderDBS(order) OR wbStatus(order) == wbStatus
+        OR NOT changeOrdersDBSStatusCondition(wbStatus, order) THEN
+        RETURN;
+    IF wbStatus == WbStatus.receive OR wbStatus == WbStatus.reject THEN
+        RETURN;
+    NEWSESSION NESTED LOCAL {
+        LOCAL statusName = STRING ();
+        statusName() <- getWord(name(wbStatus), '.', 2);
+        setHttpHeadersIS();
+        LOCAL response = FILE();
+
+        EXPORT JSON FROM 'value' = LONG(number(InternetOrder o)) WHERE o == order;
+        fileToString(exportFile(), 'UTF-8');
+        stringToFile('\{"ordersIds":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
+        fileToString(resultFile(), 'UTF-8');
+        logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/marketplace/v3/dbs/orders/status/' + statusName() + '\n' + resultString());
+
+        TRY {
+            EXTERNAL HTTP POST url(CategoryRequest.marketplace) + '/api/marketplace/v3/dbs/orders/status/' + statusName() HEADERS httpHeaders PARAMS resultFile() TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            IF statusHttp() == 200 THEN {
+                IMPORT changeStatusResponse JSON FROM response();
+                FOR InternetOrder o = orderByNumber(orderId(INTEGER i)) DO {
+                    IF NOT isError(i) THEN {
+                        wbStatus(o) <- wbStatus;
+                    } ELSE {
+                        logToFile('WB', CONCAT ' ', 'Ошибка при обновлении статуса заказа', orderId(i), ':', detail(0));
+                    }
+                }
+                APPLY NESTED LOCAL ;
+                // покупатель и обязательные меты подтягиваются так же, как в bulk-переводе
+                isSelected(order) <- TRUE;
+                afterChangeOrdersDBSStatus(wbStatus);
+                isSelected(InternetOrder o1) <- NULL;
+            }
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+        } FINALLY {
+            afterSendRequestIS();
+        }
+    }
+    syncDbsOrderStatus(order);
+}
 
 changeOrdersDBSStatus (WbStatus wbStatus) {
     NEWSESSION NESTED LOCAL {
@@ -813,7 +920,7 @@ EXTEND FORM internetOrder
 
 EXTEND FORM internetOrders
     PROPERTIES(o) READONLY isWBOrderDBS BEFORE isPosted(o)
-    PROPERTIES(o) isSelected FIRST, getWbStatus, postInfCustomerOrder, getStickerDBS,
+    PROPERTIES(o) getWbStatus, postInfCustomerOrder, getStickerDBS,
         confirmOrderDBS SHOWIF changeOrdersDBSStatusCondition(WbStatus.confirm, o),
         deliverOrderDBS SHOWIF changeOrdersDBSStatusCondition(WbStatus.deliver, o),
         receiveOrderDBS SHOWIF changeOrdersDBSStatusCondition(WbStatus.receive, o),
@@ -840,9 +947,7 @@ DESIGN internetOrders {
     }
 }
 
+// Заказ передаётся напрямую: внутри APPLY записи LOCAL не пробрасываются в NEWSESSION действия.
 WHEN SETCHANGED(status(InternetOrder o)) AND statusInternetOrder(WbStatus ws) = status(o) AND changeOrdersDBSStatusCondition(ws, o) AND isWBOrderDBS(o) DO {
-    NEWSESSION {
-        isSelected(o) <- TRUE;
-        changeOrdersDBSStatus(ws);
-    }
+    changeOrdersDBSStatus(ws, o);
 }

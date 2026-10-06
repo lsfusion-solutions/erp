@@ -129,6 +129,11 @@ getOrdersFBSNew 'Получить список новых сборочных з�
                         optionalMeta(detail, meta) <- TRUE;
                     }
                 }
+
+                // товар задания не сопоставлен с ERP
+                IF NOT (GROUP SUM 1 IF internetOrder(InternetOrderDetail d) == order) THEN
+                    messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + 'Заказ ' + number + ' создан без строк: не сопоставлен товар WB';
+
             }
             afterGetOrdersFBSNew();
             messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + messageStatusHTTP(STRING(statusHttp()));
@@ -336,7 +341,9 @@ getWbFbsStatuses 'Получить статусы заказов FBS' () {
                 IMPORT statusInfoResponse JSON FROM response();
                 FOR id(INTEGER i) AND InternetOrder o == orderByNumber(id(i))
                     AND WbStatus ws = wbStatus(supplierStatus(i)) AND WbSystemStatus wss = wbSystemStatus(wbStatus(i)) DO {
-                    IF wss = WbSystemStatus.declined_by_client AND status(o) = StatusInternetOrder.new AND subtractSeconds(currentDateTime(), dateTime(o)) <= 3600 THEN {
+                    IF wss = WbSystemStatus.declined_by_client
+                        AND (status(o) = StatusInternetOrder.new OR status(o) = StatusInternetOrder.agreed)
+                        AND subtractSeconds(currentDateTime(), dateTime(o)) <= 3600 THEN {
                         IF customCancelOrder() THEN {
                             overCancelOrder(o);
                         } ELSE {
@@ -2002,12 +2009,10 @@ DESIGN internetOrders {
 // changeOrdersFBSStatus покрывает только cancel — этого достаточно, потому что
 // confirm/deliver/receive на FBS идут через поставку (addOrdersToSupply →
 // sendSupplyToDeliver), а не через смену статуса заказа. Перехват кастомных
-// правил — через customFilterChangeOrdersFBSStatus.
+// правил — через customFilterChangeOrdersFBSStatus. Заказ передаётся напрямую:
+// внутри APPLY записи LOCAL не пробрасываются в NEWSESSION действия.
 WHEN SETCHANGED(status(InternetOrder o)) AND statusInternetOrder(WbStatus ws) = status(o) AND changeOrdersFBSStatusCondition(ws, o) AND isWBOrderFBS(o) DO {
-    NEWSESSION {
-        isSelected(o) <- TRUE;
-        changeOrdersFBSStatus(ws);
-    }
+    cancelOrderFBS(o);
 }
 
 // customCreatePicking полностью повторяет дефолтную DIALOG-ветку createPicking

@@ -50,13 +50,15 @@ groupId = DATA LOCAL STRING(INTEGER);
 CLASS WbStatus {
     new 'Новое сборочное задание',
     confirm 'На сборке',
+    prepare 'Готов к выдаче',
     deliver 'В доставке',
     receive 'Получено покупателем',
     reject 'Отказ покупателя при получении',
     cancel 'Отменено продавцом',
     cancel_missed_call 'Отмена по причине недозвона',
     complete 'В доставке (complete)',
-    cancel_carrier 'Отменено перевозчиком'
+    cancel_carrier 'Отменено перевозчиком',
+    cancel_shelf_life 'Отмена по истечении срока хранения'
 }
 
 wbStatus (STRING str) = GROUP MAX WbStatus s IF staticName(s) == 'WB_WbStatus.' + str;
@@ -64,6 +66,9 @@ customStatusIntenetOrder = ABSTRACT CASE StatusInternetOrder (WbStatus);
 statusInternetOrder(WbStatus ws) =
     CASE WHEN ws = WbStatus.new AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.new
         WHEN ws = WbStatus.confirm AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.isPicking
+        // prepare = «готов к выдаче» (самовывоз); отдельный ERP-статус нужен, чтобы confirm и prepare
+        // различались при обратной трансляции в триггерах
+        WHEN ws = WbStatus.prepare AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.picked
         WHEN ws = WbStatus.deliver AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.delivery
         WHEN ws = WbStatus.receive AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.delivered
         WHEN ws = WbStatus.reject AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.closed
@@ -71,6 +76,7 @@ statusInternetOrder(WbStatus ws) =
         WHEN ws = WbStatus.cancel_missed_call AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.cancel
         WHEN ws = WbStatus.complete AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.delivery
         WHEN ws = WbStatus.cancel_carrier AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.cancel
+        WHEN ws = WbStatus.cancel_shelf_life AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.cancel
 ;
 
 EXTEND CLASS StatusInternetOrder {
@@ -89,6 +95,7 @@ CLASS WbSystemStatus {
     sorted 'Отсортировано',
     accepted_by_carrier 'Передан в службу доставки',
     sent_to_carrier 'Отправлен на склад службы доставки',
+    postponed_delivery 'Доставка отложена',
     canceled_by_carrier 'Отменен перевозчиком'
 }
 
@@ -113,6 +120,8 @@ customCancelOrderStatus = ABSTRACT CASE StatusInternetOrder();
 orderByNumber(STRING number) = GROUP MAX InternetOrder o IF number(o) = number;
 
 EXTEND FORM internetOrders
+    // Отметка — в общем модуле: пакетные действия есть в FBS, DBS и CaC, а подключён может быть любой из них.
+    PROPERTIES(o) isSelected FIRST
     PROPERTIES(o) READONLY nameWbStatus, nameWbSystemStatus, wbIsB2b
 ;
 
