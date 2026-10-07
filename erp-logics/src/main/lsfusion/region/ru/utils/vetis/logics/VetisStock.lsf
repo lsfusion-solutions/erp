@@ -143,6 +143,28 @@ META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, contai
     // номер накладной, предлагаемый по умолчанию (проекты могут подставлять номер ТТН вместо номера документа)
     overFillVolumeNumber = ABSTRACT STRING[48] (###doc);
 
+    // распределение объёмов подтверждённых ВСД с заданным номером накладной по строкам документа (без диалогов)
+    fillVolume (###doc d, STRING[200] waybillNumber) {
+        number() <- waybillNumber;
+        usedVolumeOtherLocal(VetDocument vtd) <- usedVolumeOther(d, vtd);
+        volume(###doc##Detail vd, VetDocument vtd) <-
+            (PARTITION UNGROUP shipmentQuantity LIMIT (volume(vtd) (-) usedVolumeOtherLocal(vtd))/(OVERRIDE factor(sku(vd), unit(vtd)), 1.0) IF number() = issueSeriesNumberWaybill(vtd) AND  matches(vd, vtd)  AND status(vtd) = VetDocumentStatus.CONFIRMED ORDER DESC expiryPriorityVetis(vtd), volume(vtd), vtd BY vd)*(OVERRIDE factor(sku(vd), unit(vtd)), 1.0)
+            WHERE doc(vd) = d;
+        // суммарно по ВСД не больше свободного остатка: излишек снимается с последних строк
+        assignedVolumeLocal(###doc##Detail vd, VetDocument vtd) <- volume(vd, vtd) WHERE doc(vd) = d AND volume(vd, vtd) > 0;
+        remainderVolumeLocal(VetDocument vtd) <- NUMERIC[16,5](volume(vtd) (-) usedVolumeOtherLocal(vtd));
+        volume(###doc##Detail vd, VetDocument vtd) <-
+            PARTITION UNGROUP remainderVolumeLocal LIMIT STRICT (assignedVolumeLocal(vd, vtd)) ORDER index(vd), vd BY vtd
+            WHERE doc(vd) = d AND assignedVolumeLocal(vd, vtd);
+        // суммарно по строке не больше объёма поставлено (кол-во × вес нетто): излишек снимается с последних ВСД
+        assignedVolumeLocal(###doc##Detail vd, VetDocument vtd) <- NULL WHERE doc(vd) = d;
+        assignedVolumeLocal(###doc##Detail vd, VetDocument vtd) <- volume(vd, vtd) WHERE doc(vd) = d AND volume(vd, vtd) > 0;
+        shippedVolumeLocal(###doc##Detail vd) <- NUMERIC[16,5](shipmentQuantity(vd) * netWeight(sku(vd))) WHERE doc(vd) = d;
+        volume(###doc##Detail vd, VetDocument vtd) <-
+            PARTITION UNGROUP shippedVolumeLocal LIMIT STRICT (assignedVolumeLocal(vd, vtd)) ORDER DESC expiryPriorityVetis(vtd), volume(vtd), vtd BY vd
+            WHERE doc(vd) = d AND assignedVolumeLocal(vd, vtd) AND shippedVolumeLocal(vd) > 0;
+    }
+
     fillVolume 'Заполнить по номеру' (###doc d) {
         DIALOG requestWayBillNumber OBJECTS s = (OVERRIDE overFillVolumeNumber(d), STRING[48](seriesNumber(d))) INPUT DO {
             number() <- s;
@@ -150,23 +172,7 @@ META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, contai
                 MESSAGE 'Подтверждённые ВСД с таким номером накладной не найдены';
                 RETURN;
             }
-            usedVolumeOtherLocal(VetDocument vtd) <- usedVolumeOther(d, vtd);
-            volume(###doc##Detail vd, VetDocument vtd) <-
-                (PARTITION UNGROUP shipmentQuantity LIMIT (volume(vtd) (-) usedVolumeOtherLocal(vtd))/(OVERRIDE factor(sku(vd), unit(vtd)), 1.0) IF number() = issueSeriesNumberWaybill(vtd) AND  matches(vd, vtd)  AND status(vtd) = VetDocumentStatus.CONFIRMED ORDER DESC expiryPriorityVetis(vtd), volume(vtd), vtd BY vd)*(OVERRIDE factor(sku(vd), unit(vtd)), 1.0)
-                WHERE doc(vd) = d;
-            // суммарно по ВСД не больше свободного остатка: излишек снимается с последних строк
-            assignedVolumeLocal(###doc##Detail vd, VetDocument vtd) <- volume(vd, vtd) WHERE doc(vd) = d AND volume(vd, vtd) > 0;
-            remainderVolumeLocal(VetDocument vtd) <- NUMERIC[16,5](volume(vtd) (-) usedVolumeOtherLocal(vtd));
-            volume(###doc##Detail vd, VetDocument vtd) <-
-                PARTITION UNGROUP remainderVolumeLocal LIMIT STRICT (assignedVolumeLocal(vd, vtd)) ORDER index(vd), vd BY vtd
-                WHERE doc(vd) = d AND assignedVolumeLocal(vd, vtd);
-            // суммарно по строке не больше объёма поставлено (кол-во × вес нетто): излишек снимается с последних ВСД
-            assignedVolumeLocal(###doc##Detail vd, VetDocument vtd) <- NULL WHERE doc(vd) = d;
-            assignedVolumeLocal(###doc##Detail vd, VetDocument vtd) <- volume(vd, vtd) WHERE doc(vd) = d AND volume(vd, vtd) > 0;
-            shippedVolumeLocal(###doc##Detail vd) <- NUMERIC[16,5](shipmentQuantity(vd) * netWeight(sku(vd))) WHERE doc(vd) = d;
-            volume(###doc##Detail vd, VetDocument vtd) <-
-                PARTITION UNGROUP shippedVolumeLocal LIMIT STRICT (assignedVolumeLocal(vd, vtd)) ORDER DESC expiryPriorityVetis(vtd), volume(vtd), vtd BY vd
-                WHERE doc(vd) = d AND assignedVolumeLocal(vd, vtd) AND shippedVolumeLocal(vd) > 0;
+            fillVolume(d, number());
             fillExpiryDate(d);
         }
     }
