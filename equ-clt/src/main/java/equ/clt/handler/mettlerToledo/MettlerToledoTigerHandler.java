@@ -10,6 +10,7 @@ import equ.api.stoplist.StopListItem;
 import equ.clt.handler.MultithreadScalesHandler;
 import equ.clt.handler.TCPPort;
 import lsfusion.base.ExceptionUtils;
+import org.apache.log4j.Logger;
 
 import javax.naming.CommunicationException;
 import java.io.IOException;
@@ -72,7 +73,7 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
                                     attempts++;
                                 }
                                 if (!result) {
-                                    logError(localErrors, String.format(getLogPrefix() + "IP %s, Result %s, item %s", scales.port, false, item.idItem));
+                                    logError(processStopListLogger, localErrors, String.format(getLogPrefix() + "IP %s, StopList #%s, Result %s, item %s", scales.port, stopListInfo.number, false, item.idItem), null);
                                     globalError++;
                                 }
                             } else {
@@ -81,10 +82,10 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
                         } else break;
                     }
                 } catch (Exception e) {
-                    logError(localErrors, String.format(getLogPrefix() + "IP %s error, StopList %s;", scales.port, stopListInfo.number), e);
+                    logError(processStopListLogger, localErrors, String.format(getLogPrefix() + "IP %s error, StopList %s;", scales.port, stopListInfo.number), e);
                 }
             } catch (Exception e) {
-                logError(localErrors, String.format(getLogPrefix() + "IP %s error, transaction %s;", scales.port, stopListInfo.number), e);
+                logError(processStopListLogger, localErrors, String.format(getLogPrefix() + "IP %s error, StopList %s;", scales.port, stopListInfo.number), e);
             } finally {
                 try {
                     port.close();
@@ -283,8 +284,12 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
     }
 
     private void logError(List<String> errors, String errorText, Throwable t) {
+        logError(processTransactionLogger, errors, errorText, t);
+    }
+
+    private void logError(Logger logger, List<String> errors, String errorText, Throwable t) {
         errors.add(errorText + (t == null ? "" : ('\n' + ExceptionUtils.getStackTraceString(t))));
-        processTransactionLogger.error(errorText, t);
+        logger.error(errorText, t);
     }
 
     private void sendCommand(TCPPort port, byte[] commandBytes, short commandId, short dpt, short ctl, byte access) throws IOException {

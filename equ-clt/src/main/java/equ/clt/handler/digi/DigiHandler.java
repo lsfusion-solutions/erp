@@ -69,7 +69,6 @@ public class DigiHandler extends MultithreadScalesHandler {
             this.scales = scales;
         }
 
-        //errors are logged by sendStopListParallel
         @Override
         public List<String> call() throws IOException {
             List<String> localErrors = new ArrayList<>();
@@ -78,11 +77,15 @@ public class DigiHandler extends MultithreadScalesHandler {
                 processStopListLogger.info(getLogPrefix() + "Sending StopList to scale " + scales.port);
                 socket.open();
                 String result = deletePlu(socket, scales.port, filePLU, stopListInfo.stopListItemMap.values());
-                if (result != null)
+                if (result != null) {
+                    processStopListLogger.error(result);
                     localErrors.add(result);
+                }
 
             } catch (Exception e) {
-                localErrors.add(String.format(getLogPrefix() + "Send StopList %s to scales %s error", stopListInfo.number, scales.port) + '\n' + ExceptionUtils.getStackTraceString(e));
+                String error = String.format(getLogPrefix() + "Send StopList %s to scales %s error", stopListInfo.number, scales.port);
+                processStopListLogger.error(error, e);
+                localErrors.add(error + '\n' + ExceptionUtils.getStackTraceString(e));
             } finally {
                 processStopListLogger.info(getLogPrefix() + "Finally disconnecting..." + scales.port);
                 socket.close();

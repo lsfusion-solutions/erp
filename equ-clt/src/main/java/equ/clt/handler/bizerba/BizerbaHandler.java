@@ -12,6 +12,7 @@ import equ.clt.handler.ScalesSettings;
 import equ.clt.handler.TCPPort;
 import lsfusion.base.ExceptionUtils;
 import lsfusion.base.col.heavy.OrderedMap;
+import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import javax.naming.CommunicationException;
@@ -640,8 +641,12 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
     }
 
     protected void logError(List<String> errors, String errorText, Throwable t) {
+        logError(processTransactionLogger, errors, errorText, t);
+    }
+
+    protected void logError(Logger logger, List<String> errors, String errorText, Throwable t) {
         errors.add(errorText.replace("\u001b", "").replace("\u0000", "") + (t == null ? "" : ('\n' + ExceptionUtils.getStackTraceString(t))));
-        processTransactionLogger.error(errorText, t);
+        logger.error(errorText, t);
     }
 
     class SendStopListTask implements Callable<List<String>> {
@@ -674,7 +679,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
                                     processStopListLogger.info(String.format("Bizerba: IP %s, sending StopList for item #%s (barcode %s) of %s", scales.port, count, item.idBarcode, stopListInfo.stopListItemMap.values().size()));
                                     String result = clearPLU(localErrors, port, scales, item);
                                     if (!result.equals("0")) {
-                                        logError(localErrors, String.format("Bizerba: IP %s, Result %s, item %s", scales.port, result, item.idItem));
+                                        logError(processStopListLogger, localErrors, String.format("Bizerba: IP %s, StopList #%s, Result %s, item %s", scales.port, stopListInfo.number, result, item.idItem), null);
                                         globalError++;
                                     }
                                 }
@@ -686,13 +691,13 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
                     port.close();
 
                 } catch (Exception e) {
-                    logError(localErrors, String.format("Bizerba: IP %s error ", scales.port), e);
+                    logError(processStopListLogger, localErrors, String.format("Bizerba: IP %s error, StopList %s;", scales.port, stopListInfo.number), e);
                 } finally {
                     processStopListLogger.info("Bizerba: Finally disconnecting..." + scales.port);
                     try {
                         port.close();
                     } catch (CommunicationException e) {
-                        logError(localErrors, String.format("Bizerba: IP %s close port error ", scales.port), e);
+                        logError(processStopListLogger, localErrors, String.format("Bizerba: IP %s close port error ", scales.port), e);
                     }
                 }
             }

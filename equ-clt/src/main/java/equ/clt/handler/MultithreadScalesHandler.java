@@ -125,7 +125,7 @@ public abstract class MultithreadScalesHandler extends DefaultScalesHandler {
 
     protected abstract SendTransactionTask getTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales);
 
-    //sends stop-list to all scales in parallel, taskFactory creates the task for one scales, the task returns errors
+    //sends stop-list to all scales in parallel, taskFactory creates the task for one scales, the task logs and returns errors
     protected void sendStopListParallel(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoSet,
                                         BiFunction<StopListInfo, ScalesInfo, Callable<List<String>>> taskFactory) {
         if (stopListInfo == null || stopListInfo.exclude)
@@ -149,11 +149,8 @@ public abstract class MultithreadScalesHandler extends DefaultScalesHandler {
             if (!taskList.isEmpty()) {
                 ExecutorService singleTransactionExecutor = EquipmentServer.getFixedThreadPool(taskList.size(), "SendStopList");
                 try {
-                    List<Future<List<String>>> threadResults = singleTransactionExecutor.invokeAll(taskList);
-                    for (Future<List<String>> threadResult : threadResults) {
-                        if (!threadResult.get().isEmpty())
-                            processStopListLogger.error(threadResult.get().get(0));
-                    }
+                    for (Future<List<String>> threadResult : singleTransactionExecutor.invokeAll(taskList))
+                        threadResult.get(); //rethrows task exception
                 } finally {
                     singleTransactionExecutor.shutdown();
                 }
