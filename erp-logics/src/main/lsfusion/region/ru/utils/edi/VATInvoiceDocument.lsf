@@ -293,6 +293,7 @@ META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
         MESSAGE 'Для строки ТекстИнф должен быть задан "Идентификатор" и "Значение"';
     
     uuid 'UUID' = DATA ISTRING[36] (###docType##Document);    
+    exportFileName = ABSTRACT STRING[255] (###docType##Document);
     generateIdFile (###docType##Document d) {
         IF NOT uuid(d) THEN NEWSESSION {
             generateUUID();
@@ -733,7 +734,7 @@ META defineInvoiceDocumentXMLExport (docType, docName, fileType, fileName, form)
         generateIdFile(d);
         inReport(###docType##Document g) <- TRUE IF g==d;    
         EXPORT form XML CHARSET 'windows-1251' TO xmlFile;
-        WRITE CLIENT DIALOG xmlFile() TO numberInvoice(d)+'.xml';  
+        WRITE CLIENT DIALOG xmlFile() TO (OVERRIDE exportFileName(d), numberInvoice(d)) + '.xml';
     } TOOLBAR;
     checkExport###docType##Document 'Проверка по схеме (xml)' (###docType##Document d){
         IF file##fileType() THEN {
