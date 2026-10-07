@@ -32,9 +32,22 @@ numberPriceList 'Прайс' (Promotion p) = number(priceList(p));
 
 VATprice 'Стандартная цена c НДС' = DATA NUMERIC[16,4] (PromotionDetail);
 
+// цены поставщика из прайса, выбранного в акции
+priceListVATPrice (PromotionDetail detail) = GROUP MAX price(PriceListDetail d, DataPriceListType t)
+    IF priceList(d) = priceList(promotion(detail)) AND sku(d) = sku(detail) AND includeVAT(t);
+priceListPrice (PromotionDetail detail) = GROUP MAX price(PriceListDetail d, DataPriceListType t)
+    IF priceList(d) = priceList(promotion(detail)) AND sku(d) = sku(detail) AND NOT includeVAT(t);
+
+// розничная цена: по складам акции, а пока они не отмечены — по всем складам компании
+retailPriceA (PromotionDetail detail, DATETIME dt) = GROUP MAX prevPriceA(retailPriceListType(), sku(detail), Stock stock, dt)
+    IF in(promotion(detail), stock) OR (isCompany(stock) AND active(stock) AND NOT stocks(promotion(detail)));
+
 WHEN LOCAL (CHANGED(sku(PromotionDetail detail)) OR CHANGED(fromDate(detail)))   DO {
 
-    IF LegalEntity.isNotVATPayer(supplier(promotion(detail))) THEN{
+    IF priceListVATPrice(detail) OR priceListPrice(detail) THEN {
+        VATprice(detail) <- OVERRIDE priceListVATPrice(detail), NUMERIC[16,4](round2(priceListPrice(detail) * (100.0 (+) valueVAT(detail)) / 100.0));
+        price(detail) <- OVERRIDE priceListPrice(detail), NUMERIC[16,4](round2(priceListVATPrice(detail) * 100.0 / (100.0 (+) valueVAT(detail))));
+    } ELSE IF LegalEntity.isNotVATPayer(supplier(promotion(detail))) THEN{
         valueVAT(detail) <- 0.0;
         price(detail) <- OVERRIDE GROUP MAX prevPriceA(defaultPriceListType(), sku(detail), Stock stock, toDateTime(fromDate(detail)));
         VATprice(detail) <- NUMERIC[16,4](round2(price(detail)*(1.0+valueVAT(detail)/100.0)));
@@ -44,7 +57,7 @@ WHEN LOCAL (CHANGED(sku(PromotionDetail detail)) OR CHANGED(fromDate(detail)))  
     }
 
     countStocks(detail, LegalEntity company) <- 1 IF company = supplier(promotion(detail));
-    retailPrice(detail) <- (GROUP MAX prevPriceA(retailPriceListType(), sku(detail), Stock stock, toDateTime(fromDate(detail))) IF in(promotion(detail), stock)) WHERE NOT CHANGED(retailPrice(detail));
+    retailPrice(detail) <- (OVERRIDE retailPriceA(detail, toDateTime(fromDate(detail))), retailPriceA(detail, currentDateTime())) WHERE NOT CHANGED(retailPrice(detail));
 }
 
 WHEN LOCAL (CHANGED(promotionVATPrice(PromotionDetail detail)) OR CHANGED(valueVAT(detail))) DO {
@@ -52,7 +65,7 @@ WHEN LOCAL (CHANGED(promotionVATPrice(PromotionDetail detail)) OR CHANGED(valueV
 }
 
 createPromotionDetail 'Добавить строки из прайса'(Promotion p) {
-    FOR priceList(p) = priceList(PriceListDetail d) NEW pd = PromotionDetail DO {
+    FOR priceList(p) = priceList(PriceListDetail d) AND sku(d) NEW pd = PromotionDetail DO {
         promotion(pd) <- p;
         sku(pd) <- sku(d);
     }
