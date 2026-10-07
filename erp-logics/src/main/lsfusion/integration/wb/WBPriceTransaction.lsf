@@ -302,7 +302,6 @@ getItemPrices 'Получить цены товаров' () {
                 MESSAGE message() NOWAIT;
 
                 IF statusHttp() == 200 THEN {
-                    limit() <- limit() + itemPricesLimit();
                     offset() <- offset() + itemPricesLimit();
                     IMPORT itemPrices JSON FROM response();
 
@@ -705,6 +704,7 @@ getProcessedStatus 'Состояние обработанной загрузки
                 IMPORT processedStatus JSON FROM response();
                 IF uploadID() == id(t) THEN {
                     status(t) <- CASE
+                                    WHEN status() == 1 OR status() == 2 THEN PriceTransactionStatus.processing
                                     WHEN status() == 3 THEN PriceTransactionStatus.processed
                                     WHEN status() == 4 THEN PriceTransactionStatus.canceled
                                     WHEN status() == 5 THEN PriceTransactionStatus.partlyProcessed
@@ -768,7 +768,6 @@ processedStatusSpecification 'Детализация обработанной з
                 MESSAGE message() NOWAIT;
 
                 IF statusHttp() == 200 THEN {
-                    limit() <- limit() + processedStatusSpecificationLimit();
                     offset() <- offset() + processedStatusSpecificationLimit();
                     IMPORT processedStatusSpecification JSON FROM response();
 
