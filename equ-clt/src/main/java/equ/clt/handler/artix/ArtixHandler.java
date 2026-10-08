@@ -251,12 +251,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                             }
 
                             //scale items
-                            //очистка весового каталога по заданию полной пригрузки (без полного snapshot, чистит только подчинённые кассе весы)
-                            if (!transaction.snapshot) {
-                                JSONObject transactionInfo = getExtInfo(transaction.info);
-                                if (transactionInfo != null && transactionInfo.optBoolean("clearTmcScale")) {
-                                    writeStringToFile(tmpFile, "{\"command\": \"clearTmcScale\"}\n---\n");
-                                }
+                            JSONObject transactionInfo = getExtInfo(transaction.info);
+                            if (transactionInfo != null && transactionInfo.optBoolean("clearTmcScale")) {
+                                writeStringToFile(tmpFile, "{\"command\": \"clearTmcScale\"}\n---\n");
                             }
                             for (CashRegisterItem item : transaction.itemsList) {
                                 if (!skipItem(item, medicineMode) && item.passScalesItem) {
