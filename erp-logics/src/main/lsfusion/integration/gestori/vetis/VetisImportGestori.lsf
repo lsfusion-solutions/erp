@@ -2,7 +2,7 @@ MODULE VetisImportGestori;
 
 REQUIRE ImportGestoriSettings, VetisBusinessEntity, VetisBusinessEntityOwn, VetisEnterprise,
         VetisProductItem, VetisProductItemExport, VetisStockEntry, VetisDocument, VetisStock,
-        VetisItem;
+        VetisItem, VetisDocumentGestori;
 
 NAMESPACE Vetis;
 
@@ -13,10 +13,6 @@ vetisDbUrl() = ImportGestori.connectionString();
 // коды складов Gestori через запятую; если не заданы, записи журнала и ВСД импортируются по всем складам
 vetisInitImportStocks 'Коды складов (записи журнала, ВСД)' = DATA STRING[500] ();
 vetisInitImportStockCodes () = rtrim(ltrim(replace(vetisInitImportStocks(), ' ', ''), ','), ',');
-
-vetisInitImportShopGuids () = GROUP CONCAT '\'' + guid(enterprise(Stock st)) + '\'' IF isWordInCSV(id(st), vetisInitImportStockCodes()), ',' ORDER st;
-vetisInitImportMissingStocks () = GROUP CONCAT getWord(vetisInitImportStockCodes(), ',', INTEGER i)
-    IF iterate(i, 1, wordCount(vetisInitImportStockCodes(), ',')) AND NOT guid(enterprise(stock(getWord(vetisInitImportStockCodes(), ',', i)))), ', ' ORDER i;
 
 // --- Локальные переменные для MercFirm ---
 
@@ -66,6 +62,32 @@ vetLocalVolume = DATA LOCAL NUMERIC[16,5](INTEGER);
 vetLocalGuidStockEntry = DATA LOCAL STRING(INTEGER);
 vetLocalDocSeries = DATA LOCAL STRING(INTEGER);
 vetLocalDocNumber = DATA LOCAL STRING(INTEGER);
+vetLocalQuantity = DATA LOCAL NUMERIC[16,5](INTEGER);
+vetLocalGuidMeas = DATA LOCAL STRING(INTEGER);
+vetLocalDateProd = DATA LOCAL STRING(INTEGER);
+vetLocalDateExp = DATA LOCAL STRING(INTEGER);
+vetLocalGuidPurpose = DATA LOCAL STRING(INTEGER);
+vetLocalBatchId = DATA LOCAL STRING(INTEGER);
+vetLocalLastUpdateDate = DATA LOCAL DATE(INTEGER);
+vetLocalLastUpdateTime = DATA LOCAL STRING(INTEGER);
+vetLocalGlobalId = DATA LOCAL STRING(INTEGER);
+vetLocalMarkType = DATA LOCAL STRING(INTEGER);
+vetLocalMark = DATA LOCAL STRING(INTEGER);
+vetLocalStorageType = DATA LOCAL STRING(INTEGER);
+
+// в Gestori тип, статус и способ хранения — номер элемента списка (с единицы); нечисловое значение даёт NULL
+vetisListWordGestori = FORMULA NULL STRING 'CASE WHEN trim($2) ~ \'^[0-9]+$\' THEN NULLIF(split_part($1, \',\', trim($2)::integer), \'\') END';
+
+// даты выработки и срока годности в Gestori — период «год.месяц.день.час - год.месяц.день.час», берём начало периода
+vetisPeriodDateGestori = FORMULA NULL DATE 'CASE WHEN split_part(split_part($1, \' - \', 1), \'.\', 1) ~ \'^ *[0-9][0-9][0-9][0-9] *$\' AND split_part(split_part($1, \' - \', 1), \'.\', 2) ~ \'^ *(0?[1-9]|1[0-2]) *$\' AND split_part(split_part($1, \' - \', 1), \'.\', 3) ~ \'^ *(0?[1-9]|[12][0-9]|3[01]) *$\' THEN make_date(split_part(split_part($1, \' - \', 1), \'.\', 1)::integer, split_part(split_part($1, \' - \', 1), \'.\', 2)::integer, split_part(split_part($1, \' - \', 1), \'.\', 3)::integer) END';
+vetisPeriodHourGestori = FORMULA NULL INTEGER 'CASE WHEN split_part(split_part($1, \' - \', 1), \'.\', 4) ~ \'^ *([01]?[0-9]|2[0-3]) *$\' THEN split_part(split_part($1, \' - \', 1), \'.\', 4)::integer END';
+
+// время последнего изменения может прийти числом секунд от начала суток или строкой чч:мм[:сс]
+vetisUpdateDateTimeGestori = FORMULA NULL DATETIME 'CASE WHEN trim($2) ~ \'^[0-9]+$\' THEN ($1)::timestamp + trim($2)::integer * interval \'1 second\' WHEN trim($2) ~ \'^[0-9][0-9]?:[0-9][0-9](:[0-9][0-9])?$\' THEN ($1)::timestamp + trim($2)::time ELSE ($1)::timestamp END';
+
+EXTEND CLASS VetDocumentStatus {
+    FINALIZED 'Закрыт'
+}
 
 // --- Локальные переменные для MercObject ---
 
@@ -131,6 +153,69 @@ importAreaGestori 'Импорт площадок Ветис' () {
     APPLY;
 }
 
+// --- Блок 1: Классификатор из MercTypeProd, MercProd, MercSubProd ---
+
+importClassifierGestori 'Импорт классификатора Ветис' () {
+    LOCAL file = FILE();
+
+    // типы продукции
+    LOCAL typeCode = INTEGER (INTEGER);
+    LOCAL typeName = STRING (INTEGER);
+
+    EXTERNAL SQL vetisDbUrl()
+        EXEC 'SELECT CodeTypeProd, SUBSTR(NameTypeProd, 1, 500) FROM Pub.MercTypeProd'
+        TO file;
+
+    IMPORT TABLE FROM file() TO typeCode, typeName;
+
+    FOR [GROUP MIN INTEGER i BY typeCode(i)](INTEGER code) AND NOT productType(code) DO NEW t = ProductType {
+        id(t) <- code;
+    }
+    // наименования стандартных типов не затираем
+    FOR ProductType t = productType(typeCode(INTEGER i)) AND NOT name(t) DO
+        name(t) <- typeName(i);
+
+    // продукция
+    LOCAL prodTypeCode = INTEGER (INTEGER);
+    LOCAL prodName = STRING (INTEGER);
+    LOCAL prodGuid = STRING (INTEGER);
+
+    EXTERNAL SQL vetisDbUrl()
+        EXEC 'SELECT CodeTypeProd, SUBSTR(NameProd, 1, 500), GuidProd FROM Pub.MercProd'
+        TO file;
+
+    IMPORT TABLE FROM file() TO prodTypeCode, prodName, prodGuid;
+
+    FOR [GROUP MIN INTEGER i BY prodGuid(i)](STRING str) AND NOT product(str) DO NEW p = Product {
+        guid(p) <- str;
+    }
+    FOR Product p = product(prodGuid(INTEGER i)) DO {
+        name(p) <- prodName(i);
+        productType(p) <- productType(prodTypeCode(i));
+    }
+
+    // виды продукции
+    LOCAL subProdGuid = STRING (INTEGER);
+    LOCAL subName = STRING (INTEGER);
+    LOCAL subGuid = STRING (INTEGER);
+
+    EXTERNAL SQL vetisDbUrl()
+        EXEC 'SELECT GuidProd, SUBSTR(NameSubProd, 1, 500), GuidSubProd FROM Pub.MercSubProd'
+        TO file;
+
+    IMPORT TABLE FROM file() TO subProdGuid, subName, subGuid;
+
+    FOR [GROUP MIN INTEGER i BY subGuid(i)](STRING str) AND NOT subProduct(str) DO NEW sp = SubProduct {
+        guid(sp) <- str;
+    }
+    FOR SubProduct sp = subProduct(subGuid(INTEGER i)) DO {
+        name(sp) <- subName(i);
+        product(sp) <- product(subProdGuid(i));
+    }
+
+    APPLY;
+}
+
 // --- Блоки 2–3: Номенклатура и связи с товарами из MercItemProd ---
 
 importProductItemsGestori 'Импорт номенклатуры Ветис' () {
@@ -175,17 +260,12 @@ importProductItemsGestori 'Импорт номенклатуры Ветис' () 
 // --- Блок 7: Записи складского журнала из MercRestShop ---
 
 importStockEntriesGestori 'Импорт записей журнала Ветис' () {
-    IF vetisInitImportMissingStocks() THEN {
-        MESSAGE 'Не найдены склады с площадкой Ветис по кодам: ' + vetisInitImportMissingStocks();
-        RETURN;
-    }
-
     LOCAL file = FILE();
 
     EXTERNAL SQL vetisDbUrl()
-        EXEC 'SELECT GuidShop, GuidStockEntry, NumStockEntry, Volume, cod_good ' +
-             'FROM Pub.MercRestShop' +
-             (IF vetisInitImportStockCodes() THEN ' WHERE GuidShop IN (' + vetisInitImportShopGuids() + ')' ELSE '')
+        EXEC 'SELECT GuidShop, GuidStockEntry, CAST(NumStockEntry AS VARCHAR(50)), Volume, cod_good ' +
+             'FROM Pub.MercRestShop WHERE ActiveStockEntry = 1' +
+             (IF vetisInitImportStockCodes() THEN ' AND cod_shop IN (' + vetisInitImportStockCodes() + ')' ELSE '')
         TO file;
 
     IMPORT TABLE FROM file() TO seLocalGuidShop, seLocalGuid, seLocalNumber, seLocalVolume, seLocalCodGood;
@@ -213,20 +293,21 @@ vetisVsdDateFrom 'Дата ВСД (с)' = DATA DATE ();
 
 // --- Блок 8: ВСД из MercVetDoc ---
 
+// ВСД берутся только по действующим записям журнала (остаткам) выбранных магазинов; связь — по IdDoc
 importVetDocumentsWhereGestori (STRING where) {
-    IF vetisInitImportMissingStocks() THEN {
-        MESSAGE 'Не найдены склады с площадкой Ветис по кодам: ' + vetisInitImportMissingStocks();
-        RETURN;
-    }
-
     LOCAL file = FILE();
 
     EXTERNAL SQL vetisDbUrl()
-        EXEC 'SELECT UuidDoc, DocIssueDate, DocStatus, DocType, ' +
-             'GuidFirmConsignor, GuidAreaConsignor, GuidFirmConsignee, GuidAreaConsignee, ' +
-             'GuidItemProd, Volume, GuidStockEntry, DocSeries, DocNumber ' +
-             'FROM Pub.MercVetDoc WHERE ' + where +
-             (IF vetisInitImportStockCodes() THEN ' AND GuidAreaConsignee IN (' + vetisInitImportShopGuids() + ')' ELSE '')
+        EXEC 'SELECT v.UuidDoc, v.DocIssueDate, CAST(v.DocStatus AS VARCHAR(50)), CAST(v.DocType AS VARCHAR(50)), ' +
+             'v.GuidFirmConsignor, v.GuidAreaConsignor, v.GuidFirmConsignee, v.GuidAreaConsignee, ' +
+             'v.GuidItemProd, v.Volume, j.GuidStockEntry, CAST(v.DocSeries AS VARCHAR(50)), CAST(v.DocNumber AS VARCHAR(50)), ' +
+             'v.Quantity, v.GuidMeas, SUBSTR(v.DateProd, 1, 100), SUBSTR(v.DateExp, 1, 100), v.GuidPurpose, ' +
+             'SUBSTR(v.BatchId, 1, 500), v.LastUpdateDate, CAST(v.LastUpdateTime AS VARCHAR(30)), ' +
+             'SUBSTR(v.GlobalId, 1, 100), CAST(v.MarkTypeItemProd AS VARCHAR(100)), SUBSTR(v.MarkItemProd, 1, 500), ' +
+             'CAST(v.TranspStorageType AS VARCHAR(20)) ' +
+             'FROM Pub.MercVetDoc v JOIN Pub.MercRestShop j ON j.IdDoc = v.IdDoc ' +
+             'WHERE ' + where + ' AND j.ActiveStockEntry = 1' +
+             (IF vetisInitImportStockCodes() THEN ' AND j.cod_shop IN (' + vetisInitImportStockCodes() + ')' ELSE '')
         TO file;
 
     IMPORT TABLE FROM file() TO
@@ -234,21 +315,41 @@ importVetDocumentsWhereGestori (STRING where) {
         vetLocalGuidConsignorFirm, vetLocalGuidConsignorArea,
         vetLocalGuidConsigneeFirm, vetLocalGuidConsigneeArea,
         vetLocalGuidItemProd, vetLocalVolume, vetLocalGuidStockEntry,
-        vetLocalDocSeries, vetLocalDocNumber;
+        vetLocalDocSeries, vetLocalDocNumber,
+        vetLocalQuantity, vetLocalGuidMeas, vetLocalDateProd, vetLocalDateExp, vetLocalGuidPurpose,
+        vetLocalBatchId, vetLocalLastUpdateDate, vetLocalLastUpdateTime,
+        vetLocalGlobalId, vetLocalMarkType, vetLocalMark, vetLocalStorageType;
 
-    FOR vetLocalUuid(INTEGER i) AND NOT vetDocument(vetLocalUuid(i)) DO NEW d = VetDocument {
+    // один ВСД может прийти несколькими строками — по одной на каждую запись журнала
+    LOCAL first = BOOLEAN (INTEGER);
+    first(INTEGER i) <- TRUE WHERE i = [GROUP MIN INTEGER j BY vetLocalUuid(j)](vetLocalUuid(i));
+
+    FOR vetLocalUuid(INTEGER i) AND first(i) AND NOT vetDocument(vetLocalUuid(i)) DO NEW d = VetDocument {
         uuid(d) <- vetLocalUuid(i);
     }
     FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) DO {
         issueDate(d) <- vetLocalIssueDate(i);
-        status(d) <- vetDocumentStatus(vetLocalStatus(i));
-        type(d) <- vetDocumentType(vetLocalType(i));
+        status(d) <- vetDocumentStatus(vetisListWordGestori('CONFIRMED,WITHDRAWN,UTILIZED,FINALIZED', vetLocalStatus(i)));
+        type(d) <- vetDocumentType(vetisListWordGestori('PRODUCTIVE,RETURNABLE,TRANSPORT', vetLocalType(i)));
         consignorBusinessEntity(d) <- businessEntity(vetLocalGuidConsignorFirm(i));
         consignorEnterprise(d) <- enterprise(vetLocalGuidConsignorArea(i));
         consigneeBusinessEntity(d) <- businessEntity(vetLocalGuidConsigneeFirm(i));
         consigneeEnterprise(d) <- enterprise(vetLocalGuidConsigneeArea(i));
         productItem(d) <- productItem(vetLocalGuidItemProd(i));
         volume(d) <- vetLocalVolume(i);
+        quantityPackGestori(d) <- vetLocalQuantity(i);
+        unit(d) <- unit(vetLocalGuidMeas(i));
+        dateOfProduction(d) <- vetisPeriodDateGestori(vetLocalDateProd(i));
+        dateOfProductionHour(d) <- vetisPeriodHourGestori(vetLocalDateProd(i));
+        expiryDate(d) <- vetisPeriodDateGestori(vetLocalDateExp(i));
+        expiryDateHour(d) <- vetisPeriodHourGestori(vetLocalDateExp(i));
+        purpose(d) <- purpose(vetLocalGuidPurpose(i));
+        batchID(d) <- vetLocalBatchId(i);
+        updateDateTimeGestori(d) <- vetisUpdateDateTimeGestori(vetLocalLastUpdateDate(i), vetLocalLastUpdateTime(i));
+        packingTypeGlobalIDGestori(d) <- vetLocalGlobalId(i);
+        productMarksClassGestori(d) <- vetLocalMarkType(i);
+        productMarksGestori(d) <- vetLocalMark(i);
+        transportStorageType(d) <- vetisListWordGestori('FROZEN,CHILLED,COOLED,VENTILATED', vetLocalStorageType(i));
     }
 
     // Связь ВСД с записью складского журнала
@@ -258,7 +359,7 @@ importVetDocumentsWhereGestori (STRING where) {
         in(s, d) <- TRUE;
 
     // Связанный документ — накладная (relationshipType=1)
-    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) AND
+    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) AND first(i) AND
         (vetLocalDocSeries(i) OR vetLocalDocNumber(i)) AND
         NOT vetReferenceDocument(d, CONCAT ';', vetLocalDocSeries(i), vetLocalDocNumber(i), vetLocalIssueDate(i), 1, 1)
     DO NEW rd = VetReferenceDocument {
@@ -270,9 +371,13 @@ importVetDocumentsWhereGestori (STRING where) {
         relationshipType(rd) <- 1;
     }
 
+    // APPLY очищает локальные свойства, поэтому количество считаем заранее
+    LOCAL NESTED count = INTEGER ();
+    count() <- OVERRIDE (GROUP SUM 1 IF first(INTEGER i)), 0;
+
     APPLY;
 
-    MESSAGE 'Импортировано ' + (GROUP SUM 1 IF vetLocalUuid(INTEGER i)) + ' ВСД';
+    IF NOT canceled() THEN MESSAGE 'Импортировано ' + count() + ' ВСД';
 }
 
 importVetDocumentsGestori 'Импорт ВСД Ветис' () {
@@ -285,7 +390,7 @@ importFilteredVetDocumentsGestori 'Импорт ВСД Ветис (по дате
         RETURN;
     }
 
-    importVetDocumentsWhereGestori('DocIssueDate >= DATE \'' + toChar(vetisVsdDateFrom(), 'yyyy-MM-dd') + '\'');
+    importVetDocumentsWhereGestori('v.DocIssueDate >= DATE \'' + toChar(vetisVsdDateFrom(), 'yyyy-MM-dd') + '\'');
 }
 
 // --- Блок 9: Настройки обмена из MercObject ---
@@ -367,20 +472,16 @@ importFilteredStockEntriesGestori 'Импорт актуальных запис�
         MESSAGE 'Укажите дату ВСД (с)';
         RETURN;
     }
-    IF vetisInitImportMissingStocks() THEN {
-        MESSAGE 'Не найдены склады с площадкой Ветис по кодам: ' + vetisInitImportMissingStocks();
-        RETURN;
-    }
 
     LOCAL file = FILE();
 
     EXTERNAL SQL vetisDbUrl()
-        EXEC 'SELECT j.GuidShop, j.GuidStockEntry, j.NumStockEntry, j.Volume, j.cod_good, v.DateExpiry ' +
+        EXEC 'SELECT j.GuidShop, j.GuidStockEntry, CAST(j.NumStockEntry AS VARCHAR(50)), j.Volume, j.cod_good, v.DateExpiry ' +
              'FROM Pub.MercRestShop j ' +
-             'JOIN Pub.MercVetDoc v ON v.GuidStockEntry = j.GuidStockEntry ' +
-             'WHERE (v.DateExpiry >= CURRENT_DATE) AND ' +
+             'JOIN Pub.MercVetDoc v ON v.IdDoc = j.IdDoc ' +
+             'WHERE j.ActiveStockEntry = 1 AND (v.DateExpiry >= CURRENT_DATE) AND ' +
              '(v.DocIssueDate >= DATE \'' + toChar(vetisVsdDateFrom(), 'yyyy-MM-dd') + '\')' +
-             (IF vetisInitImportStockCodes() THEN ' AND j.GuidShop IN (' + vetisInitImportShopGuids() + ')' ELSE '')
+             (IF vetisInitImportStockCodes() THEN ' AND j.cod_shop IN (' + vetisInitImportStockCodes() + ')' ELSE '')
         TO file;
 
     IMPORT TABLE FROM file() TO
@@ -402,9 +503,12 @@ importFilteredStockEntriesGestori 'Импорт актуальных запис�
     DO
         in(s, p) <- TRUE;
 
+    LOCAL NESTED count = INTEGER ();
+    count() <- OVERRIDE (GROUP SUM 1 IF seFilGuid(INTEGER i)), 0;
+
     APPLY;
 
-    MESSAGE 'Импортировано ' + (GROUP SUM 1 IF seFilGuid(INTEGER i)) + ' актуальных записей журнала';
+    IF NOT canceled() THEN MESSAGE 'Импортировано ' + count() + ' актуальных записей журнала';
 }
 
 // --- Мастер-действие ---
@@ -412,6 +516,7 @@ importFilteredStockEntriesGestori 'Импорт актуальных запис�
 importAllVetisGestori 'Импорт начальных данных Ветис' () {
     importFirmGestori();
     importAreaGestori();
+    importClassifierGestori();
     importProductItemsGestori();
     importStockEntriesGestori();
     importVetDocumentsGestori();
@@ -423,7 +528,7 @@ importAllVetisGestori 'Импорт начальных данных Ветис' 
 
 EXTEND FORM integrationData
     PROPERTIES() importAllVetisGestori, vetisInitImportStocks,
-                 importFirmGestori, importAreaGestori, importProductItemsGestori,
+                 importFirmGestori, importAreaGestori, importClassifierGestori, importProductItemsGestori,
                  importStockEntriesGestori,
                  vetisVsdDateFrom, importFilteredStockEntriesGestori,
                  importVetDocumentsGestori, importFilteredVetDocumentsGestori,
@@ -438,6 +543,7 @@ DESIGN integrationData {
             MOVE PROPERTY(importAllVetisGestori());
             MOVE PROPERTY(importFirmGestori());
             MOVE PROPERTY(importAreaGestori());
+            MOVE PROPERTY(importClassifierGestori());
             MOVE PROPERTY(importProductItemsGestori());
             MOVE PROPERTY(importStockEntriesGestori());
             MOVE PROPERTY(vetisVsdDateFrom());
