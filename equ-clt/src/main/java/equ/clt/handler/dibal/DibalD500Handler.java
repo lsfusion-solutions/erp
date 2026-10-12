@@ -6,7 +6,7 @@ import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
 import equ.api.stoplist.StopListInfo;
-import equ.clt.handler.MultithreadScalesHandler;
+import equ.clt.handler.DefaultScalesHandler;
 import equ.clt.handler.TCPPort;
 import lsfusion.base.ExceptionUtils;
 import org.json.JSONObject;
@@ -28,7 +28,7 @@ import java.util.Set;
 import static equ.clt.ProcessMonitorEquipmentServer.notInterruptedTransaction;
 import static equ.clt.handler.HandlerUtils.*;
 
-public class DibalD500Handler extends MultithreadScalesHandler {
+public class DibalD500Handler extends DefaultScalesHandler {
 
     protected FileSystemXmlApplicationContext springContext;
 

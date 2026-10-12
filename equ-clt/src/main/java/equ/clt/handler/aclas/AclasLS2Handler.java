@@ -5,7 +5,7 @@ import com.sun.jna.Native;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
-import equ.clt.handler.MultithreadScalesHandler;
+import equ.clt.handler.DefaultScalesHandler;
 import lsfusion.base.ExceptionUtils;
 import lsfusion.base.Pair;
 import org.apache.commons.codec.binary.Base64;
@@ -30,7 +30,7 @@ import static equ.clt.handler.HandlerUtils.safeDelete;
 import static equ.clt.handler.HandlerUtils.safeMultiply;
 import static lsfusion.base.BaseUtils.*;
 
-public class AclasLS2Handler extends MultithreadScalesHandler {
+public class AclasLS2Handler extends DefaultScalesHandler {
 
     protected final static Logger aclasls2Logger = Logger.getLogger("AclasLS2Logger");
 

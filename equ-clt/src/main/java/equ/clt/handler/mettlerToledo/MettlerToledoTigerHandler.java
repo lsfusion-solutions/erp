@@ -7,7 +7,7 @@ import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
 import equ.api.stoplist.StopListInfo;
 import equ.api.stoplist.StopListItem;
-import equ.clt.handler.MultithreadScalesHandler;
+import equ.clt.handler.DefaultScalesHandler;
 import equ.clt.handler.TCPPort;
 import lsfusion.base.ExceptionUtils;
 import org.apache.log4j.Logger;
@@ -27,7 +27,7 @@ import java.util.concurrent.Callable;
 import static equ.clt.ProcessMonitorEquipmentServer.notInterruptedTransaction;
 import static equ.clt.handler.HandlerUtils.safeMultiply;
 
-public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
+public class MettlerToledoTigerHandler extends DefaultScalesHandler {
 
     private static byte stx = 0x02;
     private static byte ack = 0x06;

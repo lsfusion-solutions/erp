@@ -3,7 +3,7 @@ package equ.clt.handler.mettlerToledo;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
-import equ.clt.handler.MultithreadScalesHandler;
+import equ.clt.handler.DefaultScalesHandler;
 import lsfusion.base.BaseUtils;
 import lsfusion.base.ExceptionUtils;
 import org.jdom2.Document;
@@ -19,7 +19,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 
-public class MettlerToledoBPlusComOneHandler extends MultithreadScalesHandler {
+public class MettlerToledoBPlusComOneHandler extends DefaultScalesHandler {
 
     protected String getLogPrefix() {
         return "Mettler Toledo BPlus ComOne: ";

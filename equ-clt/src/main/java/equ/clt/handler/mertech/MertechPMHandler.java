@@ -9,7 +9,7 @@ import com.google.common.io.LittleEndianDataOutputStream;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
-import equ.clt.handler.MultithreadScalesHandler;
+import equ.clt.handler.DefaultScalesHandler;
 import equ.clt.handler.TCPPort;
 import lsfusion.base.ExceptionUtils;
 import org.apache.commons.codec.binary.Hex;
@@ -34,7 +34,7 @@ import lsfusion.base.BaseUtils;
 
 import static equ.clt.ProcessMonitorEquipmentServer.notInterruptedTransaction;
 
-public class MertechPMHandler extends MultithreadScalesHandler {
+public class MertechPMHandler extends DefaultScalesHandler {
     
     private class ProductFileClass {
         @JsonProperty("categories")

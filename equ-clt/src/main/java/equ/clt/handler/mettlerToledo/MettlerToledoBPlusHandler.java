@@ -4,7 +4,7 @@ import com.google.common.base.Throwables;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
-import equ.clt.handler.MultithreadScalesHandler;
+import equ.clt.handler.DefaultScalesHandler;
 import lsfusion.base.ExceptionUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -17,7 +17,7 @@ import java.util.Collections;
 import static equ.clt.handler.HandlerUtils.safeDelete;
 import static equ.clt.handler.HandlerUtils.safeMultiply;
 
-public class MettlerToledoBPlusHandler extends MultithreadScalesHandler {
+public class MettlerToledoBPlusHandler extends DefaultScalesHandler {
 
     protected String getLogPrefix() {
         return "Mettler Toledo BPlus: ";

@@ -7,7 +7,7 @@ import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
 import equ.api.stoplist.StopListInfo;
-import equ.clt.handler.MultithreadScalesHandler;
+import equ.clt.handler.DefaultScalesHandler;
 import equ.clt.handler.ScalesSettings;
 import equ.clt.handler.TCPPort;
 import lsfusion.base.ExceptionUtils;
@@ -29,7 +29,7 @@ import static equ.clt.ProcessMonitorEquipmentServer.notInterruptedTransaction;
 import static lsfusion.base.BaseUtils.nvl;
 import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 
-public abstract class BizerbaHandler extends MultithreadScalesHandler {
+public abstract class BizerbaHandler extends DefaultScalesHandler {
 
     //Таблица PLST – список все PLUшек
     //Таблица ATST – список всех доп.текстов

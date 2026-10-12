@@ -3,7 +3,7 @@ package equ.clt.handler.aclas;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
-import equ.clt.handler.MultithreadScalesHandler;
+import equ.clt.handler.DefaultScalesHandler;
 import lsfusion.base.ExceptionUtils;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
@@ -23,7 +23,7 @@ import static equ.clt.ProcessMonitorEquipmentServer.notInterruptedTransaction;
 import static equ.clt.handler.HandlerUtils.safeMultiply;
 import static equ.clt.handler.HandlerUtils.trim;
 
-public class AclasHandler extends MultithreadScalesHandler {
+public class AclasHandler extends DefaultScalesHandler {
 
     protected FileSystemXmlApplicationContext springContext;
 

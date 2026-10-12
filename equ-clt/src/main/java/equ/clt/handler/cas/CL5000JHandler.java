@@ -7,7 +7,7 @@ import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
 import equ.api.stoplist.StopListInfo;
 import equ.clt.handler.HandlerUtils;
-import equ.clt.handler.MultithreadScalesHandler;
+import equ.clt.handler.DefaultScalesHandler;
 import lsfusion.base.ExceptionUtils;
 import lsfusion.base.file.RawFileData;
 import org.apache.log4j.Logger;
@@ -27,7 +27,7 @@ import java.util.concurrent.*;
 import static equ.clt.ProcessMonitorEquipmentServer.notInterruptedTransaction;
 import static lsfusion.base.BaseUtils.nvl;
 
-public class CL5000JHandler extends MultithreadScalesHandler {
+public class CL5000JHandler extends DefaultScalesHandler {
 
     protected final static Logger casLogger = Logger.getLogger("CASLogger");
 

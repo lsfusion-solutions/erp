@@ -3,7 +3,7 @@ package equ.clt.handler.dataprint;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
-import equ.clt.handler.MultithreadScalesHandler;
+import equ.clt.handler.DefaultScalesHandler;
 import equ.clt.handler.TCPPort;
 import lsfusion.base.BaseUtils;
 import lsfusion.base.ExceptionUtils;
@@ -18,7 +18,7 @@ import java.util.*;
 import static equ.clt.ProcessMonitorEquipmentServer.notInterruptedTransaction;
 import static lsfusion.base.BaseUtils.nvl;
 
-public class DataPrintWaspHandler extends MultithreadScalesHandler {
+public class DataPrintWaspHandler extends DefaultScalesHandler {
     
     private static class Result {
         protected boolean error;

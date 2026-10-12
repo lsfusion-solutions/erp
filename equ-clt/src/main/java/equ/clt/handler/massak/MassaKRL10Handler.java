@@ -8,7 +8,7 @@ import equ.api.stoplist.StopListInfo;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
-import equ.clt.handler.MultithreadScalesHandler;
+import equ.clt.handler.DefaultScalesHandler;
 import equ.clt.handler.TCPPort;
 import lsfusion.base.ExceptionUtils;
 import org.apache.commons.codec.binary.Hex;
@@ -29,7 +29,7 @@ import java.util.Set;
 import static equ.clt.ProcessMonitorEquipmentServer.notInterruptedTransaction;
 import static equ.clt.handler.HandlerUtils.trim;
 
-public class MassaKRL10Handler extends MultithreadScalesHandler {
+public class MassaKRL10Handler extends DefaultScalesHandler {
 
     byte notSnapshotItemByte = (byte) 101;
     byte snapshotItemByte = (byte) 1;

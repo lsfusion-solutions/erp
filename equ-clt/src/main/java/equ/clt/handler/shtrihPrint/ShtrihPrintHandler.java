@@ -6,7 +6,7 @@ import com.jacob.com.Dispatch;
 import com.jacob.com.Variant;
 import equ.api.*;
 import equ.api.scales.*;
-import equ.clt.handler.MultithreadScalesHandler;
+import equ.clt.handler.DefaultScalesHandler;
 import equ.clt.handler.cas.DataSocket;
 import lsfusion.base.ExceptionUtils;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
@@ -24,7 +24,7 @@ import static equ.clt.EquipmentServer.localDateToSqlDate;
 import static equ.clt.ProcessMonitorEquipmentServer.notInterruptedTransaction;
 import static lsfusion.base.BaseUtils.nvl;
 
-public class ShtrihPrintHandler extends MultithreadScalesHandler {
+public class ShtrihPrintHandler extends DefaultScalesHandler {
 
     private LocalDate defaultDate = LocalDate.of(2001, 1, 1);
 

@@ -7,7 +7,7 @@ import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
 import equ.api.stoplist.StopListInfo;
 import equ.api.stoplist.StopListItem;
-import equ.clt.handler.MultithreadScalesHandler;
+import equ.clt.handler.DefaultScalesHandler;
 import lsfusion.base.ExceptionUtils;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.Hex;
@@ -28,7 +28,7 @@ import java.util.concurrent.Callable;
 import static equ.clt.ProcessMonitorEquipmentServer.notInterruptedTransaction;
 import static lsfusion.base.BaseUtils.nvl;
 
-public class DigiHandler extends MultithreadScalesHandler {
+public class DigiHandler extends DefaultScalesHandler {
 
     protected static short cmdWrite = 0xF1;
     protected static short cmdCls = 0xF2;

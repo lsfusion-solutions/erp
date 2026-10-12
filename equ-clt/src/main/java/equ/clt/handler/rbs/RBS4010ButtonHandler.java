@@ -3,7 +3,7 @@ package equ.clt.handler.rbs;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
-import equ.clt.handler.MultithreadScalesHandler;
+import equ.clt.handler.DefaultScalesHandler;
 import equ.clt.handler.TCPPort;
 import lsfusion.base.ExceptionUtils;
 import org.apache.commons.codec.binary.Hex;
@@ -22,7 +22,7 @@ import java.util.Collections;
 
 import static equ.clt.ProcessMonitorEquipmentServer.notInterruptedTransaction;
 
-public class RBS4010ButtonHandler extends MultithreadScalesHandler {
+public class RBS4010ButtonHandler extends DefaultScalesHandler {
     
     private static class Result {
         protected String message;
