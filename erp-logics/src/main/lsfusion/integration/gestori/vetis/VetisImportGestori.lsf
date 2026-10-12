@@ -60,8 +60,6 @@ vetLocalGuidConsigneeArea = DATA LOCAL STRING(INTEGER);
 vetLocalGuidItemProd = DATA LOCAL STRING(INTEGER);
 vetLocalVolume = DATA LOCAL NUMERIC[16,5](INTEGER);
 vetLocalGuidStockEntry = DATA LOCAL STRING(INTEGER);
-vetLocalDocSeries = DATA LOCAL STRING(INTEGER);
-vetLocalDocNumber = DATA LOCAL STRING(INTEGER);
 vetLocalQuantity = DATA LOCAL NUMERIC[16,5](INTEGER);
 vetLocalGuidMeas = DATA LOCAL STRING(INTEGER);
 vetLocalDateProd = DATA LOCAL STRING(INTEGER);
@@ -74,6 +72,24 @@ vetLocalGlobalId = DATA LOCAL STRING(INTEGER);
 vetLocalMarkType = DATA LOCAL STRING(INTEGER);
 vetLocalMark = DATA LOCAL STRING(INTEGER);
 vetLocalStorageType = DATA LOCAL STRING(INTEGER);
+vetLocalGuidOrigCountry = DATA LOCAL STRING(INTEGER);
+vetLocalGuidOrigProdList = DATA LOCAL STRING(INTEGER);
+vetLocalGuidFirmOwner = DATA LOCAL STRING(INTEGER);
+vetLocalRoleOrigProdList = DATA LOCAL STRING(INTEGER);
+vetLocalPerishFlg = DATA LOCAL BOOLEAN(INTEGER);
+vetLocalLowGradeFlg = DATA LOCAL BOOLEAN(INTEGER);
+vetLocalNumOrdDoc = DATA LOCAL STRING(INTEGER);
+vetLocalDateOrdDoc = DATA LOCAL DATE(INTEGER);
+vetLocalSeriesDoc = DATA LOCAL STRING(INTEGER);
+vetLocalNumDoc = DATA LOCAL STRING(INTEGER);
+vetLocalDateDoc = DATA LOCAL DATE(INTEGER);
+vetLocalSeriesWayBill = DATA LOCAL STRING(INTEGER);
+vetLocalNumWayBill = DATA LOCAL STRING(INTEGER);
+vetLocalDateWayBill = DATA LOCAL DATE(INTEGER);
+vetLocalNumUtdDoc = DATA LOCAL STRING(INTEGER);
+vetLocalDateUtdDoc = DATA LOCAL DATE(INTEGER);
+vetLocalNumTrDoc = DATA LOCAL STRING(INTEGER);
+vetLocalDateTrDoc = DATA LOCAL DATE(INTEGER);
 
 // в Gestori тип, статус и способ хранения — номер элемента списка (с единицы); нечисловое значение даёт NULL
 vetisListWordGestori = FORMULA NULL STRING 'CASE WHEN trim($2) ~ \'^[0-9]+$\' THEN NULLIF(split_part($1, \',\', trim($2)::integer), \'\') END';
@@ -300,11 +316,16 @@ importVetDocumentsWhereGestori (STRING where) {
     EXTERNAL SQL vetisDbUrl()
         EXEC 'SELECT v.UuidDoc, v.DocIssueDate, CAST(v.DocStatus AS VARCHAR(50)), CAST(v.DocType AS VARCHAR(50)), ' +
              'v.GuidFirmConsignor, v.GuidAreaConsignor, v.GuidFirmConsignee, v.GuidAreaConsignee, ' +
-             'v.GuidItemProd, v.Volume, j.GuidStockEntry, CAST(v.DocSeries AS VARCHAR(50)), CAST(v.DocNumber AS VARCHAR(50)), ' +
+             'v.GuidItemProd, v.Volume, j.GuidStockEntry, ' +
              'v.Quantity, v.GuidMeas, SUBSTR(v.DateProd, 1, 100), SUBSTR(v.DateExp, 1, 100), v.GuidPurpose, ' +
              'SUBSTR(v.BatchId, 1, 500), v.LastUpdateDate, CAST(v.LastUpdateTime AS VARCHAR(30)), ' +
              'SUBSTR(v.GlobalId, 1, 100), CAST(v.MarkTypeItemProd AS VARCHAR(100)), SUBSTR(v.MarkItemProd, 1, 500), ' +
-             'CAST(v.TranspStorageType AS VARCHAR(20)) ' +
+             'CAST(v.TranspStorageType AS VARCHAR(20)), ' +
+             'v.GuidOrigCountry, SUBSTR(v.GuidOrigProdList, 1, 2000), v.GuidFirmOwner, SUBSTR(v.RoleOrigProdList, 1, 2000), ' +
+             'v.PerishFlg, v.LowGradeFlg, ' +
+             'SUBSTR(v.NumOrdDoc, 1, 100), v.DateOrdDoc, SUBSTR(v.SeriesDoc, 1, 100), SUBSTR(v.NumDoc, 1, 100), v.DateDoc, ' +
+             'SUBSTR(v.SeriesWayBill, 1, 100), SUBSTR(v.NumWayBill, 1, 100), v.DateWayBill, ' +
+             'SUBSTR(v.NumUtdDoc, 1, 100), v.DateUtdDoc, SUBSTR(v.NumTrDoc, 1, 100), v.DateTrDoc ' +
              'FROM Pub.MercVetDoc v JOIN Pub.MercRestShop j ON j.IdDoc = v.IdDoc ' +
              'WHERE ' + where + ' AND j.ActiveStockEntry = 1' +
              (IF vetisInitImportStockCodes() THEN ' AND j.cod_shop IN (' + vetisInitImportStockCodes() + ')' ELSE '')
@@ -315,10 +336,14 @@ importVetDocumentsWhereGestori (STRING where) {
         vetLocalGuidConsignorFirm, vetLocalGuidConsignorArea,
         vetLocalGuidConsigneeFirm, vetLocalGuidConsigneeArea,
         vetLocalGuidItemProd, vetLocalVolume, vetLocalGuidStockEntry,
-        vetLocalDocSeries, vetLocalDocNumber,
         vetLocalQuantity, vetLocalGuidMeas, vetLocalDateProd, vetLocalDateExp, vetLocalGuidPurpose,
         vetLocalBatchId, vetLocalLastUpdateDate, vetLocalLastUpdateTime,
-        vetLocalGlobalId, vetLocalMarkType, vetLocalMark, vetLocalStorageType;
+        vetLocalGlobalId, vetLocalMarkType, vetLocalMark, vetLocalStorageType,
+        vetLocalGuidOrigCountry, vetLocalGuidOrigProdList, vetLocalGuidFirmOwner, vetLocalRoleOrigProdList,
+        vetLocalPerishFlg, vetLocalLowGradeFlg,
+        vetLocalNumOrdDoc, vetLocalDateOrdDoc, vetLocalSeriesDoc, vetLocalNumDoc, vetLocalDateDoc,
+        vetLocalSeriesWayBill, vetLocalNumWayBill, vetLocalDateWayBill,
+        vetLocalNumUtdDoc, vetLocalDateUtdDoc, vetLocalNumTrDoc, vetLocalDateTrDoc;
 
     // один ВСД может прийти несколькими строками — по одной на каждую запись журнала
     LOCAL first = BOOLEAN (INTEGER);
@@ -350,6 +375,12 @@ importVetDocumentsWhereGestori (STRING where) {
         productMarksClassGestori(d) <- vetLocalMarkType(i);
         productMarksGestori(d) <- vetLocalMark(i);
         transportStorageType(d) <- vetisListWordGestori('FROZEN,CHILLED,COOLED,VENTILATED', vetLocalStorageType(i));
+        countryOriginGuidGestori(d) <- vetLocalGuidOrigCountry(i);
+        producersOriginGuidGestori(d) <- vetLocalGuidOrigProdList(i);
+        ownerBEGuidGestori(d) <- vetLocalGuidFirmOwner(i);
+        producersOriginRoleGestori(d) <- vetLocalRoleOrigProdList(i);
+        perishable(d) <- vetLocalPerishFlg(i);
+        lowGradeCargo(d) <- vetLocalLowGradeFlg(i);
     }
 
     // Связь ВСД с записью складского журнала
@@ -358,16 +389,61 @@ importVetDocumentsWhereGestori (STRING where) {
     DO
         in(s, d) <- TRUE;
 
-    // Связанный документ — накладная (relationshipType=1)
-    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) AND first(i) AND
-        (vetLocalDocSeries(i) OR vetLocalDocNumber(i)) AND
-        NOT vetReferenceDocument(d, CONCAT ';', vetLocalDocSeries(i), vetLocalDocNumber(i), vetLocalIssueDate(i), 1, 1)
+    // Сопроводительные документы (relationshipType = 1); коды типов — DocumentType_v2.0
+    // Заказ
+    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) AND first(i) AND vetLocalNumOrdDoc(i) AND
+        NOT vetReferenceDocument(d, (CONCAT ';', vetLocalNumOrdDoc(i), vetLocalDateOrdDoc(i), 16, 1))
     DO NEW rd = VetReferenceDocument {
         vetDocument(rd) <- d;
-        issueSeries(rd) <- vetLocalDocSeries(i);
-        issueNumber(rd) <- vetLocalDocNumber(i);
-        issueDate(rd) <- vetLocalIssueDate(i);
+        issueNumber(rd) <- vetLocalNumOrdDoc(i);
+        issueDate(rd) <- vetLocalDateOrdDoc(i);
+        type(rd) <- 16;
+        relationshipType(rd) <- 1;
+    }
+
+    // ТОРГ-12
+    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) AND first(i) AND (vetLocalSeriesDoc(i) OR vetLocalNumDoc(i)) AND
+        NOT vetReferenceDocument(d, (CONCAT ';', vetLocalSeriesDoc(i), vetLocalNumDoc(i), vetLocalDateDoc(i), 6, 1))
+    DO NEW rd = VetReferenceDocument {
+        vetDocument(rd) <- d;
+        issueSeries(rd) <- vetLocalSeriesDoc(i);
+        issueNumber(rd) <- vetLocalNumDoc(i);
+        issueDate(rd) <- vetLocalDateDoc(i);
+        type(rd) <- 6;
+        relationshipType(rd) <- 1;
+    }
+
+    // ТТН
+    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) AND first(i) AND (vetLocalSeriesWayBill(i) OR vetLocalNumWayBill(i)) AND
+        NOT vetReferenceDocument(d, (CONCAT ';', vetLocalSeriesWayBill(i), vetLocalNumWayBill(i), vetLocalDateWayBill(i), 1, 1))
+    DO NEW rd = VetReferenceDocument {
+        vetDocument(rd) <- d;
+        issueSeries(rd) <- vetLocalSeriesWayBill(i);
+        issueNumber(rd) <- vetLocalNumWayBill(i);
+        issueDate(rd) <- vetLocalDateWayBill(i);
         type(rd) <- 1;
+        relationshipType(rd) <- 1;
+    }
+
+    // УПД
+    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) AND first(i) AND vetLocalNumUtdDoc(i) AND
+        NOT vetReferenceDocument(d, (CONCAT ';', vetLocalNumUtdDoc(i), vetLocalDateUtdDoc(i), 23, 1))
+    DO NEW rd = VetReferenceDocument {
+        vetDocument(rd) <- d;
+        issueNumber(rd) <- vetLocalNumUtdDoc(i);
+        issueDate(rd) <- vetLocalDateUtdDoc(i);
+        type(rd) <- 23;
+        relationshipType(rd) <- 1;
+    }
+
+    // транспортная накладная
+    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) AND first(i) AND vetLocalNumTrDoc(i) AND
+        NOT vetReferenceDocument(d, (CONCAT ';', vetLocalNumTrDoc(i), vetLocalDateTrDoc(i), 5, 1))
+    DO NEW rd = VetReferenceDocument {
+        vetDocument(rd) <- d;
+        issueNumber(rd) <- vetLocalNumTrDoc(i);
+        issueDate(rd) <- vetLocalDateTrDoc(i);
+        type(rd) <- 5;
         relationshipType(rd) <- 1;
     }
 
