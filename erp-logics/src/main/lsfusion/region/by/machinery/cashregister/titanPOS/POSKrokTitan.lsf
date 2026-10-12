@@ -1,0 +1,18 @@
+MODULE POSKrokTitan;
+
+REQUIRE POSKrokLib, OperationTitanPOSCommon;
+
+NAMESPACE POS;
+
+// для интеграции ТиКрок: серийный номер СКО, регистрационный номер кассы и номер следующего чека берутся из статуса СКО TitanPOS.
+// Если статус получить не удалось, запрос уходит без них: библиотека сама запрашивает эти данные у TitanPOS
+fillKrokFiscalData(Receipt r) + {
+    IF sidCashRegisterModel(r) = 'titanPOS' THEN {
+        eqGetState(cashRegister(r));
+        IF NOT titanECode() THEN {
+            krokCryptoNumber() <- serial();
+            krokCashboxNumber() <- registerId();
+            krokNextCheckNumber() <- STRING(INTEGER(docNumber())) IF docNumber() > 0;
+        }
+    }
+}

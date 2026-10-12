@@ -1,0 +1,168 @@
+MODULE POSKrokLib;
+
+REQUIRE POSKrok;
+
+NAMESPACE POS;
+
+// Проведение платежей "Крок" через библиотеку TitanKrokLib на кассе
+
+// ----------------------------------- Настройки кассы ---------------------------- //
+
+useKrok 'КРОК (библиотека TitanKrokLib)' = DATA BOOLEAN (CashRegister);
+krokIntegration 'Интеграция КРОК' = DATA STRING[50] (CashRegister);
+krokLibraryDir 'Каталог библиотеки КРОК' = DATA STRING[255] (CashRegister);
+// payerQrCode запроса. Обычно не задаётся: QR кассы библиотека получает с сервера сама.
+// Нужен только для схем, где QR передаётся в запросе явно (например, отсканирован с телефона плательщика)
+krokPayerQrCode 'QR-код плательщика КРОК (payerQrCode)' = DATA STRING[255] (CashRegister);
+
+EXTEND FORM groupCashRegister
+    PROPERTIES(c) useKrok, krokIntegration, krokLibraryDir, krokPayerQrCode
+;
+
+extraShowKrok(Receipt r) += useKrok(cashRegister(r));
+
+// платеж КРОК чека продажи, по которому делается возврат
+krokSalePayment (Receipt r) = GROUP LAST Payment p ORDER p
+    IF krokPaymentUid(p) AND receipt(p) = receiptSale(ReceiptReturnDetail d) AND receipt(d) = r;
+
+// ----------------------------------- Запрос к библиотеке ---------------------------- //
+
+krokResponse = DATA LOCAL TEXT ();
+krokError = DATA LOCAL TEXT ();
+
+krokExecute 'Выполнить запрос КРОК' INTERNAL 'lsfusion.erp.region.by.machinery.krok.KrokExecuteAction' (JSONTEXT, STRING) NULL;
+
+// данные кассы для интеграции ТиКрок, заполняются реализацией фискального регистратора (необязательны: библиотека может
+// взять их из своих настроек или сама запросить у TitanPOS); ошибку, при которой платить нельзя, пишет в krokError
+krokCryptoNumber 'Серийный номер СКО' = DATA LOCAL STRING ();
+krokCashboxNumber 'Регистрационный номер кассы' = DATA LOCAL STRING ();
+krokNextCheckNumber 'Номер следующего чека' = DATA LOCAL STRING ();
+fillKrokFiscalData 'Получить данные кассы для КРОК' ABSTRACT LIST (Receipt);
+
+// параметры запроса: возврат делается, если задан krokRefundPaymentUid
+krokSum = DATA LOCAL NUMERIC[14,2] ();
+krokRefundPaymentUid = DATA LOCAL STRING ();
+krokCheckNumber = DATA LOCAL STRING ();
+
+krokResultPaymentUid = DATA LOCAL STRING ();
+krokResultInvoiceId = DATA LOCAL STRING ();
+krokResultCncp = DATA LOCAL INTEGER ();
+
+requestKrok 'Запрос КРОК' (Receipt r) {
+    krokError() <- NULL;
+    krokResponse() <- NULL;
+    krokCryptoNumber() <- NULL;
+    krokCashboxNumber() <- NULL;
+    krokNextCheckNumber() <- NULL;
+    fillKrokFiscalData(r);
+    IF krokError() THEN RETURN;
+
+    krokExecute((JSONTEXT FROM
+                    integration = (OVERRIDE krokIntegration(cashRegister(r)), 'TIKROK'),
+                    refund = TRUE IF krokRefundPaymentUid(),
+                    crypto_number = krokCryptoNumber(),
+                    cashbox_number = krokCashboxNumber(),
+                    paymentUid = krokRefundPaymentUid(),
+                    totalSum = krokSum(),
+                    checkNumber = (OVERRIDE krokCheckNumber(), krokNextCheckNumber(), STRING(number(r))),
+                    payerQrCode = krokPayerQrCode(cashRegister(r)),
+                    checkLines = (JSON FROM value = (CONCAT ' ', nameSku(ReceiptDetail d), '--',
+                                                     toChar(price(d), 'FM9999999990.00'),
+                                                     toChar(quantity(d), 'FM9999999990.000'),
+                                                     toChar(sum(d), 'FM9999999990.00'))
+                                  WHERE receipt(d) = r ORDER d)),
+                krokLibraryDir(cashRegister(r)));
+    IF krokError() THEN RETURN;
+
+    krokResultPaymentUid() <- NULL;
+    krokResultInvoiceId() <- NULL;
+    krokResultCncp() <- NULL;
+    stringToFile(krokResponse());
+    IMPORT JSON FROM resultFile() TO() krokResultCncp = cncp, krokResultInvoiceId = invoiceId, krokResultPaymentUid = paymentUid;
+    // при возврате cncp = -1 означает ошибку
+    IF NOT krokResultPaymentUid() OR krokResultCncp() < 0 THEN
+        krokError() <- 'Некорректный ответ: ' + krokResponse();
+}
+
+// платеж КРОК проведен, а чек не сохранен: сбрасывается успешным APPLY при сохранении напечатанного чека
+krokNotPrinted = DATA LOCAL BOOLEAN ();
+
+payKrok 'Оплата КРОК' (Payment p) {
+    krokSum() <- NUMERIC[14,2](abs(sum(p)));
+    krokRefundPaymentUid() <- NULL;
+    krokCheckNumber() <- NULL;
+    IF countReceiptReturnDetail(receipt(p)) THEN {
+        IF NOT countReceiptReturnDetail(receipt(p)) = countReceiptDetail(receipt(p)) THEN {
+            MESSAGE 'В системе КРОК не допускается оплата и возврат в одном чеке';
+            returnPost() <- TRUE;
+            RETURN;
+        }
+        IF NOT krokSalePayment(receipt(p)) THEN {
+            MESSAGE 'Не найден платеж КРОК по чеку продажи, возврат через КРОК невозможен';
+            returnPost() <- TRUE;
+            RETURN;
+        }
+        krokRefundPaymentUid() <- krokPaymentUid(krokSalePayment(receipt(p)));
+        krokCheckNumber() <- STRING(number(receipt(krokSalePayment(receipt(p)))));
+    }
+
+    requestKrok(receipt(p));
+    IF krokError() THEN {
+        MESSAGE 'Ошибка КРОК: ' + krokError();
+        returnPost() <- TRUE;
+        RETURN;
+    }
+    krokPaymentUid(p) <- krokResultPaymentUid();
+    krokInvoiceId(p) <- krokResultInvoiceId();
+    krokCncp(p) <- krokResultCncp();
+    krokNotPrinted() <- TRUE;
+}
+
+processKrok(Payment p) + {
+    IF useKrok(cashRegister(receipt(p))) THEN payKrok(p);
+}
+
+// возврат средств по проведенному платежу продажи, чек по которому не напечатан
+cancelKrok 'Отмена платежа КРОК' (Payment p) {
+    krokSum() <- NUMERIC[14,2](abs(sum(p)));
+    krokRefundPaymentUid() <- krokPaymentUid(p);
+    krokCheckNumber() <- NULL;
+    requestKrok(receipt(p));
+    IF krokError() THEN {
+        MESSAGE 'Ошибка отмены платежа КРОК: ' + krokError();
+    } ELSE {
+        krokPaymentUid(p) <- NULL;
+        krokInvoiceId(p) <- NULL;
+        krokCncp(p) <- NULL;
+        krokNotPrinted() <- NULL;
+        MESSAGE 'Платеж КРОК отменен, средства возвращены покупателю';
+    }
+}
+
+// ----------------------------------- Печать чека ---------------------------- //
+
+krokPrintRetry = DATA LOCAL BOOLEAN ();
+
+AFTER postPrint(Receipt r) DO {
+    IF krokNotPrinted() AND NOT krokPrintRetry() THEN {
+        krokPrintRetry() <- TRUE;
+        WHILE krokNotPrinted() DO {
+            IF countReceiptReturnDetail(r) THEN {
+                ASK 'Не удалось напечатать чек, а возврат через КРОК уже выполнен. Повторить печать чека?' retry = YESNO DO {
+                    IF retry THEN
+                        postPrint(r);
+                    ELSE
+                        krokNotPrinted() <- NULL;
+                }
+            } ELSE {
+                ASK 'Не удалось напечатать чек. Нажмите "Да", чтобы повторить печать чека, или "Нет", чтобы отменить платеж КРОК' retry = YESNO DO {
+                    IF retry THEN
+                        postPrint(r);
+                    ELSE
+                        cancelKrok(krokPayment(r));
+                }
+            }
+        }
+        krokPrintRetry() <- NULL;
+    }
+}

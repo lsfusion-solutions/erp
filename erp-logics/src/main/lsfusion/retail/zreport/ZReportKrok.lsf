@@ -1,0 +1,32 @@
+MODULE ZReportKrok;
+
+REQUIRE ZReport;
+
+NAMESPACE ZReport;
+
+EXTEND CLASS PaymentMeans { paymentMeansKrok 'КРОК' }
+order (PaymentMeans p) += WHEN p = PaymentMeans.paymentMeansKrok THEN 5;
+
+extraKrok = ABSTRACT VALUE BOOLEAN (PaymentType);
+isKrok 'КРОК' (PaymentType t) = paymentMeans(t) = PaymentMeans.paymentMeansKrok OR extraKrok(t);
+
+sumKrokPayment 'Сумма продажа (КРОК)' (receipt) = GROUP SUM sum(Payment payment) IF isKrok(paymentType(payment)) BY receipt(payment);
+sumPositiveKrokPayment 'Сумма продажа (КРОК)' (Receipt receipt) = sumKrokPayment(receipt) IF sumKrokPayment(receipt) >= 0.0 IN documentSum;
+sumNegativeKrokPayment 'Сумма возврата (КРОК)' (Receipt receipt) = sumKrokPayment(receipt) IF sumKrokPayment(receipt) < 0.0 IN documentSum;
+
+sumKrokPayment 'КРОК (чек)' (ReceiptDetail detail) = sumKrokPayment(receipt(detail));
+
+sumKrokPayment 'Сумма по КРОК Z-отчета' (zReport) = GROUP SUM sumKrokPayment(Receipt receipt) BY zReport(receipt) MATERIALIZED IN documentSum;
+sumPositiveKrokPayment 'Сумма продажа (КРОК)' (zReport) = GROUP SUM sumPositiveKrokPayment(Receipt r) IF NOT skip(r) BY zReport(r) IN documentSum;
+sumNegativeKrokPayment 'Сумма возврата (КРОК)' (zReport) = GROUP SUM sumNegativeKrokPayment(Receipt r) IF NOT skip(r) BY zReport(r) MATERIALIZED IN documentSum;
+
+EXTEND FORM zReports
+    PROPERTIES(z) READONLY sumPositiveKrokPayment BEFORE sumPositiveCashPayment(z),
+                           sumNegativeKrokPayment BEFORE sumNegativeCashPayment(z)
+    PROPERTIES(b) READONLY sumKrokPayment BEFORE sumCashPayment(b)
+;
+
+EXTEND FORM zReport
+    PROPERTIES(z) READONLY sumPositiveKrokPayment, sumNegativeKrokPayment
+    PROPERTIES(b) READONLY sumKrokPayment BEFORE sumCashPayment(b)
+;

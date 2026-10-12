@@ -1,0 +1,17 @@
+MODULE POSKrokLight;
+
+REQUIRE POSKrok;
+
+NAMESPACE POS;
+
+// Оплата "Крок" без обмена с платежной системой: оплата по QR-коду проходит на банковском терминале,
+// связи кассы с терминалом нет, кассир подтверждает оплату вручную
+
+extraShowKrok(Receipt r) += r IS Receipt;
+
+processKrok(Payment p) + {
+    ASK 'Оплата КРОК на сумму ' + abs(sum(p)) + ' проведена на банковском терминале?' DO
+        returnPost() <- NULL;
+    ELSE
+        returnPost() <- TRUE;
+}
