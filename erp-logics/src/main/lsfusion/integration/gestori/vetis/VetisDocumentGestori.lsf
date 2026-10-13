@@ -1147,6 +1147,80 @@ beforeProcessOutgoingConsignment() + {
     }
 }
 
+// ---- Отправка запросов: склады отправителя и получателя должны быть непротиворечиво связаны с площадками ----
+
+errorStockEnterpriseGestori (Stock s, LegalEntity l) = CASE
+    WHEN NOT enterprise(s) THEN 'склад «' + name(s) + '» не связан с площадкой'
+    WHEN NOT businessEntity(l) THEN 'организация «' + name(l) + '» не связана с хозяйствующим субъектом'
+    WHEN NOT owner(enterprise(s)) = businessEntity(l) THEN 'площадка «' + name(enterprise(s)) + '» склада «' + name(s) +
+        '» принадлежит ХС «' + (OVERRIDE name(owner(enterprise(s))), 'не указан') + '», а организация «' + name(l) +
+        '» связана с ХС «' + name(businessEntity(l)) + '»';
+
+consignorGestori = ABSTRACT LegalEntity (OutgoingConsignment);
+consignorStockGestori = ABSTRACT Stock (OutgoingConsignment);
+consigneeGestori = ABSTRACT LegalEntity (OutgoingConsignment);
+consigneeStockGestori = ABSTRACT Stock (OutgoingConsignment);
+
+consignorGestori (VetisSale.ShipmentOutgoingConsignment c) += Sale.supplier(VetisSale.shipmentDetail(c));
+consignorStockGestori (VetisSale.ShipmentOutgoingConsignment c) += Sale.supplierStock(VetisSale.shipmentDetail(c));
+consigneeGestori (VetisSale.ShipmentOutgoingConsignment c) += Sale.customer(VetisSale.shipmentDetail(c));
+consigneeStockGestori (VetisSale.ShipmentOutgoingConsignment c) += Sale.customerStock(VetisSale.shipmentDetail(c));
+
+consignorGestori (VetisPurchaseReturn.ShipmentOutgoingConsignment c) += PurchaseReturn.customer(VetisPurchaseReturn.shipmentDetail(c));
+consignorStockGestori (VetisPurchaseReturn.ShipmentOutgoingConsignment c) += PurchaseReturn.customerStock(VetisPurchaseReturn.shipmentDetail(c));
+consigneeGestori (VetisPurchaseReturn.ShipmentOutgoingConsignment c) += PurchaseReturn.supplier(VetisPurchaseReturn.shipmentDetail(c));
+consigneeStockGestori (VetisPurchaseReturn.ShipmentOutgoingConsignment c) += PurchaseReturn.supplierStock(VetisPurchaseReturn.shipmentDetail(c));
+
+errorStocksGestori (OutgoingConsignment c) = CONCAT '; ',
+    ('не указан склад отправителя' IF c IS OutgoingConsignment AND NOT consignorStockGestori(c)),
+    ('отправитель: ' + errorStockEnterpriseGestori(consignorStockGestori(c), consignorGestori(c))),
+    ('не указан склад получателя' IF c IS OutgoingConsignment AND NOT consigneeStockGestori(c)),
+    ('получатель: ' + errorStockEnterpriseGestori(consigneeStockGestori(c), consigneeGestori(c))),
+    ('склады отправителя «' + name(consignorStockGestori(c)) + '» и получателя «' + name(consigneeStockGestori(c)) +
+        '» связаны с одной площадкой «' + name(consignorEnterprise(c)) + '»' IF consignorEnterprise(c) = consigneeEnterprise(c));
+
+firstErrorStocksGestori (t) = GROUP MIN OutgoingConsignment c IF in(c) BY errorStocksGestori(c);
+
+beforeProcessOutgoingConsignment() + {
+    IF (GROUP SUM 1 IF in(OutgoingConsignment c) AND errorStocksGestori(c)) THEN {
+        MESSAGE 'Нельзя отправить запрос в Ветис: связь складов с площадками отсутствует или противоречива:\n' +
+            (GROUP CONCAT errorStocksGestori(OutgoingConsignment c) IF in(c) AND firstErrorStocksGestori(errorStocksGestori(c)) = c, '\n' ORDER c);
+        cancelProcessOutgoingConsignment() <- TRUE;
+    }
+}
+
+// склад отправителя обязателен, только если в ВСД есть площадка отправителя: производственный ВСД её не содержит
+consignorGestori = ABSTRACT LegalEntity (IncomingConsignment);
+consignorStockGestori = ABSTRACT Stock (IncomingConsignment);
+consigneeGestori = ABSTRACT LegalEntity (IncomingConsignment);
+consigneeStockGestori = ABSTRACT Stock (IncomingConsignment);
+
+consignorGestori (VetisPurchase.ShipmentIncomingConsignment c) += Purchase.supplier(VetisPurchase.shipmentDetail(c));
+consignorStockGestori (VetisPurchase.ShipmentIncomingConsignment c) += Purchase.supplierStock(VetisPurchase.shipmentDetail(c));
+consigneeGestori (VetisPurchase.ShipmentIncomingConsignment c) += Purchase.customer(VetisPurchase.shipmentDetail(c));
+consigneeStockGestori (VetisPurchase.ShipmentIncomingConsignment c) += Purchase.customerStock(VetisPurchase.shipmentDetail(c));
+
+consignorGestori (VetisSaleReturn.ShipmentIncomingConsignment c) += SaleReturn.customer(VetisSaleReturn.shipmentDetail(c));
+consignorStockGestori (VetisSaleReturn.ShipmentIncomingConsignment c) += SaleReturn.customerStock(VetisSaleReturn.shipmentDetail(c));
+consigneeGestori (VetisSaleReturn.ShipmentIncomingConsignment c) += SaleReturn.supplier(VetisSaleReturn.shipmentDetail(c));
+consigneeStockGestori (VetisSaleReturn.ShipmentIncomingConsignment c) += SaleReturn.supplierStock(VetisSaleReturn.shipmentDetail(c));
+
+errorStocksGestori (IncomingConsignment c) = CONCAT '; ',
+    ('не указан склад отправителя' IF consignorEnterpriseVetDocument(c) AND NOT consignorStockGestori(c)),
+    ('отправитель: ' + errorStockEnterpriseGestori(consignorStockGestori(c), consignorGestori(c))),
+    ('не указан склад получателя' IF c IS IncomingConsignment AND NOT consigneeStockGestori(c)),
+    ('получатель: ' + errorStockEnterpriseGestori(consigneeStockGestori(c), consigneeGestori(c))),
+    ('склады отправителя «' + name(consignorStockGestori(c)) + '» и получателя «' + name(consigneeStockGestori(c)) +
+        '» связаны с одной площадкой «' + name(enterprise(consigneeStockGestori(c))) + '»'
+        IF enterprise(consignorStockGestori(c)) = enterprise(consigneeStockGestori(c)));
+
+beforeProcessIncomingConsignment(IncomingConsignment c) + {
+    IF errorStocksGestori(c) THEN {
+        MESSAGE 'Нельзя отправить запрос в Ветис: связь складов с площадками отсутствует или противоречива: ' + errorStocksGestori(c);
+        cancelProcessIncomingConsignment() <- TRUE;
+    }
+}
+
 CONSTRAINT CHANGED(shipmentQuantity(Purchase.UserInvoiceDetail vd)) AND isPosted(vd) AND NOT CHANGED(isPosted(vd))
     MESSAGE 'Нельзя изменить количество: накладная проведена';
 CONSTRAINT CHANGED(shipmentQuantity(Purchase.UserInvoiceDetail vd)) AND vsdVolumeLockedGestori(vd)

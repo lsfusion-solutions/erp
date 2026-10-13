@@ -406,3 +406,21 @@ beforeRegisterProductionOperation(Production.Order o) + {
         cancelRegisterProductionOperation() <- TRUE;
     }
 }
+
+// ---- Отправка запроса: склады заказа должны быть непротиворечиво связаны с площадкой производства ----
+// в заявке одна площадка — склада изделий, сырьё списывается в Ветис с неё же
+errorStocksProductionGestori (Production.Order o) = CONCAT '; ',
+    ('не указан склад изделий' IF o IS Production.Order AND NOT productsStock(o)),
+    ('склад изделий: ' + errorStockEnterpriseGestori(productsStock(o), legalEntity(productsStock(o)))),
+    ('не указан склад компонентов' IF o IS Production.Order AND NOT componentsStock(o)),
+    ('склад компонентов: ' + errorStockEnterpriseGestori(componentsStock(o), legalEntity(componentsStock(o)))),
+    ('склад компонентов «' + name(componentsStock(o)) + '» не связан с площадкой «' + name(enterprise(productsStock(o))) +
+        '» склада изделий «' + name(productsStock(o)) + '»'
+        IF enterprise(componentsStock(o)) AND enterprise(productsStock(o)) AND NOT in(componentsStock(o), enterprise(productsStock(o))));
+
+beforeRegisterProductionOperation(Production.Order o) + {
+    IF errorStocksProductionGestori(o) THEN {
+        MESSAGE 'Нельзя отправить запрос в Ветис: связь складов с площадками отсутствует или противоречива: ' + errorStocksProductionGestori(o);
+        cancelRegisterProductionOperation() <- TRUE;
+    }
+}
