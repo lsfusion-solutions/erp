@@ -76,7 +76,7 @@ public class DibalD500Handler extends DefaultScalesHandler {
         }
     }
 
-    private void loadItem(TCPPort port, Set<String> loadedGroups, ScalesItem item) throws IOException {
+    private void loadItem(TCPPort port, Set<String> loadedGroups, ScalesItem item, DibalSettings dibalSettings) throws IOException {
         Integer pluNumber = getPluNumber(item);
         if(pluNumber != null) {
             JSONObject infoJSON = getExtInfo(item.info);
@@ -87,7 +87,7 @@ public class DibalD500Handler extends DefaultScalesHandler {
             List<byte[]> itemData = new ArrayList<>();
 
             itemData.add(getItemL2Bytes(item, pluNumber));
-            itemData.add(getItemH3Bytes(item, pluNumber, idItemGroup, tareWeight));
+            itemData.add(getItemH3Bytes(item, pluNumber, idItemGroup, tareWeight, dibalSettings));
             itemData.addAll(getItemDescriptionBytes(item));
 
             if (idItemGroup != null && !loadedGroups.contains(idItemGroup)) {
@@ -203,7 +203,7 @@ public class DibalD500Handler extends DefaultScalesHandler {
         return bytes.array();
     }
 
-    private byte[] getItemH3Bytes(ScalesItem item, Integer pluNumber, String idItemGroup, int tareWeight) {
+    private byte[] getItemH3Bytes(ScalesItem item, Integer pluNumber, String idItemGroup, int tareWeight, DibalSettings dibalSettings) {
         ByteBuffer bytes = ByteBuffer.allocate(130);
 
         //6 bytes
@@ -237,7 +237,7 @@ public class DibalD500Handler extends DefaultScalesHandler {
         bytes.put(getBytes("00"));
 
         //ean 13 format, 2 bytes
-        bytes.put(getBytes(isWeight(item, 0) ? "00" : "01"));
+        bytes.put(getBytes(prependZeroes(isWeight(item, 0) ? dibalSettings.getWeightEan13Format() : dibalSettings.getPieceEan13Format(), 2)));
 
         //ean 128 format, 2 bytes
         bytes.put(getBytes("00"));
@@ -455,12 +455,13 @@ public class DibalD500Handler extends DefaultScalesHandler {
 
                     if(cleared || !needToClear) {
                         processTransactionLogger.info(getLogPrefix() + "Sending items..." + scales.port);
+                        DibalSettings dibalSettings = springContext.containsBean("dibalSettings") ? (DibalSettings) springContext.getBean("dibalSettings") : new DibalSettings();
                         int count = 0;
                         Set<String> loadedGroups = new HashSet<>();
                         for (ScalesItem item : transaction.itemsList) {
                             if (notInterruptedTransaction(transaction.id)) {
                                 processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, ++count, item.idBarcode, transaction.itemsList.size()));
-                                loadItem(port, loadedGroups, item);
+                                loadItem(port, loadedGroups, item, dibalSettings);
                             } else break;
                         }
                     }
