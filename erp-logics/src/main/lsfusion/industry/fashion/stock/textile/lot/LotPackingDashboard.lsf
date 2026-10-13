@@ -14,6 +14,46 @@ open 'Открыть' (Packet packet)  {
     NEWSESSION { isClosed(packet) <- NULL; apply(); }
 } TOOLBAR CONFIRM;
 
+dateTimeClosed 'Дата закрытия' = DATA DATETIME (Packet);
+closedByUser = DATA CustomUser (Packet);
+nameClosedByUser 'Закрыт пользователем' (Packet packet) = name[Contact](closedByUser(packet));
+
+dateTimeOpened 'Дата открытия' = DATA DATETIME (Packet);
+openedByUser = DATA CustomUser (Packet);
+nameOpenedByUser 'Открыт пользователем' (Packet packet) = name[Contact](openedByUser(packet));
+
+WHEN SET(isClosed(Packet packet)) DO {
+    dateTimeClosed(packet) <- currentDateTime();
+    closedByUser(packet) <- currentUser();
+}
+
+WHEN DROPPED(isClosed(Packet packet)) AND packet IS Packet DO {
+    dateTimeOpened(packet) <- currentDateTime();
+    openedByUser(packet) <- currentUser();
+}
+
+EXTEND FORM packets
+    PROPERTIES(s) READONLY PANEL nameClosedByUser, dateTimeClosed, nameOpenedByUser, dateTimeOpened
+;
+
+DESIGN packets {
+    NEW logTabContainer BEFORE TOOLBARBOX {
+        tabbed = TRUE;
+        NEW logTab {
+            NEW closedLog {
+                horizontal = TRUE;
+                MOVE PROPERTY(nameClosedByUser(s));
+                MOVE PROPERTY(dateTimeClosed(s));
+            }
+            NEW openedLog {
+                horizontal = TRUE;
+                MOVE PROPERTY(nameOpenedByUser(s));
+                MOVE PROPERTY(dateTimeOpened(s));
+            }
+        }
+    }
+}
+
 in 'Вкл' = DATA LOCAL BOOLEAN (Lot);
 
 FORM dialogAddPacketLots 'Марки'
@@ -264,6 +304,7 @@ FORM lotPacking 'Упаковка марок в пакеты'
 
     OBJECTS p = Packet
     PROPERTIES(p) READONLY isClosed, id, currentSkuList, currentQuantity, countLotsPacket, completeLotPacket
+    PROPERTIES(p) READONLY nameClosedByUser, dateTimeClosed, nameOpenedByUser, dateTimeOpened
     PROPERTIES(p) open SHOWIF isClosed(p), close SHOWIF isOpened(p)
     FILTERS filterLotPacking(p)
 
