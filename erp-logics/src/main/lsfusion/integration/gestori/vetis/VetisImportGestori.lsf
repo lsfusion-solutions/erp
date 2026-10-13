@@ -313,6 +313,25 @@ vetisVsdDateFrom 'Дата ВСД (с)' = DATA DATE ();
 // --- Блок 8: ВСД из MercVetDoc ---
 
 // ВСД берутся только по действующим записям журнала (остаткам) выбранных магазинов; связь — по IdDoc
+// в Gestori пустые строки хранятся как '' или пробелы
+vetisNonEmptyGestori = FORMULA NULL STRING 'NULLIF(trim($1), \'\')';
+
+seriesReferenceGestori (INTEGER i, INTEGER t) = CASE
+    WHEN t = 6 THEN vetisNonEmptyGestori(vetLocalSeriesDoc(i))
+    WHEN t = 1 THEN vetisNonEmptyGestori(vetLocalSeriesWayBill(i));
+numberReferenceGestori (INTEGER i, INTEGER t) = CASE
+    WHEN t = 16 THEN vetisNonEmptyGestori(vetLocalNumOrdDoc(i))
+    WHEN t = 6 THEN vetisNonEmptyGestori(vetLocalNumDoc(i))
+    WHEN t = 1 THEN vetisNonEmptyGestori(vetLocalNumWayBill(i))
+    WHEN t = 23 THEN vetisNonEmptyGestori(vetLocalNumUtdDoc(i))
+    WHEN t = 5 THEN vetisNonEmptyGestori(vetLocalNumTrDoc(i));
+dateReferenceGestori (INTEGER i, INTEGER t) = CASE
+    WHEN t = 16 THEN vetLocalDateOrdDoc(i)
+    WHEN t = 6 THEN vetLocalDateDoc(i)
+    WHEN t = 1 THEN vetLocalDateWayBill(i)
+    WHEN t = 23 THEN vetLocalDateUtdDoc(i)
+    WHEN t = 5 THEN vetLocalDateTrDoc(i);
+
 importVetDocumentsWhereGestori (STRING where) {
     LOCAL file = FILE();
 
@@ -395,62 +414,24 @@ importVetDocumentsWhereGestori (STRING where) {
     DO
         in(s, d) <- TRUE;
 
-    // Сопроводительные документы (relationshipType = 1); коды типов — DocumentType_v2.0
-    // Заказ
-    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) AND first(i) AND vetLocalNumOrdDoc(i) AND
-        NOT vetReferenceDocument(d, (CONCAT ';', vetLocalNumOrdDoc(i), vetLocalDateOrdDoc(i), 16, 1))
-    DO NEW rd = VetReferenceDocument {
-        vetDocument(rd) <- d;
-        issueNumber(rd) <- vetLocalNumOrdDoc(i);
-        issueDate(rd) <- vetLocalDateOrdDoc(i);
-        type(rd) <- 16;
-        relationshipType(rd) <- 1;
+    // Сопроводительные документы (relationshipType = 1); коды типов — DocumentType_v2.0:
+    // заказ 16, ТОРГ-12 6, ТТН 1, УПД 23, транспортная накладная 5. На каждый тип — одна запись, обновляется по месту
+    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) AND first(i) DO {
+        DELETE VetReferenceDocument rd WHERE vetDocument(rd) = d AND relationshipType(rd) = 1
+            AND NOT vetisNonEmptyGestori(issueSeries(rd)) AND NOT vetisNonEmptyGestori(issueNumber(rd));
     }
-
-    // ТОРГ-12
-    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) AND first(i) AND (vetLocalSeriesDoc(i) OR vetLocalNumDoc(i)) AND
-        NOT vetReferenceDocument(d, (CONCAT ';', vetLocalSeriesDoc(i), vetLocalNumDoc(i), vetLocalDateDoc(i), 6, 1))
-    DO NEW rd = VetReferenceDocument {
-        vetDocument(rd) <- d;
-        issueSeries(rd) <- vetLocalSeriesDoc(i);
-        issueNumber(rd) <- vetLocalNumDoc(i);
-        issueDate(rd) <- vetLocalDateDoc(i);
-        type(rd) <- 6;
-        relationshipType(rd) <- 1;
-    }
-
-    // ТТН
-    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) AND first(i) AND (vetLocalSeriesWayBill(i) OR vetLocalNumWayBill(i)) AND
-        NOT vetReferenceDocument(d, (CONCAT ';', vetLocalSeriesWayBill(i), vetLocalNumWayBill(i), vetLocalDateWayBill(i), 1, 1))
-    DO NEW rd = VetReferenceDocument {
-        vetDocument(rd) <- d;
-        issueSeries(rd) <- vetLocalSeriesWayBill(i);
-        issueNumber(rd) <- vetLocalNumWayBill(i);
-        issueDate(rd) <- vetLocalDateWayBill(i);
-        type(rd) <- 1;
-        relationshipType(rd) <- 1;
-    }
-
-    // УПД
-    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) AND first(i) AND vetLocalNumUtdDoc(i) AND
-        NOT vetReferenceDocument(d, (CONCAT ';', vetLocalNumUtdDoc(i), vetLocalDateUtdDoc(i), 23, 1))
-    DO NEW rd = VetReferenceDocument {
-        vetDocument(rd) <- d;
-        issueNumber(rd) <- vetLocalNumUtdDoc(i);
-        issueDate(rd) <- vetLocalDateUtdDoc(i);
-        type(rd) <- 23;
-        relationshipType(rd) <- 1;
-    }
-
-    // транспортная накладная
-    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) AND first(i) AND vetLocalNumTrDoc(i) AND
-        NOT vetReferenceDocument(d, (CONCAT ';', vetLocalNumTrDoc(i), vetLocalDateTrDoc(i), 5, 1))
-    DO NEW rd = VetReferenceDocument {
-        vetDocument(rd) <- d;
-        issueNumber(rd) <- vetLocalNumTrDoc(i);
-        issueDate(rd) <- vetLocalDateTrDoc(i);
-        type(rd) <- 5;
-        relationshipType(rd) <- 1;
+    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) AND first(i) AND (INTEGER t = 16 OR t = 6 OR t = 1 OR t = 23 OR t = 5)
+        AND (seriesReferenceGestori(i, t) OR numberReferenceGestori(i, t)) DO {
+        IF NOT waybillByTypeGestori(d, t) THEN NEW rd = VetReferenceDocument {
+            vetDocument(rd) <- d;
+            type(rd) <- t;
+            relationshipType(rd) <- 1;
+        }
+        FOR VetReferenceDocument rd = waybillByTypeGestori(d, t) DO {
+            issueSeries(rd) <- seriesReferenceGestori(i, t);
+            issueNumber(rd) <- numberReferenceGestori(i, t);
+            issueDate(rd) <- dateReferenceGestori(i, t);
+        }
     }
 
     // APPLY очищает локальные свойства, поэтому количество считаем заранее

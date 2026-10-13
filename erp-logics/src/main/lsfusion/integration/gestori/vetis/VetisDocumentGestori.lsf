@@ -11,10 +11,10 @@ NAMESPACE Vetis;
 
 // ---- Дополнительные свойства VetDocument ----
 
-// накладная — первый связанный документ по приоритету типов 1, 5, 6, 23, 16; иначе подбор по умолчанию
+// накладная — связанный документ по приоритету: ТТН (1), транспортная накладная (5), ТОРГ-12 (6), УПД (23)
 waybillByTypeGestori (VetDocument d, INTEGER t) = GROUP MIN VetReferenceDocument rd IF vetDocument(rd) = d AND type(rd) = t;
 waybillGestori (VetDocument d) = OVERRIDE waybillByTypeGestori(d, 1), waybillByTypeGestori(d, 5), waybillByTypeGestori(d, 6),
-                                          waybillByTypeGestori(d, 23), waybillByTypeGestori(d, 16), waybill(d);
+                                          waybillByTypeGestori(d, 23);
 issueSeriesNumberWaybillGestori 'Накладная' (VetDocument d) = issueNumber(waybillGestori(d));
 issueSeriesNumberWaybillOverride(VetDocument d) += issueSeriesNumberWaybillGestori(d);
 
