@@ -8,8 +8,9 @@ NAMESPACE Diadoc;
 // GenerateTitleXml (Диадок строит полный XML по приказу) -> подпись КЭП -> PostMessage.
 
 diadocSendT1 (ETRN.OutgoingETRN e) {
-    // каждый PostMessage создаёт в Диадоке новый документ, аннулировать его нельзя
-    IF diadocReceptionDocument(e) THEN
+    // каждый PostMessage создаёт в Диадоке новый документ, аннулировать его нельзя;
+    // после отклонённого Диадоком титула не спрашиваем - тот Т1 перевозку не создал
+    IF diadocReceptionDocument(e) AND NOT ETRN.exchangeStatus(e) == ETRN.ETRNExchangeStatus.invalid THEN
         ASK 'Т1 уже отправлен в Диадок (есть связанный документ перевозки). Отправить повторно (в Диадоке создастся ещё один документ)?' DO { } ELSE RETURN;
     IF NOT diadocBox(ETRN.shipper(e)) THEN {
         MESSAGE ETRN.captionMessage(e) + ': не найден ящик Диадока грузоотправителя' NOWAIT;

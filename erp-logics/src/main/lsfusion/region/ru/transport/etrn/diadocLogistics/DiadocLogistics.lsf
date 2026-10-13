@@ -115,9 +115,10 @@ CONSTRAINT SETCHANGED(transportOrganization(LegalEntity l)) AND NOT legalEntity(
 // ящик вручную выбранной организации - высший приоритет везде, где ищется ящик контрагента
 manualDiadocBox (LegalEntity l) = [GROUP LAST Box b ORDER b BY organization(b)](transportOrganization(l));
 
-// организация Диадока по идентификатору участника ЭДО (из ИдФайла титула)
+// организация Диадока по идентификатору участника ЭДО (из ИдФайла титула); без учёта регистра:
+// один и тот же идентификатор в титуле и в справочнике Диадока пишется по-разному (2BE9b94... / 2be9b94...)
 organizationParticipantId (STRING[46] participantId) =
-    GROUP LAST Organization o ORDER o BY fnsParticipantId(o);
+    [GROUP LAST Organization o ORDER o BY STRING[46](upper(fnsParticipantId(o)))](STRING[46](upper(participantId)));
 
 // приоритет: ручной выбор -> абонент Диадока (2BM - код оператора в идентификаторе
 // участника СФ, у роуминговых записей код чужого оператора) -> не-роуминговая -> любая

@@ -287,6 +287,12 @@ diadocStage (STRING status) = CASE
 
 signedTitle (ETRN.ETRNEvent ev, INTEGER i) = titleAuthorStatus(ev, i) == 'TitleAuthorStatusSigned';
 
+// наш титул (слот 0) не прошёл у Диадока проверку подписи: сообщение принято, но в перевозку титул не попал.
+// Только по текущему документу - событие прежней попытки может прийти уже после новой отправки
+invalidOurTitle (ETRN.ETRNEvent ev, ETRN.ETRN et) = titleAuthorStatus(ev, 0) == 'TitleAuthorStatusInvalidSignature' AND
+    ((docFunction(ev) == 'delivery' AND entityId(ev) == deliveryEntityId(et)) OR
+     (docFunction(ev) == 'reception' AND entityId(ev) == receptionEntityId(et)));
+
 processETRNEvent (ETRN.ETRNEvent ev) {
     LOCAL e = ETRN.ETRN ();
     e() <- OVERRIDE ETRN.etrn(ev),
@@ -341,8 +347,18 @@ processETRNEvent (ETRN.ETRNEvent ev) {
             ETRN.exchangeStatus(et) <- CASE
                 WHEN titleRejected(ev, 0) OR titleRejected(ev, 1) THEN ETRN.ETRNExchangeStatus.rejected
                 WHEN docFunction(ev) == 'delivery' AND signedTitle(ev, 1) THEN ETRN.ETRNExchangeStatus.completed
-                WHEN signedTitle(ev, 0) OR signedTitle(ev, 1) THEN ETRN.ETRNExchangeStatus.signed
+                WHEN invalidOurTitle(ev, et) THEN ETRN.ETRNExchangeStatus.invalid
+                // ошибку снимает только новая отправка, а не чужая подпись по той же перевозке
+                WHEN (signedTitle(ev, 0) OR signedTitle(ev, 1)) AND NOT ETRN.exchangeStatus(et) == ETRN.ETRNExchangeStatus.invalid
+                    THEN ETRN.ETRNExchangeStatus.signed
                 ELSE ETRN.exchangeStatus(et);
+
+        IF invalidOurTitle(ev, et) THEN {
+            ETRN.exchangeMessage(et) <- ETRN.captionMessage(et) + ': Диадок отклонил ' +
+                (IF docFunction(ev) == 'delivery' THEN 'Т3' ELSE 'Т1') + ' - недействительная подпись';
+            // Т3 считался отправленным с момента приёма сообщения - возвращаем этап, чтобы отправили заново
+            ETRN.stage(et) <- ETRN.ETRNStage.loading WHERE docFunction(ev) == 'delivery' AND ETRN.stage(et) == ETRN.ETRNStage.acceptance;
+        }
 
         // этап - по титулам документа: статусы KlMt на практике приходят числовыми кодами,
         // diadocStage по ним не срабатывает; этап только продвигается вперёд (отсюда сравнения id)
