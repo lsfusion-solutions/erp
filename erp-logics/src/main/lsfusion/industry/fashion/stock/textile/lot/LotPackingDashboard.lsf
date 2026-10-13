@@ -1,6 +1,6 @@
-MODULE LotPackingDashboard;
+MODULE LotPackingDashboard; // Форма оператора упаковки марок в пакеты
 
-REQUIRE LotPacking, LotTextile, ItemFashionTextile, PurchaseReturnShipmentTextile;
+REQUIRE LotPacking, LotTextile, ItemFashionTextile, PurchaseReturnShipmentTextile, LogTools;
 
 NAMESPACE Lot;
 
@@ -97,6 +97,12 @@ allowReturnFromBuyer 'Возврат от покупателя' = DATA LOCAL BOO
 extraCheckPacking ABSTRACT (Lot);
 extraReturn = DATA LOCAL BOOLEAN ();
 
+@defineLogRotate(lotPacking, 3, monthly);
+
+downloadLotPacking 'LotPacking' () { downloadFiles('logs/lotPacking.log'); }
+EXTEND FORM tools PROPERTIES() downloadLotPacking;
+DESIGN tools { download { MOVE PROPERTY(downloadLotPacking()); } }
+
 lastSeekString 'Последнее отсканированное значение' = DATA LOCAL STRING[200] ();
 enableLastSeekString 'Отображать последнее отсканированное значение' = DATA BOOLEAN () PREREAD;
 enableLogSeekPacket 'Включить запись лога поиска пакета/марки' = DATA BOOLEAN () PREREAD;
@@ -155,7 +161,6 @@ FORM lotCheck 'Проверка марки'
 ;
 
 DESIGN lotCheck {
-//    size = (600, 100);
     NEW inputLine {
         caption = 'Поиск';
         alignment = STRETCH;
@@ -171,7 +176,6 @@ DESIGN lotCheck {
     NEW lotInfo {
         caption = 'Информация по марке';
         alignment = STRETCH;
-//        horizontal = TRUE;
         MOVE PROPERTY(id(l));
         MOVE PROPERTY(idSku(l));
         MOVE PROPERTY(nameSku(l));
