@@ -73,13 +73,19 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     private final Map<String, List<String>> requestSalesInfoMap = new HashMap<>();
     // ----------------- http server ----------------- //
     private HttpRequestHandler httpRequestHandler;
+    private boolean httpServerBindAttempted;
 
     public Kristal10WebHandler(FileSystemXmlApplicationContext springContext) {
         super(springContext);
-        bindHttpServer();
     }
 
-    private void bindHttpServer() {
+    //bound on first use for own groups (sales, transactions), not in constructor: equipment servers that don't work with Kristal10Web
+    //create this handler too (e.g. for delete barcodes of other equipment servers' groups) and mustn't take the port
+    private synchronized void bindHttpServer() {
+        if (httpServerBindAttempted)
+            return;
+        httpServerBindAttempted = true;
+
         sendSalesLogger.info(getLogPrefix() + "Binding HttpServer");
 
         HttpServer httpServer = null;
@@ -107,6 +113,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
     @Override
     public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) {
+        bindHttpServer();
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : new Kristal10Settings();
         boolean brandIsManufacturer = kristalSettings.getBrandIsManufacturer() != null && kristalSettings.getBrandIsManufacturer();
         boolean seasonIsCountry = kristalSettings.getSeasonIsCountry() != null && kristalSettings.getSeasonIsCountry();
@@ -534,6 +541,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
     @Override
     public Kristal10SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) {
+        bindHttpServer();
         List<SalesInfo> salesInfoList = new ArrayList<>();
         String canceledReceipts = null;
         if(httpRequestHandler != null) {
