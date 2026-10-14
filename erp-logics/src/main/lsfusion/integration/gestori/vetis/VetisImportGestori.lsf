@@ -151,8 +151,13 @@ importFirmGestori 'Импорт ХС Ветис' () {
 
 // --- Блоки 5–6: Площадки и связи склад↔площадка из MercArea ---
 
+// склад связан с площадкой другого ХС, чем ХС его организации (условие базового ограничения)
+mismatchStockGestori (Stock st) = enterprise(st) AND NOT owner(enterprise(st)) = businessEntity(legalEntity(st));
+
 importAreaGestori 'Импорт площадок Ветис' () {
     LOCAL file = FILE();
+    LOCAL NESTED skippedLegalEntities = TEXT ();
+    LOCAL NESTED skippedStocks = TEXT ();
 
     EXTERNAL SQL vetisDbUrl()
         EXEC 'SELECT GuidFirm, GuidArea, SUBSTR(NameArea, 1, 500), CAST(cod_firm AS CHAR(20)) ' +
@@ -174,7 +179,24 @@ importAreaGestori 'Импорт площадок Ветис' () {
         AND Enterprise e = enterprise(areaLocalGuid(i)) AND NOT enterprise(st) = e
     DO enterprise(st) <- e;
 
+    // несоответствие ХС организации и владельца площадки не должно останавливать импорт:
+    // привязки, противоречащие уже существующим, не меняются, а перечисляются в сообщении
+    skippedLegalEntities() <- GROUP CONCAT name(LegalEntity l) IF CHANGED(businessEntity(l))
+        AND (GROUP SUM 1 IF mismatchStockGestori(Stock st) AND legalEntity(st) = l AND NOT CHANGED(enterprise(st))), ', ' ORDER l;
+    FOR LegalEntity l IS LegalEntity AND CHANGED(businessEntity(l))
+        AND (GROUP SUM 1 IF mismatchStockGestori(Stock st) AND legalEntity(st) = l AND NOT CHANGED(enterprise(st)))
+    DO businessEntity(l) <- PREV(businessEntity(l));
+    skippedStocks() <- GROUP CONCAT (name(Stock st) + ' (' + Stock.id(st) + ')') IF CHANGED(enterprise(st)) AND mismatchStockGestori(st), ', ' ORDER st;
+    FOR Stock st IS Stock AND CHANGED(enterprise(st)) AND mismatchStockGestori(st) DO enterprise(st) <- PREV(enterprise(st));
+
     APPLY;
+
+    IF NOT canceled() AND (skippedLegalEntities() OR skippedStocks()) THEN
+        MESSAGE 'Импорт площадок: связи пропущены, так как ХС организации не совпадает с владельцем площадки.' +
+            (OVERRIDE ('
+Организации (ХС оставлен прежним): ' + skippedLegalEntities()), '') +
+            (OVERRIDE ('
+Склады (площадка оставлена прежней): ' + skippedStocks()), '');
 }
 
 // --- Блок 1: Классификатор из MercTypeProd, MercProd, MercSubProd ---
