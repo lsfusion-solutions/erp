@@ -316,6 +316,16 @@ vetisVsdDateFrom 'Дата ВСД (с)' = DATA DATE ();
 // в Gestori пустые строки хранятся как '' или пробелы
 vetisNonEmptyGestori = FORMULA NULL STRING 'NULLIF(trim($1), \'\')';
 
+// один ВСД приходит несколькими строками (по записям журнала) — свойства ВСД берутся из первой
+vetLocalFirst = DATA LOCAL BOOLEAN (INTEGER);
+vetRowGestori (VetDocument d, INTEGER i) = vetLocalFirst(i) AND vetDocument(vetLocalUuid(i)) = d;
+
+statusRowGestori (INTEGER i) = vetDocumentStatus(vetisListWordGestori('CONFIRMED,WITHDRAWN,UTILIZED,FINALIZED', vetLocalStatus(i)));
+typeRowGestori (INTEGER i) = vetDocumentType(vetisListWordGestori('PRODUCTIVE,RETURNABLE,TRANSPORT', vetLocalType(i)));
+storageTypeRowGestori (INTEGER i) = vetisListWordGestori('FROZEN,CHILLED,COOLED,VENTILATED', vetLocalStorageType(i));
+updateDateTimeRowGestori (INTEGER i) = vetisUpdateDateTimeGestori(vetLocalLastUpdateDate(i), vetLocalLastUpdateTime(i));
+
+// связанные документы (relationshipType = 1), коды DocumentType_v2.0: заказ 16, ТОРГ-12 6, ТТН 1, УПД 23, транспортная накладная 5
 seriesReferenceGestori (INTEGER i, INTEGER t) = CASE
     WHEN t = 6 THEN vetisNonEmptyGestori(vetLocalSeriesDoc(i))
     WHEN t = 1 THEN vetisNonEmptyGestori(vetLocalSeriesWayBill(i));
@@ -331,10 +341,14 @@ dateReferenceGestori (INTEGER i, INTEGER t) = CASE
     WHEN t = 1 THEN vetLocalDateWayBill(i)
     WHEN t = 23 THEN vetLocalDateUtdDoc(i)
     WHEN t = 5 THEN vetLocalDateTrDoc(i);
+// на тип документа у ВСД одна запись — та, что выбирается в приоритете накладной
+referenceRowGestori (VetReferenceDocument rd, INTEGER i) = vetRowGestori(vetDocument(rd), i) AND waybillByTypeGestori(vetDocument(rd), type(rd)) = rd
+    AND (seriesReferenceGestori(i, type(rd)) OR numberReferenceGestori(i, type(rd)));
 
 importVetDocumentsWhereGestori (STRING where) {
     LOCAL file = FILE();
 
+    logToFile('vetisImportGestori', 'ВСД: запрос к Gestori, условие ' + where);
     EXTERNAL SQL vetisDbUrl()
         EXEC 'SELECT v.UuidDoc, v.DocIssueDate, CAST(v.DocStatus AS VARCHAR(50)), CAST(v.DocType AS VARCHAR(50)), ' +
              'v.GuidFirmConsignor, v.GuidAreaConsignor, v.GuidFirmConsignee, v.GuidAreaConsignee, ' +
@@ -352,6 +366,7 @@ importVetDocumentsWhereGestori (STRING where) {
              'WHERE ' + where + ' AND j.ActiveStockEntry = 1' +
              (IF vetisInitImportStockCodes() THEN ' AND j.cod_shop IN (' + vetisInitImportStockCodes() + ')' ELSE '')
         TO file;
+    logToFile('vetisImportGestori', 'ВСД: выборка из Gestori получена');
 
     IMPORT TABLE FROM file() TO
         vetLocalUuid, vetLocalIssueDate, vetLocalStatus, vetLocalType,
@@ -367,79 +382,74 @@ importVetDocumentsWhereGestori (STRING where) {
         vetLocalSeriesWayBill, vetLocalNumWayBill, vetLocalDateWayBill,
         vetLocalNumUtdDoc, vetLocalDateUtdDoc, vetLocalNumTrDoc, vetLocalDateTrDoc;
 
-    // один ВСД может прийти несколькими строками — по одной на каждую запись журнала
-    LOCAL first = BOOLEAN (INTEGER);
-    first(INTEGER i) <- TRUE WHERE i = [GROUP MIN INTEGER j BY vetLocalUuid(j)](vetLocalUuid(i));
+    vetLocalFirst(INTEGER i) <- NULL WHERE vetLocalFirst(i);
+    vetLocalFirst(INTEGER i) <- TRUE WHERE i = [GROUP MIN INTEGER j BY vetLocalUuid(j)](vetLocalUuid(i));
+    logToFile('vetisImportGestori', 'ВСД: строк ' + (OVERRIDE (GROUP SUM 1 IF vetLocalUuid(INTEGER i)), 0)
+        + ', ВСД ' + (OVERRIDE (GROUP SUM 1 IF vetLocalFirst(INTEGER i)), 0)
+        + ', новых ' + (OVERRIDE (GROUP SUM 1 IF vetLocalFirst(INTEGER i) AND NOT vetDocument(vetLocalUuid(i))), 0));
 
-    FOR vetLocalUuid(INTEGER i) AND first(i) AND NOT vetDocument(vetLocalUuid(i)) DO NEW d = VetDocument {
+    FOR vetLocalFirst(INTEGER i) AND NOT vetDocument(vetLocalUuid(i)) DO NEW d = VetDocument {
         uuid(d) <- vetLocalUuid(i);
     }
-    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) DO {
-        issueDate(d) <- vetLocalIssueDate(i);
-        status(d) <- vetDocumentStatus(vetisListWordGestori('CONFIRMED,WITHDRAWN,UTILIZED,FINALIZED', vetLocalStatus(i)));
-        type(d) <- vetDocumentType(vetisListWordGestori('PRODUCTIVE,RETURNABLE,TRANSPORT', vetLocalType(i)));
-        consignorBusinessEntity(d) <- businessEntity(vetLocalGuidConsignorFirm(i));
-        consignorEnterprise(d) <- enterprise(vetLocalGuidConsignorArea(i));
-        consigneeBusinessEntity(d) <- businessEntity(vetLocalGuidConsigneeFirm(i));
-        consigneeEnterprise(d) <- enterprise(vetLocalGuidConsigneeArea(i));
-        productItem(d) <- productItem(vetLocalGuidItemProd(i));
-        volume(d) <- vetLocalVolume(i);
-        quantityPackGestori(d) <- vetLocalQuantity(i);
-        unit(d) <- unit(vetLocalGuidMeas(i));
-        dateOfProduction(d) <- vetisPeriodDateGestori(vetLocalDateProd(i));
-        dateOfProductionHour(d) <- vetisPeriodHourGestori(vetLocalDateProd(i));
-        expiryDate(d) <- vetisPeriodDateGestori(vetLocalDateExp(i));
-        expiryDateHour(d) <- vetisPeriodHourGestori(vetLocalDateExp(i));
-        purpose(d) <- purpose(vetLocalGuidPurpose(i));
-        batchID(d) <- vetLocalBatchId(i);
-        updateDateTimeGestori(d) <- vetisUpdateDateTimeGestori(vetLocalLastUpdateDate(i), vetLocalLastUpdateTime(i));
-        packingTypeGlobalIDGestori(d) <- vetLocalGlobalId(i);
-        productMarksClassGestori(d) <- vetLocalMarkType(i);
-        productMarksGestori(d) <- vetLocalMark(i);
-        transportStorageType(d) <- vetisListWordGestori('FROZEN,CHILLED,COOLED,VENTILATED', vetLocalStorageType(i));
-        countryOriginGuidGestori(d) <- vetLocalGuidOrigCountry(i);
-        producersOriginGuidGestori(d) <- vetLocalGuidOrigProdList(i);
-        ownerBEGuidGestori(d) <- vetLocalGuidFirmOwner(i);
-        producersOriginRoleGestori(d) <- vetLocalRoleOrigProdList(i);
-        perishable(d) <- vetLocalPerishFlg(i);
-        lowGradeCargo(d) <- vetLocalLowGradeFlg(i);
-        productType(d) <- productType(vetLocalCodeTypeProd(i));
-        product(d) <- product(vetLocalGuidProd(i));
-        subProduct(d) <- subProduct(vetLocalGuidSubProd(i));
-    }
+    logToFile('vetisImportGestori', 'ВСД: новые созданы');
 
-    // Связь ВСД с записью складского журнала
-    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) AND
-        vetLocalGuidStockEntry(i) AND StockEntry s = stockEntry(vetLocalGuidStockEntry(i))
-    DO
-        in(s, d) <- TRUE;
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT issueDate(d) = vetLocalIssueDate(i) AND (issueDate(d) OR vetLocalIssueDate(i)) DO issueDate(d) <- vetLocalIssueDate(i);
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT status(d) = statusRowGestori(i) AND (status(d) OR statusRowGestori(i)) DO status(d) <- statusRowGestori(i);
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT type(d) = typeRowGestori(i) AND (type(d) OR typeRowGestori(i)) DO type(d) <- typeRowGestori(i);
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT consignorBusinessEntity(d) = businessEntity(vetLocalGuidConsignorFirm(i)) AND (consignorBusinessEntity(d) OR businessEntity(vetLocalGuidConsignorFirm(i))) DO consignorBusinessEntity(d) <- businessEntity(vetLocalGuidConsignorFirm(i));
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT consignorEnterprise(d) = enterprise(vetLocalGuidConsignorArea(i)) AND (consignorEnterprise(d) OR enterprise(vetLocalGuidConsignorArea(i))) DO consignorEnterprise(d) <- enterprise(vetLocalGuidConsignorArea(i));
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT consigneeBusinessEntity(d) = businessEntity(vetLocalGuidConsigneeFirm(i)) AND (consigneeBusinessEntity(d) OR businessEntity(vetLocalGuidConsigneeFirm(i))) DO consigneeBusinessEntity(d) <- businessEntity(vetLocalGuidConsigneeFirm(i));
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT consigneeEnterprise(d) = enterprise(vetLocalGuidConsigneeArea(i)) AND (consigneeEnterprise(d) OR enterprise(vetLocalGuidConsigneeArea(i))) DO consigneeEnterprise(d) <- enterprise(vetLocalGuidConsigneeArea(i));
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT productItem(d) = productItem(vetLocalGuidItemProd(i)) AND (productItem(d) OR productItem(vetLocalGuidItemProd(i))) DO productItem(d) <- productItem(vetLocalGuidItemProd(i));
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT volume(d) = vetLocalVolume(i) AND (volume(d) OR vetLocalVolume(i)) DO volume(d) <- vetLocalVolume(i);
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT quantityPackGestori(d) = vetLocalQuantity(i) AND (quantityPackGestori(d) OR vetLocalQuantity(i)) DO quantityPackGestori(d) <- vetLocalQuantity(i);
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT unit(d) = unit(vetLocalGuidMeas(i)) AND (unit(d) OR unit(vetLocalGuidMeas(i))) DO unit(d) <- unit(vetLocalGuidMeas(i));
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT dateOfProduction(d) = vetisPeriodDateGestori(vetLocalDateProd(i)) AND (dateOfProduction(d) OR vetisPeriodDateGestori(vetLocalDateProd(i))) DO dateOfProduction(d) <- vetisPeriodDateGestori(vetLocalDateProd(i));
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT dateOfProductionHour(d) = vetisPeriodHourGestori(vetLocalDateProd(i)) AND (dateOfProductionHour(d) OR vetisPeriodHourGestori(vetLocalDateProd(i))) DO dateOfProductionHour(d) <- vetisPeriodHourGestori(vetLocalDateProd(i));
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT expiryDate(d) = vetisPeriodDateGestori(vetLocalDateExp(i)) AND (expiryDate(d) OR vetisPeriodDateGestori(vetLocalDateExp(i))) DO expiryDate(d) <- vetisPeriodDateGestori(vetLocalDateExp(i));
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT expiryDateHour(d) = vetisPeriodHourGestori(vetLocalDateExp(i)) AND (expiryDateHour(d) OR vetisPeriodHourGestori(vetLocalDateExp(i))) DO expiryDateHour(d) <- vetisPeriodHourGestori(vetLocalDateExp(i));
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT purpose(d) = purpose(vetLocalGuidPurpose(i)) AND (purpose(d) OR purpose(vetLocalGuidPurpose(i))) DO purpose(d) <- purpose(vetLocalGuidPurpose(i));
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT batchID(d) = vetLocalBatchId(i) AND (batchID(d) OR vetLocalBatchId(i)) DO batchID(d) <- vetLocalBatchId(i);
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT updateDateTimeGestori(d) = updateDateTimeRowGestori(i) AND (updateDateTimeGestori(d) OR updateDateTimeRowGestori(i)) DO updateDateTimeGestori(d) <- updateDateTimeRowGestori(i);
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT packingTypeGlobalIDGestori(d) = vetLocalGlobalId(i) AND (packingTypeGlobalIDGestori(d) OR vetLocalGlobalId(i)) DO packingTypeGlobalIDGestori(d) <- vetLocalGlobalId(i);
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT productMarksClassGestori(d) = vetLocalMarkType(i) AND (productMarksClassGestori(d) OR vetLocalMarkType(i)) DO productMarksClassGestori(d) <- vetLocalMarkType(i);
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT productMarksGestori(d) = vetLocalMark(i) AND (productMarksGestori(d) OR vetLocalMark(i)) DO productMarksGestori(d) <- vetLocalMark(i);
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT transportStorageType(d) = storageTypeRowGestori(i) AND (transportStorageType(d) OR storageTypeRowGestori(i)) DO transportStorageType(d) <- storageTypeRowGestori(i);
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT countryOriginGuidGestori(d) = vetLocalGuidOrigCountry(i) AND (countryOriginGuidGestori(d) OR vetLocalGuidOrigCountry(i)) DO countryOriginGuidGestori(d) <- vetLocalGuidOrigCountry(i);
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT producersOriginGuidGestori(d) = vetLocalGuidOrigProdList(i) AND (producersOriginGuidGestori(d) OR vetLocalGuidOrigProdList(i)) DO producersOriginGuidGestori(d) <- vetLocalGuidOrigProdList(i);
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT ownerBEGuidGestori(d) = vetLocalGuidFirmOwner(i) AND (ownerBEGuidGestori(d) OR vetLocalGuidFirmOwner(i)) DO ownerBEGuidGestori(d) <- vetLocalGuidFirmOwner(i);
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT producersOriginRoleGestori(d) = vetLocalRoleOrigProdList(i) AND (producersOriginRoleGestori(d) OR vetLocalRoleOrigProdList(i)) DO producersOriginRoleGestori(d) <- vetLocalRoleOrigProdList(i);
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT perishable(d) = vetLocalPerishFlg(i) AND (perishable(d) OR vetLocalPerishFlg(i)) DO perishable(d) <- vetLocalPerishFlg(i);
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT lowGradeCargo(d) = vetLocalLowGradeFlg(i) AND (lowGradeCargo(d) OR vetLocalLowGradeFlg(i)) DO lowGradeCargo(d) <- vetLocalLowGradeFlg(i);
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT productType(d) = productType(vetLocalCodeTypeProd(i)) AND (productType(d) OR productType(vetLocalCodeTypeProd(i))) DO productType(d) <- productType(vetLocalCodeTypeProd(i));
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT product(d) = product(vetLocalGuidProd(i)) AND (product(d) OR product(vetLocalGuidProd(i))) DO product(d) <- product(vetLocalGuidProd(i));
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND NOT subProduct(d) = subProduct(vetLocalGuidSubProd(i)) AND (subProduct(d) OR subProduct(vetLocalGuidSubProd(i))) DO subProduct(d) <- subProduct(vetLocalGuidSubProd(i));
+    logToFile('vetisImportGestori', 'ВСД: свойства записаны');
 
-    // Сопроводительные документы (relationshipType = 1); коды типов — DocumentType_v2.0:
-    // заказ 16, ТОРГ-12 6, ТТН 1, УПД 23, транспортная накладная 5. На каждый тип — одна запись, обновляется по месту
-    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) AND first(i) DO {
-        DELETE VetReferenceDocument rd WHERE vetDocument(rd) = d AND relationshipType(rd) = 1
-            AND NOT vetisNonEmptyGestori(issueSeries(rd)) AND NOT vetisNonEmptyGestori(issueNumber(rd));
+    // связь ВСД с записями складского журнала
+    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) AND StockEntry s = stockEntry(vetLocalGuidStockEntry(i)) AND NOT in(s, d) DO in(s, d) <- TRUE;
+
+    // связанные документы: пустые удаляются, недостающие создаются, существующие обновляются по месту
+    DELETE VetReferenceDocument rd WHERE relationshipType(rd) = 1 AND (GROUP SUM 1 IF vetRowGestori(vetDocument(rd), INTEGER i))
+        AND NOT vetisNonEmptyGestori(issueSeries(rd)) AND NOT vetisNonEmptyGestori(issueNumber(rd));
+    FOR vetRowGestori(VetDocument d, INTEGER i) AND (INTEGER t = 16 OR t = 6 OR t = 1 OR t = 23 OR t = 5)
+        AND (seriesReferenceGestori(i, t) OR numberReferenceGestori(i, t)) AND NOT waybillByTypeGestori(d, t) DO NEW rd = VetReferenceDocument {
+        vetDocument(rd) <- d;
+        type(rd) <- t;
+        relationshipType(rd) <- 1;
     }
-    FOR VetDocument d = vetDocument(vetLocalUuid(INTEGER i)) AND first(i) AND (INTEGER t = 16 OR t = 6 OR t = 1 OR t = 23 OR t = 5)
-        AND (seriesReferenceGestori(i, t) OR numberReferenceGestori(i, t)) DO {
-        IF NOT waybillByTypeGestori(d, t) THEN NEW rd = VetReferenceDocument {
-            vetDocument(rd) <- d;
-            type(rd) <- t;
-            relationshipType(rd) <- 1;
-        }
-        FOR VetReferenceDocument rd = waybillByTypeGestori(d, t) DO {
-            issueSeries(rd) <- seriesReferenceGestori(i, t);
-            issueNumber(rd) <- numberReferenceGestori(i, t);
-            issueDate(rd) <- dateReferenceGestori(i, t);
-        }
-    }
+    FOR referenceRowGestori(VetReferenceDocument rd, INTEGER i) AND NOT issueSeries(rd) = seriesReferenceGestori(i, type(rd)) AND (issueSeries(rd) OR seriesReferenceGestori(i, type(rd))) DO issueSeries(rd) <- seriesReferenceGestori(i, type(rd));
+    FOR referenceRowGestori(VetReferenceDocument rd, INTEGER i) AND NOT issueNumber(rd) = numberReferenceGestori(i, type(rd)) AND (issueNumber(rd) OR numberReferenceGestori(i, type(rd))) DO issueNumber(rd) <- numberReferenceGestori(i, type(rd));
+    FOR referenceRowGestori(VetReferenceDocument rd, INTEGER i) AND NOT issueDate(rd) = dateReferenceGestori(i, type(rd)) AND (issueDate(rd) OR dateReferenceGestori(i, type(rd))) DO issueDate(rd) <- dateReferenceGestori(i, type(rd));
+    logToFile('vetisImportGestori', 'ВСД: связи и связанные документы записаны, сохранение');
 
     // APPLY очищает локальные свойства, поэтому количество считаем заранее
     LOCAL NESTED count = INTEGER ();
-    count() <- OVERRIDE (GROUP SUM 1 IF first(INTEGER i)), 0;
+    count() <- OVERRIDE (GROUP SUM 1 IF vetLocalFirst(INTEGER i)), 0;
 
     APPLY;
 
+    logToFile('vetisImportGestori', 'ВСД: ' + (IF canceled() THEN 'сохранение отменено: ' + applyMessage() ELSE 'сохранено, ВСД ' + count()));
     IF NOT canceled() THEN MESSAGE 'Импортировано ' + count() + ' ВСД';
 }
 
