@@ -275,8 +275,14 @@ customWeightControlBypassUkm5 = ABSTRACT BOOLEAN (Sku);
 weightControlBypassUkm5 'Пропуск контроля веса (УКМ5, тип 6)' (Sku s) =
     OVERRIDE customWeightControlBypassUkm5(s), (weightControlBypass(s) IF NOT useCustomWeightControlBypassUkm5());
 
+packageGroup 'Категория КСО для пакетов' = DATA CustomGroup ();
+namePackageGroup 'Категория КСО для пакетов' () = name(packageGroup()) CHARWIDTH 30;
+
+isPackage 'Пакет' (Sku s) = TRUE IF packageGroup() AND isParent(packageGroup(), s);
+
 weightSize (Sku s) = CASE
     WHEN overSliced(s) THEN 5
+    WHEN isPackage(s) THEN 3
     WHEN lowWeight(s) THEN 2
     WHEN overSkipKppControl(s) THEN 4
     WHEN weightControlBypassUkm5(s) THEN 6
@@ -291,13 +297,13 @@ droppedScale = DATA TBOOLEAN (Item);
 
 // != TTRUE, а не = TFALSE: TFALSE появляется только после выгрузки, у остальных NULL и снятие терялось
 WHEN ([GROUP SUM 1 IF DROPPED(lowWeight(Sku s)) OR DROPPED(overSkipKppControl(s)) OR DROPPED(weightControlBypassUkm5(s))
-    OR DROPPED(isCatchWeight(s)) OR DROPPED(overSliced(s)) BY s](Sku sku)) AND NOT droppedScale(sku) == TTRUE DO {
+    OR DROPPED(isCatchWeight(s)) OR DROPPED(overSliced(s)) OR DROPPED(isPackage(s)) BY s](Sku sku)) AND NOT droppedScale(sku) == TTRUE DO {
     droppedScale(sku) <- TTRUE;
 }
 
 // КВП: любой ненулевой weightSize, заданные дельты, снятый признак
 needUpdateScale(Item i) = isCatchWeight(i) OR overSliced(i) OR lowWeight(i) OR overSkipKppControl(i)
-    OR weightControlBypassUkm5(i) OR minDelta(i) OR maxDelta(i) OR droppedScale(i) == TTRUE;
+    OR weightControlBypassUkm5(i) OR isPackage(i) OR minDelta(i) OR maxDelta(i) OR droppedScale(i) == TTRUE;
 
 FORM importSecurityScale 'Импорт эталонных весов КВП и работа с типами товаров'
     OBJECTS t = MachineryPriceTransaction
@@ -534,7 +540,7 @@ stopListImport 'Импорт стоп-листа' () {
 //}
 
 EXTEND FORM integrationData
-    PROPERTIES urlUkm5ServerImport(), urlUkm5ServerExport(), minDelta(), maxDelta();
+    PROPERTIES urlUkm5ServerImport(), urlUkm5ServerExport(), minDelta(), maxDelta(), namePackageGroup();
 
 DESIGN integrationData{
     pane{
@@ -546,6 +552,7 @@ DESIGN integrationData{
                 caption = 'Импорт эталонных весов КВП';
                 MOVE PROPERTY (minDelta());
                 MOVE PROPERTY (maxDelta());
+                MOVE PROPERTY (namePackageGroup());
             }
         }
     }
