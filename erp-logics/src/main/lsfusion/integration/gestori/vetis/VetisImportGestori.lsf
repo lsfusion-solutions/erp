@@ -19,6 +19,8 @@ vetisInitImportStockCodes () = rtrim(ltrim(replace(vetisInitImportStocks(), ' ',
 firmLocalGuid = DATA LOCAL STRING(INTEGER);
 firmLocalName = DATA LOCAL STRING(INTEGER);
 firmLocalInn = DATA LOCAL STRING(INTEGER);
+firmLocalKpp = DATA LOCAL STRING(INTEGER);
+firmLocalType = DATA LOCAL STRING(INTEGER);
 
 // --- Локальные переменные для MercArea ---
 
@@ -120,25 +122,29 @@ objLocalSoapPswd = DATA LOCAL STRING(INTEGER);
 userLocalLogin = DATA LOCAL STRING(INTEGER);
 userLocalCodShop = DATA LOCAL STRING(INTEGER);
 
+// в Gestori пустые строки хранятся как '' или пробелы
+vetisNonEmptyGestori = FORMULA NULL STRING 'NULLIF(trim($1), \'\')';
+
 // --- Блок 4: Хозяйствующие субъекты из MercFirm ---
 
 importFirmGestori 'Импорт ХС Ветис' () {
     LOCAL file = FILE();
 
     EXTERNAL SQL vetisDbUrl()
-        EXEC 'SELECT GuidFirm, SUBSTR(NameFirm, 1, 500), InnFirm ' +
+        EXEC 'SELECT GuidFirm, SUBSTR(NameFirm, 1, 500), InnFirm, KppFirm, CAST(TypeFirm AS VARCHAR(5)) ' +
              'FROM Pub.MercFirm'
         TO file;
 
-    IMPORT TABLE FROM file() TO firmLocalGuid, firmLocalName, firmLocalInn;
+    IMPORT TABLE FROM file() TO firmLocalGuid, firmLocalName, firmLocalInn, firmLocalKpp, firmLocalType;
 
     FOR firmLocalGuid(INTEGER i) AND NOT businessEntity(firmLocalGuid(i)) DO NEW e = BusinessEntity {
         guid(e) <- firmLocalGuid(i);
     }
-    FOR BusinessEntity e = businessEntity(firmLocalGuid(INTEGER i)) DO {
-        name(e) <- ISTRING(firmLocalName(i));
-        inn(e) <- firmLocalInn(i);
-    }
+    FOR BusinessEntity e = businessEntity(firmLocalGuid(INTEGER i)) AND vetisNonEmptyGestori(firmLocalName(i)) AND NOT name(e) = ISTRING(firmLocalName(i)) DO name(e) <- ISTRING(firmLocalName(i));
+    FOR BusinessEntity e = businessEntity(firmLocalGuid(INTEGER i)) AND vetisNonEmptyGestori(firmLocalInn(i)) AND NOT inn(e) = STRING[12](firmLocalInn(i)) DO inn(e) <- STRING[12](firmLocalInn(i));
+    FOR BusinessEntity e = businessEntity(firmLocalGuid(INTEGER i)) AND vetisNonEmptyGestori(firmLocalKpp(i)) AND NOT kpp(e) = STRING[9](firmLocalKpp(i)) DO kpp(e) <- STRING[9](firmLocalKpp(i));
+    // тип контрагента: 1 — юридическое лицо, 2 — физическое лицо, 3 — ИП (коды совпадают с dt:type Ветис)
+    FOR BusinessEntity e = businessEntity(firmLocalGuid(INTEGER i)) AND vetisNonEmptyGestori(firmLocalType(i)) AND NOT type(e) = firmLocalType(i) DO type(e) <- firmLocalType(i);
 
     APPLY;
 }
@@ -158,16 +164,15 @@ importAreaGestori 'Импорт площадок Ветис' () {
     FOR areaLocalGuid(INTEGER i) AND NOT enterprise(areaLocalGuid(i)) DO NEW e = Enterprise {
         guid(e) <- areaLocalGuid(i);
     }
-    FOR Enterprise e = enterprise(areaLocalGuid(INTEGER i)) DO {
-        name(e) <- ISTRING(areaLocalName(i));
-        owner(e) <- businessEntity(areaLocalGuidFirm(i));
-    }
+    FOR Enterprise e = enterprise(areaLocalGuid(INTEGER i)) AND vetisNonEmptyGestori(areaLocalName(i)) AND NOT name(e) = ISTRING(areaLocalName(i)) DO name(e) <- ISTRING(areaLocalName(i));
+    FOR Enterprise e = enterprise(areaLocalGuid(INTEGER i)) AND BusinessEntity b = businessEntity(areaLocalGuidFirm(i)) AND NOT owner(e) = b DO owner(e) <- b;
 
-    // Блок 6: привязать Stock к Enterprise по extId магазина
-    FOR areaLocalGuid(INTEGER i) AND areaLocalCodFirm(i) AND
-        Stock st = stockExtId(areaLocalCodFirm(i)) AND Enterprise e = enterprise(areaLocalGuid(i))
-    DO
-        enterprise(st) <- e;
+    FOR areaLocalCodFirm(INTEGER i) AND LegalEntity l = legalEntity(Stock.stock(STRING[100](trim(areaLocalCodFirm(i)))))
+        AND BusinessEntity b = businessEntity(areaLocalGuidFirm(i)) AND NOT businessEntity(l) = b
+    DO businessEntity(l) <- b;
+    FOR areaLocalCodFirm(INTEGER i) AND Stock st = Stock.stock(STRING[100](trim(areaLocalCodFirm(i))))
+        AND Enterprise e = enterprise(areaLocalGuid(i)) AND NOT enterprise(st) = e
+    DO enterprise(st) <- e;
 
     APPLY;
 }
@@ -313,8 +318,6 @@ vetisVsdDateFrom 'Дата ВСД (с)' = DATA DATE ();
 // --- Блок 8: ВСД из MercVetDoc ---
 
 // ВСД берутся только по действующим записям журнала (остаткам) выбранных магазинов; связь — по IdDoc
-// в Gestori пустые строки хранятся как '' или пробелы
-vetisNonEmptyGestori = FORMULA NULL STRING 'NULLIF(trim($1), \'\')';
 
 // один ВСД приходит несколькими строками (по записям журнала) — свойства ВСД берутся из первой
 vetLocalFirst = DATA LOCAL BOOLEAN (INTEGER);
