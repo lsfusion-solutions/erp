@@ -253,7 +253,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                             //scale items
                             JSONObject transactionInfo = getExtInfo(transaction.info);
                             if (transactionInfo != null && transactionInfo.optBoolean("clearTmcScale")) {
-                                writeStringToFile(tmpFile, "{\"command\": \"clearTmcScale\"}\n---\n");
+                                writeStringToFile(tmpFile, "{\"command\": \"clearTmcScaleImage\"}\n---\n");
                             }
                             for (CashRegisterItem item : transaction.itemsList) {
                                 if (!skipItem(item, medicineMode) && item.passScalesItem) {
