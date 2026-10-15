@@ -6,6 +6,7 @@ NAMESPACE Purchase;
 
 showFuel(Shipment s) = showFuel(operation(s));
 showFuel(UserShipment s) = showFuel(operation(s));
+showFuel(UserShipmentDetail d) = showFuel(operation(d));
 
 temperature 'Температура, °С' = ABSTRACT NUMERIC[5,1] (ShipmentDetail) CHARWIDTH 7 MATERIALIZED;
 temperature 'Температура, °С' = DATA NUMERIC[5,1] (UserShipmentDetail) CHARWIDTH 7;
@@ -63,10 +64,10 @@ shipmentDensity 'Плотность (поставлено), кг/л' = ABSTRACT 
 shipmentDensity 'Плотность (поставлено), кг/л' = DATA NUMERIC[9,5] (UserInvoiceDetail) CHARWIDTH 7;
 shipmentDensity (UserInvoiceDetail invoiceDetail) += shipmentDensity(invoiceDetail);
 
-CONSTRAINT (SET(isPosted(UserInvoiceDetail d)) OR SET(createShipment(d)) OR CHANGED(sku(d)) OR CHANGED(shipmentDensity(d))) AND createShipment(d) AND isPosted(d) AND isFuel(sku(d)) AND NOT shipmentDensity(d)
+CONSTRAINT (SET(isPosted(UserInvoiceDetail d)) OR SET(createShipment(d)) OR CHANGED(sku(d)) OR CHANGED(shipmentDensity(d))) AND createShipment(d) AND isPosted(d) AND isFuel(sku(d)) AND showFuel(d) AND NOT shipmentDensity(d)
     MESSAGE 'Для строки накладная (закупка) должна быть задана плотность (поставлено)';
 
-WHEN LOCAL (SETCHANGED(shipmentQuantity(UserInvoiceDetail d)) OR SETCHANGED(shipmentVolume(d))) AND NOT shipmentDensity(d) AND isFuel(sku(d)) DO {
+WHEN LOCAL (SETCHANGED(shipmentQuantity(UserInvoiceDetail d)) OR SETCHANGED(shipmentVolume(d))) AND NOT shipmentDensity(d) AND isFuel(sku(d)) AND showFuel(d) DO {
     shipmentDensity(d) <- NUMERIC[9,5](shipmentQuantity(d) * coeffFuel() / shipmentVolume(d));
 }
 

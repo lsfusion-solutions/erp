@@ -14,7 +14,7 @@ showFuel(Inventory i) = showFuel(operation(i));
 volume 'Объем, л' = DATA NUMERIC[16,5] (PageInventoryDetail) CHARWIDTH 7;
 density 'Плотность, кг/л' = DATA NUMERIC[9,5] (PageInventoryDetail) CHARWIDTH 7;
 
-CONSTRAINT (SET(isPosted(inventory(PageInventoryDetail d))) OR CHANGED(sku(d)) OR CHANGED(density(d))) AND isPosted(inventory(d)) AND isFuel(skuGroup(sku(d))) AND NOT density(d)
+CONSTRAINT (SET(isPosted(inventory(PageInventoryDetail d))) OR CHANGED(sku(d)) OR CHANGED(density(d))) AND isPosted(inventory(d)) AND isFuel(sku(d)) AND showFuel(d) AND NOT density(d)
     MESSAGE 'Для строки страницы описи должна быть задана плотность';
 
 @fuelDensityActions(pageInventoryDetail);
@@ -24,7 +24,7 @@ volumePageInventoryDetail 'Объем (всего), л' (pageInventory) = GROUP 
 volumeBalance 'Объем по остаткам, л' (collationSheet, sku) = DATA NUMERIC[16,5] (CollationSheet, Sku);
 densityBalance 'Плотность по остаткам, кг/л' = DATA NUMERIC[9,5] (CollationSheet, Sku);
 
-WHEN LOCAL (CHANGED(quantityBalance(CollationSheet cs, Sku sk)) OR CHANGED(volumeBalance(cs,sk))) AND NOT CHANGED(densityBalance(cs,sk)) AND isFuel(skuGroup(sk)) AND quantityBalance(cs,sk) AND volumeBalance(cs,sk) DO {
+WHEN LOCAL (CHANGED(quantityBalance(CollationSheet cs, Sku sk)) OR CHANGED(volumeBalance(cs,sk))) AND NOT CHANGED(densityBalance(cs,sk)) AND isFuel(sk) AND showFuel(cs) AND quantityBalance(cs,sk) AND volumeBalance(cs,sk) DO {
     densityBalance(cs,sk) <- NUMERIC[9,5](quantityBalance(cs,sk) / volumeBalance(cs,sk));
 }
 

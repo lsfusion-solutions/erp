@@ -128,12 +128,12 @@ EXTEND FORM skuLedger
     PROPERTIES(s) READONLY AFTER signedQuantity(s) signedVolume, density
 ;
 
-CONSTRAINT (CHANGED(signedVolume(SkuLedger l)) OR CHANGED(signedQuantity(l))) AND (signedVolume(l) OR signedQuantity(l)) AND NOT (signedVolume(l) AND signedQuantity(l))            
+CONSTRAINT (SET(isPosted(SkuLedger l)) OR CHANGED(signedVolume(l)) OR CHANGED(signedQuantity(l))) AND isPosted(l) AND (signedVolume(l) OR signedQuantity(l)) AND NOT (signedVolume(l) AND signedQuantity(l))            
     AND isFuel(sku(l)) AND NOT skipCheckVolumeSkuLedger(stock(l))
     MESSAGE 'При движении топлива должны быть заданы масса и объём';
 
 META fuelDesnityConstraints(object, caption)
-    CONSTRAINT (SET(isPosted(###object d)) OR CHANGED(sku(d)) OR CHANGED(density(d))) AND isPosted(d) AND isFuel(sku(d)) AND NOT density(d)
+    CONSTRAINT (SET(isPosted(###object d)) OR CHANGED(sku(d)) OR CHANGED(density(d))) AND isPosted(d) AND isFuel(sku(d)) AND showFuel(d) AND NOT density(d)
         MESSAGE 'Для строки '##caption##' должна быть задана плотность';
 END
 
@@ -144,7 +144,7 @@ META fuelVolumeConstraintInvoice(object)
 END
 
 META fuelDensityActions(object)
-    WHEN LOCAL (SETCHANGED(quantity(###object d)) OR SETCHANGED(volume(d))) AND NOT density(d) AND isFuel(sku(d)) DO {
+    WHEN LOCAL (SETCHANGED(quantity(###object d)) OR SETCHANGED(volume(d))) AND NOT density(d) AND isFuel(sku(d)) AND showFuel(d) DO {
         density(d) <- NUMERIC[9,5](quantity(d) * coeffFuel() / volume(d));
     }
     WHEN LOCAL SETCHANGED(quantity(###object d)) AND NOT CHANGED(volume(d)) AND density(d) AND isFuel(sku(d)) DO {
