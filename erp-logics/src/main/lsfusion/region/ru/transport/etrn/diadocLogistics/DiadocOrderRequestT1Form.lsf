@@ -10,7 +10,7 @@ NAMESPACE ETRN;
 orderDocumentCreator (LegalEntity l) = CONCAT ', ', name(l), 'ИНН ' + inn(l), 'КПП ' + kpp(l);
 
 // организация Диадока перевозчика: в её ящик уходит заявка, её идентификатор участника - в титуле
-carrierOrganization 'Организация Диадока перевозчика' = DATA Diadoc.Organization (OrderRequest);
+carrierOrganization 'Организация Диадока' = DATA Diadoc.Organization (OrderRequest);
 
 WHEN LOCAL CHANGED(carrier(OrderRequest o)) AND o IS OrderRequest AND NOT CHANGED(carrierOrganization(o)) DO
     carrierOrganization(o) <- Diadoc.diadocOrg(carrier(o));
@@ -22,7 +22,7 @@ CONSTRAINT (SETCHANGED(carrierOrganization(OrderRequest o)) OR CHANGED(carrier(o
 
 // заявки, созданные до появления поля, уходят как раньше - по карточке перевозчика
 carrierDiadocBox (OrderRequest o) = OVERRIDE Diadoc.boxOrganization(carrierOrganization(o)), Diadoc.diadocBox(carrier(o));
-carrierDiadocParticipantId 'Ид. участника ЭДО перевозчика' (OrderRequest o) = Diadoc.fnsParticipantId(Diadoc.organization(carrierDiadocBox(o))) CHARWIDTH 25;
+carrierDiadocParticipantId 'Участник ЭДО' (OrderRequest o) = Diadoc.fnsParticipantId(Diadoc.organization(carrierDiadocBox(o))) CHARWIDTH 25;
 carrierBoxRoaming 'Роуминг' (OrderRequest o) = Diadoc.isRoaming(Diadoc.organization(carrierDiadocBox(o)));
 
 // ------------------------- Структура UserDataXml ------------------------- //

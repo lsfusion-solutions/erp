@@ -10,7 +10,7 @@ NAMESPACE ETRN;
 digit1 (BOOLEAN b) = IF b THEN '1' ELSE '0';
 
 // организация Диадока экспедитора: в её ящик уходит поручение, её идентификатор участника - в титуле
-forwarderOrganization 'Организация Диадока экспедитора' = DATA Diadoc.Organization (ForwardingOrder);
+forwarderOrganization 'Организация Диадока' = DATA Diadoc.Organization (ForwardingOrder);
 
 WHEN LOCAL CHANGED(forwarder(ForwardingOrder f)) AND f IS ForwardingOrder AND NOT CHANGED(forwarderOrganization(f)) DO
     forwarderOrganization(f) <- Diadoc.diadocOrg(forwarder(f));
@@ -22,7 +22,7 @@ CONSTRAINT (SETCHANGED(forwarderOrganization(ForwardingOrder f)) OR CHANGED(forw
 
 // поручения, созданные до появления поля, уходят как раньше - по карточке экспедитора
 forwarderDiadocBox (ForwardingOrder f) = OVERRIDE Diadoc.boxOrganization(forwarderOrganization(f)), Diadoc.diadocBox(forwarder(f));
-forwarderDiadocParticipantId 'Ид. участника ЭДО экспедитора' (ForwardingOrder f) = Diadoc.fnsParticipantId(Diadoc.organization(forwarderDiadocBox(f))) CHARWIDTH 25;
+forwarderDiadocParticipantId 'Участник ЭДО' (ForwardingOrder f) = Diadoc.fnsParticipantId(Diadoc.organization(forwarderDiadocBox(f))) CHARWIDTH 25;
 forwarderBoxRoaming 'Роуминг' (ForwardingOrder f) = Diadoc.isRoaming(Diadoc.organization(forwarderDiadocBox(f)));
 
 // ------------------------- Структура UserDataXml ------------------------- //

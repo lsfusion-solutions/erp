@@ -219,7 +219,7 @@ DESIGN outgoingEtrn {
 boxOrganization (Organization o) = GROUP LAST Box b ORDER b BY organization(b);
 
 // входящие: организация участника из титула (при разборе Т1), исходящие: по карточке при выборе перевозчика
-carrierOrganization 'Организация Диадока перевозчика' = DATA Organization (ETRN.ETRN);
+carrierOrganization 'Организация Диадока' = DATA Organization (ETRN.ETRN);
 
 WHEN LOCAL CHANGED(ETRN.carrier(ETRN.OutgoingETRN e)) AND e IS ETRN.OutgoingETRN AND NOT CHANGED(carrierOrganization(e)) DO
     carrierOrganization(e) <- diadocOrg(ETRN.carrier(e));
@@ -232,7 +232,7 @@ CONSTRAINT (SETCHANGED(carrierOrganization(ETRN.ETRN e)) OR CHANGED(ETRN.carrier
 
 // документы, созданные до появления поля, уходят как раньше - по карточке перевозчика
 carrierDiadocBox (ETRN.OutgoingETRN e) = OVERRIDE boxOrganization(carrierOrganization(e)), diadocBox(ETRN.carrier(e));
-carrierDiadocParticipantId 'Ид. участника ЭДО перевозчика' (ETRN.OutgoingETRN e) = fnsParticipantId(organization(carrierDiadocBox(e))) CHARWIDTH 25;
+carrierDiadocParticipantId 'Участник ЭДО' (ETRN.OutgoingETRN e) = fnsParticipantId(organization(carrierDiadocBox(e))) CHARWIDTH 25;
 carrierBoxRoaming 'Роуминг' (ETRN.OutgoingETRN e) = isRoaming(organization(carrierDiadocBox(e)));
 
 changeCarrierOrganization (ETRN.ETRN e) {
