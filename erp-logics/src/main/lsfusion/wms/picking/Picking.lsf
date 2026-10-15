@@ -27,6 +27,8 @@ overNumber = ABSTRACT STRING[48](Picking);
 
 @defineDocumentInterfaceDescription(picking, 'Комплектация');
 
+@defineDocumentInterfaceHeaderClosed(Picking);
+
 @defineDocumentInterfaceDetailSku(picking, sku);
 @defineDocumentInterfaceDetailQuantity(picking);
 @showDocumentInterfaceDetailBatch(picking);
@@ -195,7 +197,7 @@ copy 'Копировать'(Picking picking)  {
 
 FORM pickings 'Комплектации'
     OBJECTS o = Picking LAST
-    PROPERTIES (o) READONLYIF isReadonly() number, series, date, time,
+    PROPERTIES (o) READONLYIF isReadonly() isClosed, number, series, date, time,
                    nameStock
 
     PROPERTIES (o) READONLY countPickingDetail, quantityPickingDetail
@@ -205,6 +207,7 @@ FORM pickings 'Комплектации'
     PROPERTIES (o) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer
 
     PROPERTIES (o) NEWSESSION NEW[UserPicking], EDIT
+    PROPERTIES (o) close[UserPicking] SHOWIF isOpened[UserPicking](o), open SHOWIF isClosed[UserPicking](o)
     PROPERTIES (o) copy
     PROPERTIES     NEWSESSION deleteo=DELETE(o) SHOWIF is[UserPicking](o)
 
@@ -257,6 +260,7 @@ DESIGN pickings {
 }
 
 @extendFormEditable(pickings);
+@defineFilterIsOpened (picking, pickings, o);
 @extendFormFilterAccessStock(o, pickings, stock, company);
 @defineDocumentLogForm(pickings, o);
 
@@ -707,6 +711,7 @@ NAVIGATOR {
 number[Document](Picking picking) += number(picking);
 series[Document](Picking picking) += series(picking);
 date[Document](Picking picking) += date(picking);
+isClosed[Document](Picking picking) += isClosed(picking);
 
 index[DocumentDetail](UserPickingDetail detail) += index(detail);
 sku[DocumentDetail](PickingDetail detail) += sku(detail);
