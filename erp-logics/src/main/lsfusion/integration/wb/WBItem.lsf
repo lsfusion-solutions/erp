@@ -1261,6 +1261,24 @@ height = DATA LOCAL INTEGER (INTEGER);
 updatedAt1 = DATA LOCAL STRING(INTEGER);
 trashedAt1 = DATA LOCAL STRING(INTEGER);
 
+// блок documents в ответе /content/v2/get/cards/list
+GROUP documentsWB EXTID 'documents';
+GROUP overallVerdictWB EXTID 'overallVerdict' : documentsWB;
+GROUP verdictWB EXTID 'verdict';
+
+excludeDocumentsCard = DATA LOCAL BOOLEAN (INTEGER);
+overallStatusCard = DATA LOCAL INTEGER (INTEGER);
+overallReasonCard = DATA LOCAL STRING (INTEGER);
+cardsDocuments = DATA LOCAL INTEGER (INTEGER);
+idDocument = DATA LOCAL STRING (INTEGER);
+typeDocument = DATA LOCAL INTEGER (INTEGER);
+numberDocument = DATA LOCAL STRING (INTEGER);
+startDateDocument = DATA LOCAL STRING (INTEGER);
+endDateDocument = DATA LOCAL STRING (INTEGER);
+isEndlessDocument = DATA LOCAL BOOLEAN (INTEGER);
+statusDocument = DATA LOCAL INTEGER (INTEGER);
+reasonDocument = DATA LOCAL STRING (INTEGER);
+
 dataPostItemsLimit = DATA INTEGER ();
 postItemsLimit 'Лимит для получения списка карточек товаров' = OVERRIDE dataPostItemsLimit(), 100;
 
@@ -1302,6 +1320,16 @@ FORM importItems
     FILTERS sizesSkus(skus) == sizes
 
     PROPERTIES(cards) IN dimensions weightBrutto, isValid, length, width, height
+
+    PROPERTIES(cards) IN documentsWB excludeDocumentsCard EXTID 'excludeDocuments'
+    PROPERTIES(cards) IN overallVerdictWB overallStatusCard EXTID 'status', overallReasonCard EXTID 'reason'
+
+    OBJECTS docs = INTEGER EXTID 'items' IN documentsWB
+    FILTERS cardsDocuments(docs) == cards
+    PROPERTIES(docs) idDocument EXTID 'id', typeDocument EXTID 'type', numberDocument EXTID 'number',
+        startDateDocument EXTID 'startDate', endDateDocument EXTID 'endDate', isEndlessDocument EXTID 'isEndless'
+    PROPERTIES(docs) IN verdictWB statusDocument EXTID 'status', reasonDocument EXTID 'reason'
+    FILTERS imported(docs)
     FILTERS imported(cards)
 ;
 
@@ -1459,6 +1487,131 @@ confirmSentDescriptionWB (Item i) {
     }
 }
 
+// Разрешительные документы карточки. По умолчанию документы уходят на WB характеристиками
+
+sendDocumentsWB 'Передавать разрешительные документы блоком «Документы»' = DATA BOOLEAN ();
+
+CLASS ItemDocument 'Разрешительный документ WB';
+item = DATA Item (ItemDocument) NONULL DELETE;
+idWB 'ID на WB' = DATA STRING (ItemDocument);
+type 'Тип (код WB)' = DATA INTEGER (ItemDocument);
+nameType 'Тип' (ItemDocument d) = CASE
+    WHEN type(d) == 1 THEN 'Сертификат соответствия'
+    WHEN type(d) == 2 THEN 'Декларация о соответствии'
+    WHEN type(d) == 3 THEN 'Свидетельство о госрегистрации (СГР)'
+    WHEN type(d) == 4 THEN 'РУ на медицинские изделия'
+    WHEN type(d) == 5 THEN 'РУ Республики Беларусь'
+    WHEN type(d) == 7 THEN 'Регистрация пестицида'
+    WHEN type(d) == 8 THEN 'Регистрация агрохимиката'
+    WHEN type(d) == 9 THEN 'РУ на лекарственные препараты';
+number 'Номер' = DATA STRING (ItemDocument);
+startDate 'Действует с' = DATA DATE (ItemDocument);
+endDate 'Действует по' = DATA DATE (ItemDocument);
+isEndless 'Бессрочный' = DATA BOOLEAN (ItemDocument);
+fromERP 'Из ERP' = DATA BOOLEAN (ItemDocument);
+
+editedERP 'Изменён в ERP' = DATA BOOLEAN (ItemDocument);
+verdictStatus = DATA INTEGER (ItemDocument);
+verdictReason 'Причина' = DATA STRING (ItemDocument);
+nameVerdictStatus 'Проверка WB' (ItemDocument d) = CASE
+    WHEN verdictStatus(d) == 1 THEN 'Пройдена'
+    WHEN verdictStatus(d) == 2 THEN 'Не пройдена'
+    WHEN idWB(d) THEN 'На проверке';
+
+excludeDocumentsWB 'Документы, подтверждающие безопасность, не требуются' = DATA BOOLEAN (Item);
+overallStatusWB = DATA INTEGER (Item);
+overallReasonWB 'Причина' = DATA STRING (Item);
+nameOverallStatusWB 'Проверка карточки WB' (Item i) = CASE
+    WHEN overallStatusWB(i) == 1 THEN 'Пройдена'
+    WHEN overallStatusWB(i) == 2 THEN 'Не пройдена';
+
+WHEN (SETCHANGED(number(ItemDocument d)) OR SETCHANGED(type(d)) OR CHANGED(startDate(d)) OR CHANGED(endDate(d)) OR CHANGED(isEndless(d)))
+    AND nmID(item(d)) AND NOT skipUpdateWB(item(d)) DO
+    toUpdateWB(item(d)) <- TRUE;
+
+dateTimeWB (DATE d) = toDateISO(d) + 'T00:00:00+03:00';
+documentJSONWB (ItemDocument d) = '\{' + (CONCAT ',', ('"id":"' + idWB(d) + '"'), ('"type":' + type(d)),
+    ('"number":"' + replace(number(d), '"', '\\"') + '"'), ('"startDate":"' + dateTimeWB(startDate(d)) + '"'),
+    ('"endDate":"' + dateTimeWB(endDate(d)) + '"'), ('"isEndless":true' IF isEndless(d))) + '\}';
+documentsJSONWB (Item i) = '\{"items":[' + (OVERRIDE (GROUP CONCAT documentJSONWB(ItemDocument d) IF item(d) == i, ',' ORDER d), '') +
+    '],"excludeDocuments":' + (IF excludeDocumentsWB(i) THEN 'true' ELSE 'false') + '\}';
+
+documentsMarkerWB (Item i) = 'DOCUMENTSWB' + LONG(i) IF sendDocumentsWB() AND foundWB(i);
+
+loadDocumentsWB (Item item, INTEGER i) {
+    DELETE ItemDocument d WHERE item(d) == item AND idWB(d) AND
+        NOT (GROUP SUM 1 IF cardsDocuments(INTEGER dd) == i AND imported(dd) AND idDocument(dd) == idWB(d));
+    FOR cardsDocuments(INTEGER dd) == i AND imported(dd) AND idDocument(dd) AND
+        NOT (GROUP SUM 1 IF item(ItemDocument d) == item AND idWB(d) == idDocument(dd)) DO NEW d = ItemDocument {
+        item(d) <- item;
+        idWB(d) <- idDocument(dd);
+    }
+    FOR cardsDocuments(INTEGER dd) == i AND imported(dd) AND
+        ItemDocument d == [GROUP MAX ItemDocument d1 BY item(d1), idWB(d1)](item, idDocument(dd)) DO {
+        IF NOT editedERP(d) THEN {
+            type(d) <- typeDocument(dd);
+            number(d) <- numberDocument(dd);
+            startDate(d) <- DATE(toDateFormat(left(startDateDocument(dd), 10), 'YYYY-MM-DD'));
+            endDate(d) <- DATE(toDateFormat(left(endDateDocument(dd), 10), 'YYYY-MM-DD'));
+            isEndless(d) <- isEndlessDocument(dd);
+        }
+        verdictStatus(d) <- statusDocument(dd);
+        verdictReason(d) <- reasonDocument(dd);
+    }
+    DELETE ItemDocument d WHERE item(d) == item AND NOT idWB(d) AND
+        (GROUP SUM 1 IF item(ItemDocument d2) == item AND idWB(d2) AND type(d2) == type(d) AND number(d2) == number(d));
+    excludeDocumentsWB(item) <- excludeDocumentsCard(i);
+    overallStatusWB(item) <- overallStatusCard(i);
+    overallReasonWB(item) <- overallReasonCard(i);
+}
+
+fillDocumentWB (Item item, INTEGER t, STRING n, DATE df, DATE dt) {
+    IF n THEN {
+        LOCAL doc = ItemDocument ();
+        doc() <- OVERRIDE (GROUP MIN ItemDocument d IF item(d) == item AND type(d) == t AND number(d) == n),
+                          (GROUP MIN ItemDocument d IF item(d) == item AND type(d) == t);
+        IF NOT doc() THEN NEW d = ItemDocument {
+            item(d) <- item;
+            type(d) <- t;
+            doc() <- d;
+        }
+        number(doc()) <- n;
+        startDate(doc()) <- df;
+        endDate(doc()) <- dt;
+        isEndless(doc()) <- TRUE IF NOT dt;
+        fromERP(doc()) <- TRUE;
+        editedERP(doc()) <- TRUE;
+    }
+}
+
+EXTEND FORM item
+    PROPERTIES(i) READONLY nameOverallStatusWB, overallReasonWB, excludeDocumentsWB
+
+    OBJECTS doc = ItemDocument
+    PROPERTIES(doc) nameType READONLY
+    PROPERTIES(doc) READONLYIF idWB(doc) type, number, startDate, endDate, isEndless
+    PROPERTIES(doc) READONLY nameVerdictStatus, verdictReason, fromERP, editedERP, idWB
+    PROPERTIES(doc) NEW
+    PROPERTIES(doc) DELETE SHOWIF NOT idWB(doc)
+    FILTERS item(doc) == i
+;
+
+DESIGN item {
+    containerItemDetail {
+        NEW documentsContainer {
+            caption = 'Документы';
+            showIf = sendDocumentsWB();
+            NEW documentsHeader {
+                horizontal = TRUE;
+                MOVE PROPERTY(nameOverallStatusWB(i));
+                MOVE PROPERTY(overallReasonWB(i));
+                MOVE PROPERTY(excludeDocumentsWB(i));
+            }
+            MOVE BOX(doc) { caption = 'Разрешительные документы'; }
+        }
+    }
+}
+
 getDescriptionsWB (STRING textSearch) {
     descriptionWB(Item i) <- NULL;
     foundWB(Item i) <- NULL;
@@ -1474,7 +1627,7 @@ getDescriptionsWB (STRING textSearch) {
             (OVERRIDE (', "updatedAt": "' + updatedAt() + '", "nmID": ' + nmID()) IF updatedAt(), '') +
             '\}, "filter": \{"withPhoto": -1' +
             (OVERRIDE (', "textSearch": "' + textSearch + '"') IF textSearch, '') + '\}\}\}', 'UTF-8', 'json');
-        logToFile('WB', 'POST: ' + url(CategoryRequest.content) + '/content/v2/get/cards/list (сверка описаний)');
+        logToFile('WB', 'POST: ' + url(CategoryRequest.content) + '/content/v2/get/cards/list (карточки перед обновлением)');
 
         TRY {
             EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v2/get/cards/list' HEADERS httpHeaders PARAMS resultFile() TO response;
@@ -1483,6 +1636,10 @@ getDescriptionsWB (STRING textSearch) {
                 foundWB(item) <- TRUE;
                 descriptionWB(item) <- description(i);
                 confirmSentDescriptionWB(item);
+                IF sendDocumentsWB() THEN {
+                    skipUpdateWB(item) <- TRUE;
+                    loadDocumentsWB(item, i);
+                }
             }
             more() <- total() >= 100 AND NOT textSearch;
         } CATCH {
@@ -1629,6 +1786,8 @@ postItems 'Получить список карточек товаров' () {
                             descriptionSentWB(item) <- NULL;
                         }
                     }
+
+                    IF sendDocumentsWB() THEN loadDocumentsWB(item, i);
                 }
                 onAfterPostItems();
                 message() <- messageStatusHTTP(STRING(statusHttp()));
@@ -2291,7 +2450,8 @@ FORM updateItem
     PROPERTIES nameBrand = value[Item, Attribute](i, GROUP MAX Attribute a IF a IS AttributeBrand) EXTID 'brand'
     PROPERTIES(i)
         nameForWB EXTID 'title',
-        descriptionForWB EXTID 'description'
+        descriptionForWB EXTID 'description',
+        documentsMarkerWB EXTID 'documents'
     PROPERTIES(i) IN dimensions1 length EXTID 'length',
         width EXTID 'width',
         height EXTID 'height',
@@ -2325,12 +2485,14 @@ updateItem 'Обновить карточку товара' (Item item) {
         isChanged(item) <- TRUE WHERE id(item) AND nmID(item) AND imtID(item);
 
         IF isChanged(item) THEN {
-            IF descriptionCheckWB() THEN {
+            IF descriptionCheckWB() OR sendDocumentsWB() THEN {
                 getDescriptionsWB(id(item));
                 IF failedDescriptionWB() THEN {
-                    MESSAGE 'Не удалось получить описание карточки с WB, карточка не обновлена' NOWAIT;
+                    MESSAGE 'Не удалось получить карточку с WB, карточка не обновлена' NOWAIT;
                     RETURN;
                 }
+            }
+            IF descriptionCheckWB() THEN {
                 conflictWB(item) <- conflictDescriptionWB(item);
                 IF takeDescriptionWB(item) THEN {
                     skipUpdateWB(item) <- TRUE;
@@ -2350,6 +2512,8 @@ updateItem 'Обновить карточку товара' (Item item) {
             fileToString(exportFile());
             FOR itemWB(Size s) == item AND skus(s) DO 
                 resultString() <- replace(resultString(), '"' + skus(s) + '"', '[' + (GROUP CONCAT '"' + id(Barcode b) + '"' IF size(b) == s AND (sendAllBarcodes() OR isPrimaryBarcodeERP(b)), ',' ORDER b) + ']');
+            IF documentsMarkerWB(item) THEN
+                resultString() <- replace(resultString(), '"' + documentsMarkerWB(item) + '"', documentsJSONWB(item));
             stringToFile(resultString(), 'UTF-8', 'json');
     
             TRY {
@@ -2371,6 +2535,8 @@ updateItem 'Обновить карточку товара' (Item item) {
                     toUpdateWB(item) <- NULL WHERE PREV(toUpdateWB(item)) AND NOT error(item);
                     IF descriptionCheckWB() THEN
                         descriptionSentWB(item) <- descriptionForWB(item) WHERE NOT error(item) AND NOT sameDescriptionWB(item);
+                    IF documentsMarkerWB(item) AND NOT error(item) THEN
+                        editedERP(ItemDocument d) <- NULL WHERE item(d) == item;
                 }
                 APPLY;
             }
@@ -2396,12 +2562,14 @@ updateItem 'Обновить карточки товаров' () {
         isChanged(Item item) <- TRUE WHERE id(item) AND nmID(item) AND imtID(item) AND toUpdateWB(item);
 
         IF (GROUP SUM 1 IF isChanged(Item item)) THEN {
-            IF descriptionCheckWB() THEN {
+            IF descriptionCheckWB() OR sendDocumentsWB() THEN {
                 getDescriptionsWB(NULL);
                 IF failedDescriptionWB() THEN {
-                    MESSAGE 'Не удалось получить описания карточек с WB, карточки не обновлены' NOWAIT;
+                    MESSAGE 'Не удалось получить карточки с WB, карточки не обновлены' NOWAIT;
                     RETURN;
                 }
+            }
+            IF descriptionCheckWB() THEN {
                 conflictWB(Item i) <- conflictDescriptionWB(i) WHERE isChanged(i);
                 skipUpdateWB(Item i) <- TRUE WHERE isChanged(i) AND takeDescriptionWB(i);
                 description(Item i) <- descriptionWB(i) WHERE isChanged(i) AND takeDescriptionWB(i);
@@ -2426,6 +2594,8 @@ updateItem 'Обновить карточки товаров' () {
                 //resultString() <- '[' + resultString() + ']';
                 FOR index(Item i) > exported() AND index(i) <= exported() + updateItemsLimit() AND itemWB(Size s) == i AND skus(s) DO 
                     resultString() <- replace(resultString(), '"' + skus(s) + '"', '[' + (GROUP CONCAT '"' + id(Barcode b) + '"' IF size(b) == s AND (sendAllBarcodes() OR isPrimaryBarcodeERP(b)), ',' ORDER b) + ']');
+                FOR index(Item i) > exported() AND index(i) <= exported() + updateItemsLimit() AND documentsMarkerWB(i) DO
+                    resultString() <- replace(resultString(), '"' + documentsMarkerWB(i) + '"', documentsJSONWB(i));
 
                 stringToFile(resultString(), 'UTF-8', 'json');
 
@@ -2455,6 +2625,11 @@ updateItem 'Обновить карточки товаров' () {
                         IF descriptionCheckWB() THEN {
                             descriptionSentWB(Item item) <- descriptionForWB(item) WHERE index(item) > exported() AND
                                 index(item) <= exported() + updateItemsLimit() AND NOT error(item) AND NOT sameDescriptionWB(item);
+                            APPLY NESTED LOCAL;
+                        }
+                        IF sendDocumentsWB() THEN {
+                            editedERP(ItemDocument d) <- NULL WHERE documentsMarkerWB(item(d)) AND index(item(d)) > exported() AND
+                                index(item(d)) <= exported() + updateItemsLimit() AND NOT error(item(d));
                             APPLY NESTED LOCAL;
                         }
                     }
@@ -2665,7 +2840,7 @@ DESIGN masterData {
 
 EXTEND FORM integrationData
     PROPERTIES() postItemsLimit, postTrashItemsLimit, postTransferItemsLimit, postRecoverItemsLimit, updateItemsLimit,
-        uploadItemsLimit, sendAllBarcodes, nameDescriptionCheckWB
+        uploadItemsLimit, sendAllBarcodes, nameDescriptionCheckWB, sendDocumentsWB
 ;
 
 DESIGN integrationData {
@@ -2678,6 +2853,7 @@ DESIGN integrationData {
         MOVE PROPERTY (uploadItemsLimit());
         MOVE PROPERTY (sendAllBarcodes());
         MOVE PROPERTY (nameDescriptionCheckWB());
+        MOVE PROPERTY (sendDocumentsWB());
     }
 }
 

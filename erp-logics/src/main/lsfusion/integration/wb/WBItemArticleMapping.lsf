@@ -1,6 +1,6 @@
 MODULE WBItemArticleMapping;
 
-REQUIRE WBItemMapping;
+REQUIRE WBItemMapping, CustomsGroupItem;
 
 NAMESPACE WB;
 
@@ -10,6 +10,36 @@ EXTEND CLASS MappingType {
 
 article = DATA Item.Article (Item);
 nameArticle 'Артикул ERP' (Item i) = caption(article(i));
+
+tnvedArticle (Item.Article a) = GROUP MAX codeCustomsGroupDefaultCountry(Item.Item i) IF article(i) == a;
+
+complianceNumberArticle = ABSTRACT STRING (Item.Article);
+complianceFromArticle = ABSTRACT DATE (Item.Article);
+complianceToArticle = ABSTRACT DATE (Item.Article);
+declarationNumberArticle = ABSTRACT STRING (Item.Article);
+declarationFromArticle = ABSTRACT DATE (Item.Article);
+declarationToArticle = ABSTRACT DATE (Item.Article);
+
+setAttributeWB (Item item, STRING[10] id, STRING v) {
+    FOR AttributeString attr == attribute(id) AND in(itemSubGroup(item), attr) AND v DO
+        value[Item, AttributeString](item, attr) <- v;
+}
+
+fillAttributesFromArticle 'Заполнить характеристики из артикула' (Item item) {
+    FOR in(itemSubGroup(item), AttributeTnved attr) AND tnved(tnvedArticle(article(item))) DO
+        value[Item, AttributeTnved](item, attr) <- tnved(tnvedArticle(article(item)));
+    setAttributeWB(item, '14177450', composition(article(item)));
+
+    IF sendDocumentsWB() THEN {
+        fillDocumentWB(item, 1, complianceNumberArticle(article(item)), complianceFromArticle(article(item)), complianceToArticle(article(item)));
+        fillDocumentWB(item, 2, declarationNumberArticle(article(item)), declarationFromArticle(article(item)), declarationToArticle(article(item)));
+    } ELSE {
+        setAttributeWB(item, '15001136', complianceNumberArticle(article(item)));
+        setAttributeWB(item, '15001135', declarationNumberArticle(article(item)));
+        setAttributeWB(item, '15001137', toDateDDMMYYYY(OVERRIDE complianceFromArticle(article(item)), declarationFromArticle(article(item))));
+        setAttributeWB(item, '15001138', toDateDDMMYYYY(OVERRIDE complianceToArticle(article(item)), declarationToArticle(article(item))));
+    }
+}
 
 changeArticle (Item item) {
     DIALOG articles OBJECTS a INPUT DO {
@@ -27,14 +57,17 @@ changeArticle (Item item) {
                     id(bc) <- id(b);
                 }
             }
+            fillAttributesFromArticle(item);
         }
     }
 }
 
-EXTEND FORM item PROPERTIES(i) nameArticle ON CHANGE changeArticle(i) SHOWIF mappingType(i) == MappingType.article;
+EXTEND FORM item PROPERTIES(i) nameArticle ON CHANGE changeArticle(i) SHOWIF mappingType(i) == MappingType.article,
+    fillAttributesFromArticle SHOWIF mappingType(i) == MappingType.article AND article(i);
 
 DESIGN item {
     itemHeader {
         MOVE PROPERTY(nameArticle(i));
+        MOVE PROPERTY(fillAttributesFromArticle(i));
     }
 }
