@@ -1,0 +1,127 @@
+MODULE YandexEdaPushStocks;
+
+REQUIRE YandexEda;
+
+NAMESPACE YandexEda;
+
+//-------------------- НАСТРОЙКИ ------------------------//
+
+urlPush 'URL push остатков' = DATA STRING[250] () TABLE settings;
+timeZonePush 'Смещение времени (напр. +03:00)' = DATA STRING[6] () TABLE settings;
+tokenPush 'Токен push' = DATA STRING (YandexEdaAuth);
+
+tokenPushCurrent = DATA LOCAL STRING ();
+
+headersPush (TEXT name) = CASE
+    WHEN name = 'Content-Type' THEN 'application/json'
+    WHEN name = 'Authorization' THEN tokenPushCurrent()
+;
+
+//-------------------- ЧТО ОТПРАВЛЯЕМ ------------------------//
+
+// код магазина в агрегаторе; без имплементации push по магазину не выполняется
+placeId 'Код магазина (push)' (DepartmentStore s) = ABSTRACT STRING;
+
+skipPushStock (Item i, DepartmentStore s) = ABSTRACT CASE BOOLEAN;
+inPushStock (Item i, DepartmentStore s) = inOnlineYandex(i, s) AND NOT skipPushStock(i, s);
+
+lastStock 'Отправленный остаток' = DATA NUMERIC[16,5] (DepartmentStore, Item);
+
+// NULL — товар выбыл из выгрузки, тогда отправляется 0
+pushValue (Item i, DepartmentStore s) = IF inPushStock(i, s) THEN (MAX available(i, s), 0);
+
+stockPush (Item i, DepartmentStore s) = IF pushValue(i, s) THEN rtrim(toChar(pushValue(i, s), 'FM999999999999990.0000'), '.') ELSE '0';
+
+// параметр обязателен: безпараметрическое свойство платформа выносит в корень JSON
+datetimePush (Item i) = toChar(currentDateTime(), 'YYYY-MM-DD"T"HH24:MI:SS') + (OVERRIDE timeZonePush(), '+00:00');
+
+pushChangedClient (YandexEdaAuth a, Item i, DepartmentStore s) =
+        (inPushStock(i, s) AND (NOT lastStock(s, i) OR lastStock(s, i) != pushValue(i, s))
+            OR NOT inPushStock(i, s) AND lastStock(s, i) != 0)
+        AND stock(a, placeId(s)) = s;
+
+selectedPush = DATA LOCAL BOOLEAN (Item, DepartmentStore);
+// магазин попадает в place_changes, только если есть отмеченные товары: пустой changes API отвергает
+pushStoreCount (DepartmentStore s) = GROUP SUM 1 IF selectedPush(Item i, s);
+
+FORM pushStocks 'Остатки push ЯндексЕда'
+    OBJECTS p = DepartmentStore EXTID 'place_changes'
+    PROPERTIES placeId(p) EXTID 'origin_place_id'
+
+    OBJECTS i = Item EXTID 'changes'
+    PROPERTIES id(i) EXTID 'origin_product_id',
+        stockPush(i, p) EXTID 'stocks',
+        datetimePush(i) EXTID 'datetime'
+    FILTERS selectedPush(i, p), pushStoreCount(p)
+;
+
+//-------------------- ОТПРАВКА ------------------------//
+
+pushStocksClient (YandexEdaAuth a) {
+    tokenPushCurrent() <- tokenPush(a);
+    LOCAL response = FILE ();
+    LOCAL chunk = INTEGER ();
+    WHILE GROUP SUM 1 IF pushChangedClient(a, Item i, DepartmentStore s) DO {
+        selectedPush(Item i, DepartmentStore s) <- NULL;
+        // в одном запросе не более 5000 товаров
+        FOR pushChangedClient(a, Item i, DepartmentStore s) ORDER placeId(s), s, id(i), i TOP 5000 DO
+            selectedPush(i, s) <- TRUE;
+        EXPORT pushStocks JSON;
+        TRY {
+            EXTERNAL HTTP POST urlPush() HEADERS headersPush PARAMS exportFile() TO response;
+        } CATCH {
+            logToFile('yandex', CONCAT ' ', 'ERROR push не отправлен', STRING(statusHttp()), messageCaughtException());
+            RETURN;
+        }
+        logToFile('yandex', CONCAT ' ', 'push отправлено позиций', STRING(GROUP SUM 1 IF selectedPush(Item i, DepartmentStore s)));
+        lastStock(s, i) <- (IF inPushStock(i, s) THEN pushValue(i, s)) WHERE selectedPush(i, s);
+        APPLY;
+        IF canceled() THEN {
+            logToFile('yandex', CONCAT ' ', 'ERROR push не зафиксирован (APPLY отменен), позиций', STRING(GROUP SUM 1 IF selectedPush(Item i, DepartmentStore s)));
+            RETURN;
+        }
+        chunk() <- chunk() (+) 1;
+        // защита от зацикливания при непрерывно меняющихся остатках
+        IF chunk() > 100 THEN {
+            logToFile('yandex', CONCAT ' ', 'WARNING push прерван, осталось изменений', STRING(GROUP SUM 1 IF pushChangedClient(a, Item i, DepartmentStore s)));
+            RETURN;
+        }
+    }
+}
+
+pushStocksRun 'Отправить изменённые остатки (push)' () {
+    IF NOT urlPush() THEN {
+        logToFile('yandex', CONCAT ' ', 'ERROR push не задан URL');
+        RETURN;
+    }
+    NEWSESSION {
+        FOR tokenPush(YandexEdaAuth a) DO
+            pushStocksClient(a);
+    }
+}
+
+// после сброса следующий push отправит полные остатки по всем магазинам
+pushStocksReset 'Сбросить отправленные остатки (push)' () {
+    NEWSESSION {
+        lastStock(DepartmentStore s, Item i) <- NULL;
+        APPLY;
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES () urlPush, timeZonePush
+    PROPERTIES (yandex) tokenPush
+    PROPERTIES () pushStocksRun, pushStocksReset
+;
+
+DESIGN integrationData {
+    yandexEda {
+        NEW pushStocks {
+            caption = 'Push остатков';
+            MOVE PROPERTY (urlPush());
+            MOVE PROPERTY (timeZonePush());
+            MOVE PROPERTY (pushStocksRun());
+            MOVE PROPERTY (pushStocksReset());
+        }
+    }
+}

@@ -62,6 +62,11 @@ EXTEND FORM nomenclature
 EXTEND FORM availability
     FILTERS ((urlHttpAccess(i) AND hashImage(i)) OR skipFilter(i)) AND currentPrice(i, s);
 
+// паритет с фильтрами availability, чтобы не отправлять товары вне каталога
+skipPushStock (Item i, DepartmentStore s) += WHEN s IS DepartmentStore AND NOT ((urlHttpAccess(i) AND hashImage(i)) OR skipFilter(i)) THEN TRUE;
+skipPushStock (Item i, DepartmentStore s) += WHEN NOT currentPrice(i, s) THEN TRUE;
+placeId (DepartmentStore s) += idYandex(s);
+
 beforeExportData(YandexEdaAuth auth) +{
     headersTo('Content-Type') <- 'application/json';
 }
