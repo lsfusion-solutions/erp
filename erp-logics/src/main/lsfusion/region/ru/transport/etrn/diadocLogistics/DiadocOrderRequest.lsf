@@ -21,7 +21,7 @@ diadocSendOrderRequest (ETRN.OrderRequest o) {
         MESSAGE 'Не найден ящик Диадока грузоотправителя' NOWAIT;
         RETURN;
     }
-    IF NOT diadocBox(ETRN.carrier(o)) THEN {
+    IF NOT ETRN.carrierDiadocBox(o) THEN {
         MESSAGE 'Не найден ящик Диадока перевозчика (получатель заявки)' NOWAIT;
         RETURN;
     }
@@ -30,13 +30,13 @@ diadocSendOrderRequest (ETRN.OrderRequest o) {
     //ensureDiadocOrgData(ETRN.shipper(o));
     //ensureDiadocOrgData(ETRN.carrier(o));
 
-    checkCounteragent(guidBoxId(diadocBoxId(ETRN.shipper(o))), diadocBox(ETRN.carrier(o)),
+    checkCounteragent(guidBoxId(diadocBoxId(ETRN.shipper(o))), ETRN.carrierDiadocBox(o),
         STRING(CONCAT ' ', 'заказ-заявка Т1', ETRN.number(o), 'от ' + toChar(ETRN.date(o), 'DD.MM.YYYY')), 'перевозчик');
     IF NOT counteragentCheckPassed() THEN RETURN;
 
     FOR User u == userDiadocETRN() DO NEWSESSION {
         fromBox() <- diadocBox(ETRN.shipper(o));
-        toBox() <- diadocBox(ETRN.carrier(o));
+        toBox() <- ETRN.carrierDiadocBox(o);
 
         getToken(u);
         EXPORT diadocOrderRequestT1 OBJECTS o = o XML;
@@ -82,6 +82,23 @@ diadocSendOrderRequest (ETRN.OrderRequest o) {
 
 ETRN.sendOrderRequest (ETRN.OrderRequest o) + WHEN ETRN.provider(o) == ETRN.ETRNProvider.diadoc THEN {
     diadocSendOrderRequest(o);
+}
+
+changeCarrierOrganization (ETRN.OrderRequest r) {
+    DIALOG dialogTransportOrganizations OBJECTS le = ETRN.carrier(r), o = ETRN.carrierOrganization(r) INPUT NULL DO
+        ETRN.carrierOrganization(r) <- o;
+}
+
+EXTEND FORM ETRN.orderRequest
+    PROPERTIES(o) ETRN.carrierDiadocParticipantId ON CHANGE changeCarrierOrganization(o) READONLYIF diadocDocument(o),
+                  ETRN.carrierBoxRoaming READONLY
+;
+
+DESIGN ETRN.orderRequest {
+    partiesBox {
+        MOVE PROPERTY(carrierDiadocParticipantId(o)) AFTER PROPERTY(carrierOrgPhone(o));
+        MOVE PROPERTY(carrierBoxRoaming(o)) AFTER PROPERTY(carrierDiadocParticipantId(o));
+    }
 }
 
 // статусы заявок обновляются лентой docflow-событий V5 (DiadocLogisticsEvents)

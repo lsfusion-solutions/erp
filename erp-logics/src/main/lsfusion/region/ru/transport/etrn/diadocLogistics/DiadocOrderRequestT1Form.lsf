@@ -9,6 +9,22 @@ NAMESPACE ETRN;
 
 orderDocumentCreator (LegalEntity l) = CONCAT ', ', name(l), 'ИНН ' + inn(l), 'КПП ' + kpp(l);
 
+// организация Диадока перевозчика: в её ящик уходит заявка, её идентификатор участника - в титуле
+carrierOrganization 'Организация Диадока перевозчика' = DATA Diadoc.Organization (OrderRequest);
+
+WHEN LOCAL CHANGED(carrier(OrderRequest o)) AND o IS OrderRequest AND NOT CHANGED(carrierOrganization(o)) DO
+    carrierOrganization(o) <- Diadoc.diadocOrg(carrier(o));
+
+CONSTRAINT (SETCHANGED(carrierOrganization(OrderRequest o)) OR CHANGED(carrier(o))) AND carrierOrganization(o)
+    AND NOT Diadoc.legalEntity(carrierOrganization(o)) == carrier(o)
+    CHECKED BY carrierOrganization[OrderRequest]
+    MESSAGE 'Организация Диадока перевозчика должна быть из организаций Диадока перевозчика заявки';
+
+// заявки, созданные до появления поля, уходят как раньше - по карточке перевозчика
+carrierDiadocBox (OrderRequest o) = OVERRIDE Diadoc.boxOrganization(carrierOrganization(o)), Diadoc.diadocBox(carrier(o));
+carrierDiadocParticipantId 'Ид. участника ЭДО перевозчика' (OrderRequest o) = Diadoc.fnsParticipantId(Diadoc.organization(carrierDiadocBox(o))) CHARWIDTH 25;
+carrierBoxRoaming 'Роуминг' (OrderRequest o) = Diadoc.isRoaming(Diadoc.organization(carrierDiadocBox(o)));
+
 // ------------------------- Структура UserDataXml ------------------------- //
 
 GROUP orContract EXTID 'TransportContract';
@@ -98,7 +114,7 @@ FORM diadocOrderRequestT1 FORMEXTID 'LogisticsOrderRequestSenderTitle'
         orCarrierName = name(carrier(o)) EXTID 'OrgName',
         orCarrierInn = inn(carrier(o)) EXTID 'Inn',
         orCarrierKpp = kpp(carrier(o)) EXTID 'Kpp',
-        orCarrierFns = diadocFnsParticipantId(carrier(o)) EXTID 'FnsParticipantId',
+        orCarrierFns = Diadoc.fnsParticipantId(Diadoc.organization(carrierDiadocBox(o))) EXTID 'FnsParticipantId',
         orCarrierType = diadocOrgType(carrier(o)) EXTID 'OrgType'   // 1 - ИП, 2 - ЮЛ (по длине ИНН)
     // Phones у перевозчика обязателен по схеме
     PROPERTIES IN orCarrierPhones orCarrierPhoneOrg = (OVERRIDE phone(carrier(o)), carrierPhone(o)) EXTID 'Phone'

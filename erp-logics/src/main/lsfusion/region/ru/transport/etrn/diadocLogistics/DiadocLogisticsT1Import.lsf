@@ -108,6 +108,10 @@ diadocFillCarrierOrganization (ETRN.IncomingETRN ie) {
        NOT organizationParticipantId(ETRN.incomingCarrierParticipantId(ie)) THEN
         getOrganizationsByInn(userDiadocETRN(), ETRN.incomingCarrierInn(ie));
 
+    // на документ - организация участника из титула: в её ящик уходит Т3
+    carrierOrganization(ie) <- organizationParticipantId(ETRN.incomingCarrierParticipantId(ie))
+        WHERE organizationParticipantId(ETRN.incomingCarrierParticipantId(ie)) AND NOT carrierOrganization(ie);
+
     FOR Organization o == organizationParticipantId(ETRN.incomingCarrierParticipantId(ie)) AND
         LegalEntity l == ETRN.carrier(ie) DO {
         legalEntity(o) <- l WHERE NOT legalEntity(o);

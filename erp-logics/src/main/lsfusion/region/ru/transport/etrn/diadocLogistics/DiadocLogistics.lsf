@@ -212,6 +212,47 @@ DESIGN outgoingEtrn {
     }
 }
 
+// ------------------------- Организация Диадока получателя исходящего документа ------------------------- //
+// у контрагента бывает несколько организаций Диадока на один ИНН (свой ящик и роуминговые): на документе
+// фиксируется та, в чей ящик он уходит; по ней же идентификатор участника в титуле и Т3 по своей перевозке
+
+boxOrganization (Organization o) = GROUP LAST Box b ORDER b BY organization(b);
+
+// входящие: организация участника из титула (при разборе Т1), исходящие: по карточке при выборе перевозчика
+carrierOrganization 'Организация Диадока перевозчика' = DATA Organization (ETRN.ETRN);
+
+WHEN LOCAL CHANGED(ETRN.carrier(ETRN.OutgoingETRN e)) AND e IS ETRN.OutgoingETRN AND NOT CHANGED(carrierOrganization(e)) DO
+    carrierOrganization(e) <- diadocOrg(ETRN.carrier(e));
+
+// только исходящие: у входящих организацию задаёт титул, и её привязка к другой карточке не должна отменять разбор
+CONSTRAINT (SETCHANGED(carrierOrganization(ETRN.ETRN e)) OR CHANGED(ETRN.carrier(e))) AND e IS ETRN.OutgoingETRN
+    AND carrierOrganization(e) AND NOT legalEntity(carrierOrganization(e)) == ETRN.carrier(e)
+    CHECKED BY carrierOrganization[ETRN.ETRN]
+    MESSAGE 'Организация Диадока перевозчика должна быть из организаций Диадока перевозчика документа';
+
+// документы, созданные до появления поля, уходят как раньше - по карточке перевозчика
+carrierDiadocBox (ETRN.OutgoingETRN e) = OVERRIDE boxOrganization(carrierOrganization(e)), diadocBox(ETRN.carrier(e));
+carrierDiadocParticipantId 'Ид. участника ЭДО перевозчика' (ETRN.OutgoingETRN e) = fnsParticipantId(organization(carrierDiadocBox(e))) CHARWIDTH 25;
+carrierBoxRoaming 'Роуминг' (ETRN.OutgoingETRN e) = isRoaming(organization(carrierDiadocBox(e)));
+
+changeCarrierOrganization (ETRN.ETRN e) {
+    DIALOG dialogTransportOrganizations OBJECTS le = ETRN.carrier(e), o = carrierOrganization(e) INPUT NULL DO
+        carrierOrganization(e) <- o;
+}
+
+EXTEND FORM outgoingEtrn
+    PROPERTIES(e) carrierDiadocParticipantId ON CHANGE changeCarrierOrganization(e)
+                      READONLYIF diadocReceptionDocument(e) AND NOT ETRN.exchangeStatus(e) == ETRN.ETRNExchangeStatus.invalid,
+                  carrierBoxRoaming READONLY
+;
+
+DESIGN outgoingEtrn {
+    carrierRow {
+        MOVE PROPERTY(carrierDiadocParticipantId(e)) AFTER PROPERTY(carrierPhone(e));
+        MOVE PROPERTY(carrierBoxRoaming(e)) AFTER PROPERTY(carrierDiadocParticipantId(e));
+    }
+}
+
 // пользователь Диадока для авторизации (можно переопределить)
 userDiadocETRN () = OVERRIDE userDiadoc(currentUser()), (defaultUserDiadocETRN() IF currentUser() IS SystemUser);
 

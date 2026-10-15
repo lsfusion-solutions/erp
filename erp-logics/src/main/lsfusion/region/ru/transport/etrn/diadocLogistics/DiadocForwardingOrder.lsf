@@ -42,18 +42,18 @@ diadocSendForwardingOrder (ETRN.ForwardingOrder f) {
         MESSAGE 'Не найден ящик Диадока клиента (нашей организации)' NOWAIT;
         RETURN;
     }
-    IF NOT diadocBox(ETRN.forwarder(f)) THEN {
+    IF NOT ETRN.forwarderDiadocBox(f) THEN {
         MESSAGE 'Не найден ящик Диадока экспедитора (получатель поручения). Обновите организацию экспедитора в справочнике Диадока по ИНН' NOWAIT;
         RETURN;
     }
 
-    checkCounteragent(guidBoxId(diadocBoxId(ETRN.client(f))), diadocBox(ETRN.forwarder(f)),
+    checkCounteragent(guidBoxId(diadocBoxId(ETRN.client(f))), ETRN.forwarderDiadocBox(f),
         STRING(CONCAT ' ', 'поручение экспедитору', ETRN.number(f), 'от ' + toChar(ETRN.date(f), 'DD.MM.YYYY')), 'экспедитор');
     IF NOT counteragentCheckPassed() THEN RETURN;
 
     FOR User u == userDiadocETRN() DO NEWSESSION {
         fromBox() <- diadocBox(ETRN.client(f));
-        toBox() <- diadocBox(ETRN.forwarder(f));
+        toBox() <- ETRN.forwarderDiadocBox(f);
 
         getToken(u);
         EXPORT ETRN.diadocForwardingOrderT1 OBJECTS f = f XML;
@@ -99,4 +99,21 @@ diadocSendForwardingOrder (ETRN.ForwardingOrder f) {
 
 ETRN.sendForwardingOrder (ETRN.ForwardingOrder f) + WHEN ETRN.provider(f) == ETRN.ETRNProvider.diadoc THEN {
     diadocSendForwardingOrder(f);
+}
+
+changeForwarderOrganization (ETRN.ForwardingOrder f) {
+    DIALOG dialogTransportOrganizations OBJECTS le = ETRN.forwarder(f), o = ETRN.forwarderOrganization(f) INPUT NULL DO
+        ETRN.forwarderOrganization(f) <- o;
+}
+
+EXTEND FORM ETRN.forwardingOrder
+    PROPERTIES(f) ETRN.forwarderDiadocParticipantId ON CHANGE changeForwarderOrganization(f) READONLYIF diadocDocument(f),
+                  ETRN.forwarderBoxRoaming READONLY
+;
+
+DESIGN ETRN.forwardingOrder {
+    partiesBox {
+        MOVE PROPERTY(forwarderDiadocParticipantId(f)) AFTER PROPERTY(forwarderPhone(f));
+        MOVE PROPERTY(forwarderBoxRoaming(f)) AFTER PROPERTY(forwarderDiadocParticipantId(f));
+    }
 }

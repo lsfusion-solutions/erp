@@ -11,10 +11,11 @@ NAMESPACE Diadoc;
 // для входящих перевозок своего объекта Document нет - координаты reception-документа
 // берутся из ленты docflow-событий (receptionDoc*)
 
-// ящик перевозчика: участник ЭДО из титула этой перевозки -> карточка контрагента (в ней первым идёт
-// выбор организации) -> ИНН из титула. Титул важнее карточки: выбор в ней заполняется по первой
-// перевозке, а в следующей перевозчик может работать через другой ящик - Т3 в чужой ящик отклоняется
+// ящик перевозчика: организация на документе (входящие - участник из титула, исходящие - куда ушёл наш Т1) ->
+// участник из титула (документы до появления поля) -> карточка контрагента -> ИНН из титула. Титул важнее карточки:
+// выбор в ней заполняется по первой перевозке, а в следующей перевозчик может работать через другой ящик
 carrierT3Box (ETRN.ETRN e) = OVERRIDE
+    boxOrganization(carrierOrganization(e)),
     [GROUP LAST Box b IF organization(b) == organizationParticipantId(ETRN.incomingCarrierParticipantId(e)) ORDER b](),
     diadocBox(ETRN.carrier(e)),
     [GROUP LAST Box b IF organization(b) == organizationInn(ETRN.incomingCarrierInn(e)) ORDER b]();
@@ -148,4 +149,20 @@ ETRN.inviteCarrier (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvider.di
 
 ETRN.sendConsigneeSigned (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvider.diadoc THEN {
     diadocSendT3(e);
+}
+
+carrierDiadocParticipantId 'Ид. участника ЭДО перевозчика (для Т3)' (ETRN.IncomingETRN e) = fnsParticipantId(organization(carrierT3Box(e))) CHARWIDTH 25;
+carrierBoxRoaming 'Роуминг' (ETRN.IncomingETRN e) = isRoaming(organization(carrierT3Box(e)));
+
+EXTEND FORM incomingEtrn
+    PROPERTIES(e) carrierDiadocParticipantId ON CHANGE changeCarrierOrganization(e)
+                      READONLYIF diadocDeliveryDocument(e) AND NOT ETRN.exchangeStatus(e) == ETRN.ETRNExchangeStatus.invalid,
+                  carrierBoxRoaming READONLY
+;
+
+DESIGN incomingEtrn {
+    inCarrierBox {
+        MOVE PROPERTY(carrierDiadocParticipantId(e)) AFTER PROPERTY(incomingCarrierParticipantId(e));
+        MOVE PROPERTY(carrierBoxRoaming(e)) AFTER PROPERTY(carrierDiadocParticipantId(e));
+    }
 }

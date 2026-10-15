@@ -9,6 +9,22 @@ NAMESPACE ETRN;
 
 digit1 (BOOLEAN b) = IF b THEN '1' ELSE '0';
 
+// организация Диадока экспедитора: в её ящик уходит поручение, её идентификатор участника - в титуле
+forwarderOrganization 'Организация Диадока экспедитора' = DATA Diadoc.Organization (ForwardingOrder);
+
+WHEN LOCAL CHANGED(forwarder(ForwardingOrder f)) AND f IS ForwardingOrder AND NOT CHANGED(forwarderOrganization(f)) DO
+    forwarderOrganization(f) <- Diadoc.diadocOrg(forwarder(f));
+
+CONSTRAINT (SETCHANGED(forwarderOrganization(ForwardingOrder f)) OR CHANGED(forwarder(f))) AND forwarderOrganization(f)
+    AND NOT Diadoc.legalEntity(forwarderOrganization(f)) == forwarder(f)
+    CHECKED BY forwarderOrganization[ForwardingOrder]
+    MESSAGE 'Организация Диадока экспедитора должна быть из организаций Диадока экспедитора поручения';
+
+// поручения, созданные до появления поля, уходят как раньше - по карточке экспедитора
+forwarderDiadocBox (ForwardingOrder f) = OVERRIDE Diadoc.boxOrganization(forwarderOrganization(f)), Diadoc.diadocBox(forwarder(f));
+forwarderDiadocParticipantId 'Ид. участника ЭДО экспедитора' (ForwardingOrder f) = Diadoc.fnsParticipantId(Diadoc.organization(forwarderDiadocBox(f))) CHARWIDTH 25;
+forwarderBoxRoaming 'Роуминг' (ForwardingOrder f) = Diadoc.isRoaming(Diadoc.organization(forwarderDiadocBox(f)));
+
 // ------------------------- Структура UserDataXml ------------------------- //
 
 // порядок групп и свойств = порядок элементов в XML, а схема требует строгой
@@ -196,7 +212,7 @@ FORM diadocForwardingOrderT1 FORMEXTID 'LogisticsForwardingOrderClientTitle'
         foForwarderName = name(forwarder(f)) EXTID 'OrgName',
         foForwarderInn = inn(forwarder(f)) EXTID 'Inn',
         foForwarderKpp = kpp(forwarder(f)) EXTID 'Kpp',
-        foForwarderFns = diadocFnsParticipantId(forwarder(f)) EXTID 'FnsParticipantId',
+        foForwarderFns = Diadoc.fnsParticipantId(Diadoc.organization(forwarderDiadocBox(f))) EXTID 'FnsParticipantId',
         foForwarderType = diadocOrgType(forwarder(f)) EXTID 'OrgType'
 
     PROPERTIES ATTR IN foContract
