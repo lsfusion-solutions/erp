@@ -1411,6 +1411,91 @@ FORM settingInfo
     PROPERTIES() IN filter withPhoto
 ;
 
+CLASS DescriptionCheckWB 'Сверка описания с WB' {
+    wb 'Сверять, при изменении и в ERP, и на WB брать с WB',
+    erp 'Сверять, при изменении и в ERP, и на WB брать из ERP'
+}
+
+descriptionCheckWB = DATA DescriptionCheckWB ();
+nameDescriptionCheckWB 'Сверка описания с WB' () = staticCaption(descriptionCheckWB());
+
+descriptionSyncWB 'Описание на WB при последней синхронизации' = DATA STRING (Item);
+descriptionSentWB 'Описание, отправленное на WB' = DATA STRING (Item); // отправлено на WB, но ещё не подтверждено сверкой
+
+WHEN SET(descriptionCheckWB()) DO {
+    descriptionSyncWB(Item i) <- NULL;
+    descriptionSentWB(Item i) <- NULL;
+}
+
+descriptionWB = DATA LOCAL STRING (Item);
+foundWB = DATA LOCAL BOOLEAN (Item);
+failedDescriptionWB = DATA LOCAL BOOLEAN ();
+conflictWB = DATA LOCAL BOOLEAN (Item);
+
+normDescriptionWB (STRING s) = OVERRIDE ltrim(rtrim(replace(s, '\r', ''), ' \n'), ' \n'), '';
+
+changedDescriptionERP (Item i) = normDescriptionWB(descriptionForWB(i)) != normDescriptionWB(descriptionSyncWB(i)) AND
+    NOT (descriptionSentWB(i) AND normDescriptionWB(descriptionForWB(i)) == normDescriptionWB(descriptionSentWB(i)));
+changedDescriptionWB (Item i) = normDescriptionWB(descriptionWB(i)) != normDescriptionWB(descriptionSyncWB(i));
+sameDescriptionWB (Item i) = normDescriptionWB(descriptionForWB(i)) == normDescriptionWB(descriptionWB(i));
+
+conflictDescriptionWB (Item i) = foundWB(i) AND NOT sameDescriptionWB(i) AND changedDescriptionERP(i) AND changedDescriptionWB(i);
+takeDescriptionWB (Item i) = foundWB(i) AND NOT sameDescriptionWB(i) AND changedDescriptionWB(i) AND
+    (NOT changedDescriptionERP(i) OR descriptionCheckWB() == DescriptionCheckWB.wb);
+
+pendingDescriptionERP (Item i) = foundWB(i) AND NOT sameDescriptionWB(i) AND NOT takeDescriptionWB(i);
+
+messageConflictDescriptionWB () {
+    IF (GROUP SUM 1 IF conflictWB(Item i)) THEN
+        MESSAGE 'Описание изменено и в ERP, и на WB после последней синхронизации, взято ' +
+            (IF descriptionCheckWB() == DescriptionCheckWB.wb THEN 'с WB' ELSE 'из ERP') + '. Артикулы: ' +
+            (GROUP CONCAT id(Item i) IF conflictWB(i), ', ' ORDER i) NOWAIT;
+}
+
+confirmSentDescriptionWB (Item i) {
+    IF descriptionSentWB(i) AND normDescriptionWB(descriptionWB(i)) == normDescriptionWB(descriptionSentWB(i)) THEN {
+        descriptionSyncWB(i) <- descriptionSentWB(i);
+        descriptionSentWB(i) <- NULL;
+    }
+}
+
+getDescriptionsWB (STRING textSearch) {
+    descriptionWB(Item i) <- NULL;
+    foundWB(Item i) <- NULL;
+    failedDescriptionWB() <- NULL;
+    updatedAt() <- NULL;
+    nmID() <- NULL;
+
+    LOCAL response = FILE();
+    LOCAL more = BOOLEAN ();
+    more() <- TRUE;
+    WHILE more() DO {
+        stringToFile('\{"settings": \{"sort": \{"ascending": true\}, "cursor": \{"limit": 100' +
+            (OVERRIDE (', "updatedAt": "' + updatedAt() + '", "nmID": ' + nmID()) IF updatedAt(), '') +
+            '\}, "filter": \{"withPhoto": -1' +
+            (OVERRIDE (', "textSearch": "' + textSearch + '"') IF textSearch, '') + '\}\}\}', 'UTF-8', 'json');
+        logToFile('WB', 'POST: ' + url(CategoryRequest.content) + '/content/v2/get/cards/list (сверка описаний)');
+
+        TRY {
+            EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v2/get/cards/list' HEADERS httpHeaders PARAMS resultFile() TO response;
+            IMPORT importItems JSON FROM response();
+            FOR Item item == item(vendorCode(INTEGER i)) DO {
+                foundWB(item) <- TRUE;
+                descriptionWB(item) <- description(i);
+                confirmSentDescriptionWB(item);
+            }
+            more() <- total() >= 100 AND NOT textSearch;
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            failedDescriptionWB() <- TRUE;
+            more() <- NULL;
+        } FINALLY {
+            afterSendRequestIS();
+        }
+        IF more() THEN sleep(600);
+    }
+}
+
 onAfterPostItems 'Действия после импорта карточек WB' ABSTRACT LIST ();
 
 postItems 'Получить список карточек товаров' () {
@@ -1530,6 +1615,20 @@ postItems 'Получить список карточек товаров' () {
 
                     toUpdateWB(item) <- NULL;
                     skipUpdateWB(item) <- TRUE;
+
+                    IF descriptionCheckWB() THEN {
+                        foundWB(item) <- TRUE;
+                        descriptionWB(item) <- description(i);
+                        confirmSentDescriptionWB(item);
+                        conflictWB(item) <- conflictDescriptionWB(item);
+                        IF pendingDescriptionERP(item) THEN {
+                            toUpdateWB(item) <- TRUE;
+                        } ELSE {
+                            IF takeDescriptionWB(item) THEN description(item) <- descriptionWB(item);
+                            descriptionSyncWB(item) <- descriptionWB(item);
+                            descriptionSentWB(item) <- NULL;
+                        }
+                    }
                 }
                 onAfterPostItems();
                 message() <- messageStatusHTTP(STRING(statusHttp()));
@@ -1550,6 +1649,7 @@ postItems 'Получить список карточек товаров' () {
             }
             IF NOT stopOnLimit() THEN sleep(200);
         }
+        messageConflictDescriptionWB();
 
         //снимаем артикулы WB только у тех, кого WB не вернул за полный проход. При обрыве (429 или ошибка)
         //ничего не чистим: иначе необработанные товары стали бы «новыми» и создали бы дубли при выгрузке.
@@ -2225,6 +2325,24 @@ updateItem 'Обновить карточку товара' (Item item) {
         isChanged(item) <- TRUE WHERE id(item) AND nmID(item) AND imtID(item);
 
         IF isChanged(item) THEN {
+            IF descriptionCheckWB() THEN {
+                getDescriptionsWB(id(item));
+                IF failedDescriptionWB() THEN {
+                    MESSAGE 'Не удалось получить описание карточки с WB, карточка не обновлена' NOWAIT;
+                    RETURN;
+                }
+                conflictWB(item) <- conflictDescriptionWB(item);
+                IF takeDescriptionWB(item) THEN {
+                    skipUpdateWB(item) <- TRUE;
+                    description(item) <- descriptionWB(item);
+                }
+                IF foundWB(item) AND sameDescriptionWB(item) THEN {
+                    descriptionSyncWB(item) <- descriptionWB(item);
+                    descriptionSentWB(item) <- NULL;
+                }
+                messageConflictDescriptionWB();
+            }
+
             logToFile('WB', 'POST: ' + url(CategoryRequest.content) + '/content/v2/cards/update');
 
             EXPORT updateItem FILTERS isChanged(i) JSON;
@@ -2251,6 +2369,8 @@ updateItem 'Обновить карточку товара' (Item item) {
                 IF statusHttp()==200 THEN {
                     checkErrors();
                     toUpdateWB(item) <- NULL WHERE PREV(toUpdateWB(item)) AND NOT error(item);
+                    IF descriptionCheckWB() THEN
+                        descriptionSentWB(item) <- descriptionForWB(item) WHERE NOT error(item) AND NOT sameDescriptionWB(item);
                 }
                 APPLY;
             }
@@ -2276,6 +2396,20 @@ updateItem 'Обновить карточки товаров' () {
         isChanged(Item item) <- TRUE WHERE id(item) AND nmID(item) AND imtID(item) AND toUpdateWB(item);
 
         IF (GROUP SUM 1 IF isChanged(Item item)) THEN {
+            IF descriptionCheckWB() THEN {
+                getDescriptionsWB(NULL);
+                IF failedDescriptionWB() THEN {
+                    MESSAGE 'Не удалось получить описания карточек с WB, карточки не обновлены' NOWAIT;
+                    RETURN;
+                }
+                conflictWB(Item i) <- conflictDescriptionWB(i) WHERE isChanged(i);
+                skipUpdateWB(Item i) <- TRUE WHERE isChanged(i) AND takeDescriptionWB(i);
+                description(Item i) <- descriptionWB(i) WHERE isChanged(i) AND takeDescriptionWB(i);
+                descriptionSentWB(Item i) <- NULL WHERE isChanged(i) AND foundWB(i) AND sameDescriptionWB(i);
+                descriptionSyncWB(Item i) <- descriptionWB(i) WHERE isChanged(i) AND foundWB(i) AND sameDescriptionWB(i);
+                messageConflictDescriptionWB();
+            }
+
             logToFile('WB', 'POST: ' + url(CategoryRequest.content) + '/content/v2/cards/update');
 
             LOCAL index = INTEGER (Item);
@@ -2318,6 +2452,11 @@ updateItem 'Обновить карточки товаров' () {
                     APPLY NESTED LOCAL;
                     IF status200() THEN {
                         checkErrors();                        
+                        IF descriptionCheckWB() THEN {
+                            descriptionSentWB(Item item) <- descriptionForWB(item) WHERE index(item) > exported() AND
+                                index(item) <= exported() + updateItemsLimit() AND NOT error(item) AND NOT sameDescriptionWB(item);
+                            APPLY NESTED LOCAL;
+                        }
                     }
                     status200() <- NULL;
                 }
@@ -2526,7 +2665,7 @@ DESIGN masterData {
 
 EXTEND FORM integrationData
     PROPERTIES() postItemsLimit, postTrashItemsLimit, postTransferItemsLimit, postRecoverItemsLimit, updateItemsLimit,
-        uploadItemsLimit, sendAllBarcodes
+        uploadItemsLimit, sendAllBarcodes, nameDescriptionCheckWB
 ;
 
 DESIGN integrationData {
@@ -2538,6 +2677,7 @@ DESIGN integrationData {
         MOVE PROPERTY (updateItemsLimit());
         MOVE PROPERTY (uploadItemsLimit());
         MOVE PROPERTY (sendAllBarcodes());
+        MOVE PROPERTY (nameDescriptionCheckWB());
     }
 }
 
