@@ -29,7 +29,54 @@ EXTEND CLASS LotType {
     petfood 'Корма для животных',
     bio 'Бады',
     nabeer 'Безалкогольное пиво',
-    sweets 'Сладости и кондитерские изделия'
+    sweets 'Сладости и кондитерские изделия',
+    bicycle 'Велосипеды и велосипедные рамы',
+    ncp 'Никотиносодержащая продукция',
+    meat 'Мясные изделия',
+    vetpharma 'Ветеринарные препараты',
+    radio 'Радиоэлектронная продукция',
+    titan 'Титановая металлопродукция',
+    conserve 'Консервированная продукция',
+    opticfiber 'Оптоволокно и оптоволоконная продукция',
+    books 'Печатная продукция',
+    pharmaraw 'Фармацевтическое сырьё, лекарственные средства',
+    construction 'Строительные материалы',
+    fire 'Пиротехника и огнетушащее оборудование',
+    heater 'Отопительные приборы',
+    cableraw 'Кабельно-проводниковая продукция',
+    polymer 'Полимерные трубы',
+    carparts 'Автозапчасти и комплектующие транспортных средств',
+    furslp 'Натуральный мех',
+    nicotindev 'Электронные системы доставки никотина',
+    gadgets 'Ноутбуки и смартфоны',
+    frozen 'Полуфабрикаты и замороженные продукты',
+    fertilizers 'Удобрения в потребительской упаковке',
+    homeware 'Товары для дома и интерьера',
+    pyrotechnics 'Пиротехнические изделия'
+}
+
+hidden 'Скрыть' = DATA BOOLEAN (LotType);
+
+EXTEND FORM dialogLotTypes
+    PROPERTIES(t) hidden
+    FILTERGROUP used
+        FILTER 'Используемые' NOT hidden(t) 'F9' DEFAULT
+;
+
+// Добавленные разом товарные группы ЧЗ скрываются из выбора, чтобы не раздувать список у тех, кто с ними не работает;
+skipHideNewLotTypes = ABSTRACT BOOLEAN ();
+hideNewLotTypesMigrated = DATA BOOLEAN ();
+onStarted() + {
+    IF NOT (hideNewLotTypesMigrated() OR skipHideNewLotTypes()) THEN NEWSESSION {
+
+        hidden(LotType t) <- TRUE WHERE t = LotType.bicycle OR t = LotType.ncp OR t = LotType.meat OR t = LotType.vetpharma
+            OR t = LotType.radio OR t = LotType.titan OR t = LotType.conserve OR t = LotType.opticfiber OR t = LotType.books
+            OR t = LotType.pharmaraw OR t = LotType.construction OR t = LotType.fire OR t = LotType.heater OR t = LotType.cableraw
+            OR t = LotType.polymer OR t = LotType.carparts OR t = LotType.nicotindev OR t = LotType.gadgets
+            OR t = LotType.frozen OR t = LotType.fertilizers OR t = LotType.homeware OR t = LotType.pyrotechnics;
+        hideNewLotTypesMigrated() <- TRUE;
+        APPLY;
+    }
 }
 
 showEnableExciseMarkPrice 'Цена табачной продукции в коде маркировки' = DATA BOOLEAN (LotType);
