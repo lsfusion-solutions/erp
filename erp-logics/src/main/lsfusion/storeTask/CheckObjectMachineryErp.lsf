@@ -1,0 +1,50 @@
+MODULE CheckObjectMachineryErp;
+
+REQUIRE CheckObjectStoreErp, CashRegister, Scales;
+
+NAMESPACE StoreTask;
+
+// Кассы и весы как объекты проверки: по ним ставят задачи (поверка весов, инцидент с
+// кассой), и в дереве объектов они стоят внутри своего магазина.
+//
+// Наследуются от CheckObject, а не от CheckAsset: CheckAsset — конкретный справочник со
+// своими DATA-полями (assetId, assetName), которые пришлось бы заполнять и поддерживать
+// параллельно с настоящей карточкой оборудования. Здесь всё наоборот — id и название
+// вычисляются из самого оборудования, второго места ввода не появляется.
+EXTEND CLASS CashRegister : CheckObject;
+EXTEND CLASS Scales : CheckObject;
+
+// --- магазин оборудования: через отдел ---
+// Прямой ссылки «касса → магазин» в erp нет и быть не должно: касса стоит в группе,
+// группа привязана к складу, а склад магазина в erp — это его отдел (DepartmentStore),
+// и уже у отдела есть магазин. Приведение AS обязательно: stock(GroupMachinery) — это
+// Stock, а магазин знает только отдел; у группы, повешенной на склад или РЦ, цепочка
+// честно оборвётся на NULL, и такое оборудование просто не попадёт в дерево.
+departmentStoreMachinery 'Отдел магазина' (Machinery m) =
+    Machinery.stock(Machinery.groupMachinery(m)) AS DepartmentStore;
+
+storeMachinery 'Магазин' (Machinery m) = Store.store(departmentStoreMachinery(m));
+nameStoreMachinery 'Магазин' (Machinery m) = Store.name(storeMachinery(m));
+
+// Место в дереве объектов — сам магазин, а не отдел: отделов больше, чем магазинов (у Соседей 733 на 321),
+// они не проверяются и координат не имеют, поэтому в дереве были бы лишним
+// уровнем. Отдел остаётся тем, чем он и является, — способом связи.
+//
+// Собственные адрес и координаты у кассы не заводятся намеренно: ядро поднимет их от
+// ближайшего предка, у которого они есть (CheckObject.site), то есть от магазина. На
+// этом же держится гео-фильтр мобильного клиента — задача по кассе находится у того,
+// кто стоит в магазине.
+parent(CashRegister c) += storeMachinery(c);
+parent(Scales s) += storeMachinery(s);
+
+// --- как называется и как опознаётся ---
+// Порядковый номер кассы по сети не уникален (у Соседей 1748 касс на 1282 номера), поэтому
+// id составной: номер группы плюс номер кассы — ровно та пара, уникальность которой
+// платформа проверяет сама (cashRegisterNppGroupCashRegister в CashRegister.lsf).
+id(CashRegister c) += ISTRING[30]('CR' + STRING(Machinery.npp(Machinery.groupMachinery(c))) + '-' + STRING(Machinery.npp(c)));
+id(Scales s) += ISTRING[30]('SC' + STRING(Machinery.npp(Machinery.groupMachinery(s))) + '-' + STRING(Machinery.npp(s)));
+
+// В названии — магазин: объекты проверки лежат одним списком, и «Касса №3» без магазина
+// в выпадашке ни о чём не говорит.
+name(CashRegister c) += ISTRING[150](CONCAT ' — ', 'Касса №' + STRING(Machinery.npp(c)), nameStoreMachinery(c));
+name(Scales s) += ISTRING[150](CONCAT ' — ', 'Весы №' + STRING(Machinery.npp(s)), nameStoreMachinery(s));

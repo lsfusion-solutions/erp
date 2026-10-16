@@ -1,0 +1,24 @@
+MODULE ScalesVerificationErp;
+
+// Store — форма store и регион; CheckCategory — тонкий справочник категорий подсистемы
+REQUIRE CheckObjectMachineryErp, CheckCategory, Store;
+
+NAMESPACE StoreTask;
+
+// График поверки весов. Правило авто-создания задач (SchedulePlan) отбирает объекты по
+// категории, а у весов её не было: поставить «Поверку весов» в график проверок было нельзя.
+//
+// Категория весов — группа поверки, и назначается она магазину, а не каждым весам:
+// поверитель приезжает в магазин и поверяет все весы за один выезд, а весы, которые
+// появятся в магазине позже, сами встают в его группу. Своего классификатора «когда
+// поверять» в erp нет, поэтому группы — строки справочника категорий подсистемы
+// (CheckCategory). Месяц группе задаёт её правило (дата начала, период 365 дней): перенести
+// магазин на другой месяц — сменить ему группу на карточке.
+scalesVerificationGroup = DATA CheckCategory (Store);
+nameScalesVerificationGroup 'Группа поверки весов' (Store s) = catName(scalesVerificationGroup(s));
+
+category (Scales s) += scalesVerificationGroup(storeMachinery(s));
+
+EXTEND FORM Store.store
+    PROPERTIES(s) nameScalesVerificationGroup
+;

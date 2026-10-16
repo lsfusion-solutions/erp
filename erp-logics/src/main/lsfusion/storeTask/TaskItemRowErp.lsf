@@ -1,0 +1,454 @@
+MODULE TaskItemRowErp;
+
+// HostRow — шов fillRows/available, которым хост наполняет табличную часть; RefValue —
+// «предмет» строки; FillRow/Column/Field/Filling — сама табличная часть; StoreTaskCore —
+// task/checkObject; Item/Sku — товар и его наименование; Store — магазин и его отделы;
+// PriceListCalc — prevPriceA, действующая цена по прайсу; PriceListStore — розничный вид
+// цены магазина; TaskRequest — позиции заявки, из которой создана задача; Utils —
+// isWordInCSV (транзитивному REQUIRE не доверять); ChecklistTask — тип «чек-лист»;
+// ObjectRole — person/active, ответственный по роли (снятие товара во все магазины).
+//
+// StoreTaskErp здесь НЕТ намеренно: этот модуль подключается из него, и обратная
+// ссылка замкнула бы круг (StoreTaskErp <- TaskItemRowErp <- StoreTaskErp).
+REQUIRE HostRow, RefValue, FillRow, Column, Field, Filling, StoreTaskCore,
+        Recount, Template, FormTask, TaskPerformer, StoreTaskForms,
+        Barcode, Item, Sku, Store, PriceListCalc, PriceListStore, Execution,
+        PriceCheck, TaskRequest, Utils,
+        // тип «чек-лист» (снятие — формулярная задача) и резолв исполнителя по роли
+        ChecklistTask, ObjectRole;
+
+NAMESPACE StoreTask;
+
+// Товар в задаче — не объект проверки, а ПРЕДМЕТ СТРОКИ табличной части.
+//
+// Объектом задачи остаётся магазин: «пересчитать остатки» и «проверить ценники» делают
+// НА объекте, а товары — это то, что в задаче перечислено. Отсюда и класс: Item получает
+// RefValue, а не CheckObject. Разница практическая: каталог объектов проверки остаётся из
+// магазинов и оборудования, материализации level/site не растут на 41 597 позиций, и
+// гео-выдача телефона не засоряется товарами, у которых координат нет и быть не может.
+EXTEND CLASS Item : RefValue;
+
+id[RefValue] (Item i) += ISTRING[50](Item.id(i));
+name[RefValue] (Item i) += ISTRING[150](Stock.name(i));
+
+// Канал справочника: поле шаблона с subjectKind = 'item' отбирает предметы именно отсюда.
+kind (Item i) += 'item';
+
+// Штрихкоды предмета для скана у полки (#37192): все активные штрихкоды товара строкой
+// через запятую — их телефон возит в кэше кандидатов бланка и матчит скан без связи.
+// Готовый allBarcodes модуля Barcode уже даёт нужный формат.
+barcodes (Item i) += ISTRING[500](Barcode.allBarcodes(i));
+
+// Предмет канала 'item' по штрихкоду — серверная половина скана (exactSubject в
+// RowSubjectsApi): GROUP LAST по дате действия берёт действующий штрихкод, а AS
+// отсекает Sku-подклассы вне канала — RefValue в этом мосту только Item.
+refValueByBarcode (STRING[30] kind, ISTRING[50] b) +=
+    WHEN kind = 'item' AND b IS ISTRING[30]THEN (Barcode.skuBarcode(STRING[15](b)) AS Item);
+
+// ===== Остаток и цена магазина =====
+// Остаток и цена в erp живут по складу (Stock), а склад магазина — это его отдел
+// (DepartmentStore). Отделов у магазина бывает несколько, поэтому остаток суммируется по
+// всем, а цена берётся по головному: прайс на товар в разных отделах одного магазина один
+// и тот же, а вот остаток лежит там, где лежит.
+headDepartment (Store st) = GROUP MIN DepartmentStore d IF Store.store(d) = st;
+
+erpBalance (Item i, Store st) =
+    GROUP SUM currentBalance(i, DepartmentStore d) IF Store.store(d) = st;
+
+// Вид цены — штатный розничный магазина (свой или от формата, PriceListStore), а если он
+// не задан — вид с кодом 'retail', который заводит PriceListDefault. Запасной вариант не
+// теоретический: у Соседей retailPriceListType не заполнен ни у одного склада, и цена по
+// нему одному всегда выходила бы пустой.
+retailTypeTask (Store st) =
+    OVERRIDE retailPriceListType(headDepartment(st)), PriceList.priceListType('retail');
+
+erpPrice (Item i, Store st) =
+    prevPriceA(retailTypeTask(st), i, headDepartment(st), currentDateTime());
+
+// ===== Точки расширения =====
+// Конфигурация может добавить свой источник остатка, цены и ассортимента — сверх erp, а не
+// вместо него: реальные данные всегда в приоритете (OVERRIDE ниже). Так демо-стенд,
+// собранный из одних справочников, без документов и движений, заводит демо-ассортимент у
+// себя, а в erp остаётся только шов под него.
+//
+// Отдельные ABSTRACT, а не второй `available +=`: доступность в артефакте — ABSTRACT без
+// CASE, и две реализации, истинные на одной паре товар-магазин, дали бы конфликт.
+extraBalance 'Остаток (доп. источник)' = ABSTRACT NUMERIC[14,3] (Item, Store);
+extraPrice 'Цена (доп. источник)' = ABSTRACT NUMERIC[16,4] (Item, Store);
+extraAvailable 'В ассортименте (доп. источник)' = ABSTRACT BOOLEAN (Item, Store);
+
+storeBalance 'Остаток по системе' (Item i, Store st) = OVERRIDE erpBalance(i, st), extraBalance(i, st);
+storePrice 'Цена по системе' (Item i, Store st) = OVERRIDE erpPrice(i, st), extraPrice(i, st);
+
+// Доступен на объекте — то есть в этом магазине товар вообще есть: лежит на остатке,
+// имеет действующую цену или заведён доп. источником. Этим гейтом ограничен и выбор
+// предмета в приложении (apiRowSubjects), и генерация строк ниже: без него канал
+// показывал бы весь каталог сети — десятки тысяч позиций в телефонном пикере.
+available (Item i, Store st) += TRUE IF erpBalance(i, st) OR erpPrice(i, st) OR extraAvailable(i, st);
+
+// ===== Набор задания на форме «Товары» =====
+// Задание собирают там, где смотрят на товар, а объектом задачи остаётся магазин.
+// Два входа с одной механикой: отметка в списке плюс кнопка — когда позиций много,
+// и пункт правого клика — когда нужна одна.
+//
+// Отметка НЕ своя: in «Отм.» — штатное поле массового выбора erp, уже нарисованное на
+// форме первой колонкой (PROPERTIES(i) in BEFORE idBarcode(i)). По нему работают
+// «Объединить» и «Изменить группу», и вторая галочка рядом заставляла бы товароведа
+// выбирать, какой из двух отметок пользоваться. Счётчик отмеченного тоже штатный —
+// countInItem().
+//
+// Пишем с квалификатором Item.in: в самом StoreTask есть три двухаргументных in
+// (теги задачи, исполнители, статусы типа), и в списке NESTED, где аргументов нет,
+// платформе выбирать не по чему — старт падает на «ambiguous name 'in'». Одного
+// квалификатора мало: в самом Item шесть разных in (по группе, по единице, по
+// бренду...), поэтому в NESTED пишем и сигнатуру — Item.in[Item].
+
+// Одна позиция, выбранная правым кликом. Отдельным свойством, а не через in: иначе пункт
+// меню молча сбрасывал бы уже проставленные галочки.
+singleItem = DATA LOCAL Item ();
+
+// Что уйдёт в задание: одна позиция, если её выбрали пунктом меню, иначе все отмеченные.
+pickedItem (Item i) = IF singleItem() THEN i = singleItem() ELSE Item.in(i);
+
+// Что автор перечислил поимённо — хранится У ЗАДАЧИ, а не в сессии: по нему fillRows
+// собирает строки, и повторное открытие бланка даёт тот же состав.
+requestedItem 'Позиция задания' = DATA BOOLEAN (Task, Item);
+hasRequested (Task t) = GROUP SUM 1 IF requestedItem(t, Item i);
+
+// Задача, созданная из заявки (находки гипотезы, события внешней системы), приносит
+// позиции кодами товаров через запятую. Раскладываются они в тот же состав, что и
+// собранный руками на форме «Товары»: «пересчитать семь позиций с отрицательным
+// остатком», а не весь ассортимент магазина. Коды, которых в erp нет, молча
+// пропускаются — строку без товара бланк всё равно не показал бы.
+//
+// Успевает до бланка: заполнение создаётся только при старте выполнения
+// (FormTask.startExecution), а заявка становится задачей раньше.
+WHEN SET(task(TaskRequest q)) AND subjects(q) DO
+    requestedItem(task(q), Item i) <- TRUE WHERE isWordInCSV(Item.id(i), replace(subjects(q), ' ', ''));
+
+// ===== Задание по товарам: пересчёт и проверка ценников =====
+// Оба задания отличаются ровно двумя вещами — типом задачи и шаблоном бланка, — поэтому
+// создание у них одно, а не две почти одинаковых копии.
+//
+// Название складывается из имени типа («Пересчёт остатков», «Проверка ценников»):
+// отдельный параметр под заголовок не нужен, и переименование типа доедет до названий
+// само.
+//
+// Шаблон передаётся ИМЕНЕМ, а не объектом: искать его всё равно по имени, а из имени
+// получается внятное сообщение, когда шаблона в базе нет.
+newItemTask (Store st, TaskType tt, ISTRING[150] tplName) {
+    // NESTED: обе отметки — локальные свойства формы товаров, и без переноса в новую
+    // сессию задание собралось бы пустым.
+    NEWSESSION NESTED (Item.in[Item], singleItem) {
+        NEW t = Task {
+            name(t) <- ISTRING(name(tt) + ': ' + Store.name(st));
+            checkObject(t) <- st;
+            type(t) <- tt;
+            template(t) <- templateByName(tplName);
+            author(t) <- currentPerformer();
+            start(t) <- currentDate();
+            requestedItem(t, Item i) <- TRUE WHERE pickedItem(i);
+            // Строки бланка заведёт fillRows: событие на создание заполнения отрабатывает
+            // после того, как requestedItem уже проставлен в этой же сессии.
+            NEW e = Filling { task(e) <- t; template(e) <- template(t); }
+            SHOW task OBJECTS t = t DOCKED;
+        }
+    }
+}
+
+// Шаблон ищется по названию. Если его переименовали или не завели, задача создалась бы с
+// пустым бланком — выполнение без единой строки, и понять почему можно только заглянув в
+// шаблоны. Поэтому проверка до создания, а не после.
+checkTemplate (ISTRING[150] tplName) {
+    IF NOT templateByName(tplName) THEN
+        MESSAGE 'Шаблон «' + tplName + '» не заведён — задание создать не из чего';
+}
+
+// Вход первый: отмеченные галочкой «Отм.» позиции.
+createSelectedTask (TaskType tt, ISTRING[150] tplName) {
+    IF NOT countInItem() THEN {
+        MESSAGE 'Отметьте позиции галочкой «Отм.»';
+        RETURN;
+    }
+    checkTemplate(tplName);
+    IF NOT templateByName(tplName) THEN RETURN;
+    singleItem() <- NULL;
+    DIALOG stores OBJECTS s INPUT DO {
+        newItemTask(s, tt, tplName);
+        // Отметки израсходованы — так же поступает штатное «Объединить».
+        Item.in(Item i) <- NULL;
+    }
+}
+
+// Вход второй: одна позиция, выбранная правым кликом.
+createSingleTask (Item i, TaskType tt, ISTRING[150] tplName) {
+    checkTemplate(tplName);
+    IF NOT templateByName(tplName) THEN RETURN;
+    singleItem() <- i;
+    DIALOG stores OBJECTS s INPUT DO newItemTask(s, tt, tplName);
+    singleItem() <- NULL;
+}
+
+createRecountSelected 'Создать задание на пересчёт' () {
+    createSelectedTask(recountTaskType(), 'Пересчёт остатков');
+}
+
+createRecountItem 'Создать задание на пересчёт' (Item i) {
+    createSingleTask(i, recountTaskType(), 'Пересчёт остатков');
+}
+
+createPricingSelected 'Создать задание на проверку ценников' () {
+    createSelectedTask(pricingTaskType(), 'Проверка ценников (по позициям)');
+}
+
+createPricingItem 'Создать задание на проверку ценников' (Item i) {
+    createSingleTask(i, pricingTaskType(), 'Проверка ценников (по позициям)');
+}
+
+// ===== Снятие товара с продажи: одна постановка — задача в каждом магазине =====
+// Отзыв партии: отмеченные на форме «Товары» позиции (или одна правым кликом)
+// уходят задачами НЕ в один выбранный магазин, как у пересчёта, а во всю сеть.
+// Магазины: отмеченные «Отм.» на форме «Магазины», а если отметок нет — вся
+// активная сеть (active — штатный признак erp «Неактивный»). Исполнитель —
+// ответственный по старшей роли с живым человеком (тот же резолв, что у пачки по
+// критериям); некого — задача останется без исполнителя, назначит автор. Состав у
+// всех задач один, шаблон общий с демо-сидом («Снятие товара с продажи», host-поле
+// позиций: остаток по системе + «Снято»). Срок, приоритет и приёмку не навязываем —
+// автор правит на месте. Название не от типа (checklist называется «Проверка по
+// чек-листу», не про снятие), а своим текстом.
+//
+// Отметка магазинов — СВОЯ: у товаров erp уже была штатная «Отм.», у магазинов нет.
+// Локальная, как у товаров: живёт в сессии и переносится в NEWSESSION явно.
+markedStore 'Отм.' = DATA LOCAL BOOLEAN (Store);
+
+countMarkedStore = GROUP SUM 1 IF markedStore(Store s);
+
+// Отмеченные магазины, иначе вся активная сеть.
+pickedStore (Store s) = IF countMarkedStore() THEN markedStore(s) ELSE Store.active(s);
+
+// Сколько магазинов затронет постановка — для вопроса перед созданием: N задач и N
+// уведомлений исполнителям отменить задним числом нельзя. OVERRIDE — чтобы «0» в
+// вопросе печатался нулём, а не пропадал вместе со всей строкой.
+countWithdrawStore = (OVERRIDE (GROUP SUM 1 IF pickedStore(Store s)), 0);
+
+// Исполнитель снятия — ответственный по старшей роли с живым человеком; на магазине
+// это заведующий. Выражение то же, что у пачки (AiTaskBatch.batchRole), но требовать
+// AI-пакет ради двух строк мост не может.
+taskRole (CheckObject o) = GROUP LAST ObjectRole r ORDER DESC order(r), r
+    WHERE active(r) AND person(o, r) AND NOT archived(person(o, r));
+
+newWithdrawTasks (ISTRING[150] tplName) {
+    // NESTED: те же локальные отметки форм, что и у пересчёта
+    NEWSESSION NESTED (Item.in[Item], singleItem, markedStore) {
+        FOR pickedStore(Store st) ORDER Store.name(st), st DO {
+            NEW t = Task {
+                name(t) <- ISTRING('Снятие товара с продажи: ' + Store.name(st));
+                checkObject(t) <- st;
+                type(t) <- checklistTaskType();
+                template(t) <- templateByName(tplName);
+                assignedTo(t) <- person(st, taskRole(st));
+                author(t) <- currentPerformer();
+                start(t) <- currentDate();
+                requestedItem(t, Item i) <- TRUE WHERE pickedItem(i);
+                // бланк каждой задачи заводится сразу: исполнитель откроет готовый
+                NEW e = Filling { task(e) <- t; template(e) <- template(t); }
+            }
+        }
+        APPLY;
+        IF canceled() THEN {
+            MESSAGE applyMessage();
+            RETURN;
+        }
+    }
+    // Головное действие: без SHOW (не открывается из неинтерактивных каналов — eval,
+    // регламент). Список задач показывает вызывающий вход.
+}
+
+// Вход первый: отмеченные галочкой «Отм.» позиции — с формы «Товары» или с формы
+// «Магазины» (отметки общие, действие одно и то же).
+createWithdrawSelected 'Снять с продажи' () {
+    IF NOT countInItem() THEN {
+        MESSAGE 'Отметьте позиции на форме «Товары» галочкой «Отм.»';
+        RETURN;
+    }
+    IF NOT countWithdrawStore() THEN {
+        MESSAGE 'Нет активных магазинов (или ни один не отмечен)';
+        RETURN;
+    }
+    checkTemplate('Снятие товара с продажи');
+    IF NOT templateByName('Снятие товара с продажи') THEN RETURN;
+    singleItem() <- NULL;
+    ASK 'Создать задачи на снятие в ' + STRING[10](countWithdrawStore()) + ' магазинах?' DO {
+        newWithdrawTasks('Снятие товара с продажи');
+        // Отметки израсходованы — так же поступает «Объединить» и пересчёт
+        Item.in(Item i) <- NULL;
+        SHOW tasks DOCKED;
+    }
+}
+
+// Вход второй: одна позиция, выбранная правым кликом.
+createWithdrawItem 'Снять с продажи' (Item i) {
+    checkTemplate('Снятие товара с продажи');
+    IF NOT templateByName('Снятие товара с продажи') THEN RETURN;
+    IF NOT countWithdrawStore() THEN {
+        MESSAGE 'Нет активных магазинов (или ни один не отмечен)';
+        RETURN;
+    }
+    singleItem() <- i;
+    ASK 'Создать задачи на снятие в ' + STRING[10](countWithdrawStore()) + ' магазинах?' DO {
+        newWithdrawTasks('Снятие товара с продажи');
+        SHOW tasks DOCKED;
+    }
+    singleItem() <- NULL;
+}
+
+// Кнопки — на вкладку «Действия», своей группой рядом со «Слиянием товаров»: там же erp
+// держит остальные действия над отмеченным списком. Пункты правого клика — на штрихкоде,
+// той же колонке, на которой уже висит «Создать задачу» из артефакта: у CONTEXTMENU есть
+// подпись, и пункты различаются по ней, а не по колонке.
+EXTEND FORM items
+    PROPERTIES() createRecountSelected, createPricingSelected, createWithdrawSelected
+;
+
+DESIGN items {
+    actionsRow1 {
+        NEW storeTask {
+            caption = 'Задачи магазина';
+            alignment = STRETCH;
+            MOVE PROPERTY(createRecountSelected());
+            MOVE PROPERTY(createPricingSelected());
+            MOVE PROPERTY(createWithdrawSelected());
+        }
+    }
+}
+
+// Отметка магазинов и кнопка снятия — на форме «Магазины»: отметки общие с «Товарами»,
+// поэтому порядок любой — можно отметить магазины и уйти к позициям, можно наоборот.
+EXTEND FORM stores
+    PROPERTIES(s) markedStore BEFORE name(s)
+    PROPERTIES() createWithdrawSelected TOOLBAR
+;
+
+// ===== Хост наполняет табличную часть =====
+// Поле шаблона с rowSource = 'host' платформа отдаёт сюда (HostRow.expandHostRows), и
+// строки заводит хост — вместе с системными значениями в readonly-колонках. Исполнителю
+// остаётся вбить факт: пересчитанное количество или цену с полки.
+//
+// Колонки опознаются по КОДУ, а не по названию: шаблон и этот модуль договариваются о
+// 'sysqty' (остаток по системе) и 'sysprice' (цена по системе). Название колонки на форме
+// можно менять свободно, код — нет.
+//
+// TOP 200 — предохранитель, а не норма: полный ассортимент магазина это тысячи позиций, и
+// столько строк в одной задаче не нужно ни на телефоне, ни в базе. Задание, собранное
+// поимённо, в этот предел укладывается с запасом.
+// Что попадает в бланк: если автор перечислил позиции поимённо — ровно они, иначе весь
+// доступный ассортимент магазина. Так одна и та же связка «шаблон + host» обслуживает и
+// задание, собранное на форме товаров, и пересчёт «всего, что стоит в этом магазине».
+// Состав задачи: перечисленное поимённо, а если ничего не перечислено — весь доступный
+// ассортимент объекта. Правило объявлено У ЗАДАЧИ, потому что состав — её свойство, а
+// не свойство отдельного заполнения; версия для заполнения к нему и сводится. Одно
+// определение на два места: карточка задачи показывает ровно то, что попадёт в бланк.
+rowItem (Task t, Item i) =
+    IF hasRequested(t) THEN requestedItem(t, i)
+    ELSE available(i, checkObject(t));
+
+rowItem (Filling e, Item i) = rowItem(task(e), i);
+
+fillRows (Filling e, Field f) + {
+    IF subjectKind(f) = 'item' THEN
+        FOR rowItem(e, Item i) AND NOT hostRowExists(e, f, i)
+            ORDER Stock.name(i), i TOP 200
+            NEW r = FillRow DO {
+                filling(r) <- e;
+                tableField(r) <- f;
+                rowKey(r) <- 'item' + STRING[19](LONG(i));
+                subject(r) <- i;
+                subjectName(r) <- ISTRING[150](Stock.name(i));
+
+                cellNumber(r, Column c) <- NUMERIC[14,3](storeBalance(i, checkObject(task(e)) AS Store))
+                    WHERE tableField(c) = f AND code(c) = 'sysqty';
+                cellNumber(r, Column c) <- NUMERIC[14,3](storePrice(i, checkObject(task(e)) AS Store))
+                    WHERE tableField(c) = f AND code(c) = 'sysprice';
+            }
+}
+
+// ===== Позиции задания на карточке задачи =====
+// Состав задания лежит у задачи (requestedItem выше), но увидеть его было негде: на
+// карточке вкладки нет, а таблица позиций живёт на форме заполнения (FillRowGrid
+// артефакта) — то есть добраться до неё можно, только провалившись в выполнение.
+// Здесь состав показан там, где он и хранится, и правится прямо на карточке.
+//
+// Остаток и цена — те самые значения, которые fillRows кладёт в readonly-колонки бланка:
+// автор видит ровно то, с чем встретится исполнитель.
+balanceTask 'Остаток по системе' (Task t, Item i) = storeBalance(i, checkObject(t) AS Store);
+priceTask 'Цена по системе' (Task t, Item i) = storePrice(i, checkObject(t) AS Store);
+
+// Вкладка нужна не всякой задаче: у «Устранить замечание» табличной части нет вовсе.
+// Признак — поле бланка, которое наполняет хост и которое отбирает товары; те же два
+// условия, по которым expandHostRows выбирает поля для fillRows.
+hasItemField (Task t) = GROUP SUM 1 IF template(Field f) = template(t)
+    AND rowSource(f) = 'host' AND subjectKind(f) = 'item';
+
+// Счётчик в подписи вкладки — как у «Истории», «Файлов» и «Обсуждения». Считается ровно
+// то, что во вкладке и лежит: rowItem, то есть состав задачи, а не только отмеченное
+// вручную. Пустой счёт не рисуется сам — GROUP SUM без строк даёт NULL, а не ноль.
+countRowItem (Task t) = GROUP SUM 1 IF rowItem(t, Item i);
+
+// Пока в задаче не перечислена ни одна позиция, она означает «весь доступный
+// ассортимент», и добавление одной позиции молча сузило бы её до этой одной, а удаление
+// — не убрало бы ничего. Поэтому перед первой правкой состав фиксируется как есть: то же
+// самое множество, но уже перечисленное поимённо.
+materializeRequested (Task t) {
+    IF NOT hasRequested(t) THEN
+        requestedItem(t, Item i) <- TRUE WHERE available(i, checkObject(t));
+}
+
+addRequestedItem 'Добавить' (Task t) {
+    // Список класса, а не форма «Товары»: та открывается пустой, пока в дереве
+    // классификатора не выбрана группа, и пикером быть не может.
+    //
+    // Фильтр — «чего в задаче ещё нет», а НЕ гейт available, которым ограничена
+    // автоматическая сборка строк. Разница принципиальная: available отбирает то, что в
+    // магазине по данным системы есть, и под ним пикер предлагал бы ровно те позиции,
+    // которые в задаче уже стоят, — добавить было бы нечего. Руками добавляют как раз
+    // обратное: то, чего система в магазине не видит. Такая строка платформе знакома —
+    // HostRow.offSystem помечает её «внесистемной».
+    DIALOG LIST Item INPUT i FILTERS NOT rowItem(t, i) DO {
+        materializeRequested(t);
+        requestedItem(t, i) <- TRUE;
+        // Строку бланка заводит fillRows, а зовут его только на создание заполнения
+        // (WHEN SET(Filling) в HostRow). Позиция, добавленная позже, без этого осталась
+        // бы в задании, но до бланка не доехала. expandHostRows идемпотентен:
+        // hostRowExists отсекает уже заведённые строки.
+        FOR task(Filling e) = t DO expandHostRows(e);
+    }
+}
+
+removeRequestedItem 'Убрать' (Task t, Item i) {
+    materializeRequested(t);
+    requestedItem(t, i) <- NULL;
+    // Строку из бланка тоже убираем: fillRows только добавляет, и вычеркнутая из задания
+    // позиция иначе осталась бы у исполнителя на пересчёт. Завершённое заполнение не
+    // трогаем — там это уже внесённые данные, а не план работы.
+    FOR task(filling(FillRow r)) = t AND subject(r) = i AND NOT finished(filling(r))
+        DO DELETE r;
+}
+
+EXTEND FORM task
+    OBJECTS ri = Item
+    PROPERTIES READONLY Stock.name(ri), Item.id(ri)
+    PROPERTIES(t, ri) READONLY balanceTask, priceTask
+    PROPERTIES(t, ri) removeRequestedItem TOOLBAR
+    PROPERTIES(t) addRequestedItem DRAW ri TOOLBAR
+    FILTERS rowItem(t, ri)
+;
+
+DESIGN task {
+    details {
+        NEW itemsTab {
+            caption = badged('Позиции', countRowItem(t));
+            showIf = hasItemField(t);
+            MOVE BOX(ri) { fill = 1; }
+        }
+    }
+}
