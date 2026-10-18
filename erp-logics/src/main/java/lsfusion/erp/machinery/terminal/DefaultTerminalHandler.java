@@ -935,7 +935,7 @@ public class DefaultTerminalHandler {
                                     imageFileName, barcode.isWeight, barcode.isSplit, barcode.mainBarcode,
                                     barcode.color, barcode.extInfo, barcode.unit,
                                     barcode.flags, barcode.nameCountry, barcode.amount, barcode.trustAcceptPercent,
-                                    barcode.background_color, barcode.idCategory, barcode.quantityBarcodeDefect, barcode.lotType, barcode.ukz, barcode.nameUkzType, barcode.lotExpiryDate);
+                                    barcode.background_color, barcode.idCategory, barcode.quantityBarcodeDefect, barcode.lotType, barcode.ukz, barcode.nameUkzType, barcode.expiryDate);
                             usedBarcodes.add(barcode.idBarcode);
                         }
                         if (!skipGtinAsBarcode && !BaseUtils.isEmpty(barcode.GTIN) && !usedBarcodes.contains(barcode.GTIN)) {
@@ -944,7 +944,7 @@ public class DefaultTerminalHandler {
                                     imageFileName, barcode.isWeight, barcode.isSplit, barcode.mainBarcode,
                                     barcode.color, barcode.extInfo, barcode.unit,
                                     barcode.flags, barcode.nameCountry, barcode.amount, barcode.trustAcceptPercent,
-                                     barcode.background_color, barcode.idCategory, barcode.quantityBarcodeDefect, barcode.lotType, barcode.ukz, barcode.nameUkzType, barcode.lotExpiryDate);
+                                     barcode.background_color, barcode.idCategory, barcode.quantityBarcodeDefect, barcode.lotType, barcode.ukz, barcode.nameUkzType, barcode.expiryDate);
                             usedBarcodes.add(barcode.GTIN);
                         }
                     }
@@ -2243,7 +2243,7 @@ public class DefaultTerminalHandler {
         String background_color;
         BigDecimal quantityBarcodeDefect;
         String lotType;
-        LocalDate lotExpiryDate;
+        LocalDate expiryDate;
         boolean ukz;
         String nameUkzType;
 
@@ -2253,7 +2253,7 @@ public class DefaultTerminalHandler {
                                Long flags, RawFileData image, String nameCountry, BigDecimal amount,
                                BigDecimal capacity, String GTIN, String fileNameImage,
                                BigDecimal trustAcceptPercent, boolean hasImage, String background_color, String idCategory,
-                               Integer isSplit, BigDecimal quantityBarcodeDefect, String lotType, boolean ukz, String nameUkzType, LocalDate lotExpiryDate) {
+                               Integer isSplit, BigDecimal quantityBarcodeDefect, String lotType, boolean ukz, String nameUkzType, LocalDate expiryDate) {
             this.idBarcode = idBarcode;
             this.nameSku = nameSku;
             this.price = price;
@@ -2284,7 +2284,7 @@ public class DefaultTerminalHandler {
             this.lotType = lotType;
             this.ukz = ukz;
             this.nameUkzType = nameUkzType;
-            this.lotExpiryDate = lotExpiryDate;
+            this.expiryDate = expiryDate;
         }
     }
 
