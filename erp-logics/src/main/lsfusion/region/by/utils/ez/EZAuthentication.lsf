@@ -12,6 +12,10 @@ usernameEZ 'Пользователь для API ЭЗ' = DATA STRING() TABLE auth
 passwordEZ 'Пароль для API ЭЗ' = DATA STRING() ECHO TABLE authentication;
 hostEZ 'Host' = DATA STRING () TABLE authentication;
 token 'Токен' = DATA STRING () ECHO TABLE authentication;
+tokenDateTime 'Время получения токена' = DATA DATETIME () TABLE authentication;
+
+tokenLifetimeEZ 'Время жизни токена, сек (0 - авторизация перед каждым запросом)' = DATA INTEGER () TABLE authentication;
+isFreshToken (DATETIME dt) = subtractSeconds(currentDateTime(), dt) < (OVERRIDE tokenLifetimeEZ(), 300);
 
 ezToken() = DATA LOCAL STRING () TABLE authentication;
 
@@ -22,7 +26,7 @@ ezHeadersLotOrder (TEXT name) = CASE
     WHEN name = 'Token' THEN ezToken();
 
 EXTEND FORM integrationData
-    PROPERTIES() urlEZ, hostEZ, testWebService, usernameEZ, passwordEZ
+    PROPERTIES() urlEZ, hostEZ, testWebService, usernameEZ, passwordEZ, tokenLifetimeEZ
     PROPERTIES() READONLY EZtoken = token
 ;
 
@@ -35,6 +39,7 @@ DESIGN integrationData {
             MOVE PROPERTY(testWebService());
             MOVE PROPERTY(usernameEZ());
             MOVE PROPERTY(passwordEZ());
+            MOVE PROPERTY(tokenLifetimeEZ());
             MOVE PROPERTY(EZtoken);
         }
     }
@@ -53,9 +58,11 @@ authorization 'Авторизация в ЭЗ' () {
             MESSAGE messageCaughtException() NOWAIT;
             fileToString(result());
             MESSAGE resultString() NOWAIT;
+            RETURN;
         }
         fileToString(result());
         IMPORT JSON FROM result() TO() token;
+        tokenDateTime() <- currentDateTime() IF token();
         APPLY;
     }
 }
@@ -73,6 +80,7 @@ dataUsernameEZ 'Пользователь для API ЭЗ' = DATA STRING(LegalEnt
 dataPasswordEZ 'Пароль для API ЭЗ' = DATA STRING(LegalEntity) ECHO;
 
 dataToken 'Токен' = DATA STRING (LegalEntity) ECHO;
+dataTokenDateTime 'Время получения токена' = DATA DATETIME (LegalEntity);
 
 useEZLegalEntity 'Использовать организации' = DATA BOOLEAN ();
 defaultEZLegalEntity 'По умолчанию' = DATA BOOLEAN (LegalEntity);
@@ -117,10 +125,12 @@ authorization 'Авторизация в ЭЗ' (LegalEntity l) {
             EXTERNAL HTTP POST urlEZ()  + '/auth'  BODYPARAMNAMES 'username', 'password' HEADERS headers PARAMS dataUsernameEZ(l), dataPasswordEZ(l) TO result;
         } CATCH {
             MESSAGE messageCaughtException() NOWAIT;
+            RETURN;
         }
         fileToString(result());
         IMPORT JSON FROM result() TO() token;
         dataToken(l) <- token();
+        dataTokenDateTime(l) <- currentDateTime() IF token();
 
         APPLY;
     }
@@ -134,6 +144,7 @@ EXTEND FORM integrationData
 userNameEZ 'Пользователь для API ЭЗ' = DATA STRING(CustomUser);
 passwordEZ 'Пароль для API ЭЗ' = DATA STRING(CustomUser) ECHO;
 token 'Токен' = DATA STRING (CustomUser) ECHO;
+tokenDateTime 'Время получения токена' = DATA DATETIME (CustomUser);
 
 useEZCustomUser 'Использовать пользователей' = DATA BOOLEAN ();
 
@@ -164,10 +175,12 @@ authorization 'Авторизация в ЭЗ' (CustomUser c) {
             EXTERNAL HTTP POST urlEZ()  + '/auth'  BODYPARAMNAMES 'username', 'password' HEADERS headers PARAMS userNameEZ(c), passwordEZ(c) TO result;
         } CATCH {
             MESSAGE messageCaughtException() NOWAIT;
+            RETURN;
         }
         fileToString(result());
         IMPORT JSON FROM result() TO() token;
         token(c) <- token();
+        tokenDateTime(c) <- currentDateTime() IF token();
 
         APPLY;
     }
@@ -178,15 +191,24 @@ EXTEND FORM integrationData
 ;
 
 getToken() {  
-    IF usernameEZ() THEN authorization();
+    IF usernameEZ() AND NOT isFreshToken(tokenDateTime()) THEN authorization();
 }
 
 getToken(CustomUser u) {
-    IF userNameEZ(u) THEN authorization(u);
+    IF userNameEZ(u) AND NOT isFreshToken(tokenDateTime(u)) THEN authorization(u);
 }
 
 getToken(LegalEntity l) {
-    IF dataUsernameEZ(l) THEN authorization(l);
+    IF dataUsernameEZ(l) AND NOT isFreshToken(dataTokenDateTime(l)) THEN authorization(l);
+}
+
+resetTokenEZ () {
+    NEWSESSION {
+        tokenDateTime() <- NULL;
+        dataTokenDateTime(LegalEntity l) <- NULL WHERE dataTokenDateTime(l);
+        tokenDateTime(CustomUser c) <- NULL WHERE tokenDateTime(c);
+        APPLY;
+    }
 }
 
 commonGetToken(LegalEntity l) {
