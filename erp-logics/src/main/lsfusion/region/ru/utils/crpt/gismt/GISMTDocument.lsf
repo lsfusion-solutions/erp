@@ -211,6 +211,63 @@ getDocumentStatuses 'Импортировать статусы документ�
     }
 }
 
+// doc/list v4 отдаёт не больше limit документов, остальные — следующими страницами по nextPage
+nextPageDocumentStatus = DATA LOCAL BOOLEAN ();
+
+FORM getDocumentStatusPaged
+    OBJECTS results = INTEGER
+    PROPERTIES(results) number = number, docDate = docDate, status = status, downloadDesc = downloadDesc
+    PROPERTIES() nextPage = nextPageDocumentStatus
+;
+
+getDocumentStatusesPaged (DATETIME dFrom, LotType lt) {
+    FOR keyAlias(LegalEntity l) DO {
+        NEWSESSION {
+            getToken(l);
+
+            LOCAL result = JSONFILE();
+            LOCAL page = INTEGER();
+            LOCAL lastNumber = STRING[100]();
+            LOCAL lastDocDate = STRING();
+            page() <- 0;
+            nextPageDocumentStatus() <- TRUE;
+
+            WHILE nextPageDocumentStatus() AND page() < 100 DO {
+                page() <- page() + 1;
+                TRY {
+                    EXTERNAL HTTP GET 'https://markirovka.crpt.ru/api/v4/true-api/doc/list?inputFormat=false&pg=' + id(lt) + '&limit=999&dateFrom=' + replace(toChar(dFrom, 'yyyy-MM-dd T HH24:MI:SS.MI0Z'),' ','')
+                        + (OVERRIDE ('&did=' + lastNumber() + '&orderedColumnValue=' + lastDocDate() + '&pageDir=NEXT') IF lastNumber(), '')
+                        HEADERS documentHeaders TO result;
+                } CATCH {
+                    logToFile('gismt', messageCaughtException());
+                    logToFile('gismt', FILE(result()));
+                    MESSAGE CONCAT ' ', 'Ошибка при получении данных о статусах документов ГИС МТ для группы ' + id(lt) + ', страница ' + TEXT(page()) + ':', messageCaughtException();
+                    BREAK;
+                }
+
+                IMPORT getDocumentStatusPaged JSON FROM result();
+                FOR id(Document d) = number(INTEGER i) INLINE DO {
+                    status(d) <- status(i);
+                    downloadDesc(d) <- downloadDesc(i);
+                }
+
+                lastNumber() <- GROUP LAST number(INTEGER i) ORDER i;
+                lastDocDate() <- GROUP LAST docDate(INTEGER i) ORDER i;
+                IF NOT (lastNumber() AND lastDocDate()) THEN
+                    nextPageDocumentStatus() <- NULL;
+            }
+
+            APPLY;
+        }
+    }
+}
+
+getDocumentStatusesPaged 'Импортировать статусы документов ГИС МТ (все страницы)' () {
+    FOR id(LotType t) AND NOT skipGetDocumentStatuses(t) DO {
+        getDocumentStatusesPaged(checkDocStatusDateTime(), t);
+    }
+}
+
 postDocuments 'Изменить статусы документов ГИС МТ' () {
     FOR dateTime(Document d) >= checkDocStatusDateTime() AND statusOk(d) AND NOT isPosted(d) DO {
         NEWSESSION {
