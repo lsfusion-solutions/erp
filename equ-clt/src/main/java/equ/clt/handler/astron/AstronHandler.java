@@ -737,7 +737,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                     setObject(ps, extGrpPicture != null ? Base64.decodeBase64(extGrpPicture) : null, 4, offset);
                     setObject(ps, 0, 5, offset);
                     if (updateNum != null) {
-                        setObject(ps, updateNum, 6);
+                        setObject(ps, updateNum, 6, offset);
                     }
                     setObject(ps, jsonObject.getInt("extGrpId"), updateNum != null ? 7 : 6, keys.length);
                 }
