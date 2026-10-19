@@ -223,16 +223,25 @@ GROUP weight;
 
 referenceWeight = DATA NUMERIC[12,3] ();
 
+// переопределяются кастомизациями по товару до стандартной цепочки (аналог customWeightControlBypassUkm5);
+// useCustomScaleWeightsUkm5 TRUE — стандартная цепочка не применяется вовсе (пусто → null в выгрузке)
+customReferenceWeightUkm5 = ABSTRACT NUMERIC[12,3] (Sku);
+customMinDeltaUkm5 = ABSTRACT NUMERIC[12,3] (Sku);
+customMaxDeltaUkm5 = ABSTRACT NUMERIC[12,3] (Sku);
+useCustomScaleWeightsUkm5 = ABSTRACT BOOLEAN (Sku);
+
 minDelta 'Дельта отклонения от эталонного веса в меньшую сторону' = DATA NUMERIC[12,3] ();
 minDelta 'Дельта отклонения от эталонного веса в меньшую сторону' = DATA NUMERIC[12,3] (Sku);
 minDelta 'Дельта отклонения от эталонного веса в меньшую сторону' = DATA NUMERIC[12,3] (ItemGroup);
-// дельта: товар → группа → глобал → 0.01
-overMinDelta(Sku s) = OVERRIDE minDelta(s), minDelta(itemGroup(s)), minDelta(), 0.01;
+// дельта: кастомизация → товар → группа → глобал → 0.01
+overMinDelta(Sku s) = OVERRIDE customMinDeltaUkm5(s),
+    (OVERRIDE minDelta(s), minDelta(itemGroup(s)), minDelta(), 0.01) IF NOT useCustomScaleWeightsUkm5(s);
 
 maxDelta 'Дельта отклонения от эталонного веса в большую сторону' = DATA NUMERIC[12,3] ();
 maxDelta 'Дельта отклонения от эталонного веса в большую сторону' = DATA NUMERIC[12,3] (Sku);
 maxDelta 'Дельта отклонения от эталонного веса в большую сторону' = DATA NUMERIC[12,3] (ItemGroup);
-overmaxDelta(Sku s) = OVERRIDE maxDelta(s), maxDelta(itemGroup(s)), maxDelta(), 0.01;
+overmaxDelta(Sku s) = OVERRIDE customMaxDeltaUkm5(s),
+    (OVERRIDE maxDelta(s), maxDelta(itemGroup(s)), maxDelta(), 0.01) IF NOT useCustomScaleWeightsUkm5(s);
 
 skipKppControl 'Не контролировать на КВП' = DATA BOOLEAN (Sku);
 skipKppControl 'Не контролировать на КВП' = DATA BOOLEAN (ItemGroup);
@@ -290,7 +299,8 @@ weightSize (Sku s) = CASE
 ;
 
 // эталон = брутто для типов 5 и 6
-overReferenceWeight(Sku s) = OVERRIDE (IF weightSize(s) = 5 OR weightSize(s) = 6 THEN grossWeight(s)), referenceWeight();
+overReferenceWeight(Sku s) = OVERRIDE customReferenceWeightUkm5(s),
+    (OVERRIDE (IF weightSize(s) = 5 OR weightSize(s) = 6 THEN grossWeight(s)), referenceWeight()) IF NOT useCustomScaleWeightsUkm5(s);
 
 
 droppedScale = DATA TBOOLEAN (Item);
