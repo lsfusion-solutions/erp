@@ -125,6 +125,8 @@ handleException (LotOrder o, FILE exception, STRING[14] gtin) {
     logToFile('ez', messageCaughtException());
     
     logToFile('ez', exception);
+    IF isSubstring(messageCaughtException(), '401') THEN resetTokenEZ();
+
     LOCAL message, error = STRING();
     
     IMPORT JSON FROM exception TO() error, message;
@@ -511,9 +513,8 @@ checkStatus  (LotOrder o) + {
     IF NOT skipDefaultCheckStatus(o) THEN {
         LOCAL NESTED statusMessage = STRING();
         statusMessage() <- '';
-
-        NEWSESSION {
-            FOR countOrderEZ(o, STRING[100] idOrder) DO {
+        FOR countOrderEZ(o, STRING[100] idOrder) ORDER idOrder DO {
+            NEWSESSION {
 
                 LOCAL result = FILE();
 
@@ -623,8 +624,8 @@ checkStatus  (LotOrder o) + {
                     fileNameEZ(o, idOrder) <- fileName();
                 }
                 statusMessage() <- statusMessage() + (CONCAT ' ', 'Товар', gtinOrderEZ(o, idOrder), ', заказ', idOrder, ', статус :', name(statusLotOrder(statusCode())), '\n');
+                APPLY;
             }
-            APPLY;
         }
         MESSAGE statusMessage();
     }
@@ -632,7 +633,7 @@ checkStatus  (LotOrder o) + {
 
 overNewLot ABSTRACT LIST (LotOrderDetail, Lot);
 
-temporarilySkipCheckLotCodes = DATA LOCAL BOOLEAN(LotOrderDetail);
+temporarilySkipCheckLotCodes = DATA LOCAL NESTED BOOLEAN(LotOrderDetail);
 skipChangedCheckLotOrderDetail(LotOrderDetail d) += temporarilySkipCheckLotCodes(d);
 
 importLotCodes 'Получить марки' ABSTRACT LIST (LotOrder);
@@ -640,11 +641,12 @@ skipDefaultImportLotCodes = ABSTRACT VALUE BOOLEAN (LotOrder);
 
 importLotCodes  (LotOrder o) + {
     IF NOT skipDefaultImportLotCodes(o) THEN {
-        NEWSESSION NESTED(temporarilySkipCheckLotCodes[LotOrderDetail]) {
-            initialDemand(LotOrderDetail d) <- quantity(d) WHERE lotOrder(d) = o AND availableCodes(d) AND NOT initialDemand(d);
-            quantity(LotOrderDetail d) <- (OVERRIDE NUMERIC[16,5](quantityLot(d)), 0 IF d IS LotOrderDetail) WHERE lotOrder(d) = o;
+        FOR fileNameOrder(o, STRING[100] idOrder) AND (GROUP SUM 1 IF lotOrder(LotOrderDetail d) = o AND idOrderEZ(d) = idOrder
+                AND availableCodes(d) > (OVERRIDE quantityLot(d), 0) AND (OVERRIDE initialDemand(d), quantity(d)) > (OVERRIDE quantityLot(d), 0)) ORDER idOrder DO {
+            NEWSESSION NESTED(temporarilySkipCheckLotCodes[LotOrderDetail]) {
+                initialDemand(LotOrderDetail d) <- quantity(d) WHERE lotOrder(d) = o AND idOrderEZ(d) = idOrder AND availableCodes(d) AND NOT initialDemand(d);
+                quantity(LotOrderDetail d) <- (OVERRIDE NUMERIC[16,5](quantityLot(d)), 0 IF d IS LotOrderDetail) WHERE lotOrder(d) = o AND idOrderEZ(d) = idOrder;
 
-            FOR fileNameOrder(o, STRING[100] idOrder) DO {
                 LOCAL fileName = STRING();
                 fileName() <- getWord(TEXT(fileNameOrder(o, idOrder)), '/', wordCount(TEXT(fileNameOrder(o, idOrder)), '/'));
                 fileName() <- replace(fileName(), '"', '');
@@ -717,9 +719,9 @@ importLotCodes  (LotOrder o) + {
                 } ELSE {
                     getStatus();
                 }
+                APPLY;
+                IF canceled() THEN RETURN;
             }
-
-            APPLY;
         }
 
         IF noPostedIncompleteOrders() AND (quantityLotOrderDetail(o) != quantityLot(o) OR NOT quantityLot(o)) THEN {
