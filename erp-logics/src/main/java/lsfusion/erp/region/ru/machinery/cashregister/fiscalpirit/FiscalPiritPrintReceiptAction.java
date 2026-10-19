@@ -193,7 +193,7 @@ public class FiscalPiritPrintReceiptAction extends DefaultIntegrationAction {
         try {
             return ((ConcreteCustomClass) findClass("PaymentMeans")).getDataObject("paymentMeansPrepayment");
         } catch (Exception e) {
-            //paymentMeansPrepayment объявляется в multi-logics в модуле ElemaRF
+            //paymentMeansPrepayment объявляется в конфигурации
             return null;
         }
     }
