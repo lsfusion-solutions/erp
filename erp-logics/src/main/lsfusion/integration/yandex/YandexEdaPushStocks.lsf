@@ -7,10 +7,16 @@ NAMESPACE YandexEda;
 //-------------------- НАСТРОЙКИ ------------------------//
 
 urlPush 'URL push остатков' = DATA STRING[250] () TABLE settings;
+authUrlPush 'URL аутентификации (push)' = DATA STRING[250] () TABLE settings;
 timeZonePush 'Смещение времени (напр. +03:00)' = DATA STRING[6] () TABLE settings;
-tokenPush 'Токен push' = DATA STRING (YandexEdaAuth);
 
-tokenPushCurrent = DATA LOCAL STRING ();
+// токен получается автоматически по кредам методом /oauth2/token
+clientIdPush 'Client ID (push)' = DATA STRING[100] (YandexEdaAuth);
+clientSecretPush 'Client Secret (push)' = DATA STRING[100] (YandexEdaAuth);
+
+// NESTED: токен переживет APPLY в цикле отправки
+tokenPushCurrent = DATA LOCAL NESTED STRING ();
+pushSent = DATA LOCAL BOOLEAN ();
 
 headersPush (TEXT name) = CASE
     WHEN name = 'Content-Type' THEN 'application/json'
@@ -55,11 +61,54 @@ FORM pushStocks 'Остатки push ЯндексЕда'
     FILTERS selectedPush(i, p), pushStoreCount(p)
 ;
 
+//-------------------- АУТЕНТИФИКАЦИЯ ------------------------//
+
+getPushToken (YandexEdaAuth a) {
+    LOCAL response = FILE ();
+    LOCAL access_token = STRING ();
+    TRY {
+        EXTERNAL HTTP POST authUrlPush() BODYURL 'client_id=$1&client_secret=$2&grant_type=client_credentials'
+            PARAMS clientIdPush(a), clientSecretPush(a) TO response;
+        IMPORT JSON FROM response() TO() access_token = access_token;
+        IF access_token() THEN tokenPushCurrent() <- access_token();
+    } CATCH {
+        logToFile('yandex', CONCAT ' ', 'ERROR push не получен токен', STRING(statusHttp()), messageCaughtException());
+    }
+}
+
 //-------------------- ОТПРАВКА ------------------------//
 
-pushStocksClient (YandexEdaAuth a) {
-    tokenPushCurrent() <- tokenPush(a);
+// при 401 токен истёк: получается заново и запрос повторяется один раз
+pushSend (YandexEdaAuth a) {
     LOCAL response = FILE ();
+    TRY {
+        EXTERNAL HTTP POST urlPush() HEADERS headersPush PARAMS exportFile() TO response;
+        pushSent() <- TRUE;
+    } CATCH {
+        IF statusHttp() = 401 AND clientIdPush(a) AND clientSecretPush(a) AND authUrlPush() THEN {
+            logToFile('yandex', CONCAT ' ', 'WARNING push токен истёк, повторная аутентификация');
+            getPushToken(a);
+            IF tokenPushCurrent() THEN {
+                TRY {
+                    EXTERNAL HTTP POST urlPush() HEADERS headersPush PARAMS exportFile() TO response;
+                    pushSent() <- TRUE;
+                } CATCH {
+                    logToFile('yandex', CONCAT ' ', 'ERROR push не отправлен', STRING(statusHttp()), messageCaughtException());
+                }
+            }
+        } ELSE {
+            logToFile('yandex', CONCAT ' ', 'ERROR push не отправлен', STRING(statusHttp()), messageCaughtException());
+        }
+    }
+}
+
+pushStocksClient (YandexEdaAuth a) {
+    IF authUrlPush() AND clientIdPush(a) AND clientSecretPush(a) THEN
+        getPushToken(a);
+    IF NOT tokenPushCurrent() THEN {
+        logToFile('yandex', CONCAT ' ', 'ERROR push не заданы креды или URL аутентификации');
+        RETURN;
+    }
     LOCAL chunk = INTEGER ();
     WHILE GROUP SUM 1 IF pushChangedClient(a, Item i, DepartmentStore s) DO {
         selectedPush(Item i, DepartmentStore s) <- NULL;
@@ -67,12 +116,9 @@ pushStocksClient (YandexEdaAuth a) {
         FOR pushChangedClient(a, Item i, DepartmentStore s) ORDER placeId(s), s, id(i), i TOP 5000 DO
             selectedPush(i, s) <- TRUE;
         EXPORT pushStocks JSON;
-        TRY {
-            EXTERNAL HTTP POST urlPush() HEADERS headersPush PARAMS exportFile() TO response;
-        } CATCH {
-            logToFile('yandex', CONCAT ' ', 'ERROR push не отправлен', STRING(statusHttp()), messageCaughtException());
-            RETURN;
-        }
+        pushSent() <- NULL;
+        pushSend(a);
+        IF NOT pushSent() THEN RETURN;
         logToFile('yandex', CONCAT ' ', 'push отправлено позиций', STRING(GROUP SUM 1 IF selectedPush(Item i, DepartmentStore s)));
         lastStock(s, i) <- (IF inPushStock(i, s) THEN pushValue(i, s)) WHERE selectedPush(i, s);
         APPLY;
@@ -95,7 +141,7 @@ pushStocksRun 'Отправить изменённые остатки (push)' ()
         RETURN;
     }
     NEWSESSION {
-        FOR tokenPush(YandexEdaAuth a) DO
+        FOR YandexEdaAuth a IF clientIdPush(a) AND clientSecretPush(a) DO
             pushStocksClient(a);
     }
 }
@@ -109,8 +155,8 @@ pushStocksReset 'Сбросить отправленные остатки (push)
 }
 
 EXTEND FORM integrationData
-    PROPERTIES () urlPush, timeZonePush
-    PROPERTIES (yandex) tokenPush
+    PROPERTIES () urlPush, authUrlPush, timeZonePush
+    PROPERTIES (yandex) clientIdPush, clientSecretPush
     PROPERTIES () pushStocksRun, pushStocksReset
 ;
 
@@ -119,6 +165,7 @@ DESIGN integrationData {
         NEW pushStocks {
             caption = 'Push остатков';
             MOVE PROPERTY (urlPush());
+            MOVE PROPERTY (authUrlPush());
             MOVE PROPERTY (timeZonePush());
             MOVE PROPERTY (pushStocksRun());
             MOVE PROPERTY (pushStocksReset());
