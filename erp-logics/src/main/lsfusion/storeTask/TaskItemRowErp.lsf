@@ -13,7 +13,7 @@ MODULE TaskItemRowErp;
 REQUIRE HostRow, RefValue, FillRow, Column, Field, Filling, StoreTaskCore,
         Recount, Template, FormTask, TaskPerformer, StoreTaskForms,
         Barcode, Item, Sku, Store, PriceListCalc, PriceListStore, Execution,
-        PriceCheck, TaskRequest, Utils,
+        PriceCheck, TaskRequest, Utils, Pricing,
         // тип «чек-лист» (снятие — формулярная задача) и резолв исполнителя по роли
         ChecklistTask, ObjectRole;
 
@@ -53,7 +53,7 @@ refValueByBarcode (STRING[30] kind, ISTRING[50] b) +=
 headDepartment (Store st) = GROUP MIN DepartmentStore d IF Store.store(d) = st;
 
 erpBalance (Item i, Store st) =
-    GROUP SUM currentBalance(i, DepartmentStore d) IF Store.store(d) = st;
+    GROUP SUM currentBalance(i, DepartmentStore d) IF Store.store(d) = st ;
 
 // Вид цены — штатный розничный магазина (свой или от формата, PriceListStore), а если он
 // не задан — вид с кодом 'retail', который заводит PriceListDefault. Запасной вариант не
@@ -63,7 +63,7 @@ retailTypeTask (Store st) =
     OVERRIDE retailPriceListType(headDepartment(st)), PriceList.priceListType('retail');
 
 erpPrice (Item i, Store st) =
-    prevPriceA(retailTypeTask(st), i, headDepartment(st), currentDateTime());
+    prevPriceA(retailTypeTask(st), i, headDepartment(st), currentDateTime()) ;
 
 // ===== Точки расширения =====
 // Конфигурация может добавить свой источник остатка, цены и ассортимента — сверх erp, а не
@@ -77,14 +77,14 @@ extraBalance 'Остаток (доп. источник)' = ABSTRACT NUMERIC[14,3
 extraPrice 'Цена (доп. источник)' = ABSTRACT NUMERIC[16,4] (Item, Store);
 extraAvailable 'В ассортименте (доп. источник)' = ABSTRACT BOOLEAN (Item, Store);
 
-storeBalance 'Остаток по системе' (Item i, Store st) = OVERRIDE erpBalance(i, st), extraBalance(i, st);
-storePrice 'Цена по системе' (Item i, Store st) = OVERRIDE erpPrice(i, st), extraPrice(i, st);
+storeBalance 'Остаток по системе' (Item i, Store st) = erpBalance(i, st);
+storePrice 'Цена по системе' (Item i, Store st) = retailPricingPriceA(i, headDepartment(st));
 
 // Доступен на объекте — то есть в этом магазине товар вообще есть: лежит на остатке,
 // имеет действующую цену или заведён доп. источником. Этим гейтом ограничен и выбор
 // предмета в приложении (apiRowSubjects), и генерация строк ниже: без него канал
 // показывал бы весь каталог сети — десятки тысяч позиций в телефонном пикере.
-available (Item i, Store st) += TRUE IF erpBalance(i, st) OR erpPrice(i, st) OR extraAvailable(i, st);
+available (Item i, Store st) += TRUE IF erpBalance(i, st) OR storePrice(i, st);
 
 // ===== Набор задания на форме «Товары» =====
 // Задание собирают там, где смотрят на товар, а объектом задачи остаётся магазин.
