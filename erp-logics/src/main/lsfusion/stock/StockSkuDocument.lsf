@@ -418,9 +418,10 @@ META defineDocumentSkuStock(object, detail, skuProp, stockProp)
     foreground 'Цвет' (sku, object, stock) = ABSTRACT CASE COLOR (Sku, ###object, Stock);
     overChangeQuantityValue###skuProp  ABSTRACT LIST ( ###detail);
 
+    skipNullDelete = ABSTRACT BOOLEAN (###object);
     changeQuantityValue(###skuProp skuProp, ###object object, Stock stock, NUMERIC[14,3] n)  { 
         IF detail###stockProp(sku, object, stock) THEN {
-            IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+            IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) OR skipNullDelete(object) THEN {
                 quantity(###detail detail) <- n WHERE detail == detail###stockProp(sku, object, stock);
                 overChangeQuantityValue###skuProp(detail###stockProp(sku, object, stock));
             } ELSE {
@@ -441,15 +442,9 @@ META defineDocumentSkuStock(object, detail, skuProp, stockProp)
             }
         }
     }
-
-    customChangeQuantityValue = ABSTRACT BOOLEAN (###object);
-    customChangeQuantityValue ABSTRACT LIST (###skuProp, ###object, Stock, NUMERIC[14,3]);
-    
+   
     changeQuantity(###skuProp skuProp, ###object object, Stock stock)  { 
         INPUT n = NUMERIC[16,5] DO
-            IF customChangeQuantityValue(object) THEN
-                customChangeQuantityValue(sku, object, stock, n);
-            ELSE
                 changeQuantityValue(sku, object, stock, n);
     }
 
@@ -616,7 +611,7 @@ META defineDocumentBatchStock(object, detail, batchProp, skuProp, stockProp)
 
     changeQuantityValue(###batchProp batchProp, ###object object, Stock stock, NUMERIC[16,5] n)  { 
         IF detail###stockProp(batch, object, stock) THEN {
-            IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+            IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) OR skipNullDelete(object) THEN {
                 quantity(###detail detail) <- n WHERE detail == detail###stockProp(batch, object, stock);
                 overChangeQuantityValue###batchProp(detail###stockProp(batch, object, stock));
             } ELSE {
