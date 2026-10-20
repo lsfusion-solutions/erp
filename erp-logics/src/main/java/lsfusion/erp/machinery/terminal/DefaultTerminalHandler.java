@@ -335,7 +335,9 @@ public class DefaultTerminalHandler {
     
                 List<TerminalOrder> labelTaskList = readLabelTaskList(session, userInfo);
                 orderList.addAll(labelTaskList);
-                
+
+                Map<String, BarcodeUOM> barcodeUOMMap = hasExtraBarcodes(orderList) || !skuExtraBarcodeList.isEmpty() ? readBarcodeUOMMap(session) : null;
+
                 file = File.createTempFile("terminalHandler", ".db");
 
                 Class.forName("org.sqlite.JDBC");
@@ -345,7 +347,7 @@ public class DefaultTerminalHandler {
                     updateCategoryTable(connection, skuGroupList);
                     
                     createGoodsTable(connection);
-                    updateGoodsTable(connection, barcodeList, orderList, skuExtraBarcodeList, orderImages, imagesInReadBase, skipGtinAsBarcode, userInfo);
+                    updateGoodsTable(connection, barcodeList, orderList, skuExtraBarcodeList, orderImages, imagesInReadBase, skipGtinAsBarcode, userInfo, barcodeUOMMap);
 
                     createBatchesTable(connection);
                     updateBatchesTable(connection, batchList, extraBatchList, prefix, userInfo);
@@ -914,7 +916,7 @@ public class DefaultTerminalHandler {
         statement.close();
     }
 
-    private void updateGoodsTable(Connection connection, List<TerminalBarcode> barcodeList, List<TerminalOrder> orderList, List<SkuExtraBarcode> skuExtraBarcodeList, Map<String, RawFileData> orderImages, boolean imagesInReadBase, boolean skipGtinAsBarcode, UserInfo userInfo) throws SQLException {
+    private void updateGoodsTable(Connection connection, List<TerminalBarcode> barcodeList, List<TerminalOrder> orderList, List<SkuExtraBarcode> skuExtraBarcodeList, Map<String, RawFileData> orderImages, boolean imagesInReadBase, boolean skipGtinAsBarcode, UserInfo userInfo, Map<String, BarcodeUOM> barcodeUOMMap) throws SQLException {
         if (!barcodeList.isEmpty() || !orderList.isEmpty()) {
             PreparedStatement statement = null;
             try {
@@ -957,11 +959,14 @@ public class DefaultTerminalHandler {
                         if (orderExtraBarcodeList != null) {
                             for (String extraBarcode : orderExtraBarcodeList) {
                                 if(!usedBarcodes.contains(extraBarcode)) {
+                                    BarcodeUOM uom = barcodeUOMMap != null ? barcodeUOMMap.get(extraBarcode) : null;
+                                    String unit = uom != null && uom.unit != null ? uom.unit : order.unit;
+                                    BigDecimal amount = uom != null && uom.amount != null ? uom.amount : (order.amount != null ? order.amount : BigDecimal.ZERO);
                                     addGoodsRow(statement, extraBarcode, order.GTIN, order.name, order.price, null,
                                             order.idItem, order.manufacturer, null, null, null,
                                             image, order.weight, order.split, order.barcode,
-                                            null, null, null,
-                                            order.flags, null, BigDecimal.ZERO,
+                                            null, null, unit,
+                                            order.flags, null, amount,
                                             order.trustAcceptPercent, order.background_color, null, null, order.lotType, order.ukz, order.nameUkzType, null);
                                     usedBarcodes.add(extraBarcode);
                                 }
@@ -970,7 +975,7 @@ public class DefaultTerminalHandler {
                             if(!usedBarcodes.contains(order.barcode)) {
                                 addGoodsRow(statement, order.barcode, order.GTIN, order.name, order.price, null, order.idItem,
                                         order.manufacturer, null, null, null, image, order.weight, order.split, order.barcode,
-                                        null, null, null, order.flags, null, BigDecimal.ZERO,
+                                        null, null, order.unit, order.flags, null, order.amount != null ? order.amount : BigDecimal.ZERO,
                                         order.trustAcceptPercent, order.background_color, null, null, order.lotType, order.ukz, order.nameUkzType, null);
                                 usedBarcodes.add(order.barcode);
                             }
@@ -979,8 +984,8 @@ public class DefaultTerminalHandler {
                             addGoodsRow(statement, order.GTIN, order.GTIN, order.name, order.price, null,
                                     order.idItem, order.manufacturer, null, null, null,
                                     image, order.weight, order.split, order.barcode,
-                                    null, null, null,
-                                    order.flags, null, BigDecimal.ZERO, order.trustAcceptPercent,
+                                    null, null, order.unit,
+                                    order.flags, null, order.amount != null ? order.amount : BigDecimal.ZERO, order.trustAcceptPercent,
                                     order.background_color, null, null, order.lotType, order.ukz, order.nameUkzType, null);
                             usedBarcodes.add(order.GTIN);
                         }
@@ -988,9 +993,14 @@ public class DefaultTerminalHandler {
                 }
 
                 for (SkuExtraBarcode b : skuExtraBarcodeList) {
+                    BarcodeUOM uom = barcodeUOMMap != null ? barcodeUOMMap.get(b.idBarcode) : null;
+//                    if (uom == null && barcodeUOMMap != null) //при отсутствии объекта Barcode (напр., GTIN) — параметры основного штрихкода, как в readBarcodeList
+//                        uom = barcodeUOMMap.get(b.mainBarcode);
+                    String unit = uom != null ? uom.unit : null;
+                    BigDecimal amount = uom != null ? uom.amount : BigDecimal.ZERO;
                     addGoodsRow(statement, b.idBarcode, null, b.nameSku, null, null, null, null,
                             null, null, null, null, null, null, b.mainBarcode, null, null,
-                            null, null, null, BigDecimal.ZERO, null,
+                            unit, null, null, amount, null,
                             null, null, null, null, null, null, null);
                 }
 
@@ -1716,6 +1726,40 @@ public class DefaultTerminalHandler {
         return skuExtraBarcodeList;
     }
 
+    private static boolean hasExtraBarcodes(List<TerminalOrder> orderList) {
+        for (TerminalOrder order : orderList) {
+            if (order.extraBarcodeList != null && !order.extraBarcodeList.isEmpty())
+                return true;
+        }
+        return false;
+    }
+
+    public static Map<String, BarcodeUOM> readBarcodeUOMMap(DataSession session) throws SQLException {
+        Map<String, BarcodeUOM> barcodeUOMMap = new HashMap<>();
+        if (terminalHandlerLM != null) {
+            try {
+                KeyExpr barcodeExpr = new KeyExpr("barcode");
+                ImRevMap<Object, KeyExpr> barcodeKeys = MapFact.singletonRev("Barcode", barcodeExpr);
+                QueryBuilder<Object, Object> barcodeQuery = new QueryBuilder<>(barcodeKeys);
+                barcodeQuery.addProperty("idBarcode", terminalHandlerLM.findProperty("id[Barcode]").getExpr(session.getModifier(), barcodeExpr));
+                barcodeQuery.addProperty("unit", terminalHandlerLM.findProperty("shortNameUOM[Barcode]").getExpr(session.getModifier(), barcodeExpr));
+                barcodeQuery.addProperty("amount", terminalHandlerLM.findProperty("amount[Barcode]").getExpr(session.getModifier(), barcodeExpr));
+                barcodeQuery.and(terminalHandlerLM.findProperty("id[Barcode]").getExpr(session.getModifier(), barcodeExpr).getWhere());
+                barcodeQuery.and(terminalHandlerLM.findProperty("active[Barcode]").getExpr(session.getModifier(), barcodeExpr).getWhere());
+
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> barcodeResult = barcodeQuery.execute(session);
+                for (ImMap<Object, Object> entry : barcodeResult.values()) {
+                    String idBarcode = trim((String) entry.get("idBarcode"));
+                    if (idBarcode != null)
+                        barcodeUOMMap.put(idBarcode, new BarcodeUOM(trim((String) entry.get("unit")), (BigDecimal) entry.get("amount")));
+                }
+            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+        return barcodeUOMMap;
+    }
+
     public static List<TerminalOrder> readTerminalOrderList(DataSession session, ObjectValue customerStockObject, UserInfo userInfo) throws SQLException {
         Map<String, TerminalOrder> terminalOrderMap = new LinkedHashMap<>();
 
@@ -1759,6 +1803,8 @@ public class DefaultTerminalHandler {
                 orderQuery.addProperty("GTIN", terminalOrderLM.findProperty("GTIN[TerminalOrderDetail]").getExpr(session.getModifier(), orderDetailExpr));
                 
                 orderQuery.addProperty("fileNameImage", terminalOrderLM.findProperty("fileNameImage[TerminalOrderDetail]").getExpr(session.getModifier(), orderDetailExpr));
+                orderQuery.addProperty("unit", terminalOrderLM.findProperty("shortNameUOM[TerminalOrderDetail]").getExpr(session.getModifier(), orderDetailExpr));
+                orderQuery.addProperty("amount", terminalOrderLM.findProperty("amount[TerminalOrderDetail]").getExpr(session.getModifier(), orderDetailExpr));
                 
                 orderQuery.and(terminalOrderLM.findProperty("filterTerminal[TerminalOrder, TerminalOrderDetail, Stock, Employee]").getExpr(
                         session.getModifier(), orderExpr, orderDetailExpr, customerStockObject.getExpr(), userInfo.user.getExpr()).getWhere());
@@ -1811,6 +1857,8 @@ public class DefaultTerminalHandler {
                     String GTIN = trim((String) entry.get("GTIN"));
                     String unitLoad = (String) entry.get("unitLoad");
                     String fileNameImage = (String) entry.get("fileNameImage");
+                    String unit = trim((String) entry.get("unit"));
+                    BigDecimal amount = (BigDecimal) entry.get("amount");
 
                     String key = numberOrder + "/" + barcode;
                     TerminalOrder terminalOrder = terminalOrderMap.get(key);
@@ -1824,7 +1872,7 @@ public class DefaultTerminalHandler {
                                 quantity, minQuantity, maxQuantity, minPrice, maxPrice, nameManufacturer, weight, split, color,
                                 headField1, headField2, headField3, posField1, posField2, posField3, minDeviationDate, maxDeviationDate, vop,
                                 extraBarcodeList, flags, GTIN, trustAcceptPercent, unitLoad, background_color, lotType, null, null, fileNameImage,
-                                posDate1, posDate2));
+                                posDate1, posDate2, unit, amount));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
@@ -2116,7 +2164,7 @@ public class DefaultTerminalHandler {
                             null, null, null, null, null,
                             null, extraField, null, null,  null, null,
                             null, null, vop, null, null, null,
-                            null, null, null, null, null, null, null, null, null));
+                            null, null, null, null, null, null, null, null, null, null, null));
                 }
             } catch (Exception e) {
                 throw Throwables.propagate(e);
@@ -2433,7 +2481,9 @@ public class DefaultTerminalHandler {
         public String fileNameImage;
         public String posDate1;
         public String posDate2;
-        
+        public String unit;
+        public BigDecimal amount;
+
         public TerminalOrder(LocalDate date, LocalDate dateShipment, String number, String supplier,
                              Integer labelCount, String categories, Boolean promo,
                              String barcode, String idItem, String name,
@@ -2442,7 +2492,7 @@ public class DefaultTerminalHandler {
                              String headField1, String headField2, String headField3, String posField1, String posField2, String posField3,
                              String minDate1, String maxDate1, String vop, List<String> extraBarcodeList, Long flags, String GTIN, BigDecimal trustAcceptPercent,
                              String unitLoad, String background_color, String lotType, Boolean ukz, String nameUkzType, String fileNameImage,
-                             String posDate1, String posDate2) {
+                             String posDate1, String posDate2, String unit, BigDecimal amount) {
             this.date = date;
             this.dateShipment = dateShipment;
             this.number = number;
@@ -2484,6 +2534,8 @@ public class DefaultTerminalHandler {
             this.fileNameImage = fileNameImage;
             this.posDate1 = posDate1;
             this.posDate2 = posDate2;
+            this.unit = unit;
+            this.amount = amount;
         }
     }
 
@@ -2496,6 +2548,16 @@ public class DefaultTerminalHandler {
             this.idBarcode = idBarcode;
             this.nameSku = nameSku;
             this.mainBarcode = mainBarcode;
+        }
+    }
+
+    private static class BarcodeUOM {
+        String unit;
+        BigDecimal amount;
+
+        public BarcodeUOM(String unit, BigDecimal amount) {
+            this.unit = unit;
+            this.amount = amount;
         }
     }
     
