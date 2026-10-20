@@ -268,6 +268,53 @@ getDocumentStatusesPaged 'Импортировать статусы докуме
     }
 }
 
+// doc/list отбирает по дате документа, а она может быть раньше окна (приёмка из ЕАЭС — дата отгрузки);
+// doc/{id}/info отдаёт документ по коду независимо от дат, ответ — массив из одного документа
+infoError = DATA LOCAL STRING (INTEGER);
+infoErrorDocument = DATA LOCAL INTEGER (INTEGER);
+
+FORM getDocumentInfo
+    OBJECTS d = INTEGER EXTID 'value'
+    PROPERTIES(d) number = number, status = status
+
+    OBJECTS e = INTEGER EXTID 'errors'
+    PROPERTIES(e) infoError EXTID 'value'
+    FILTERS infoErrorDocument(e) = d
+;
+
+getDocumentStatusById (Document d) {
+    getToken(legalEntity(d));
+
+    LOCAL result = JSONFILE();
+    TRY {
+        EXTERNAL HTTP GET 'https://markirovka.crpt.ru/api/v4/true-api/doc/' + id(d) + '/info?pg=' + idType(d) HEADERS documentHeaders TO result;
+    } CATCH {
+        logToFile('gismt', messageCaughtException());
+        logToFile('gismt', FILE(result()));
+        MESSAGE CONCAT ' ', 'Ошибка при получении статуса документа ГИС МТ ' + id(d) + ':', messageCaughtException();
+        RETURN;
+    }
+
+    IMPORT getDocumentInfo JSON FROM result();
+    FOR number(INTEGER i) = id(d) DO {
+        status(d) <- status(i);
+        downloadDesc(d) <- GROUP CONCAT infoError(INTEGER e) IF infoErrorDocument(e) = i, '; ' ORDER e;
+    }
+}
+
+// ручной запрос по одному документу: статус и сразу проведение/отмена, как в postDocuments
+requestStatus 'Запросить статус в ГИС МТ' (Document d) {
+    IF idType(d) THEN NEWSESSION {
+        getDocumentStatusById(d);
+        IF statusOk(d) THEN
+            isPosted(d) <- TRUE;
+        ELSE IF statusError(d) THEN
+            canceled(d) <- TRUE;
+        APPLY;
+    } ELSE {
+        MESSAGE 'Не задан тип маркировки' NOWAIT;
+    }
+}
 postDocuments 'Изменить статусы документов ГИС МТ' () {
     FOR dateTime(Document d) >= checkDocStatusDateTime() AND statusOk(d) AND NOT isPosted(d) DO {
         NEWSESSION {
