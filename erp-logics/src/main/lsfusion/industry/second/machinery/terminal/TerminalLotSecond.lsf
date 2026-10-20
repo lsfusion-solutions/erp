@@ -45,9 +45,12 @@ META defineAddDetailDialogTerminalLotSecond(object)
     }    
 END
 
-sumLotWeight 'Вес, кг' (TerminalDocument t) = GROUP SUM weight(Lot l) IF [GROUP MIN TerminalLotDetail d BY lot(id(d)), terminalDocument(d)](l, t); // MATERIALIZED не нужен; 
-quantityLot 'Кол-во марок' (TerminalDocument t) = GROUP SUM 1 IF [GROUP MIN TerminalLotDetail d BY lot(id(d)), terminalDocument(d)](Lot l, t); // MATERIALIZED замедляет оценку; 
-quantityLotSecond 'Кол-во марок' (TerminalDocumentDetail t) = GROUP SUM 1 IF [GROUP MIN TerminalLotDetail d BY lot(id(d)), terminalDocumentDetail(d)](Lot l, t); // MATERIALIZED замедляет оценку;
+// соединение с маркой по id(l), а не через lot(id(d)), т.к. тогда группируется вся таблица марок
+countLotId (STRING id, TerminalDocument t) = GROUP SUM 1 BY id(TerminalLotDetail d), terminalDocument(d);
+
+sumLotWeight 'Вес, кг' (TerminalDocument t) = GROUP SUM weight(Lot l) IF countLotId(id(l), t); // MATERIALIZED не нужен; 
+quantityLot 'Кол-во марок' (TerminalDocument t) = GROUP SUM 1 IF countLotId(id(Lot l), t); // MATERIALIZED замедляет оценку; 
+quantityLotSecond 'Кол-во марок' (TerminalDocumentDetail t) = GROUP SUM 1 IF [GROUP SUM 1 BY id(TerminalLotDetail d), terminalDocumentDetail(d)](id(Lot l), t); // MATERIALIZED замедляет оценку;
 
 backgroundTerminalDocumentDetail (TerminalDocumentDetail d) += WHEN quantityLotSecond(d) != quantity(d) THEN RGB(255,150,50);
 
