@@ -501,7 +501,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                     //временная опция для Табака
                     if(cashRegisterLM.findProperty("disableSalesForClosedZReports[]").read(outerSession) != null) {
-                        Set<String> closedZReportSet = readClosedZReportSet(outerSession);
+                        Set<String> closedZReportSet = readClosedZReportSet(outerSession, salesInfoList, options);
                         salesInfoList.removeIf(salesInfo -> closedZReportSet.contains(getIdZReport(salesInfo, options)));
                     }
 
@@ -1703,19 +1703,16 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         ProcessMonitorEquipmentServer.finishProcessMonitorTask(getBusinessLogics(), this, getStack(), sidEquipmentServer, resultJSON);
     }
 
-    private Set<String> readClosedZReportSet(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Set<String> readClosedZReportSet(DataSession session, List<SalesInfo> salesInfoList, EquipmentServerOptions options) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Set<String> idZReportSet = new HashSet<>();
+        for (SalesInfo salesInfo : salesInfoList)
+            idZReportSet.add(getIdZReport(salesInfo, options));
+
         Set<String> result = new HashSet<>();
-        KeyExpr zReportExpr = new KeyExpr("ZReport");
-        ImRevMap<Object, KeyExpr> zReportKeys = MapFact.singletonRev("ZReport", zReportExpr);
-        QueryBuilder<Object, Object> zReportQuery = new QueryBuilder<>(zReportKeys);
-
-        zReportQuery.addProperty("idZReport", zReportLM.findProperty("id[ZReport]").getExpr(zReportExpr));
-        zReportQuery.and(zReportLM.findProperty("isClosed[ZReport]").getExpr(zReportExpr).getWhere());
-
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> zReportResult = zReportQuery.execute(session);
-        for (ImMap<Object, Object> row : zReportResult.valueIt()) {
-            String idZReport = (String) row.get("idZReport");
-            result.add(idZReport);
+        for (String idZReport : idZReportSet) {
+            ObjectValue zReportObject = zReportLM.findProperty("zReport[STRING[100]]").readClasses(session, new DataObject(idZReport));
+            if (zReportObject instanceof DataObject && zReportLM.findProperty("isClosed[ZReport]").read(session, zReportObject) != null)
+                result.add(idZReport);
         }
         return result;
     }
