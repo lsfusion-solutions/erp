@@ -17,6 +17,7 @@ id (TerminalTemplate t) <- STRING[1000](LONG(t)) WHEN SET(t IS TerminalTemplate)
 number 'Номер' = DATA STRING[1000] (TerminalTemplate) IN base CHARWIDTH 20;
 note 'Примечание' = DATA STRING[100] (TerminalTemplate) IN base CHARWIDTH 20;
 //quantity 'Количество' = DATA NUMERIC[14,3] (TerminalTemplate) IN base;
+//quantity 'Количество' = DATA NUMERIC[14,3] (TerminalTemplate) IN base;
 
 inactive 'Неактивный' = DATA BOOLEAN (TerminalTemplate);
 active 'Активный' (TerminalTemplate t) = t IS TerminalTemplate AND NOT inactive(t) MATERIALIZED;
@@ -318,20 +319,20 @@ DESIGN terminalTemplates {
 
 
 id 'Код' = DATA LOCAL STRING();
-dateTime 'Дата' = DATA LOCAL DATETIME();
+date 'Дата' = DATA LOCAL DATETIME();
 number 'Номер' = DATA LOCAL STRING();
-idType 'Тип' = DATA LOCAL STRING();
-idSupplier 'Поставщик' = DATA LOCAL STRING();
-userLogin 'Пользователь' = DATA LOCAL STRING();
+type 'Тип' = DATA LOCAL STRING();
+supplier 'Поставщик' = DATA LOCAL STRING();
+user 'Пользователь' = DATA LOCAL STRING();
 note 'Примечание' = DATA LOCAL STRING();
-idBarcode 'Штрихкод' = DATA LOCAL STRING(INTEGER);
+barcode 'Штрихкод' = DATA LOCAL STRING(INTEGER);
 quantity 'Количество' = DATA NUMERIC(INTEGER);
 note 'Примечание' = DATA LOCAL STRING(INTEGER);
 
 FORM importTemplate
-    PROPERTIES() id, dateTime EXTID 'date', number, idType, note, idSupplier, userLogin
+    PROPERTIES() id, date, number, type, note, supplier, user
     OBJECTS details = INTEGER
-    PROPERTIES(details) quantity, idBarcode
+    PROPERTIES(details) quantity, barcode
 ;
 
 saveDocumentTemplate(FILE file) {
@@ -343,18 +344,18 @@ saveDocumentTemplate(FILE file) {
 
     NEW t = TerminalTemplate {
         id(t) <- id();
-        dateTime(t) <- dateTime();
+        dateTime(t) <- date();
         number(t) <- number();
-        type(t) <- terminalDocumentType(idType());
+        type(t) <- terminalDocumentType(type());
         number(t) <- number();
-        supplier(t) <- stock(idSupplier());
+        supplier(t) <- stock(supplier());
         note(t) <- note();
-        createdUser(t) <- customUserLogin(userLogin());
-        company(t) <- legalEntity(stock(customUserLogin(userLogin())));
+        createdUser(t) <- customUserLogin(user());
+        company(t) <- legalEntity(customUserLogin(user()));
 
-        FOR idBarcode(INTEGER r) NEW td = TerminalTemplateDetail DO {
+        FOR barcode(INTEGER r) NEW td = TerminalTemplateDetail DO {
             terminalTemplate(td) <- t;
-            idBarcode(td) <- idBarcode(r);
+            idBarcode(td) <- barcode(r);
             quantity(td) <- quantity(r);
             note(td) <- note(r);
             //    sku(od) <- GROUP MAX Sku sku IF name(sku) = sku(iod); // находим sku с данным именем
