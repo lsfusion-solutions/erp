@@ -3,7 +3,7 @@ MODULE EGAISPurchaseInvoiceGestori;
 REQUIRE EGAISPurchaseInvoice, EGAISWayBillGestory,
         PurchaseInvoiceTerminal, PurchaseShipmentInvoiceTerminal, SkuLedgerLotGestori, 
         EGAISFRegLedgerGestori, EGAISWayBillLedger,
-        EGAISItem;
+        EGAISItem, EGAISSaleShipment, SalePurchaseInvoiceShipment;
 
 PRIORITY Purchase;
 
@@ -145,3 +145,19 @@ showPurchaseInvoice 'Показать накладную (закупка)' (FReg
         MESSAGE 'Накладная не найдена';
     }
 }  ASON CONTEXTMENU number[FRegLedger];
+
+// ---- накладная (закупка) на основе накладной (продажа) ----
+
+wayBill (SalePurchaseInvoice.PurchaseInvoice i) += EGAISSale.wayBill(SalePurchaseInvoice.invoice(i));
+quantity (SalePurchaseInvoice.PurchaseInvoiceDetail d, WayBillPosition p) += EGAISSale.quantity(Sale.invoiceShipmentDetail(SalePurchaseInvoice.invoiceDetail(d)), p);
+
+purchaseInvoiceGestori (WayBill w) = GROUP MAX Invoice i BY wayBill(i);
+
+lockedTTNGestori (Invoice i) = TRUE IF wayBill(i) AND NOT canceled(wayBill(i)) AND NOT disableEGAISDocumentConstraints();
+
+CONSTRAINT (SETCHANGED(shipmentQuantity(SalePurchaseInvoice.PurchaseInvoiceDetail d)) OR DROPPED(shipmentQuantity(d))) AND lockedTTNGestori(invoice(d))
+    MESSAGE 'Запрещено изменять принятое количество и добавлять строки в накладной (закупка) после отправки ЕГАИС ТТН';
+
+CONSTRAINT DROPPED(d IS SalePurchaseInvoice.PurchaseInvoiceDetail)
+    AND lockedTTNGestori(PREV(invoice[SalePurchaseInvoice.PurchaseInvoiceDetail](d)))
+    MESSAGE 'Запрещено удалять строки накладной (закупка) после отправки ЕГАИС ТТН';

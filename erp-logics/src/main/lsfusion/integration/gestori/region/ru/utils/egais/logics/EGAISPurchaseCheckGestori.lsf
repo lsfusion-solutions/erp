@@ -81,3 +81,12 @@ DESIGN userInvoice {
         MOVE PROPERTY(dataCheckLog(i)) { panelCaptionVertical = TRUE; fill = 0.25; }
     }
 }
+
+diffTTNGestori (SalePurchaseInvoice.PurchaseInvoice i) =
+    (GROUP SUM 1 IF wayBill(WayBillPosition p) = wayBill(i) AND NOT quantityInvoice(p) = quantity(p))
+    OR (GROUP SUM 1 IF invoice(InvoiceDetail d) = i AND minProduct(sku(d)) AND NOT shipmentQuantity(d) = quantityWayBill(d));
+
+checkResultStatus (SalePurchaseInvoice.PurchaseInvoice i) += WayBillStatus.checkedOk IF wayBill(i);
+overCheckProcess (SalePurchaseInvoice.PurchaseInvoice i) +=
+    'Принятое количество в накладной не совпадает с ЕГАИС ТТН. Отправляется только подтверждение полной приемки без расхождений'
+    IF wayBill(i) AND diffTTNGestori(i);
