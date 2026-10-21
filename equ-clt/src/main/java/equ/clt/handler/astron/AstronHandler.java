@@ -940,7 +940,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             setObject(ps, packDType, 7, offset); //PACKDTYPE
                             setObject(ps, getPackName(item), 8, offset); //PACKNAME
                             setObject(ps, delFlag ? "1" : "0", 9, offset); //DELFLAG
-                            setObject(ps, !specialSplitMode && item.passScalesItem ? (item.splitItem ? "2" : "1") : null, 10, offset); //BARCID (barcode format: 2 - weight, 1 - piece)
+                            setObject(ps, item.passScalesItem ? (item.splitItem ? "2" : "1") : null, 10, offset); //BARCID (barcode format: 2 - weight, 1 - piece)
 
                             int delta = 0;
                             if(usePropertyGridFieldInPackTable) {
