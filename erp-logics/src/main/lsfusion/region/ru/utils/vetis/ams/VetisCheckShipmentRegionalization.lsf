@@ -122,7 +122,15 @@ toProcessCheck 'Получить условия регионализации' (O
     AND NOT lockedProcessVetis(o)
             MATERIALIZED INDEXED;
 
+// проверка партий перед запросом условий регионализации (реализации могут запретить запрос с сообщением)
+cancelProcessCheck = DATA LOCAL BOOLEAN ();
+beforeProcessCheckOutgoingConsignment ABSTRACT LIST ();
+beforeProcessCheck ABSTRACT LIST (IncomingConsignment);
+
 processCheckOutgoingConsignment () {
+    cancelProcessCheck() <- NULL;
+    beforeProcessCheckOutgoingConsignment();
+    IF cancelProcessCheck() THEN RETURN;
     NEWSESSION NESTED (in[OutgoingConsignment]) {
         IF GROUP SUM 1 IF in(OutgoingConsignment c) THEN {
             NEW r = CheckShipmentRegionalization {
@@ -200,6 +208,9 @@ toProcessCheck 'Получить условия регионализации' (I
         MATERIALIZED INDEXED;
 
 processCheck 'Получить условия регионализации' (IncomingConsignment c) {
+    cancelProcessCheck() <- NULL;
+    beforeProcessCheck(c);
+    IF cancelProcessCheck() THEN RETURN;
     NEWSESSION {
         NEW r = CheckShipmentRegionalization {
             businessEntity(r) <- consigneeBusinessEntityVetDocument(c);

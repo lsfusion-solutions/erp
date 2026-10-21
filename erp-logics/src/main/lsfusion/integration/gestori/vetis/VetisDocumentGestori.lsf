@@ -1181,11 +1181,20 @@ errorStocksGestori (OutgoingConsignment c) = CONCAT '; ',
 
 firstErrorStocksGestori (t) = GROUP MIN OutgoingConsignment c IF in(c) BY errorStocksGestori(c);
 
+messageErrorStocksGestori () = 'Нельзя отправить запрос в Ветис: связь складов с площадками отсутствует или противоречива:\n' +
+    (GROUP CONCAT errorStocksGestori(OutgoingConsignment c) IF in(c) AND firstErrorStocksGestori(errorStocksGestori(c)) = c, '\n' ORDER c);
+
 beforeProcessOutgoingConsignment() + {
-    IF (GROUP SUM 1 IF in(OutgoingConsignment c) AND errorStocksGestori(c)) THEN {
-        MESSAGE 'Нельзя отправить запрос в Ветис: связь складов с площадками отсутствует или противоречива:\n' +
-            (GROUP CONCAT errorStocksGestori(OutgoingConsignment c) IF in(c) AND firstErrorStocksGestori(errorStocksGestori(c)) = c, '\n' ORDER c);
+    IF messageErrorStocksGestori() THEN {
+        MESSAGE messageErrorStocksGestori();
         cancelProcessOutgoingConsignment() <- TRUE;
+    }
+}
+
+beforeProcessCheckOutgoingConsignment() + {
+    IF messageErrorStocksGestori() THEN {
+        MESSAGE messageErrorStocksGestori();
+        cancelProcessCheck() <- TRUE;
     }
 }
 
@@ -1218,6 +1227,13 @@ beforeProcessIncomingConsignment(IncomingConsignment c) + {
     IF errorStocksGestori(c) THEN {
         MESSAGE 'Нельзя отправить запрос в Ветис: связь складов с площадками отсутствует или противоречива: ' + errorStocksGestori(c);
         cancelProcessIncomingConsignment() <- TRUE;
+    }
+}
+
+beforeProcessCheck(IncomingConsignment c) + {
+    IF errorStocksGestori(c) THEN {
+        MESSAGE 'Нельзя отправить запрос в Ветис: связь складов с площадками отсутствует или противоречива: ' + errorStocksGestori(c);
+        cancelProcessCheck() <- TRUE;
     }
 }
 
