@@ -56,22 +56,25 @@ DESIGN options {
 }
 
 recalculateAccountPrice 'Пересчёт учётных цен в реализации' () {
-    FOR ReceiptSaleDetail l IS ReceiptSaleDetail AND sum(date(l), countDaysToRecalculateAccountPrice())>=currentDate() AND 
+    LOCAL needRecalculateAccountPrice = BOOLEAN (ReceiptDetail);
+    needRecalculateAccountPrice(ReceiptDetail l) <- TRUE WHERE sum(date(l), countDaysToRecalculateAccountPrice())>=currentDate();
+
+    FOR ReceiptSaleDetail l IS ReceiptSaleDetail AND needRecalculateAccountPrice(l) AND 
         NOT batch(l) AND NOT accountPrice(l)==accountPriceA(sku(l), departmentStore(l), dateTime(l)) INLINE DO {
         accountPrice(l) <- accountPriceA(sku(l), departmentStore(l), dateTime(l));
     }
 
-    FOR ReceiptReturnDetail l IS ReceiptReturnDetail AND sum(date(l), countDaysToRecalculateAccountPrice())>=currentDate() 
+    FOR ReceiptReturnDetail l IS ReceiptReturnDetail AND needRecalculateAccountPrice(l) 
         AND NOT batch(l) AND NOT accountPrice(l)==accountPriceA(sku(l), departmentStore(l), dateTime(l)) INLINE DO {
         accountPrice(l) <- accountPriceA(sku(l), departmentStore(l), dateTime(l));    
     }
 
-    FOR ReceiptSaleDetail l IS ReceiptSaleDetail AND sum(date(l), countDaysToRecalculateAccountPrice())>=currentDate() AND 
+    FOR ReceiptSaleDetail l IS ReceiptSaleDetail AND needRecalculateAccountPrice(l) AND 
         batch(l) AND NOT accountPrice(l)==accountPriceA(batch(l), departmentStore(l), dateTime(l)) INLINE DO {
         accountPrice(l) <- accountPriceA(batch(l), departmentStore(l), dateTime(l));
     }
 
-    FOR ReceiptReturnDetail l IS ReceiptReturnDetail AND sum(date(l), countDaysToRecalculateAccountPrice())>=currentDate() AND 
+    FOR ReceiptReturnDetail l IS ReceiptReturnDetail AND needRecalculateAccountPrice(l) AND 
         batch(l) AND NOT accountPrice(l)==accountPriceA(batch(l), departmentStore(l), dateTime(l)) INLINE DO {
         accountPrice(l) <- accountPriceA(batch(l), departmentStore(l), dateTime(l));
     }
