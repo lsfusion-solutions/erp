@@ -37,6 +37,22 @@ calculateDaysChange 'Рассчитать изменение остатка по
     }
 }
 
+dataCalculateDaysChangeMultithread = DATA INTEGER ();
+
+calculateDaysChangeMultithread 'Рассчитать изменение остатка по дням' (DATE dateFrom, DATE dateTo)  {
+    NEWEXECUTOR
+        FOR active(Stock stock) AND isCompany(stock)  DO
+            NEWTHREAD NEWSESSION NEWSQL {
+                APPLY {
+                    daysChange(Sku sku, stock, DATE date) <- NULL WHERE date >= dateFrom AND date <= dateTo;
+                }
+                APPLY {
+                    daysChange(Sku sku, stock, DATE date) <- calcDaysChange(sku, stock, date, dateFrom, dateTo) WHERE adjSignedQuantity(sku, stock, date, dateFrom, dateTo);
+                }
+            }
+        THREADS OVERRIDE dataCalculateDaysChangeMultithread(), 4;
+}
+
 // ---------- При включенной опции будет считаться, что товар был в наличии, если по нему есть движение -------------- //
 checkChange 'Учитывать продажи в наличии товара' = DATA BOOLEAN (UOM);
 
