@@ -116,8 +116,6 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
                     for (int j = 0; j < emailProperties.length; j++) {
                         emailQuery.addProperty(emailNames[j], emailProperties[j].getExpr(context.getModifier(), emailExpr));
                     }
-                    emailQuery.addProperty("fileAttachmentEmail", findProperty("file[AttachmentEmail]").getExpr(context.getModifier(), attachmentEmailExpr));
-                    emailQuery.addProperty("nameAttachmentEmail", findProperty("filename[AttachmentEmail]").getExpr(context.getModifier(), attachmentEmailExpr));
 
                     emailQuery.and(findProperty("email[AttachmentEmail]").getExpr(context.getModifier(), attachmentEmailExpr).compare(emailExpr, Compare.EQUALS));
                     emailQuery.and(findProperty("account[Email]").getExpr(context.getModifier(), emailExpr).compare(accountObject.getExpr(), Compare.EQUALS));
@@ -132,7 +130,6 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
                         ObjectValue attachmentEmailObject = emailResult.getKey(j).get("attachmentEmail");
                         LocalDateTime dateTimeReceivedEmail = (LocalDateTime) emailEntryValue.get("dateTimeReceivedEmail").getValue();
                         boolean isOld = Duration.between(dateTimeReceivedEmail, LocalDateTime.now()).toHours() >= 24; //старше 24 часов
-                        String nameAttachmentEmail = trim((String) emailEntryValue.get("nameAttachmentEmail").getValue());
                         String fromAddressEmail = (String) emailEntryValue.get("fromAddressEmail").getValue();
                         String subjectEmail = (String) emailEntryValue.get("subjectEmail").getValue();
 
@@ -147,9 +144,12 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
                         }
 
                         if (matches) {
+                            //содержимое (и имя файла: расширение filename берётся из содержимого) читаем только для вложений подошедшего отправителя,
+                            //а не для всех вложений ящика на каждый тип импорта
+                            String nameAttachmentEmail = trim((String) findProperty("filename[AttachmentEmail]").read(context, (DataObject) attachmentEmailObject));
                             RawFileData fileAttachment = null;
                             try {
-                                fileAttachment = ((FileData) emailEntryValue.get("fileAttachmentEmail").getValue()).getRawFile();
+                                fileAttachment = ((FileData) findProperty("file[AttachmentEmail]").read(context, (DataObject) attachmentEmailObject)).getRawFile();
                             } catch (Exception e) {
                                 errors.add(e.getLocalizedMessage());
                                 logImportError(context, attachmentEmailObject, e.getLocalizedMessage(), isOld);
