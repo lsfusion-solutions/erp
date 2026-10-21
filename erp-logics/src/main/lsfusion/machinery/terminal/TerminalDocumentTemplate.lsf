@@ -6,8 +6,6 @@ NAMESPACE TerminalDocumentTemplate;
 
 CLASS TerminalTemplate 'Шаблон документа ТСД';
 TABLE terminalTemplate (TerminalTemplate);
-//TABLE sessionTerminalTemplate (Session, TerminalTemplate);
-//TABLE terminalTemplateId(ISTRING[1000]);
 
 id 'Код' = DATA STRING[36] (TerminalTemplate) IN id INDEXED CHARWIDTH 10;
 id (TerminalTemplate t) <- STRING[1000](LONG(t)) WHEN SET(t IS TerminalTemplate);
@@ -16,8 +14,6 @@ id (TerminalTemplate t) <- STRING[1000](LONG(t)) WHEN SET(t IS TerminalTemplate)
 
 number 'Номер' = DATA STRING[1000] (TerminalTemplate) IN base CHARWIDTH 20;
 note 'Примечание' = DATA STRING[100] (TerminalTemplate) IN base CHARWIDTH 20;
-//quantity 'Количество' = DATA NUMERIC[14,3] (TerminalTemplate) IN base;
-//quantity 'Количество' = DATA NUMERIC[14,3] (TerminalTemplate) IN base;
 
 inactive 'Неактивный' = DATA BOOLEAN (TerminalTemplate);
 active 'Активный' (TerminalTemplate t) = t IS TerminalTemplate AND NOT inactive(t) MATERIALIZED;
@@ -46,22 +42,20 @@ createdUser (TerminalTemplate t) <- currentUser() WHEN SET(t IS TerminalTemplate
 
 CLASS TerminalTemplateDetail 'Строка шаблона документа ТСД';
 TABLE terminalTemplateDetail (TerminalTemplateDetail);
-//TABLE sessionTerminalTemplateDetail (Session, TerminalTemplateDetail);
 
 terminalTemplate = DATA TerminalTemplate(TerminalTemplateDetail) NONULL DELETE INDEXED;
 
 //id 'Код' = DATA STRING[1000] (TerminalTemplateDetail) IN id INDEXED CHARWIDTH 10;
-
 //index 'Номер строки ' (TerminalTemplateDetail d) =
 //    PARTITION SUM 1
 //    ORDER number(d), d BY terminalTemplate(d) CHARWIDTH 4;
+
 idBarcode 'Штрихкод' = DATA STRING[30] (TerminalTemplateDetail) IN base;
 quantity 'Количество' = DATA NUMERIC[14,3] (TerminalTemplateDetail) IN base;
 note 'Примечание' = DATA STRING[100] (TerminalTemplateDetail) IN base;
 
 sku = DATA Sku (TerminalTemplateDetail) INDEXED;
 nameSku 'Наименование товара' (TerminalTemplateDetail d) = name(sku(d)) IN base;
-//name 'Наименование' (TerminalTemplateDetail d) = nameSku(d) IN base;
 
 terminalTemplateDetail(terminalTemplate, sku) = GROUP MAX TerminalTemplateDetail detail BY terminalTemplate(detail), sku(detail);
 
@@ -323,14 +317,14 @@ date 'Дата' = DATA LOCAL DATETIME();
 number 'Номер' = DATA LOCAL STRING();
 type 'Тип' = DATA LOCAL STRING();
 supplier 'Поставщик' = DATA LOCAL STRING();
-user 'Пользователь' = DATA LOCAL STRING();
+createdUser 'Пользователь' = DATA LOCAL STRING();
 note 'Примечание' = DATA LOCAL STRING();
 barcode 'Штрихкод' = DATA LOCAL STRING(INTEGER);
 quantity 'Количество' = DATA NUMERIC(INTEGER);
 note 'Примечание' = DATA LOCAL STRING(INTEGER);
 
 FORM importTemplate
-    PROPERTIES() id, date, number, type, note, supplier, user
+    PROPERTIES() id, date, number, type, note, supplier, createdUser
     OBJECTS details = INTEGER
     PROPERTIES(details) quantity, barcode
 ;
@@ -348,17 +342,16 @@ saveDocumentTemplate(FILE file) {
         number(t) <- number();
         type(t) <- terminalDocumentType(type());
         number(t) <- number();
-        supplier(t) <- stock(supplier());
+        supplier(t) <- OVERRIDE stock(supplier()), stock(substrFrom(supplier(), 3));
         note(t) <- note();
-        createdUser(t) <- customUserLogin(user());
-        company(t) <- legalEntity(customUserLogin(user()));
+        createdUser(t) <- customUserLogin(createdUser());
+        company(t) <- legalEntity(customUserLogin(createdUser()));
 
         FOR barcode(INTEGER r) NEW td = TerminalTemplateDetail DO {
             terminalTemplate(td) <- t;
             idBarcode(td) <- barcode(r);
             quantity(td) <- quantity(r);
             note(td) <- note(r);
-            //    sku(od) <- GROUP MAX Sku sku IF name(sku) = sku(iod); // находим sku с данным именем
         }
     }
     
