@@ -144,11 +144,12 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
                         }
 
                         if (matches) {
-                            //содержимое (и имя файла: расширение filename берётся из содержимого) читаем только для вложений подошедшего отправителя,
-                            //а не для всех вложений ящика на каждый тип импорта
-                            String nameAttachmentEmail = trim((String) findProperty("filename[AttachmentEmail]").read(context, (DataObject) attachmentEmailObject));
+                            String nameAttachmentEmail = null;
                             RawFileData fileAttachment = null;
                             try {
+                                //содержимое (и имя файла: расширение filename берётся из содержимого) читаем только для вложений подошедшего отправителя,
+                                //а не для всех вложений ящика на каждый тип импорта
+                                nameAttachmentEmail = trim((String) findProperty("filename[AttachmentEmail]").read(context, (DataObject) attachmentEmailObject));
                                 fileAttachment = ((FileData) findProperty("file[AttachmentEmail]").read(context, (DataObject) attachmentEmailObject)).getRawFile();
                             } catch (Exception e) {
                                 errors.add(e.getLocalizedMessage());
