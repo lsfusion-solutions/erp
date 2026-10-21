@@ -15,6 +15,8 @@ wayBillAct = DATA WayBillAct (WayBillActOutDoc) INDEXED;
 wayBillActOutDoc = GROUP LAST WayBillActOutDoc a ORDER a BY wayBillAct(a);
 activeWayBillAct (WayBill w) = notRejected(wayBillActOutDoc(wayBillAct(w)));
 
+notChangeOwnershipAct = ABSTRACT BOOLEAN (WayBill);
+
 // export
 GROUP header EXTID 'wa:Header';
 GROUP content EXTID 'wa:Content';
@@ -43,7 +45,7 @@ FORM wayBillAct_v4 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:WayBill
     FILTERS wayBillPosition(amc) = p AND NOT accepted(amc)
 
     PROPERTIES IN transport 
-        = IF isAccept(wayBill(a)) = 'Rejected'  THEN 'NotChange' ELSE 'IsChange' EXTID 'wa:ChangeOwnership'
+        = IF isAccept(wayBill(a)) = 'Rejected' OR notChangeOwnershipAct(wayBill(a)) THEN 'NotChange' ELSE 'IsChange' EXTID 'wa:ChangeOwnership'
 ;
 
 submitAct (WayBillActOutDoc a) {
