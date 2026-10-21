@@ -8,6 +8,7 @@ import jxl.read.biff.BiffException;
 import lsfusion.base.BaseUtils;
 import lsfusion.base.ExceptionUtils;
 import lsfusion.base.Pair;
+import lsfusion.base.ReflectionUtils;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.SetFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
@@ -288,7 +289,7 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
                 FileHeader fh = a.nextFileHeader();
 
                 while (fh != null) {
-                    String fileName = (fh.isUnicode() ? fh.getFileNameW() : fh.getFileNameString());
+                    String fileName = getRarFileName(fh);
                     outputFile = new File(outputDirectory.getPath() + "/" + fileName);
                     File dir = outputFile.getParentFile();
                     if(dir.mkdirs() && !dirList.contains(dir))
@@ -385,5 +386,19 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
         String name = file.getName();
         int index = name.lastIndexOf(".");
         return (index == -1) ? "" : name.substring(0, index);
+    }
+
+    // junrar 0.7 (platform 6.x before #1908) has only getFileNameW() / getFileNameString(),
+    // junrar 8.x (platform with RAR5 support) has only getFileName(),
+    // so the methods are called through reflection to work with both platform versions
+    // todo: remove after upgrading erp to 6.3 after #1908
+    private static String getRarFileName(FileHeader fh) {
+        try {
+            return ReflectionUtils.getMethodValue(FileHeader.class, fh, "getFileName", new Class[0], new Object[0]);
+        } catch (RuntimeException e) {
+            if (!(e.getCause() instanceof NoSuchMethodException))
+                throw e;
+            return ReflectionUtils.getMethodValue(FileHeader.class, fh, fh.isUnicode() ? "getFileNameW" : "getFileNameString", new Class[0], new Object[0]);
+        }
     }
 }
