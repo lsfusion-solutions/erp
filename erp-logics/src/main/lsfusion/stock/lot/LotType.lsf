@@ -10,8 +10,11 @@ CLASS LotType 'Тип маркировки' {
     unknown 'Неизвестный'
 };
 
-id 'Код' (LotType t) = ISTRING(getWord(staticName(t),'.',2)) IF t IS LotType CHARWIDTH 20;
-name 'Наименование' (LotType t) = staticCaption(t) IF t IS LotType CHARWIDTH 20;
+// для типов, у которых внешний код или наименование не совпадают со статическим объектом
+dataId 'Код' = DATA ISTRING[50] (LotType);
+id 'Код' (LotType t) = OVERRIDE dataId(t), ISTRING(getWord(staticName(t),'.',2)) IF t IS LotType CHARWIDTH 20;
+dataName 'Наименование' = DATA BPISTRING[100] (LotType);
+name 'Наименование' (LotType t) = OVERRIDE dataName(t), staticCaption(t) IF t IS LotType CHARWIDTH 20;
 
 FORM dialogLotTypes 'Выбор типа маркировки'
     OBJECTS t = LotType
