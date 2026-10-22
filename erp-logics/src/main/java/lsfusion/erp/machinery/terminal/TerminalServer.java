@@ -240,6 +240,18 @@ public class TerminalServer extends MonitorServer {
         return sqlDateToLocalDate(date);
     }
 
+    private LocalDateTime parseDocumentDate(String value) {
+        Timestamp timestamp;
+        try {
+            timestamp = value == null ? null : new Timestamp(DateUtils.parseDate(value,
+                    "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd", "dd.MM.yyyy HH:mm:ss", "dd.MM.yyyy").getTime());
+        } catch (Exception e) {
+            logger.error("Parsing document date failed: " + value, e);
+            timestamp = null;
+        }
+        return sqlTimestampToLocalDateTime(timestamp);
+    }
+
 
     private BigDecimal parseBigDecimal(String value) {
         try {
@@ -538,6 +550,7 @@ public class TerminalServer extends MonitorServer {
                                         errorText = AUTHORISATION_REQUIRED_TEXT;
                                     } else {
                                         String dateDocument = document[1];
+                                        LocalDateTime dateTimeDocument = parseDocumentDate(dateDocument);
                                         String numberDocument = document[2];
                                         String idDocument = numberDocument + " " + dateDocument + " " + userInfo.user.object;
                                         String idTerminalDocumentType = document[3];
@@ -595,6 +608,7 @@ public class TerminalServer extends MonitorServer {
                                                 list.add(ana1);
                                                 list.add(ana2);
                                                 list.add(comment);
+                                                list.add(dateTimeDocument);
                                                 if (markerFields) {
                                                     list.add(labelCount);
                                                     list.add(categories);
@@ -641,6 +655,7 @@ public class TerminalServer extends MonitorServer {
                                             list.add(ana1);
                                             list.add(ana2);
                                             list.add(comment);
+                                            list.add(dateTimeDocument);
                                             if (markerFields) {
                                                 list.add(labelCount);
                                                 list.add(categories);

@@ -1477,6 +1477,12 @@ public class DefaultTerminalHandler {
                 ImportField commentTerminalDocumentField = new ImportField(terminalHandlerLM.findProperty("comment[TerminalDocument]"));
                 props.add(new ImportProperty(commentTerminalDocumentField, terminalHandlerLM.findProperty("comment[TerminalDocument]").getMapping(terminalDocumentKey)));
                 fields.add(commentTerminalDocumentField);
+
+                // дата/время документа с ТСД (сырьё для серверной опции dateFromTerminal);
+                // позиция в rows — сразу после comment, синхронно с TerminalServer.SAVE_DOCUMENT
+                ImportField dateTimeTerminalDocumentField = new ImportField(terminalHandlerLM.findProperty("dateTimeTerminal[TerminalDocument]"));
+                props.add(new ImportProperty(dateTimeTerminalDocumentField, terminalHandlerLM.findProperty("dateTimeTerminal[TerminalDocument]").getMapping(terminalDocumentKey)));
+                fields.add(dateTimeTerminalDocumentField);
     
                 if (markerFields) {
                     ImportField markerLabelCountTerminalDocumentField = new ImportField(terminalHandlerLM.findProperty("markerLabelCount[TerminalDocument]"));

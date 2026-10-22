@@ -600,6 +600,8 @@ showBalanceDefectZone 'Отображать остаток по зоне бра�
 forInternetStoreItems 'Для товаров интернет магазина' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 useReplaceInternetOrder 'Использовать замены в интернет-заказах' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 quantityFromCapacity 'Подставлять количество равное емкости упаковки' = DATA BOOLEAN (TerminalDocumentTypePreferences);
+// Серверная опция: в JSON ТСД не выгружается (нет в списке EXPORT JSON FROM).
+dateFromTerminal 'Подставлять дату создания документа на ТСД' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 
 // Заказ
 isOrder 'Выбор заказа при создании документа' = DATA BOOLEAN (TerminalDocumentTypePreferences);
@@ -624,6 +626,7 @@ banUnloadDocumentWithLotCountDiff 'Запрет выгрузки докумен�
 allowAcceptBox 'Разрешить приемку короба' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 quantityFromAcceptedLots 'Количество товара по принятым маркам' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 packLotAsUnit 'Нештучные марки принимать как штучные' = DATA BOOLEAN (TerminalDocumentTypePreferences);
+markingScreenManual 'Не открывать экран марок автоматически' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 // Устарело: оставлено для совместимости со старыми сборками терминала,
 // которые читают поле allowScanLotFirst из JSON настроек типа документа.
 allowScanLotFirst 'Сначала сканировать марку (устарело)' = DATA BOOLEAN (TerminalDocumentTypePreferences);
@@ -636,6 +639,8 @@ allowScanLotFirst 'Сначала сканировать марку (устар�
 
 FORM terminalDocumentTypePreferences 'Настройки документа' FORMEXTID 'Preferences'
 
+    // Состав JSON для ТСД не связан с этой формой — он задаётся
+    // явным списком полей в getTerminalDocumentTypePreferences.
     OBJECTS o = TerminalDocumentTypePreferences PANEL
     PROPERTIES(o)
         groupItems,
@@ -645,6 +650,7 @@ FORM terminalDocumentTypePreferences 'Настройки документа' FOR
         zeroQuantityDefault,
         noRequestQuantity, 
         quantityFromCapacity,
+        dateFromTerminal,
         hidePrice,
         hideBalance,
         allowNewItem,
@@ -704,6 +710,7 @@ FORM terminalDocumentTypePreferences 'Настройки документа' FOR
         allowAcceptBox,
         quantityFromAcceptedLots,
         packLotAsUnit,
+        markingScreenManual,
         allowScanLotFirst
 
 //        goodsField1, goodsField2, goodsField3, goodsField4, goodsField5
@@ -828,13 +835,31 @@ DESIGN terminalDocumentTypePreferences {
             MOVE PROPERTY(allowAcceptBox(o));
             MOVE PROPERTY(quantityFromAcceptedLots(o));
             MOVE PROPERTY(packLotAsUnit(o));
+            MOVE PROPERTY(markingScreenManual(o));
             MOVE PROPERTY(allowScanLotFirst(o));
         }
+        // Серверные свойства — те, которых нет в списке EXPORT JSON FROM
+        // в getTerminalDocumentTypePreferences.
+        NEW serverLogic {
+            caption = 'Серверные опции';
+            horizontal = FALSE;
+            height = 1;
+            MOVE PROPERTY(dateFromTerminal(o));
+        }
+        
     }
     MOVE TOOLBARBOX;
 }
 
 preferences = DATA TerminalDocumentTypePreferences (TerminalDocumentType) IN base;
+
+// Серверная опция dateFromTerminal: дата/время документа = дата создания документа на ТСД
+process (TerminalDocument document) + {
+    IF dateFromTerminal(preferences(terminalDocumentType(document))) AND dateTimeTerminal(document) THEN {
+        date(document) <- toDate(dateTimeTerminal(document));
+        time(document) <- toTime(dateTimeTerminal(document));
+    }
+};
 
 flag(TerminalDocumentType t, TerminalFlags f) = bitwiseAndLong(flag(t), flag(f)) == flag(f);
 
@@ -995,7 +1020,76 @@ terminalDocumentTypePreferences = DATA LOCAL STRING();
 
 getTerminalDocumentTypePreferences(TerminalDocumentType t) {
     LOCAL result = FILE();
-    EXPORT terminalDocumentTypePreferences OBJECTS o = preferences(t) JSON TO result;
+    // В JSON терминала попадают только перечисленные здесь поля.
+    // Чтобы свойство перестало выгружаться на ТСД — убрать его строку;
+    // новые свойства формы сюда автоматически НЕ попадают.
+    EXPORT JSON FROM
+        groupItems = groupItems(preferences(t)),
+        controlSupplierAssortment = controlSupplierAssortment(preferences(t)),
+        allowOutsideSupplierAssortment = allowOutsideSupplierAssortment(preferences(t)),
+        allowZeroQuantity = allowZeroQuantity(preferences(t)),
+        zeroQuantityDefault = zeroQuantityDefault(preferences(t)),
+        noRequestQuantity = noRequestQuantity(preferences(t)),
+        quantityFromCapacity = quantityFromCapacity(preferences(t)),
+        hidePrice = hidePrice(preferences(t)),
+        hideBalance = hideBalance(preferences(t)),
+        allowNewItem = allowNewItem(preferences(t)),
+        onlineItemRequest = onlineItemRequest(preferences(t)),
+        banEditQuantity = banEditQuantity(preferences(t)),
+        banEditDocumentNumber = banEditDocumentNumber(preferences(t)),
+        withBatches = withBatches(preferences(t)),
+        allowDocumentExport = allowDocumentExport(preferences(t)),
+        labelPriceControl = labelPriceControl(preferences(t)),
+        banFractQuantityForPieceItem = banFractQuantityForPieceItem(preferences(t)),
+        voicePromoItem = voicePromoItem(preferences(t)),
+        ignoreMainBarcode = ignoreMainBarcode(preferences(t)),
+        allowTrustAccept = allowTrustAccept(preferences(t)),
+        trustAcceptPercent = trustAcceptPercent(preferences(t)),
+        allowTeamWork = allowTeamWork(preferences(t)),
+        banReturnableItem = banReturnableItem(preferences(t)),
+        controlUnitLoad = controlUnitLoad(preferences(t)),
+        showBalanceDefectZone = showBalanceDefectZone(preferences(t)),
+        forInternetStoreItems = forInternetStoreItems(preferences(t)),
+        useReplaceInternetOrder = useReplaceInternetOrder(preferences(t)),
+        requestNPP = requestNPP(preferences(t)),
+        requestPrice = requestPrice(preferences(t)),
+        requestExtraQuantity = requestExtraQuantity(preferences(t)),
+        requestDate1 = requestDate1(preferences(t)),
+        requiredDate1 = requiredDate1(preferences(t)),
+        banExpiredDate1 = banExpiredDate1(preferences(t)),
+        requestDate1ForWeightItem = requestDate1ForWeightItem(preferences(t)),
+        requestDate2 = requestDate2(preferences(t)),
+        requiredDate2 = requiredDate2(preferences(t)),
+        banExpiredDate2 = banExpiredDate2(preferences(t)),
+        requestField1 = requestField1(preferences(t)),
+        requiredField1 = requiredField1(preferences(t)),
+        requestField2 = requestField2(preferences(t)),
+        requiredField2 = requiredField2(preferences(t)),
+        requestField3 = requestField3(preferences(t)),
+        requiredField3 = requiredField3(preferences(t)),
+        isOrder = isOrder(preferences(t)),
+        banItemOutsideOrder = banItemOutsideOrder(preferences(t)),
+        controlOrderQuantity = controlOrderQuantity(preferences(t)),
+        quantityFromOrder = quantityFromOrder(preferences(t)),
+        singleChoiceOrder = singleChoiceOrder(preferences(t)),
+        selectOrdersForOperation = selectOrdersForOperation(preferences(t)),
+        confirmOrderOverQuantity = confirmOrderOverQuantity(preferences(t)),
+        noGroupItemOrder = noGroupItemOrder(preferences(t)),
+        isMarking = isMarking(preferences(t)),
+        checkLotBalance = checkLotBalance(preferences(t)),
+        allowDeleteLot = allowDeleteLot(preferences(t)),
+        allowNewLot = allowNewLot(preferences(t)),
+        allowCreateBox = allowCreateBox(preferences(t)),
+        onlineLotValidate = onlineLotValidate(preferences(t)),
+        banInvalidLot = banInvalidLot(preferences(t)),
+        checkItemLotsCount = checkItemLotsCount(preferences(t)),
+        banUnloadDocumentWithLotCountDiff = banUnloadDocumentWithLotCountDiff(preferences(t)),
+        allowAcceptBox = allowAcceptBox(preferences(t)),
+        quantityFromAcceptedLots = quantityFromAcceptedLots(preferences(t)),
+        packLotAsUnit = packLotAsUnit(preferences(t)),
+        markingScreenManual = markingScreenManual(preferences(t)),
+        allowScanLotFirst = allowScanLotFirst(preferences(t))
+    TO result;
     resultString() <- NULL;
     fileToString(result());
     terminalDocumentTypePreferences() <- resultString();
