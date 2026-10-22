@@ -600,8 +600,6 @@ showBalanceDefectZone 'Отображать остаток по зоне бра�
 forInternetStoreItems 'Для товаров интернет магазина' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 useReplaceInternetOrder 'Использовать замены в интернет-заказах' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 quantityFromCapacity 'Подставлять количество равное емкости упаковки' = DATA BOOLEAN (TerminalDocumentTypePreferences);
-// Серверная опция: в JSON ТСД не выгружается (нет в списке EXPORT JSON FROM).
-dateFromTerminal 'Подставлять дату создания документа на ТСД' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 
 // Заказ
 isOrder 'Выбор заказа при создании документа' = DATA BOOLEAN (TerminalDocumentTypePreferences);
@@ -636,6 +634,12 @@ allowScanLotFirst 'Сначала сканировать марку (устар�
 //goodsField3 'Инфо-поле 3 для товара' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 //goodsField4 'Инфо-поле 4 для товара' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 //goodsField5 'Инфо-поле 5 для товара' = DATA BOOLEAN (TerminalDocumentTypePreferences);
+
+// Серверные опции: в JSON ТСД не выгружается (нет в списке EXPORT JSON FROM).
+dateFromTerminal 'Подставлять дату создания документа на ТСД' = DATA BOOLEAN (TerminalDocumentTypePreferences);
+// Контроль родительского документа ТСД
+checkParentDocument 'Контролировать наличие родительского документа' = DATA BOOLEAN (TerminalDocumentTypePreferences);
+checkParentShipment 'Контролировать отсутствие поставки по родительскому документу' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 
 FORM terminalDocumentTypePreferences 'Настройки документа' FORMEXTID 'Preferences'
 
@@ -852,14 +856,6 @@ DESIGN terminalDocumentTypePreferences {
 }
 
 preferences = DATA TerminalDocumentTypePreferences (TerminalDocumentType) IN base;
-
-// Серверная опция dateFromTerminal: дата/время документа = дата создания документа на ТСД
-process (TerminalDocument document) + {
-    IF dateFromTerminal(preferences(terminalDocumentType(document))) AND dateTimeTerminal(document) THEN {
-        date(document) <- toDate(dateTimeTerminal(document));
-        time(document) <- toTime(dateTimeTerminal(document));
-    }
-};
 
 flag(TerminalDocumentType t, TerminalFlags f) = bitwiseAndLong(flag(t), flag(f)) == flag(f);
 
@@ -1120,3 +1116,15 @@ onStarted() + {
         }
     }
 }
+
+// Наличие родительского документа ТСД в системе / создание по нему поставки
+hasParentDocument = ABSTRACT BOOLEAN (TerminalDocument);
+hasParentShipment = ABSTRACT BOOLEAN (TerminalDocument);
+
+// Серверная опция dateFromTerminal: дата/время документа = дата создания документа на ТСД
+process (TerminalDocument document) + {
+    IF dateFromTerminal(preferences(terminalDocumentType(document))) AND dateTimeTerminal(document) THEN {
+        date(document) <- toDate(dateTimeTerminal(document));
+        time(document) <- toTime(dateTimeTerminal(document));
+    }
+};
