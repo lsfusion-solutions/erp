@@ -261,6 +261,7 @@ overExportCSIAPI ABSTRACT(STRING);
 overExportCSIAPI ABSTRACT();
 
 skipExportCSIAPIMessage = ABSTRACT BOOLEAN ();
+showFileExportCSIAPI = DATA LOCAL BOOLEAN ();
 
 exportCSIAPI 'Экспорт пиклиста CSI' (STRING templateGuid) {
     overExportCSIAPI(templateGuid);
@@ -287,6 +288,10 @@ exportCSIAPI 'Экспорт пиклиста CSI' (STRING templateGuid) {
         //та же проверка, что FILTERS в exportCSIformAPI — иначе POST уходит с пустым menuTemplates и Set10 отвечает 400
         IF GROUP SUM 1 IF isSet10(GroupCashRegister g) AND idStoreSet(g) AND active(g) AND customGroupPicListLocal() AND NOT overSkipExport(templateGuid, g) THEN {
             EXPORT exportCSIformAPI OBJECTS templateGuid = templateGuid, cashTemplates = '[' + listCashTemplates(templateGuid) + ']' JSON;
+            IF showFileExportCSIAPI() THEN {
+                WRITE CLIENT DIALOG exportFile() TO (CONCAT '_', 'piclist', templateGuid);
+                RETURN;
+            }
             fileToString(exportFile());
             timeoutHttp() <- 60000;
             LOCAL result = FILE ();
@@ -295,16 +300,17 @@ exportCSIAPI 'Экспорт пиклиста CSI' (STRING templateGuid) {
             EXTERNAL HTTP POST exportCSIAPIurl() PARAMS exportFile() TO result;
             IMPORT JSON FROM result() TO() errorCode, description;
             IF NOT errorCode() THEN {
-                MESSAGE 'Пиклист успешно выгружен' NOWAIT ;
+                MESSAGE CONCAT ' ', 'Пиклист успешно выгружен', '(шаблон ' + templateGuid + ')' NOWAIT ;
             }
             ELSE {
-                IF NOT skipExportCSIAPIMessage() THEN {
-                    MESSAGE CONCAT '\n', 'Ошибка при выполнении запроса API CSI-K (' + errorCode() + ')', description() NOWAIT;
-                }
+                MESSAGE CONCAT '\n', 'Ошибка при выполнении запроса API CSI-K (' + errorCode() + ')', 'Шаблон ' + templateGuid, description() NOWAIT;
             }
         }
         ELSE {
-            MESSAGE  'Нет данных для выгрузки' NOWAIT ;
+            //при выгрузке по нескольким шаблонам пустой шаблон — норма, сообщение только сбивает
+            IF NOT skipExportCSIAPIMessage() THEN {
+                MESSAGE  'Нет данных для выгрузки' NOWAIT ;
+            }
         }
     } ELSE {
         MESSAGE 'Не указан адрес для API запросов CSI-K' NOWAIT;
@@ -312,10 +318,20 @@ exportCSIAPI 'Экспорт пиклиста CSI' (STRING templateGuid) {
 }
 
 exportCSIAPI 'Экспорт пиклиста CSI' (){
+    showFileExportCSIAPI() <- NULL;
     customGroupPicListLocal() <- customGroupPicList();    
     overExportCSIAPI ();
     exportCSIAPI (templateGuid());
 }
+
+//не через exportCSIAPI(): он сбрасывает признак
+viewExportCSIAPI 'Просмотреть отправляемый файл' () {
+    customGroupPicListLocal() <- customGroupPicList();
+    showFileExportCSIAPI() <- TRUE;
+    overExportCSIAPI ();
+    exportCSIAPI (templateGuid());
+    showFileExportCSIAPI() <- NULL;
+} ASON CONTEXTMENU exportCSIAPI[];
 
 EXTEND FORM groupCashRegister
     PROPERTIES () exportCSIAPI SHOWIF isSet10(grc)
