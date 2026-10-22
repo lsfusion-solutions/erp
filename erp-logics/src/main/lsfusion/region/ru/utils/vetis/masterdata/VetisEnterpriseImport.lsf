@@ -21,6 +21,7 @@ FORM importEnterprise FORMEXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2
 
 afterImportEnterprise ABSTRACT (Enterprise, TEXT);
 afterImportActivityLocation ABSTRACT (BusinessEntity, Enterprise); // площадка из списка деятельности ХС
+rejectImportEnterprise = ABSTRACT STRING (Enterprise); // причина, по которой данные площадки из Ветис не принимаются
 
 importEnterprise(TEXT xml, BusinessEntity owner) {
     NEWSESSION {
@@ -52,6 +53,14 @@ importEnterprise(TEXT xml, BusinessEntity owner) {
 
         afterImportEnterprise(enterprise(guid()), xml);
         IF owner IS BusinessEntity THEN afterImportActivityLocation(owner, enterprise(guid()));
+
+        IF rejectImportEnterprise(enterprise(guid())) THEN {
+            LOCAL reject = TEXT ();
+            reject() <- CONCAT ' ', 'Площадка', guid(), name(), 'не принята:', rejectImportEnterprise(enterprise(guid()));
+            logToFile('vetis', reject());
+            MESSAGE reject() NOWAIT;
+            RETURN;
+        }
 
         APPLY;
     }
