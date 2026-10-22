@@ -213,7 +213,7 @@ public class DibalD500Handler extends DefaultScalesHandler {
         bytes.put(getBytes(prependZeroes(item.idBarcode, 6)));
 
         //type of article, 1 byte (0 Weight, 1 Unit, 2 Fixed Weight, 3 Devolution, 4 Percentual Tare, 5 Counting)
-        bytes.put(getBytes(isWeight(item, 0) ? "0" : "1"));
+        bytes.put(getBytes("0"));
 
         //price per kg, 1 byte (0 Kg price, 1 100g price, 2 500g price)
         bytes.put(getBytes("0"));

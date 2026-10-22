@@ -4,10 +4,10 @@ import java.io.Serializable;
 
 public class DibalSettings implements Serializable {
     //barcode format (EAN-13 format number on the scales, H3 register, 2 digits) for weight items
-    private String weightEan13Format = "00";
+    private String weightEan13Format = "01";
 
     //barcode format (EAN-13 format number on the scales, H3 register, 2 digits) for piece items
-    private String pieceEan13Format = "01";
+    private String pieceEan13Format = "02";
 
     public DibalSettings() {}
 
