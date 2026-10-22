@@ -27,7 +27,7 @@ shortNameUOMSku 'Ед. изм. товара' = DATA STRING[100] (DeleteBarcode);
 valueVATSku 'НДС, %' = DATA NUMERIC[10,5] (DeleteBarcode);
 idItemGroup 'Код группы товара' = DATA STRING[100] (DeleteBarcode);
 nameItemGroup 'Наименование группы товара' = DATA STRING[250] (DeleteBarcode);
-overIdSkuGroup = DATA STRING[100] (DeleteBarcode);
+overIdSkuGroup 'Код группы товара для интеграции' = DATA STRING[100] (DeleteBarcode);
 passScales = DATA BOOLEAN (DeleteBarcode);
 split = DATA BOOLEAN (DeleteBarcode);
 
@@ -62,7 +62,7 @@ FORM deleteBarcodes 'Запросы удаления штрихкодов'
     OBJECTS d = DeleteBarcode
     PROPERTIES (d) nameGroupMachinery, nameModelGroupMachinery
     PROPERTIES (d) READONLY succeeded, dateTimeProcessing, dateTimeSucceeded
-    PROPERTIES (d) barcode, idSku, nameSku, idUOMSku, shortNameUOMSku, valueVATSku, idItemGroup, nameItemGroup, NEW
+    PROPERTIES (d) barcode, idSku, nameSku, idUOMSku, shortNameUOMSku, valueVATSku, idItemGroup, overIdSkuGroup, nameItemGroup, NEW
     
     OBJECTS e = DeleteBarcodeError
     PROPERTIES(e) READONLY data, date, errorTrace
@@ -87,7 +87,7 @@ WHEN (DROPPED (Barcode b IS Barcode) OR DROPPED (active(b)) OR CHANGED(sku(b))) 
         idItemGroup(d) <- PREV(id(skuGroup(sku(b))));
         nameItemGroup(d) <- name(PREV(skuGroup(sku(b))));
         groupMachinery(d) <- gm;
-        overIdSkuGroup(d) <- OVERRIDE PREV(overIdSkuGroup(b)), '0';
+        overIdSkuGroup(d) <- OVERRIDE PREV(overId(skuGroup(b))), '0';
         passScales(d) <- PREV(passScales(b));
         split(d) <- PREV(split(b));
     } 
