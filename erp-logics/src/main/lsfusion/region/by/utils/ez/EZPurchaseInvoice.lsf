@@ -21,9 +21,9 @@ isFilledDeclaration 'Активный' (Purchase.InvoiceDetail d) =
     TRUE IF declaration(d) AND seriesNumber(declaration(d)) AND date(declaration(d)) AND sidOrigin2(country(legalEntity(declaration(d))));
 
 FORM selectPurchaseInvoiceDetail 'Выбор позиций накладных (закупка)'
-    OBJECTS i = Purchase.Invoice PANEL
-    PROPERTIES (i) SELECTOR number
-    PROPERTIES (i) READONLY series, date, time 
+    OBJECTS i = Purchase.Invoice LAST
+    PROPERTIES (i) READONLY number, series, date, time, nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock,
+        countInvoiceDetail, nameOperation, quantityInvoiceDetail, sumInvoiceDetail
     
     OBJECTS d = Purchase.InvoiceDetail
     PROPERTIES (d) select
@@ -36,16 +36,21 @@ FORM selectPurchaseInvoiceDetail 'Выбор позиций накладных (
     ORDERS index(d)
     
     FILTERS invoice(d) == i
-    FILTERGROUP isFilledDeclaration FILTER 'Позиции с заданной декларацией' isFilledDeclaration(d) 'F10' DEFAULT
+    FILTERGROUP isFilledDeclaration FILTER 'Строки с наличием декларации' isFilledDeclaration(d) 'F10' DEFAULT
 ;
 
 fillFromInvoice 'Заполнить из накладной' (LotOrder o) {
-    DIALOG selectPurchaseInvoiceDetail OBJECTS i INPUT DO {
-        FOR (invoice(Purchase.InvoiceDetail d) == i) AND select(d) DO NEW id = LotOrderDetail{
-            lotOrder(id) <- o;
-            sku(id) <- sku(d);
-            quantity(id) <- quantity(d);
-            invoiceDetail(id) <- d;
+    IF NOT stock(o) THEN {
+        MESSAGE 'Укажите склад в заказе марок';
+        RETURN;
+    } ELSE {
+        DIALOG selectPurchaseInvoiceDetail FILTERS stock(o)==customerStock(i) DO {
+            FOR select(Purchase.InvoiceDetail d) DO NEW id = LotOrderDetail{
+                lotOrder(id) <- o;
+                sku(id) <- sku(d);
+                quantity(id) <- quantity(d);
+                invoiceDetail(id) <- d;
+            }
         }
     }
 }
