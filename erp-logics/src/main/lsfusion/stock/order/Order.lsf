@@ -158,6 +158,8 @@ filterOrderInterval 'Показывать заказы за последние N
 EXTEND FORM options PROPERTIES() filterOrderInterval;
 DESIGN options { orders { MOVE PROPERTY(filterOrderInterval()); } }
 
+skipFilterOrderIntervalDateFrom = ABSTRACT BOOLEAN ();
+
 
 //----------------------------------------------- Заказ ---------------------------------------------------//
 
@@ -771,7 +773,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                 filterComputer(o)                            
         
         EVENTS ON INIT {
-            IF filterOrderInterval() THEN
+            IF filterOrderInterval() AND NOT skipFilterOrderIntervalDateFrom() THEN
                 filterOrderDateFrom() <- subtract(currentDate(), filterOrderInterval()); 
         }, ON SCHEDULE PERIOD 60 formRefresh()
         
