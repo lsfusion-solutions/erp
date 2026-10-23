@@ -333,6 +333,8 @@ WHEN LOCAL (SETCHANGED(sku(PageInventoryDetail detail)) OR DROPPED(batch(detail)
 }
 
 replace(Sku s, Batch b) + {  sku(PageInventoryDetail detail) <- s WHERE batch(detail) == b;} 
+
+nameListInventory 'Опись' (PageInventoryDetail d)  = name(listInventory(d));
 // -------------------------------------------- Сличительная ведомость ----------------------------------------------- //
 
 CLASS ABSTRACT CollationSheet 'Сличительная ведомость';
@@ -1718,7 +1720,11 @@ EXTEND FORM listInventory
     PROPERTIES (pl) DRAW dp addDetailInputBarcode, addDetailInput  
 ;
 
-
+editListInventory 'Редактировать' (PageInventoryDetail d) {
+    NEWSESSION {
+        SHOW listInventory OBJECTS li = listInventory(d), pl = pageInventory(d), dp = d DOCKED NOWAIT;
+    }
+} IMAGE 'edit.png' TOOLBAR;
 
 
 // --------------------------------------------- Формы инвентаризаций ------------------------------------- //
@@ -1875,8 +1881,10 @@ FORM inventory 'Инвентаризация'
     PROPERTIES(pl)   READONLY countPageInventoryDetail, quantityPageInventoryDetail, sumPageInventoryDetail
 
     OBJECTS          dp=PageInventoryDetail GRID
-    PROPERTIES (dp)  READONLY BACKGROUND background(sku(dp), ds, in) index, nameSkuTypeSku, idSku SHOWIF showIDs(), idBarcodeSku, nameSku, idBatch SHOWIF isBatch(li), nameBatch  SHOWIF isBatch(li),
+    PROPERTIES (dp)  READONLY BACKGROUND background(sku(dp), ds, in) nameListInventory, index, nameSkuTypeSku, idSku SHOWIF showIDs(), 
+                              idBarcodeSku, nameSku, idBatch SHOWIF isBatch(li), nameBatch  SHOWIF isBatch(li),
                               quantity, price, sum, costBatch SHOWIF isBatch(li), costSumBatch SHOWIF isBatch(li)
+    PROPERTIES editListInventory(dp)
     FILTERS                   in(in, ds, li, pl, dp)
 
     OBJECTS         it=Sku GRID
