@@ -898,13 +898,14 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                     Integer idItem = parseIdItem(item);
                     List<Integer> packIds = getPackIds(item);
 
-                    int packDType = specialSplitMode && item.splitItem ? 0 : (item.passScalesItem ? 0 : item.splitItem ? 2 : 1);
+                    //PACKDTYPE: 0 - весовой (passScalesItem && splitItem) и штучный делимый в specialSplitMode, 2 - штучный делимый, 1 - штучный (в т.ч. штучный на весах)
+                    int packDType = item.splitItem ? (item.passScalesItem || specialSplitMode ? 0 : 2) : 1;
 
                     for (Integer packId : packIds) {
                         if (params.pgsql) {
                             setObject(ps, packId, 1); //PACKID
                             setObject(ps, idItem, 2); //ARTID
-                            setObject(ps, item.passScalesItem || item.splitItem ? 1000 : 1, 3); //PACKQUANT
+                            setObject(ps, item.splitItem ? 1000 : 1, 3); //PACKQUANT
                             setObject(ps, 0, 4); //PACKSHELFLIFE
                             if (idItems.contains(idItem)) {
                                 setObject(ps, 0, 5); //ISDEFAULT
@@ -927,7 +928,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             }
                         } else {
                             setObject(ps, idItem, 1, offset); //ARTID
-                            setObject(ps, item.passScalesItem || item.splitItem ? "1000" : "1", 2, offset); //PACKQUANT
+                            setObject(ps, item.splitItem ? "1000" : "1", 2, offset); //PACKQUANT
                             setObject(ps, "0", 3, offset); //PACKSHELFLIFE
                             if (idItems.contains(idItem)) {
                                 setObject(ps, false, 4, offset); //ISDEFAULT
