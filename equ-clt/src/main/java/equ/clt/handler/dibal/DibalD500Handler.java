@@ -314,7 +314,6 @@ public class DibalD500Handler extends DefaultScalesHandler {
         //free, 4 bytes
         bytes.put(getBytes(fillZeroes(4)));
 
-        processTransactionLogger.info(getLogPrefix() + "H3 " + Charset.forName("cp1251").decode(bytes));
         return bytes.array();
     }
 
