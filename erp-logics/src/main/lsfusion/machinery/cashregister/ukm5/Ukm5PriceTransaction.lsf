@@ -315,6 +315,8 @@ WHEN ([GROUP SUM 1 IF DROPPED(lowWeight(Sku s)) OR DROPPED(overSkipKppControl(s)
 needUpdateScale(Item i) = isCatchWeight(i) OR overSliced(i) OR lowWeight(i) OR overSkipKppControl(i)
     OR weightControlBypassUkm5(i) OR isPackage(i) OR minDelta(i) OR maxDelta(i) OR droppedScale(i) == TTRUE;
 
+logImportSecurityScale 'Логировать импорт эталонных весов' = DATA BOOLEAN ();
+
 FORM importSecurityScale 'Импорт эталонных весов КВП и работа с типами товаров'
     OBJECTS t = MachineryPriceTransaction
 
@@ -423,6 +425,11 @@ sendPriceTransactionAPI(CashRegisterPriceTransaction t){
         EXPORT importSecurityScale OBJECTS t = t JSON;
         EXTERNAL HTTP POST CONCAT '', urlUkm5ServerImport() + '/api/v1/import/store/',
             idStore(groupCashRegister(t)), '/securityScale' PARAMS exportFile() TO answer;
+        IF logImportSecurityScale() THEN {
+            fileToString(exportFile(), 'UTF-8');
+            logToFile('ukm5SecurityScale', CONCAT ' ', currentDateTime(), ' | транзакция ', LONG(t), ' | ',
+                nameGroupMachinery(t), ' | товары | HTTP ', statusHttp(), '\n', resultString());
+        }
         fileToString(answer());
         IF statusHttp() = 200 THEN {
             uploadedUkm5Scale(Item i) <- TRUE IF skuTransaction(i, t) AND NOT uploadedUkm5Scale(i);
@@ -439,6 +446,11 @@ sendPriceTransactionAPI(CashRegisterPriceTransaction t){
         EXPORT importSecurityScaleBarcode OBJECTS t = t JSON;
         EXTERNAL HTTP POST CONCAT '', urlUkm5ServerImport() + '/api/v1/import/store/',
             idStore(groupCashRegister(t)), '/securityScale' PARAMS exportFile() TO answer;
+        IF logImportSecurityScale() THEN {
+            fileToString(exportFile(), 'UTF-8');
+            logToFile('ukm5SecurityScale', CONCAT ' ', currentDateTime(), ' | транзакция ', LONG(t), ' | ',
+                nameGroupMachinery(t), ' | штрихкоды | HTTP ', statusHttp(), '\n', resultString());
+        }
         fileToString(answer());
         IF statusHttp() = 200 THEN {
             uploadedUkm5Scale(Barcode b) <- TRUE WHERE in(t, b) AND NOT uploadedUkm5Scale(b);
