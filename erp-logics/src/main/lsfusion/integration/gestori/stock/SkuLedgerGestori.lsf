@@ -25,29 +25,32 @@ prevLooseBalance 'Текущий остаток' (Sku sku, Stock stock) = PREV(l
 
 CONSTRAINT (SETCHANGED (quantity(SkuLedger l)) OR SET (isPosted(l))) AND NOT skip(l) AND NOT l IS SaleZReportSkuLedger AND
     looseBalance(sku(l), stock(l)) < 0.0 AND NOT looseBalance(sku(l), stock(l)) >= prevLooseBalance(sku(l), stock(l)) AND
-    overBanNegativeCurrentBalace(stock(l))
+    overBanNegativeCurrentBalace(stock(l)) AND NOT isCharge(sku(l))
     MESSAGE 'Запрещено: значение  больше, чем в наличии';
 
 CONSTRAINT (DROPPED (SkuLedger l IS SkuLedger)) AND NOT skip(l) AND NOT l IS SaleZReportSkuLedger AND
     looseBalance(PREV(sku(l)), PREV(stock(l))) < 0.0 AND NOT looseBalance(PREV(sku(l)), PREV(stock(l))) >= prevLooseBalance(PREV(sku(l)), PREV(stock(l))) AND
-    overBanNegativeCurrentBalace(PREV(stock(l)))
+    overBanNegativeCurrentBalace(PREV(stock(l))) AND NOT isCharge(PREV(sku(l)))
     MESSAGE 'Запрещено удалять: значение  больше, чем в наличии';
 
 CONSTRAINT (SETCHANGED (sku(SkuLedger l)) AND isPosted(l)) AND NOT skip(l) AND NOT l IS SaleZReportSkuLedger AND
-    ((looseBalance(PREV(sku(l)), stock(l)) < 0.0 AND NOT looseBalance(PREV(sku(l)), stock(l)) >= prevLooseBalance(PREV(sku(l)), stock(l))) OR
-        (looseBalance(sku(l), stock(l)) < 0.0 AND NOT looseBalance(sku(l), stock(l)) >= prevLooseBalance(sku(l), stock(l))))
+    ((looseBalance(PREV(sku(l)), stock(l)) < 0.0 AND NOT looseBalance(PREV(sku(l)), stock(l)) >= prevLooseBalance(PREV(sku(l)), stock(l)) AND NOT isCharge(PREV(sku(l)))) OR
+        (looseBalance(sku(l), stock(l)) < 0.0 AND NOT looseBalance(sku(l), stock(l)) >= prevLooseBalance(sku(l), stock(l)) AND NOT isCharge(sku(l))))
     AND overBanNegativeCurrentBalace(stock(l))
     MESSAGE 'Запрещено изменять товар: значение  больше, чем в наличии';
 
 CONSTRAINT (SETCHANGED (quantity(OrderLedger l)) OR SET (isPosted(l))) AND NOT skip(l) AND
     looseBalance(sku(l), stock(l)) < 0.0 AND NOT looseBalance(sku(l), stock(l)) >= prevLooseBalance(sku(l), stock(l)) AND
-    overBanNegativeCurrentBalace(stock(l))
+    overBanNegativeCurrentBalace(stock(l)) AND NOT isCharge(sku(l))
     MESSAGE 'Запрещено: значение  больше, чем в наличии';
 
 CONSTRAINT (SETCHANGED (sku(OrderLedger l)) AND isPosted(l)) AND NOT skip(l) AND
-    ((looseBalance(PREV(sku(l)), stock(l)) < 0.0 AND NOT looseBalance(PREV(sku(l)), stock(l)) >= prevLooseBalance(PREV(sku(l)), stock(l))) OR
-        (looseBalance(sku(l), stock(l)) < 0.0 AND NOT looseBalance(sku(l), stock(l)) >= prevLooseBalance(sku(l), stock(l))))
+    ((looseBalance(PREV(sku(l)), stock(l)) < 0.0 AND NOT looseBalance(PREV(sku(l)), stock(l)) >= prevLooseBalance(PREV(sku(l)), stock(l)) AND NOT isCharge(PREV(sku(l)))) OR
+        (looseBalance(sku(l), stock(l)) < 0.0 AND NOT looseBalance(sku(l), stock(l)) >= prevLooseBalance(sku(l), stock(l)) AND NOT isCharge(sku(l))))
     AND overBanNegativeCurrentBalace(stock(l))
     MESSAGE 'Запрещено изменять товар: значение  больше, чем в наличии';
 
+// ---- Запрет расхода в минус не распространяется на услуги ----
 
+allowNegativeAvailableSku(Sku sk, Stock st) += TRUE IF isCharge(sk) AND st IS Stock;
+allowNegativeAvailableBatch(Batch b, Stock st) += TRUE IF isCharge(sku(b)) AND st IS Stock;
