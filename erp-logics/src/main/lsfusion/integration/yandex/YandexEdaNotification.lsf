@@ -1,0 +1,100 @@
+MODULE YandexEdaNotification;
+
+REQUIRE YandexEdaOrder;
+
+NAMESPACE YandexEda;
+
+// Курьерские нотификации POST /notifications/{placeId}:
+
+notificationOrderId = DATA LOCAL STRING();
+notificationType = DATA LOCAL STRING();
+notificationId = DATA LOCAL STRING();
+notificationCourierName = DATA LOCAL STRING();
+notificationCourierPhone = DATA LOCAL STRING();
+GROUP courier;
+courierNameObject = DATA LOCAL STRING();
+courierTypeObject = DATA LOCAL STRING();
+
+FORM courierNotification FORMEXTID 'null'
+    PROPERTIES() notificationOrderId EXTID 'orderId', notificationType EXTID 'type', notificationId EXTID 'id',
+        notificationCourierName EXTID 'courierName', notificationCourierPhone EXTID 'courierPhone'
+    PROPERTIES() IN courier courierNameObject EXTID 'name', courierTypeObject EXTID 'type'
+;
+
+// статические наборы значений из API (https://yandex.ru/support/retail/ru/ref/send.notification);
+CLASS StatusCourierNotification 'Статус нотификации курьера' {
+    courierAssigned 'Курьер назначен',
+    courierArrivedToPlace 'Курьер прибыл в магазин'
+}
+CLASS CourierType 'Тип курьера' {
+    robot 'Робот'
+}
+
+courierType 'Тип курьера' = DATA CourierType (InternetOrder);
+statusCourierNotification 'Статус нотификации курьера' = DATA StatusCourierNotification (InternetOrder);
+dateTimeCourierNotification 'Дата/время нотификации курьера' = DATA DATETIME (InternetOrder);
+nameCourierType 'Тип курьера' (InternetOrder o) = caption(courierType(o));
+nameStatusCourierNotification 'Статус нотификации курьера' (InternetOrder o) = caption(statusCourierNotification(o));
+
+EXTEND FORM internetOrder
+    PROPERTIES (o) READONLY nameCourierType, nameStatusCourierNotification, dateTimeCourierNotification
+;
+// рядом с прежними полями курьера (блок payment карточки заказа)
+DESIGN internetOrder {
+    payment {
+        MOVE PROPERTY (nameCourierType(o));
+        MOVE PROPERTY (nameStatusCourierNotification(o));
+        MOVE PROPERTY (dateTimeCourierNotification(o));
+    }
+}
+
+afterCourierNotification ABSTRACT LIST (InternetOrder);
+
+notifications (FILE f) {
+    LOCAL tokenClient = STRING ();
+    tokenClient() <- OVERRIDE getWord(headers('Authorization'), ' ', 2), getWord(headers('authorization'), ' ', 2);
+    LOCAL aggr = YandexEdaAuth();
+    aggr() <- auth(yandexEdaSession(tokenClient()));
+    IF NOT (aggr()) THEN {
+        statusHttpTo() <- 401;
+        EXPORT JSON FROM code = 100, description = 'Не найден токен авторизации';
+        RETURN;
+    }
+    fileToString(f);
+    logToFile('yandex', CONCAT ' : ', 'IN notification', method(), servletPath() + pathInfo(), resultString());
+    IMPORT courierNotification JSON FROM f;
+    LOCAL order = InternetOrder ();
+    order() <- internetOrderByUuid(notificationOrderId());
+    IF NOT order() THEN {
+        orderNotFound();
+        RETURN;
+    }
+    // имя/телефон/тип могут отсутствовать в повторной нотификации — не затираем прежние
+    LOCAL nameCourier = STRING ();
+    nameCourier() <- OVERRIDE courierNameObject(), notificationCourierName();
+    courierName(order()) <- nameCourier() WHERE nameCourier();
+    courierPhone(order()) <- STRING[30](notificationCourierPhone()) WHERE notificationCourierPhone();
+    courierType(order()) <- CourierType.robot WHERE courierTypeObject() = 'robot';
+    statusCourierNotification(order()) <- StatusCourierNotification.courierAssigned WHERE notificationType() = 'courier_assigned';
+    statusCourierNotification(order()) <- StatusCourierNotification.courierArrivedToPlace WHERE notificationType() = 'courier_arrived_to_place';
+    dateTimeCourierNotification(order()) <- currentDateTime();
+
+    LOCAL NESTED respId = STRING ();
+    LOCAL NESTED respOrderId = STRING ();
+    LOCAL NESTED respType = STRING ();
+    respOrderId() <- notificationOrderId();
+    respType() <- notificationType();
+    respId() <- OVERRIDE notificationId(), uuid(order());
+    afterCourierNotification(order());
+    APPLY;
+    headersTo('Content-Type') <- 'application/json';
+    IF canceled() THEN {
+        statusHttpTo() <- 500;
+        EXPORT JSON FROM result = 'error', description = applyMessage();
+    }
+    ELSE EXPORT JSON FROM id = respId(), orderId = respOrderId(), type = respType();
+}@@noauth;
+
+v1_notifications(FILE f){
+    notifications(f);
+}@@noauth;
