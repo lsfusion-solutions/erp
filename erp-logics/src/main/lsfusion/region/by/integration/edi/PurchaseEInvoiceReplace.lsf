@@ -45,10 +45,35 @@ customerPrice 'Цена' = ABSTRACT CASE NUMERIC[16,4] (InvoiceDetail);
 
 overPrice(InvoiceDetail d) = OVERRIDE customerPrice(d), price(d);
 
+@defineOption(skipCheckConfirmReplace, 'Не сверять с накладной при подтверждении замены ЭТТН', EDI);
+
+replacedEInvoice (EInvoice ei) = eInvoiceDeliveryNoteNumber(overReplaceNumber(ei));
+pendingBlrapnCancel (EInvoice ei) = isCancel(replacedEInvoice(ei)) AND NOT exportedBlrapnCustomer(replacedEInvoice(ei));
+
+signAndSendBlrapnCustomerEDI 'Подписать и отправить извещение о прочтении (покупатель)' (EInvoice ei) {
+    NEWSESSION {
+        in(EInvoice e) <- e = ei;
+        signAndSendBlrapnCustomerEDI();
+        in(EInvoice e) <- NULL;
+    }
+}
+
 confirmReplace 'Подтвердить замену' (Purchase.Invoice i, EInvoice ei, BOOLEAN dialog) {
-    quantityInvoice(i, Sku s, NUMERIC[16,4] p) <- GROUP SUM shipmentQuantity(InvoiceDetail d) IF invoice(d) == i AND sku(d) == s AND overPrice(d) == p;
-    quantityReplace(i, Sku s, NUMERIC[16,4] p) <- GROUP SUM quantityDespatched(EInvoiceDetail ed) IF eInvoice(ed) == ei AND sku(ed) == s AND lineItemPrice(ed) == p;
-    overNoticeMessage() <- CONCAT '; ', noticeMessageReplace(i), noticeMessageReplace(ei);
+    //завершаем отмену заменяемой ЭТТН - отправляем извещение о прочтении по отмене
+    IF pendingBlrapnCancel(ei) THEN {
+        signAndSendBlrapnCustomerEDI(replacedEInvoice(ei));
+        IF pendingBlrapnCancel(ei) THEN {
+            MESSAGE 'Не отправлено извещение о прочтении (покупатель) по отмененной электронной накладной ' + overReplaceNumber(ei) +
+                '. Завершите ее отмену и повторите подтверждение замены';
+            RETURN;
+        }
+    }
+
+    IF NOT skipCheckConfirmReplace() THEN {
+        quantityInvoice(i, Sku s, NUMERIC[16,4] p) <- GROUP SUM shipmentQuantity(InvoiceDetail d) IF invoice(d) == i AND sku(d) == s AND overPrice(d) == p;
+        quantityReplace(i, Sku s, NUMERIC[16,4] p) <- GROUP SUM quantityDespatched(EInvoiceDetail ed) IF eInvoice(ed) == ei AND sku(ed) == s AND lineItemPrice(ed) == p;
+        overNoticeMessage() <- CONCAT '; ', noticeMessageReplace(i), noticeMessageReplace(ei);
+    }
 
     IF overNoticeMessage() THEN {
         in(EInvoice e) <- e = ei;
@@ -76,7 +101,12 @@ confirmReplace 'Подтвердить замену' (Purchase.Invoice i, EInvoi
         DELETE Purchase.UserInvoiceDetail d WHERE invoice(d) = i AND NOT eInvoice(eInvoiceDetail(d)) == ei;
 
         APPLY;
-        signAndSendCustomerEDI(i);
+        IF NOT exportedBlrapnCustomer(ei) THEN
+            signAndSendBlrapnCustomerEDI(ei);
+        IF exportedBlrapnCustomer(ei) AND NOT imported2551Customer(ei) AND NOT skipCheck2551(ei) THEN
+            MESSAGE 'Замена подтверждена. Накладную ' + deliveryNoteNumber(ei) + ' можно будет подписать после получения подтверждения о получении извещения (2551)';
+        ELSE
+            signAndSendCustomerEDI(i);
     }
 }
 
@@ -91,6 +121,7 @@ EXTEND FORM invoices
     PROPERTIES (ei) READONLY exportedBlrapnCustomer, exportedCustomer, exportedNoticeCustomer, isCancel,
         deliveryNoteNumber, deliveryNoteDate, overReplaceNumber, noticeMessage, statusDescription
     PROPERTIES TOOLBAR confirmReplace(i,ei) SHOWIF overReplaceNumber(ei) AND NOT exportedCustomer(ei) AND NOT exportedNoticeCustomer(ei)
+    PROPERTIES TOOLBAR signAndSendBlrapnCustomerEDI(ei) SHOWIF isCancel(ei) AND NOT exportedBlrapnCustomer(ei)
     FILTERS in(i,ei)
 ;
 
