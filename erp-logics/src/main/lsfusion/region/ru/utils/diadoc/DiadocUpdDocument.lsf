@@ -602,6 +602,7 @@ vraion1 = DATA LOCAL STRING();
 vghorod2 = DATA LOCAL STRING();
 vulitsa2 = DATA LOCAL STRING();
 vdom2 = DATA LOCAL STRING();
+vkodGARGP = DATA LOCAL STRING();
 vkodStr3 = DATA LOCAL STRING();
 vadrTiekst3 = DATA LOCAL STRING();
 vonZhe = DATA LOCAL STRING();
@@ -664,6 +665,8 @@ vbiezNDS = DATA LOCAL STRING();
 vkolNiettoVs = DATA LOCAL STRING();
 identif = DATA LOCAL STRING(INTEGER);
 vinfPolFKhZh3 = DATA LOCAL STRING(INTEGER);
+vidientifFKhZh1 = DATA LOCAL STRING(INTEGER);
+vznachienFKhZh1 = DATA LOCAL STRING(INTEGER);
 vstTovBiezNDSVsiegho = DATA LOCAL STRING();
 vstTovUchNalVsiegho = DATA LOCAL STRING();
 vosnPier = DATA LOCAL STRING();
@@ -740,6 +743,7 @@ FORM importUPD FORMEXTID 'Файл'
     PROPERTIES() IN vsvIP2 vINNFL2 EXTID 'ИННФЛ' ATTR
     PROPERTIES() IN vFIO2 vfamiliia2 EXTID 'Фамилия' ATTR, vimia2 EXTID 'Имя' ATTR, votchiestvo2 EXTID 'Отчество' ATTR
     PROPERTIES() IN vsvIuLUch3 vnaimOrgh3 EXTID 'НаимОрг' ATTR, vINNIuL3 EXTID 'ИННЮЛ' ATTR, vKPP3 EXTID 'КПП' ATTR
+    PROPERTIES() IN vadries2 vkodGARGP EXTID 'КодГАР' ATTR
     PROPERTIES() IN vadrRF3 vindieks2 EXTID 'Индекс' ATTR, vkodRieghion2 EXTID 'КодРегион' ATTR, vraion1 EXTID 'Район' ATTR, vghorod2 EXTID 'Город' ATTR, vulitsa2 EXTID 'Улица' ATTR, vdom2 EXTID 'Дом' ATTR
     PROPERTIES() IN vadrInf3 vkodStr3 EXTID 'КодСтр' ATTR, vadrTiekst3 EXTID 'АдрТекст' ATTR
     PROPERTIES() IN vsvPokup vOKPO2 EXTID 'ОКПО' ATTR
@@ -754,7 +758,8 @@ FORM importUPD FORMEXTID 'Файл'
     PROPERTIES() IN vsvBank3 vnaimBank2 EXTID 'НаимБанк' ATTR, vBIK2 EXTID 'БИК' ATTR
     
     OBJECTS vtiekstInf = INTEGER EXTID 'ТекстИнф' IN vinfPolFKhZh1
-    
+    PROPERTIES(vtiekstInf) vidientifFKhZh1 EXTID 'Идентиф' ATTR, vznachienFKhZh1 EXTID 'Значен' ATTR
+
     OBJECTS vsviedTov = INTEGER EXTID 'СведТов' IN vtablSchFakt
     PROPERTIES(vsviedTov) vnomStr EXTID 'НомСтр' ATTR, vnaimTov EXTID 'НаимТов' ATTR, vOKIeI_Tov EXTID 'ОКЕИ_Тов' ATTR, vnaimIedIzm503 EXTID 'НаимЕдИзм' ATTR,
             vkolTov EXTID 'КолТов' ATTR, vtsienaTov EXTID 'ЦенаТов' ATTR, vstTovBiezNDS EXTID 'СтТовБезНДС' ATTR, vnalSt EXTID 'НалСт' ATTR, vstTovUchNal EXTID 'СтТовУчНал' ATTR
@@ -798,7 +803,8 @@ FORM importUPD FORMEXTID 'Файл'
 
 showCreateDocument(Document d) += WHEN (typeNamedId(d) == 'UniversalTransferDocument' OR typeNamedId(d) == 'UniversalTransferDocumentRevision') AND NOT updDocument(d) THEN TRUE;
 
-updDocumentDetailExtra ABSTRACT LIST (UpdDocumentDetail, STRING, STRING); 
+updDocumentDetailExtra ABSTRACT LIST (UpdDocumentDetail, STRING, STRING);
+updDocumentExtra ABSTRACT LIST (UpdDocument, STRING, STRING);
 createDocument(Document d) + {
     IF (typeNamedId(d) == 'UniversalTransferDocument' OR typeNamedId(d) == 'UniversalTransferDocumentRevision') AND NOT updDocument(d) THEN NEWSESSION {
         TRY {
@@ -860,6 +866,12 @@ createDocument(Document d) + {
             innReceiverCompany(upd) <- STRING[10](vINNIuL3());
             countryCodeAddressReceiverCompany(upd) <- STRING[3](vkodStr3());
             addressReceiverCompany(upd) <- STRING[1000](vadrTiekst3());
+            zipCodeAddressReceiverCompany(upd) <- STRING[6](vindieks2());
+            cityAddressReceiverCompany(upd) <- STRING[255](vghorod2());
+            streetAddressReceiverCompany(upd) <- STRING[255](vulitsa2());
+            buildingAddressReceiverCompany(upd) <- STRING[20](vdom2());
+            codeAddressReceiverCompany(upd) <- STRING[36](vkodGARGP());
+            FOR vidientifFKhZh1(INTEGER k) DO updDocumentExtra(upd, vidientifFKhZh1(k), vznachienFKhZh1(k));
             customer(upd) <- OVERRIDE legalEntityInn(vINNFL3()), legalEntityInn(vINNIuL4());
             okpoCustomer(upd) <- STRING[10](vOKPO2());
             innCustomerIE(upd) <- STRING[12](vINNFL3());
