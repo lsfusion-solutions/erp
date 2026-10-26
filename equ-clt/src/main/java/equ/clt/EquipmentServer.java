@@ -77,6 +77,11 @@ public class EquipmentServer {
 
     boolean needReconnect = false;
 
+    //depend only on the modules of the server, so they can change only after server restart (and reconnect)
+    private boolean enabledStopListInfo;
+    private boolean enabledDeleteBarcodeInfo;
+    private boolean enabledTerminalInfo;
+
     private Integer transactionThreadCount;
     private boolean mergeBatches = false;
     private boolean disableSales = false;
@@ -142,6 +147,10 @@ public class EquipmentServer {
                                                     sidEquipmentServer, equipmentServerSettings.timeFrom, equipmentServerSettings.timeTo));
                                     }
 
+                                    enabledStopListInfo = remote.enabledStopListInfo();
+                                    enabledDeleteBarcodeInfo = remote.enabledDeleteBarcodeInfo();
+                                    enabledTerminalInfo = remote.enabledTerminalInfo();
+
                                     initDaemonThreads(remote, sidEquipmentServer, millis);
                                     
                                 } catch (RemoteException e) {
@@ -151,12 +160,15 @@ public class EquipmentServer {
                         }
 
                         if (remote != null) {
+                            //checks the connection: if the server has been restarted, exception leads to reconnect
+                            remote.getEquApiVersion();
+
                             processTransactionConsumer.scheduleIfNotScheduledYet();
 
-                            if(!disableStopLists && remote.enabledStopListInfo())
+                            if(!disableStopLists && enabledStopListInfo)
                                 processStopListConsumer.scheduleIfNotScheduledYet();
 
-                            if(remote.enabledDeleteBarcodeInfo())
+                            if(enabledDeleteBarcodeInfo)
                                 processDeleteBarcodeConsumer.scheduleIfNotScheduledYet();
 
                             if(!disableSales) {
@@ -168,7 +180,7 @@ public class EquipmentServer {
                                 }
                             }
 
-                            if(remote.enabledTerminalInfo())
+                            if(enabledTerminalInfo)
                                 sendTerminalDocumentConsumer.scheduleIfNotScheduledYet();
 
                             machineryExchangeConsumer.scheduleIfNotScheduledYet();
