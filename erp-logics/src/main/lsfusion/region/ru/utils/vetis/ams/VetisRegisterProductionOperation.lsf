@@ -14,6 +14,23 @@ localTransactionId (RegisterProductionOperationRequest r) = LONG(r AS RegisterPr
 volume 'Объем' = DATA NUMERIC[16,5] (RegisterProductionOperationRequest, ComponentDetail, StockEntry);
 volume 'Объем' = DATA NUMERIC[16,5] (RegisterProductionOperationRequest, ProductDetail);
 
+// ---- Срок годности изделия ----
+inVetis (ProductDetail pd) = TRUE IF (GROUP SUM 1 IF in(sku(pd), ProductItem pi));
+
+hoursExpiry 'Срок годности, ч' (ProductDetail pd) = OVERRIDE
+    hoursExpiryPack(sku(pd)) IF hoursExpiryPack(sku(pd)) > 0,
+    (expiryDays(sku(pd)) * 24) IF expiryDays(sku(pd)) > 0 AND NOT expiryMonth(sku(pd)) > 0;
+
+dateTimeProduction 'Дата производства' = DATA DATETIME (RegisterProductionOperationRequest, ProductDetail);
+dateTimeExpiry 'Годен до' = DATA DATETIME (RegisterProductionOperationRequest, ProductDetail);
+hourExpiry 'С точностью до часа' = DATA BOOLEAN (RegisterProductionOperationRequest, ProductDetail);
+
+noExpiryProducts (Order o) = GROUP CONCAT nameSku(ProductDetail pd) IF order(pd) == o AND inVetis(pd)
+    AND NOT (hoursExpiry(pd) > 1 OR expiryMonth(sku(pd)) > 0), ', ' ORDER pd;
+
+shortExpiryProducts (Order o) = GROUP CONCAT (nameSku(ProductDetail pd) + ' (' + STRING(hoursExpiry(pd)) + ' ч)')
+    IF order(pd) == o AND inVetis(pd) AND hoursExpiry(pd) > 1 AND hoursExpiry(pd) <= 48, ', ' ORDER pd;
+
 // производственный ВСД, созданный по заявке (из ответа)
 vetDocument = DATA VetDocument (RegisterProductionOperationRequest) INDEXED;
 
@@ -109,8 +126,10 @@ FORM registerProductionOperationRequest FORMEXTID 'merc=http://api.vetrf.ru/sche
         PROPERTIES IN productItemP =guid(pi) EXTID 'bs:guid'
         PROPERTIES =NUMERIC[14,6](quantity(pd)*netWeight(sku(pd))) EXTID 'vd:volume'
         PROPERTIES IN unitP =guid(unit(pi)) EXTID 'bs:guid'
-        PROPERTIES IN firstDate = extractYear(date(pd)) EXTID 'dt:year', =extractMonthNumber(date(pd)) EXTID 'dt:month', =extractDay(date(pd)) EXTID 'dt:day', =extractHour(time(pd)) EXTID 'dt:hour'
-        PROPERTIES IN firstDate1 =  extractYear(sum(date(pd), 1)) EXTID 'dt:year', =extractMonthNumber(sum(date(pd), 1)) EXTID 'dt:month', =extractDay(sum(date(pd), 1)) EXTID 'dt:day', =extractHour(time(pd)) EXTID 'dt:hour'
+        PROPERTIES IN firstDate = extractYear(dateTimeProduction(r, pd)) EXTID 'dt:year', =extractMonthNumber(dateTimeProduction(r, pd)) EXTID 'dt:month',
+            =extractDay(dateTimeProduction(r, pd)) EXTID 'dt:day', =(extractHour(dateTimeProduction(r, pd)) IF hourExpiry(r, pd)) EXTID 'dt:hour'
+        PROPERTIES IN firstDate1 = extractYear(dateTimeExpiry(r, pd)) EXTID 'dt:year', =extractMonthNumber(dateTimeExpiry(r, pd)) EXTID 'dt:month',
+            =extractDay(dateTimeExpiry(r, pd)) EXTID 'dt:day', =(extractHour(dateTimeExpiry(r, pd)) IF hourExpiry(r, pd)) EXTID 'dt:hour'
         PROPERTIES = batch(pd) EXTID 'vd:batchID', ='false' DRAW productiveBatch EXTID 'vd:perishable',  ='false' DRAW productiveBatch EXTID 'vd:lowGradeCargo'
     FILTERS in(sku(pd), pi) AND order(pd) = productionOrder(r)
 
@@ -135,6 +154,13 @@ registerProductionOperationRequest 'Заказ производство' (Order 
     beforeRegisterProductionOperation(o);
     IF cancelRegisterProductionOperation() THEN RETURN;
 
+    IF noExpiryProducts(o) THEN {
+        MESSAGE 'Нельзя отправить запрос в Ветис: у изделий не задан срок годности или он равен 1 часу: ' + noExpiryProducts(o);
+        RETURN;
+    }
+    IF shortExpiryProducts(o) THEN
+        ASK 'Срок годности изделий не более 2 дней: ' + shortExpiryProducts(o) + '. Отправить запрос в Ветис?' DO { } ELSE RETURN;
+
     NEWSESSION {
         NEW r = RegisterProductionOperationRequest {
             productionOrder(r) <- o;
@@ -143,7 +169,14 @@ registerProductionOperationRequest 'Заказ производство' (Order 
 
             // фиксируем состав заявки: сырьё — только пары, не включённые в незавершённые/успешные заявки с составом
             volume(r, ComponentDetail d, StockEntry se) <- volume(d, se) WHERE order(d) == o AND volume(d, se) AND NOT requestedData(d, se);
-            volume(r, ProductDetail pd) <- NUMERIC[16,5](quantity(pd) * netWeight(sku(pd))) WHERE order(pd) == o AND (GROUP SUM 1 IF in(sku(pd), ProductItem pi));
+            volume(r, ProductDetail pd) <- NUMERIC[16,5](quantity(pd) * netWeight(sku(pd))) WHERE order(pd) == o AND inVetis(pd);
+
+            dateTimeProduction(r, ProductDetail pd) <- currentDateTime() WHERE order(pd) == o AND inVetis(pd);
+            dateTimeExpiry(r, ProductDetail pd) <- (IF hoursExpiryPack(sku(pd)) > 0 THEN sumMinutes(currentDateTime(), 60 * hoursExpiryPack(sku(pd)))
+                ELSE IF expiryMonth(sku(pd)) > 0 THEN toDateTime(sumMonth(currentDate(), expiryMonth(sku(pd))))
+                ELSE toDateTime(sum(currentDate(), expiryDays(sku(pd)))))
+                WHERE order(pd) == o AND inVetis(pd);
+            hourExpiry(r, ProductDetail pd) <- TRUE WHERE order(pd) == o AND inVetis(pd) AND hoursExpiryPack(sku(pd)) > 0;
 
             IF (GROUP SUM volume(ComponentDetail d, StockEntry se) IF order(d) == o) AND NOT (GROUP SUM volume(r, ComponentDetail d2, StockEntry se2)) THEN {
                 MESSAGE 'Заявка не отправлена: все связи строк с записями журнала уже включены в другие заявки' NOWAIT;
