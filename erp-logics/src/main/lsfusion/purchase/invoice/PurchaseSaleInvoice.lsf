@@ -119,10 +119,10 @@ setPropertiesSalePurchase(Sale.UserInvoiceDetail d, InvoiceDetail invoiceDetail)
 descriptionIndexInvoiceDetail 'Строка накладной (закупка)' (Sale.InvoiceDetail detail) = descriptionIndex(invoiceDetail(detail));
 descriptionIndexInvoiceDetail 'Строка накладной (закупка)' (Sale.UserInvoiceDetail detail) = descriptionIndex(invoiceDetail(detail));
 
-quantityInvoiceDetail = GROUP SUM quantity(Sale.InvoiceDetail detail) BY invoice(invoiceDetail(detail)), invoice(detail);
+countInvoiceDetail (purchase, sale) = GROUP SUM 1 BY invoice(invoiceDetail(Sale.InvoiceDetail detail)), invoice(detail) MATERIALIZED;
 
 purchaseInvoices 'Накладные (закупка)' (Sale.Invoice sale) = GROUP
-                                                        CONCAT STRING[255](description(Invoice purshase)) IF quantityInvoiceDetail(purshase, sale) , ', '
+                                                        CONCAT STRING[255](description(Invoice purshase)) IF countInvoiceDetail(purshase, sale) , ', '
                                                         ORDER purshase IN Sale.invoice CHARWIDTH 30 MATERIALIZED;
 
 EXTEND FORM Sale.userInvoice
