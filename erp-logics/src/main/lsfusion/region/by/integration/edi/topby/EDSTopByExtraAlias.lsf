@@ -9,6 +9,11 @@ passwordEDSService2 'Пароль ключа (получатель)' = DATA STRI
 edsFrom2 'Действителен с (получатель)' = DATA DATETIME (LegalEntity);
 edsTo2 'Действителен по (получатель)' = DATA DATETIME (LegalEntity);
 
+aliasEDSService2 'Контейнер ключа (получатель)' = DATA STRING[150] (Stock);
+passwordEDSService2 'Пароль ключа (получатель)' = DATA STRING[100] (Stock) ECHO;
+edsFrom2 'Действителен с (получатель)' = DATA DATETIME (Stock);
+edsTo2 'Действителен по (получатель)' = DATA DATETIME (Stock);
+
 changeAlias2 'Получить список ключей (получатель)' (LegalEntity l) {
     listAliases(EDSServiceTopBy(l));
     IF selected() THEN {
@@ -17,10 +22,22 @@ changeAlias2 'Получить список ключей (получатель)'
         edsTo2(l) <- notAfterISO8601(selected());
     }
 } TOOLBAR;
+changeAlias2 'Получить список ключей (получатель)' (Stock st) {
+    listAliases(EDSServiceTopBy(st));
+    IF selected() THEN {
+        aliasEDSService2(st) <- alias(selected());
+        edsFrom2(st) <- notBeforeISO8601(selected());
+        edsTo2(st) <- notAfterISO8601(selected());
+    }
+} TOOLBAR;
 
 EXTEND FORM integrationData
     PROPERTIES(le) aliasEDSService2, passwordEDSService2, edsFrom2, edsTo2
     PROPERTIES(le) changeAlias2 SHOWIF (edsApplication(EDSServiceTopBy(le)) == EDSApplication.edsSign OR edsApplication(EDSServiceTopBy(le)) == EDSApplication.sccp)
+
+    PROPERTIES(seds) aliasEDSService2, passwordEDSService2, edsFrom2, edsTo2
+    PROPERTIES(seds) changeAlias2 SHOWIF (edsApplication(EDSServiceTopBy(seds)) == EDSApplication.edsSign OR edsApplication(EDSServiceTopBy(seds)) == EDSApplication.sccp)
+
 ;
 
 DESIGN integrationData {
@@ -29,7 +46,16 @@ DESIGN integrationData {
     PROPERTY (edsFrom(le)) { caption = 'Действителен с (отправитель)'; }
     PROPERTY (edsTo(le)) { caption = 'Действителен по (отправитель)'; }
     PROPERTY (changeAlias(le)) { caption = 'Получить список ключей (отправитель)'; }
+
+    PROPERTY (aliasEDSService(seds)) { caption = 'Контейнер ключа (отправитель)'; }
+    PROPERTY (passwordEDSService(seds)) { caption = 'Пароль ключа (отправитель)'; }
+    PROPERTY (edsFrom(seds)) { caption = 'Действителен с (отправитель)'; }
+    PROPERTY (edsTo(seds)) { caption = 'Действителен по (отправитель)'; }
+    PROPERTY (changeAlias(seds)) { caption = 'Получить список ключей (отправитель)'; }
 }
 
 extraAliasEDSService(LegalEntity le) += aliasEDSService2(le);
 extraPasswordEDSService(LegalEntity le) += passwordEDSService2(le);
+
+extraAliasEDSService(Stock st) += aliasEDSService2(st);
+extraPasswordEDSService(Stock st) += passwordEDSService2(st);
