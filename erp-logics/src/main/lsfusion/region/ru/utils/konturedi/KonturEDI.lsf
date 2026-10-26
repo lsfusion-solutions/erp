@@ -56,6 +56,11 @@ httpHeadersTokenUser(TEXT name) = CASE
     WHEN name == 'Authorization' THEN 'KonturEdiAuth konturediauth_api_client_id=' + clientId() + ',konturediauth_token=' + token()
     WHEN name == 'Accept' THEN 'application/json';
 
+// обмен не через API (например, файлами): действия API на формах не показываются и автоматически не выполняются
+disableAPIKonturEDI = ABSTRACT BOOLEAN ();
+// сообщение подготовлено к отправке: проверки пройдены, XML сформирован в exportFile()
+preparedMessageKonturEDI = DATA LOCAL BOOLEAN ();
+
 getTokenUser (User u) {
     IF NOT tokenDateTime(u) > sumMinutes(currentDateTime(), -countMinutesEDIToken()) OR NOT token(u) THEN {
         NEWSESSION NESTED LOCAL {
@@ -75,6 +80,10 @@ getTokenUser (User u) {
     token() <- token(u);
 }
 
+// отправка подготовленного сообщения (exportFile()) по API в ящик
+sendMessageKonturEDI (STRING boxId, STRING name) {
+    EXTERNAL HTTP POST url() + '/V1/Messages/SendMessage?boxId=' + boxId + '&messageFileName=' + name HEADERS httpHeadersTokenUser PARAMS exportFile();
+}
 
 EXTEND FORM employee
     PROPERTIES(e) loginKonturEDI

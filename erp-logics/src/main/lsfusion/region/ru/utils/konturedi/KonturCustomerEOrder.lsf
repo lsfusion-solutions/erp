@@ -248,40 +248,53 @@ FORM ordersKontur FORMEXTID 'eDIMessage'
 
 // -------------------- Заказ EDI -------------------- //
 
+// подготовка ORDERS: проверки, XML в exportFile(), имя в nameMessage(); готовность — preparedMessageKonturEDI()
+prepareOrdersKontur (EOrder o) {
+    preparedMessageKonturEDI() <- NULL;
+    LOCAL error = TEXT();
+    error() <- '';
+    IF NOT GLNSupplier(o) THEN error() <- error() + 'ORDERS ' + number(o) + ': Не задан GLN поставщика\n';
+    IF NOT GLNCustomer(o) THEN error() <- error() + 'ORDERS ' + number(o) + ': Не задан GLN покупателя\n';
+    IF NOT GLNCustomerStock(o) THEN error() <- error() + 'EOrder ' + number(o) + ': Не задан GLN склада покупателя\n';
+
+    IF error() == '' THEN {
+        fromBox() <- konturEDIBox(customer(o));
+        exportOrderDocument() <- o;
+        generatedUUID() <- NULL;
+        generateUUID();
+        nameMessage() <- CONCAT '', 'ORDERS_', generatedUUID();
+        EXPORT ordersKontur XML;
+        WRITE exportFile() TO tempPath() + nameMessage();
+        preparedMessageKonturEDI() <- TRUE;
+    } ELSE {
+        logToFile('kontur', ' SendOrder: Не все поля заполнены. ' + error());
+        MESSAGE ' Заказ не выгружен: Не все поля заполнены ' + error() NOWAIT;
+    }
+}
+
+// признаки отправки — только после успешной отправки, иначе неотправленный заказ выглядит отправленным
+afterSendOrdersKontur (EOrder o) {
+    exported(o) <- TRUE;
+    isSent[Purchase.Order](o) <- TRUE;
+    isPosted[Purchase.Order](o) <- TRUE;
+    IF NOT disableDocumentLog() THEN logSendDocumentOrder[Purchase.Order](o);
+    sentDateTime[Purchase.Order](o) <- currentDateTime();
+    afterSendMessage(o, nameMessage());
+}
+
 sendPurchaseOrderKonturEDI 'Отправить заказ (Контур.EDI)' (EOrder o, User r) {
     IF url() THEN {
-        LOCAL error = TEXT();
-        error() <- '';
-        IF NOT GLNSupplier(o) THEN error() <- error() + 'ORDERS ' + number(o) + ': Не задан GLN поставщика\n';
-        IF NOT GLNCustomer(o) THEN error() <- error() + 'ORDERS ' + number(o) + ': Не задан GLN покупателя\n';
-        IF NOT GLNCustomerStock(o) THEN error() <- error() + 'EOrder ' + number(o) + ': Не задан GLN склада покупателя\n';
-
-        IF error() == '' THEN {
-            fromBox() <- konturEDIBox(customer(o));
+        prepareOrdersKontur(o);
+        IF preparedMessageKonturEDI() THEN {
             getTokenUser(r);
-            exportOrderDocument() <- o;
-            generatedUUID() <- NULL;
-            generateUUID();
-            nameMessage() <- CONCAT '', 'ORDERS_', generatedUUID();
-            EXPORT ordersKontur XML;
-            WRITE exportFile() TO tempPath() + nameMessage();
             LOCAL result = FILE ();
             TRY {
-                EXTERNAL HTTP POST url() + '/V1/Messages/SendMessage?boxId='+ boxId(fromBox()) +'&messageFileName=' + nameMessage() HEADERS httpHeadersTokenUser PARAMS exportFile() TO result;
-                // признаки отправки — только после успешного вызова, иначе неотправленный заказ выглядит отправленным
-                exported(o) <- TRUE;
-                isSent[Purchase.Order](o) <- TRUE;
-                isPosted[Purchase.Order](o) <- TRUE;
-                IF NOT disableDocumentLog() THEN logSendDocumentOrder[Purchase.Order](o);
-                sentDateTime[Purchase.Order](o) <- currentDateTime();
-                afterSendMessage(o, nameMessage());
+                sendMessageKonturEDI(boxId(fromBox()), nameMessage());
+                afterSendOrdersKontur(o);
             } CATCH {
                 fileToString(result(), 'UTF-8');
                 MESSAGE 'Ошибка отправки ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
             }
-        } ELSE {
-            logToFile('kontur', ' SendOrder: Не все поля заполнены. ' + error());
-            MESSAGE ' Заказ не выгружен: Не все поля заполнены ' + error() NOWAIT;
         }
     } ELSE {
         logToFile('kontur', ' SendOrder: не задан URL Контур.EDI');
@@ -319,7 +332,7 @@ sendPurchase 'Отправить заказ EDI' (Purchase.Order o) {
 hideSendPurchase = ABSTRACT BOOLEAN (Purchase.Order);
 
 EXTEND FORM Purchase.orders
-    PROPERTIES sendPurchase(o) SHOWIF (isEOrder(o) AND invoiceSumOrderDetail(o) > 0) AND NOT hideSendPurchase(o)
+    PROPERTIES sendPurchase(o) SHOWIF (isEOrder(o) AND invoiceSumOrderDetail(o) > 0) AND NOT hideSendPurchase(o) AND NOT disableAPIKonturEDI()
 ;
 
 DESIGN Purchase.orders {
@@ -329,7 +342,7 @@ DESIGN Purchase.orders {
 }
 
 send(EOrder o) + {
-    IF EDIProvider(supplier(o)) == EDIProvider.kontur AND NOT isCancel(o) THEN {
+    IF EDIProvider(supplier(o)) == EDIProvider.kontur AND NOT isCancel(o) AND NOT disableAPIKonturEDI() THEN {
         IF NOT toSend(o) THEN {
             MESSAGE 'Заказ уже отправлен';
         } ELSE {
@@ -339,7 +352,7 @@ send(EOrder o) + {
 }
 
 cancel(EOrder o) + {
-    IF EDIProvider(supplier(o)) == EDIProvider.kontur AND isCancel(o) THEN {
+    IF EDIProvider(supplier(o)) == EDIProvider.kontur AND isCancel(o) AND NOT disableAPIKonturEDI() THEN {
         IF exportedCanceled(o) THEN {
             MESSAGE 'Заказ уже отменен';
         } ELSE {
@@ -724,35 +737,47 @@ FORM recadv FORMEXTID 'eDIMessage'
 // время успешной отправки RECADV (флаг «уведомление о получении отправлено»)
 sentRecadvKontur 'RECADV отправлен' = DATA DATETIME (EOrder);
 
+prepareRecadvKontur (EOrder o) {
+    preparedMessageKonturEDI() <- NULL;
+    LOCAL error = TEXT();
+    error() <- '';
+    IF NOT GLNSupplier(o) THEN error() <- error() + 'RECADV ' + number(o) + ': Не задан GLN поставщика\n';
+    IF NOT GLNCustomer(o) THEN error() <- error() + 'RECADV ' + number(o) + ': Не задан GLN покупателя\n';
+
+    IF error() == '' THEN {
+        fromBox() <- konturEDIBox(customer(o));
+        exportDocument() <- o;
+        generatedUUID() <- NULL;
+        generateUUID();
+        nameMessage() <- CONCAT '', 'RECADV_', generatedUUID();
+        EXPORT recadv XML;
+        WRITE exportFile() TO tempPath() + nameMessage();
+        preparedMessageKonturEDI() <- TRUE;
+    } ELSE {
+        logToFile('kontur', ' RECADV: Не все поля заполнены. ' + error());
+        MESSAGE 'RECADV не выгружен: Не все поля заполнены ' + error() NOWAIT;
+    }
+}
+
+afterSendRecadvKontur (EOrder o) {
+    sentRecadvKontur(o) <- currentDateTime();
+    afterSendMessage(o, nameMessage());
+}
+
 sendRecadvKontur 'Отправить RECADV' (EOrder o, User u) {
     NEWSESSION {
         IF url() THEN {
-            LOCAL error = TEXT();
-            error() <- '';
-            IF NOT GLNSupplier(o) THEN error() <- error() + 'RECADV ' + number(o) + ': Не задан GLN поставщика\n';
-            IF NOT GLNCustomer(o) THEN error() <- error() + 'RECADV ' + number(o) + ': Не задан GLN покупателя\n';
-
-            IF error() == '' THEN {
-                fromBox() <- konturEDIBox(customer(o));
+            prepareRecadvKontur(o);
+            IF preparedMessageKonturEDI() THEN {
                 getTokenUser(u);
-                exportDocument() <- o;
-                generatedUUID() <- NULL;
-                generateUUID();
-                nameMessage() <- CONCAT '', 'RECADV_', generatedUUID();
-                EXPORT recadv XML;
-                WRITE exportFile() TO tempPath() + nameMessage();
                 LOCAL result = FILE ();
                 TRY {
-                    EXTERNAL HTTP POST url() + '/V1/Messages/SendMessage?boxId='+ boxId(fromBox()) +'&messageFileName=' + nameMessage() HEADERS httpHeadersTokenUser PARAMS exportFile() TO result;
-                    sentRecadvKontur(o) <- currentDateTime();
-                    afterSendMessage(o, nameMessage());
+                    sendMessageKonturEDI(boxId(fromBox()), nameMessage());
+                    afterSendRecadvKontur(o);
                 } CATCH {
                     fileToString(result(), 'UTF-8');
                     MESSAGE 'Ошибка отправки ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException()) NOWAIT;
                 }
-            } ELSE {
-                logToFile('kontur', ' RECADV: Не все поля заполнены. ' + error());
-                MESSAGE 'RECADV не выгружен: Не все поля заполнены ' + error() NOWAIT;
             }
         }
         APPLY;
@@ -905,35 +930,47 @@ FORM retann FORMEXTID 'eDIMessage'
     FILTERS invoice(i) == exportDocumentReturn()
 ;
 
+prepareRetannKontur (PurchaseReturn.Invoice o) {
+    preparedMessageKonturEDI() <- NULL;
+    LOCAL error = TEXT();
+    error() <- '';
+    IF NOT GLN(supplier(o)) THEN error() <- error() + 'RETANN ' + number(o) + ': Не задан GLN поставщика\n';
+    IF NOT GLN(customer(o)) THEN error() <- error() + 'RETANN ' + number(o) + ': Не задан GLN покупателя\n';
+
+    IF error() == '' THEN {
+        fromBox() <- konturEDIBox(customer(o));
+        exportDocumentReturn() <- o;
+        generatedUUID() <- NULL;
+        generateUUID();
+        nameMessage() <- CONCAT '', 'RETANN_', generatedUUID();
+        EXPORT retann XML;
+        WRITE exportFile() TO tempPath() + nameMessage();
+        preparedMessageKonturEDI() <- TRUE;
+    } ELSE {
+        logToFile('kontur', ' RETANN: Не все поля заполнены. ' + error());
+        MESSAGE 'RETANN не выгружен: Не все поля заполнены ' + error() NOWAIT;
+    }
+}
+
+afterSendRetannKontur (PurchaseReturn.Invoice o) {
+    afterSendMessage(o, nameMessage());
+}
+
 sendRetann 'Отправить RETANN' (PurchaseReturn.Invoice o) {
     FOR User u == userKonturEDI(currentUser()) DO NEWSESSION {
         IF url() THEN {
-            LOCAL error = TEXT();
-            error() <- '';
-            IF NOT GLN(supplier(o)) THEN error() <- error() + 'RETANN ' + number(o) + ': Не задан GLN поставщика\n';
-            IF NOT GLN(customer(o)) THEN error() <- error() + 'RETANN ' + number(o) + ': Не задан GLN покупателя\n';
-
-            IF error() == '' THEN {
-                fromBox() <- konturEDIBox(customer(o));
+            prepareRetannKontur(o);
+            IF preparedMessageKonturEDI() THEN {
                 getTokenUser(u);
-                exportDocumentReturn() <- o;
-                generatedUUID() <- NULL;
-                generateUUID();
-                nameMessage() <- CONCAT '', 'RETANN_', generatedUUID();
-                EXPORT retann XML;
-                WRITE exportFile() TO tempPath() + nameMessage();
                 LOCAL result = FILE ();
                 TRY {
-                    EXTERNAL HTTP POST url() + '/V1/Messages/SendMessage?boxId='+ boxId(fromBox()) +'&messageFileName=' + nameMessage() HEADERS httpHeadersTokenUser PARAMS exportFile() TO result;
-                    afterSendMessage(o, nameMessage());
+                    sendMessageKonturEDI(boxId(fromBox()), nameMessage());
+                    afterSendRetannKontur(o);
                     APPLY;
                 } CATCH {
                     fileToString(result(), 'UTF-8');
                     MESSAGE 'Ошибка отправки ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
                 }
-            } ELSE {
-                logToFile('kontur', ' RETANN: Не все поля заполнены. ' + error());
-                MESSAGE 'RETANN не выгружен: Не все поля заполнены ' + error() NOWAIT;
             }
         }
     }
@@ -948,7 +985,7 @@ isEOrder(PurchaseReturn.UserInvoice o) = EDIProvider(supplier(o)) IS EDIProvider
 hideSendRetann = ABSTRACT BOOLEAN (PurchaseReturn.Invoice);
 
 EXTEND FORM PurchaseReturn.invoices
-    PROPERTIES sendRetann(i) SHOWIF isEOrder(i) AND invoiceSumInvoiceDetail(i) > 0
+    PROPERTIES sendRetann(i) SHOWIF isEOrder(i) AND invoiceSumInvoiceDetail(i) > 0 AND NOT disableAPIKonturEDI()
 ;
 
 DESIGN PurchaseReturn.invoices {
