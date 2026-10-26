@@ -281,6 +281,24 @@ quantityMark 'Кол-во марок' = DATA INTEGER (UpdTransportPackDetail);//
 id 'Код' = DATA STRING[255] (UpdPackDetail);//НомУпак
 id 'Код' = DATA STRING[255] (UpdLotDetail);//КИЗ
 
+//--ИнфПолФХЖ2
+CLASS UpdDocumentDetailInfo 'Доп. сведения строки';
+TABLE updDocumentDetailInfo(UpdDocumentDetailInfo);
+
+updDocumentDetail = DATA UpdDocumentDetail(UpdDocumentDetailInfo) NONULL DELETE AGGR;
+numberDetail 'Номер строки' (UpdDocumentDetailInfo udi) = number(updDocumentDetail(udi));
+updDocument (UpdDocumentDetailInfo udi) = updDocument(updDocumentDetail(udi));
+identifier 'Идентификатор' = DATA STRING[50] (UpdDocumentDetailInfo);//Идентиф
+info 'Значение' = DATA STRING[2000] (UpdDocumentDetailInfo);//Значен
+
+EXTEND FORM updDocument
+    OBJECTS udi = UpdDocumentDetailInfo
+    PROPERTIES (udi) numberDetail, identifier, info, NEW, DELETE GRID
+    FILTERS updDocument(udi) = u
+    FILTERGROUP detailUpdDocumentDetailInfo
+        FILTER 'По строке' updDocumentDetail(udi) = d DEFAULT
+;
+
 fileSupplierPrefix (UpdDocument d) = 
     IF countUpdTransportPackDetail(d) OR countUpdPackDetail(d) OR countUpdLotDetail(d) 
         THEN 'ON_NSCHFDOPPRMARK'
