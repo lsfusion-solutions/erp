@@ -257,14 +257,16 @@ public class EquipmentServer {
             futures.add(singleTransactionExecutor.submit(() -> {
                 while (!Thread.currentThread().isInterrupted() && !singleTransactionExecutor.isShutdown()) {
                     try {
-                        SingleTransactionTask task = taskPool.getTask();
-                        if (task == null)
-                            Thread.sleep(millis);
-                        else {
+                        SingleTransactionTask task = taskPool.getTask(millis);
+                        if (task != null) {
                             equipmentLogger.info("task group started: " + task.groupId);
                             task.run();
                             equipmentLogger.info("task group done: " + task.groupId);
                         }
+                    } catch (InterruptedException e) {
+                        //shutdown or future.cancel(true)
+                        Thread.currentThread().interrupt();
+                        break;
                     } catch (Exception e) {
                         equipmentLogger.error("Unhandled exception in singleTransactionExecutor: ", e);
                     }
@@ -601,8 +603,22 @@ public class EquipmentServer {
             succeededTaskList = new ArrayList<>();
         }
 
-        //метод, выдающий задания подпотокам
-        synchronized SingleTransactionTask getTask() {
+        //gives tasks to worker threads
+        //waits for the task up to timeout ms, woken up by addTasks and markProceeded; returns null if there is no task
+        synchronized SingleTransactionTask getTask(long timeout) throws InterruptedException {
+            long deadline = System.currentTimeMillis() + timeout;
+            while (true) {
+                SingleTransactionTask task = findTask();
+                if (task != null)
+                    return task;
+                long remaining = deadline - System.currentTimeMillis();
+                if (remaining <= 0)
+                    return null;
+                wait(remaining);
+            }
+        }
+
+        private SingleTransactionTask findTask() {
             SingleTransactionTask resultTask = null;
 
             //находим transactionInfo без ошибок либо с самой старой последней ошибкой в очереди
@@ -661,6 +677,7 @@ public class EquipmentServer {
             }
             waitingTaskQueueMap = newWaitingTaskQueueMap;
             succeededTaskList.clear();
+            notifyAll();
         }
 
         //метод, помечающий задание как выполненное
@@ -675,6 +692,8 @@ public class EquipmentServer {
                 proceededTaskList.remove(transactionEntry.getKey().id);
             }
             currentlyProceededGroups.remove(groupId);
+            //the group is free now, its next transactions can be taken by any worker
+            notifyAll();
         }
 
         private String getTransactionInfoGroupId(TransactionInfo transactionInfo) {
