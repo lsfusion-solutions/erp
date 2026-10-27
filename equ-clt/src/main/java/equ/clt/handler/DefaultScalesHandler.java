@@ -20,6 +20,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.function.BiFunction;
+import java.util.function.Predicate;
 
 public abstract class DefaultScalesHandler extends ScalesHandler {
 
@@ -136,6 +137,30 @@ public abstract class DefaultScalesHandler extends ScalesHandler {
     }
 
     protected abstract SendTransactionTask getTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales);
+
+    //loads one item with retries: only retryable results (e.g. no reply from the scales) are retried,
+    //errors of the previous attempts are discarded, only errors of the last attempt go to localErrors (also if it throws an exception)
+    protected <R> R loadWithRetries(List<String> localErrors, int maxAttempts, Predicate<R> retryable, ItemLoader<R> loader) throws Exception {
+        R result;
+        List<String> attemptErrors;
+        int attempt = 0;
+        do {
+            attemptErrors = new ArrayList<>();
+            try {
+                result = loader.load(attemptErrors, attempt++);
+            } catch (Exception e) {
+                localErrors.addAll(attemptErrors);
+                throw e;
+            }
+        } while (retryable.test(result) && attempt < maxAttempts);
+        localErrors.addAll(attemptErrors);
+        return result;
+    }
+
+    protected interface ItemLoader<R> {
+        //attempt starts from 0, attempt > 0 means retry (e.g. the port can be reopened)
+        R load(List<String> errors, int attempt) throws Exception;
+    }
 
     //sends stop-list to all scales in parallel, taskFactory creates the task for one scales, the task logs and returns errors
     protected void sendStopListParallel(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoSet,

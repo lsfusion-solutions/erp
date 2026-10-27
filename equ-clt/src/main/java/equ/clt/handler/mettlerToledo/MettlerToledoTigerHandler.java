@@ -66,12 +66,7 @@ public class MettlerToledoTigerHandler extends DefaultScalesHandler {
                         if (globalError < 5) {
                             if (isPLU(item)) {
                                 processStopListLogger.info(String.format(getLogPrefix() + "IP %s, StopList #%s, deleting item #%s (barcode %s)", scales.port, stopListInfo.number, count, item.idBarcode));
-                                int attempts = 0;
-                                Boolean result = null;
-                                while ((result == null || !result) && attempts < 3) {
-                                    result = deletePLU(port, item);
-                                    attempts++;
-                                }
+                                boolean result = loadWithRetries(localErrors, 3, r -> !r, (errors, attempt) -> deletePLU(port, item));
                                 if (!result) {
                                     logError(processStopListLogger, localErrors, String.format(getLogPrefix() + "IP %s, StopList #%s, Result %s, item %s", scales.port, stopListInfo.number, false, item.idItem), null);
                                     globalError++;
@@ -358,12 +353,7 @@ public class MettlerToledoTigerHandler extends DefaultScalesHandler {
                             if (notInterruptedTransaction(transaction.id) && globalError < 5) {
                                 if (isPLU(item)) {
                                     sendItemsLog.sending(count, item.idBarcode);
-                                    int attempts = 0;
-                                    Boolean result = null;
-                                    while ((result == null || !result) && attempts < 3) {
-                                        result = loadPLU(port, item) && loadExtraText(port, item);
-                                        attempts++;
-                                    }
+                                    boolean result = loadWithRetries(localErrors, 3, r -> !r, (errors, attempt) -> loadPLU(port, item) && loadExtraText(port, item));
                                     if (!result) {
                                         logError(localErrors, String.format(getLogPrefix() + "IP %s, Result %s, item %s", scales.port, false, item.idItem));
                                         globalError++;

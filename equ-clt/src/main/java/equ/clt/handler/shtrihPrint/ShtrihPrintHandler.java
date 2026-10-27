@@ -131,13 +131,8 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
 
                                 Integer pluNumber = pluNumbers.get(item.idItem);
 
-                                int error;
-                                int attempt = 0;
-                                List<String> itemErrors;
-                                do {
-                                    error = 0;
-                                    attempt++;
-                                    itemErrors = new ArrayList<>();
+                                int error = loadWithRetries(localErrors, 5, e -> e != 0, (itemErrors, attempt) -> {
+                                    int attemptError = 0;
                                     Integer barcode = getBarcode(item);
 
                                     Integer shelfLife = item.expiryDate == null ? (item.daysExpiry == null ? 0 : item.daysExpiry) : 0;
@@ -161,25 +156,24 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                             processTransactionLogger.info("Shtrih: sending message " + messageNumber + " (" + (i + 1) + ")");
                                             int result = setMessageData(itemErrors, port, messageNumber, i + 1, message);
                                             if (result != 0) {
-                                                error = result;
+                                                attemptError = result;
                                                 break;
                                             }
                                             i++;
                                         }
                                     }
 
-                                    if (error == 0) {
+                                    if (attemptError == 0) {
                                         processTransactionLogger.info("Shtrih: sending item " + pluNumber + " message - " + messageNumber);
                                         int result = setPLUDataEx(itemErrors, port, pluNumber, barcode, firstName, secondName,
                                                 item.price, shelfLife, groupCode, messageNumber, expiryDate/*, item.splitItem ? 0 : 1*/);
                                         if (result != 0)
-                                            error = result;
+                                            attemptError = result;
                                     }
-                                } while (attempt < 5 && error != 0);
+                                    return attemptError;
+                                });
 
                                 if (error != 0) {
-                                    if (itemErrors != null && !itemErrors.isEmpty())
-                                        localErrors.addAll(itemErrors);
                                     logError(localErrors, String.format("Shtrih: Load PLU, Item # %s, Error # %s (%s)", item.idBarcode, error, getErrorText(error)));
                                     //поменяли логику: три товара по 5 попыток не прогрузились - прекращаем загрузку всех последующих
                                     globalError++;
@@ -198,38 +192,33 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                             String message = "";
                             for (int i = 1; i <= advancedClearMaxPLU; i++)
                                 if(notInterruptedTransaction(transaction.id) && !usedPLUNumberSet.contains(i)) {
-                                    int error;
-                                    int attempt = 0;
-                                    List<String> itemErrors;
-                                    do {
-                                        error = 0;
-                                        attempt++;
-                                        itemErrors = new ArrayList<>();
+                                    int pluNumber = i;
+                                    int error = loadWithRetries(localErrors, 5, e -> e != 0, (itemErrors, attempt) -> {
+                                        int attemptError = 0;
 
                                         if (!skipDescription) {
                                             int j = 0;
                                             while (j < 8) {
-                                                int result = setMessageData(itemErrors, port, i, j + 1, message);
+                                                int result = setMessageData(itemErrors, port, pluNumber, j + 1, message);
                                                 if (result != 0) {
-                                                    error = result;
+                                                    attemptError = result;
                                                     break;
                                                 }
                                                 j++;
                                             }
                                         }
 
-                                        if (error == 0) {
-                                            processTransactionLogger.info("Shtrih: resetting item " + i);
-                                            int result = setPLUDataEx(itemErrors, port, i, i, firstLine, secondLine, BigDecimal.valueOf(9999.99),
-                                                    0, 0, i, defaultDate/*, 0*/);
+                                        if (attemptError == 0) {
+                                            processTransactionLogger.info("Shtrih: resetting item " + pluNumber);
+                                            int result = setPLUDataEx(itemErrors, port, pluNumber, pluNumber, firstLine, secondLine, BigDecimal.valueOf(9999.99),
+                                                    0, 0, pluNumber, defaultDate/*, 0*/);
                                             if (result != 0)
-                                                error = result;
+                                                attemptError = result;
                                         }
-                                    } while (attempt < 5 && error != 0);
+                                        return attemptError;
+                                    });
 
                                     if (error != 0) {
-                                        if (itemErrors != null && !itemErrors.isEmpty())
-                                            localErrors.addAll(itemErrors);
                                         logError(localErrors, String.format("Shtrih: Clear PLU, Item # %s, Error # %s (%s)", i, error, getErrorText(error)));
                                         globalError++;
                                         if(globalError >= 3)

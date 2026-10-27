@@ -65,10 +65,16 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
         return null;
     }
 
-    private void reopenPort(TCPPort port) throws CommunicationException, IOException {
+    //the reply to SetWorkMode must be read, otherwise it is taken as the reply to the next command
+    private boolean reopenPort(List<String> errors, TCPPort port) throws CommunicationException, IOException {
         port.close();
         port.open();
         sendSetWorkMode(port);
+        if (!getSetWorkModeReply(errors, port, port.getAddress())) {
+            logError(errors, String.format(getLogPrefix() + "IP %s SetWorkMode failed", port.getAddress()));
+            return false;
+        }
+        return true;
     }
 
     private void sendSetWorkMode(TCPPort port) throws IOException {
@@ -501,17 +507,15 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
                                 if (notInterruptedTransaction(transaction.id) && globalError < 5) {
                                     if (item.idBarcode != null && item.idBarcode.length() <= 5) {
                                         processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
-                                        int attempts = 0;
-                                        boolean result = false;
-                                        while (!result && attempts < 3) {
-                                            if (attempts > 0)
-                                                reopenPort(port);
-                                            short current = (short) (transaction.snapshot ? count : 1);
-                                            short total = (short) (transaction.snapshot ? transaction.itemsList.size() : 1);
-                                            result = loadItem(localErrors, port, item, nameLineLength, scales.weightCodeGroupScales, current, total, count == 1 && transaction.snapshot,
+                                        short current = (short) (transaction.snapshot ? count : 1);
+                                        short total = (short) (transaction.snapshot ? transaction.itemsList.size() : 1);
+                                        boolean first = count == 1 && transaction.snapshot;
+                                        boolean result = loadWithRetries(localErrors, 3, r -> !r, (errors, attempt) -> {
+                                            if (attempt > 0 && !reopenPort(errors, port))
+                                                return false;
+                                            return loadItem(errors, port, item, nameLineLength, scales.weightCodeGroupScales, current, total, first,
                                                     transaction.snapshot ? snapshotItemByte : notSnapshotItemByte);
-                                            attempts++;
-                                        }
+                                        });
                                         if (!result) {
                                             logError(localErrors, String.format(getLogPrefix() + "IP %s, send failed, item %s", scales.port, item.idItem));
                                             globalError++;
@@ -531,17 +535,15 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
                                 if (notInterruptedTransaction(transaction.id) && globalError < 5) {
                                     if (item.idBarcode != null && item.idBarcode.length() <= 5) {
                                         processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending plu #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
-                                        int attempts = 0;
-                                        boolean result = false;
-                                        while (!result && attempts < 3) {
-                                            if (attempts > 0)
-                                                reopenPort(port);
-                                            short current = (short) (transaction.snapshot ? count : 1);
-                                            short total = (short) (transaction.snapshot ? transaction.itemsList.size() : 1);
-                                            result = loadPLU(localErrors, port, item, current, total, count == 1 && transaction.snapshot,
+                                        short current = (short) (transaction.snapshot ? count : 1);
+                                        short total = (short) (transaction.snapshot ? transaction.itemsList.size() : 1);
+                                        boolean first = count == 1 && transaction.snapshot;
+                                        boolean result = loadWithRetries(localErrors, 3, r -> !r, (errors, attempt) -> {
+                                            if (attempt > 0 && !reopenPort(errors, port))
+                                                return false;
+                                            return loadPLU(errors, port, item, current, total, first,
                                                     transaction.snapshot ? snapshotPluByte : notSnapshotPluByte);
-                                            attempts++;
-                                        }
+                                        });
                                         if (!result) {
                                             logError(localErrors, String.format(getLogPrefix() + "IP %s, send failed, plu %s", scales.port, item.idItem));
                                             globalError++;

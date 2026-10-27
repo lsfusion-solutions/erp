@@ -89,15 +89,12 @@ public class AclasHandler extends DefaultScalesHandler {
         return result;
     }
 
-    private boolean loadPLU(UDPPort udpPort, ScalesInfo scales, ScalesItem item) throws CommunicationException, IOException {
-        int attempts = 0;
-        Boolean result = null;
-        while ((result == null || !result) && attempts < 3) {
+    //errors are not collected here: receiveReply only logs them
+    private boolean loadPLU(UDPPort udpPort, ScalesInfo scales, ScalesItem item) throws Exception {
+        return loadWithRetries(new ArrayList<>(), 3, r -> !r, (errors, attempt) -> {
             sendCommand(udpPort, (byte) 0x0b, getAddressBytes(parseMessageNumber(item)), getPLUBytes256(scales, item));
-            result = receiveReply(udpPort);
-            attempts++;
-        }
-        return result;
+            return receiveReply(udpPort);
+        });
     }
 
     private short parseMessageNumber(ScalesItem item) {
@@ -105,15 +102,11 @@ public class AclasHandler extends DefaultScalesHandler {
         return (short) (messageNumber > Short.MAX_VALUE ? messageNumber % Short.MAX_VALUE : messageNumber);
     }
 
-    private boolean loadMessage(UDPPort udpPort, ScalesItem item) throws CommunicationException, IOException {
-        int attempts = 0;
-        Boolean result = null;
-        while ((result == null || !result) && attempts < 3) {
+    private boolean loadMessage(UDPPort udpPort, ScalesItem item) throws Exception {
+        return loadWithRetries(new ArrayList<>(), 3, r -> !r, (errors, attempt) -> {
             sendCommand(udpPort, (byte) 0x62, getAddressBytes((short) (getMessageNumber(item) - 1)), getMessageBytes256(item));
-            result = receiveReply(udpPort);
-            attempts++;
-        }
-        return result;
+            return receiveReply(udpPort);
+        });
     }
 
     private short getMessageNumber(ScalesItem item) {

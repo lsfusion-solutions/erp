@@ -135,14 +135,11 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
                                 if (notInterruptedTransaction(transaction.id) && globalError < 5) {
                                     if (item.idBarcode != null && item.idBarcode.length() <= 6) {
                                         sendItemsLog.sending(count, item.idBarcode);
-                                        int attempts = 0;
-                                        String result = null;
-                                        while((result == null || !result.equals("0")) && attempts < 3) {
-                                            result = loadPLU(localErrors, port, scales, item, capitalLetters, notInvertPrices,
-                                                    descriptionLineLength, useDescriptionOptimizer, sendCommandTimeout);
-                                            attempts++;
-                                        }
-                                        if (result != null && !result.equals("0")) {
+                                        //retry only transport errors: error code of the scales is the same at every attempt
+                                        String result = loadWithRetries(localErrors, 3, BizerbaHandler.this::isTransportError,
+                                                (errors, attempt) -> loadPLU(errors, port, scales, item, capitalLetters, notInvertPrices,
+                                                        descriptionLineLength, useDescriptionOptimizer, sendCommandTimeout));
+                                        if (!result.equals("0")) {
                                             logError(localErrors, String.format("Bizerba: IP %s, Result %s, item %s", scales.port, result, item.idItem));
                                             globalError++;
                                         }
@@ -191,6 +188,11 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
             return e.getMessage();
         }
         return null;
+    }
+
+    //"-1" is returned by receiveReply when there is no reply from the scales (timeout, connection error)
+    private boolean isTransportError(String result) {
+        return "-1".equals(result);
     }
 
     protected String receiveReply(List<String> errors, TCPPort port, String ip) {
