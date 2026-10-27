@@ -1984,6 +1984,18 @@ DESIGN PurchaseReturn.userInvoice {
 VetisPurchaseReturn.overMatches (PurchaseReturn.UserInvoiceDetail vd, StockEntry se) += in(customerStock(vd), enterprise(se)) AND active(se)
     AND (GROUP SUM 1 IF in(se, ProductItem pi) AND in(sku(vd), pi));
 
+// ---- Отбор записей журнала по основанию ----
+
+skipBaseReturnGestori = DATA LOCAL BOOLEAN ();
+byBaseReturnGestori 'По основанию' () = NOT skipBaseReturnGestori();
+changeByBaseReturnGestori () { skipBaseReturnGestori() <- NOT skipBaseReturnGestori(); }
+
+inPurchaseInvoiceSEGestori =
+    GROUP SUM 1 IF in(StockEntry se, VetDocument v) AND VetisPurchase.volume(Purchase.InvoiceDetail pd, v) BY se, Purchase.invoice(pd);
+
+matchesBaseReturnGestori (PurchaseReturn.UserInvoiceDetail vd, StockEntry se) = VetisPurchaseReturn.matches(vd, se)
+    AND (inPurchaseInvoiceSEGestori(se, Purchase.invoice(PurchaseReturn.invoiceDetail(vd))) OR NOT PurchaseReturn.invoiceDetail(vd) OR skipBaseReturnGestori());
+
 // свободный остаток записи журнала и непокрытый объём строки — без учёта текущей пары
 freeVolumeSEReturnGestori (PurchaseReturn.UserInvoiceDetail vd, StockEntry se) = NUMERIC[16,5](MAX
     volume(se) (-) (totalVolumeSEReturnGestori(se) (-) (VetisPurchaseReturn.volume(vd, se) IF NOT VetisPurchaseReturn.vetDocument(vd, se))), 0.0);
@@ -2006,7 +2018,7 @@ fillVolumeRowReturnGestori 'Выбрать' (PurchaseReturn.UserInvoiceDetail vd
 // уже заданные связи сохраняются — строка без непокрытого объёма не меняется
 fillVolumeReturnGestori 'Заполнить' (PurchaseReturn.Invoice i) {
     FOR PurchaseReturn.invoice(PurchaseReturn.UserInvoiceDetail vd) = i ORDER PurchaseReturn.index(vd), vd DO
-        FOR VetisPurchaseReturn.matches(vd, StockEntry se) AND NOT lockedPairReturnGestori(vd, se) ORDER expiryDate(se), se DO
+        FOR matchesBaseReturnGestori(vd, StockEntry se) AND NOT lockedPairReturnGestori(vd, se) ORDER expiryDate(se), se DO
             IF (MIN freeVolumeSEReturnGestori(vd, se), freeVolumeRowReturnGestori(vd, se)) > 0 THEN
                 VetisPurchaseReturn.volume(vd, se) <- NUMERIC[16,5](MIN freeVolumeSEReturnGestori(vd, se), freeVolumeRowReturnGestori(vd, se));
 }
@@ -2021,6 +2033,22 @@ EXTEND FORM PurchaseReturn.userInvoice
     PROPERTIES(i) fillVolumeReturnGestori DRAW vd TOOLBAR
 ;
 DESIGN PurchaseReturn.userInvoice {
+    PROPERTY(fillVolume(vd, se)) { hide = TRUE; }
+    PROPERTY(fillVolume(i)) { hide = TRUE; }
+}
+
+EXTEND FORM PurchaseReturn.userInvoice
+    PROPERTIES byBaseReturnGestori() ON CHANGE changeByBaseReturnGestori() DRAW se TOOLBAR
+    FILTERS matchesBaseReturnGestori(vd, se) OR VetisPurchaseReturn.volume(vd, se)
+;
+
+EXTEND FORM VetisPurchaseReturn.dialogInvoiceOutgoingConsignment
+    PROPERTIES(vd, se) fillVolumeRowReturnGestori GRID
+    PROPERTIES(i) fillVolumeReturnGestori DRAW vd TOOLBAR
+    PROPERTIES byBaseReturnGestori() ON CHANGE changeByBaseReturnGestori() DRAW se TOOLBAR
+    FILTERS matchesBaseReturnGestori(vd, se) OR VetisPurchaseReturn.volume(vd, se)
+;
+DESIGN VetisPurchaseReturn.dialogInvoiceOutgoingConsignment {
     PROPERTY(fillVolume(vd, se)) { hide = TRUE; }
     PROPERTY(fillVolume(i)) { hide = TRUE; }
 }
