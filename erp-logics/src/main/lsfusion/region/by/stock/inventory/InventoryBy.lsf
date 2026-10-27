@@ -194,6 +194,7 @@ countResponsiblePersonStock = TRUE IF [GROUP SUM 1 IF isOverResponsiblePerson(st
 resetCollationSheet ABSTRACT LIST();
 
 overOrder = ABSTRACT STRING[255] (CollationSheet, Sku);
+overOrder = ABSTRACT STRING[255] (CollationSheet, Batch);
 
 FORM printCollationSheet 'Опись'
 
@@ -220,12 +221,12 @@ FORM printCollationSheet 'Опись'
 
     OBJECTS         b=Batch
     PROPERTIES(b)    SELECTOR nameSku, idBarcodeSku, name, id, shortNameUOM
-    PROPERTIES(cs,b) SELECTOR quantityPageInventoryDetail, quantityBalance, quantityShortage
+    PROPERTIES(cs,b) SELECTOR quantityPageInventoryDetail, quantityBalance, quantityShortage, overOrder
     PROPERTIES(cs,b) SELECTOR pricePageInventoryDetail, priceBalance
     PROPERTIES(cs,b) READONLY sumPageInventoryDetail, sumBalance, sumShortage
     FILTERS                   include(cs,b),
                               quantityPageInventoryDetail(cs,b) OR quantityBalance(cs,b) OR sumBalance(cs, b)
-    ORDERS nameSku(b)
+    ORDERS overOrder(cs, b), nameSku(b)
     
     OBJECTS e=Employee
     PROPERTIES(e) READONLY   name[Contact], namePosition, firstShortName
