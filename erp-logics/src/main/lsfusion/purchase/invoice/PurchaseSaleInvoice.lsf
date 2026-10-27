@@ -135,45 +135,49 @@ overFillInvoice ABSTRACT LIST (Sale.UserInvoice, Invoice);
 overFillInvoice ABSTRACT LIST (Sale.UserInvoiceDetail, InvoiceDetail);
 overFillInvoice2 ABSTRACT LIST (Sale.UserInvoice, Invoice);
 
-moveUserInvoice 'Накладная (продажа)'(Invoice invoice) { 
-	NEWSESSION {
-	    NEW i = Sale.UserInvoice {
-	        agreement(i) <- agreement(invoice);
-	        priceListType(i) <- priceListType(invoice) WHERE in(priceListType(invoice), saleOperation(operation(invoice))) OR NOT saleOperation(operation(invoice));
-	        supplier(i) <- customer(invoice);  // покупатель Purchase в продавца Sale, а покупатель Sale пустой
-	        supplierStock(i) <- customerStock(invoice);
-	        number(i) <- number(invoice);
-	        series(i) <- series(invoice);
-	        note(i) <- note(invoice);
-	        currency(i) <- currency(invoice);
-	        contractSku(i) <- contractSku(invoice);
-	        isCommission(i) <- isCommission(invoice);
-	        showPack(i) <- showPack(invoice);
-	        operation(i) <- saleOperation(operation(invoice));
+fillUserInvoice 'Заполнить накладную (продажа) по накладной (закупка)' (Sale.UserInvoice i, Invoice invoice) {
+    agreement(i) <- agreement(invoice);
+    priceListType(i) <- priceListType(invoice) WHERE in(priceListType(invoice), saleOperation(operation(invoice))) OR NOT saleOperation(operation(invoice));
+    supplier(i) <- customer(invoice); // покупатель Purchase в продавца Sale, а покупатель Sale пустой
+    supplierStock(i) <- customerStock(invoice);
+    number(i) <- number(invoice);
+    series(i) <- series(invoice);
+    note(i) <- note(invoice);
+    currency(i) <- currency(invoice);
+    contractSku(i) <- contractSku(invoice);
+    isCommission(i) <- isCommission(invoice);
+    showPack(i) <- showPack(invoice);
+    operation(i) <- saleOperation(operation(invoice));
 
-	        overFillInvoice(i, invoice);
-	
-	        FOR invoice(InvoiceDetail detail)==invoice NEW d = Sale.UserInvoiceDetail DO {
-	            userInvoice(d) <- i;
-	            invoiceDetail(d) <- detail;
-	            priceListType(d) <- priceListType(detail) WHERE in(priceListType(detail), operation(i)) OR NOT operation(i);
-	
-	            sku(d) <- sku(detail);
-	            quantity(d) <- quantity(detail);
-	            VAT(d) <- VAT(detail);
-	            price(d) <- price(detail);
-	            invoicePrice(d) <- invoicePrice(detail);
-	
-	            barcodePack(d) <- barcodePack(detail);
-	            amountPack(d) <- amountPack(detail);
-	            packQuantity(d) <- packQuantity(detail);
-	            batch(d) <- overBatch(detail) WHERE NOT (notUseBatchSaleInvoice(operation(invoice)) OR skipFillBatch(d));	            
+    overFillInvoice(i, invoice);
 
-	            overFillInvoice(d, detail);
-	        }
-            overFillInvoice2(i, invoice);
-	
-	        SHOW Sale.userInvoice OBJECTS i = i DOCKED NOCANCEL;
+    FOR invoice(InvoiceDetail detail) == invoice NEW d = Sale.UserInvoiceDetail DO {
+        userInvoice(d) <- i;
+        invoiceDetail(d) <- detail;
+        priceListType(d) <- priceListType(detail) WHERE in(priceListType(detail), operation(i)) OR NOT operation(i);
+
+        sku(d) <- sku(detail);
+        quantity(d) <- quantity(detail);
+        VAT(d) <- VAT(detail);
+        price(d) <- price(detail);
+        invoicePrice(d) <- invoicePrice(detail);
+
+        barcodePack(d) <- barcodePack(detail);
+        amountPack(d) <- amountPack(detail);
+        packQuantity(d) <- packQuantity(detail);
+        batch(d) <- overBatch(detail) WHERE NOT (notUseBatchSaleInvoice(operation(invoice)) OR skipFillBatch(d));
+
+        overFillInvoice(d, detail);
+    }
+    overFillInvoice2(i, invoice);
+}
+        
+moveUserInvoice 'Накладная (продажа)'(Invoice invoice) {
+    NEWSESSION {
+        NEW i = Sale.UserInvoice {
+            fillUserInvoice(i, invoice);
+
+            SHOW Sale.userInvoice OBJECTS i = i DOCKED NOCANCEL;
 	    }
 	}
 } TOOLBAR;

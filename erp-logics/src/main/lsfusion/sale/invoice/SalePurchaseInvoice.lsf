@@ -397,56 +397,56 @@ overFillInvoice  ABSTRACT LIST ( Purchase.UserInvoice, Invoice);
 overFillInvoice2  ABSTRACT LIST ( Purchase.UserInvoice, Invoice);
 overFillInvoice  ABSTRACT LIST ( Purchase.UserInvoiceDetail, InvoiceDetail);
 
+fillUserInvoice 'Заполнить накладную (закупка) по накладной (продажа)' (Purchase.UserInvoice i, Invoice invoice) {
+    agreement(i) <- agreement(invoice);
+    priceListType(i) <- priceListType(invoice) WHERE NOT notUsePriceListTypePurchaseInvoice(operation(invoice));
+    supplier(i) <- supplier(invoice);
+    customer(i) <- customer(invoice);
+    supplierStock(i) <- supplierStock(invoice);
+    customerStock(i) <- customerStock(invoice);
+    number(i) <- number(invoice);
+    series(i) <- series(invoice);
+    note(i) <- note(invoice);
+    currency(i) <- currency(invoice);
+    contractSku(i) <- contractSku(invoice);
+    isCommission(i) <- isCommission(invoice);
+    showPack(i) <- showPack(invoice);
+    operation(i) <- purchaseOperation(operation(invoice));
+
+    overFillInvoice(i, invoice);
+
+    FOR invoice(InvoiceDetail detail) == invoice NEW d = Purchase.UserInvoiceDetail DO {
+        userInvoice(d) <- i;
+        invoiceDetail(d) <- detail;
+        priceListType(d) <- priceListType(detail) WHERE (in(priceListType(detail), operation(i)) OR NOT operation(i)) AND NOT notUsePriceListTypePurchaseInvoice(operation(invoice));
+
+        sku(d) <- sku(detail);
+        quantity (d) <- quantity(detail);
+        VAT (d) <- VAT(detail);
+        valueVAT (d) <- valueVAT(detail);
+        price (d) <- price(detail);
+        invoicePrice (d) <- invoicePrice(detail);
+
+        barcodePack (d) <- barcodePack(detail);
+        amountPack (d) <- amountPack(detail);
+        //packQuantity (d) <- packQuantity(detail); ////иначе не срабатывает вычисляемое событие при изменении quantity в не сохраненном документе
+        batch(d) <- batch(detail) WHERE NOT (notUseBatchPurchaseInvoice(operation(invoice)) OR skipFillBatch(d));	            
+
+        overFillInvoice(d,detail);
+    }
+    overFillInvoice2(i, invoice);
+}
+
 moveUserInvoice 'Накладная (закупка)'(Invoice invoice)   { 
-	NEWSESSION{
-	
+	NEWSESSION {
 	    NEW i = Purchase.UserInvoice {
+	        fillUserInvoice(i, invoice);
 	
-	        agreement(i) <- agreement(invoice);
-	        priceListType(i) <- priceListType(invoice) WHERE NOT notUsePriceListTypePurchaseInvoice(operation(invoice));
-	        supplier(i) <- supplier(invoice);
-	        customer(i) <- customer(invoice);
-	        supplierStock(i) <- supplierStock(invoice);
-	        customerStock(i) <- customerStock(invoice);
-	        number(i) <- number(invoice);
-	        series(i) <- series(invoice);
-	        note(i) <- note(invoice);
-	        currency(i) <- currency(invoice);
-	        contractSku(i) <- contractSku(invoice);
-	        isCommission(i) <- isCommission(invoice);
-	        showPack(i) <- showPack(invoice);
-	        operation(i) <- purchaseOperation(operation(invoice));
-	        EXEC overFillInvoice(i, invoice);
-	
-	        FOR invoice(InvoiceDetail detail)==invoice NEW d = Purchase.UserInvoiceDetail DO {
-	
-	            userInvoice(d) <- i;
-	            invoiceDetail(d) <- detail;
-	
-	            priceListType(d) <- priceListType(detail) WHERE (in(priceListType(detail), operation(i)) OR NOT operation(i)) AND NOT notUsePriceListTypePurchaseInvoice(operation(invoice));
-	
-	            sku(d) <- sku(detail);
-	            quantity (d) <- quantity(detail);
-	            VAT (d) <- VAT(detail);
-                valueVAT (d) <- valueVAT(detail);
-	            price (d) <- price(detail);
-	            invoicePrice (d) <- invoicePrice(detail);
-	
-	            barcodePack (d) <- barcodePack(detail);
-	            amountPack (d) <- amountPack(detail);
-	            //packQuantity (d) <- packQuantity(detail); ////иначе не срабатывает вычисляемое событие при изменении quantity в не сохраненном документе
-	
-	            batch(d) <- batch(detail) WHERE NOT (notUseBatchPurchaseInvoice(operation(invoice)) OR skipFillBatch(d));	            
-	            EXEC overFillInvoice(d,detail);
-	        }
-	        
-	        EXEC overFillInvoice2(i, invoice);
-	
-	    SHOW Purchase.userInvoice OBJECTS i = i DOCKED NOCANCEL;
+	        SHOW Purchase.userInvoice OBJECTS i = i DOCKED NOCANCEL;
 	    }
 	}
 } TOOLBAR;
-//overSkipBatch(PurchaseInvoiceDetail d) += notUseBatchPurchaseInvoice(operation(invoiceDetail(d)));
+
 EXTEND FORM invoices
     PROPERTIES(i) moveUserInvoice
 ;
