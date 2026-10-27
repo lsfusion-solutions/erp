@@ -274,3 +274,120 @@ META defineDocumentOutWayBillForm (doc, obj)
     skipShowEdit(###doc d) += forbidEditSendDocument() AND activeWayBillOutDoc(wayBill(d));
     skipShowDelete(###doc d) += forbidEditSendDocument() AND activeWayBillOutDoc(wayBill(d));
 END
+
+// раздельные формирование, просмотр и отправка ТТН; применяется поверх defineDocumentOutWayBillProcess
+META defineDocumentOutWayBillDraft (doc, supplier, customer)
+    draftWayBill 'ТТН ЕГАИС сформирована' (###doc i) = wayBill(i) AND NOT wayBillOutDoc(wayBill(i)) AND NOT canceled(wayBill(i));
+
+    // иначе «Отправить в ЕГАИС» создаст вторую ТТН, а сформированная останется висеть в расходе по справкам Б
+    overCheckProcess(###doc i) += 'По документу уже сформирована ТТН ЕГАИС. Отправьте её или удалите.' IF draftWayBill(i);
+
+    createWayBill 'Сформировать ТТН ЕГАИС' (###doc i) {
+        IF GROUP SUM 1 IF doc(###doc##Detail d) = i AND minProduct(sku(d)) AND NOT quantity(d) = quantityF2Reg(d) THEN {
+            MESSAGE 'Не по всем строкам накладной выбраны справки Б в ЕГАИС. Формирование ТТН ЕГАИС невозможно';
+            RETURN;
+        }
+
+        IF NOT (GROUP SUM 1 IF doc(###doc##Detail dd) == i AND minProduct(sku(dd))) THEN {
+            MESSAGE 'В документе нет строк, для которых задан аналог в справочнике ЕГАИС Алкогольная продукция. Формирование ТТН ЕГАИС невозможно';
+            RETURN;
+        }
+
+        IF (GROUP SUM 1 IF doc(###doc##Detail dd) == i AND NOT minProduct(sku(dd))) THEN {
+            ASK 'Для следующих товаров отсутствует аналог в справочнике ЕГАИС Алкогольная продукция: \n' +
+                (GROUP CONCAT name(sku(###doc##Detail dd)) IF doc(dd) == i AND NOT minProduct(sku(dd)), '\n' ORDER dd) + '\nПродолжить?' DO { }
+            ELSE RETURN;
+        }
+
+        IF overCheckProcess(i) THEN {
+            MESSAGE overCheckProcess(i);
+            RETURN;
+        }
+
+        NEWSESSION {
+            NEW w = WayBill {
+                wayBill(i) <- w;
+
+                id(w) <- STRING(w);
+                number(w) <- seriesNumber(i);
+
+                date(w) <- date(i);
+                shippingDate(w) <- date(i);
+
+                shipper(w) <- client(supplier##Stock(i));
+                consignee(w) <- client(customer##Stock(i));
+
+                tranType(w) <- 'Автомобиль';
+                changeOwnership(w) <- shipper(w) = consignee(w);
+                transportType(w) <- 'car';
+
+                tranCompany(w) <- OVERRIDE nameOwner(truck(trip(i))), name(supplier(i));
+
+                transportRegNumber(w) <- sid(truck(trip(i)));
+                tranTrailer(w) <- trailer(truck(trip(i)));
+
+                tranCustomer(w) <- name(customer(i));
+                tranDriver(w) <- nameDriver(trip(i));
+
+                tranLoadPoint(w) <- address(supplier##Stock(i));
+                tranUnloadPoint(w) <- address(customer##Stock(i));
+
+                tranRedirect(w) <- redirect(trip(i));
+                tranForwarder(w) <- forwarder(trip(i));
+
+                overProcessFillWayBill(i);
+
+                LOCAL boxId = STRING();
+                boxId() <- lpad(STRING(w), 18, '0');
+                IF NOT box(boxId()) THEN NEW b = Box {
+                    id(b) <- boxId();
+                }
+
+                FOR quantity(###doc##Detail d, Lot l) IF doc(d) = i AND NOT markCode(id(l)) AND NOT skipCreateMarkCode(id(l)) DO NEW m = MarkCode {
+                    id(m) <- id(l);
+                    dataF2Reg(m) <- GROUP MAX F2Reg r IF quantity(d, r);
+                }
+
+                FOR quantity(i, F2Reg r) INLINE NEW p = WayBillPosition DO {
+                    wayBill(p) <- w;
+
+                    product(p) <- product(r);
+
+                    identity(p) <- STRING(p);
+
+                    quantity(p) <- quantity(i, r);
+                    price(p) <- OVERRIDE egaisPrice(i, r), price(i, r);
+
+                    quantity(###doc##Detail d, p) <- quantity(d, r) WHERE ##doc(d)=i;
+
+                    f1Reg(p) <- f1Reg(r);
+                    f2Reg(p) <- r;
+
+                    FOR quantity(###doc##Detail d, Lot l) IF MarkCode mc = markCode(id(l)) AND ##doc(d)=i AND (OVERRIDE prevF2Reg(mc), dataF2Reg(mc)) = r INLINE NEW m = WayBillMark DO {
+                        wayBillPosition(m) <- p;
+                        markCode(m) <- mc;
+                        box(m) <- OVERRIDE prevBox(mc), box(boxId());
+                    }
+                }
+
+                check();
+                IF NOT canceled() THEN APPLY;
+            }
+        }
+    }
+
+    showWayBill 'Просмотреть ТТН ЕГАИС' (###doc i) {
+        IF draftWayBill(i) THEN NEWSESSION {
+            SHOW wayBill OBJECTS w = wayBill(i) DOCKED;
+        } ELSE
+            show(wayBill(i));
+    }
+
+    sendWayBill 'Отправить ТТН ЕГАИС' (###doc i) {
+        NEWSESSION {
+            submitWayBill(wayBill(i));
+            APPLY;
+            overAfterSubmit(wayBillOutDoc(wayBill(i)));
+        }
+    } CONFIRM;
+END
