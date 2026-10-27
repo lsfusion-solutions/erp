@@ -1,0 +1,170 @@
+MODULE RangeSaturation;
+
+REQUIRE Range;
+
+NAMESPACE Range;
+
+quantity 'Движение за день (кол-во)' (Sku sk, Store st, DATE d) = GROUP SUM quantity(sk, DepartmentStore ds, d) IF store(ds) = st;
+quantitySold 'Продано за день (кол-во)' (Sku sk, Store st, DATE d) = GROUP SUM quantitySold(sk, DepartmentStore ds, d) IF store(ds) = st;
+
+// товар в наличии, если на конец дня есть остаток, либо за день было движение или продажа
+available 'В наличии' (Sku sk, Store st, DATE d) = balanceA(sk, st, d) > 0 OR quantity(sk, st, d) OR quantitySold(sk, st, d);
+
+TABLE rangeSaturationStoreDate (Store, DATE) NODEFAULT;
+
+countRangeSku 'SKU в матрице' = DATA INTEGER (Store, DATE) TABLE rangeSaturationStoreDate;
+countAvailableSku 'SKU в наличии' = DATA INTEGER (Store, DATE) TABLE rangeSaturationStoreDate;
+calculatedTime 'Время расчета' = DATA DATETIME (Store, DATE) TABLE rangeSaturationStoreDate;
+
+saturation 'Насыщенность ассортимента, %' (Store st, DATE d) =
+    NUMERIC[8,2](round2(NUMERIC[16,4](OVERRIDE countAvailableSku(st, d), 0) * 100 / countRangeSku(st, d)));
+
+@defineOption(countThreadsSaturation, 'Кол-во потоков расчета насыщенности ассортимента (если не указано, то 8)', INTEGER, range);
+
+calculateSaturation (Store st, DATE d) {
+    countRangeSku(st, d) <- GROUP SUM 1 IF countRange(Sku sk, st, d);
+    countAvailableSku(st, d) <- GROUP SUM 1 IF countRange(Sku sk, st, d) AND available(sk, st, d);
+    calculatedTime(st, d) <- currentDateTime() IF countRangeSku(st, d);
+}
+
+// каждый магазин за каждый день считается в своем потоке и сохраняется отдельно
+calculateSaturation 'Рассчитать' (DATE df, DATE dt) {
+    IF NOT df <= dt THEN {
+        MESSAGE 'Дата начала периода больше даты окончания' NOWAIT;
+        RETURN;
+    }
+    NEWEXECUTOR {
+        FOR active(Store st) AND iterate(DATE d, df, dt) DO NEWTHREAD NEWSESSION NEWSQL {
+            calculateSaturation(st, d);
+            APPLY;
+        }
+    } THREADS (OVERRIDE countThreadsSaturation(), 8);
+    formRefresh();
+}
+
+calculateSaturation 'Рассчитать' (DATE d) {
+    calculateSaturation(d, d);
+}
+
+// за период - среднее арифметическое дневной насыщенности. Дни, где она не определена (нет матрицы или день не рассчитан), в среднее не входят
+countSaturationDays 'Дней в расчете' (Store st, DATE df, DATE dt) = GROUP SUM 1 IF countRangeSku(st, DATE d) AND d >= df AND d <= dt;
+
+// сумма нулевых значений дает NULL, поэтому при наличии дней с насыщенностью она заменяется на 0
+saturation 'Насыщенность ассортимента (средняя), %' (Store st, DATE df, DATE dt) =
+    NUMERIC[8,2](round2((OVERRIDE (GROUP SUM saturation(st, DATE d) IF d >= df AND d <= dt), 0.0) / countSaturationDays(st, df, dt)));
+
+daysRange 'Дней в матрице' (Sku sk, Store st, DATE df, DATE dt) = GROUP SUM 1 IF countRange(sk, st, DATE d) AND iterate(d, df, dt);
+daysAvailable 'Дней в наличии' (Sku sk, Store st, DATE df, DATE dt) = GROUP SUM 1 IF countRange(sk, st, DATE d) AND available(sk, st, d) AND iterate(d, df, dt);
+daysRange 'Дней в матрице' (Sku sk, Range r, Store st, DATE df, DATE dt) = GROUP SUM 1 IF in(sk, r, st, DATE d) AND iterate(d, df, dt);
+
+FORM rangeSaturation 'Насыщенность ассортимента'
+    OBJECTS d = DATE PANEL
+    PROPERTIES(d) date = VALUE
+    PROPERTIES(d) calculateSaturation
+
+    OBJECTS st = Store
+    PROPERTIES(st) READONLY id, name, nameStoreType
+    PROPERTIES(st, d) READONLY countRangeSku, countAvailableSku, saturation, calculatedTime
+    ORDERS name(st)
+    FILTERS active(st)
+
+    OBJECTS sk = Sku
+    PROPERTIES(sk) READONLY id, idBarcode, name, shortNameUOM
+    PROPERTIES(sk, st, d) READONLY balanceA, quantity, quantitySold, available
+    ORDERS name(sk)
+    FILTERS countRange(sk, st, d)
+    FILTERGROUP availability
+        FILTER 'Нет в наличии' NOT available(sk, st, d)
+        FILTER 'В наличии' available(sk, st, d)
+
+    // матрицы, по которым товар входит в ассортимент магазина на дату
+    OBJECTS r = Range
+    PROPERTIES(r) READONLY id, name
+    ORDERS name(r)
+    FILTERS in(sk, r, st, d) AND NOT skipCountRange(r)
+
+    // за период
+    OBJECTS df = DATE PANEL, dt = DATE PANEL
+    PROPERTIES dateFrom 'Дата с' = VALUE(df), dateTo 'Дата по' = VALUE(dt)
+    PROPERTIES(df, dt) calculateSaturation
+
+    OBJECTS sp = Store
+    PROPERTIES(sp) READONLY id, name, nameStoreType
+    PROPERTIES(sp, df, dt) READONLY saturation, countSaturationDays
+    ORDERS name(sp)
+    FILTERS active(sp)
+
+    OBJECTS skp = Sku
+    PROPERTIES(skp) READONLY id, idBarcode, name, shortNameUOM
+    PROPERTIES(skp, sp, df, dt) READONLY daysRange, daysAvailable
+    ORDERS name(skp)
+    FILTERS daysRange(skp, sp, df, dt)
+    FILTERGROUP availabilityPeriod
+        FILTER 'Не было в наличии' NOT daysAvailable(skp, sp, df, dt)
+        FILTER 'Были дни отсутствия' (OVERRIDE daysAvailable(skp, sp, df, dt), 0) < daysRange(skp, sp, df, dt)
+
+    OBJECTS rp = Range
+    PROPERTIES(rp) READONLY id, name
+    PROPERTIES(skp, rp, sp, df, dt) READONLY daysRange
+    ORDERS name(rp)
+    FILTERS daysRange(skp, rp, sp, df, dt) AND NOT skipCountRange(rp)
+
+    EVENTS ON INIT {
+        SEEK rangeSaturation.df = firstDayOfMonth(currentDate());
+    }
+;
+
+DESIGN rangeSaturation {
+    OBJECTS {
+        NEW tabs {
+            fill = 1;
+            tabbed = TRUE;
+            NEW dayTab {
+                fill = 1;
+                caption = 'На дату';
+                MOVE BOX(d);
+                NEW details {
+                    fill = 1;
+                    horizontal = TRUE;
+                    MOVE BOX(st);
+                    NEW skuPane {
+                        fill = 1;
+                        MOVE BOX(sk) { fill = 3; }
+                        MOVE BOX(r) {
+                            fill = 1;
+                            caption = 'Действующие матрицы';
+                        }
+                    }
+                }
+            }
+            NEW periodTab {
+                fill = 1;
+                caption = 'За период';
+                NEW period {
+                    horizontal = TRUE;
+                    MOVE BOX(df);
+                    MOVE BOX(dt);
+                }
+                NEW periodDetails {
+                    fill = 1;
+                    horizontal = TRUE;
+                    MOVE BOX(sp);
+                    NEW skuPeriodPane {
+                        fill = 1;
+                        MOVE BOX(skp) { fill = 3; }
+                        MOVE BOX(rp) {
+                            fill = 1;
+                            caption = 'Матрицы за период';
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+NAVIGATOR {
+    retailRangeNavigator {
+        NEW rangeSaturation;
+    }
+}
