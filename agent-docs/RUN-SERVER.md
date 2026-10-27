@@ -59,16 +59,6 @@ xdebug_start_debugger_session(
   configurationName="<имя из get_run_configurations>",
 )
 ```
-
-**В предложении пользователю запустить службу явно указывать, что запуск будет
-без devmode.** Нужен ли devmode (анонимный доступ к HTTP-API сервера и прочая
-разработческая функциональность), пользователь решает сам. Если нужен — он один
-раз добавит `-Dlsfusion.server.devmode=true` в VM options самой run configuration
-(Edit Configurations).
-
-Devmode сам через `envs` не добавлять — launch override уводит запуск в обход
-before-launch (сервер на старом `target/classes`).
-
 ### Какую версию модуля загрузит запуск
 
 Сервер читает модули не из `src/main/lsfusion`, а из их копий в выходном
