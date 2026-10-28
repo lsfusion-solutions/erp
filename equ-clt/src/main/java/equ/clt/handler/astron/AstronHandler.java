@@ -2464,12 +2464,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                     ("SELECT sales.SALESATTRS, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, cashier.CASHIERNAME, " +
                     "sales.SALESTAG, sales.SALESBARC, sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESBONUS, " +
                     "sales.SALESTYPE, sales.SALESNUM, sales.SAREAID, sales.SALESREFUND, sales.PRCLEVELID, sales.SALESATTRI, " +
-                    "COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART, ext.SALESEXTVALUE AS idZReport, l.SALESEXTVALUE AS lot FROM SALES sales " +
+                    "COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART, ext.SALESEXTVALUE AS idZReport, l.SALESEXTVALUE AS lot, gc.SALESEXTVALUE AS numberGiftCard FROM SALES sales " +
                     "LEFT JOIN (SELECT SESSID, SYSTEMID, SAREAID, max(SESSSTART) AS SESSSTART FROM SESS GROUP BY SESSID, SYSTEMID, SAREAID) sess " +
                     "ON sales.SESSID=sess.SESSID AND sales.SYSTEMID=sess.SYSTEMID AND sales.SAREAID=sess.SAREAID " +
                     "LEFT JOIN CASHIER cashier ON sales.CASHIERID=cashier.CASHIERID " +
                     "LEFT JOIN SALESEXT ext ON sales.SAREAID=ext.SAREAID AND sales.SYSTEMID=ext.SYSTEMID AND sales.SESSID=ext.SESSID AND sales.SALESNUM=ext.SALESNUM AND ext.SALESEXTKEY = 38 " +
                     "LEFT JOIN SALESEXT l ON sales.SAREAID=l.SAREAID AND sales.SYSTEMID=l.SYSTEMID AND sales.SESSID=l.SESSID AND sales.SALESNUM=l.SALESNUM AND l.SALESEXTKEY = 65 " +
+                    "LEFT JOIN SALESEXT gc ON sales.SAREAID=gc.SAREAID AND sales.SYSTEMID=gc.SYSTEMID AND sales.SESSID=gc.SESSID AND sales.SALESNUM=gc.SALESNUM AND gc.SALESEXTKEY = 59 " +
                     "WHERE FUSION_PROCESSED IS NULL AND SALESCANC = 0 ORDER BY SAREAID, SYSTEMID, SESSID, sales.FRECNUM, (CASE WHEN SALESTAG = 10 THEN -1 ELSE SALESTAG END) DESC, sales.SALESNUM")
                     :
                     ("SELECT sales.SALESATTRS, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, cashier.CASHIERNAME, " +
@@ -2663,9 +2664,11 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             }
                             case 0: {//товарная позиция
                                 numberReceipt = uniqueReceiptIdNumberReceiptMap.get(currentUniqueReceiptId);
-                                String idBarcode = trimToNull(salesBarc);
-                                String idItem = String.valueOf(salesCode);
-                                boolean isWeight = !customPaymentType && (salesType == 0 || salesType == 2);
+                                String numberGiftCard = newReadSalesQuery ? trimToNull(rs.getString("numberGiftCard")) : null; //номер сертификата из SALESEXT (SALESEXTKEY = 59)
+                                boolean isGiftCard = numberGiftCard != null;
+                                String idBarcode = isGiftCard ? numberGiftCard : trimToNull(salesBarc);
+                                String idItem = isGiftCard ? null : String.valueOf(salesCode);
+                                boolean isWeight = !isGiftCard && !customPaymentType && (salesType == 0 || salesType == 2);
                                 BigDecimal totalQuantity = safeDivide(salesCount, isWeight ? 1000 : 1);
                                 BigDecimal price = safeDivide(salesPrice, 100);
                                 BigDecimal sumReceiptDetail = safeDivide(salesSum, 100);
@@ -2680,7 +2683,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                                     }
                                 }
 
-                                SalesInfo salesInfo = getSalesInfo(false, false, nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
+                                SalesInfo salesInfo = getSalesInfo(isGiftCard, isGiftCard && isReturn, nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
                                         idEmployee, nameEmployee, null, sumGiftCardMap, payments, idBarcode, idItem, null,
                                         idSaleReceiptReceiptReturnDetail, totalQuantity, price, sumReceiptDetail, null, discountSumReceiptDetail,
                                         null, idDiscountCard, null, salesNum, null, null, false, null, receiptDetailExtraFields, cashRegister);
