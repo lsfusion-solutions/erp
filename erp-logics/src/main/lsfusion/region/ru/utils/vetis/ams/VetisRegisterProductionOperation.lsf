@@ -307,6 +307,8 @@ dayR = DATA LOCAL INTEGER(INTEGER);
 year1R = DATA LOCAL INTEGER(INTEGER);
 month1R = DATA LOCAL INTEGER(INTEGER);
 day1R = DATA LOCAL INTEGER(INTEGER);
+hourR = DATA LOCAL INTEGER(INTEGER);
+hour1R = DATA LOCAL INTEGER(INTEGER);
 batchIDR = DATA LOCAL STRING(INTEGER);
 perishableR = DATA LOCAL STRING(INTEGER);
 uuid6R = DATA LOCAL STRING(INTEGER);
@@ -398,8 +400,8 @@ FORM registerProductionOperationResponse FORMEXTID 'merc=http://api.vetrf.ru/sch
     PROPERTIES(stockEntry) IN subProductR uuid3R EXTID 'bs:uuid', guid2R EXTID 'bs:guid', name1R EXTID 'dt:name'
     PROPERTIES(stockEntry) IN productItemR uuid4R EXTID 'bs:uuid', guid3R EXTID 'bs:guid', globalIDR EXTID 'dt:globalID', name2R EXTID 'dt:name', codeR EXTID 'dt:code'
     PROPERTIES(stockEntry) IN unitR uuid5R EXTID 'bs:uuid', guid4R EXTID 'bs:guid', name3R EXTID 'dt:name'
-    PROPERTIES(stockEntry) IN firstDateR yearR EXTID 'dt:year', monthR EXTID 'dt:month', dayR EXTID 'dt:day'
-    PROPERTIES(stockEntry) IN firstDate1R year1R EXTID 'dt:year', month1R EXTID 'dt:month', day1R EXTID 'dt:day'
+    PROPERTIES(stockEntry) IN firstDateR yearR EXTID 'dt:year', monthR EXTID 'dt:month', dayR EXTID 'dt:day', hourR EXTID 'dt:hour'
+    PROPERTIES(stockEntry) IN firstDate1R year1R EXTID 'dt:year', month1R EXTID 'dt:month', day1R EXTID 'dt:day', hour1R EXTID 'dt:hour'
     PROPERTIES(stockEntry) IN productItem1R uuid6R EXTID 'bs:uuid', guid5R EXTID 'bs:guid', globalID1R EXTID 'dt:globalID', name4R EXTID 'dt:name', code1R EXTID 'dt:code'
     PROPERTIES(stockEntry) IN countryR uuid7R EXTID 'bs:uuid', guid6R EXTID 'bs:guid', name5R EXTID 'dt:name'
     PROPERTIES(stockEntry) IN producerR roleR EXTID 'dt:role'
@@ -506,9 +508,9 @@ process (RegisterProductionOperationRequest r) + {
             volume(d) <- NUMERIC[16,5](volumeR(i));
             unit(d) <- unit(uuid5R(i));
             dateOfProduction(d) <- toDateFormat(yearR(i) + '-' + monthR(i) + '-' + dayR(i), 'YYYY-MM-DD');
-//            dateOfProductionHour(d) <- hourR(i);
+            dateOfProductionHour(d) <- hourR(i);
             expiryDate(d) <- toDateFormat(year1R(i) + '-' + month1R(i)+ '-' + day1R(i), 'YYYY-MM-DD');
-//            expiryDateHour(d) <- hour1R(i);
+            expiryDateHour(d) <- hour1R(i);
             // связи только добавляются: запись без WHERE затирала бы существующие связи записи
             // (в т.ч. с родительским ВСД у сырьевых записей, попавших в ответ)
             in(d, VetDocument vd) <- TRUE WHERE uuid(vd) = uuidR(i);
@@ -517,6 +519,16 @@ process (RegisterProductionOperationRequest r) + {
             // если единица в ответе не пришла (или её нет в справочнике) — берём по номенклатуре,
             // иначе у записи пустые «Единица измерения» и «Вес единицы товара»
             unit(d) <- unit(productItem(guid3R(i))) WHERE NOT unit(d);
+        }
+
+        // ---- Даты изготовления и годности изделий из записей журнала ответа ----
+        FOR productionOrder(r) == order(ProductDetail pd) AND volume(r, pd) AND guid(StockEntry se) == guidR(INTEGER i)
+            AND in(sku(pd), productItem(guid3R(i)))
+            AND NOT [GROUP SUM 1 IF volume(r, ComponentDetail cd, StockEntry s) BY guid(s)](guidR(i)) DO {
+            manufactureDate(pd) <- dateOfProduction(se);
+            manufactureTime(pd) <- TIME(sumMinutes(toDateTime(dateOfProduction(se)), 60 * dateOfProductionHour(se)));
+            expiryDate(pd) <- expiryDate(se);
+            expiryTime(pd) <- TIME(sumMinutes(toDateTime(expiryDate(se)), 60 * expiryDateHour(se)));
         }
 
         // ВСД на исходящих производственных партиях (движение по сырьевым записям журнала)
