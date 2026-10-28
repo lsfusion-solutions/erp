@@ -65,6 +65,24 @@ nameDefaultPickingBinOrderOperation 'Операция по умолчанию д
 EXTEND FORM options PROPERTIES() nameDefaultPickingBinOrderOperation;
 DESIGN options { WMS { MOVE PROPERTY(nameDefaultPickingBinOrderOperation());} }
 
+// ------------------------------------ Автоматическое закрытие документов WMS -------------------------------------- //
+
+quantityDaysCloseWMSDocuments 'Количество дней для автоматического закрытия документов WMS' = DATA INTEGER ();
+dateCloseWMSDocuments 'Закрывать документы WMS с датой по' () = subtract(currentDate(), quantityDaysCloseWMSDocuments()) IF quantityDaysCloseWMSDocuments() > 0;
+
+autoCloseWMSDocuments 'Автоматическое закрытие документов WMS' () {
+    IF dateCloseWMSDocuments() THEN NEWSESSION {
+        isClosed(UserPickingOrder o) <- TRUE WHERE isOpened(o) AND date(o) <= dateCloseWMSDocuments() AND NOT skipClose(o);
+        isClosed(UserPicking p) <- TRUE WHERE isOpened(p) AND date(p) <= dateCloseWMSDocuments() AND NOT skipClose(p);
+        isClosed(UserBinOrder bo) <- TRUE WHERE isOpened(bo) AND date(bo) <= dateCloseWMSDocuments() AND NOT skipClose(bo);
+        isClosed(UserBinTransfer bt) <- TRUE WHERE isOpened(bt) AND date(bt) <= dateCloseWMSDocuments() AND NOT skipClose(bt);
+        APPLY;
+    }
+}
+
+EXTEND FORM options PROPERTIES() quantityDaysCloseWMSDocuments, autoCloseWMSDocuments;
+DESIGN options { WMS { MOVE PROPERTY(quantityDaysCloseWMSDocuments()); MOVE PROPERTY(autoCloseWMSDocuments());} }
+
 EXTEND CLASS Picking : BinTransfer;
 date[BinTransfer](Picking o) += date(o);
 time[BinTransfer](Picking o) += time(o);
