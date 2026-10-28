@@ -105,6 +105,28 @@ perishable 'Скоропортящаяся' = DATA BOOLEAN (VetDocument);
 origin 'Сведения о происхождении продукции' = DATA TEXT (VetDocument);
 lowGradeCargo 'Некачественный' = DATA BOOLEAN (VetDocument);
 packageList 'Список физической упаковки' = DATA TEXT (VetDocument);
+packageQuantity 'Кол-во упаковок' = DATA INTEGER (VetDocument);
+
+importedPackageLevel = DATA LOCAL INTEGER (INTEGER);
+importedPackageQuantity = DATA LOCAL INTEGER (INTEGER);
+
+FORM importPackageList FORMEXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:packageList'
+    OBJECTS p = INTEGER EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:package'
+    PROPERTIES(p) importedPackageLevel EXTID 'dt:level', importedPackageQuantity EXTID 'dt:quantity'
+;
+
+// упаковки разных уровней вложены друг в друга, поэтому считаем только самый низкий (вложенный) уровень
+fillPackageQuantity (VetDocument d) {
+    IF packageList(d) THEN {
+        stringToFile('<vd:packageList xmlns:vd="http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2" xmlns:dt="http://api.vetrf.ru/schema/cdm/dictionary/v2" xmlns:bs="http://api.vetrf.ru/schema/cdm/base">' +
+                     packageList(d) +
+                     '</vd:packageList>');
+        IMPORT importPackageList XML FROM resultFile();
+        packageQuantity(d) <- GROUP SUM importedPackageQuantity(INTEGER p)
+                                  IF NOT importedPackageLevel(p) > (GROUP MIN importedPackageLevel(INTEGER i) IF importedPackageQuantity(i));
+    } ELSE
+        packageQuantity(d) <- NULL;
+}
 
 authentication 'Результаты осмотра/исследований партии' = DATA TEXT (VetDocument);
 
@@ -143,7 +165,7 @@ FORM vetDocument 'ВСД'
                   nameProductType, guidProduct, nameProduct,
                   guidSubProduct, nameSubProduct, 
                   guidProductItem, nameProductItem, globalIDProductItem, 
-                  volume, nameUnit,
+                  volume, nameUnit, packageQuantity,
                   dateOfProduction, dateOfProductionHour,
                   expiryDate, expiryDateHour,
                   dateOfProductionXml, expiryDateXml, 
@@ -222,6 +244,7 @@ DESIGN vetDocument {
                     horizontal = TRUE;
                     MOVE PROPERTY(volume(o));                    
                     MOVE PROPERTY(nameUnit(o));                    
+                    MOVE PROPERTY(packageQuantity(o));
                 }
                 NEW dates {
                     horizontal = TRUE;
@@ -272,7 +295,7 @@ FORM vetDocuments 'ВСД'
                            nameConsignorBusinessEntity, nameConsignorEnterprise, guidConsignorEnterprise,
                            nameConsigneeBusinessEntity, nameConsigneeEnterprise, guidConsigneeEnterprise,
                            guidProductItem, nameProductItem, globalIDProductItem,
-                           volume, nameUnit, 
+                           volume, nameUnit, packageQuantity,
                            dateOfProduction, dateOfProductionHour,
                            expiryDate, expiryDateHour,
                            namePurpose, batchID
@@ -291,7 +314,7 @@ FORM dialogVetDocuments 'ВСД'
                            nameConsignorBusinessEntity, nameConsignorEnterprise, guidConsignorEnterprise,
                            nameConsigneeBusinessEntity, nameConsigneeEnterprise, guidConsigneeEnterprise,
                            guidProductItem, nameProductItem, globalIDProductItem,
-                           volume, nameUnit,
+                           volume, nameUnit, packageQuantity,
                            dateOfProduction, dateOfProductionHour,
                            expiryDate, expiryDateHour
     
