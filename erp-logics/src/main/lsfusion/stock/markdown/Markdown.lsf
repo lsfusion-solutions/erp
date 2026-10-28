@@ -729,6 +729,8 @@ activateDate 'Дата активации' = DATA DATE (StickerBarcode);
 printed 'Распечатан' = DATA BOOLEAN (StickerBarcode);
 inactive(StickerBarcode sb) = sb IS StickerBarcode AND NOT markdownDetail(sb) AND NOT printed(sb);
 
+INDEX markdownDetail(StickerBarcode b), printed(b), b;
+
 skipCheckLength = ABSTRACT BOOLEAN ();
 
 importStickerBarcodes(FILE s){
@@ -817,9 +819,9 @@ activateStickerBarcodes 'Сгенерировать QR-коды' ABSTRACT CASE (
 activateStickerBarcodes (Markdown m)+ WHEN m IS Markdown THEN {
     NEWSESSION {
         FOR markdown(MarkdownDetail md) = m AND NOT countStickerBarcodes(md) DO {
-            FOR [GROUP SUM 1 IF inactive(StickerBarcode sb1) BY sticker(sb1)](sticker(md)) >= quantityStickers(md) AND iterate(INTEGER i, 1, quantityStickers(md)) DO {
-                markdownDetail(StickerBarcode sb) <- md WHERE sb = [GROUP MIN StickerBarcode sb1 IF inactive(sb1) BY sticker(sb1)](sticker(md));
-            }
+            IF [GROUP SUM 1 IF inactive(StickerBarcode sb1) BY sticker(sb1)](sticker(md)) >= quantityStickers(md) THEN
+                markdownDetail(StickerBarcode sb) <- md WHERE inactive(sb) AND sticker(sb) = sticker(md)
+                    AND [PARTITION SUM 1 IF inactive(StickerBarcode sb1) ORDER sb1 BY sticker(sb1)](sb) <= quantityStickers(md);
         }
         APPLY;
     }
