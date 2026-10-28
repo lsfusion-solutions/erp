@@ -551,33 +551,18 @@ public class EquipmentServer {
     }
 
     private boolean isTimeToRun() {
-        boolean start = true;
-        if(equipmentServerSettings == null) {
-            start = false;
-        } else if (equipmentServerSettings.timeFrom != null && equipmentServerSettings.timeTo != null) {
-            Calendar currentCal = Calendar.getInstance();
+        if (equipmentServerSettings == null)
+            return false;
+        return isTimeToRun(LocalTime.now(), equipmentServerSettings.timeFrom, equipmentServerSettings.timeTo);
+    }
 
-            Calendar calendarFrom = Calendar.getInstance();
-            calendarFrom.setTime(localTimeToSqlTime(equipmentServerSettings.timeFrom));
-            calendarFrom.set(Calendar.DAY_OF_MONTH, currentCal.get(Calendar.DAY_OF_MONTH));
-            calendarFrom.set(Calendar.MONTH, currentCal.get(Calendar.MONTH));
-            calendarFrom.set(Calendar.YEAR, currentCal.get(Calendar.YEAR));
-
-            Calendar calendarTo = Calendar.getInstance();
-            calendarTo.setTime(localTimeToSqlTime(equipmentServerSettings.timeTo));
-            calendarTo.set(Calendar.DAY_OF_MONTH, currentCal.get(Calendar.DAY_OF_MONTH));
-            calendarTo.set(Calendar.MONTH, currentCal.get(Calendar.MONTH));
-            calendarTo.set(Calendar.YEAR, currentCal.get(Calendar.YEAR));
-            if (equipmentServerSettings.timeFrom.compareTo(equipmentServerSettings.timeTo) > 0) {
-                if(currentCal.compareTo(calendarFrom) < 0)
-                    calendarFrom.add(Calendar.DAY_OF_MONTH, -1);
-                else
-                    calendarTo.add(Calendar.DAY_OF_MONTH, 1);
-            }
-
-            start = currentCal.getTimeInMillis() >= calendarFrom.getTimeInMillis() && currentCal.getTimeInMillis() <= calendarTo.getTimeInMillis();
-        }
-        return start;
+    static boolean isTimeToRun(LocalTime now, LocalTime timeFrom, LocalTime timeTo) {
+        if (timeFrom == null || timeTo == null)
+            return true;
+        if (timeFrom.isAfter(timeTo))
+            return !now.isBefore(timeFrom) || !now.isAfter(timeTo);
+        else
+            return !now.isBefore(timeFrom) && !now.isAfter(timeTo);
     }
 
     public class TaskPool {
