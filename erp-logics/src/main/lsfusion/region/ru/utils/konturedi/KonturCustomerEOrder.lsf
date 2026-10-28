@@ -60,6 +60,7 @@ DESIGN integrationData {
 
 overReceiveMessages ABSTRACT LIST ();
 afterReceiveMessage ABSTRACT LIST (Message);
+failedReceiveMessage ABSTRACT LIST (Message, TEXT); // сообщение и текст ошибки обработки
 
 importAnswersKontur 'Прием ответов' () {
     overReceiveMessages();
@@ -500,6 +501,7 @@ overReceiveMessages () + {
                 afterReceiveMessage(m);
                 APPLY;
             } CATCH {
+                failedReceiveMessage(m, messageCaughtException());
                 MESSAGE 'Ошибка при импорте ответа по заказу ' + nameFile(m) +'. Обратитесь к администратору' NOWAIT;
                 responsesFailed() <- responsesFailed() + 1;
                 dateTimeProcessed(m) <- currentDateTime();
@@ -619,6 +621,7 @@ overReceiveMessages() + {
                 afterReceiveMessage(m);
                 APPLY;
             } CATCH {
+                failedReceiveMessage(m, messageCaughtException());
                 MESSAGE 'Ошибка при импорте уведомления об отгрузке ' + nameFile(m) + '. Обратитесь к администратору' NOWAIT;
                 despatchAdvicesFailed() <- despatchAdvicesFailed() + 1;
                 dateTimeProcessed(m) <- currentDateTime();
