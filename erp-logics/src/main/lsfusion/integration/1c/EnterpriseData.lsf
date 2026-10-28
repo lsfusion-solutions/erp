@@ -511,7 +511,7 @@ DESIGN integrationData {
                     caption = 'Лог';
                     showIf = createImport1CLog(c);
                     MOVE BOX(log){fill = 2;}
-                    MOVE PROPERTY (text(log)){panelCaptionVertical = TRUE;alignment = STRETCH;}
+                    MOVE PROPERTY (text(log)){captionVertical = TRUE;alignment = STRETCH;}
                 }
             }
         }
@@ -598,20 +598,20 @@ META defPropObjectDetail(name, caption, type, class, table)
     @defPropObjectDetail(name, caption, type, class, table, name###table);
 END
 
-META defPropId(name, caption, type, class)
-    @defProp(name, caption, ###type, ###class);
-    id###name###class caption = DATA LOCAL STRING (INTEGER);
-    name###class caption (INTEGER i) = type(id###name###class(i)); 
-    id###name###class caption (###class class, Configuration configuration) = staticCaption(name(class, configuration));
-    EXTEND FORM sendMessage PROPERTIES id###name###class(class, configuration) EXTID caption;
-    EXTEND FORM receiveMessage PROPERTIES id###name###class(class) EXTID caption;
+META defPropId(name, cap, type, class)
+    @defProp(name, cap, ###type, ###class);
+    id###name###class cap = DATA LOCAL STRING (INTEGER);
+    name###class cap (INTEGER i) = type(id###name###class(i)); 
+    id###name###class cap (###class class, Configuration configuration) = caption(name(class, configuration));
+    EXTEND FORM sendMessage PROPERTIES id###name###class(class, configuration) EXTID cap;
+    EXTEND FORM receiveMessage PROPERTIES id###name###class(class) EXTID cap;
 END
 
-META defPropIdDetail(name, caption, type, class, table)
-    @defPropDetail(name, caption, type, class, table);
-    id###name###class###table caption (###class###table class###table, Configuration configuration) = staticCaption(name(class###table, configuration));
+META defPropIdDetail(name, cap, type, class, table)
+    @defPropDetail(name, cap, type, class, table);
+    id###name###class###table cap (###class###table class###table, Configuration configuration) = caption(name(class###table, configuration));
     EXTEND FORM sendMessage
-        PROPERTIES (class###table, configuration) id###name###class###table EXTID caption
+        PROPERTIES (class###table, configuration) id###name###class###table EXTID cap
     ;
 END
 
@@ -796,8 +796,8 @@ META extDocument(doctype, caption, ver, deleteCaption)
     @extDeleteObject(doctype, deleteCaption##'Ссылка', ver);
     overReceive(Configuration c) + {
         FOR EnterpriseData e = object(uid###doctype(INTEGER i)) AND NOT e IS ###doctype DO {
-            logToFile('ed', CONCAT ' ', uid###doctype(i), objectClassName(e), 'Документ.'##caption);            
-            text(log1C(c))<- CONCAT '\n',text(log1C(c)), (CONCAT ' ', 'Ошибка данных', uid###doctype(i), objectClassName(e), 'Документ.'##caption);
+            logToFile('ed', CONCAT ' ', uid###doctype(i), className(e), 'Документ.'##caption);            
+            text(log1C(c))<- CONCAT '\n',text(log1C(c)), (CONCAT ' ', 'Ошибка данных', uid###doctype(i), className(e), 'Документ.'##caption);
         }
     }
 END
@@ -846,8 +846,8 @@ META extReference(reftype, capt)
 
     overReceive(Configuration c) + {
         FOR EnterpriseData e = object(uid###reftype(INTEGER i)) AND NOT e IS ###reftype DO {
-            logToFile('ed', CONCAT ' ', uid###reftype(i), objectClassName(e), 'Справочник.'##capt);
-            text(log1C(c))<- CONCAT '\n', text(log1C(c)), (CONCAT ' ', 'Ошибка данных', uid###reftype(i), objectClassName(e), 'Справочник.'##capt);
+            logToFile('ed', CONCAT ' ', uid###reftype(i), className(e), 'Справочник.'##capt);
+            text(log1C(c))<- CONCAT '\n', text(log1C(c)), (CONCAT ' ', 'Ошибка данных', uid###reftype(i), className(e), 'Справочник.'##capt);
         }
     }
 END
@@ -858,13 +858,13 @@ END
 //    id (STRING s) = GROUP AGGR ###id id BY name(id);
 //END
 
-META defStaticType (id, caption)
-    CLASS ###id caption;
+META defStaticType (id, cap)
+    CLASS ###id cap;
     TABLE ###id (###id);
     dataName '{master.data.name}' = DATA BPISTRING[100](###id);
-    name '{master.data.name}' (###id o) = (OVERRIDE dataName(o), staticCaption(o) IF o IS ###id) CHARWIDTH 15;
+    name '{master.data.name}' (###id o) = (OVERRIDE dataName(o), caption(o) IF o IS ###id) CHARWIDTH 15;
 
-    FORM dialog###id##s caption
+    FORM dialog###id##s cap
         OBJECTS o = ###id
         PROPERTIES(o) READONLY name
 

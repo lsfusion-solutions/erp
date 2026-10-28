@@ -61,7 +61,7 @@ CLASS WbStatus {
     cancel_shelf_life 'Отмена по истечении срока хранения'
 }
 
-wbStatus (STRING str) = GROUP MAX WbStatus s IF staticName(s) == 'WB_WbStatus.' + str;
+wbStatus (STRING str) = GROUP MAX WbStatus s IF name[StaticObject](s) == 'WB_WbStatus.' + str;
 customStatusIntenetOrder = ABSTRACT CASE StatusInternetOrder (WbStatus);
 statusInternetOrder(WbStatus ws) =
     CASE WHEN ws = WbStatus.new AND NOT customStatusIntenetOrder(ws) THEN StatusInternetOrder.new
@@ -99,10 +99,10 @@ CLASS WbSystemStatus {
     canceled_by_carrier 'Отменен перевозчиком'
 }
 
-wbSystemStatus (STRING str) = GROUP MAX WbSystemStatus s IF staticName(s) == 'WB_WbSystemStatus.' + str;
+wbSystemStatus (STRING str) = GROUP MAX WbSystemStatus s IF name[StaticObject](s) == 'WB_WbSystemStatus.' + str;
 
 wbStatus = DATA WbStatus(InternetOrder);
-nameWbStatus 'Статус WB' (InternetOrder o) = staticCaption(wbStatus(o));
+nameWbStatus 'Статус WB' (InternetOrder o) = caption(wbStatus(o));
 
 wbSystemStatus = DATA WbSystemStatus (InternetOrder);
 nameWbSystemStatus 'Системный статус WB' (InternetOrder o) = caption(wbSystemStatus(o));
@@ -146,7 +146,7 @@ CLASS StickerType 'Тип стикера' {
 
 dataStickerType = DATA StickerType ();
 stickerType () = OVERRIDE dataStickerType(), StickerType.svg;
-nameStickerType 'Тип стикера' () = staticCaption(stickerType());
+nameStickerType 'Тип стикера' () = caption(stickerType());
 
 CLASS StickerSize 'Размер стикера' {
     s58x40 '580x400',
@@ -155,7 +155,7 @@ CLASS StickerSize 'Размер стикера' {
 
 dataStickerSize = DATA StickerSize ();
 stickerSize 'Размер стикера' () = OVERRIDE dataStickerSize(), StickerSize.s58x40;
-nameStickerSize 'Размер стикера' () = staticCaption(stickerSize());
+nameStickerSize 'Размер стикера' () = caption(stickerSize());
 
 EXTEND FORM options
     PROPERTIES nameStickerType(), nameStickerSize()
@@ -201,9 +201,9 @@ CLASS OrderMeta 'Тип метаданных' {
     expiration 'Срок годности'
 }
 
-orderMetaByName 'Тип меты по имени' (STRING str) = GROUP MAX OrderMeta m IF staticName(m) == 'WB_OrderMeta.' + str;
+orderMetaByName 'Тип меты по имени' (STRING str) = GROUP MAX OrderMeta m IF name[StaticObject](m) == 'WB_OrderMeta.' + str;
 
-apiMetaName 'Имя меты в WB' (OrderMeta m) = replace(staticName(m), 'WB_OrderMeta.', '');
+apiMetaName 'Имя меты в WB' (OrderMeta m) = replace(name[StaticObject](m), 'WB_OrderMeta.', '');
 
 requiredMeta 'Обязательная мета' = DATA BOOLEAN (InternetOrderDetail, OrderMeta);
 optionalMeta 'Опциональная мета' = DATA BOOLEAN (InternetOrderDetail, OrderMeta);
@@ -232,7 +232,7 @@ id 'ID' = DATA STRING (OrderMetaStatus);
 name 'Название' = DATA STRING (OrderMetaStatus);
 validated 'Валидация пройдена' = DATA BOOLEAN (OrderMetaStatus);
 orderMeta 'Тип меты' = DATA OrderMeta (OrderMetaStatus);
-nameOrderMeta 'Тип меты' (OrderMetaStatus s) = staticCaption(orderMeta(s));
+nameOrderMeta 'Тип меты' (OrderMetaStatus s) = caption(orderMeta(s));
 
 orderMetaStatusById (OrderMeta m, STRING idStr) =
     GROUP MAX OrderMetaStatus s IF id(s) == idStr AND orderMeta(s) == m;
