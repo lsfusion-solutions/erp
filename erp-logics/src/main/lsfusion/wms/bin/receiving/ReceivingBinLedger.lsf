@@ -50,7 +50,7 @@ FORM receivingStatus 'Статус'
 ;
 
 status = DATA ReceivingStatus (Receiving);
-nameStatus 'Статус' (Receiving r) = staticCaption(status(r)) IN documentPrm CHARWIDTH 8;
+nameStatus 'Статус' (Receiving r) = caption(status(r)) IN documentPrm CHARWIDTH 8;
 
 completeStatus (Receiving r) = status(r) == ReceivingStatus.partiallyReceived OR status(r) == ReceivingStatus.fullyReceived MATERIALIZED;
 open(Receiving r) = status(r) == ReceivingStatus.pending OR status(r) == ReceivingStatus.inProgress MATERIALIZED;
@@ -522,13 +522,13 @@ DESIGN receiving {
     MOVE BOX(u){
         PROPERTY(name(u)) {
             font = 'bold 24';
-            panelCaptionVertical = TRUE;
+            captionVertical = TRUE;
             focusable = FALSE;
             charWidth = 30;
         }
         PROPERTY(nameReceivingBin(u)) {
             font = 'bold 24';
-            panelCaptionVertical = TRUE;
+            captionVertical = TRUE;
             charWidth = 30;
         }
     }
@@ -1086,7 +1086,7 @@ EXTEND CLASS TypeChange {
 WHEN SET(Receiving o IS Receiving) IF NOT disableDocumentLog() DO {
     NEW d = DocumentLog {
         documentId(d) <- LONG(o);
-        typeDocument(d) <- objectClassName(o);
+        typeDocument(d) <- className(o);
         numberDocument(d) <- number(o);
         seriesDocument(d) <- series(o);
         dateDocument(d) <- date(o);
@@ -1103,7 +1103,7 @@ WHEN SET(Receiving o IS Receiving) IF NOT disableDocumentLog() DO {
 WHEN DROPPED(Receiving o IS Receiving) IF NOT disableDocumentLog() DO {
     NEW d = DocumentLog {
         documentId(d) <- LONG(PREV(o AS Document));
-        typeDocument(d) <- prevObjectClassName(o);
+        typeDocument(d) <- prevClassName(o);
         numberDocument(d) <- PREV(number(o));
         seriesDocument(d) <- PREV(series(o));
         dateDocument(d) <- PREV(date(o));
@@ -1120,7 +1120,7 @@ WHEN DROPPED(Receiving o IS Receiving) IF NOT disableDocumentLog() DO {
 WHEN CHANGED(GRDateTime(Receiving o)) AND o IS Receiving AND NOT SET(o IS Receiving) AND NOT disableDocumentLog() DO {
     NEW d = DocumentLog {
         documentId(d) <- LONG(o);
-        typeDocument(d) <- objectClassName(o);
+        typeDocument(d) <- className(o);
         numberDocument(d) <- number(o);
         seriesDocument(d) <- series(o);
         dateDocument(d) <- date(o);
@@ -1138,7 +1138,7 @@ WHEN CHANGED(GRDateTime(Receiving o)) AND o IS Receiving AND NOT SET(o IS Receiv
 WHEN (INTEGER x== [GROUP SUM 1 IF SET(ReceivingDetail d IS ReceivingDetail) BY receiving(d)](Receiving o)) IF NOT disableDocumentLog() DO {
     NEW d = DocumentLog {
         documentId(d) <- LONG(o);
-        typeDocument(d) <- objectClassName(o);
+        typeDocument(d) <- className(o);
         numberDocument(d) <- number(o);
         seriesDocument(d) <- series(o);
         dateDocument(d) <- date(o);
@@ -1156,7 +1156,7 @@ WHEN (INTEGER x== [GROUP SUM 1 IF SET(ReceivingDetail d IS ReceivingDetail) BY r
 WHEN INTEGER x==[ GROUP SUM 1 IF DROPPED(ReceivingDetail d IS ReceivingDetail) BY PREV(receiving(d))](Receiving o) AND o IS Receiving AND NOT disableDocumentLog() NOINLINE DO {
     NEW d = DocumentLog {
         documentId(d) <- LONG(o);
-        typeDocument(d) <- objectClassName(o);
+        typeDocument(d) <- className(o);
         numberDocument(d) <- number(o);
         seriesDocument(d) <- series(o);
         dateDocument(d) <- date(o);

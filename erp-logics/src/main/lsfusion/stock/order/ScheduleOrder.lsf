@@ -42,7 +42,7 @@ startDate 'Дата начала' = ABSTRACT DATE (ScheduleOrder) IN base;
 endDate 'Дата окончания' = ABSTRACT DATE (ScheduleOrder) IN base;
 
 type 'Тип генерации графика' = ABSTRACT GenType (ScheduleOrder);
-nameType 'Тип генерации графика' (ScheduleOrder scheduleOrder) = staticCaption(type(scheduleOrder)) IN base;
+nameType 'Тип генерации графика' (ScheduleOrder scheduleOrder) = caption(type(scheduleOrder)) IN base;
 
 supplier = ABSTRACT LegalEntity(ScheduleOrder);
 nameSupplier 'Поставщик' (ScheduleOrder scheduleOrder) = name(supplier(scheduleOrder)) IN base;
@@ -66,7 +66,7 @@ countDaysPreOrders 'Кол-во дней для предварительных �
 addScheduleOrderDetail 'Сгенерировать заказы по графикам без даты окончания'  ABSTRACT LIST ( ) IN schedule;
 
 defaultGenType = DATA GenType ();
-nameDefaultGenType 'Тип генерации (по умолчанию)' ()= staticCaption(defaultGenType()) IN schedule;
+nameDefaultGenType 'Тип генерации (по умолчанию)' ()= caption(defaultGenType()) IN schedule;
 
 allowNotCustomer 'Разрешить графики без покупателя' = DATA BOOLEAN ();
 
@@ -94,7 +94,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     //общие свойства
     type 'Тип генерации графика (ИД)' = DATA GenType (ScheduleOrder);
     type(ScheduleOrder scheduleOrder) += type(scheduleOrder);
-    nameType 'Тип генерации графика' (ScheduleOrder scheduleOrder) = staticCaption(type(scheduleOrder)) IN base;
+    nameType 'Тип генерации графика' (ScheduleOrder scheduleOrder) = caption(type(scheduleOrder)) IN base;
     type(ScheduleOrder o) <- defaultGenType() WHEN SET(o IS ScheduleOrder);
     
     supplier 'Поставщик (ИД)' = DATA LegalEntity(ScheduleOrder) INDEXED;
@@ -186,7 +186,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     //свойства "По числам"
     stringNumber 'Числа месяца поставок (указывать через запятую)' = DATA STRING[100] (ScheduleOrder);
     transferDay 'День на который переносить поставки с Субботы и Воскресенья (ИД)' = DATA DOW (ScheduleOrder);
-    nameTransferDay 'День на который переносить поставки с Субботы и Воскресенья' (ScheduleOrder scheduleOrder) = staticCaption(transferDay(scheduleOrder));
+    nameTransferDay 'День на который переносить поставки с Субботы и Воскресенья' (ScheduleOrder scheduleOrder) = caption(transferDay(scheduleOrder));
     CONSTRAINT transferDay(ScheduleOrder scheduleOrder) != DOW.friday AND transferDay(scheduleOrder) != DOW.monday CHECKED MESSAGE 'Выберите день с ПН по ПТ';
 
     //свойства "По дням недели и месяца"
@@ -204,10 +204,10 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     scheduleOrder 'График заказов' = DATA ScheduleOrder (ScheduleOrderTime) NONULL DELETE;
     
     orderDOW 'День недели заказа' = DATA DOW (ScheduleOrderTime) NONULL;
-    orderNameDOW 'День недели заказа' (ScheduleOrderTime d) = staticCaption(orderDOW(d)) IN id CHARWIDTH 15;
+    orderNameDOW 'День недели заказа' (ScheduleOrderTime d) = caption(orderDOW(d)) IN id CHARWIDTH 15;
     
     shipmentDOW 'День недели поставки' = DATA DOW (ScheduleOrderTime) NONULL;
-    shipmentNameDOW 'День недели поставки' (ScheduleOrderTime d) = staticCaption(shipmentDOW(d)) IN id CHARWIDTH 15;
+    shipmentNameDOW 'День недели поставки' (ScheduleOrderTime d) = caption(shipmentDOW(d)) IN id CHARWIDTH 15;
 
     shipmentWeeks 'Кол-во недель до поставки' = DATA INTEGER (ScheduleOrderTime);
     shipmentTime 'Кол-во дней до поставки' (ScheduleOrderTime d) = OVERRIDE distanceDOWDOW(orderDOW(d), shipmentDOW(d)) (+) ((OVERRIDE shipmentWeeks(d),0 IF d IS ScheduleOrderTime)*7), 
@@ -915,7 +915,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     dateTime 'Время изменения' = DATA DATETIME (ScheduleOrderDetailLog);
     
     typeChange= DATA TypeChange (ScheduleOrderDetailLog);
-    nameTypeChange 'Тип изменения' (ScheduleOrderDetailLog l) = staticCaption(typeChange(l));
+    nameTypeChange 'Тип изменения' (ScheduleOrderDetailLog l) = caption(typeChange(l));
     
     WHEN SET(ScheduleOrderDetail d IS ScheduleOrderDetail) DO {
         NEW l = ScheduleOrderDetailLog {

@@ -1471,7 +1471,7 @@ CLASS TypeChange 'Тип изменения' {
 }
 
 typeChange= DATA TypeChange (DocumentLog);
-nameTypeChange 'Тип изменения' (DocumentLog l) = staticCaption(typeChange(l)) IN id CHARWIDTH 25;
+nameTypeChange 'Тип изменения' (DocumentLog l) = caption(typeChange(l)) IN id CHARWIDTH 25;
 
 note 'Примечание' = DATA STRING[255] (DocumentLog) CHARWIDTH 30;
 
@@ -1482,7 +1482,7 @@ showFile = TRUE IF file(DocumentLog dLog);
 WHEN SET(Document o IS Document) IF NOT disableDocumentLog() DO {
     NEW d = DocumentLog {
         documentId(d) <- LONG(o);
-        typeDocument(d) <- objectClassName(o);
+        typeDocument(d) <- className(o);
         numberDocument(d) <- number(o);  
         seriesDocument(d) <- series(o); 
         dateDocument(d) <- date(o);   
@@ -1499,7 +1499,7 @@ WHEN SET(Document o IS Document) IF NOT disableDocumentLog() DO {
 WHEN DROPPED(Document o IS Document) IF NOT disableDocumentLog() DO {
     NEW d = DocumentLog {       
         documentId(d) <- LONG(PREV(o AS Document));
-        typeDocument(d) <- prevObjectClassName(o);
+        typeDocument(d) <- prevClassName(o);
         numberDocument(d) <- PREV(number(o));  
         seriesDocument(d) <- PREV(series(o)); 
         dateDocument(d) <- PREV(date(o));   
@@ -1517,7 +1517,7 @@ WHEN DROPPED(Document o IS Document) IF NOT disableDocumentLog() DO {
 WHEN (CHANGED(number(Document o)) OR CHANGED(series(o))) AND o IS Document AND NOT SET(o IS Document) AND NOT disableDocumentLog()  DO {
     NEW d = DocumentLog {
         documentId(d) <- LONG(o);
-        typeDocument(d) <- objectClassName(o);
+        typeDocument(d) <- className(o);
         numberDocument(d) <- number(o);  
         seriesDocument(d) <- series(o); 
         dateDocument(d) <- date(o);   
@@ -1535,7 +1535,7 @@ WHEN (CHANGED(number(Document o)) OR CHANGED(series(o))) AND o IS Document AND N
 WHEN (INTEGER x== [GROUP SUM 1 IF SET(DocumentDetail d IS DocumentDetail) BY document(d)](Document o)) IF NOT disableDocumentLog() DO {
     NEW d = DocumentLog {
         documentId(d) <- LONG(o);
-        typeDocument(d) <- objectClassName(o);
+        typeDocument(d) <- className(o);
         numberDocument(d) <- number(o);  
         seriesDocument(d) <- series(o); 
         dateDocument(d) <- date(o);   
@@ -1553,7 +1553,7 @@ WHEN (INTEGER x== [GROUP SUM 1 IF SET(DocumentDetail d IS DocumentDetail) BY doc
 WHEN INTEGER x==[ GROUP SUM 1 IF DROPPED(DocumentDetail d IS DocumentDetail) BY PREV(document(d))](Document o) AND o IS Document AND NOT disableDocumentLog() NOINLINE DO {
     NEW d = DocumentLog {
         documentId(d) <- LONG(o);
-        typeDocument(d) <- objectClassName(o);
+        typeDocument(d) <- className(o);
         numberDocument(d) <- number(o);  
         seriesDocument(d) <- series(o); 
         dateDocument(d) <- date(o);   
@@ -1571,7 +1571,7 @@ WHEN INTEGER x==[ GROUP SUM 1 IF DROPPED(DocumentDetail d IS DocumentDetail) BY 
 WHEN CHANGED(supplierStock(Document o)) AND o IS Document AND NOT SET(o IS Document) AND NOT disableDocumentLog()  DO {
     NEW d = DocumentLog {
         documentId(d) <- LONG(o);
-        typeDocument(d) <- objectClassName(o);
+        typeDocument(d) <- className(o);
         numberDocument(d) <- number(o);  
         seriesDocument(d) <- series(o); 
         dateDocument(d) <- date(o);   
@@ -1589,7 +1589,7 @@ WHEN CHANGED(supplierStock(Document o)) AND o IS Document AND NOT SET(o IS Docum
 WHEN CHANGED(customerStock(Document o)) AND o IS Document AND NOT SET(o IS Document) AND NOT disableDocumentLog()  DO {
     NEW d = DocumentLog {
         documentId(d) <- LONG(o);
-        typeDocument(d) <- objectClassName(o);
+        typeDocument(d) <- className(o);
         numberDocument(d) <- number(o);  
         seriesDocument(d) <- series(o); 
         dateDocument(d) <- date(o);   
@@ -1607,7 +1607,7 @@ WHEN CHANGED(customerStock(Document o)) AND o IS Document AND NOT SET(o IS Docum
 WHEN (CHANGED(isPosted(Document o))) AND o IS Document AND NOT disableDocumentLog()  DO {
     NEW d = DocumentLog {
         documentId(d) <- LONG(o);
-        typeDocument(d) <- objectClassName(o);
+        typeDocument(d) <- className(o);
         numberDocument(d) <- number(o);  
         seriesDocument(d) <- series(o); 
         dateDocument(d) <- date(o);   
@@ -1625,7 +1625,7 @@ WHEN (CHANGED(isPosted(Document o))) AND o IS Document AND NOT disableDocumentLo
 WHEN CHANGED(isClosed(Document o)) AND o IS Document AND NOT disableDocumentLog()  DO {
     NEW d = DocumentLog {
         documentId(d) <- LONG(o);
-        typeDocument(d) <- objectClassName(o);
+        typeDocument(d) <- className(o);
         numberDocument(d) <- number(o);  
         seriesDocument(d) <- series(o); 
         dateDocument(d) <- date(o);   
@@ -1643,7 +1643,7 @@ WHEN CHANGED(isClosed(Document o)) AND o IS Document AND NOT disableDocumentLog(
 WHEN CHANGED(date(Document o)) AND o IS Document AND NOT SET(o IS Document) AND NOT disableDocumentLog()  DO {
     NEW d = DocumentLog {
         documentId(d) <- LONG(o);
-        typeDocument(d) <- objectClassName(o);
+        typeDocument(d) <- className(o);
         numberDocument(d) <- number(o);  
         seriesDocument(d) <- series(o); 
         dateDocument(d) <- date(o);   
@@ -1702,7 +1702,7 @@ WHEN  SET(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO
         numberDocument(l) <- number(document(d));
         seriesDocument(l) <- series(document(d));
         dateDocument(l) <- date(document(d));
-        typeDocument(l) <- objectClassName(document(d));
+        typeDocument(l) <- className(document(d));
         sku(l) <- sku(d);
         batch(l) <- CONCAT ', ', 'Код: ' + id(batch(d)), ' Наименование: ' + baseName(d); 
         quantity(l) <- quantity(d);
@@ -1722,7 +1722,7 @@ WHEN (CHANGED(price(DocumentDetail d)) OR CHANGED(quantity(d))  OR CHANGED(batch
         numberDocument(l) <- number(document(d));
         seriesDocument(l) <- series(document(d));
         dateDocument(l) <- date(document(d));
-        typeDocument(l) <- objectClassName(document(d));
+        typeDocument(l) <- className(document(d));
         sku(l) <- sku(d);
         batch(l) <- CONCAT ', ', 'Код: ' + id(batch(d)), ' Наименование: ' + baseName(d);
         prevQuantity(l) <- PREV(quantity(d)); 
@@ -1743,7 +1743,7 @@ WHEN DROPPED(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO
         numberDocument(l) <- PREV(number(document(d)));
         seriesDocument(l) <- PREV(series(document(d)));
         dateDocument(l) <- PREV(date(document(d)));
-        typeDocument(l) <- prevObjectClassName(PREV(document(d)));
+        typeDocument(l) <- prevClassName(PREV(document(d)));
         sku(l) <- PREV(sku(d));
         batch(l) <- CONCAT ', ', 'Код: ' + id(PREV(batch(d))), ' Наименование: ' + baseName(PREV(batch(d)));
         quantity(l) <- PREV(quantity(d));
