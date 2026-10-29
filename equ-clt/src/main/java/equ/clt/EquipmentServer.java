@@ -1,6 +1,5 @@
 package equ.clt;
 
-import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.CashRegisterHandler;
 import equ.api.scales.ScalesHandler;
@@ -30,7 +29,9 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static equ.clt.ProcessMonitorEquipmentServer.removeInterruptedTransaction;
 
@@ -51,31 +52,14 @@ public class EquipmentServer {
     EquipmentServerSettings equipmentServerSettings;
 
     TaskPool taskPool;
-    Consumer processTransactionConsumer;
-    Thread processTransactionThread;
 
-    private Consumer processStopListConsumer;
-    private Thread processStopListThread;
-
-    private Consumer processDeleteBarcodeConsumer;
-    private Thread processDeleteBarcodeThread;
-
-    private Consumer sendSalesConsumer;
-    private Thread sendSalesThread;
-
-    private Consumer sendTerminalDocumentConsumer;
-    private Thread sendTerminalDocumentThread;
-
-    private Consumer machineryExchangeConsumer;
-    private Thread machineryExchangeThread;
-
-    private Consumer processMonitorConsumer;
-    private Thread processMonitorThread;
+    //periodic jobs (reading transactions, stop-lists, sales etc.), each job in its own thread and never in parallel with itself
+    private final AtomicReference<ScheduledExecutorService> jobsExecutor = new AtomicReference<>(); //is also stopped from the thread calling stop()
 
     ExecutorService singleTransactionExecutor;
     List<Future> futures;
 
-    boolean needReconnect = false;
+    volatile boolean needReconnect = false; //set by periodic jobs, read by the main cycle
 
     //depend only on the modules of the server, so they can change only after server restart (and reconnect)
     private boolean enabledStopListInfo;
@@ -103,14 +87,16 @@ public class EquipmentServer {
                 transactionThreadCount = transactionThreadCount == null ? 20 : transactionThreadCount;
                 int millis = 10000;
                 int sendSalesDelay = 0;
-                int sendSalesDelayCounter = -1;
-                               
-                while (true) {
+
+                while (!Thread.currentThread().isInterrupted()) { //stop()
 
                     try {
-                        
+
                         if(needReconnect) {
                             remote = null;
+                            stopJobs(); //otherwise they keep working with the old remote until reconnect
+                            if (Thread.currentThread().isInterrupted()) //stop() during stopJobs
+                                break;
                             needReconnect = false;
                         }
                         
@@ -131,6 +117,10 @@ public class EquipmentServer {
                                     if(serverVersion != clientVersion) {
                                         equipmentLogger.error(String.format("Versions of the server (%s) and the equ (%s) do not match. Need to update %s. Equ will be stopped.",
                                                 serverVersion, clientVersion, serverVersion < clientVersion ? "server" : "equ"));
+                                        //after reconnect jobs and workers of the previous connection are still running
+                                        stopJobs();
+                                        if (singleTransactionExecutor != null)
+                                            singleTransactionExecutor.shutdownNow();
                                         break;
                                     }
 
@@ -151,10 +141,11 @@ public class EquipmentServer {
                                     enabledDeleteBarcodeInfo = remote.enabledDeleteBarcodeInfo();
                                     enabledTerminalInfo = remote.enabledTerminalInfo();
 
-                                    initDaemonThreads(remote, sidEquipmentServer, millis);
+                                    initDaemonThreads(remote, sidEquipmentServer, millis, sendSalesDelay);
                                     
                                 } catch (RemoteException e) {
                                     equipmentLogger.error("Get remote logics error : ", e);
+                                    remote = null; //initialization is not finished, it will be repeated in the next cycle
                                 }
                             }
                         }
@@ -162,54 +153,15 @@ public class EquipmentServer {
                         if (remote != null) {
                             //checks the connection: if the server has been restarted, exception leads to reconnect
                             remote.getEquApiVersion();
-
-                            processTransactionConsumer.scheduleIfNotScheduledYet();
-
-                            if(!disableStopLists && enabledStopListInfo)
-                                processStopListConsumer.scheduleIfNotScheduledYet();
-
-                            if(enabledDeleteBarcodeInfo)
-                                processDeleteBarcodeConsumer.scheduleIfNotScheduledYet();
-
-                            if(!disableSales) {
-                                if (sendSalesDelay == 0 || sendSalesDelayCounter >= sendSalesDelay || sendSalesDelayCounter == -1) {
-                                    sendSalesConsumer.scheduleIfNotScheduledYet();
-                                    sendSalesDelayCounter = 0;
-                                } else {
-                                    sendSalesDelayCounter++;
-                                }
-                            }
-
-                            if(enabledTerminalInfo)
-                                sendTerminalDocumentConsumer.scheduleIfNotScheduledYet();
-
-                            machineryExchangeConsumer.scheduleIfNotScheduledYet();
-
-                            processMonitorConsumer.scheduleIfNotScheduledYet();
-
-                            if(singleTransactionExecutor.isShutdown())
-                                singleTransactionExecutor = Executors.newFixedThreadPool(transactionThreadCount);
                         }
 
                     } catch (Exception e) {
                         equipmentLogger.error("Unhandled exception in main cycle: ", e);
                         remote = null;
-                        interruptThread(processTransactionThread);
-                        processTransactionThread = null;
-                        interruptThread(processStopListThread);
-                        processStopListThread = null;
-                        interruptThread(processDeleteBarcodeThread);
-                        processDeleteBarcodeThread = null;
-                        interruptThread(sendSalesThread);
-                        sendSalesThread = null;
-                        interruptThread(sendTerminalDocumentThread);
-                        sendTerminalDocumentThread = null;
-                        interruptThread(machineryExchangeThread);
-                        machineryExchangeThread = null;
-                        interruptThread(processMonitorThread);
-                        processMonitorThread = null;
+                        stopJobs();
 
-                        singleTransactionExecutor.shutdown();
+                        if (singleTransactionExecutor != null)
+                            singleTransactionExecutor.shutdown();
                         singleTransactionExecutor = null;
                         if(futures != null)
                             for(Future future : futures) {
@@ -230,177 +182,132 @@ public class EquipmentServer {
         thread.start();
     }
 
-    private void initDaemonThreads(final EquipmentServerInterface remote, final String sidEquipmentServer, final long millis) {
+    private void initDaemonThreads(final EquipmentServerInterface remote, final String sidEquipmentServer, final long millis, int sendSalesDelay) {
 
-        taskPool = new TaskPool(remote, sidEquipmentServer);
-        processTransactionConsumer = new Consumer() {
-            @Override
-            void runTask() throws Exception {
-                if(isTimeToRun()) {
-                    processTransactionLogger.info("ReadTransactionInfo started");
-                    try {
-                        taskPool.addTasks(remote.readTransactionInfo(sidEquipmentServer));
-                    } catch (Exception e) {
-                        processTransactionLogger.error("ReadTransactionInfo error: ", e);
-                        throw Throwables.propagate(e);
-                    }
-                    processTransactionLogger.info("ReadTransactionInfo finished");
-                }
-            }
-        };
-        processTransactionThread = new Thread(processTransactionConsumer);
-        processTransactionThread.setDaemon(true);
-        processTransactionThread.start();
-        singleTransactionExecutor = Executors.newFixedThreadPool(transactionThreadCount);
-        futures = new ArrayList<>();
-        for (int i = 0; i < transactionThreadCount; i++) {
-            futures.add(singleTransactionExecutor.submit(() -> {
-                while (!Thread.currentThread().isInterrupted() && !singleTransactionExecutor.isShutdown()) {
-                    try {
-                        SingleTransactionTask task = taskPool.getTask(millis);
-                        if (task != null) {
-                            equipmentLogger.info("task group started: " + task.groupId);
-                            task.run();
-                            equipmentLogger.info("task group done: " + task.groupId);
+        stopJobs(); //jobs of the previous connection are normally already stopped by the main cycle
+        jobsExecutor.set(Executors.newScheduledThreadPool(7, new DaemonThreadFactory("EquipmentServerJob"))); //at most 7 jobs
+
+        if (singleTransactionExecutor != null && !singleTransactionExecutor.isShutdown()) {
+            //reconnect after ConnectException in a job: workers and the queue are kept (they may be sending transactions now),
+            //the next tasks are created with the new remote
+            taskPool.setRemote(remote);
+        } else {
+            TaskPool pool = new TaskPool(remote, sidEquipmentServer);
+            taskPool = pool;
+            //workers use their own executor and pool: the fields are replaced after restart of the main cycle
+            ExecutorService executor = Executors.newFixedThreadPool(transactionThreadCount);
+            singleTransactionExecutor = executor;
+            futures = new ArrayList<>();
+            for (int i = 0; i < transactionThreadCount; i++) {
+                futures.add(executor.submit(() -> {
+                    while (!Thread.currentThread().isInterrupted() && !executor.isShutdown()) {
+                        try {
+                            SingleTransactionTask task = pool.getTask(millis);
+                            if (task != null) {
+                                equipmentLogger.info("task group started: " + task.groupId);
+                                try {
+                                    task.run();
+                                } finally {
+                                    //interrupt of a transaction by ProcessMonitor (notInterruptedTransaction) mustn't stop the worker
+                                    if (!executor.isShutdown())
+                                        Thread.interrupted();
+                                }
+                                equipmentLogger.info("task group done: " + task.groupId);
+                            }
+                        } catch (InterruptedException e) {
+                            //shutdown or future.cancel(true)
+                            Thread.currentThread().interrupt();
+                            break;
+                        } catch (Throwable t) { //Throwable: errors of handlers (e.g. NoClassDefFoundError) mustn't kill the worker
+                            equipmentLogger.error("Unhandled exception in singleTransactionExecutor: ", t);
                         }
-                    } catch (InterruptedException e) {
-                        //shutdown or future.cancel(true)
-                        Thread.currentThread().interrupt();
-                        break;
-                    } catch (Exception e) {
-                        equipmentLogger.error("Unhandled exception in singleTransactionExecutor: ", e);
                     }
-                }
-            }));
+                }));
+            }
         }
 
-        if(!disableStopLists) {
-            processStopListConsumer = new Consumer() {
-                @Override
-                void runTask() throws Exception {
-                    try {
-                        if (isTimeToRun())
-                            StopListEquipmentServer.processStopListInfo(remote);
-                    } catch (ConnectException e) {
-                        processStopListLogger.error("Connect Exception: ", e);
-                        needReconnect = true;
-                    } catch (UnmarshalException e) {
-                        if (e.getCause() instanceof InvalidClassException)
-                            processStopListLogger.error("API changed! InvalidClassException");
-                        throw e;
-                    }
-                }
-            };
-            processStopListThread = new Thread(processStopListConsumer);
-            processStopListThread.setDaemon(true);
-            processStopListThread.start();
+        TaskPool jobTaskPool = taskPool;
+        scheduleJob("ReadTransactionInfo", processTransactionLogger, millis, () -> {
+            processTransactionLogger.info("ReadTransactionInfo started");
+            jobTaskPool.addTasks(remote.readTransactionInfo(sidEquipmentServer)); //errors are logged by PeriodicJob
+            processTransactionLogger.info("ReadTransactionInfo finished");
+        });
+
+        if (!disableStopLists && enabledStopListInfo)
+            scheduleJob("StopList", processStopListLogger, millis, () -> StopListEquipmentServer.processStopListInfo(remote));
+
+        if (enabledDeleteBarcodeInfo)
+            scheduleJob("DeleteBarcode", processDeleteBarcodeLogger, millis, () -> DeleteBarcodeEquipmentServer.processDeleteBarcodeInfo(remote));
+
+        //sendSalesDelay - number of skipped cycles between sending sales
+        if (!disableSales)
+            scheduleJob("SendSales", sendSalesLogger, millis * (Math.max(sendSalesDelay, 0) + 1), () -> SendSalesEquipmentServer.sendSalesInfo(remote, sidEquipmentServer, mergeBatches));
+
+        if (enabledTerminalInfo)
+            scheduleJob("TerminalDocument", sendTerminalDocumentLogger, millis, () -> TerminalDocumentEquipmentServer.sendTerminalDocumentInfo(remote, sidEquipmentServer));
+
+        scheduleJob("MachineryExchange", machineryExchangeLogger, millis, () -> MachineryExchangeEquipmentServer.processMachineryExchange(remote, sidEquipmentServer));
+
+        scheduleJob("ProcessMonitor", processMonitorLogger, millis, () -> ProcessMonitorEquipmentServer.process(EquipmentServer.this, remote, sidEquipmentServer));
+    }
+
+    private void scheduleJob(String name, Logger logger, long delay, RemoteAction action) {
+        //fixed delay: the next run starts delay ms after the end of the previous one, so the job never runs in parallel with itself
+        jobsExecutor.get().scheduleWithFixedDelay(new PeriodicJob(name, logger, action), 0, Math.max(delay, 1), TimeUnit.MILLISECONDS);
+    }
+
+    private void stopJobs() {
+        ScheduledExecutorService executor = jobsExecutor.getAndSet(null); //can be called from the main cycle and from stop() at the same time
+        if (executor != null) {
+            executor.shutdownNow();
+            try {
+                if (!executor.awaitTermination(waitForThreadDeath != null ? waitForThreadDeath : 300, TimeUnit.SECONDS)) //5 minutes
+                    equipmentLogger.error("Periodic jobs have not been stopped in time");
+            } catch (InterruptedException e) {
+                equipmentLogger.error("Thread has been interrupted while waiting for periodic jobs: ", e);
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+    //logs and swallows all errors: if a job throws, ScheduledExecutorService silently stops scheduling it
+    private class PeriodicJob implements Runnable {
+        private final String name;
+        private final Logger logger;
+        private final RemoteAction action;
+
+        PeriodicJob(String name, Logger logger, RemoteAction action) {
+            this.name = name;
+            this.logger = logger;
+            this.action = action;
         }
 
-        processDeleteBarcodeConsumer = new Consumer() {
-            @Override
-            void runTask() throws Exception{
-                try {
-                    if(isTimeToRun())
-                        DeleteBarcodeEquipmentServer.processDeleteBarcodeInfo(remote);
-                } catch (ConnectException e) {
-                    processDeleteBarcodeLogger.error("Connect Exception: ", e);
-                    needReconnect = true;
-                } catch (UnmarshalException e) {
-                    if(e.getCause() instanceof InvalidClassException)
-                        processDeleteBarcodeLogger.error("API changed! InvalidClassException");
-                    throw e;
-                }
+        @Override
+        public void run() {
+            Thread thread = Thread.currentThread();
+            String threadName = thread.getName();
+            thread.setName("EquipmentServer " + name); //for thread dumps and ProcessMonitor
+            try {
+                if (isTimeToRun())
+                    action.run();
+            } catch (ConnectException e) {
+                logger.error("Connect Exception: ", e);
+                needReconnect = true;
+            } catch (InterruptedException e) {
+                //stopJobs
+                thread.interrupt();
+            } catch (Throwable t) {
+                if (t instanceof UnmarshalException && t.getCause() instanceof InvalidClassException)
+                    logger.error("API changed! InvalidClassException");
+                logger.error("Unhandled exception in " + name + ": ", t);
+            } finally {
+                thread.setName(threadName); //the pool thread can run another job next time
             }
-        };
-        processDeleteBarcodeThread = new Thread(processDeleteBarcodeConsumer);
-        processDeleteBarcodeThread.setDaemon(true);
-        processDeleteBarcodeThread.start();
-
-        if(!disableSales) {
-            sendSalesConsumer = new Consumer() {
-                @Override
-                void runTask() throws Exception {
-                    try {
-                        //если проблема в этом, то вставить такие проверки для всех consumer'ов
-                        if(sendSalesThread.isInterrupted()) {
-                            sendSalesLogger.info("Interrupted SendSalesThread is still alive!");
-                        } else if(isTimeToRun())
-                            SendSalesEquipmentServer.sendSalesInfo(remote, sidEquipmentServer, mergeBatches);
-                    } catch (ConnectException e) {
-                        sendSalesLogger.error("Connect Exception: ", e);
-                        needReconnect = true;
-                    } catch (UnmarshalException e) {
-                        if (e.getCause() instanceof InvalidClassException)
-                            sendSalesLogger.error("API changed! InvalidClassException");
-                        throw e;
-                    }
-                }
-            };
-            sendSalesThread = new Thread(sendSalesConsumer);
-            sendSalesThread.setDaemon(true);
-            sendSalesThread.start();
         }
+    }
 
-        sendTerminalDocumentConsumer = new Consumer() {
-            @Override
-            void runTask() throws Exception{
-                try {
-                    if(isTimeToRun())
-                        TerminalDocumentEquipmentServer.sendTerminalDocumentInfo(remote, sidEquipmentServer);
-                } catch (ConnectException e) {
-                    sendTerminalDocumentLogger.error("Connect Exception: ", e);
-                    needReconnect = true;
-                } catch (UnmarshalException e) {
-                    if(e.getCause() instanceof InvalidClassException)
-                        sendTerminalDocumentLogger.error("API changed! InvalidClassException");
-                    throw e;
-                }
-            }
-        };
-        sendTerminalDocumentThread = new Thread(sendTerminalDocumentConsumer);
-        sendTerminalDocumentThread.setDaemon(true);
-        sendTerminalDocumentThread.start();
-
-        machineryExchangeConsumer = new Consumer() {
-            @Override
-            void runTask() throws Exception{
-                try {
-                    if(isTimeToRun())
-                        MachineryExchangeEquipmentServer.processMachineryExchange(remote, sidEquipmentServer);
-                } catch (ConnectException e) {
-                    machineryExchangeLogger.error("Connect Exception: ", e);
-                    needReconnect = true;
-                } catch (UnmarshalException e) {
-                    if(e.getCause() instanceof InvalidClassException)
-                        machineryExchangeLogger.error("API changed! InvalidClassException");
-                    throw e;
-                }
-            }
-        };
-        machineryExchangeThread = new Thread(machineryExchangeConsumer);
-        machineryExchangeThread.setDaemon(true);
-        machineryExchangeThread.start();
-
-        processMonitorConsumer = new Consumer() {
-            @Override
-            void runTask() throws Exception{
-                try {
-                    if(isTimeToRun())
-                        ProcessMonitorEquipmentServer.process(EquipmentServer.this, remote, sidEquipmentServer);
-                } catch (ConnectException e) {
-                    processMonitorLogger.error("Connect Exception: ", e);
-                    needReconnect = true;
-                } catch (UnmarshalException e) {
-                    if(e.getCause() instanceof InvalidClassException)
-                        processMonitorLogger.error("API changed! InvalidClassException");
-                    throw e;
-                }
-            }
-        };
-        processMonitorThread = new Thread(processMonitorConsumer);
-        processMonitorThread.setDaemon(true);
-        processMonitorThread.start();
-
+    private interface RemoteAction {
+        void run() throws Exception;
     }
 
     static Object getHandler(String handlerModel, EquipmentServerInterface remote) throws ClassNotFoundException, IllegalAccessException, InstantiationException, InvocationTargetException, NoSuchMethodException {
@@ -458,20 +365,15 @@ public class EquipmentServer {
     private static Comparator<TransactionInfo> COMPARATOR = Comparator.comparing(o -> o.dateTimeCode);
 
     public void stop() {
-        interruptThread(processTransactionThread);
-        interruptThread(processStopListThread);
-        interruptThread(processDeleteBarcodeThread);
-        interruptThread(sendSalesThread);
-        interruptThread(sendTerminalDocumentThread);
-        interruptThread(machineryExchangeThread);
-        interruptThread(processMonitorThread);
+        //main cycle first: otherwise it can create new jobs and workers after they are stopped
+        interruptThread(thread);
+        stopJobs();
         if (singleTransactionExecutor != null)
             singleTransactionExecutor.shutdown();
         if(futures != null)
             for(Future future : futures) {
                 future.cancel(true);
             }
-        interruptThread(thread);
     }
 
     public void setMergeBatches(boolean mergeBatches) {
@@ -508,33 +410,6 @@ public class EquipmentServer {
         this.transactionThreadCount = transactionThreadCount;
     }
 
-    abstract class Consumer implements Runnable {
-        private SynchronousQueue<Object> queue;
-        public Consumer() {
-            this.queue = new SynchronousQueue<>();
-        }
-
-        public void scheduleIfNotScheduledYet() {
-            queue.offer(Consumer.class);
-        }
-
-        @Override
-        public void run() {
-            while (true) {
-                try {
-                    queue.take();
-                    runTask();
-                } catch (InterruptedException e) {
-                    return;
-                } catch (Exception e) {
-                    equipmentLogger.error("Unhandled exception in consumer: ", e);
-                }
-            }
-        }
-
-        abstract void runTask() throws Exception;
-    }
-
     public static ExecutorService getFixedThreadPool(int nThreads, String name) {
         return Executors.newFixedThreadPool(nThreads, new DaemonThreadFactory(name));
     }
@@ -547,6 +422,7 @@ public class EquipmentServer {
             }
         } catch (InterruptedException e) {
             equipmentLogger.error("Thread has been interrupted while join: ", e);
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -588,6 +464,11 @@ public class EquipmentServer {
             succeededTaskList = new ArrayList<>();
         }
 
+        //after reconnect
+        synchronized void setRemote(EquipmentServerInterface remote) {
+            this.remote = remote;
+        }
+
         //gives tasks to worker threads
         //waits for the task up to timeout ms, woken up by addTasks and markProceeded; returns null if there is no task
         synchronized SingleTransactionTask getTask(long timeout) throws InterruptedException {
@@ -612,28 +493,24 @@ public class EquipmentServer {
             MachineryHandler minClsHandler = null;
             Set<String> checkedGroupIdSet = new HashSet<>();
             for(TransactionInfo transactionInfo : waitingTaskQueueMap.values()) {
-                try {
-                    MachineryHandler clsHandler = (MachineryHandler) getHandler(transactionInfo.handlerModel, remote);
-                    String groupId = clsHandler == null ? "No handler" : clsHandler.getGroupId(transactionInfo);
-                    if(!checkedGroupIdSet.contains(groupId) && !currentlyProceededGroups.contains(groupId)) {
-                        checkedGroupIdSet.add(groupId);
-                        Timestamp lastErrorDate = localDateTimeToSqlTimestamp(transactionInfo.lastErrorDate);
-                        if(lastErrorDate == null || minLastErrorDate == null || minLastErrorDate.compareTo(lastErrorDate) > 0) {
-                            minGroupId = groupId;
-                            minLastErrorDate = lastErrorDate;
-                            minClsHandler = clsHandler;
-                            if(minLastErrorDate == null)
-                                break;
-                        }
+                MachineryHandler clsHandler = getTransactionInfoHandler(transactionInfo);
+                String groupId = getTransactionInfoGroupId(clsHandler, transactionInfo);
+                if(!checkedGroupIdSet.contains(groupId) && !currentlyProceededGroups.contains(groupId)) {
+                    checkedGroupIdSet.add(groupId);
+                    Timestamp lastErrorDate = localDateTimeToSqlTimestamp(transactionInfo.lastErrorDate);
+                    if(lastErrorDate == null || minLastErrorDate == null || minLastErrorDate.compareTo(lastErrorDate) > 0) {
+                        minGroupId = groupId;
+                        minLastErrorDate = lastErrorDate;
+                        minClsHandler = clsHandler;
+                        if(minLastErrorDate == null)
+                            break;
                     }
-                } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException | ClassNotFoundException e) {
-                    equipmentLogger.error("EquipmentServer Error: ", e);
                 }
             }
             //находим все transactionInfo с таким же groupId
             if(minGroupId != null) {
                 currentlyProceededGroups.add(minGroupId);
-                resultTask = new SingleTransactionTask(remote, minGroupId, minClsHandler, new ArrayList<>(), sidEquipmentServer);
+                resultTask = new SingleTransactionTask(this, remote, minGroupId, minClsHandler, new ArrayList<>(), sidEquipmentServer);
                 Set<Long> removingTaskSet = new HashSet<>();
                 for (Map.Entry<Long, TransactionInfo> transactionInfo : waitingTaskQueueMap.entrySet()) {
                     if(resultTask.groupId.equals(getTransactionInfoGroupId(transactionInfo.getValue()))) {
@@ -682,17 +559,30 @@ public class EquipmentServer {
         }
 
         private String getTransactionInfoGroupId(TransactionInfo transactionInfo) {
-            try {
-                MachineryHandler clsHandler = (MachineryHandler) getHandler(transactionInfo.handlerModel, remote);
-                return clsHandler == null ? "No handler" : clsHandler.getGroupId(transactionInfo);
+            return getTransactionInfoGroupId(getTransactionInfoHandler(transactionInfo), transactionInfo);
+        }
 
-            } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException | ClassNotFoundException e) {
-                equipmentLogger.error("EquipmentServer Error: ", e);
+        //errors (also unchecked, e.g. NoClassDefFoundError in a handler) put the transaction to the "No handler" group:
+        //it gets an error report instead of being stuck in the queue or breaking getTask / markProceeded
+        private MachineryHandler getTransactionInfoHandler(TransactionInfo transactionInfo) {
+            try {
+                return (MachineryHandler) getHandler(transactionInfo.handlerModel, remote);
+            } catch (Throwable t) {
+                equipmentLogger.error("EquipmentServer Error: ", t);
+                return null;
+            }
+        }
+
+        private String getTransactionInfoGroupId(MachineryHandler clsHandler, TransactionInfo transactionInfo) {
+            try {
+                return clsHandler == null ? "No handler" : clsHandler.getGroupId(transactionInfo);
+            } catch (Throwable t) {
+                equipmentLogger.error("EquipmentServer Error: ", t);
                 return "No handler";
             }
         }
 
-        public String getTaskInfo() {
+        public synchronized String getTaskInfo() {
             return String.format("Task Pool. currentlyProceededGroups: %s; waiting: %s; proceeded %s; succeeded %s",
                     currentlyProceededGroups, waitingTaskQueueMap.keySet(), proceededTaskList, succeededTaskList);
         }
@@ -700,13 +590,16 @@ public class EquipmentServer {
     }
 
     class SingleTransactionTask implements Runnable {
+        //pool that gave the task: after restart of the main cycle the taskPool field already refers to a new pool
+        TaskPool pool;
         EquipmentServerInterface remote;
         String groupId;
         MachineryHandler clsHandler;
         List<TransactionInfo> transactionEntry;
         String sidEquipmentServer;
 
-        public SingleTransactionTask(EquipmentServerInterface remote, String groupId, MachineryHandler clsHandler, List<TransactionInfo> transactionEntry, String sidEquipmentServer) {
+        public SingleTransactionTask(TaskPool pool, EquipmentServerInterface remote, String groupId, MachineryHandler clsHandler, List<TransactionInfo> transactionEntry, String sidEquipmentServer) {
+            this.pool = pool;
             this.remote = remote;
             this.groupId = groupId;
             this.clsHandler = clsHandler;
@@ -715,14 +608,26 @@ public class EquipmentServer {
         }
 
         public void run() {
+            Map<TransactionInfo, Boolean> transactionInfoMap = new HashMap<>();
+            try {
+                sendTransactions(transactionInfoMap);
+            } finally {
+                //otherwise after an Error of the handler the group stays in currentlyProceededGroups and is never sent again
+                for (TransactionInfo transactionInfo : transactionEntry)
+                    transactionInfoMap.putIfAbsent(transactionInfo, false);
+                pool.markProceeded(groupId, transactionInfoMap);
+            }
+        }
+
+        private void sendTransactions(Map<TransactionInfo, Boolean> transactionInfoMap) {
 
             processTransactionLogger.info(String.format("   Sending transaction group %s: start, count : %s", groupId, transactionEntry.size()));
-            Map<TransactionInfo, Boolean> transactionInfoMap = new HashMap<>();
             //transactions without handler
             if (groupId != null && groupId.equals("No handler")) {
                 for (TransactionInfo transactionInfo : transactionEntry) {
                     transactionInfoMap.put(transactionInfo, false);
-                    errorTransactionReport(transactionInfo.id, new Throwable(String.format("Transaction %s: No handler", transactionInfo.id)));
+                    errorTransactionReport(transactionInfo.id, new Throwable(transactionInfo.handlerModel == null ? String.format("Transaction %s: No handler", transactionInfo.id)
+                            : String.format("Transaction %s: handler %s can't be used, see equ logs", transactionInfo.id, transactionInfo.handlerModel)));
                 }
             } else {
 
@@ -784,13 +689,12 @@ public class EquipmentServer {
                             transactionInfoMap.put(transactionInfo, true);
                         }
                     }
-                } catch (Exception e) {
-                    processTransactionLogger.error("EquipmentServerError: ", e);
-                    errorEquipmentServerReport(e);
+                } catch (Throwable t) { //Throwable: errors of handlers (e.g. NoClassDefFoundError) are reported as exceptions
+                    processTransactionLogger.error("EquipmentServerError: ", t);
+                    errorEquipmentServerReport(t);
                 }
 
             }
-            taskPool.markProceeded(groupId, transactionInfoMap);
         }
 
         public List<MachineryInfo> getEnabledMachineryInfoList (List<MachineryInfo> machineryInfoList) {
@@ -819,7 +723,7 @@ public class EquipmentServer {
             }
         }
 
-        private void errorEquipmentServerReport(Exception e) {
+        private void errorEquipmentServerReport(Throwable e) {
             try {
                 reportEquipmentServerError(remote, sidEquipmentServer, e);
             } catch (Exception ignored) {
