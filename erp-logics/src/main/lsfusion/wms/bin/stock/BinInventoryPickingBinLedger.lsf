@@ -89,8 +89,11 @@ overSelectedBinsByPickingGroups ABSTRACT LIST (InventoryScope, BinInventory);
 overSelectedBins(InventoryScope is, BinInventory i) + {
     CASE WHEN is == InventoryScope.byAllPickingGroups THEN {
         ASK 'Для данного способа отбора ячеек необходимо удалить все существующие описи. Продолжить?' DO {
+            // Удаление прежних описей сохранится только вместе с созданием новых: при «Нет» на следующих вопросах они останутся.
+            // Строки описей удаляем сразу, чтобы остатки ячеек считались уже без них
+            DELETE OutListBinInventoryDetail d WHERE binInventory(listBinInventory(d))==i;
+            DELETE InListBinInventoryDetail d WHERE binInventory(listBinInventory(d))==i;
             DELETE ListBinInventory li WHERE binInventory(li)==i;
-            APPLY;
             overSelectedBinsByPickingGroups(is, i);
             IF NOT (GROUP SUM 1 IF needCreateListBinInventory(INTEGER int)) THEN {
                 in(Sku sku, Bin bin) <- TRUE WHERE currentBalance(sku, bin) AND extraOutBinFilter(bin, i);
