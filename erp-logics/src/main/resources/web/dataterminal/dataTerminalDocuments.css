@@ -1,0 +1,363 @@
+/*
+Карточка документа в списке операции ТСД «Документы ТСД»
+(по структуре повторяет список документов нативного приложения ТСД).
+Та же разметка - у карточек в диалогах выбора типа документа, значения аналитики и заказа
+ */
+
+div.terminal-document {
+    margin: 2px 0;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background-color: var(--tool-background-color);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    white-space: normal;
+}
+
+div.terminal-document > div.type {
+    color: var(--standart-border-color);
+    font-weight: bold;
+    font-size: var(--extra-large-font-size);
+}
+
+/* № документа слева, дата справа */
+div.terminal-document > div.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+}
+
+div.terminal-document > div.header > div.number {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--positive-color);
+    font-weight: bold;
+    font-size: var(--large-font-size);
+}
+
+div.terminal-document > div.header > div.date {
+    flex-shrink: 0;
+    margin-left: auto;
+    color: var(--grey-font-color);
+}
+
+div.terminal-document > div.comment {
+    font-style: italic;
+    color: var(--grey-font-color);
+}
+
+div.terminal-document > div.comment:empty,
+div.terminal-document > div.type:empty,
+div.terminal-document > div.header > div.number:empty {
+    display: none;
+}
+
+/* Строки итогов: «Сумма»; «Кол-во» слева, «Позиций» справа */
+div.terminal-document > div.values {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    font-size: 1.3em;
+}
+
+div.terminal-document > div.values span {
+    margin-right: 4px;
+    font-size: 0.7em;
+    color: var(--grey-font-color);
+}
+
+/* Поле выбора в форме создания документа: вручную не вводится, касание открывает диалог выбора.
+   Справа шеврон «›» - признак перехода к выбору, пустое значение (плейсхолдер) - обычным серым шрифтом */
+.readonly-field-value {
+    display: block;
+    position: relative;
+    cursor: pointer;
+    box-sizing: border-box;
+    padding: 0.6em 2em 0.6em 0.5em;
+    line-height: 1.3;
+    border: 1px solid var(--standart-border-color);
+    border-radius: 5px;
+    background-color: var(--main-background-color);
+    color: var(--main-font-color);
+    font-weight: bold;
+    font-size: large;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.readonly-field-value::after {
+    content: '›';
+    position: absolute;
+    right: 0.5em;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--standart-border-color);
+    font-size: 1.5em;
+    font-weight: normal;
+}
+
+.readonly-field-value.text-based-value-null,
+.readonly-field-value .text-based-value-null {
+    color: var(--grey-font-color);
+    font-weight: normal;
+}
+
+/*
+Диалоги с шапкой dialog-header («Новый документ» и диалоги выбора): нижняя панель во всю ширину экрана.
+Платформа при открытии ставит окну left / top по центру (ModalWindow.center) - перекрываем
+ */
+.modal-dialog:has(div.dialog-header) {
+    position: absolute !important;
+    left: 0 !important;
+    right: 0;
+    top: auto !important;
+    bottom: 0;
+    width: auto !important;
+    max-width: none;
+    margin: 0;
+}
+
+.modal-dialog:has(div.dialog-header) > .modal-content {
+    box-sizing: border-box;
+    width: 100% !important;
+    height: auto !important;
+    border: none;
+    border-radius: 12px 12px 0 0;
+    padding: 6px 8px 8px;
+    background-color: var(--main-background-color) !important;
+}
+
+/* Уголок изменения размера окна на ТСД не нужен */
+.modal-dialog:has(div.dialog-header) .ui-resizable-handle {
+    display: none !important;
+}
+
+/* Шапка: подпись («Новый документ», «Выбор») и заголовок (тип документа, что выбирается) */
+div.dialog-header {
+    padding: 0 2px 6px;
+    margin-bottom: 4px;
+    border-bottom: 2px solid var(--standart-border-color);
+}
+
+div.dialog-header > div.caption {
+    color: var(--grey-font-color);
+    font-size: small;
+}
+
+div.dialog-header > div.title {
+    color: var(--standart-border-color);
+    font-weight: bold;
+    font-size: x-large;
+    line-height: 1.2;
+}
+
+/* Обязательное поле */
+label.required-caption::after {
+    content: ' *';
+    color: var(--warning-color);
+}
+
+/* Поля ввода диалогов (номер, комментарий, поиск): высота под палец и заметный фокус (ввод со сканера и клавиатуры ТСД).
+   Контейнер .input-single обрезает выступающее (overflow: hidden), поэтому кольцо фокуса - внутрь */
+.modal-dialog:has(div.dialog-header) .input-single-value input {
+    min-height: 2.6em;
+    padding: 0 0.5em;
+}
+
+.modal-dialog:has(div.dialog-header) .input-single-value input:focus {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--standart-border-color);
+    background-color: var(--active-background-color);
+}
+
+/* Кнопка меню «⋮» в строке списка */
+div.dots-menu {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 0 8px;
+    font-size: 2em;
+    font-weight: bold;
+    color: var(--grey-font-color);
+    cursor: pointer;
+}
+
+/*
+Списки карточек (документы ТСД, диалоги выбора): строка таблицы выглядит одной карточкой.
+Ячейки без рамок и выделения таблицы, ячейка «⋮» (последняя) продолжает фон карточки
+ */
+.card-list td.data-grid-cell {
+    border: none !important;
+    padding: 2px 0 !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    vertical-align: middle;
+}
+
+/* Заголовок таблицы скрыт (not-header), но платформа рисует нижнюю границу ячейки заголовка
+   над колонкой с фокусом (focused-cell-bottom-border) - голубая полоска над списком */
+.card-list .data-grid-header-cell {
+    border: none !important;
+}
+
+.card-list div.terminal-document {
+    margin: 0;
+    border-radius: 6px 0 0 6px;
+    box-shadow: none;
+}
+
+.card-list td.data-grid-last-cell {
+    background-color: var(--tool-background-color) !important;
+    background-clip: content-box;
+    border-radius: 0 6px 6px 0;
+}
+
+/* Колонка «⋮» скрыта (меню не включено): карточка - единственная ячейка строки */
+.card-list td.data-grid-first-cell.data-grid-last-cell {
+    background-color: transparent !important;
+}
+
+.card-list td.data-grid-last-cell div.terminal-document {
+    border-radius: 6px;
+}
+
+/* Текущая строка выделяется целиком: и карточка, и «⋮» */
+.card-list tr.table-active div.terminal-document,
+.card-list tr.table-active td.data-grid-last-cell:not(.data-grid-first-cell) {
+    background-color: var(--active-background-color) !important;
+}
+
+/*
+Строка фильтра над списком «Документы ТСД»: воронка, заданные условия (или «Фильтр не задан») и крестик сброса.
+Рамка - у контейнера (terminal-documents-filter-bar), в нем две ячейки: условия (касание - окно фильтра) и крестик
+ */
+.terminal-documents-filter-bar {
+    margin: 2px 0 4px;
+    border: 1px solid var(--standart-border-color);
+    border-radius: 6px;
+    align-items: center;
+}
+
+div.terminal-documents-filter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 2.4em;
+    padding: 4px 8px;
+    line-height: 1.3;
+    white-space: normal;
+    cursor: pointer;
+}
+
+div.terminal-documents-filter > svg {
+    flex-shrink: 0;
+    width: 1.5em;
+    height: 1.5em;
+    color: var(--standart-border-color);
+}
+
+div.terminal-documents-filter > div.text {
+    min-width: 0;
+}
+
+/* Крестик прижат к правому краю ячейки (ячейка узкая - CHARWIDTH 3) */
+div.filter-reset {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+    padding: 0 10px;
+    font-size: 1.5em;
+    color: var(--main-font-color);
+    cursor: pointer;
+}
+
+/* Поле даты в окне фильтра - в стиле поля выбора (readonly-field-value): рамка, крупный жирный шрифт,
+   справа значок календаря. Поле ввода при редактировании - без своей рамки, шрифтом поля */
+.date-field-value {
+    display: block;
+    position: relative;
+    box-sizing: border-box;
+    min-height: 2.6em;
+    padding: 0.6em 2.4em 0.6em 0.5em;
+    line-height: 1.3;
+    border: 1px solid var(--standart-border-color) !important;
+    border-radius: 5px;
+    background-color: var(--main-background-color);
+    color: var(--main-font-color);
+    font-weight: bold;
+    font-size: large;
+    white-space: nowrap;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.date-field-value::after {
+    content: '';
+    position: absolute;
+    right: 0.5em;
+    top: 50%;
+    width: 1.2em;
+    height: 1.2em;
+    transform: translateY(-50%);
+    background-color: var(--standart-border-color);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 16H5V9h14v11zM7 11h5v5H7z'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 16H5V9h14v11zM7 11h5v5H7z'/%3E%3C/svg%3E") center / contain no-repeat;
+    pointer-events: none;
+}
+
+.date-field-value input {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: none !important;
+    outline: none;
+    box-shadow: none !important;
+    background: transparent;
+    font: inherit;
+    color: inherit;
+}
+
+.date-field-value.text-based-value-null,
+.date-field-value .text-based-value-null {
+    color: var(--grey-font-color);
+    font-weight: normal;
+}
+
+.date-field-value:focus-within {
+    box-shadow: inset 0 0 0 1px var(--standart-border-color);
+    background-color: var(--active-background-color);
+}
+
+/* Поля аналитик в окне фильтра: таблица без рамок и выделения строк, строка - поле выбора
+   с заголовком над значением (как поля диалога создания документа), справа крестик очистки */
+.handbook-fields td.data-grid-cell {
+    border: none !important;
+    padding: 1px 0 !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    vertical-align: bottom;
+}
+
+.handbook-fields .data-grid-header-cell {
+    border: none !important;
+}
+
+div.handbook-field {
+    white-space: normal;
+}
+
+div.handbook-field > div.caption {
+    color: var(--standart-border-color);
+    font-weight: bold;
+    font-size: small;
+}
+
+.handbook-fields div.filter-reset {
+    height: auto;
+    padding: 0.6em 4px;
+}

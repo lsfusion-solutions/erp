@@ -97,7 +97,8 @@ function initInputRender(mode, options) {
             element.setAttribute('customType', 'input' + mode)
             inp.className = mode
             element.defaultMode = mode
-            inp.inputMode = 'none'
+            // Экранная клавиатура запрещена, если поле явно не попросило другой режим (options.inputMode)
+            inp.inputMode = options && options.inputMode ? options.inputMode : 'none'
             element.append(inp)
             element.input = inp
 
@@ -135,7 +136,8 @@ function initInputRender(mode, options) {
         update: (element, controller, value) => {
             const inp = element.input
             inp.controller = controller
-            const numValue = !isNaN(value) ? value : value ? value.value : null
+            // JSON вида {value, modal} разворачиваем, остальное (числа, даты, строки) берём как есть
+            const numValue = value != null && typeof value === 'object' && 'value' in value ? value.value : value
             inp.modal = value ? value.modal : false
 
 

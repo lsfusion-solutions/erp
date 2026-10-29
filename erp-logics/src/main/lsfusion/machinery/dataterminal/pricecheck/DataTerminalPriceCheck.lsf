@@ -1,0 +1,60 @@
+MODULE DataTerminalPriceCheck;
+
+// Операция ТСД «Проверка цен»: поиск товара по штрихкоду, карточка с ценой и остатком
+REQUIRE DataTerminalDefault, TerminalHandler, EmployeeStock;
+
+NAMESPACE DataTerminal;
+
+beforeDataTerminalStart() + { INTERNAL CLIENT 'dataTerminalPriceCheck.css'; }
+
+priceCheckStock () = stock(currentEmployee());
+
+priceCheckSku = DATA LOCAL Sku ();
+
+// Карточка товара: цена и остаток на складе сотрудника
+priceCheckDetail '' (Sku s, Stock st) = CONCAT '',
+    '<div class=price-check>',
+        '<div class=name>', name(s), '</div>',
+        '<div class=price><span>Цена</span>', (OVERRIDE STRING(NUMERIC[16,2](currentPriceInTerminal(s, st))), '—'), '</div>',
+        '<div class=balance><span>Остаток</span>', (OVERRIDE STRING(NUMERIC[16,3](currentBalance(s, st))), '0'), '</div>',
+        '<div class=info>', (CONCAT ' ● ', id(s AS Item), name(Item.manufacturer(s AS Item))), '</div>',
+    '</div>';
+
+// Пункт меню и экран операции
+@addMenuItem(priceCheck, '(2) Проверка цен', '2', lineAction2);
+
+@defSubMenu(priceCheckOperation, operation, 'Проверка цен');
+up (MenuItem i) += WHEN i = MenuItem.priceCheckOperation THEN MenuItem.actions;
+
+@defReadBarcode(priceCheckOperation, 'Отсканируйте штрихкод товара:');
+
+doMenuItemPriceCheck() + {
+    priceCheckSku() <- NULL;
+    toMenuItem(MenuItem.priceCheckOperation);
+}
+
+readBarcodePriceCheckOperation(STRING barcode, STRING raw) + {
+    IF NOT priceCheckStock() THEN {
+        message('<em>У сотрудника не задан основной склад</em>');
+        RETURN;
+    }
+    priceCheckSku() <- skuBarcode(STRING[15](barcode));
+    IF NOT priceCheckSku() THEN {
+        message(CONCAT '<br>', '<b>' + barcode + '</b>', '<em>Товар не найден</em>');
+    }
+}
+
+priceCheckCard '' () = priceCheckDetail(priceCheckSku(), priceCheckStock());
+
+EXTEND FORM dataTerminalInternal
+    PROPERTIES READONLY priceCheckCard() CUSTOM 'htmlText' SHOWIF priceCheckSku()
+;
+
+DESIGN dataTerminalInternal {
+    priceCheckOperation {
+        MOVE PROPERTY (priceCheckCard()) {
+            focusable = FALSE;
+            align = STRETCH;
+        }
+    }
+}

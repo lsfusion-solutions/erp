@@ -54,6 +54,10 @@ onStarted() + {
     RECALCULATE up(MenuItem i);
 }
 
+// Пункт меню на экране: активны вкладки его и всех родителей. Вложенная вкладка неактивной вкладки
+// остается выбранной (ACTIVE TAB), например «Проверка цен» внутри «Операции» при открытии формы
+onScreen (MenuItem i) = i IS MenuItem AND NOT (GROUP SUM 1 IF level(i, MenuItem p) AND p != MenuItem.tab AND NOT activeTab(p));
+
 lastMenuItem = DATA LOCAL NESTED MenuItem();
 
 activateMenuItem ABSTRACT CASE (MenuItem);
@@ -89,17 +93,75 @@ toInitMenuItem () {
 path (MenuItem m) =
     GROUP CONCAT STRING(name(MenuItem i)) IF level(m, i), ' / ' ORDER -level(m, i), i;
 
-objectId = ABSTRACT STRING ();
-topInfoLine() = CONCAT ' ', path(lastMenuItem()), objectId();
+// Шапка как Toolbar в Android: заголовок - название экрана (ближайший пункт меню с названием),
+// подзаголовок - объект экрана (objectId, например номер документа), без него - сотрудник
+title (MenuItem m) = GROUP LAST name(MenuItem i) ORDER -level(m, i), i WHERE level(m, i) AND name(i);
+overHeaderTitle = ABSTRACT STRING ();
+headerTitle () = OVERRIDE overHeaderTitle(), title(lastMenuItem());
 
-topInfoPanel '' () = CONCAT '', '<div class=topInfoPanel>',
-                                                '<div class=user>', name(currentEmployee()), '</div>',
-                                                '<div class=info>', topInfoLine(), '</div>',
+objectId = ABSTRACT STRING ();
+headerSubtitle () = OVERRIDE objectId(), name(currentEmployee());
+
+// Быстрый поиск в шапке: справа лупа, по нажатию вместо текста шапки - поле ввода и ✕ (Esc в поле - как ✕).
+// Включается по экрану (пункту меню lastMenuItem):
+//   showHeaderSearch(MenuItem i) += WHEN i = MenuItem.<экран> THEN TRUE;
+//   headerSearchPlaceholder(MenuItem i) += WHEN i = MenuItem.<экран> THEN 'Номер документа'; // по умолчанию 'Поиск'
+// headerSearch() - NULL или строка от 3 символов (поле отправляет ее через 0,5 с после ввода), экран отбирает по ней:
+//   FILTERS NOT headerSearch() OR isISubstring(<поле>(x), headerSearch())
+// При смене экрана поиск сбрасывается
+showHeaderSearch = ABSTRACT CASE BOOLEAN (MenuItem);
+headerSearchPlaceholder = ABSTRACT CASE STRING (MenuItem);
+placeholderHeaderSearch () = OVERRIDE headerSearchPlaceholder(lastMenuItem()), 'Поиск';
+
+headerSearchActive = DATA LOCAL BOOLEAN ();
+headerSearch 'Поиск' = DATA LOCAL STRING[100] ();
+
+WHEN LOCAL CHANGED(lastMenuItem()) DO {
+    headerSearch() <- NULL;
+    headerSearchActive() <- NULL;
+}
+
+// Подсказку поля поиска рендерер headerSearchInput берет из атрибута data-search-placeholder
+topInfoPanel '' () = CONCAT '', '<div class=topInfoPanel data-search-placeholder="', placeholderHeaderSearch(), '">',
+                                                '<div class=title>', headerTitle(), '</div>',
+                                                '<div class=subtitle>', headerSubtitle(), '</div>',
                                             '</div>';
+
+// Кнопки заголовка ТСД: слева стрелка «Назад», справа меню «⋮». Настраиваются по экрану (пункту меню lastMenuItem).
+// «Назад» показывается на всех экранах, кроме начального (initMenuItem и вложенных в него), скрыть на экране:
+//   hideHeaderBack(MenuItem i) += WHEN i = MenuItem.<экран> THEN TRUE;
+// Меню показывается только на экранах, где оно задано:
+//   showHeaderMenu(MenuItem i) += WHEN i = MenuItem.<экран> THEN TRUE;
+//   headerMenu(MenuItem i) + WHEN i = MenuItem.<экран> THEN { ... }
+hideHeaderBack = ABSTRACT CASE BOOLEAN (MenuItem);
+showHeaderBack () = lastMenuItem() AND NOT level(lastMenuItem(), initMenuItem()) AND NOT hideHeaderBack(lastMenuItem());
+
+showHeaderMenu = ABSTRACT CASE BOOLEAN (MenuItem);
+headerMenu ABSTRACT CASE (MenuItem);
+
+headerBackButton '' () {
+    toPrevMenuItem();
+}
+headerMenuButton '' () {
+    headerMenu(lastMenuItem());
+}
+
+headerSearchButton '' () {
+    headerSearchActive() <- TRUE;
+}
+headerSearchClose '' () {
+    headerSearch() <- NULL;
+    headerSearchActive() <- NULL;
+}
 
 FORM dataTerminalInternal 'Терминал сбора данных'
     EVENTS ON QUERYCLOSE {  }
     PROPERTIES READONLY topInfoPanel() CUSTOM 'htmlText'
+    PROPERTIES headerBackButton() SHOWIF showHeaderBack(),
+               headerSearchField '' = headerSearch() CUSTOM 'headerSearchInput' SHOWIF headerSearchActive(),
+               headerSearchButton() SHOWIF showHeaderSearch(lastMenuItem()) AND NOT headerSearchActive(),
+               headerSearchClose() SHOWIF headerSearchActive(),
+               headerMenuButton() SHOWIF showHeaderMenu(lastMenuItem()) AND NOT headerSearchActive()
 ;
 
 // Действие обновляет форму ТСД для пользователей
@@ -125,9 +187,39 @@ DESIGN dataTerminalInternal {
     REMOVE TOOLBARBOX;
     NEW topInfoPanel {
         align = STRETCH;
+        horizontal = TRUE;
+        class = 'dt-header';
+        MOVE PROPERTY (headerBackButton()) {
+            focusable = FALSE;
+            align = STRETCH;
+            class = 'dt-header-button dt-header-back';
+        }
+        // в режиме поиска текст шапки скрыт классом, а не SHOWIF: из его html поле берет подсказку
         MOVE PROPERTY (topInfoPanel()) {
             focusable = FALSE;
             align = STRETCH;
+            fill = 1;
+            class = 'dt-header-hidden' IF headerSearchActive();
+        }
+        MOVE PROPERTY (headerSearchField) {
+            align = STRETCH;
+            fill = 1;
+            class = 'dt-header-search';
+        }
+        MOVE PROPERTY (headerSearchButton()) {
+            focusable = FALSE;
+            align = STRETCH;
+            class = 'dt-header-button dt-header-search-open';
+        }
+        MOVE PROPERTY (headerSearchClose()) {
+            focusable = FALSE;
+            align = STRETCH;
+            class = 'dt-header-button dt-header-search-close';
+        }
+        MOVE PROPERTY (headerMenuButton()) {
+            focusable = FALSE;
+            align = STRETCH;
+            class = 'dt-header-button dt-header-menu';
         }
     }
     NEW topMenu {
@@ -158,6 +250,9 @@ DESIGN dataTerminalInternal {
     operationTab {
         MOVE PROPERTY (toPrevMenuItemOperation);
     }
+    // Кнопки вкладок (F1) Главная / (F2) Операция не показываем: навигация - через меню и (Esc) Назад.
+    // Сами вкладки main / operation (@defDtTab) остаются - на них построены меню и все операции ТСД
+    REMOVE topMenu;
 }
 
 // CUSTOM-рендереры ТСД грузятся при инициализации страницы: INTERNAL CLIENT загружает
@@ -166,12 +261,16 @@ onWebClientInit() + {
     onWebClientInit('dataTerminalHtmlText.js') <- 11;
     onWebClientInit('inputDT.js') <- 12;
     onWebClientInit('inputDecimal.js') <- 13;
+    onWebClientInit('dataTerminalHeaderSearch.js') <- 14;
 }
 
 beforeWebClientStarted ABSTRACT LIST ();
 BEFORE onWebClientStarted() DO {
     beforeWebClientStarted();
     IF isDataTerminal() AND currentUser() IS Employee THEN {
+        // Стили ТСД рассчитаны на светлую тему: в темной фоны остаются светлыми, а текст берет светлые цвета темы.
+        // Тема меняется только на клиенте, настройка пользователя не меняется
+        changeColorThemeAction(ColorTheme.light);
         beforeDataTerminalStart();
         INTERNAL CLIENT 'data-terminal.css';
         INTERNAL CLIENT 'dropEscape';

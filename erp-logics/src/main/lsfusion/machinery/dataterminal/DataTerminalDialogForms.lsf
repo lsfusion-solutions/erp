@@ -112,6 +112,45 @@ inputString(STRING caption, Connection c) + WHEN caption IS STRING  AND isWebMob
     }
 };
 
+// Диалог ввода текста с системной экранной клавиатурой (результат в inputedString)
+FORM inputText ''
+    OBJECTS caption = STRING PANEL NULL
+    PROPERTIES READONLY str '' = VALUE(caption) CUSTOM 'htmlText'
+    FILTERS caption
+
+    OBJECTS value = STRING PANEL NULL
+    PROPERTIES PANEL strValue '' = VALUE(value) CUSTOM 'inputText'
+    FILTERS value
+;
+
+@defButtonCustom(ok, '(Enter) OK', inputText, 'ENTER', dialog);
+@defButtonCustom(close, '(Esc) Закрыть', inputText, 'ESCAPE', dialog);
+
+DESIGN inputText {
+    REMOVE TOOLBARBOX;
+    MOVE PROPERTY (str) {
+        class = 'ask';
+        fill = 1;
+        focusable = FALSE;
+    }
+    MOVE PROPERTY (strValue) {
+        captionVertical = TRUE;
+        class = 'input-single';
+        captionClass = 'input-single-caption';
+        valueClass = 'input-single-value';
+    }
+    MOVE PROPERTY (ok);
+    MOVE PROPERTY (close);
+}
+
+inputText (STRING caption) {
+    DIALOG inputText OBJECTS caption = caption, value = inputedString() INPUT NOMANAGESESSION DO {
+        inputedString() <- value;
+    } ELSE {
+        inputedString() <- NULL;
+    }
+}
+
 // Диалог ввода Integer
 FORM inputQuantityInteger 'Ввод количества'
     OBJECTS caption = STRING PANEL NULL, quantity = NUMERIC NULL PANEL

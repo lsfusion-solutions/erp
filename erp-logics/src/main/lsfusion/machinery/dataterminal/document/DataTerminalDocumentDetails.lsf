@@ -1,0 +1,147 @@
+MODULE DataTerminalDocumentDetails;
+
+// Табличная часть документа ТСД: экран строк документа, открывается касанием карточки в списке «Документы ТСД»
+REQUIRE DataTerminalDocuments, TerminalHandler;
+
+NAMESPACE DataTerminal;
+
+beforeDataTerminalStart() + { INTERNAL CLIENT 'dataTerminalDocumentDetails.css'; }
+
+// Количество без лишних нулей: 72.000 -> 72, 128.200 -> 128.2
+shortQuantity (NUMERIC[16,3] q) = IF q = 0 THEN '0' ELSE rtrim(rtrim(STRING(q), r'0'), r'.');
+
+preferences (TerminalDocumentDetail d) = preferences(terminalDocumentType(terminalDocument(d)));
+
+// Карточка строки (по структуре повторяет список строк документа нативного приложения ТСД):
+// наименование / штрихкод и ед. изм., время сканирования справа / количество / цена и остаток /
+// дополнительные поля строки, запрашиваемые по настройке типа документа: даты (Дата 1 загружается в дату изготовления,
+// Дата 2 - в срок годности) и поля 1-3 / комментарий
+htmlDetail '' (TerminalDocumentDetail d) = CONCAT '',
+    '<div class=terminal-document-detail>',
+        '<div class=name>', name(d), '</div>',
+        '<div class=header>',
+            '<div class=barcode>', barcode(d), ' <b>' + shortNameUOM(sku(d)) + '</b>', '</div>',
+            '<div class=time>', STRING[11](toChar(dateTimeScan(d), r'DD.MM HH24:MI')), '</div>',
+        '</div>',
+        '<div class=quantity><span>Кол-во</span><div class=value>', (OVERRIDE shortQuantity(NUMERIC[16,3](quantity(d))), '0'), '</div></div>',
+        '<div class=values>',
+            ('<div class=price><span>Цена</span>' + (OVERRIDE STRING(NUMERIC[16,2](price(d))), '—') + '</div>')
+                IF NOT hidePrice(preferences(d)),
+            ('<div class=balance><span>Остаток</span>' + (OVERRIDE shortQuantity(NUMERIC[16,3](currentBalance(sku(d), stock(d)))), '0') + '</div>')
+                IF sku(d) AND NOT hideBalance(preferences(d)) AND NOT blockCurrentQuantityInTerminal(mainRole(currentUser())),
+        '</div>',
+        '<div class=dates>',
+            '<div><span>Изготовлен</span>' + toDateDDMMYYYY(extraDate1(d)) + '</div>',
+            '<div><span>Годен до</span>' + toDateDDMMYYYY(extraDate2(d)) + '</div>',
+        '</div>',
+        '<div class=fields>', (CONCAT ' ● ', extraField1(d), extraField2(d), extraField3(d)), '</div>',
+        '<div class=comment>', comment(d), '</div>',
+    '</div>';
+
+// Шапка экрана строк: тип и № документа, дата справа
+htmlHeader '' (TerminalDocument d) = CONCAT '',
+    '<div class=terminal-document-header>',
+        '<div class=type>', nameTerminalDocumentType(d), '</div>',
+        '<div class=header>',
+            '<div class=number>', '№ ' + title(d), '</div>',
+            '<div class=date>', (CONCAT ' ', toDateDDMMYY(date(d)), STRING[5](time(d))), '</div>',
+        '</div>',
+    '</div>';
+
+// Экран строк документа: Esc возвращает к списку документов
+@defSubMenu(terminalDocumentDetailsOperation, operation, terminalDocumentsOperation, 'Строки документа');
+
+selectedTerminalDocument = DATA LOCAL TerminalDocument ();
+
+openTerminalDocument (TerminalDocument d) + {
+    selectedTerminalDocument() <- d;
+    toMenuItem(MenuItem.terminalDocumentDetailsOperation);
+}
+
+// Строки могут меняться с десктопа - перечитываем при каждом входе
+afterActivateTerminalDocumentDetailsOperation() + {
+    formRefresh();
+}
+
+// Меню «⋮» строки - как меню документа в списке документов: карточка строки и пункты в контейнере items
+FORM terminalDocumentDetailMenu ''
+    OBJECTS d = TerminalDocumentDetail PANEL
+    PROPERTIES (d) READONLY htmlDetail CUSTOM 'htmlText'
+;
+
+@defButtonCustom(close, '(Esc) Закрыть', terminalDocumentDetailMenu, 'ESCAPE', dialog);
+
+DESIGN terminalDocumentDetailMenu {
+    REMOVE TOOLBARBOX;
+    OBJECTS {
+        MOVE PROPERTY (htmlDetail(d)) {
+            focusable = FALSE;
+            align = STRETCH;
+        }
+        NEW items {
+            align = STRETCH;
+        }
+        MOVE PROPERTY (close);
+    }
+}
+
+showMenu (TerminalDocumentDetail d) {
+    // Пункты меню меняют строки в своих сессиях - после закрытия меню перечитываем список.
+    // DO/ELSE делают диалог синхронным: без них formRefresh выполнился бы сразу при открытии меню
+    DIALOG terminalDocumentDetailMenu OBJECTS d = d NOMANAGESESSION DO {
+        formRefresh();
+    } ELSE {
+        formRefresh();
+    }
+}
+
+dotsMenu '' (TerminalDocumentDetail d) = '<div class=dots-menu>⋮</div>' IF d IS TerminalDocumentDetail CHARWIDTH 3;
+
+// Пункт меню «Удалить»
+deleteTerminalDocumentDetail (TerminalDocumentDetail d) {
+    askYesNo(CONCAT '<br>', 'Удалить строку?', '<b>' + name(d) + '</b>');
+    IF NOT askedYesNo() THEN RETURN;
+    NEWSESSION {
+        DELETE d;
+        APPLY;
+    }
+    close();
+}
+@defButtonCustom(deleteTerminalDocumentDetail, '(1) Удалить', terminalDocumentDetailMenu, d, '1', );
+DESIGN terminalDocumentDetailMenu { items { MOVE PROPERTY (deleteTerminalDocumentDetail); } }
+
+EXTEND FORM dataTerminalInternal
+    PROPERTIES READONLY terminalDocumentHeader = htmlHeader(selectedTerminalDocument()) CUSTOM 'htmlText'
+
+    OBJECTS terminalDocumentDetail = TerminalDocumentDetail
+    PROPERTIES (terminalDocumentDetail) READONLY htmlDetail CUSTOM 'htmlText', number SHOWIF NULL
+    PROPERTIES (terminalDocumentDetail) dotsMenu CUSTOM 'htmlText' ON CHANGE showMenu(terminalDocumentDetail)
+    FILTERS terminalDocument(terminalDocumentDetail) = selectedTerminalDocument()
+    ORDERS number(terminalDocumentDetail)
+;
+
+DESIGN dataTerminalInternal {
+    terminalDocumentDetailsOperation {
+        fill = 1;
+        MOVE PROPERTY (terminalDocumentHeader) {
+            focusable = FALSE;
+            align = STRETCH;
+        }
+        MOVE BOX (terminalDocumentDetail) {
+            caption = '';
+            collapsible = FALSE;
+            fill = 1;
+        }
+    }
+    REMOVE TOOLBARBOX (terminalDocumentDetail);
+    GRID (terminalDocumentDetail) {
+        captionHeight = 0;
+        class = 'not-header no-horz-scroll card-list';
+    }
+    // Базовая ширина карточки небольшая: иначе колонка берет ширину самой длинной карточки и обрезается справа
+    PROPERTY (htmlDetail(terminalDocumentDetail)) { charWidth = 20; }
+    // Меню открывается первым касанием, без предварительного выбора строки
+    PROPERTY (dotsMenu(terminalDocumentDetail)) { changeOnSingleClick = TRUE; }
+    // Документ открывается первым касанием карточки, без предварительного выбора строки
+    PROPERTY (htmlDetail(terminalDocument)) { changeOnSingleClick = TRUE; }
+}

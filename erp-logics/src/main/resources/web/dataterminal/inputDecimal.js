@@ -82,6 +82,33 @@ function inputIntegerAlwaysFocused() {
     return initInputRender("numeric", options)
 }
 
+// Текстовое поле с системной экранной клавиатурой.
+// Без alwaysFocused: иначе фокус постоянно возвращается в поле и клавиатура не закрывается
+function inputText() {
+    const options = {
+        inputMode: 'text',
+        listeners: {
+            // Печатные символы не отдаем горячим клавишам формы ('1', '2', ...)
+            keydown: (e) => { if (e.key && e.key.length === 1) e.stopPropagation() },
+            // Отправляем текст при каждом изменении: касание кнопки OK не всегда снимает фокус с поля,
+            // а экранная клавиатура Android может не прислать Enter, и без этого значение не дошло бы до сервера
+            input: (e) => {
+                const inp = e.target
+                if (inp.controller) {
+                    inp.controller.changeValue(inp.value ? inp.value : null)
+                    inp.prevValue = inp.value
+                }
+            }
+        },
+        postprocessor: (controller, element, str) => str,
+        onRender: (element) => {
+            element.input.type = 'text'
+            element.input.setAttribute('enterkeyhint', 'done')
+        }
+    }
+    return initInputRender("text", options)
+}
+
 function inputStringAlwaysFocused() {
     const options = {
         alwaysFocused: true,
