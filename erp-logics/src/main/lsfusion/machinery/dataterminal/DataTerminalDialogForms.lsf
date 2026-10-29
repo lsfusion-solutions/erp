@@ -1,0 +1,291 @@
+MODULE DataTerminalDialogForms;
+
+REQUIRE DataTerminalInternal;
+
+NAMESPACE DataTerminal;
+
+// Диалог с кнопками Да - Нет
+FORM askYesNo ''
+    OBJECTS message = STRING PANEL NULL
+    PROPERTIES READONLY str '' = VALUE(message) CUSTOM 'htmlText'
+    FILTERS message
+;
+
+DESIGN askYesNo {
+    REMOVE TOOLBARBOX;
+    MOVE PROPERTY (str) {
+        class = 'ask';
+        fill = 1;
+        focusable = FALSE;
+    }
+}
+
+// Диалог с кнопками Да - Нет
+@defButtonCustom(ok, '(Enter) ДА', askYesNo, 'ENTER', dialog);
+@defButtonCustom(close, '(Esc) НЕТ', askYesNo, 'ESCAPE', dialog);
+
+DESIGN askYesNo {
+    MOVE PROPERTY(ok);
+    MOVE PROPERTY(close);
+}
+
+activeYesNo(Connection c) + WHEN c IS Connection AND isWebMobile(c) THEN {
+    ACTIVE FORM askYesNo;
+}
+
+askYesNo(STRING caption, Connection c) + WHEN caption IS STRING AND isWebMobile(c) THEN {
+    DIALOG askYesNo OBJECTS message = caption DO {
+        askedYesNo() <- TRUE;
+    } ELSE {
+        askedYesNo() <- NULL;
+    }
+};
+
+// Диалог с одной кнопкой
+FORM askOk ''
+    OBJECTS message = STRING PANEL NULL
+    PROPERTIES READONLY str '' = VALUE(message) CUSTOM 'htmlText'
+    FILTERS message
+;
+
+DESIGN askOk {
+    REMOVE TOOLBARBOX;
+    MOVE PROPERTY (str) {
+        class = 'ask';
+        fill = 1;
+        focusable = FALSE;
+    }
+}
+
+@defButtonCustom(ok, '(Enter) OK', askOk, 'ENTER', dialog);
+
+DESIGN askOk { MOVE PROPERTY(ok); }
+
+dialogOk (STRING message) { DIALOG askOk OBJECTS message = message NOMANAGESESSION; }
+
+message (STRING message, Connection c) + WHEN message IS STRING AND isWebMobile(c) THEN {
+    IF c = currentConnection() THEN {
+        dialogOk(message);
+    } ELSE {
+        NEWSESSION NEWTHREAD { dialogOk(message); } CONNECTION c;
+    }
+}
+
+activeMessage(Connection c) + WHEN c IS Connection AND isWebMobile(c) THEN {
+    ACTIVE FORM askOk;
+}
+
+// Диалог ввода string
+FORM inputString ''
+    OBJECTS caption = STRING PANEL NULL
+    PROPERTIES READONLY str '' = VALUE(caption) CUSTOM 'htmlText'
+    FILTERS caption
+
+    OBJECTS value = STRING PANEL NULL
+    PROPERTIES PANEL strValue '' = VALUE(value) CUSTOM 'inputBarcodeLiteAlwaysFocused'
+    FILTERS value
+;
+
+@defButtonCustom(ok, '(Enter) OK', inputString, 'ENTER', dialog);
+
+DESIGN inputString {
+    REMOVE TOOLBARBOX;
+    MOVE PROPERTY (str) {
+        class = 'ask';
+        fill = 1;
+        focusable = FALSE;
+    }
+    MOVE PROPERTY (strValue) {
+        captionVertical = TRUE;
+        class = 'input-single';
+        captionClass = 'input-single-caption';
+        valueClass = 'input-single-value';
+    }
+    MOVE PROPERTY(ok);
+}
+
+inputString(STRING caption, Connection c) + WHEN caption IS STRING  AND isWebMobile(c) THEN {
+    DIALOG inputString OBJECTS caption = caption, value = inputedString() INPUT NOMANAGESESSION NOCANCEL DO {
+        inputedString() <- value;
+    } ELSE {
+        inputedString() <- NULL;
+    }
+};
+
+// Диалог ввода Integer
+FORM inputQuantityInteger 'Ввод количества'
+    OBJECTS caption = STRING PANEL NULL, quantity = NUMERIC NULL PANEL
+    PROPERTIES READONLY str '' = VALUE(caption) CUSTOM 'htmlText'
+    FILTERS caption
+
+    PROPERTIES PANEL quantityInteger = (JSON FROM 'value' = quantity, 'modal' = TRUE) CUSTOM 'inputKeyboardInteger' ON CHANGE {
+        INPUT value = NUMERIC DO {
+            ACTIVATE inputQuantityInteger.quantity = value;
+        }
+    }
+;
+
+META defIntegerKeyboardKey(key, capt, hotkey, class)
+    integerButton###key() { INTERNAL CLIENT 'keyPress' PARAMS 'quantityInteger', ''##key##''; }
+    @defButtonCustom(integerButton###key, capt, inputQuantityInteger, hotkey, ''##class##'');
+    DESIGN inputQuantityInteger {
+        keyboard {
+            MOVE PROPERTY (integerButton###key);
+        }
+    }
+END
+
+META defIntegerKeyboardKey(key, capt, class)
+    @defIntegerKeyboardKey(key, capt, '', class);
+END
+
+@defButtonCustom(ok, '↵ Enter', inputQuantityInteger, 'ENTER', dbl);
+@defButtonCustom(close, '(Esc) Закрыть', inputQuantityInteger, 'ESCAPE', cancel);
+
+DESIGN inputQuantityInteger {
+    OBJECTS {
+        NEW info {
+            align = STRETCH;
+            collapsible = FALSE;
+            caption = '';
+        }
+        MOVE PROPERTY(quantityInteger) {
+            class = 'input-single';
+            valueClass = 'input-single-value';
+            captionClass = 'input-single-caption';
+            align = STRETCH;
+            captionVertical = TRUE;
+        }
+        NEW keyboard {
+            grid = TRUE;
+            lines = 4;
+            align = STRETCH;
+        }
+        MOVE PROPERTY (close);
+    }
+    REMOVE TOOLBARBOX;
+}
+
+@defIntegerKeyboardKey(1, '1', number);
+@defIntegerKeyboardKey(2, '2', number);
+@defIntegerKeyboardKey(3, '3', number);
+@defIntegerKeyboardKey(backspace, '⌫', control);
+@defIntegerKeyboardKey(4, '4', number);
+@defIntegerKeyboardKey(5, '5', number);
+@defIntegerKeyboardKey(6, '6', number);
+@defIntegerKeyboardKey(clear, '⌧', control);
+
+@defIntegerKeyboardKey(7, '7', number);
+@defIntegerKeyboardKey(8, '8', number);
+@defIntegerKeyboardKey(9, '9', number);
+DESIGN inputQuantityInteger { keyboard { MOVE PROPERTY(ok); } }
+
+@defIntegerKeyboardKey(sign, '+/-', 'SUBTRACT', number);
+@defIntegerKeyboardKey(0, '0', number);
+
+buttonDecimal() { INTERNAL CLIENT 'keyPress' PARAMS 'quantityInteger', 'decimal'; }
+overButtonDecimalInputQuantityInteger = ABSTRACT STRING ();
+buttonDecimalInputQuantityInteger '' () = OVERRIDE overButtonDecimalInputQuantityInteger(), '.';
+hideButtonDecimalInputQuantityInteger = ABSTRACT BOOLEAN ();
+EXTEND FORM inputQuantityInteger PROPERTIES SHOWIF NOT hideButtonDecimalInputQuantityInteger() DISABLE buttonDecimal = buttonDecimal() HEADER buttonDecimalInputQuantityInteger();
+DESIGN inputQuantityInteger {
+    PROPERTY (buttonDecimal) {
+        align = STRETCH;
+        changeKey = '';
+        class = 'custom-button buttonDecimal number';
+        showChangeKey = FALSE;
+    }
+}
+DESIGN inputQuantityInteger {
+    keyboard {
+        MOVE PROPERTY (buttonDecimal);
+    }
+}
+
+inputInteger(STRING caption, Connection c) + WHEN caption IS STRING AND isWebMobile(c) THEN {
+    DIALOG inputQuantityInteger OBJECTS caption = caption, quantity = inputedInteger() INPUT NULL DO {
+        inputedInteger() <- quantity;
+    } ELSE {
+        inputedInteger() <- NULL;
+    }
+};
+
+// Numeric
+FORM inputQuantityNumeric 'Ввод количества'
+    OBJECTS caption = STRING PANEL NULL, quantity = NUMERIC NULL PANEL
+    PROPERTIES READONLY str '' = VALUE(caption) CUSTOM 'htmlText'
+    FILTERS caption
+
+    PROPERTIES PANEL quantityNumeric = (JSON FROM 'value' = quantity, 'modal' = TRUE) CUSTOM 'inputKeyboard' ON CHANGE {
+        INPUT value = NUMERIC DO {
+            ACTIVATE inputQuantityNumeric.quantity = value;
+        }
+    }
+;
+
+META defNumericKeyboardKey(key, capt, hotkey, class)
+    numericButton###key() { INTERNAL CLIENT 'keyPress' PARAMS 'quantityNumeric', ''##key##''; }
+    @defButtonCustom(numericButton###key, capt, inputQuantityNumeric, hotkey, ''##class##'');
+    DESIGN inputQuantityNumeric {
+        keyboard {
+            MOVE PROPERTY (numericButton###key);
+        }
+    }
+END
+
+META defNumericKeyboardKey(key, capt, class)
+    @defNumericKeyboardKey(key, capt, '', class);
+END
+
+@defButtonCustom(ok, '↵ Enter', inputQuantityNumeric, 'ENTER', dbl);
+@defButtonCustom(close, '(Esc) Закрыть', inputQuantityNumeric, 'ESCAPE', cancel);
+
+DESIGN inputQuantityNumeric {
+    OBJECTS {
+        NEW info {
+            align = STRETCH;
+            collapsible = FALSE;
+            caption = '';
+        }
+        MOVE PROPERTY(quantityNumeric) {
+            class = 'input-single';
+            valueClass = 'input-single-value';
+            captionClass = 'input-single-caption';
+            align = STRETCH;
+            captionVertical = TRUE;
+        }
+        NEW keyboard {
+            grid = TRUE;
+            lines = 4;
+            align = STRETCH;
+        }
+        MOVE PROPERTY (close);
+    }
+    REMOVE TOOLBARBOX;
+}
+
+@defNumericKeyboardKey(1, '1', number);
+@defNumericKeyboardKey(2, '2', number);
+@defNumericKeyboardKey(3, '3', number);
+@defNumericKeyboardKey(backspace, '⌫', control);
+@defNumericKeyboardKey(4, '4', number);
+@defNumericKeyboardKey(5, '5', number);
+@defNumericKeyboardKey(6, '6', number);
+@defNumericKeyboardKey(clear, '⌧', control);
+
+@defNumericKeyboardKey(7, '7', number);
+@defNumericKeyboardKey(8, '8', number);
+@defNumericKeyboardKey(9, '9', number);
+DESIGN inputQuantityNumeric { keyboard { MOVE PROPERTY(ok); } }
+
+@defNumericKeyboardKey(sign, '+/-', 'SUBTRACT', number);
+@defNumericKeyboardKey(0, '0', number);
+@defNumericKeyboardKey(decimal, '.', number);
+
+inputNumeric(STRING caption, Connection c) + WHEN caption IS STRING AND isWebMobile(c) THEN {
+    DIALOG inputQuantityNumeric OBJECTS caption = caption, quantity = inputedNumeric() INPUT NULL DO {
+        inputedNumeric() <- quantity;
+    } ELSE {
+        inputedNumeric() <- NULL;
+    }
+};

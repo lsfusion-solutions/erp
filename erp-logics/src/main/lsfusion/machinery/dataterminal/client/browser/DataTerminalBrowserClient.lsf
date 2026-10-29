@@ -1,0 +1,32 @@
+MODULE DataTerminalBrowserClient;
+
+REQUIRE DataTerminalInternal;
+
+NAMESPACE DataTerminal;
+
+dataTerminalBrowser 'Интерфейс ТСД в браузере' = DATA BOOLEAN () PREREAD;
+
+EXTEND FORM options PROPERTIES dataTerminalBrowser();
+
+DESIGN options {
+    dataTerminal {
+        MOVE PROPERTY (dataTerminalBrowser());
+    }
+}
+
+dataDataTerminalBrowser 'Интерфейс ТСД в браузере (сохр.)' = DATA BOOLEAN (Employee);
+
+dataTerminalBrowser 'Интерфейс ТСД в браузере' (Employee e) =
+    OVERRIDE dataDataTerminalBrowser(e), dataTerminalBrowser() AND e IS Employee;
+
+EXTEND FORM employee
+    PROPERTIES dataTerminalBrowser(e) BACKGROUND #A9A9A9 IF dataTerminalBrowser(e) AND NOT dataDataTerminalBrowser(e)
+;
+
+DESIGN employee {
+    access {
+        MOVE PROPERTY (dataTerminalBrowser(e));
+    }
+}
+
+isDataTerminal(Connection c) += isWebMobile(c) AND dataTerminalBrowser[Employee](user(c));

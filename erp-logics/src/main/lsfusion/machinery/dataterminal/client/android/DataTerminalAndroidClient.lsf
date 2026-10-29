@@ -1,0 +1,74 @@
+MODULE DataTerminalAndroidClient;
+
+REQUIRE SystemEvents, DataTerminalInternal;
+
+NAMESPACE AndroidClient;
+
+onWebClientInit() + {
+    onWebClientInit('AndroidClient.js') <- -1;
+}
+
+postImage (STRING tag, IMAGEFILE f) {}@@api;
+
+isAndroidClient = DATA BOOLEAN (Connection);
+isAndroidClient() = isAndroidClient(currentConnection());
+isDataTerminal (Connection c) += isAndroidClient(c) AND isWebMobile(c) AND user(c) IS Employee;
+
+beforeWebClientStarted() + {
+    NEWSESSION {
+        LOCAL isAndroidClient = BOOLEAN();
+        INTERNAL CLIENT 'checkMobileDataTerminal' TO isAndroidClient;
+
+        isAndroidClient(currentConnection()) <- isAndroidClient();
+        APPLY;
+    }
+}
+
+showToast(STRING s) {
+    LOCAL isOk = BOOLEAN ();
+    INTERNAL CLIENT 'showToast' PARAMS s TO isOk;
+    IF isOk() THEN RETURN;
+    MESSAGE s NOWAIT;
+}
+
+showMessage(STRING s) {
+    LOCAL isOk = BOOLEAN ();
+    INTERNAL CLIENT 'showMessage' PARAMS s TO isOk;
+    IF isOk() THEN RETURN;
+    MESSAGE s NOWAIT;
+}
+
+playRingtone() {
+    INTERNAL CLIENT 'playRingtone';
+}
+
+playAlarm() {
+    INTERNAL CLIENT 'playAlarm';
+}
+
+playNotify() {
+    INTERNAL CLIENT 'playNotify';
+}
+
+playError() {
+    INTERNAL CLIENT 'playError';
+}
+
+stopRingtone() {
+    INTERNAL CLIENT 'stopRingtone';
+}
+
+afterCaptureImage ABSTRACT (IMAGEFILE, Connection);
+
+mobileApiResult(LONG tag, IMAGEFILE image) {
+    LOCAL connection = Connection();
+    connection() <- [GROUP MAX Connection c AS Connection BY LONG(c)](tag);
+    afterCaptureImage(image, connection());
+}@@api;
+
+captureImage() {
+    LOCAL isOk = BOOLEAN ();
+    INTERNAL CLIENT 'captureImage' PARAMS LONG(currentConnection()) TO isOk;
+    IF isOk() THEN RETURN;
+    showToast('Камера недоступна');
+}

@@ -1,0 +1,83 @@
+MODULE DataTerminalUtils;
+
+REQUIRE SystemEvents, Employee;
+
+NAMESPACE DataTerminal;
+
+currentEmployee() = currentUser() AS Employee;
+
+// Последнее по активности соединение пользователя
+lastConnection (CustomUser u, ConnectionStatus s) = GROUP LAST Connection c ORDER lastActivity(c), c BY user(c), connectionStatus(c);
+lastConnection (CustomUser u) = lastConnection(u, ConnectionStatus.connectedConnection);
+
+// Воспроизведение рингтона
+playRingtone ABSTRACT CASE (Connection);
+playRingtone() { playRingtone(currentConnection()); }
+
+playAlarm ABSTRACT CASE (Connection);
+playAlarm() { playAlarm(currentConnection()); }
+
+playNotify ABSTRACT CASE (Connection);
+playNotify() { playNotify(currentConnection()); }
+
+playError ABSTRACT CASE (Connection);
+playError() { playError(currentConnection()); }
+
+stopRingtone ABSTRACT CASE (Connection);
+stopRingtone() { stopRingtone(currentConnection()); }
+
+// Единые интерфейсы вызова диалогов
+// Всплывающее сообщение с таймаутом
+toast ABSTRACT CASE (STRING, Connection);
+toast (STRING message) { toast(message, currentConnection()); }
+
+// Диалог с одной кнопкой подтверждения
+message ABSTRACT CASE (STRING, Connection);
+message (STRING message) { message(message, currentConnection()); }
+
+// Асинхронный диалог с одной кнопкой подтверждения
+messageAsync ABSTRACT CASE (STRING, Connection);
+messageAsync (STRING message) { messageAsync(message, currentConnection()); }
+
+// Диалог с кнопками Да - Нет
+askedYesNo = DATA LOCAL BOOLEAN ();
+askYesNo ABSTRACT CASE (STRING, Connection);
+askYesNo (STRING caption) { askYesNo(caption, currentConnection()); }
+
+activeYesNo ABSTRACT CASE (Connection);
+activeYesNo () { activeYesNo(currentConnection()); }
+
+activeMessage ABSTRACT CASE (Connection);
+activeMessage () { activeMessage(currentConnection()); }
+
+// Реализация стандартных диалогов для десктопа
+message (STRING message, Connection c) + WHEN message IS STRING AND isDesktop(c) THEN {
+    IF c = currentConnection() THEN {
+        MESSAGE message;
+    } ELSE {
+        NEWSESSION NEWTHREAD { MESSAGE message; } CONNECTION c;
+    }
+}
+
+askYesNo (STRING caption, Connection c) + WHEN caption IS STRING AND isDesktop(c) THEN {
+    ASK caption DO {
+        askedYesNo() <- TRUE;
+    } ELSE {
+        askedYesNo() <- NULL;
+    }
+}
+
+// Диалог ввода строки
+inputedString = DATA LOCAL STRING ();
+inputString ABSTRACT CASE (STRING, Connection);
+inputString (STRING caption) { inputString(caption, currentConnection()); }
+
+// Диалог ввода количества (INTEGER)
+inputedInteger = DATA LOCAL INTEGER ();
+inputInteger ABSTRACT CASE (STRING, Connection);
+inputInteger (STRING caption) { inputInteger(caption, currentConnection()); }
+
+// Диалог ввода количества (NUMERIC)
+inputedNumeric = DATA LOCAL NUMERIC ();
+inputNumeric ABSTRACT CASE (STRING, Connection);
+inputNumeric (STRING caption) { inputNumeric(caption, currentConnection()); }

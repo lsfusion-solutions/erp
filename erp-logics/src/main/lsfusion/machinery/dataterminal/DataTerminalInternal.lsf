@@ -1,0 +1,196 @@
+MODULE DataTerminalInternal;
+
+REQUIRE DataTerminal, Security, DataTerminalInternalMeta;
+
+NAMESPACE DataTerminal;
+
+isDataTerminal = ABSTRACT VALUE BOOLEAN (Connection);
+isDataTerminal() = isDataTerminal(currentConnection());
+
+beforeDataTerminalStart ABSTRACT LIST ();
+
+// Сброс прочитанных на ТСД значений (defReadedField) при выходе в начальное меню
+clearReadedFields ABSTRACT LIST (Employee);
+
+// Действие после обработки отсканированного штрихкода (defReadBarcode)
+afterReadBarcode ABSTRACT LIST ();
+
+// Иерархия меню ТСД
+CLASS MenuItem 'Элемент меню' { tab }
+TABLE menuItem (MenuItem);
+
+// Стек переходов по меню
+stack = DATA LOCAL NESTED MenuItem (INTEGER);
+topIndex 'Вершина' () = GROUP MAX INTEGER i IF stack(i);
+top () = stack(topIndex());
+
+push (MenuItem i) {
+    stack(topIndex() (+) 1) <- i;
+}
+
+pop () {
+    stack(topIndex()) <- NULL;
+}
+
+clean () {
+    stack(INTEGER i) <- NULL;
+}
+
+name = DATA STRING (MenuItem);
+onStarted() + {
+    name(MenuItem i) <- STRING(caption(i)) IF i AS MenuItem != MenuItem.tab AND caption(i) != '';
+}
+
+parent = ABSTRACT CASE MenuItem (MenuItem);
+up = ABSTRACT CASE MenuItem (MenuItem) MATERIALIZED;
+
+activeTab = ABSTRACT CASE BOOLEAN (MenuItem);
+
+level 'Уровень элемента меню' (MenuItem child, MenuItem parent) =
+    RECURSION 1 IF child IS MenuItem AND parent = child STEP 2 IF parent = parent($parent) MATERIALIZED INDEXED;
+
+onStarted() + {
+    RECALCULATE level(MenuItem child, MenuItem parent);
+    RECALCULATE up(MenuItem i);
+}
+
+lastMenuItem = DATA LOCAL NESTED MenuItem();
+
+activateMenuItem ABSTRACT CASE (MenuItem);
+
+toMenuItem (MenuItem i) {
+    IF lastMenuItem() = i THEN RETURN;
+    push(lastMenuItem());
+    FOR level(i, MenuItem parent) DO activateMenuItem(parent);
+} WAIT;
+
+beforePrevMenuItem ABSTRACT CASE (MenuItem);
+toPrevMenuItem 'Назад к предыдущему пункту меню' () {
+    beforePrevMenuItem(lastMenuItem());
+    IF up(lastMenuItem()) THEN {
+        WHILE top() != up(lastMenuItem()) DO pop();
+        toMenuItem(up(lastMenuItem()));
+    } ELSE {
+        toMenuItem(top());
+    }
+    pop();
+    pop();
+    CANCEL;
+} WAIT;
+
+initMenuItem = ABSTRACT MenuItem();
+
+toInitMenuItem () {
+    clearReadedFields(currentEmployee());
+    toMenuItem(initMenuItem());
+    clean();
+} WAIT;
+
+path (MenuItem m) =
+    GROUP CONCAT STRING(name(MenuItem i)) IF level(m, i), ' / ' ORDER -level(m, i), i;
+
+objectId = ABSTRACT STRING ();
+topInfoLine() = CONCAT ' ', path(lastMenuItem()), objectId();
+
+topInfoPanel '' () = CONCAT '', '<div class=topInfoPanel>',
+                                                '<div class=user>', name(currentEmployee()), '</div>',
+                                                '<div class=info>', topInfoLine(), '</div>',
+                                            '</div>';
+
+FORM dataTerminalInternal 'Терминал сбора данных'
+    EVENTS ON QUERYCLOSE {  }
+    PROPERTIES READONLY topInfoPanel() CUSTOM 'htmlText'
+;
+
+// Действие обновляет форму ТСД для пользователей
+needRefresh = ABSTRACT BOOLEAN ();
+formRefresh (Connection c) {
+    IF c THEN {
+        NEWTHREAD {
+            ACTIVE FORM dataTerminalInternal;
+            IF isActiveForm() AND needRefresh() THEN {
+                formRefresh();
+            }
+        } CONNECTION c;
+    }
+}
+
+formRefresh (Employee e) {
+    FOR connectionStatus(Connection c) = ConnectionStatus.connectedConnection AND user(c) = e DO {
+        formRefresh(c);
+    }
+}
+
+DESIGN dataTerminalInternal {
+    REMOVE TOOLBARBOX;
+    NEW topInfoPanel {
+        align = STRETCH;
+        MOVE PROPERTY (topInfoPanel()) {
+            focusable = FALSE;
+            align = STRETCH;
+        }
+    }
+    NEW topMenu {
+        margin = 0;
+        grid = TRUE;
+        lines = 4;
+        align = STRETCH;
+    }
+    NEW underTopMenu {
+        align = STRETCH;
+    }
+
+    NEW tab {
+        align = STRETCH;
+        fill = 1;
+    }
+}
+@defDtTab(main, 'Главная', 'F1', topMenu);
+
+@defDtTab(operation, 'Операция', 'F2', topMenu);
+
+toPrevMenuItemOperation() {
+    toPrevMenuItem();
+}
+@defButtonCustom(toPrevMenuItemOperation, '(Esc) Назад', dataTerminalInternal, 'ESCAPE', cancel);
+
+DESIGN dataTerminalInternal {
+    operationTab {
+        MOVE PROPERTY (toPrevMenuItemOperation);
+    }
+}
+
+// CUSTOM-рендереры ТСД грузятся при инициализации страницы: INTERNAL CLIENT загружает
+// скрипт асинхронно, и форма, показанная сразу после него, рендерера еще не видит
+onWebClientInit() + {
+    onWebClientInit('dataTerminalHtmlText.js') <- 11;
+    onWebClientInit('inputDT.js') <- 12;
+    onWebClientInit('inputDecimal.js') <- 13;
+}
+
+beforeWebClientStarted ABSTRACT LIST ();
+BEFORE onWebClientStarted() DO {
+    beforeWebClientStarted();
+    IF isDataTerminal() AND currentUser() IS Employee THEN {
+        beforeDataTerminalStart();
+        INTERNAL CLIENT 'data-terminal.css';
+        INTERNAL CLIENT 'dropEscape';
+        SHOW dataTerminalInternal NOWAIT;
+        maximizeForm();
+    }
+}
+
+// Общие действия по кнопкам в модальных диалогах
+ok() { formOk(); }
+
+close() { formClose(); }
+
+// Активные ТСД
+EXTEND CLASS Employee : ActivePDT;
+
+lastActivity (Employee e) += lastActivity(lastConnection(e));
+pdt (Employee e) += STRING(Authentication.hostname(computer(lastConnection(e))));
+user (Employee e) += user(lastConnection(e));
+dateTime (Employee e) += connectTime(lastConnection(e));
+online (Employee e) += hasConnectedConnections(e) > 0;
+inactive (Employee e) += e IS Employee AND NOT lastConnection(e);

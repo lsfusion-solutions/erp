@@ -1,0 +1,44 @@
+MODULE DataTerminal;
+
+REQUIRE Machinery, DataTerminalUtils;
+
+NAMESPACE DataTerminal;
+
+CLASS ABSTRACT ActivePDT 'Активные терминалы';
+
+pdt 'Ид' = ABSTRACT STRING (ActivePDT);
+
+user 'Пользователь' = ABSTRACT User (ActivePDT);
+nameUser 'Пользователь' (ActivePDT pdt) = name(user(pdt));
+
+dateTime 'Время авторизации' = ABSTRACT DATETIME (ActivePDT);
+lastActivity 'Последняя активность' = ABSTRACT DATETIME (ActivePDT);
+
+online 'Онлайн' = ABSTRACT BOOLEAN (ActivePDT);
+
+inactive 'Неактивный' = ABSTRACT BOOLEAN (ActivePDT);
+active 'Активный' (ActivePDT a) = a IS ActivePDT AND NOT inactive(a);
+background (ActivePDT a) = IF online(a) THEN #90EE90 ELSE #FFC0CB;
+
+FORM activePDT 'Активность ТСД'
+    EVENTS
+        ON SCHEDULE PERIOD 5 formRefresh()
+
+    OBJECTS t = ActivePDT
+    PROPERTIES (t) READONLY BACKGROUND background(t) pdt, nameUser, dateTime, lastActivity
+    FILTERS active(t)
+;
+
+DESIGN options {
+    machinery {
+        NEW dataTerminal {
+            caption = 'Терминалы сбора данных (web)';
+        }
+    }
+}
+
+NAVIGATOR {
+    machineryNavigator {
+        NEW activePDT;
+    }
+}

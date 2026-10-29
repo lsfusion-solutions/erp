@@ -1,0 +1,292 @@
+MODULE DataTerminalInternalMeta;
+
+NAMESPACE DataTerminal;
+
+// Кастомная кнопка
+META defButtonCustom(nm, cptn, form, formObject, hotkey, addclass)
+    over###nm###form = ABSTRACT STRING ();
+    nm###form '' () = OVERRIDE over###nm###form(), cptn;
+    hide###nm###form = ABSTRACT BOOLEAN ();
+    disable###nm###form = ABSTRACT BOOLEAN ();
+    EXTEND FORM form PROPERTIES SHOWIF NOT hide###nm###form() nm = nm(formObject) HEADER nm###form() DISABLEIF disable###nm###form();
+    DESIGN form {
+        PROPERTY (nm) {
+            align = STRETCH;
+            changeKey = hotkey;
+            class = 'custom-button '##nm##' '##addclass##'';
+            showChangeKey = FALSE;
+        }
+    }
+END
+
+META defButtonCustom(nm, cptn, form, hotkey, addclass)
+    @defButtonCustom(nm, cptn, form, , hotkey, addclass);
+END
+
+
+// Описание подменю для ТСД
+META defSubMenu(nm, prnt, cptn)
+    DESIGN dataTerminalInternal {
+        prnt {
+            tabbed = TRUE;
+            NEW nm##Tab {
+                caption = cptn;
+                fill = 1;
+                collapsible = FALSE;
+                NEW nm {
+                    align = STRETCH;
+                }
+            }
+        }
+    }
+
+    EXTEND CLASS MenuItem { nm cptn }
+    parent (MenuItem i) += WHEN i = MenuItem.nm THEN MenuItem.prnt;
+    activeTab (MenuItem i) += WHEN i = MenuItem.nm THEN ACTIVE TAB dataTerminalInternal.nm##Tab;
+
+    afterActivate###nm ABSTRACT LIST ();
+    activateMenuItem(MenuItem i) + WHEN i = MenuItem.nm THEN {
+        IF NOT ACTIVE TAB dataTerminalInternal.nm##Tab THEN {
+            ACTIVATE TAB dataTerminalInternal.nm##Tab;
+            afterActivate###nm();
+            lastMenuItem() <- GROUP LAST MenuItem j ORDER level(j, MenuItem.nm), j WHERE activeTab(j);
+        }
+    }
+
+    WHEN LOCAL SET(ACTIVE TAB dataTerminalInternal.nm##Tab) DO
+        lastMenuItem() <- GROUP LAST MenuItem i ORDER level(i, MenuItem.nm), i WHERE activeTab(i);
+END
+
+META defSubMenu(nm, prnt, upItem, cptn)
+    @defSubMenu(nm, prnt, cptn);
+    up(MenuItem i) += WHEN i = MenuItem.nm THEN MenuItem.upItem;
+END
+
+META defButtonBack(box, postfix)
+    backFrom###box() {
+        toPrevMenuItem();
+    }
+    @defButtonCustom(backFrom###box, '(Esc) Назад', dataTerminalInternal, 'ESCAPE', cancel);
+    DESIGN dataTerminalInternal {
+        box###postfix {
+            MOVE PROPERTY (backFrom###box);
+        }
+    }
+END
+
+// Создание вкладки для ТСД
+META defDtTab(nm, cptn, hotkey, box)
+    @defSubMenu(nm, tab, cptn);
+    DESIGN dataTerminalInternal { nm { fill = 1; } }
+
+    isActive###nm 'Активна' () = ACTIVE TAB dataTerminalInternal.nm##Tab;
+    additionalCssClass###nm = ABSTRACT STRING ();
+    nameCssClass###nm() = CONCAT ' ', 'dttab', 'active' IF isActive###nm(), additionalCssClass###nm();
+    dingbat###nm() = ABSTRACT STRING ();
+
+    nm '' () = CONCAT '',
+        '('##hotkey##')<br>'##cptn##'<var>', dingbat###nm(), '</var>'
+        CHANGEKEY hotkey CHARWIDTH 10;
+    activate###nm ABSTRACT MULTI OVERRIDE () CHANGEKEY hotkey;
+    activate###nm () + {
+        toMenuItem(MenuItem.nm);
+    }
+
+    activated###nm ABSTRACT LIST ();
+    WHEN LOCAL SET(ACTIVE TAB dataTerminalInternal.nm##Tab) DO {
+        activated###nm();
+    }
+
+    EXTEND FORM dataTerminalInternal PROPERTIES activate###nm() HEADER nm();
+
+    DESIGN dataTerminalInternal {
+        box {
+            MOVE PROPERTY (activate###nm()) {
+                margin = 0;
+                focusable = FALSE;
+                showChangeKey = FALSE;
+                align = STRETCH;
+                class = nameCssClass###nm();
+            }
+        }
+    }
+END
+
+// Прочитанное на ТСД значение (хранится по сотруднику, сбрасывается действием clearReadedFields)
+META defReadedField(nm, det, cptn, tab, prop, type)
+    dataReaded###nm###det###tab cptn = DATA type (Employee);
+    class###nm###det###tab = ABSTRACT STRING ();
+    required###nm###det###tab = ABSTRACT BOOLEAN (Employee);
+    required###nm###det###tab () = required###nm###det###tab(currentEmployee());
+    overReaded###nm###det###tab cptn = ABSTRACT type (Employee);
+    readed###nm###det###tab cptn (Employee e) = OVERRIDE dataReaded###nm###det###tab(e), overReaded###nm###det###tab(e);
+    hide###nm###det###tab = ABSTRACT BOOLEAN (Employee);
+    hide###nm###det###tab () = hide###nm###det###tab (currentEmployee());
+
+    EXTEND FORM dataTerminalInternal PROPERTIES desc###nm###det###tab cptn = prop(readed###nm###det###tab(currentEmployee())) READONLY SHOWIF NOT hide###nm###det###tab();
+    DESIGN dataTerminalInternal {
+        tab {
+            MOVE PROPERTY(desc###nm###det###tab) {
+                focusable = FALSE;
+                valueClass = CONCAT ' ',
+                    ''##nm###det###tab###'',
+                    'readed-field-value',
+                    'required' IF required###nm###det###tab(),
+                    'empty' IF NOT readed###nm###det###tab(currentEmployee());
+                captionClass = CONCAT ' ', ''##nm###det###tab###'', 'readed-field-caption', 'required' IF required###nm###det###tab();
+            }
+        }
+    }
+
+    clearReadedFields(Employee e) + {
+        dataReaded###nm###det###tab(e) <- NULL;
+    }
+
+END
+
+META defReadedField(nm, det, cptn, tab, prop)
+    @defReadedField(nm, det, cptn, tab, prop, ###nm);
+END
+
+META defReadedField(nm, cptn, tab, prop)
+    @defReadedField(nm, , cptn, tab, prop);
+END
+
+META defCalcField(nm, det, cptn, tab, form, prop)
+    nm###prop###det###tab cptn (###prop prop) = nm(prop);
+    nm###prop###det###tab cptn () = nm###prop###det###tab(readed###prop###det###tab(currentEmployee()));
+    hide###nm###prop###det###tab () = ABSTRACT BOOLEAN ();
+
+    EXTEND FORM form PROPERTIES desc###nm###prop###det###tab cptn = nm###prop###det###tab() READONLY SHOWIF NOT hide###nm###prop###det###tab();
+    DESIGN form {
+        tab {
+            MOVE PROPERTY (desc###nm###prop###det###tab) {
+                focusable = FALSE;
+                valueClass = CONCAT ' ',
+                    ''##nm###prop###tab##'',
+                    'calc-field-value',
+                    'required' IF required###prop###det###tab(),
+                    'empty' IF NOT nm###prop###det###tab();
+
+                captionClass = CONCAT ' ', ''##nm###prop###tab##'', 'calc-field-caption', 'required' IF required###prop###det###tab();
+            }
+        }
+    }
+END
+
+META defCalcField(nm, cptn, tab, form, prop)
+    @defCalcField(nm, , cptn, tab, form, prop);
+END
+
+META defCalcField(nm, cptn, tab, prop)
+    @defCalcField(nm, , cptn, tab, dataTerminalInternal, prop);
+END
+
+// Общее отображение STRING -> STRING для прочитанных штрихкодов
+translateBarcode = ABSTRACT STRING (STRING);
+failureMessage = DATA LOCAL STRING (); // Сообщение о неуспехе - оно же флаг провала
+
+META defReadBarcode(tab, cptn, cls)
+    rawReadedBarcode###tab###cls cptn##'(сырые данные)' = DATA LOCAL STRING();
+    readedBarcode###tab###cls cptn = DATA LOCAL STRING();
+    WHEN LOCAL FORMS dataTerminalInternal CHANGED(readedBarcode###tab###cls()) AND NOT CHANGED(rawReadedBarcode###tab###cls()) DO {
+        rawReadedBarcode###tab###cls() <- NULL;
+    }
+    headerReadedBarcode###tab###cls = ABSTRACT STRING ();
+
+    fillReadedBarcode###tab###cls ABSTRACT ();
+    hideFillReadedBarcode###tab###cls##DataTerminalInternal = ABSTRACT BOOLEAN ();
+
+    beforeReadBarcode###tab###cls ABSTRACT LIST (STRING, STRING) WAIT; //первый параметр - barcode, второй - RAW первой строки
+    readBarcode###tab###cls ABSTRACT LIST (STRING, STRING) WAIT; //первый параметр - barcode, второй - RAW первой строки
+    AFTER readBarcode###tab###cls(STRING barcode, STRING raw) DO {
+        afterReadBarcode();
+    }
+
+    processReadBarcode###tab###cls () {
+        failureMessage() <- NULL;
+        beforeReadBarcode###tab###cls(readedBarcode###tab###cls(), rawReadedBarcode###tab###cls());
+        IF failureMessage() THEN {
+            message(failureMessage());
+            CANCEL;
+            RETURN;
+        }
+        readBarcode###tab###cls(readedBarcode###tab###cls(), rawReadedBarcode###tab###cls());
+        readedBarcode###tab###cls() <- NULL;
+        rawReadedBarcode###tab###cls() <- NULL;
+    }
+
+    EXTEND FORM dataTerminalInternal
+        PROPERTIES PANEL readedBarcode###tab###cls() CUSTOM 'inputBarcode' ON CHANGE {
+            INPUT s = STRING DO {
+                rawReadedBarcode###tab###cls() <- getWord(s, '\n', 1);
+                readedBarcode###tab###cls() <- OVERRIDE translateBarcode(rawReadedBarcode###tab###cls()), rawReadedBarcode###tab###cls();
+                IF wordCount(s, '\n') > 1 THEN {
+                    processReadBarcode###tab###cls();
+                }
+            }
+        } HEADER OVERRIDE headerReadedBarcode###tab###cls(), cptn
+
+        PROPERTIES readBarcode###tab###cls '(Enter) OK' = {
+            IF NOT readedBarcode###tab###cls() > '' THEN {
+                message('<em>Неверный штрихкод</em>');
+                RETURN;
+            }
+            processReadBarcode###tab###cls();
+        }
+
+        PROPERTIES SHOWIF NOT hideFillReadedBarcode###tab###cls##DataTerminalInternal() fillReadedBarcode###tab###cls '(F9)<br><b>↩</b>' = fillReadedBarcode###tab###cls()
+    ;
+
+    DESIGN dataTerminalInternal {
+        tab###cls {
+            NEW input###ReadedBarcode###tab###cls {
+                align = STRETCH;
+                class = 'input-container';
+                MOVE PROPERTY (readedBarcode###tab###cls()) {
+                    captionVertical = TRUE;
+                    class = 'input-single';
+                    captionClass = 'input-single-caption';
+                    valueClass = 'input-single-value';
+                }
+                MOVE PROPERTY (fillReadedBarcode###tab###cls) {
+                    align = STRETCH;
+                    changeKey = 'F9';
+                    class = 'custom-button fillReadedBarcode'###tab###cls##' input-right';
+                    showChangeKey = FALSE;
+                }
+            }
+            MOVE PROPERTY (readBarcode###tab###cls) {
+                align = STRETCH;
+                changeKey = 'ENTER';
+                class = 'custom-button readBarcode'###tab###cls##' ok';
+                showChangeKey = FALSE;
+            }
+        }
+    }
+END
+
+META defReadBarcode(tab, cptn)
+    @defReadBarcode(tab, cptn, );
+END
+
+META addMenuItem (nm, caption, hotkey, box)
+    hideMenuItem###nm = ABSTRACT BOOLEAN ();
+    doMenuItem###nm caption ABSTRACT LIST FIRST () CHANGEKEY hotkey;
+
+    EXTEND FORM dataTerminalInternal
+        PROPERTIES doMenuItem###nm() HEADER caption SHOWIF NOT hideMenuItem###nm()
+    ;
+
+    DESIGN dataTerminalInternal {
+        box {
+            MOVE PROPERTY (doMenuItem###nm()) {
+                focusable = FALSE;
+                align = STRETCH;
+                class = 'menu-item '##nm;
+                showChangeKey = FALSE;
+                charHeight = 2;
+            }
+        }
+    }
+END
