@@ -57,6 +57,7 @@ inBackSheetStocks 'Склады' () =
     GROUP CONCAT STRING(name(Stock st)) IF inBackSheet(st) ,', ' ORDER name(st),st CHARWIDTH 50;
 
 overFillReportBackSheetFromTo  ABSTRACT ( GroupType, DATE, DATE);
+afterFillReportBackSheetFromTo  ABSTRACT LIST ( GroupType, DATE, DATE);
 beforeFillReportBackSheetFromTo  ABSTRACT ( GroupType, DATE, DATE);
 
 skipBackSheet = ABSTRACT VALUE BOOLEAN (Sku);
@@ -106,9 +107,10 @@ fillReportBackSheetFromTo 'Сформировать'(GroupType gt, DATE df, DATE
     sumOut(Group g) <- [GROUP SUM sumOut(Sku sk) BY group(GroupType ggt, sk)](g) IF  groupType(g) == gt; 
 
     balanceB(Group g) <- [GROUP SUM balanceB(Sku sk) BY group(GroupType ggt, sk)](g) IF  groupType(g) == gt;           
-    sumB(Group g) <- [GROUP SUM sumB(Sku sk) BY group(GroupType ggt, sk)](g) IF  groupType(g) == gt;   
+    sumB(Group g) <- [GROUP SUM sumB(Sku sk) BY group(GroupType ggt, sk)](g) IF  groupType(g) == gt;
 
-    overFillReportBackSheetFromTo(gt, df, dt);      
+    afterFillReportBackSheetFromTo(gt, df, dt);
+    overFillReportBackSheetFromTo(gt, df, dt);
 }
 
 recBalanceB 'Остаток на начало периода' (Group parent) = GROUP SUM balanceB (Group child) IF isParent(child, parent);
