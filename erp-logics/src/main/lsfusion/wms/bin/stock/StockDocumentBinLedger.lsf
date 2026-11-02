@@ -70,6 +70,12 @@ CONSTRAINT (((CHANGED(date(StockDocumentBinLedger d)) OR CHANGED(sum(d))) AND ac
     AND NOT allowChangeStockDocumentClosed(currentUser())
     MESSAGE 'Запрещено редактировать документы для склада до даты закрытия';
 
+CONSTRAINT CHANGED(date(StockDocumentBinLedger d))
+    AND PREV(date(d) IF active(d)) < documentsClosedDate(stock(d))
+    AND NOT allowChangeStockDocumentClosed(currentUser())
+    AND checkClosedDate()
+    MESSAGE 'Запрещено изменять дату документам для склада до даты закрытия';
+
 CONSTRAINT (DROPPED(StockDocumentBinLedger d IS StockDocumentBinLedger))
     AND documentsClosedDate(PREV(stock(d))) AND NOT PREV(date(d)) >= documentsClosedDate(PREV(stock(d))) AND PREV(active(d))
     AND NOT allowChangeStockDocumentClosed(currentUser())
@@ -111,7 +117,7 @@ sumContainerOutStockDocumentBinInterval 'Сумма расхода, тара' (s
 
 // -------------------------------------- Суммы по операциям за интервал --------------------------------------------- //
 
-countIncStockDocumentBinBinInterval 'Количество приходных док-ов' (stock, DATE dtFrom, DATE dtTo, operation)=
+countIncStockDocumentBinInterval 'Количество приходных док-ов' (stock, DATE dtFrom, DATE dtTo, operation)=
     GROUP SUM 1 IF IncStockDocumentBinLedger incStockDocumentLedger IS IncStockDocumentBinLedger AND active(incStockDocumentLedger)
         AND date(incStockDocumentLedger) >= dtFrom AND date(incStockDocumentLedger) <= dtTo
     BY stock(incStockDocumentLedger), operation(incStockDocumentLedger) IN ledgerBin;
@@ -389,7 +395,7 @@ DESIGN sumStockDocumentBinLedger {
             }
         }
         NEW department {
-            caption = 'Отдел ';
+            caption = 'Отдел';
             MOVE PROPERTY (nameReportDepartment()) {
                 caption = 'Название';
                 charWidth = 30;
@@ -537,7 +543,7 @@ EXTEND FORM departments
     PROPERTIES READONLY documentsClosedDateTime(d) AFTER nameStock(d)
 ;
 
-CONSTRAINT (((CHANGED(date(StockDocumentBinLedger d)) OR CHANGED(sum(d))) AND active(d)) OR CHANGED(active(d)))
+CONSTRAINT (((CHANGED(dateTime(StockDocumentBinLedger d)) OR CHANGED(sum(d))) AND active(d)) OR CHANGED(active(d)))
     AND documentsClosedDateTime(department(d)) AND NOT dateTime(d) >= documentsClosedDateTime(department(d))
     AND NOT allowChangeStockDocumentClosed(currentUser())
     MESSAGE 'Запрещено редактировать документы для отдела до даты закрытия';
@@ -546,3 +552,9 @@ CONSTRAINT (DROPPED(StockDocumentBinLedger d IS StockDocumentBinLedger))
     AND documentsClosedDateTime(PREV(department(d))) AND NOT PREV(dateTime(d)) >= documentsClosedDateTime(PREV(department(d))) AND PREV(active(d))
     AND NOT allowChangeStockDocumentClosed(currentUser())
     MESSAGE 'Запрещено удалять документы для отдела до даты закрытия';
+
+CONSTRAINT CHANGED(dateTime(StockDocumentBinLedger d))
+    AND PREV(dateTime(d) IF active(d)) < documentsClosedDateTime(department(d))
+    AND NOT allowChangeStockDocumentClosed(currentUser())
+    AND checkClosedDate()
+    MESSAGE 'Запрещено изменять дату документам для отдела до даты закрытия';
