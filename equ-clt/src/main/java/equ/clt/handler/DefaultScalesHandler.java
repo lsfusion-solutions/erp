@@ -73,8 +73,12 @@ public abstract class DefaultScalesHandler extends ScalesHandler {
                     for (ScalesInfo scales : enabledScalesList) {
                         if (scales.port != null) {
                             String brokenPortError = brokenPortsMap.get(scales.port);
+                            String unavailableError = ScalesAvailability.getUnavailableError(scales.port);
                             if(brokenPortError != null) {
                                 errors.put(scales.port, Collections.singletonList(String.format("Broken ip: %s, error: %s", scales.port, brokenPortError)));
+                            } else if (unavailableError != null) {
+                                processTransactionLogger.info(getLogPrefix() + unavailableError + ", transaction " + transaction.id);
+                                errors.put(scales.port, Collections.singletonList(unavailableError));
                             } else {
                                 ips.add(scales.port);
                                 taskList.add(getTransactionTask(transaction, scales));
@@ -174,10 +178,15 @@ public abstract class DefaultScalesHandler extends ScalesHandler {
             for (MachineryInfo machinery : machineryInfoSet) {
                 if (machinery.port != null && machinery instanceof ScalesInfo) {
                     //don't connect to scales with nothing to delete
-                    if (hasItemsToDelete(stopListInfo, (ScalesInfo) machinery))
-                        taskList.add(taskFactory.apply(stopListInfo, (ScalesInfo) machinery));
-                    else
+                    if (!hasItemsToDelete(stopListInfo, (ScalesInfo) machinery))
                         skipped++;
+                    else {
+                        String unavailableError = ScalesAvailability.getUnavailableError(machinery.port);
+                        if (unavailableError != null)
+                            processStopListLogger.info(getLogPrefix() + unavailableError + ", StopList #" + stopListInfo.number);
+                        else
+                            taskList.add(taskFactory.apply(stopListInfo, (ScalesInfo) machinery));
+                    }
                 }
             }
             if (skipped > 0)

@@ -6,6 +6,7 @@ import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.handler.DefaultScalesHandler;
+import equ.clt.handler.ScalesAvailability;
 import lsfusion.base.ExceptionUtils;
 import lsfusion.base.Pair;
 import org.apache.commons.codec.binary.Base64;
@@ -387,6 +388,7 @@ public class AclasLS2Handler extends DefaultScalesHandler {
 
             String error;
             boolean cleared = false;
+            AclasSDK.succeededCalls.set(0); //pool threads are reused
             try {
                 int result = 0;
                 boolean needToClear = !transaction.itemsList.isEmpty() && transaction.snapshot && !scales.cleared;
@@ -399,6 +401,12 @@ public class AclasLS2Handler extends DefaultScalesHandler {
                     aclasls2Logger.info(getLogPrefix() + String.format("transaction %s, ip %s, sending %s items...", transaction.id, scales.port, transaction.itemsList.size()));
                     result = loadData(scales, transaction, pluNumberAsPluId, commaDecimalSeparator, skipLoadHotKey, overBarcodeTypeForPieceItems, sleep);
                 }
+                //connection is inside the library: "Device doesn't exist" and "Communication data exception" are returned for scales that don't answer,
+                //but "Communication data exception" can also break the exchange in the middle, then the scales did answer to the previous calls
+                if (AclasSDK.succeededCalls.get() > 0)
+                    ScalesAvailability.succeeded(scales.port);
+                else if (result == 258 || result == 266)
+                    ScalesAvailability.connectionFailed(scales.port);
                 error = getErrorDescription(result);
                 if(error != null) {
                     aclasls2Logger.error(getLogPrefix() + String.format("transaction %s, ip %s, %s", transaction.id, scales.port, error));
@@ -497,6 +505,9 @@ public class AclasLS2Handler extends DefaultScalesHandler {
             }
         }
 
+        //successful library calls of the current thread (one transaction task): the scales answered
+        private static final ThreadLocal<Integer> succeededCalls = ThreadLocal.withInitial(() -> 0);
+
         private static int libraryCall(String ip, String filePath, Integer dataType, Integer procType) throws InterruptedException {
             ReentrantLock lock = null;
             AclasSDKLibrary library = null;
@@ -524,7 +535,10 @@ public class AclasLS2Handler extends DefaultScalesHandler {
                 } else {
                     library = AclasSDKLibrary.aclasSDKs.get("aclassdk");
                 }
-                return library.AclasSDK_Sync_ExecTaskA_PB(getBytes(ip), 0, 0, procType, dataType, getBytes(filePath));
+                int result = library.AclasSDK_Sync_ExecTaskA_PB(getBytes(ip), 0, 0, procType, dataType, getBytes(filePath));
+                if (result == 0)
+                    succeededCalls.set(succeededCalls.get() + 1);
+                return result;
             } finally {
                 if (enableParallel) {
                     assert lock != null;

@@ -63,7 +63,7 @@ public class DigiSM5300Handler extends DigiHandler {
             private boolean clearImages() {
                 FTPClient ftpClient = new FTPClient();
                 ftpClient.setDataTimeout(120000); //2 minutes = 120 sec
-                ftpClient.setConnectTimeout(60000); //1 minute = 60 sec
+                ftpClient.setConnectTimeout(10000); //10 sec: connection in LAN is established in milliseconds or not at all
                 ftpClient.setAutodetectUTF8(true);
 
                 try {

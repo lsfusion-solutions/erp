@@ -8,6 +8,7 @@ import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
 import equ.api.stoplist.StopListInfo;
 import equ.clt.handler.DefaultScalesHandler;
+import equ.clt.handler.ScalesAvailability;
 import equ.clt.handler.ScalesSettings;
 import equ.clt.handler.TCPPort;
 import lsfusion.base.ExceptionUtils;
@@ -155,13 +156,17 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
                 } catch (Exception e) {
                     logError(localErrors, String.format("Bizerba: IP %s error, transaction %s;", scales.port, transaction.id), e);
                 } finally {
-                    if (sendItemsLog != null)
-                        sendItemsLog.finish();
-                    processTransactionLogger.info("Bizerba: Finally disconnecting..." + scales.port);
                     try {
-                        port.close();
-                    } catch (CommunicationException e) {
-                        logError(localErrors, String.format("Bizerba: IP %s close port error ", scales.port), e);
+                        if (sendItemsLog != null)
+                            sendItemsLog.finish();
+                    } finally { //the port is closed even if logging failed
+                        processTransactionLogger.info("Bizerba: Finally disconnecting..." + scales.port);
+                        try {
+                            port.close();
+                        } catch (CommunicationException e) {
+                            logError(localErrors, String.format("Bizerba: IP %s close port error ", scales.port), e);
+                        }
+                        ScalesAvailability.connectionClosed(scales.port);
                     }
                 }
             }
@@ -184,9 +189,11 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
             (transaction ? processTransactionLogger : processStopListLogger).info("Bizerba: Connecting..." + ip);
             port.open();
         } catch (Exception e) {
+            ScalesAvailability.connectionFailed(ip);
             (transaction ? processTransactionLogger : processStopListLogger).error(String.format("Bizerba: IP %s, connection error: ", ip), e);
             return e.getMessage();
         }
+        ScalesAvailability.connectionOpened(ip); //the callers call connectionClosed after closing the port
         return null;
     }
 
@@ -701,6 +708,7 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
                     } catch (CommunicationException e) {
                         logError(processStopListLogger, localErrors, String.format("Bizerba: IP %s close port error ", scales.port), e);
                     }
+                    ScalesAvailability.connectionClosed(scales.port);
                 }
             }
             processStopListLogger.info("Bizerba: Completed ip: " + scales.port);

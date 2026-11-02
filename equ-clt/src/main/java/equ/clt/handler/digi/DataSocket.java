@@ -1,5 +1,7 @@
 package equ.clt.handler.digi;
 
+import equ.clt.handler.ScalesAvailability;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -12,29 +14,49 @@ public class DataSocket {
     Socket socket = null;
     DataOutputStream outputStream = null;
     DataInputStream inputStream = null;
+    private boolean connectionOpened = false;
 
     public DataSocket(String ip) {
         this.ip = ip;
     }
 
     public void open() throws IOException {
-        socket = openSocket(ip, getPort(ip), 60000, 60000);
+        try {
+            //connection in LAN is established in milliseconds or not at all; the scales can process a command long
+            socket = openSocket(ip, getPort(ip), 10000, 60000);
+        } catch (IOException e) {
+            ScalesAvailability.connectionFailed(ip);
+            throw e;
+        }
+        ScalesAvailability.connectionOpened(ip);
+        connectionOpened = true;
         outputStream = new DataOutputStream(socket.getOutputStream());
         inputStream = new DataInputStream(socket.getInputStream());
     }
 
+    //close can be called several times
     public void close() throws IOException {
-        if(outputStream != null) {
-            outputStream.close();
-            outputStream = null;
-        }
-        if(inputStream != null) {
-            inputStream.close();
-            inputStream = null;
-        }
-        if (socket != null) {
-            socket.close();
-            socket = null;
+        try {
+            try {
+                if (outputStream != null) {
+                    outputStream.close();
+                    outputStream = null;
+                }
+                if (inputStream != null) {
+                    inputStream.close();
+                    inputStream = null;
+                }
+            } finally { //the socket is closed even if closing of a stream failed
+                if (socket != null) {
+                    socket.close();
+                    socket = null;
+                }
+            }
+        } finally {
+            if (connectionOpened) {
+                connectionOpened = false;
+                ScalesAvailability.connectionClosed(ip);
+            }
         }
     }
 
