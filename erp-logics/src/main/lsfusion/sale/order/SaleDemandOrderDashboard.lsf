@@ -125,6 +125,8 @@ DESIGN options {
 
 invoicesCreationDate 'Дата создаваемых накладных' = DATA LOCAL NESTED DATE ();
 
+overCreateIntraDemandUserOrder ABSTRACT LIST (UserOrder);
+
 createIntraDemandUserOrders 'Создать заказы' (Warehouse st, DATE df, DATE dt) {
     NEWSESSION NESTED LOCAL {
         LOCAL NESTED count = INTEGER();
@@ -191,6 +193,7 @@ createIntraDemandUserOrders 'Создать заказы' (Warehouse st, DATE df
             }
             price(UserOrderDetail od) <- prevPriceB[LedgerPriceListType, Sku, Stock, DATETIME](priceListType(o), sku(od), supplierStock(od), dateTime(od)) WHERE od IS UserOrderDetail AND userOrder(od) == o;
             executeLocalEvents(); // без 'Sale.userOrder'
+            overCreateIntraDemandUserOrder(o);
 
             IF createDistributionInvoices() THEN {
                 userInvoice(o) <- NULL;
