@@ -207,7 +207,11 @@ sumAccountADocumentBinLedger 'Остаток на конец' (Stock stock, DATE
 // -------------------------------------- Остатки по подразделению --------------------------------------------- //
 GROUP ledgerDepartment 'По подразделению (всего)' : public;
 
-currentSumDocumentBinLedger 'Текущий остаток по документам' (stock) = GROUP SUM sum (StockDocumentBinLedger ledger) IF active(ledger)
+currentSumDocumentBinLedger 'Текущий остаток по документам' (department) = GROUP SUM sum (StockDocumentBinLedger ledger) IF active(ledger)
+    BY department(ledger);
+currentSumItemDocumentBinLedger 'Текущий остаток по документам, товар' (department) = GROUP SUM sumItem (StockDocumentBinLedger ledger) IF active(ledger)
+    BY department(ledger);
+currentSumContainerDocumentBinLedger 'Текущий остаток по документам, тара' (department) = GROUP SUM sumContainer (StockDocumentBinLedger ledger) IF active(ledger)
     BY department(ledger);
 
 sumAccountBDocumentBinLedger 'Остаток на начало' (Department department, DATETIME dateTime) = 
@@ -222,22 +226,22 @@ sumAccountBDocumentBinLedger 'Остаток на начало' (Department depa
     (currentSumDocumentBinLedger(department) IF date IS DATE) (-) 
     [GROUP SUM sum (StockDocumentBinLedger ledger) IF date(ledger) >= date AND active(ledger) BY department(ledger)](department) IN ledgerDepartment CHARWIDTH 15;
 
-sumItemAccountBDocumentBinLedger 'Остаток на начало' (Department department, DATE date) = 
-    (currentSumDocumentBinLedger(department) IF date IS DATE) (-)
+sumItemAccountBDocumentBinLedger 'Остаток на начало, товар' (Department department, DATE date) = 
+    (currentSumItemDocumentBinLedger(department) IF date IS DATE) (-)
     [GROUP SUM sumItem (StockDocumentBinLedger ledger) IF date(ledger) >= date AND active(ledger) BY department(ledger)](department) IN ledgerDepartment CHARWIDTH 15;
 
-sumContainerAccountBDocumentBinLedger 'Остаток на начало' (Department department, DATE date) = 
-    (currentSumDocumentBinLedger(department) IF date IS DATE) (-)
+sumContainerAccountBDocumentBinLedger 'Остаток на начало, тара' (Department department, DATE date) = 
+    (currentSumContainerDocumentBinLedger(department) IF date IS DATE) (-)
     [GROUP SUM sumContainer (StockDocumentBinLedger ledger) IF date(ledger) >= date AND active(ledger) BY department(ledger)](department) IN ledgerDepartment CHARWIDTH 15;
 
 sumAccountADocumentBinLedger 'Остаток на конец' (Department department, DATE date) = 
     (currentSumDocumentBinLedger(department) IF date IS DATE) (-)
     [GROUP SUM sum (StockDocumentBinLedger ledger) IF date(ledger) > date AND active(ledger) BY department(ledger)](department) IN ledgerDepartment CHARWIDTH 15;
-sumItemAccountADocumentBinLedger 'Остаток на конец' (Department department, DATE date) = 
-    (currentSumDocumentBinLedger(department) IF date IS DATE) (-)
+sumItemAccountADocumentBinLedger 'Остаток на конец, товар' (Department department, DATE date) = 
+    (currentSumItemDocumentBinLedger(department) IF date IS DATE) (-)
     [GROUP SUM sumItem (StockDocumentBinLedger ledger) IF date(ledger) > date AND active(ledger) BY department(ledger)](department) IN ledgerDepartment CHARWIDTH 15;
-sumContainerAccountADocumentBinLedger 'Остаток на конец' (Department department, DATE date) = 
-    (currentSumDocumentBinLedger(department) IF date IS DATE) (-)
+sumContainerAccountADocumentBinLedger 'Остаток на конец, тара' (Department department, DATE date) = 
+    (currentSumContainerDocumentBinLedger(department) IF date IS DATE) (-)
     [GROUP SUM sumContainer (StockDocumentBinLedger ledger) IF date(ledger) > date AND active(ledger) BY department(ledger)](department) IN ledgerDepartment CHARWIDTH 15;
 
 countIncStockDocumentBinInterval 'Количество приходных док-ов' (stock, DATE dtFrom, DATE dtTo)=
