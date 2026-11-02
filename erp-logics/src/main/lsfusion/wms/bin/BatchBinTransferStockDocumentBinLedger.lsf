@@ -1,6 +1,7 @@
 MODULE BatchBinTransferStockDocumentBinLedger;
 
-REQUIRE BatchBinTransferBinLedger, StockDocumentBinLedger, DepartmentBinTransferBinLedger, BatchReceivingBinLedger;
+REQUIRE BatchBinTransferBinLedger, StockDocumentBinLedger, DepartmentBinTransferBinLedger, BatchReceivingBinLedger,
+        WriteOffBatchBinTransfer;
 
 NAMESPACE Bin;
 
@@ -12,7 +13,10 @@ shipmentSum '{document.sum.of} (учетная)' = ABSTRACT NUMERIC[16,4] (BinTr
 shipmentSum '{document.sum.of} (учетная)' = DATA NUMERIC[16,4] (UserBinTransferDetail);
 shipmentSum(UserBinTransferDetail userBinTransferDetail) += shipmentSum(userBinTransferDetail);
 
-sum(BinTransferDetail ledger) += shipmentSum(ledger);
+// Строка перемещения, по которой создается списание, расходует количество из отдела без учетной суммы:
+// в регистр по ячейкам идет сумма строки списания (та же формула, что sum(BinTransferWriteOffDetail))
+//todo: возможно надо вынести в отедельный модуль, если понадобиться со временем
+sum(BinTransferDetail ledger) += OVERRIDE shipmentSum(ledger), (NUMERIC[18,4](round2(quantity(ledger) * writeOffPrice(ledger))) IF createWriteOff(ledger));
 
 shipmentSumBinTransferDetail '{document.sum.of} (учетная)' (binTransfer) = 
     GROUP SUM shipmentSum(BinTransferDetail idetail) BY binTransfer(idetail) CHARWIDTH 10 IN documentSum PATTERN '#,##0.00##';
@@ -79,7 +83,7 @@ recalculateShipmentSum() + {
 }
 
 @defineStockDocumentBinLedgerOperationAggregation (inc, binTransfer, 'Перемещение по ячейкам (приход)', inDepartment);
-    @implementStockDocumentBinLedger(inc, binTransfer, stock);
+@implementStockDocumentBinLedger(inc, binTransfer, stock);
 
 
 shipmentSum(IncSDBinTransferBinLedger ledger) =
@@ -90,7 +94,7 @@ sumContainer[IncStockDocumentBinLedger] (IncSDBinTransferBinLedger ledger) +=
     NUMERIC[18,4](GROUP SUM shipmentSum(BinTransferDetail d) IF isContainer(sku(d)) AND binTransfer(d) == binTransfer(ledger) AND inDepartment(d) == department(ledger));
 
 @defineStockDocumentBinLedgerOperationAggregation (out, binTransfer, 'Перемещение по ячейкам (расход)', outDepartment);
-    @implementStockDocumentBinLedger(out, binTransfer, stock);
+@implementStockDocumentBinLedger(out, binTransfer, stock);
 
 shipmentSum(OutSDBinTransferBinLedger ledger) =
     NUMERIC[18,4](GROUP SUM shipmentSum(BinTransferDetail d) IF binTransfer(d) == binTransfer(ledger) AND outDepartment(d) == department(ledger));
