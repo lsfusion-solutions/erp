@@ -193,7 +193,9 @@ WHEN LOCAL FORMS item SET(in(YandexEdaItemLabel.all, Item i)) DO {
     in(YandexEdaItemLabel.pickup, i) <- NULL;
 }
 
-itemLabelsJson (Item i) = '[' + (GROUP CONCAT ('"' + labelId(YandexEdaItemLabel l) + '"') IF in(l, i), ',' ORDER l) + ']';
+inCustom 'Вкл.' = ABSTRACT BOOLEAN (YandexEdaItemLabel, Item);
+inOver 'Вкл.' (YandexEdaItemLabel l, Item i)= OVERRIDE in(l,i), inCustom(l,i);
+itemLabelsJson (Item i) = '[' + (GROUP CONCAT ('"' + labelId(YandexEdaItemLabel l) + '"') IF inOver(l, i), ',' ORDER l) + ']';
 
 EXTEND FORM nomenclature
     PROPERTIES itemLabelsJson(i) EXTID 'labels'
