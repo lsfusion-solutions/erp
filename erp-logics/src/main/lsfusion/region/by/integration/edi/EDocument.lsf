@@ -7,7 +7,7 @@ NAMESPACE EDI;
 //первый это поставщик или покупатель, второй - мы
 dataEDIProviderDocument 'EDI-провайдер для документов' = DATA EDIProvider (LegalEntity, LegalEntity);
 EDIProviderDocument 'EDI-провайдер для документов' (LegalEntity legalEntity, LegalEntity company) = OVERRIDE dataEDIProviderDocument(legalEntity, company), EDIProvider(legalEntity) IF isCompany(company);
-nameEDIProviderDocument 'EDI-провайдер для документов' (LegalEntity legalEntity, LegalEntity company) = staticCaption(EDIProviderDocument(legalEntity, company));
+nameEDIProviderDocument 'EDI-провайдер для документов' (LegalEntity legalEntity, LegalEntity company) = caption(EDIProviderDocument(legalEntity, company));
 
 useV2 'Использовать формат V2' = DATA BOOLEAN (LegalEntity);// вообще надо в topBy перенести при случае
 
@@ -98,7 +98,7 @@ id (EDocumentRoute r) = CASE
     WHEN r == EDocumentRoute.route2 THEN '2';
 
 route 'Маршрут документа' = DATA EDocumentRoute (EDocument);
-nameRoute 'Маршрут документа' (EDocument d) = staticCaption(route(d)) CHARWIDTH 30;
+nameRoute 'Маршрут документа' (EDocument d) = caption(route(d)) CHARWIDTH 30;
 idRoute 'Маршрут документа' (EDocument d) = id(route(d));
 eDocumentRoute (STRING s) = CASE
     WHEN s == '0' THEN EDocumentRoute.route0
@@ -118,7 +118,7 @@ id (EDocumentFunctionCode c) = CASE
 ;
 
 functionCode = DATA EDocumentFunctionCode (EDocument);
-nameFunctionCode 'Функциональный код' (EDocument d) = staticCaption(functionCode(d)) CHARWIDTH 30;
+nameFunctionCode 'Функциональный код' (EDocument d) = caption(functionCode(d)) CHARWIDTH 30;
 idFunctionCode (EDocument d) = id(functionCode(d));
 eDocumentFunctionCode (STRING s) = CASE
     WHEN s == '3' THEN EDocumentFunctionCode.code3
@@ -138,9 +138,9 @@ CLASS EDocumentType {
 }
 
 eDocumentType = DATA EDocumentType (EDocument);
-nameDocumentType 'Наименование типа документа' (EDocument d) = staticCaption(eDocumentType(d)) CHARWIDTH 30;
-codeDocumentType 'Код типа документа' (EDocument d) = STRING[100](upper(rtrim(getWord(staticName(eDocumentType(d)), '.', 2), '_')));
-eDocumentType = GROUP MAX EDocumentType edt BY STRING[100](upper(rtrim(getWord(staticName(edt), '.', 2), '_')));
+nameDocumentType 'Наименование типа документа' (EDocument d) = caption(eDocumentType(d)) CHARWIDTH 30;
+codeDocumentType 'Код типа документа' (EDocument d) = STRING[100](upper(rtrim(getWord(name[StaticObject](eDocumentType(d)), '.', 2), '_')));
+eDocumentType = GROUP MAX EDocumentType edt BY STRING[100](upper(rtrim(getWord(name[StaticObject](edt), '.', 2), '_')));
 
 FORM dialogEDocument 'Выбор электронного документа'
     OBJECTS d = EDocument
@@ -184,7 +184,7 @@ description 'Текст сообщения' = DATA STRING[1000] (EDocumentMessag
 background = ABSTRACT CASE COLOR (EDocument);
 
 kind 'Вид' = DATA EInvoiceMessageKind (EDocumentMessage);
-nameKind 'Вид' (EDocumentMessage m) = staticCaption(kind(m));
+nameKind 'Вид' (EDocumentMessage m) = caption(kind(m));
 
 INDEX eDocument(EDocumentMessage m), number(m), kind(m);
 eDocumentMessage (eDocument, number, kind) = GROUP AGGR EDocumentMessage m BY eDocument(m), number(m), kind(m);
@@ -197,7 +197,7 @@ EXTEND CLASS EInvoiceMessageType {
 }
 
 type 'Тип' = DATA EInvoiceMessageType (EDocumentMessage);
-nameType 'Тип' (EDocumentMessage m) = staticCaption(type(m));
+nameType 'Тип' (EDocumentMessage m) = caption(type(m));
 
 showV2 (EDocument d) = useV2(sender(d)) OR useV2(receiver(d));
 

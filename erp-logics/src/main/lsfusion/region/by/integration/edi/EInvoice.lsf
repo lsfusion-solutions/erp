@@ -354,7 +354,7 @@ backgroundVAT 'Цвет' (EInvoiceDetail d) = IF sku(lineItemBuyerID(d)) AND NOT
 background = ABSTRACT CASE COLOR (EInvoice);
 
 kind 'Вид' = DATA EInvoiceMessageKind (EInvoiceMessage);
-nameKind 'Вид' (EInvoiceMessage o) = staticCaption(kind(o)) CHARWIDTH 20;
+nameKind 'Вид' (EInvoiceMessage o) = caption(kind(o)) CHARWIDTH 20;
 
 INDEX eInvoice(EInvoiceMessage m), number(m), kind(m);
 eInvoiceMessage (eInvoice, number, kind) = GROUP AGGR EInvoiceMessage e BY eInvoice(e), number(e), kind(e);
@@ -375,7 +375,7 @@ EXTEND CLASS EInvoiceMessageType {
 }
 
 type 'Тип' = DATA EInvoiceMessageType (EInvoiceMessage);
-nameType 'Тип' (EInvoiceMessage o) = staticCaption(type(o)) CHARWIDTH 20;
+nameType 'Тип' (EInvoiceMessage o) = caption(type(o)) CHARWIDTH 20;
 isSupplier 'Сообщение к исходящей накладной' (EInvoiceMessage m) = type(m) == EInvoiceMessageType.blrapn_blrwbl OR type(m) == EInvoiceMessageType.blrapn_blrdln;
 isCustomer 'Сообщение к входящей накладной' (EInvoiceMessage m) = type(m) == EInvoiceMessageType.blrapn_blrwbr OR type(m) == EInvoiceMessageType.blrapn_blrdnr;
 INDEX eInvoice(EInvoiceMessage m), type(m), code(m);
@@ -713,13 +713,13 @@ EXTEND FORM eInvoices
 //первый это поставщик или покупатель, второй - мы
 dataEDIProviderInvoice 'EDI-провайдер для накладных' = DATA EDIProvider (LegalEntity, LegalEntity);
 EDIProviderInvoice 'EDI-провайдер для накладных' (LegalEntity legalEntity, LegalEntity company) = OVERRIDE dataEDIProviderInvoice(legalEntity, company), EDIProvider(legalEntity) IF isCompany(company);
-nameEDIProviderInvoice 'EDI-провайдер для накладных' (LegalEntity legalEntity, LegalEntity company) = staticCaption(EDIProviderInvoice(legalEntity, company));
+nameEDIProviderInvoice 'EDI-провайдер для накладных' (LegalEntity legalEntity, LegalEntity company) = caption(EDIProviderInvoice(legalEntity, company));
 
 fixEDIProviderInvoice 'Фиксировать EDI-провайдера полученной накладной' = DATA BOOLEAN (LegalEntity);
 
 //провайдер, через которого накладная получена
 dataEDIProviderInvoice 'EDI-провайдер' = DATA EDIProvider (EInvoice);
-nameEDIProviderInvoice 'EDI-провайдер' (EInvoice i) = staticCaption(dataEDIProviderInvoice(i));
+nameEDIProviderInvoice 'EDI-провайдер' (EInvoice i) = caption(dataEDIProviderInvoice(i));
 
 EXTEND FORM eInvoices
     PROPERTIES (e) READONLYIF (isReadonly() OR NOT isCompany(customer(e))) nameEDIProviderInvoice
@@ -916,7 +916,7 @@ TABLE eCreditNoteMessage(ECreditNoteMessage);
 number 'Номер' = DATA STRING[35] (ECreditNoteMessage);
 eCreditNote 'Акт приемки' = DATA ECreditNote (ECreditNoteMessage) NONULL DELETE INDEXED;
 kind 'Вид' = DATA EInvoiceMessageKind (ECreditNoteMessage);
-nameKind 'Вид' (ECreditNoteMessage o) = staticCaption(kind(o)) CHARWIDTH 20;
+nameKind 'Вид' (ECreditNoteMessage o) = caption(kind(o)) CHARWIDTH 20;
 
 eCreditNoteMessage= GROUP AGGR ECreditNoteMessage e BY eCreditNote(e), number(e), kind(e);
 numberECreditNote 'Акт приемки' (ECreditNoteMessage m) = actDifNumber(eCreditNote(m));
@@ -936,7 +936,7 @@ CLASS ECreditNoteMessageType 'Тип сообщения по электронн�
 }
 
 type 'Тип' = DATA ECreditNoteMessageType (ECreditNoteMessage);
-nameType 'Тип' (ECreditNoteMessage o) = staticCaption(type(o));
+nameType 'Тип' (ECreditNoteMessage o) = caption(type(o));
 
 background = ABSTRACT CASE COLOR (ECreditNoteDetail);
 
