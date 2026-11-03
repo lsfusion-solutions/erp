@@ -137,6 +137,7 @@ overAstronInfo1(MachineryPriceTransaction mpt, Barcode b) += JSON FROM
                 'binaryDataName' = STRING[20](value(b))
                 WHERE binaryDataId == value(b) AND imageAstron(b) AND (updateImage(b) OR updateAllImagesAstron())),
         //группы
+        // del-привязки выгружаются и без текущей привязки товара к группе, иначе сброс привязки не доезжает до касс
         'extGrp' = (JSON FROM
                 'extGrpId' = id(CustomGroup g, groupMachinery(mpt)),
                 'sareaId' = nppGroupMachinery(mpt),
@@ -145,14 +146,12 @@ overAstronInfo1(MachineryPriceTransaction mpt, Barcode b) += JSON FROM
                 'extGrpPicture' = encodeBase64(imageAstron(g))
                 WHERE (isParent(g, sku(b)) OR del(id(g, groupMachinery(mpt)), sku(b), groupMachinery(mpt)))
                         AND customGroupType(g) == dataCustomGroupTypeAstron(groupMachinery(mpt))
-                        AND customGroup(dataCustomGroupTypeAstron(groupMachinery(mpt)), sku(b))
                 ORDER g),
         'artExtGrp' = (JSON FROM
                 'extGrpId' = INTEGER extGrpId,
                 'delFlag' = (1 IF del(extGrpId, sku(b), groupMachinery(mpt)))
                 WHERE (extGrpId == id(customGroup(dataCustomGroupTypeAstron(groupMachinery(mpt)), sku(b)), groupMachinery(mpt))
                             OR del(extGrpId, sku(b), groupMachinery(mpt)))
-                        AND customGroup(dataCustomGroupTypeAstron(groupMachinery(mpt)), sku(b))
                 ORDER extGrpId)
 ;
 
