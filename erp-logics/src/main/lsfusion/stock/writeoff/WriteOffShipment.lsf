@@ -194,13 +194,13 @@ META defineShipmentWriteOff (stockProp, batchProp, sign, NS)
     percentWriteOffRate 'Норма отходов,%' (shipmentDetail)= DATA NUMERIC[10,3] (UserShipmentDetail);
     
     writeOffRate(UserShipmentDetail detail) <- writeOffRate(country###stockProp###stock(detail), sku(detail)) WHEN
-        CHANGED(country###stockProp###stock(detail)) OR CHANGED(sku(detail)) AND createPurchaseWriteOff(detail);
+        (CHANGED(country###stockProp###stock(detail)) OR CHANGED(sku(detail))) AND createPurchaseWriteOff(detail);
     
     percentWriteOffRate (UserShipmentDetail detail) <- percent(writeOffRate(detail)) WHEN
         CHANGED(writeOffRate(detail)) AND createPurchaseWriteOff(detail);
     
     writeOffQuantity (UserShipmentDetail detail) <- round3(quantity(detail)*percentWriteOffRate (detail)/100)   WHEN
-        CHANGED(quantity(detail)) OR CHANGED(percentWriteOffRate (detail)) AND createPurchaseWriteOff(detail);
+        (CHANGED(quantity(detail)) OR CHANGED(percentWriteOffRate (detail))) AND createPurchaseWriteOff(detail);
     
     writeOffPrice (UserShipmentDetail detail) <- price(detail) WHEN CHANGED(price(detail)) AND createPurchaseWriteOff(detail);
     
