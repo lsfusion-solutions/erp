@@ -292,6 +292,13 @@ CONSTRAINT stock(UserPicking picking) != stock(pickingOrder(picking))
     CHECKED BY pickingOrder[UserPicking]
         MESSAGE 'Склад в заказе на комплектацию и в комплектации должны соответствовать друг другу';
 
+// Нельзя записать комплектацию по заказу на комплектацию, которого уже нет в базе
+// (например, другой пользователь удалил заказ, пока у этого пользователя была открыта форма со списком заказов).
+// Проверка «заказ IS PickingOrder» такой заказ не замечает: сессия помнит его класс с момента, когда форма его прочитала.
+// Поэтому смотрим на хранимые признаки: у любого заказа отмечен ровно один из isPosted и isDraft, у удаленного - ни один.
+CONSTRAINT SETCHANGED(pickingOrder(Picking picking)) AND NOT (isPosted(pickingOrder(picking)) OR isDraft(pickingOrder(picking)))
+    MESSAGE 'Заказ на комплектацию уже удален. Обновите форму и выберите заказ заново';
+
 descriptionPickingOrder 'Заказ на комплектацию' (Picking picking) = description(pickingOrder(picking)) CHARWIDTH 30 IN pickingOrders;
 notePickingOrder 'Примечание (заказ)' (Picking p) = note(pickingOrder(p));
 
