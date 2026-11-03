@@ -1,0 +1,45 @@
+MODULE PriceListWarehouseGestori;
+
+REQUIRE PriceListStore, Pricing, Warehouse;
+
+NAMESPACE PriceList;
+
+// ---- Вид цены склада ----
+
+dataSalePriceListType 'Отпускная цена' = DATA PriceListType (Warehouse);
+nameDataSalePriceListType 'Отпускная цена' (Warehouse w) = name(dataSalePriceListType(w));
+
+EXTEND FORM warehouse
+    PROPERTIES(w) nameDataSalePriceListType SHOWIF isCompany(w)
+;
+
+DESIGN warehouse {
+    headerLeft {
+        NEW headerPriceParams AFTER headerLocationParams {
+            caption = 'Цены';
+            MOVE PROPERTY(nameDataSalePriceListType(w));
+        }
+    }
+}
+
+EXTEND FORM warehousesCompany
+    PROPERTIES(w) READONLYIF isReadonly() nameDataSalePriceListType
+;
+
+// ---- Отпускная цена по складу / отделу магазина ----
+
+salePriceListType = ABSTRACT PriceListType (Stock);
+salePriceListType (Warehouse w) += dataSalePriceListType(w);
+salePriceListType (DepartmentStore d) += retailPriceListType(d);
+nameSalePriceListType 'Отпускная цена' (Stock st) = name(salePriceListType(st));
+
+salePriceB 'Отпускная цена' (Sku s, Stock st, DATETIME t) = priceB(salePriceListType(st), s, st, t);
+salePriceB 'Отпускная цена' (Sku s, Stock st) = salePriceB(s, st, currentDateTime());
+
+// ---- Текущие остатки ----
+
+hideRetailPricingPriceForm() += TRUE;
+
+EXTEND FORM currentBalanceSkuStock
+    PROPERTIES(s, st) READONLY salePriceB
+;
