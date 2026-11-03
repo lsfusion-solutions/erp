@@ -330,7 +330,10 @@ EXTEND FORM preOrders
 
 batchReserve 'Резерв по партиям' = DATA BOOLEAN ();
 customReserve = ABSTRACT BOOLEAN ();
-WHEN (SETCHANGED(sku(Sale.OrderDetail d)) OR SETCHANGED(supplierStock(d)) OR SETCHANGED(quantity(d))) AND NOT (batchReserve() OR customReserve())  DO {
+// Ссылку на резерв подбираем только строкам, у которых она уже есть или по товару и складу которых есть резерв:
+// остальным подобрать нечего
+WHEN (SETCHANGED(sku(Sale.OrderDetail d)) OR SETCHANGED(supplierStock(d)) OR SETCHANGED(quantity(d))) AND NOT (batchReserve() OR customReserve())
+    AND (preOrderDetail(d) OR (GROUP SUM 1 IF sku(PreOrderDetail pd) == sku(d) AND supplierStock(pd) == supplierStock(d))) DO {
     preOrderDetail(d) <- NULL;
     preOrderDetail(d) <- GROUP LAST PreOrderDetail pd IF calcQuantity(pd) >= quantity(d) AND sku(d) == sku(pd) AND 
                             dateTime(d) >= fromDateTime(pd) AND supplierStock(d) == supplierStock(pd) AND 
@@ -339,7 +342,9 @@ WHEN (SETCHANGED(sku(Sale.OrderDetail d)) OR SETCHANGED(supplierStock(d)) OR SET
 }
 
 skipSet = ABSTRACT BOOLEAN (Sale.OrderDetail, PreOrderDetail);
-WHEN (SETCHANGED(batch(Sale.OrderDetail d)) OR SETCHANGED(supplierStock(d)) OR SETCHANGED(quantity(d))) AND batchReserve() AND NOT customReserve() DO {
+// То же для резерва по партиям: только строкам, у которых ссылка уже есть или по партии и складу которых есть резерв
+WHEN (SETCHANGED(batch(Sale.OrderDetail d)) OR SETCHANGED(supplierStock(d)) OR SETCHANGED(quantity(d))) AND batchReserve() AND NOT customReserve()
+    AND (preOrderDetail(d) OR (GROUP SUM 1 IF batch(PreOrderDetail pd) == batch(d) AND supplierStock(pd) == supplierStock(d))) DO {
     preOrderDetail(d) <- NULL;
     preOrderDetail(d) <- GROUP LAST PreOrderDetail pd IF calcQuantity(pd) >= quantity(d) AND batch(d) == batch(pd) AND 
                             dateTime(d) >= fromDateTime(pd) AND supplierStock(d) == supplierStock(pd) AND 
