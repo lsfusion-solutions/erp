@@ -71,7 +71,6 @@ public class DigiSM120Handler extends DigiHandler {
         @Override
         protected boolean sendPLU(DataSocket socket, List<String> localErrors, ScalesItem item, Integer plu) throws IOException {
             byte[] record = makePLURecord(item, plu, nameLineFont, nameLineLength);
-            processTransactionLogger.info(String.format(getLogPrefix() + "Sending plu file item %s to scales %s", plu, scales.port));
             int reply = sendRecord(socket, cmdWrite, filePLU, record);
             if(reply != 0)
                 logError(localErrors, String.format(getLogPrefix() + "Send plu %s to scales %s failed. Error: %s", plu, scales.port, reply));

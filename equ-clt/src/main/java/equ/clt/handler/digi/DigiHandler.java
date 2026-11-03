@@ -200,8 +200,8 @@ public class DigiHandler extends DefaultScalesHandler {
                         for (ScalesItem item : transaction.itemsList) {
                             count++;
                             if (notInterruptedTransaction(transaction.id) && globalError < 3) {
-                                processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
                                 Integer pluNumber = getPlu(item);
+                                processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s, plu %s) of %s", scales.port, transaction.id, count, item.idBarcode, pluNumber, transaction.itemsList.size()));
                                 if(item.idBarcode.length() <= 5) {
                                     if (!sendPLU(socket, localErrors, item, pluNumber)
                                             || !sendIngredient(socket, localErrors, item, pluNumber)
@@ -248,7 +248,6 @@ public class DigiHandler extends DefaultScalesHandler {
 
         protected boolean sendPLU(DataSocket socket, List<String> localErrors, ScalesItem item, Integer plu) throws IOException {
             byte[] record = makePluRecord(item, getWeightCode(scales), getPieceCode(scales));
-            processTransactionLogger.info(String.format(getLogPrefix() + "Sending plu file item %s to scales %s", plu, scales.port));
             int reply = sendRecord(socket, cmdWrite, filePLU, record);
             if (reply != 0) {
                 logError(localErrors, String.format(getLogPrefix() + "Send item %s to scales %s failed. Error: %s", plu, scales.port, reply));

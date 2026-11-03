@@ -108,10 +108,9 @@ public class DigiSM5300Handler extends DigiHandler {
             private Set<Integer> usedGroups = new HashSet<>();
             @Override
             protected boolean sendKeyAssignment(DataSocket socket, List<String> localErrors, ScalesItem item, Integer plu) throws IOException {
-                processTransactionLogger.info(getLogPrefix() + "Send key assignment started");
                 JSONObject infoJSON = getExtInfo(item.info);
-                processTransactionLogger.info(getLogPrefix() + "Send key assignment started: infoJSON=" + infoJSON + ", pluNumber=" + item.pluNumber);
                 if (infoJSON != null && item.pluNumber != null) {
+                    processTransactionLogger.info(getLogPrefix() + "Sending key assignment: infoJSON=" + infoJSON + ", pluNumber=" + item.pluNumber);
 
                     Integer originNumberGroup = infoJSON.optInt("numberGroup");
                     Integer numberGroup = originNumberGroup == 0 ? 1 : originNumberGroup < 10 ? originNumberGroup : (originNumberGroup + 20);
