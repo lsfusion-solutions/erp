@@ -197,9 +197,10 @@ afterCreatePickingUserInvoicePosted ABSTRACT LIST (UserInvoice, Order.Order, INT
 
 createPickingDetail(Invoice userInvoice, Order order, INTEGER pickingGroup) {
     IF useExplicitBatchDetailUserInvoice(order) AND (explicitBatchLedger(fromStock(order)) OR forceExplicitBatchDetailUserInvoice(order)) THEN {
+        // INLINE: все строки в один запрос, а не по строке
         FOR order(OrderDetail orderDetail) == order AND picking(Batch batch, orderDetail) AND NOT batch(orderDetail) AND idPickingGroup(orderDetail)==pickingGroup
             ORDER orderCreateUserInvoice(orderDetail)
-            NEW d = UserInvoiceDetail DO {
+            INLINE NEW d = UserInvoiceDetail DO {
             userInvoice(d) <- userInvoice;
             orderDetail(d) <- orderDetail;
             sku(d) <- sku(orderDetail);
@@ -213,7 +214,7 @@ createPickingDetail(Invoice userInvoice, Order order, INTEGER pickingGroup) {
         }
         FOR order(OrderDetail orderDetail) == order AND PREV(overPickingQuantity(orderDetail)) AND batch(orderDetail) AND idPickingGroup(orderDetail)==pickingGroup
             ORDER orderCreateUserInvoice(orderDetail)
-            NEW d = UserInvoiceDetail DO {
+            INLINE NEW d = UserInvoiceDetail DO {
             userInvoice(d) <- userInvoice;
             orderDetail(d) <- orderDetail;
             sku(d) <- sku(orderDetail);
@@ -229,7 +230,7 @@ createPickingDetail(Invoice userInvoice, Order order, INTEGER pickingGroup) {
         FOR order(OrderDetail orderDetail) == order AND pickingQuantity(orderDetail) > 0 // возможно еще нужно фильтровать по складам
             AND in(orderDetail, userInvoice) AND idPickingGroup(orderDetail)==pickingGroup
             ORDER orderCreateUserInvoice(orderDetail)
-            NEW d = UserInvoiceDetail DO {
+            INLINE NEW d = UserInvoiceDetail DO {
             userInvoice(d) <- userInvoice;
             orderDetail(d) <- orderDetail;
             sku(d) <- sku(orderDetail);
