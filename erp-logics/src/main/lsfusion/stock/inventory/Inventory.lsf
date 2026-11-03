@@ -324,11 +324,11 @@ costSumBatch 'Сумма(себестоимость)' (PageInventoryDetail pageI
 @defineDocumentHeaderQuantity(pageInventory);
 sumPageInventoryDetail '{document.sum.of}' (pageInventory) = GROUP SUM sum(PageInventoryDetail idetail) BY pageInventory(idetail) CHARWIDTH 10 MATERIALIZED IN documentSum;
 
-WHEN LOCAL (SETCHANGED(batch(PageInventoryDetail detail)) OR SETCHANGED(dateTime(detail))) AND batch(detail) DO {
+WHEN LOCAL (SETCHANGED(batch(PageInventoryDetail detail)) OR SETCHANGED(dateTime(detail))) AND batch(detail) AND NOT skipUpdatePriceAccount() DO {
     price (detail)  <- prevAccountPriceB(batch(detail), stock(detail), dateTime(detail));
 }
 
-WHEN LOCAL (SETCHANGED(sku(PageInventoryDetail detail)) OR DROPPED(batch(detail)) OR SETCHANGED(dateTime(detail))) AND NOT batch(detail) DO {
+WHEN LOCAL (SETCHANGED(sku(PageInventoryDetail detail)) OR DROPPED(batch(detail)) OR SETCHANGED(dateTime(detail))) AND NOT batch(detail) AND NOT skipUpdatePriceAccount() DO {
     price (detail)  <- prevAccountPriceB(sku(detail), stock(detail), dateTime(detail));
 }
 
@@ -852,7 +852,7 @@ recalculatePrice 'Пересчитать цены по всей инвентар
     }
 } CONFIRM IN inventoryAction;
 
-WHEN LOCAL SET(include(CollationSheet collationSheet, Sku sku)) DO {
+WHEN LOCAL SET(include(CollationSheet collationSheet, Sku sku)) AND NOT skipUpdatePriceAccount() DO {
     priceBalance(collationSheet, sku) <- OVERRIDE prevAccountPriceB(
                 sku, stock(collationSheet), dateTime(collationSheet)), overPriceBalance(stock(collationSheet), sku);
 }
