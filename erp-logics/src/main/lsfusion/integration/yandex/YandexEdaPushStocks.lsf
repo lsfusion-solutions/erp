@@ -103,12 +103,12 @@ pushSend (YandexEdaAuth a) {
 }
 
 pushStocksClient (YandexEdaAuth a) {
-    IF authUrlPush() AND clientIdPush(a) AND clientSecretPush(a) THEN
-        getPushToken(a);
-    IF NOT tokenPushCurrent() THEN {
+    IF NOT (authUrlPush() AND clientIdPush(a) AND clientSecretPush(a)) THEN {
         logToFile('yandex', CONCAT ' ', 'ERROR push не заданы креды или URL аутентификации');
         RETURN;
     }
+    getPushToken(a);
+    IF NOT tokenPushCurrent() THEN RETURN;
     LOCAL chunk = INTEGER ();
     WHILE GROUP SUM 1 IF pushChangedClient(a, Item i, DepartmentStore s) DO {
         selectedPush(Item i, DepartmentStore s) <- NULL;
@@ -119,7 +119,7 @@ pushStocksClient (YandexEdaAuth a) {
         pushSent() <- NULL;
         pushSend(a);
         IF NOT pushSent() THEN RETURN;
-        logToFile('yandex', CONCAT ' ', 'push отправлено позиций', STRING(GROUP SUM 1 IF selectedPush(Item i, DepartmentStore s)));
+        logToFile('yandex', CONCAT ' ', 'push отправлено позиций', STRING(GROUP SUM 1 IF selectedPush(Item i, DepartmentStore s)), 'код ответа', STRING(statusHttp()));
         lastStock(s, i) <- (IF inPushStock(i, s) THEN pushValue(i, s)) WHERE selectedPush(i, s);
         APPLY;
         IF canceled() THEN {
