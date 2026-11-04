@@ -115,7 +115,7 @@ cacRid = DATA LOCAL STRING (INTEGER);
 cacOrderCode = DATA LOCAL STRING (INTEGER);
 cacArticle = DATA LOCAL STRING (INTEGER);
 cacNmId = DATA LOCAL INTEGER (INTEGER);
-cacChrtId = DATA LOCAL INTEGER (INTEGER);
+cacChrtId = DATA LOCAL LONG (INTEGER);
 cacCreatedAt = DATA LOCAL STRING (INTEGER);
 cacDdate = DATA LOCAL STRING (INTEGER);
 cacWarehouseId = DATA LOCAL INTEGER (INTEGER);
@@ -436,7 +436,7 @@ applyCaCStatusMapping (InternetOrder o, WbStatus ws, WbSystemStatus wss) {
     // Отмена покупателем в первый час, пока задание не переведено на сборку (autoAggreed даёт сразу «Согласован»).
     IF wss = WbSystemStatus.declined_by_client
         AND (PREV(status(o)) = StatusInternetOrder.new OR PREV(status(o)) = StatusInternetOrder.agreed)
-        AND subtractSeconds(currentDateTime(), dateTime(o)) <= 3600 THEN {
+        AND secondsBetweenDates(currentDateTime(), dateTime(o)) <= 3600 THEN {
         IF customCancelOrder() THEN {
             overCancelOrder(o);
         } ELSE {
