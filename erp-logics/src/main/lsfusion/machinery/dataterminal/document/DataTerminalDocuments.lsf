@@ -1,14 +1,43 @@
 MODULE DataTerminalDocuments;
 
-// Операция ТСД «Документы ТСД»: список открытых неиспользованных документов ТСД, созданных пользователем, на складе сотрудника
+// Операция ТСД «Документы»: список открытых неиспользованных документов ТСД, созданных пользователем, на складе сотрудника
 REQUIRE DataTerminalDefault, Terminal, TerminalOrder, EmployeeStock;
 
 NAMESPACE DataTerminal;
 
 beforeDataTerminalStart() + { INTERNAL CLIENT 'dataTerminalDocuments.css'; }
 
+// Значения аналитики (справочника ТСД) - так же, как их выгружает на ТСД DefaultTerminalHandler.readCustomANAList:
+// объекты со значением свойства ID, отобранные свойством фильтра (второй параметр фильтра - пользователь),
+// код значения = префикс вида справочника (exportId) + ID. Свойства заданы каноническими именами, поэтому через EVAL.
+// NESTED MANAGESESSION: загруженные значения переживают APPLY / CANCEL сессии формы ТСД (возврат «Назад» - toPrevMenuItem -
+// делает CANCEL, и без этого наименования аналитик в карточках пропадали), но не копируются в каждый NEWSESSION
+handbookValue 'Значение аналитики' = DATA LOCAL NESTED MANAGESESSION STRING (TerminalHandbookType, STRING);
+
+// Классы сигнатуры по каноническому имени свойства: 'NS.prop[NS.A,NS.B]' -> 'NS.A,NS.B'
+canonicalNameSignature (STRING canonicalName) = getWord(getWord(canonicalName, r'[', 2), r']', 1);
+
+fillHandbookValues (TerminalHandbookType h) {
+    handbookValue(h, STRING s) <- NULL;
+    IF canonicalNamePropertyID(h) AND canonicalNamePropertyName(h) THEN
+        // FOR <ID>(<Класс> x) [AND <фильтр>(x[, пользователь])] DO handbookValue($1, <префикс> + <ID>(x)) <- <наименование>(x);
+        EVAL ACTION (CONCAT '',
+            r'FOR ', canonicalNamePropertyID(h), r'(', getWord(canonicalNameSignature(canonicalNamePropertyID(h)), r',', 1), r' x)',
+            (CASE
+                WHEN wordCount(canonicalNameSignature(canonicalNameFilterProperty(h)), r',') = 1
+                    THEN r' AND ' + canonicalNameFilterProperty(h) + r'(x)'
+                WHEN wordCount(canonicalNameSignature(canonicalNameFilterProperty(h)), r',') = 2
+                    THEN r' AND ' + canonicalNameFilterProperty(h) + r'(x, currentUser() AS ' + getWord(canonicalNameSignature(canonicalNameFilterProperty(h)), r',', 2) + r')'),
+            r' DO DataTerminal.handbookValue($1, Terminal.exportId($1) + STRING(', canonicalNamePropertyID(h), r'(x))) <- STRING(', canonicalNamePropertyName(h), r'(x));')
+        PARAMS h;
+}
+
+// Аналитика в карточке документа: наименование значения
+// (код, если значения нет среди загруженных значений справочника)
+htmlHandbook (TerminalHandbookType h, STRING code) = '<div class=handbook>' + (OVERRIDE handbookValue(h, code), code IF h IS TerminalHandbookType) + '</div>';
+
 // Карточка документа в списке (по структуре повторяет список документов нативного приложения ТСД):
-// тип / № и дата / сумма / количество и число позиций
+// тип / № и дата / комментарий / аналитики / сумма / количество и число позиций
 htmlDetail '' (TerminalDocument d) = CONCAT '',
     '<div class=terminal-document>',
         '<div class=type>', nameTerminalDocumentType(d), '</div>',
@@ -17,6 +46,8 @@ htmlDetail '' (TerminalDocument d) = CONCAT '',
             '<div class=date>', (CONCAT ' ', toDateDDMMYY(date(d)), STRING[5](time(d))), '</div>',
         '</div>',
         '<div class=comment>', comment(d), '</div>',
+        htmlHandbook(terminalHandbookType1(terminalDocumentType(d)), idTerminalHandbookType1(d)),
+        htmlHandbook(terminalHandbookType2(terminalDocumentType(d)), idTerminalHandbookType2(d)),
         '<div class=values>',
             '<div class=sum><span>Сумма</span>', (OVERRIDE STRING(NUMERIC[18,2](sumTerminalDocumentDetail(d))), '0.00'), '</div>',
         '</div>',
@@ -29,7 +60,7 @@ htmlDetail '' (TerminalDocument d) = CONCAT '',
 
 // Меню «⋮» документа. Пункты добавляются в других модулях кнопками в контейнер items:
 //   act (TerminalDocument d) { ...; close(); }
-//   @defButtonCustom(act, '(1) Действие', terminalDocumentMenu, d, '1', );
+//   @defButtonCustom(act, 'Действие', terminalDocumentMenu, d, '1', );
 //   DESIGN terminalDocumentMenu { items { MOVE PROPERTY (act); } }
 //   showTerminalDocumentMenu() += TRUE;
 // Пока ни один модуль не включил меню, колонка «⋮» в списке скрыта
@@ -40,7 +71,7 @@ FORM terminalDocumentMenu ''
     PROPERTIES (d) READONLY htmlDetail CUSTOM 'htmlText'
 ;
 
-@defButtonCustom(close, '(Esc) Закрыть', terminalDocumentMenu, 'ESCAPE', dialog);
+@defButtonCustom(close, 'Закрыть', terminalDocumentMenu, 'ESCAPE', dialog);
 
 DESIGN terminalDocumentMenu {
     REMOVE TOOLBARBOX;
@@ -49,36 +80,48 @@ DESIGN terminalDocumentMenu {
             focusable = FALSE;
             align = STRETCH;
         }
+        // Пункты меню отделены от «Закрыть» линией (dataTerminalDocuments.css)
         NEW items {
             align = STRETCH;
+            class = 'dots-menu-items';
         }
         MOVE PROPERTY (close);
     }
 }
+
+// После закрытия меню, уже в форме ТСД: действия со списком документов (объект формы объявлен ниже)
+afterTerminalDocumentMenu ABSTRACT LIST (TerminalDocument);
 
 showMenu (TerminalDocument d) {
     // Пункты меню меняют документы в своих сессиях - после закрытия меню перечитываем список.
     // DO/ELSE делают диалог синхронным: без них formRefresh выполнился бы сразу при открытии меню
     DIALOG terminalDocumentMenu OBJECTS d = d NOMANAGESESSION DO {
         formRefresh();
+        afterTerminalDocumentMenu(d);
     } ELSE {
         formRefresh();
+        afterTerminalDocumentMenu(d);
     }
 }
 
 dotsMenu '' (TerminalDocument d) = '<div class=dots-menu>⋮</div>' IF d IS TerminalDocument CHARWIDTH 3;
 
-// Пункт меню «Удалить»
+// Пункт меню «Удалить». После удаления текущим становится первый документ списка (afterTerminalDocumentMenu)
+terminalDocumentDeleted = DATA LOCAL BOOLEAN ();
+
 deleteTerminalDocument (TerminalDocument d) {
     askYesNo(CONCAT '<br>', 'Удалить документ?', '<b>' + nameTerminalDocumentType(d) + '</b>');
     IF NOT askedYesNo() THEN RETURN;
-    NEWSESSION {
+    NEWSESSION NESTED (terminalDocumentDeleted) {
         DELETE d;
         APPLY;
+        // успешный APPLY очищает локальные свойства сессии, поэтому признак ставится после него
+        IF NOT canceled() THEN
+            terminalDocumentDeleted() <- TRUE;
     }
     close();
 }
-@defButtonCustom(deleteTerminalDocument, '(1) Удалить', terminalDocumentMenu, d, '1', );
+@defButtonCustom(deleteTerminalDocument, 'Удалить', terminalDocumentMenu, d, '1', );
 DESIGN terminalDocumentMenu { items { MOVE PROPERTY (deleteTerminalDocument); } }
 showTerminalDocumentMenu() += TRUE;
 
@@ -94,22 +137,14 @@ commentTerminalDocument (TerminalDocument d) {
     }
     close();
 }
-@defButtonCustom(commentTerminalDocument, '(2) Комментарий', terminalDocumentMenu, d, '2', );
+@defButtonCustom(commentTerminalDocument, 'Комментарий', terminalDocumentMenu, d, '2', );
 DESIGN terminalDocumentMenu { items { MOVE PROPERTY (commentTerminalDocument); } }
 
 // Пункт меню и экран операции
-@addMenuItem(terminalDocuments, '(3) Документы ТСД', '3', lineAction3);
+@addMenuItem(terminalDocuments, 'Документы', '3', lineAction3);
 
-@defSubMenu(terminalDocumentsOperation, operation, 'Документы ТСД');
+@defSubMenu(terminalDocumentsOperation, operation, 'Документы');
 up (MenuItem i) += WHEN i = MenuItem.terminalDocumentsOperation THEN MenuItem.actions;
-
-doMenuItemTerminalDocuments() + {
-    IF NOT stock(currentEmployee()) THEN {
-        message('<em>У сотрудника не задан основной склад</em>');
-        RETURN;
-    }
-    toMenuItem(MenuItem.terminalDocumentsOperation);
-}
 
 // Документы могут меняться с десктопа - перечитываем список при каждом входе
 afterActivateTerminalDocumentsOperation() + {
@@ -149,6 +184,26 @@ DESIGN dataTerminalInternal {
     PROPERTY (dotsMenu(terminalDocument)) { changeOnSingleClick = TRUE; }
 }
 
+// Вход в список с главного меню. Объявлен после объекта terminalDocument формы - для ACTIVATE.
+// Текущий - первый (самый свежий) документ, а не выбранный в прошлый раз; при возврате с экрана строк документа
+// выделение остается на открытом документе. Пока вкладка не показана, платформа откладывает поиск до ее показа
+doMenuItemTerminalDocuments() + {
+    IF NOT stock(currentEmployee()) THEN {
+        message('<em>У сотрудника не задан основной склад</em>');
+        RETURN;
+    }
+    toMenuItem(MenuItem.terminalDocumentsOperation);
+    ACTIVATE FIRST dataTerminalInternal.terminalDocument;
+}
+
+// После удаления документа текущий - первый документ списка (иначе платформа берет ближайший к удаленному)
+afterTerminalDocumentMenu (TerminalDocument d) + {
+    IF terminalDocumentDeleted() THEN {
+        terminalDocumentDeleted() <- NULL;
+        ACTIVATE FIRST dataTerminalInternal.terminalDocument;
+    }
+}
+
 // Шапка диалога ТСД: заголовки модальных окон на ТСД скрыты (data-terminal.css), поэтому заголовок - в форме.
 // Диалог с такой шапкой оформляется нижней панелью во всю ширину экрана (dataTerminalDocuments.css)
 dialogHeader '' (STRING caption, STRING title) = CONCAT '',
@@ -172,8 +227,8 @@ htmlDetail '' (TerminalDocumentType t) = CONCAT '',
 // Касание карточки только делает ее текущей, выбор - кнопкой «Выбрать» или Enter
 META defSelectDialog(form, object)
     // Класс кнопки 'custom-button ok select': с повтором 'ok' (addclass = ok) класс ok кнопке не достается
-    @defButtonCustom(ok, '(Enter) Выбрать', form, 'ENTER', select);
-    @defButtonCustom(close, '(Esc) Закрыть', form, 'ESCAPE', cancel);
+    @defButtonCustom(ok, 'Выбрать', form, 'ENTER', select);
+    @defButtonCustom(close, 'Закрыть', form, 'ESCAPE', cancel);
 
     DESIGN form {
         OBJECTS {
@@ -217,29 +272,6 @@ FORM askSelectTerminalDocumentType 'Тип документа'
     ORDERS name(t)
 ;
 @defSelectDialog(askSelectTerminalDocumentType, t);
-
-// Значения аналитики (справочника ТСД) - так же, как их выгружает на ТСД DefaultTerminalHandler.readCustomANAList:
-// объекты со значением свойства ID, отобранные свойством фильтра (второй параметр фильтра - пользователь),
-// код значения = префикс вида справочника (exportId) + ID. Свойства заданы каноническими именами, поэтому через EVAL
-handbookValue 'Значение аналитики' = DATA LOCAL STRING (TerminalHandbookType, STRING);
-
-// Классы сигнатуры по каноническому имени свойства: 'NS.prop[NS.A,NS.B]' -> 'NS.A,NS.B'
-canonicalNameSignature (STRING canonicalName) = getWord(getWord(canonicalName, r'[', 2), r']', 1);
-
-fillHandbookValues (TerminalHandbookType h) {
-    handbookValue(h, STRING s) <- NULL;
-    IF canonicalNamePropertyID(h) AND canonicalNamePropertyName(h) THEN
-        // FOR <ID>(<Класс> x) [AND <фильтр>(x[, пользователь])] DO handbookValue($1, <префикс> + <ID>(x)) <- <наименование>(x);
-        EVAL ACTION (CONCAT '',
-            r'FOR ', canonicalNamePropertyID(h), r'(', getWord(canonicalNameSignature(canonicalNamePropertyID(h)), r',', 1), r' x)',
-            (CASE
-                WHEN wordCount(canonicalNameSignature(canonicalNameFilterProperty(h)), r',') = 1
-                    THEN r' AND ' + canonicalNameFilterProperty(h) + r'(x)'
-                WHEN wordCount(canonicalNameSignature(canonicalNameFilterProperty(h)), r',') = 2
-                    THEN r' AND ' + canonicalNameFilterProperty(h) + r'(x, currentUser() AS ' + getWord(canonicalNameSignature(canonicalNameFilterProperty(h)), r',', 2) + r')'),
-            r' DO DataTerminal.handbookValue($1, Terminal.exportId($1) + STRING(', canonicalNamePropertyID(h), r'(x))) <- STRING(', canonicalNamePropertyName(h), r'(x));')
-        PARAMS h;
-}
 
 htmlDetail '' (TerminalHandbookType h, STRING s) = CONCAT '',
     '<div class=terminal-document>',
@@ -338,9 +370,12 @@ newDocumentComment 'Комментарий' = DATA LOCAL STRING[100] ();
 newDocumentHandbook1 = DATA LOCAL STRING[100] ();
 newDocumentHandbook2 = DATA LOCAL STRING[100] ();
 newDocumentOrder = DATA LOCAL TerminalOrder ();
+// созданный документ - чтобы после создания сделать его текущим в списке
+createdDocument = DATA LOCAL TerminalDocument ();
 
-newDocumentHandbook1Name () = handbookValue(terminalHandbookType1(newDocumentType()), newDocumentHandbook1());
-newDocumentHandbook2Name () = handbookValue(terminalHandbookType2(newDocumentType()), newDocumentHandbook2());
+// Наименование значения аналитики (код, если значения нет среди загруженных - например, поставщик из заказа)
+newDocumentHandbook1Name () = OVERRIDE handbookValue(terminalHandbookType1(newDocumentType()), newDocumentHandbook1()), newDocumentHandbook1();
+newDocumentHandbook2Name () = OVERRIDE handbookValue(terminalHandbookType2(newDocumentType()), newDocumentHandbook2()), newDocumentHandbook2();
 newDocumentOrderName 'Заказ' () = CONCAT ' от ', '№ ' + number(newDocumentOrder()), toDateDDMMYY(date(newDocumentOrder()));
 
 selectNewDocumentHandbook1 () {
@@ -353,6 +388,24 @@ selectNewDocumentHandbook2 () {
     IF selectedHandbookValue() THEN newDocumentHandbook2() <- selectedHandbookValue();
 }
 
+// Выбор заказа: номер документа - номер заказа, поставщик заказа - в аналитику вида справочника, которым поставщики
+// заказов выгружаются на ТСД (terminalHandbookType, код - exportId + idSupplier, как в DefaultTerminalHandler.updateOrderTable)
+selectNewDocumentOrder () {
+    DIALOG askSelectTerminalOrder OBJECTS t = newDocumentType(), o = newDocumentOrder() INPUT NOMANAGESESSION DO {
+        newDocumentOrder() <- o;
+        newDocumentNumber() <- number(o);
+        IF idSupplier(o, stock(currentEmployee())) THEN {
+            IF terminalHandbookType1(newDocumentType()) = terminalHandbookType() THEN
+                newDocumentHandbook1() <- STRING[100](exportId() + idSupplier(o, stock(currentEmployee())));
+            IF terminalHandbookType2(newDocumentType()) = terminalHandbookType() THEN
+                newDocumentHandbook2() <- STRING[100](exportId() + idSupplier(o, stock(currentEmployee())));
+            // наименование поставщика в поле аналитики - из значений справочника
+            IF NOT (GROUP SUM 1 IF handbookValue(terminalHandbookType(), STRING s)) THEN
+                fillHandbookValues(terminalHandbookType());
+        }
+    }
+}
+
 FORM newTerminalDocument 'Новый документ'
     PROPERTIES READONLY header = dialogHeader('Новый документ', name(newDocumentType())) CUSTOM 'htmlText'
     PROPERTIES() newDocumentNumber CUSTOM 'inputText', newDocumentComment CUSTOM 'inputText'
@@ -363,11 +416,7 @@ FORM newTerminalDocument 'Новый документ'
             ON CHANGE selectNewDocumentHandbook1(),
         newDocumentHandbook2Name HEADER nameTerminalHandbookType2(newDocumentType()) SHOWIF terminalHandbookType2(newDocumentType())
             ON CHANGE selectNewDocumentHandbook2()
-    PROPERTIES() newDocumentOrderName SHOWIF isOrder(preferences(newDocumentType()))
-        ON CHANGE {
-            DIALOG askSelectTerminalOrder OBJECTS t = newDocumentType(), o = newDocumentOrder() INPUT NOMANAGESESSION DO
-                newDocumentOrder() <- o;
-        }
+    PROPERTIES() newDocumentOrderName SHOWIF isOrder(preferences(newDocumentType())) ON CHANGE selectNewDocumentOrder()
 ;
 
 createNewDocument () {
@@ -381,8 +430,8 @@ createNewDocument () {
     }
     ok();
 }
-@defButtonCustom(createNewDocument, '(Enter) Создать', newTerminalDocument, 'ENTER', ok);
-@defButtonCustom(close, '(Esc) Закрыть', newTerminalDocument, 'ESCAPE', cancel);
+@defButtonCustom(createNewDocument, 'Создать', newTerminalDocument, 'ENTER', ok);
+@defButtonCustom(close, 'Закрыть', newTerminalDocument, 'ESCAPE', cancel);
 
 DESIGN newTerminalDocument {
     OBJECTS {
@@ -432,8 +481,9 @@ createTerminalDocument () {
         newDocumentHandbook1() <- NULL;
         newDocumentHandbook2() <- NULL;
         newDocumentOrder() <- NULL;
+        createdDocument() <- NULL;
         DIALOG newTerminalDocument NOMANAGESESSION DO {
-            NEWSESSION NESTED (newDocumentType, newDocumentNumber, newDocumentComment, newDocumentHandbook1, newDocumentHandbook2, newDocumentOrder) {
+            NEWSESSION NESTED (newDocumentType, newDocumentNumber, newDocumentComment, newDocumentHandbook1, newDocumentHandbook2, newDocumentOrder, createdDocument) {
                 NEW d = TerminalDocument {
                     terminalDocumentType(d) <- newDocumentType();
                     dataStock(d) <- stock(currentEmployee());
@@ -442,14 +492,32 @@ createTerminalDocument () {
                     idTerminalHandbookType1(d) <- newDocumentHandbook1();
                     idTerminalHandbookType2(d) <- newDocumentHandbook2();
                     parentDocument(d) <- number(newDocumentOrder());
+                    // Документ по заказу: строки заказа (те же, что учтены в карточке заказа при выборе) с количеством 0,
+                    // в порядке выгрузки заказа на ТСД
+                    FOR forNewDocument(TerminalOrderDetail od, newDocumentType()) AND order(od) = newDocumentOrder()
+                        ORDER sortTerminal(od), nameSku(od), od
+                        NEW dd = TerminalDocumentDetail DO {
+                        terminalDocument(dd) <- d;
+                        number(dd) <- (GROUP MAX number(TerminalDocumentDetail x) IF terminalDocument(x) = d) (+) 1;
+                        barcode(dd) <- STRING[30](idBarcodeSku(od));
+                        sku(dd) <- sku(od);
+                        price(dd) <- overPrice(od);
+                        quantity(dd) <- 0;
+                    }
+                    APPLY;
+                    // успешный APPLY очищает локальные свойства сессии, поэтому документ запоминается после него
+                    IF NOT canceled() THEN
+                        createdDocument() <- d;
                 }
-                APPLY;
             }
             formRefresh();
+            IF createdDocument() THEN
+                ACTIVATE dataTerminalInternal.terminalDocument = createdDocument();
         }
     }
 }
-@defButtonCustom(createTerminalDocument, '(F5) Создать', dataTerminalInternal, 'F5', );
+// ok - основное действие экрана: filled-кнопка (tonal сливалась с карточками списка)
+@defButtonCustom(createTerminalDocument, 'Создать', dataTerminalInternal, 'F5', ok);
 
 DESIGN dataTerminalInternal {
     terminalDocumentsOperation {
@@ -474,6 +542,13 @@ handbook (TerminalDocument d, TerminalHandbookType h) =
 // Вид аналитики заполнен хотя бы у одного документа списка - в окне фильтра для него есть поле выбора
 inTerminalDocuments (TerminalHandbookType h) = GROUP SUM 1 IF inTerminalDocuments(TerminalDocument d) AND handbook(d, h);
 
+// Наименования аналитик в карточках документов: при входе загружаются значения справочников видов,
+// заполненных в документах списка (handbookValue - локальное, после APPLY в сессии формы карточка покажет код)
+afterActivateTerminalDocumentsOperation() + {
+    FOR inTerminalDocuments(TerminalHandbookType h) DO
+        fillHandbookValues(h);
+}
+
 // Документ не проходит фильтр, если по какой-то из заданных аналитик значение другое или не заполнено
 skipTerminalFilter (TerminalDocument d) = GROUP SUM 1 IF terminalFilterHandbook(TerminalHandbookType h) AND NOT (handbook(d, h) = terminalFilterHandbook(h));
 
@@ -492,31 +567,49 @@ htmlInputHandbook '' (TerminalHandbookType h) = CONCAT '',
             ELSE '<div class="readonly-field-value text-based-value-null">Не задано</div>'),
     '</div>';
 
-// Крестик справа от заданного значения - очистить аналитику
-htmlDropInputHandbook '' (TerminalHandbookType h) = '<div class=filter-reset>✕</div>' IF inputHandbook(h) CHARWIDTH 3;
+// «(F2) Сброс» в общем диалоге выбора значения аналитики: закрывает диалог с признаком «значение не задано».
+// Кнопка видна, только когда выбор вызван из фильтра (allowDropHandbookValue), в создании документа ее нет
+allowDropHandbookValue = DATA LOCAL BOOLEAN ();
+droppedHandbookValue = DATA LOCAL BOOLEAN ();
 
-// Выбор значения - общий диалог выбора значения аналитики (как при создании документа)
+dropHandbookValue () {
+    droppedHandbookValue() <- TRUE;
+    close();
+}
+@defButtonCustom(dropHandbookValue, 'Сброс', askSelectHandbookValue, 'F2', );
+hideDropHandbookValueAskSelectHandbookValue() += NOT allowDropHandbookValue();
+
+DESIGN askSelectHandbookValue {
+    OBJECTS {
+        otherButtons {
+            MOVE PROPERTY (dropHandbookValue);
+        }
+    }
+}
+
+// Выбор значения - общий диалог выбора значения аналитики (как при создании документа), «Сброс» очищает аналитику
 selectInputHandbook (TerminalHandbookType h) {
+    allowDropHandbookValue() <- TRUE;
+    droppedHandbookValue() <- NULL;
     selectHandbookValue(h, inputHandbook(h));
-    IF selectedHandbookValue() THEN {
+    allowDropHandbookValue() <- NULL;
+    IF droppedHandbookValue() THEN {
+        inputHandbook(h) <- NULL;
+        inputHandbookName(h) <- NULL;
+    } ELSE IF selectedHandbookValue() THEN {
         inputHandbook(h) <- selectedHandbookValue();
         inputHandbookName(h) <- handbookValue(h, selectedHandbookValue());
     }
 }
 
-dropInputHandbook (TerminalHandbookType h) {
-    inputHandbook(h) <- NULL;
-    inputHandbookName(h) <- NULL;
-}
-
 FORM terminalDocumentsFilter 'Фильтр'
-    PROPERTIES READONLY header = dialogHeader('Документы ТСД', 'Фильтр') CUSTOM 'htmlText'
-    PROPERTIES() inputDateFrom, inputDateTo
+    PROPERTIES READONLY header = dialogHeader('Документы', 'Фильтр') CUSTOM 'htmlText'
+    // Даты вводятся в формате ДД.ММ.ГГ с клавиатуры ТСД или цифровой экранной клавиатуры, без календаря (рендерер inputDateKeyboard)
+    PROPERTIES() inputDateFrom CUSTOM 'inputDateKeyboard', inputDateTo CUSTOM 'inputDateKeyboard'
 
     // Аналитики: по полю на каждый вид, заполненный в документах списка (и на уже заданный в фильтре)
     OBJECTS h = TerminalHandbookType
-    PROPERTIES htmlInputHandbook = htmlInputHandbook(h) CUSTOM 'htmlText' ON CHANGE selectInputHandbook(h),
-               htmlDropInputHandbook = htmlDropInputHandbook(h) CUSTOM 'htmlText' ON CHANGE dropInputHandbook(h)
+    PROPERTIES htmlInputHandbook = htmlInputHandbook(h) CUSTOM 'htmlText' ON CHANGE selectInputHandbook(h)
     PROPERTIES(h) READONLY name SHOWIF NULL
     FILTERS inTerminalDocuments(h) OR inputHandbook(h)
     ORDERS name(h)
@@ -529,8 +622,8 @@ applyTerminalDocumentsFilter () {
     }
     ok();
 }
-@defButtonCustom(applyTerminalDocumentsFilter, '(Enter) OK', terminalDocumentsFilter, 'ENTER', ok);
-@defButtonCustom(close, '(Esc) Отмена', terminalDocumentsFilter, 'ESCAPE', cancel);
+@defButtonCustom(applyTerminalDocumentsFilter, 'OK', terminalDocumentsFilter, 'ENTER', ok);
+@defButtonCustom(close, 'Отмена', terminalDocumentsFilter, 'ESCAPE', cancel);
 
 // «Сброс»: очищает все условия и закрывает окно (как в нативном приложении)
 resetTerminalDocumentsFilter () {
@@ -540,7 +633,7 @@ resetTerminalDocumentsFilter () {
     inputHandbookName(TerminalHandbookType h) <- NULL;
     ok();
 }
-@defButtonCustom(resetTerminalDocumentsFilter, '(F2) Сброс', terminalDocumentsFilter, 'F2', );
+@defButtonCustom(resetTerminalDocumentsFilter, 'Сброс', terminalDocumentsFilter, 'F2', );
 
 DESIGN terminalDocumentsFilter {
     OBJECTS {
@@ -548,13 +641,13 @@ DESIGN terminalDocumentsFilter {
             focusable = FALSE;
             align = STRETCH;
         }
-        // Даты - стандартное поле даты, растянутое на ширину окна и оформленное как поле выбора (date-field-value)
+        // Даты - в стиле полей ввода диалогов ТСД (как номер в «Новом документе»)
         MOVE PROPERTY (inputDateFrom()) {
             defaultComponent = TRUE;
-            align = STRETCH; captionVertical = TRUE; class = 'input-single'; captionClass = 'input-single-caption'; valueClass = 'date-field-value'; placeholder = 'ДД.ММ.ГГ';
+            align = STRETCH; captionVertical = TRUE; class = 'input-single'; captionClass = 'input-single-caption'; valueClass = 'input-single-value';
         }
         MOVE PROPERTY (inputDateTo()) {
-            align = STRETCH; captionVertical = TRUE; class = 'input-single'; captionClass = 'input-single-caption'; valueClass = 'date-field-value'; placeholder = 'ДД.ММ.ГГ';
+            align = STRETCH; captionVertical = TRUE; class = 'input-single'; captionClass = 'input-single-caption'; valueClass = 'input-single-value';
         }
         // Таблица аналитик без заголовка и рамок: строка выглядит полем ввода (handbook-fields)
         MOVE BOX (h) {
@@ -571,7 +664,6 @@ DESIGN terminalDocumentsFilter {
                 charWidth = 20;
                 changeOnSingleClick = TRUE;
             }
-            PROPERTY (htmlDropInputHandbook) { changeOnSingleClick = TRUE; }
         }
         NEW otherButtons {
             class = 'other-buttons';
@@ -651,7 +743,6 @@ DESIGN dataTerminalInternal {
 
 // Быстрый поиск по номеру документа: лупа в шапке ТСД (headerSearch() - NULL или строка от 3 символов)
 showHeaderSearch (MenuItem i) += WHEN i = MenuItem.terminalDocumentsOperation THEN TRUE;
-headerSearchPlaceholder (MenuItem i) += WHEN i = MenuItem.terminalDocumentsOperation THEN 'Номер документа';
 
 EXTEND FORM dataTerminalInternal
     FILTERS NOT headerSearch() OR isISubstring(title(terminalDocument), headerSearch())

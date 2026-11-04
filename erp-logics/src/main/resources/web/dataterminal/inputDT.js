@@ -68,6 +68,32 @@ function inputBarcodeLiteAlwaysFocused() {
     };
 }
 
+// Поле экрана ввода по одному полю: при появлении на экране (и при фокусе, например по ACTIVATE PROPERTY
+// или после закрытия сообщения) - фокус и выделение текста, чтобы ввод заменял старое значение.
+// Значение с сервера может прийти позже фокуса - тогда update выделяет его снова, пока пользователь не начал ввод
+function selectOnShow(inp) {
+    function select() {
+        if (document.activeElement !== inp) return
+        inp.select()
+        inp.selectOnUpdate = true
+    }
+    new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.intersectionRatio > 0 && !document.getElementsByClassName('modal-backdrop').length &&
+                !document.getElementsByClassName('gwt-PopupPanelGlass').length)
+                setTimeout(() => {
+                    inp.focus()
+                    select()
+                }, 0)
+        })
+    }).observe(inp)
+    // select после mouseup касания, иначе касание ставит курсор и снимает выделение
+    inp.addEventListener('focus', () => setTimeout(select, 0))
+    const stopSelect = () => inp.selectOnUpdate = false
+    inp.addEventListener('keydown', stopSelect)
+    inp.addEventListener('input', stopSelect)
+}
+
 function initInputRender(mode, options) {
     function postprocess(element, controller) {
         if (options && options.postprocessor) {
@@ -119,6 +145,8 @@ function initInputRender(mode, options) {
                 inp.addEventListener("focusout", (event) => setFocusOnVisible(inp, event))
             }
 
+            if (options && options.selectOnShow) selectOnShow(inp)
+
             new MutationObserver(function (mutation, observer) {
                 if (document.body.contains(element) && element.classList.contains("panelRendererValueFocused")) {
                     inp.select()
@@ -163,6 +191,7 @@ function initInputRender(mode, options) {
                 preprocess(element, controller, numValue)
             }
             inp.prevValue = inp.value
+            if (inp.selectOnUpdate && document.activeElement === inp) inp.select()
             inp.addEventListener("blur", changeValue)
             inp.addEventListener("keydown", onEnter)
         }

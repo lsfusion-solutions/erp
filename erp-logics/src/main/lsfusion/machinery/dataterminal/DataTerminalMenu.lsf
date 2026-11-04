@@ -1,6 +1,6 @@
 MODULE DataTerminalMenu;
 
-REQUIRE DataTerminalDialogForms;
+REQUIRE DataTerminalDialogForms, EmployeeStock;
 
 NAMESPACE DataTerminal;
 
@@ -8,27 +8,81 @@ NAMESPACE DataTerminal;
 
 initMenuItem() += MenuItem.main;
 
+// Главный экран: кнопки меню по центру экрана, внизу плашка сотрудника с кнопкой «Выйти» (как в lsFusionBCS)
 DESIGN dataTerminalInternal {
     actions {
-        NEW lineAction1 { align = STRETCH; }
-        NEW lineAction2 { align = STRETCH; }
-        NEW lineAction3 { align = STRETCH; }
-        NEW lineAction4 { align = STRETCH; }
-        NEW lineAction5 { align = STRETCH; }
-        NEW lineAction6 { align = STRETCH; }
-        NEW lineAction7 { align = STRETCH; }
-        NEW lineAction8 { align = STRETCH; }
-        NEW lineAction9 { align = STRETCH; }
-        NEW lineAction0 { align = STRETCH; }
-        NEW lineAction10 { align = STRETCH; }
+        fill = 1;
+        NEW menuLines {
+            fill = 1;
+            align = STRETCH;
+            childrenAlignment = CENTER;
+            class = 'dt-menu-lines';
+            NEW lineAction1 { align = STRETCH; }
+            NEW lineAction2 { align = STRETCH; }
+            NEW lineAction3 { align = STRETCH; }
+            NEW lineAction4 { align = STRETCH; }
+            NEW lineAction5 { align = STRETCH; }
+            NEW lineAction6 { align = STRETCH; }
+            NEW lineAction7 { align = STRETCH; }
+            NEW lineAction8 { align = STRETCH; }
+            NEW lineAction9 { align = STRETCH; }
+            NEW lineAction0 { align = STRETCH; }
+            NEW lineAction10 { align = STRETCH; }
+        }
+        NEW userBar {
+            horizontal = TRUE;
+            align = STRETCH;
+            class = 'dt-user-bar';
+        }
     }
 }
 
-@addMenuItem(logout, '(Esc) Выйти', 'ESCAPE', lineAction10);
+@addMenuItem(logout, 'Выйти', 'ESCAPE', lineAction10);
 
 doMenuItemLogout() + {
     askYesNo('Выйти?');
     IF askedYesNo() THEN {
         restart[]();
+    }
+}
+
+// Плашка сотрудника: значок, логин и ФИО
+userBarInfo '' () = CONCAT '', '<div class=dt-user-info>',
+                                    '<div class=avatar></div>',
+                                    '<div class=text>',
+                                        '<div>', login(currentEmployee()), '</div>',
+                                        '<div>', name(currentEmployee()), '</div>',
+                                    '</div>',
+                                '</div>';
+
+// Склад сотрудника над меню (с ним работают операции ТСД)
+stockBarInfo '' () = CONCAT '', '<div class=dt-stock-info>',
+                                     '<div class=caption>Склад</div>',
+                                     (OVERRIDE '<div class=name>' + name(stock(currentEmployee())) + '</div>',
+                                               '<div class="name empty">Не задан</div>'),
+                                 '</div>';
+
+EXTEND FORM dataTerminalInternal
+    PROPERTIES READONLY userBarInfo() CUSTOM 'htmlText', stockBarInfo() CUSTOM 'htmlText'
+;
+
+DESIGN dataTerminalInternal {
+    actions {
+        MOVE PROPERTY (stockBarInfo()) BEFORE menuLines {
+            focusable = FALSE;
+            align = STRETCH;
+        }
+    }
+    userBar {
+        MOVE PROPERTY (userBarInfo()) {
+            focusable = FALSE;
+            align = STRETCH;
+            fill = 1;
+        }
+        // «Выйти» с плашки, Esc по-прежнему работает (CHANGEKEY действия). Без класса logout: он красит кнопку красным
+        MOVE PROPERTY (doMenuItemLogout()) {
+            align = CENTER;
+            class = 'dt-user-logout';
+        }
     }
 }

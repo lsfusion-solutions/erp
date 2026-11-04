@@ -1,6 +1,6 @@
 MODULE DataTerminalDocumentDetails;
 
-// Табличная часть документа ТСД: экран строк документа, открывается касанием карточки в списке «Документы ТСД»
+// Табличная часть документа ТСД: экран строк документа, открывается касанием карточки в списке «Документы»
 REQUIRE DataTerminalDocuments, TerminalHandler;
 
 NAMESPACE DataTerminal;
@@ -12,18 +12,33 @@ shortQuantity (NUMERIC[16,3] q) = IF q = 0 THEN '0' ELSE rtrim(rtrim(STRING(q), 
 
 preferences (TerminalDocumentDetail d) = preferences(terminalDocumentType(terminalDocument(d)));
 
+// Заказ-основание документа: в типе включен выбор заказа (isOrder), номер заказа - в parentDocument
+terminalOrder (TerminalDocument d) = GROUP MAX TerminalOrder o IF number(o) = parentDocument(d) AND filter(o, stock(d))
+    AND isOrder(preferences(terminalDocumentType(d)));
+
+// Количество товара строки по заказу-основанию: те же строки заказа, что добавляются при создании документа по заказу
+orderQuantity (TerminalDocumentDetail d) = GROUP SUM orderQuantity(TerminalOrderDetail od)
+    IF order(od) = terminalOrder(terminalDocument(d)) AND sku(od) = sku(d) AND forNewDocument(od, terminalDocumentType(terminalDocument(d)));
+
+// Количество строки документа по заказу не совпадает с количеством по заказу - карточка с красной меткой и красными количествами
+orderMismatch (TerminalDocumentDetail d) = terminalOrder(terminalDocument(d)) AND NOT (OVERRIDE quantity(d), 0) = (OVERRIDE orderQuantity(d), 0);
+
 // Карточка строки (по структуре повторяет список строк документа нативного приложения ТСД):
-// наименование / штрихкод и ед. изм., время сканирования справа / количество / цена и остаток /
+// наименование / штрихкод и ед. изм., время сканирования справа / количество (и количество по заказу) / цена и остаток /
 // дополнительные поля строки, запрашиваемые по настройке типа документа: даты (Дата 1 загружается в дату изготовления,
 // Дата 2 - в срок годности) и поля 1-3 / комментарий
 htmlDetail '' (TerminalDocumentDetail d) = CONCAT '',
-    '<div class=terminal-document-detail>',
+    (IF orderMismatch(d) THEN '<div class="terminal-document-detail order-mismatch">' ELSE '<div class=terminal-document-detail>'),
         '<div class=name>', name(d), '</div>',
         '<div class=header>',
             '<div class=barcode>', barcode(d), ' <b>' + shortNameUOM(sku(d)) + '</b>', '</div>',
             '<div class=time>', STRING[11](toChar(dateTimeScan(d), r'DD.MM HH24:MI')), '</div>',
         '</div>',
-        '<div class=quantity><span>Кол-во</span><div class=value>', (OVERRIDE shortQuantity(NUMERIC[16,3](quantity(d))), '0'), '</div></div>',
+        '<div class=quantity><span>Кол-во</span><div class=value>', (OVERRIDE shortQuantity(NUMERIC[16,3](quantity(d))), '0'), '</div>',
+            // документ по заказу: справа количество по заказу
+            ('<span class=order-caption>Заказ</span><div class=order>' + (OVERRIDE shortQuantity(NUMERIC[16,3](orderQuantity(d))), '0') + '</div>')
+                IF terminalOrder(terminalDocument(d)),
+        '</div>',
         '<div class=values>',
             ('<div class=price><span>Цена</span>' + (OVERRIDE STRING(NUMERIC[16,2](price(d))), '—') + '</div>')
                 IF NOT hidePrice(preferences(d)),
@@ -51,7 +66,8 @@ htmlHeader '' (TerminalDocument d) = CONCAT '',
 // Экран строк документа: Esc возвращает к списку документов
 @defSubMenu(terminalDocumentDetailsOperation, operation, terminalDocumentsOperation, 'Строки документа');
 
-selectedTerminalDocument = DATA LOCAL TerminalDocument ();
+// NESTED: возврат на этот экран с вложенных экранов (toPrevMenuItem) делает CANCEL
+selectedTerminalDocument = DATA LOCAL NESTED TerminalDocument ();
 
 openTerminalDocument (TerminalDocument d) + {
     selectedTerminalDocument() <- d;
@@ -69,7 +85,7 @@ FORM terminalDocumentDetailMenu ''
     PROPERTIES (d) READONLY htmlDetail CUSTOM 'htmlText'
 ;
 
-@defButtonCustom(close, '(Esc) Закрыть', terminalDocumentDetailMenu, 'ESCAPE', dialog);
+@defButtonCustom(close, 'Закрыть', terminalDocumentDetailMenu, 'ESCAPE', dialog);
 
 DESIGN terminalDocumentDetailMenu {
     REMOVE TOOLBARBOX;
@@ -78,20 +94,28 @@ DESIGN terminalDocumentDetailMenu {
             focusable = FALSE;
             align = STRETCH;
         }
+        // Пункты меню отделены от «Закрыть» линией (dataTerminalDocuments.css)
         NEW items {
             align = STRETCH;
+            class = 'dots-menu-items';
         }
         MOVE PROPERTY (close);
     }
 }
+
+// После закрытия меню строки, уже в форме ТСД: пункт меню, которому нужен другой экран, запоминает строку
+// и закрывает меню, а экран открывает здесь (из формы меню экраны формы ТСД не переключаются)
+afterTerminalDocumentDetailMenu ABSTRACT LIST (TerminalDocumentDetail);
 
 showMenu (TerminalDocumentDetail d) {
     // Пункты меню меняют строки в своих сессиях - после закрытия меню перечитываем список.
     // DO/ELSE делают диалог синхронным: без них formRefresh выполнился бы сразу при открытии меню
     DIALOG terminalDocumentDetailMenu OBJECTS d = d NOMANAGESESSION DO {
         formRefresh();
+        afterTerminalDocumentDetailMenu(d);
     } ELSE {
         formRefresh();
+        afterTerminalDocumentDetailMenu(d);
     }
 }
 
@@ -107,7 +131,7 @@ deleteTerminalDocumentDetail (TerminalDocumentDetail d) {
     }
     close();
 }
-@defButtonCustom(deleteTerminalDocumentDetail, '(1) Удалить', terminalDocumentDetailMenu, d, '1', );
+@defButtonCustom(deleteTerminalDocumentDetail, 'Удалить', terminalDocumentDetailMenu, d, '1', );
 DESIGN terminalDocumentDetailMenu { items { MOVE PROPERTY (deleteTerminalDocumentDetail); } }
 
 EXTEND FORM dataTerminalInternal

@@ -62,10 +62,13 @@ lastMenuItem = DATA LOCAL NESTED MenuItem();
 
 activateMenuItem ABSTRACT CASE (MenuItem);
 
+// Активируются (с afterActivate) пункты пути, которых не было на экране: набор FOR фиксируется до первой активации,
+// поэтому вкладка, оставшаяся выбранной в неактивной панели (или первая в панели), тоже проходит активацию.
+// Порядок - от родителей к пункту
 toMenuItem (MenuItem i) {
     IF lastMenuItem() = i THEN RETURN;
     push(lastMenuItem());
-    FOR level(i, MenuItem parent) DO activateMenuItem(parent);
+    FOR level(i, MenuItem parent) AND NOT onScreen(parent) ORDER DESC level(i, parent), parent DO activateMenuItem(parent);
 } WAIT;
 
 beforePrevMenuItem ABSTRACT CASE (MenuItem);
@@ -94,24 +97,29 @@ path (MenuItem m) =
     GROUP CONCAT STRING(name(MenuItem i)) IF level(m, i), ' / ' ORDER -level(m, i), i;
 
 // Шапка как Toolbar в Android: заголовок - название экрана (ближайший пункт меню с названием),
-// подзаголовок - объект экрана (objectId, например номер документа), без него - сотрудник
+// подзаголовок - объект экрана (objectId, например номер документа), без него подзаголовка нет
+// Логотип (как в lsFusionBCS) - слева в шапке начального экрана (initMenuItem и вложенных в него)
+showHeaderLogo () = level(lastMenuItem(), initMenuItem());
+
+// На начальном экране заголовок - название приложения
 title (MenuItem m) = GROUP LAST name(MenuItem i) ORDER -level(m, i), i WHERE level(m, i) AND name(i);
 overHeaderTitle = ABSTRACT STRING ();
-headerTitle () = OVERRIDE overHeaderTitle(), title(lastMenuItem());
+headerTitle () = OVERRIDE overHeaderTitle(), ('lsFusion BCS' IF showHeaderLogo()), title(lastMenuItem());
 
+// Сотрудник показан только на плашке внизу начального экрана, в шапке подзаголовок - только объект экрана
 objectId = ABSTRACT STRING ();
-headerSubtitle () = OVERRIDE objectId(), name(currentEmployee());
+headerSubtitle () = objectId();
 
 // Быстрый поиск в шапке: справа лупа, по нажатию вместо текста шапки - поле ввода и ✕ (Esc в поле - как ✕).
 // Включается по экрану (пункту меню lastMenuItem):
 //   showHeaderSearch(MenuItem i) += WHEN i = MenuItem.<экран> THEN TRUE;
-//   headerSearchPlaceholder(MenuItem i) += WHEN i = MenuItem.<экран> THEN 'Номер документа'; // по умолчанию 'Поиск'
+//   headerSearchPlaceholder(MenuItem i) += WHEN i = MenuItem.<экран> THEN 'Номер документа'; // по умолчанию 'Введите запрос'
 // headerSearch() - NULL или строка от 3 символов (поле отправляет ее через 0,5 с после ввода), экран отбирает по ней:
 //   FILTERS NOT headerSearch() OR isISubstring(<поле>(x), headerSearch())
 // При смене экрана поиск сбрасывается
 showHeaderSearch = ABSTRACT CASE BOOLEAN (MenuItem);
 headerSearchPlaceholder = ABSTRACT CASE STRING (MenuItem);
-placeholderHeaderSearch () = OVERRIDE headerSearchPlaceholder(lastMenuItem()), 'Поиск';
+placeholderHeaderSearch () = OVERRIDE headerSearchPlaceholder(lastMenuItem()), 'Введите запрос';
 
 headerSearchActive = DATA LOCAL BOOLEAN ();
 headerSearch 'Поиск' = DATA LOCAL STRING[100] ();
@@ -123,8 +131,11 @@ WHEN LOCAL CHANGED(lastMenuItem()) DO {
 
 // Подсказку поля поиска рендерер headerSearchInput берет из атрибута data-search-placeholder
 topInfoPanel '' () = CONCAT '', '<div class=topInfoPanel data-search-placeholder="', placeholderHeaderSearch(), '">',
-                                                '<div class=title>', headerTitle(), '</div>',
-                                                '<div class=subtitle>', headerSubtitle(), '</div>',
+                                                '<div class=logo></div>' IF showHeaderLogo(),
+                                                '<div class=text>',
+                                                    '<div class=title>', headerTitle(), '</div>',
+                                                    ('<div class=subtitle>' + headerSubtitle() + '</div>'),
+                                                '</div>',
                                             '</div>';
 
 // Кнопки заголовка ТСД: слева стрелка «Назад», справа меню «⋮». Настраиваются по экрану (пункту меню lastMenuItem).
@@ -138,6 +149,16 @@ showHeaderBack () = lastMenuItem() AND NOT level(lastMenuItem(), initMenuItem())
 
 showHeaderMenu = ABSTRACT CASE BOOLEAN (MenuItem);
 headerMenu ABSTRACT CASE (MenuItem);
+
+// Кнопка «OK» справа в шапке (белая, как в lsFusionBCS), без горячей клавиши. Показывается только на экранах, где задана:
+//   showHeaderOk(MenuItem i) += WHEN i = MenuItem.<экран> THEN TRUE;
+//   headerOk(MenuItem i) + WHEN i = MenuItem.<экран> THEN { ... }
+showHeaderOk = ABSTRACT CASE BOOLEAN (MenuItem);
+headerOk ABSTRACT CASE (MenuItem);
+
+headerOkButton 'OK' () {
+    headerOk(lastMenuItem());
+}
 
 headerBackButton '' () {
     toPrevMenuItem();
@@ -161,6 +182,7 @@ FORM dataTerminalInternal 'Терминал сбора данных'
                headerSearchField '' = headerSearch() CUSTOM 'headerSearchInput' SHOWIF headerSearchActive(),
                headerSearchButton() SHOWIF showHeaderSearch(lastMenuItem()) AND NOT headerSearchActive(),
                headerSearchClose() SHOWIF headerSearchActive(),
+               headerOkButton() SHOWIF showHeaderOk(lastMenuItem()) AND NOT headerSearchActive(),
                headerMenuButton() SHOWIF showHeaderMenu(lastMenuItem()) AND NOT headerSearchActive()
 ;
 
@@ -216,6 +238,11 @@ DESIGN dataTerminalInternal {
             align = STRETCH;
             class = 'dt-header-button dt-header-search-close';
         }
+        MOVE PROPERTY (headerOkButton()) {
+            focusable = FALSE;
+            align = CENTER;
+            class = 'dt-header-ok';
+        }
         MOVE PROPERTY (headerMenuButton()) {
             focusable = FALSE;
             align = STRETCH;
@@ -241,16 +268,17 @@ DESIGN dataTerminalInternal {
 
 @defDtTab(operation, 'Операция', 'F2', topMenu);
 
-toPrevMenuItemOperation() {
-    toPrevMenuItem();
-}
-@defButtonCustom(toPrevMenuItemOperation, '(Esc) Назад', dataTerminalInternal, 'ESCAPE', cancel);
-
 DESIGN dataTerminalInternal {
+    // поля формы ТСД сняты ради шапки во всю ширину (data-terminal.css), экранам операций они возвращаются классом
     operationTab {
-        MOVE PROPERTY (toPrevMenuItemOperation);
+        class = 'dt-screen';
     }
-    // Кнопки вкладок (F1) Главная / (F2) Операция не показываем: навигация - через меню и (Esc) Назад.
+    // Отдельной кнопки «(Esc) Назад» на экранах нет: возврат - стрелкой в шапке, клавиша Esc привязана к ней
+    PROPERTY (headerBackButton()) {
+        changeKey = 'ESCAPE';
+        showChangeKey = FALSE;
+    }
+    // Кнопки вкладок (F1) Главная / (F2) Операция не показываем: навигация - через меню и стрелку «Назад» в шапке.
     // Сами вкладки main / operation (@defDtTab) остаются - на них построены меню и все операции ТСД
     REMOVE topMenu;
 }

@@ -1,0 +1,283 @@
+MODULE DataTerminalDocumentDetailEdit;
+
+// Экран ввода полей строки документа ТСД: поля, запрашиваемые по настройкам типа документа, вводятся по одному.
+// Enter - проверка поля и следующее поле по кругу (после последнего - первое), OK (F4) - сохранение с любого поля,
+// Esc - возврат к строкам без сохранения. Открывается пунктом «Редактировать» меню «⋮» строки (режим редактирования
+// существующей строки)
+REQUIRE DataTerminalDocumentDetails;
+
+NAMESPACE DataTerminal;
+
+beforeDataTerminalStart() + { INTERNAL CLIENT 'dataTerminalDocumentDetailEdit.css'; }
+
+// Поля строки в порядке запроса
+CLASS TerminalDetailField 'Поле строки документа ТСД' {
+    quantity 'Количество',
+    extraQuantity 'Доп. количество',
+    price 'Цена',
+    date1 'Изготовлен',
+    date2 'Годен до',
+    field1 'Поле 1',
+    field2 'Поле 2',
+    field3 'Поле 3'
+}
+
+order (TerminalDetailField f) = CASE
+    WHEN f = TerminalDetailField.quantity THEN 1
+    WHEN f = TerminalDetailField.extraQuantity THEN 2
+    WHEN f = TerminalDetailField.price THEN 3
+    WHEN f = TerminalDetailField.date1 THEN 4
+    WHEN f = TerminalDetailField.date2 THEN 5
+    WHEN f = TerminalDetailField.field1 THEN 6
+    WHEN f = TerminalDetailField.field2 THEN 7
+    WHEN f = TerminalDetailField.field3 THEN 8;
+
+// Поле запрашивается по настройкам типа документа строки (preferences)
+requested (TerminalDetailField f, TerminalDocumentDetail d) = CASE
+    WHEN f = TerminalDetailField.quantity THEN
+        (d IS TerminalDocumentDetail AND NOT noRequestQuantity(preferences(d)) AND NOT banEditQuantity(preferences(d)))
+    WHEN f = TerminalDetailField.extraQuantity THEN requestExtraQuantity(preferences(d))
+    WHEN f = TerminalDetailField.price THEN requestPrice(preferences(d))
+    WHEN f = TerminalDetailField.date1 THEN
+        (requestDate1(preferences(d)) AND (NOT requestDate1ForWeightItem(preferences(d)) OR (passScales(sku(d)) AND split(sku(d)))))
+    WHEN f = TerminalDetailField.date2 THEN requestDate2(preferences(d))
+    WHEN f = TerminalDetailField.field1 THEN requestField1(preferences(d))
+    WHEN f = TerminalDetailField.field2 THEN requestField2(preferences(d))
+    WHEN f = TerminalDetailField.field3 THEN requestField3(preferences(d));
+
+required (TerminalDetailField f, TerminalDocumentDetail d) = CASE
+    WHEN f = TerminalDetailField.date1 THEN requiredDate1(preferences(d))
+    WHEN f = TerminalDetailField.date2 THEN requiredDate2(preferences(d))
+    WHEN f = TerminalDetailField.field1 THEN requiredField1(preferences(d))
+    WHEN f = TerminalDetailField.field2 THEN requiredField2(preferences(d))
+    WHEN f = TerminalDetailField.field3 THEN requiredField3(preferences(d));
+
+firstField (TerminalDocumentDetail d) = GROUP LAST TerminalDetailField f ORDER DESC order(f), f WHERE requested(f, d);
+
+// Строка, которую редактируют, текущее поле и введенные значения: в строку пишутся только при сохранении
+editedDetail = DATA LOCAL TerminalDocumentDetail ();
+currentField = DATA LOCAL TerminalDetailField ();
+
+editQuantity 'Количество' = DATA LOCAL NUMERIC[14,3] ();
+editExtraQuantity 'Доп. количество' = DATA LOCAL NUMERIC[14,3] ();
+editPrice 'Цена' = DATA LOCAL NUMERIC[16,4] ();
+editDate1 'Изготовлен' = DATA LOCAL DATE ();
+editDate2 'Годен до' = DATA LOCAL DATE ();
+editField1 'Поле 1' = DATA LOCAL STRING[100] ();
+editField2 'Поле 2' = DATA LOCAL STRING[100] ();
+editField3 'Поле 3' = DATA LOCAL STRING[100] ();
+
+
+// Экран ввода: возврат (Esc, стрелка в шапке) - к строкам документа
+@defSubMenu(terminalDocumentDetailEditOperation, operation, terminalDocumentDetailsOperation, 'Строка документа');
+
+// Шапка экрана: товар строки и количество по заказу, под ней - номер поля из числа запрашиваемых
+htmlEditDetailHeader '' () = CONCAT '',
+    '<div class=terminal-document-detail-edit>',
+        '<div class=name>', name(editedDetail()), '</div>',
+        '<div class=header>',
+            '<div class=barcode>', barcode(editedDetail()), ' <b>' + shortNameUOM(sku(editedDetail())) + '</b>', '</div>',
+            ('<div class=order><span>Заказ</span>' + (OVERRIDE shortQuantity(NUMERIC[16,3](orderQuantity(editedDetail()))), '0') + '</div>')
+                IF terminalOrder(terminalDocument(editedDetail())),
+        '</div>',
+        '<div class=step>',
+            'Поле ' + STRING(GROUP SUM 1 IF requested(TerminalDetailField f, editedDetail()) AND order(f) <= order(currentField()))
+                + ' из ' + STRING(GROUP SUM 1 IF requested(TerminalDetailField g, editedDetail())),
+        '</div>',
+    '</div>';
+
+// На экране все поля, видно только текущее. Числа - с цифровой экранной клавиатурой (inputDecimalText),
+// даты - ДД.ММ.ГГ (inputDateKeyboard), строки - с обычной (inputText). Варианты ...Selected при появлении
+// поля ставят в него фокус и выделяют текст
+EXTEND FORM dataTerminalInternal
+    PROPERTIES READONLY terminalDocumentDetailEditHeader = htmlEditDetailHeader() CUSTOM 'htmlText'
+    PROPERTIES dtEditQuantity = editQuantity() CUSTOM 'inputDecimalTextSelected' SHOWIF currentField() = TerminalDetailField.quantity,
+               dtEditExtraQuantity = editExtraQuantity() CUSTOM 'inputDecimalTextSelected' SHOWIF currentField() = TerminalDetailField.extraQuantity,
+               dtEditPrice = editPrice() CUSTOM 'inputDecimalTextSelected' SHOWIF currentField() = TerminalDetailField.price,
+               dtEditDate1 = editDate1() CUSTOM 'inputDateKeyboardSelected' SHOWIF currentField() = TerminalDetailField.date1,
+               dtEditDate2 = editDate2() CUSTOM 'inputDateKeyboardSelected' SHOWIF currentField() = TerminalDetailField.date2,
+               dtEditField1 = editField1() CUSTOM 'inputTextSelected' SHOWIF currentField() = TerminalDetailField.field1,
+               dtEditField2 = editField2() CUSTOM 'inputTextSelected' SHOWIF currentField() = TerminalDetailField.field2,
+               dtEditField3 = editField3() CUSTOM 'inputTextSelected' SHOWIF currentField() = TerminalDetailField.field3
+;
+
+DESIGN dataTerminalInternal {
+    terminalDocumentDetailEditOperation {
+        fill = 1;
+        MOVE PROPERTY (terminalDocumentDetailEditHeader) {
+            focusable = FALSE;
+            align = STRETCH;
+        }
+        NEW terminalDocumentDetailEditFields {
+            align = STRETCH;
+            MOVE PROPERTY (dtEditQuantity) { align = STRETCH; captionVertical = TRUE; class = 'dt-edit-field'; captionClass = 'dt-edit-field-caption'; valueClass = 'dt-edit-field-value'; }
+            MOVE PROPERTY (dtEditExtraQuantity) { align = STRETCH; captionVertical = TRUE; class = 'dt-edit-field'; captionClass = 'dt-edit-field-caption'; valueClass = 'dt-edit-field-value'; }
+            MOVE PROPERTY (dtEditPrice) { align = STRETCH; captionVertical = TRUE; class = 'dt-edit-field'; captionClass = 'dt-edit-field-caption'; valueClass = 'dt-edit-field-value'; }
+            MOVE PROPERTY (dtEditDate1) { align = STRETCH; captionVertical = TRUE; class = 'dt-edit-field'; captionClass = 'dt-edit-field-caption'; valueClass = 'dt-edit-field-value'; }
+            MOVE PROPERTY (dtEditDate2) { align = STRETCH; captionVertical = TRUE; class = 'dt-edit-field'; captionClass = 'dt-edit-field-caption'; valueClass = 'dt-edit-field-value'; }
+            MOVE PROPERTY (dtEditField1) { align = STRETCH; captionVertical = TRUE; class = 'dt-edit-field'; captionClass = 'dt-edit-field-caption'; valueClass = 'dt-edit-field-value'; }
+            MOVE PROPERTY (dtEditField2) { align = STRETCH; captionVertical = TRUE; class = 'dt-edit-field'; captionClass = 'dt-edit-field-caption'; valueClass = 'dt-edit-field-value'; }
+            MOVE PROPERTY (dtEditField3) { align = STRETCH; captionVertical = TRUE; class = 'dt-edit-field'; captionClass = 'dt-edit-field-caption'; valueClass = 'dt-edit-field-value'; }
+        }
+    }
+}
+
+// Фокус в поле ввода текущего поля
+focusCurrentField () {
+    CASE
+        WHEN currentField() = TerminalDetailField.quantity THEN ACTIVATE PROPERTY dataTerminalInternal.dtEditQuantity;
+        WHEN currentField() = TerminalDetailField.extraQuantity THEN ACTIVATE PROPERTY dataTerminalInternal.dtEditExtraQuantity;
+        WHEN currentField() = TerminalDetailField.price THEN ACTIVATE PROPERTY dataTerminalInternal.dtEditPrice;
+        WHEN currentField() = TerminalDetailField.date1 THEN ACTIVATE PROPERTY dataTerminalInternal.dtEditDate1;
+        WHEN currentField() = TerminalDetailField.date2 THEN ACTIVATE PROPERTY dataTerminalInternal.dtEditDate2;
+        WHEN currentField() = TerminalDetailField.field1 THEN ACTIVATE PROPERTY dataTerminalInternal.dtEditField1;
+        WHEN currentField() = TerminalDetailField.field2 THEN ACTIVATE PROPERTY dataTerminalInternal.dtEditField2;
+        WHEN currentField() = TerminalDetailField.field3 THEN ACTIVATE PROPERTY dataTerminalInternal.dtEditField3;
+}
+
+// Открытие экрана: значения строки - в поля ввода, текущее - первое запрашиваемое поле
+startEditTerminalDocumentDetail (TerminalDocumentDetail d) {
+    editedDetail() <- d;
+    editQuantity() <- quantity(d);
+    editExtraQuantity() <- extraQuantity(d);
+    editPrice() <- price(d);
+    editDate1() <- extraDate1(d);
+    editDate2() <- extraDate2(d);
+    editField1() <- extraField1(d);
+    editField2() <- extraField2(d);
+    editField3() <- extraField3(d);
+    currentField() <- firstField(d);
+    toMenuItem(MenuItem.terminalDocumentDetailEditOperation);
+    focusCurrentField();
+}
+
+// Пункт меню «⋮» строки. Экран ввода открывается в форме ТСД после закрытия меню (afterTerminalDocumentDetailMenu)
+editRequestedDetail = DATA LOCAL TerminalDocumentDetail ();
+
+editTerminalDocumentDetail (TerminalDocumentDetail d) {
+    IF NOT isOpened(terminalDocument(d)) THEN {
+        message('<em>Документ закрыт</em>');
+        RETURN;
+    }
+    IF NOT firstField(d) THEN {
+        message('<em>Для строки нет полей для ввода</em>');
+        RETURN;
+    }
+    editRequestedDetail() <- d;
+    close();
+}
+@defButtonCustom(editTerminalDocumentDetail, 'Редактировать', terminalDocumentDetailMenu, d, '2', );
+DESIGN terminalDocumentDetailMenu { items { MOVE PROPERTY (editTerminalDocumentDetail); } }
+
+afterTerminalDocumentDetailMenu (TerminalDocumentDetail d) + {
+    IF editRequestedDetail() = d THEN {
+        editRequestedDetail() <- NULL;
+        startEditTerminalDocumentDetail(d);
+    }
+}
+
+// Проверка введенного значения поля: перед переходом к следующему (текущее поле) и перед сохранением по OK (все поля).
+// Количество 0 допустимо всегда (обнуление строки)
+fieldError (TerminalDetailField f) = CASE
+    WHEN f = TerminalDetailField.quantity AND NOT editQuantity()
+        THEN 'Введите количество'
+    WHEN f = TerminalDetailField.quantity AND editQuantity() < 0
+        THEN 'Количество не может быть отрицательным'
+    WHEN f = TerminalDetailField.quantity AND banFractQuantityForPieceItem(preferences(editedDetail()))
+            AND NOT split(sku(editedDetail())) AND editQuantity() AND NOT (floor(editQuantity()) = editQuantity())
+        THEN 'Для штучного товара количество должно быть целым'
+    WHEN f = TerminalDetailField.date1 AND required(TerminalDetailField.date1, editedDetail()) AND NOT editDate1()
+        THEN 'Введите дату изготовления'
+    WHEN f = TerminalDetailField.date1 AND banExpiredDate1(preferences(editedDetail())) AND editDate1() < currentDate()
+        THEN 'Дата изготовления истекла'
+    WHEN f = TerminalDetailField.date2 AND required(TerminalDetailField.date2, editedDetail()) AND NOT editDate2()
+        THEN 'Введите срок годности'
+    WHEN f = TerminalDetailField.date2 AND banExpiredDate2(preferences(editedDetail())) AND editDate2() < currentDate()
+        THEN 'Срок годности истек'
+    WHEN f = TerminalDetailField.field1 AND required(TerminalDetailField.field1, editedDetail()) AND NOT editField1()
+        THEN 'Заполните поле 1'
+    WHEN f = TerminalDetailField.field2 AND required(TerminalDetailField.field2, editedDetail()) AND NOT editField2()
+        THEN 'Заполните поле 2'
+    WHEN f = TerminalDetailField.field3 AND required(TerminalDetailField.field3, editedDetail()) AND NOT editField3()
+        THEN 'Заполните поле 3';
+
+// Первое по порядку запрашиваемое поле с ошибкой
+errorField () = GROUP LAST TerminalDetailField f ORDER DESC order(f), f WHERE requested(f, editedDetail()) AND fieldError(f);
+
+// Сохранение: в строку пишутся только запрашиваемые поля; при изменении количества - время сканирования.
+// Затем возврат к строкам документа на сохраненную строку
+editSaved = DATA LOCAL BOOLEAN ();
+
+// Строка берется до NEWSESSION: успешный APPLY очищает локальные свойства новой сессии, и в эту сессию
+// вернулся бы пустой editedDetail
+saveEditedDetail () {
+    FOR TerminalDocumentDetail d = editedDetail() DO {
+        editSaved() <- NULL;
+        NEWSESSION NESTED (editQuantity, editExtraQuantity, editPrice, editDate1, editDate2,
+                           editField1, editField2, editField3, editSaved) {
+            IF requested(TerminalDetailField.quantity, d) THEN {
+                IF NOT ((OVERRIDE quantity(d), 0) = (OVERRIDE editQuantity(), 0)) THEN
+                    dateTimeScan(d) <- currentDateTime();
+                quantity(d) <- editQuantity();
+            }
+            IF requested(TerminalDetailField.extraQuantity, d) THEN extraQuantity(d) <- editExtraQuantity();
+            IF requested(TerminalDetailField.price, d) THEN price(d) <- editPrice();
+            IF requested(TerminalDetailField.date1, d) THEN extraDate1(d) <- editDate1();
+            IF requested(TerminalDetailField.date2, d) THEN extraDate2(d) <- editDate2();
+            IF requested(TerminalDetailField.field1, d) THEN extraField1(d) <- editField1();
+            IF requested(TerminalDetailField.field2, d) THEN extraField2(d) <- editField2();
+            IF requested(TerminalDetailField.field3, d) THEN extraField3(d) <- editField3();
+            APPLY;
+            // успешный APPLY очищает локальные свойства сессии, поэтому признак ставится после него
+            IF NOT canceled() THEN
+                editSaved() <- TRUE;
+        }
+        IF editSaved() THEN {
+            currentField() <- NULL;
+            toPrevMenuItem();
+            ACTIVATE dataTerminalInternal.terminalDocumentDetail = d;
+        }
+    }
+}
+
+// Enter: проверка поля и следующее поле по кругу (после последнего - первое). Сохраняет только OK
+nextDetailField () {
+    IF fieldError(currentField()) THEN {
+        message('<em>' + fieldError(currentField()) + '</em>');
+        RETURN;
+    }
+    currentField() <- OVERRIDE (GROUP LAST TerminalDetailField f ORDER DESC order(f), f
+                                    WHERE requested(f, editedDetail()) AND order(f) > order(currentField())),
+                               firstField(editedDetail());
+    focusCurrentField();
+}
+@defButtonCustom(nextDetailField, 'Далее', dataTerminalInternal, 'ENTER', );
+
+// OK: сохранение строки с любого поля, без прохода по остальным. Сначала проверяются все запрашиваемые поля:
+// при ошибке - переход на первое поле с ошибкой
+okDetailField () {
+    IF errorField() THEN {
+        currentField() <- errorField();
+        focusCurrentField();
+        message('<em>' + fieldError(currentField()) + '</em>');
+        RETURN;
+    }
+    saveEditedDetail();
+}
+@defButtonCustom(okDetailField, 'OK', dataTerminalInternal, 'F4', ok);
+
+// «OK» в шапке - то же сохранение
+showHeaderOk (MenuItem i) += WHEN i = MenuItem.terminalDocumentDetailEditOperation THEN TRUE;
+headerOk (MenuItem i) + WHEN i = MenuItem.terminalDocumentDetailEditOperation THEN { okDetailField(); }
+
+DESIGN dataTerminalInternal {
+    terminalDocumentDetailEditOperation {
+        NEW terminalDocumentDetailEditButtons {
+            align = STRETCH;
+            horizontal = TRUE;
+            class = 'dt-edit-buttons';
+            MOVE PROPERTY (nextDetailField) { fill = 1; }
+            MOVE PROPERTY (okDetailField) { fill = 1; }
+        }
+    }
+}

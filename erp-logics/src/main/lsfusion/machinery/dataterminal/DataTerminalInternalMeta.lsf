@@ -45,12 +45,13 @@ META defSubMenu(nm, prnt, cptn)
     activeTab (MenuItem i) += WHEN i = MenuItem.nm THEN ACTIVE TAB dataTerminalInternal.nm##Tab;
 
     afterActivate###nm ABSTRACT LIST ();
+    // Вызывается из toMenuItem только для пункта, которого не было на экране (onScreen), - вкладка при этом может быть
+    // уже выбрана в своей панели, afterActivate все равно выполняется
     activateMenuItem(MenuItem i) + WHEN i = MenuItem.nm THEN {
-        IF NOT ACTIVE TAB dataTerminalInternal.nm##Tab THEN {
+        IF NOT ACTIVE TAB dataTerminalInternal.nm##Tab THEN
             ACTIVATE TAB dataTerminalInternal.nm##Tab;
-            afterActivate###nm();
-            lastMenuItem() <- GROUP LAST MenuItem j ORDER level(j, MenuItem.nm), j WHERE activeTab(j);
-        }
+        afterActivate###nm();
+        lastMenuItem() <- GROUP LAST MenuItem j ORDER level(j, MenuItem.nm), j WHERE activeTab(j);
     }
 
     WHEN LOCAL SET(ACTIVE TAB dataTerminalInternal.nm##Tab) AND onScreen(MenuItem.nm) DO
@@ -66,7 +67,7 @@ META defButtonBack(box, postfix)
     backFrom###box() {
         toPrevMenuItem();
     }
-    @defButtonCustom(backFrom###box, '(Esc) Назад', dataTerminalInternal, 'ESCAPE', cancel);
+    @defButtonCustom(backFrom###box, 'Назад', dataTerminalInternal, 'ESCAPE', cancel);
     DESIGN dataTerminalInternal {
         box###postfix {
             MOVE PROPERTY (backFrom###box);
@@ -227,7 +228,7 @@ META defReadBarcode(tab, cptn, cls)
             }
         } HEADER OVERRIDE headerReadedBarcode###tab###cls(), cptn
 
-        PROPERTIES readBarcode###tab###cls '(Enter) OK' = {
+        PROPERTIES readBarcode###tab###cls 'OK' = {
             IF NOT readedBarcode###tab###cls() > '' THEN {
                 message('<em>Неверный штрихкод</em>');
                 RETURN;
@@ -235,7 +236,7 @@ META defReadBarcode(tab, cptn, cls)
             processReadBarcode###tab###cls();
         }
 
-        PROPERTIES SHOWIF NOT hideFillReadedBarcode###tab###cls##DataTerminalInternal() fillReadedBarcode###tab###cls '(F9)<br><b>↩</b>' = fillReadedBarcode###tab###cls()
+        PROPERTIES SHOWIF NOT hideFillReadedBarcode###tab###cls##DataTerminalInternal() fillReadedBarcode###tab###cls '<b>↩</b>' = fillReadedBarcode###tab###cls()
     ;
 
     DESIGN dataTerminalInternal {
@@ -280,12 +281,12 @@ META addMenuItem (nm, caption, hotkey, box)
 
     DESIGN dataTerminalInternal {
         box {
+            // Вид - как у кнопок defButtonCustom (класс custom-button, data-terminal.css), высота - кнопки ТСД
             MOVE PROPERTY (doMenuItem###nm()) {
                 focusable = FALSE;
                 align = STRETCH;
-                class = 'menu-item '##nm;
+                class = 'custom-button menu-item '##nm;
                 showChangeKey = FALSE;
-                charHeight = 2;
             }
         }
     }
