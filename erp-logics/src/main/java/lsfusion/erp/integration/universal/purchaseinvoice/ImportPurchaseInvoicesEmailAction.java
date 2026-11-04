@@ -73,6 +73,15 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
 
             List<String> errors = new ArrayList<>();
 
+            //вложения, которые подошли типу импорта по отправителю, но не по типу файла: флаг ошибки им ставится в конце прогона,
+            //если вложение не взял ни один тип импорта (один отправитель может стоять в нескольких типах с разными типами файла)
+            Map<DataObject, SkippedAttachment> skippedAttachments = new LinkedHashMap<>();
+            Set<DataObject> acceptedAttachments = new HashSet<>();
+            Map<DataObject, String> attachmentExtensions = new HashMap<>();
+            Map<DataObject, String> excelExtensions = new HashMap<>();
+            //отправители типов без типа файла: их вложения разбирает своё действие клиента, флаг ошибки здесь им не ставится
+            List<Pair<Object, String[]>> customEmailPatterns = new ArrayList<>();
+
             LP<PropertyInterface> isImportType = (LP<PropertyInterface>) is(findClass("ImportType"));
             ImRevMap<PropertyInterface, KeyExpr> importTypeKeys = isImportType.getMapKeys();
             KeyExpr importTypeKey = importTypeKeys.singleValue();
@@ -103,9 +112,12 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
                 String fileExtension = settings.getFileExtension();
                 boolean multipleDocuments = settings.isMultipleDocuments();
 
+                if (fileExtension == null && emails != null && accountObject instanceof DataObject)
+                    customEmailPatterns.add(Pair.create(accountObject.getValue(), getEmailPatterns(emails)));
+
                 if (fileExtension != null && emails != null && accountObject instanceof DataObject) {
 
-                    String[] emailPatterns = emails.replace("*", ".*").toLowerCase().split(";");
+                    String[] emailPatterns = getEmailPatterns(emails);
 
                     KeyExpr emailExpr = new KeyExpr("email");
                     KeyExpr attachmentEmailExpr = new KeyExpr("attachmentEmail");
@@ -134,24 +146,32 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
                         String fromAddressEmail = (String) emailEntryValue.get("fromAddressEmail").getValue();
                         String subjectEmail = (String) emailEntryValue.get("subjectEmail").getValue();
 
-                        boolean matches = false;
-                        if (fromAddressEmail != null) {
-                            for (String emailPattern : emailPatterns) {
-                                if (fromAddressEmail.toLowerCase().matches(emailPattern)) {
-                                    matches = true;
-                                    break;
-                                }
-                            }
-                        }
+                        boolean matches = matchesEmail(fromAddressEmail, emailPatterns);
 
                         if (matches) {
                             String nameAttachmentEmail = null;
                             RawFileData fileAttachment = null;
                             try {
-                                //содержимое (и имя файла: расширение filename берётся из содержимого) читаем только для вложений подошедшего отправителя,
-                                //а не для всех вложений ящика на каждый тип импорта
-                                nameAttachmentEmail = trim((String) findProperty("filename[AttachmentEmail]").read(context, (DataObject) attachmentEmailObject));
-                                fileAttachment = ((FileData) findProperty("file[AttachmentEmail]").read(context, (DataObject) attachmentEmailObject)).getRawFile();
+                                //тип файла вложения сверяем с типом файла импорта до чтения содержимого: вложение другого типа (не архив) не читаем и не разбираем, пару XLS и XLSX сверяем по содержимому
+                                DataObject attachmentEmailDataObject = (DataObject) attachmentEmailObject;
+                                if (!attachmentExtensions.containsKey(attachmentEmailDataObject))
+                                    attachmentExtensions.put(attachmentEmailDataObject, readExtension(context, attachmentEmailDataObject));
+                                String extensionAttachment = attachmentExtensions.get(attachmentEmailDataObject);
+                                //XLS и XLSX различаем по содержимому: имя бывает от другого формата (.xls с XLSX внутри), а разбор XLS и XLSX читает только свой формат
+                                RawFileData excelFile = null;
+                                if (isExcelExtension(extensionAttachment) && isExcelExtension(fileExtension) && !excelExtensions.containsKey(attachmentEmailDataObject)) {
+                                    excelFile = readFile(context, attachmentEmailDataObject);
+                                    excelExtensions.put(attachmentEmailDataObject, getExcelExtension(excelFile, extensionAttachment));
+                                }
+                                if (isSuitableExtension(excelExtensions.getOrDefault(attachmentEmailDataObject, extensionAttachment), fileExtension)) {
+                                    acceptedAttachments.add(attachmentEmailDataObject);
+                                    //содержимое (и имя файла: расширение filename берётся из содержимого) читаем только для вложений подошедшего отправителя,
+                                    //а не для всех вложений ящика на каждый тип импорта
+                                    nameAttachmentEmail = trim((String) findProperty("filename[AttachmentEmail]").read(context, attachmentEmailDataObject));
+                                    fileAttachment = excelFile != null ? excelFile : readFile(context, attachmentEmailDataObject);
+                                } else
+                                    skippedAttachments.computeIfAbsent(attachmentEmailDataObject, a -> new SkippedAttachment(extensionAttachment, fromAddressEmail, accountObject.getValue()))
+                                            .fileExtensions.add(fileExtension);
                             } catch (Exception e) {
                                 errors.add(e.getLocalizedMessage());
                                 logImportError(context, attachmentEmailObject, e.getLocalizedMessage(), isOld);
@@ -250,6 +270,21 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
                     }
                 }
             }
+
+            //вложение не того типа файла не разбирается и больше не берётся: флаг ошибки сразу, без ожидания 24 часов (тип файла не изменится)
+            for (Map.Entry<DataObject, SkippedAttachment> entry : skippedAttachments.entrySet()) {
+                SkippedAttachment skipped = entry.getValue();
+                if (!acceptedAttachments.contains(entry.getKey()) && !skipped.matches(customEmailPatterns)) {
+                    String excelExtension = excelExtensions.get(entry.getKey());
+                    String extension = skipped.extension.toUpperCase() + (excelExtension != null && !excelExtension.equalsIgnoreCase(skipped.extension)
+                            ? " (содержимое " + excelExtension.toUpperCase() + ")" : "");
+                    String error = String.format("Тип файла %s не соответствует %s импорта %s", extension,
+                            skipped.fileExtensions.size() > 1 ? "типам" : "типу", String.join(", ", skipped.fileExtensions));
+                    logImportError(context, entry.getKey(), error, true);
+                    ERPLoggers.importLogger.info(String.format("ImportPurchaseInvoices: attachment %s from %s skipped: %s", entry.getKey().getValue(), skipped.fromAddress, error));
+                }
+            }
+
             if(!errors.isEmpty()) {
                 String error = "";
                 for(String e : errors) {
@@ -271,6 +306,79 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
         }
     }
     
+    private static String[] getEmailPatterns(String emails) {
+        return emails.replace("*", ".*").toLowerCase().split(";");
+    }
+
+    private static boolean matchesEmail(String fromAddressEmail, String[] emailPatterns) {
+        if (fromAddressEmail != null) {
+            for (String emailPattern : emailPatterns) {
+                if (fromAddressEmail.toLowerCase().matches(emailPattern))
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    //тип файла вложения подходит типу импорта: тот же, архив (из него берутся файлы нужного типа) или не определён (разбирается, как раньше)
+    private static boolean isSuitableExtension(String extension, String fileExtension) {
+        return extension == null || extension.isEmpty() || extension.equalsIgnoreCase(fileExtension)
+                || extension.equalsIgnoreCase("zip") || extension.equalsIgnoreCase("rar");
+    }
+
+    private static boolean isExcelExtension(String extension) {
+        return "xls".equalsIgnoreCase(extension) || "xlsx".equalsIgnoreCase(extension);
+    }
+
+    //формат книги Excel по первым байтам: XLSX — zip-архив (50 4B 03 04), XLS — составной документ OLE2 (D0 CF 11 E0); иначе — по имени файла
+    private static String getExcelExtension(RawFileData file, String extension) {
+        byte[] bytes = file != null ? file.getBytes() : null;
+        if (bytes != null && bytes.length >= 4) {
+            if (bytes[0] == 0x50 && bytes[1] == 0x4B && bytes[2] == 0x03 && bytes[3] == 0x04)
+                return "xlsx";
+            if ((bytes[0] & 0xFF) == 0xD0 && (bytes[1] & 0xFF) == 0xCF && (bytes[2] & 0xFF) == 0x11 && (bytes[3] & 0xFF) == 0xE0)
+                return "xls";
+        }
+        return extension;
+    }
+
+    private RawFileData readFile(ExecutionContext<ClassPropertyInterface> context, DataObject attachmentEmailObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        return ((FileData) findProperty("file[AttachmentEmail]").read(context, attachmentEmailObject)).getRawFile();
+    }
+
+    //расширение хранится в начале значения FILE и считается в базе: содержимое вложения в Java не читается
+    private String readExtension(ExecutionContext<ClassPropertyInterface> context, DataObject attachmentEmailObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        KeyExpr attachmentEmailExpr = new KeyExpr("attachmentEmail");
+        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("attachmentEmail", attachmentEmailExpr);
+        QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
+        query.addProperty("extension", findProperty("extension[FILE]").getExpr(context.getModifier(),
+                findProperty("file[AttachmentEmail]").getExpr(context.getModifier(), attachmentEmailExpr)));
+        query.and(attachmentEmailExpr.compare(attachmentEmailObject, Compare.EQUALS));
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context);
+        return result.isEmpty() ? null : trim((String) result.getValue(0).get("extension"));
+    }
+
+    private static class SkippedAttachment {
+        private final String extension;
+        private final String fromAddress;
+        private final Object account;
+        private final Set<String> fileExtensions = new TreeSet<>();
+
+        private SkippedAttachment(String extension, String fromAddress, Object account) {
+            this.extension = extension;
+            this.fromAddress = fromAddress;
+            this.account = account;
+        }
+
+        private boolean matches(List<Pair<Object, String[]>> emailPatterns) {
+            for (Pair<Object, String[]> patterns : emailPatterns) {
+                if (Objects.equals(patterns.first, account) && matchesEmail(fromAddress, patterns.second))
+                    return true;
+            }
+            return false;
+        }
+    }
+
     private List<Pair<String, RawFileData>> unpackRARFile(RawFileData fileBytes, String extensionFilter) {
 
         List<Pair<String, RawFileData>> result = new ArrayList<>();

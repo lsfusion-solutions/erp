@@ -1,5 +1,6 @@
 package lsfusion.erp.integration.universal.purchaseinvoice;
 
+import com.google.common.base.Throwables;
 import jxl.Sheet;
 import jxl.Workbook;
 import jxl.WorkbookSettings;
@@ -17,6 +18,7 @@ import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.erp.integration.universal.ImportPreviewClientAction;
 import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.erp.stock.BarcodeUtils;
+import lsfusion.interop.form.property.Compare;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -1516,28 +1518,55 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
         return Arrays.asList(articleSet, articlePropertyMap);
     }
 
+    //все коды накладных (десятки тысяч) на каждый файл не читаем: checkInvoice спрашивает contains по номеру из строки файла,
+    //а запрос в базу (по индексу кода) идёт один раз на каждый новый номер
     protected Set<String> getPurchaseInvoiceSet(ExecutionContext<ClassPropertyInterface> context, boolean checkInvoiceExistence) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         if(!checkInvoiceExistence)
             return null;
 
-        Set<String> purchaseInvoiceSet = new HashSet<>();
+        return new PurchaseInvoiceSet(context);
+    }
 
-        KeyExpr key = new KeyExpr("purchase.invoice");
-        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("Purchase.Invoice", key);
-        QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
+    private class PurchaseInvoiceSet extends AbstractSet<String> {
+        private final ExecutionContext<ClassPropertyInterface> context;
+        private final Set<String> checkedInvoices = new HashSet<>();
+        private final Set<String> existingInvoices = new HashSet<>();
 
-        query.addProperty("Purchase.idUserInvoice", findProperty("id[UserInvoice]").getExpr(context.getModifier(), key));
-        query.and(findProperty("id[UserInvoice]").getExpr(context.getModifier(), key).getWhere());
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context);
-
-        for (ImMap<Object, Object> entry : result.valueIt()) {
-
-            String idUserInvoice = (String) entry.get("Purchase.idUserInvoice");
-            if(idUserInvoice != null)
-                purchaseInvoiceSet.add(idUserInvoice);
+        private PurchaseInvoiceSet(ExecutionContext<ClassPropertyInterface> context) {
+            this.context = context;
         }
-        return purchaseInvoiceSet;
+
+        @Override
+        public boolean contains(Object idUserInvoice) {
+            if(!(idUserInvoice instanceof String))
+                return false;
+            if(checkedInvoices.add((String) idUserInvoice) && readPurchaseInvoiceExists(context, (String) idUserInvoice))
+                existingInvoices.add((String) idUserInvoice);
+            return existingInvoices.contains(idUserInvoice);
+        }
+
+        @Override
+        public Iterator<String> iterator() {
+            return existingInvoices.iterator();
+        }
+
+        @Override
+        public int size() {
+            return existingInvoices.size();
+        }
+    }
+
+    private boolean readPurchaseInvoiceExists(ExecutionContext<ClassPropertyInterface> context, String idUserInvoice) {
+        try {
+            KeyExpr key = new KeyExpr("purchase.invoice");
+            ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("Purchase.Invoice", key);
+            QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
+            query.and(findProperty("id[UserInvoice]").getExpr(context.getModifier(), key).compare(new DataObject(idUserInvoice), Compare.EQUALS));
+            return !query.execute(context).isEmpty();
+        } catch (ScriptingErrorLog.SemanticErrorException | SQLException | SQLHandledException e) {
+            throw Throwables.propagate(e);
+        }
     }
 
     private Object getField(PurchaseInvoiceDetail purchaseInvoiceDetail, String fieldName, String fieldCaption) {
