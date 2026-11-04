@@ -166,13 +166,13 @@ nameWriteOffRate 'Норма отходов' (UserShipmentDetail userShipmentDet
 percentWriteOffRate 'Норма отходов,%' (shipmentDetail)= DATA NUMERIC[10,3] (UserShipmentDetail);
 
 writeOffRate(UserShipmentDetail detail) <- writeOffRate(countryCustomerStock(detail), sku(detail)) WHEN
-    CHANGED(countryCustomerStock(detail)) OR CHANGED(sku(detail)) AND createSaleReturnWriteOff(detail);
+    (CHANGED(countryCustomerStock(detail)) OR CHANGED(sku(detail))) AND createSaleReturnWriteOff(detail);
 
 percentWriteOffRate (UserShipmentDetail detail) <- percent(writeOffRate(detail)) WHEN
     CHANGED(writeOffRate(detail)) AND createSaleReturnWriteOff(detail);
 
 writeOffQuantity (UserShipmentDetail detail) <- round3(quantity(detail)*percentWriteOffRate (detail)/100)   WHEN
-    CHANGED(quantity(detail)) OR CHANGED(percentWriteOffRate (detail)) AND createSaleReturnWriteOff(detail);
+    (CHANGED(quantity(detail)) OR CHANGED(percentWriteOffRate (detail))) AND createSaleReturnWriteOff(detail);
 
 writeOffPrice (UserShipmentDetail detail) <- price(detail) WHEN CHANGED(price(detail)) AND createSaleReturnWriteOff(detail);
 
