@@ -320,10 +320,16 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
         return false;
     }
 
-    //тип файла вложения подходит типу импорта: тот же, архив (из него берутся файлы нужного типа) или не определён (разбирается, как раньше)
+    //тип файла вложения подходит типу импорта: тот же, архив (из него берутся файлы нужного типа) или не определён (разбирается, как раньше);
+    //CSV и TXT подходят друг другу: оба типа импорта разбирают текстовый файл одним разбором
     private static boolean isSuitableExtension(String extension, String fileExtension) {
         return extension == null || extension.isEmpty() || extension.equalsIgnoreCase(fileExtension)
+                || (isTextExtension(extension) && isTextExtension(fileExtension))
                 || extension.equalsIgnoreCase("zip") || extension.equalsIgnoreCase("rar");
+    }
+
+    private static boolean isTextExtension(String extension) {
+        return "csv".equalsIgnoreCase(extension) || "txt".equalsIgnoreCase(extension);
     }
 
     private static boolean isExcelExtension(String extension) {
