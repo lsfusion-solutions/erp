@@ -7,6 +7,7 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.base.file.FileData;
+import lsfusion.base.file.NamedFileData;
 import lsfusion.base.file.RawFileData;
 import lsfusion.base.file.WriteClientAction;
 import lsfusion.erp.integration.DefaultExportXMLAction;
@@ -200,9 +201,8 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
                 tmpFile = File.createTempFile("evat", "xml");
                 outputXml(doc, new OutputStreamWriter(Files.newOutputStream(tmpFile.toPath()), StandardCharsets.UTF_8), "UTF-8");
                 RawFileData fileData = new RawFileData(tmpFile);
-                //todo: refactor Pair<String, RawFileData> -> Pair<String, NamedFileData> after upgrading erp to 6.1
                 if (choosePath)
-                    context.delayUserInterfaction(new WriteClientAction(fileData, documentNumber, "xml", false, true));
+                    context.delayUserInterfaction(new WriteClientAction(new NamedFileData(new FileData(fileData, "xml")), documentNumber, false, true));
                 if (saveToLocal) findProperty("generatedXML[]").change(new FileData(fileData, "xml"), context);
                 return Arrays.asList(fileData, documentNumber);
 

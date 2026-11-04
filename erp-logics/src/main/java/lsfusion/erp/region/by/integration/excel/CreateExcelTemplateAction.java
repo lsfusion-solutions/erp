@@ -7,6 +7,8 @@ import jxl.write.WritableSheet;
 import jxl.write.WritableWorkbook;
 import jxl.write.WriteException;
 import lsfusion.base.Pair;
+import lsfusion.base.file.FileData;
+import lsfusion.base.file.NamedFileData;
 import lsfusion.base.file.RawFileData;
 import lsfusion.base.file.WriteClientAction;
 import lsfusion.server.language.ScriptingLogicsModule;
@@ -54,9 +56,8 @@ public abstract class CreateExcelTemplateAction extends InternalAction {
     @Override
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) {
         try {
-            //todo: refactor Pair<String, RawFileData> -> Pair<String, NamedFileData> after upgrading erp to 6.1
             Pair<String, RawFileData> fileEntry = createFile();
-            context.delayUserInterfaction(new WriteClientAction(fileEntry.second, fileEntry.first, "xls", false, true));
+            context.delayUserInterfaction(new WriteClientAction(new NamedFileData(new FileData(fileEntry.second, "xls")), fileEntry.first, false, true));
         } catch (IOException | WriteException e) {
             throw new RuntimeException(e);
         }

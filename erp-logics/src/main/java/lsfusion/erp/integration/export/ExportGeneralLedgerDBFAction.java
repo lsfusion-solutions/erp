@@ -7,7 +7,9 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.base.file.FileData;
 import lsfusion.base.file.IOUtils;
+import lsfusion.base.file.NamedFileData;
 import lsfusion.base.file.RawFileData;
 import lsfusion.base.file.WriteClientAction;
 import lsfusion.erp.integration.DefaultExportAction;
@@ -49,8 +51,7 @@ public class ExportGeneralLedgerDBFAction extends DefaultExportAction {
 
             File file = exportGeneralLedgers(context, dateFrom, dateTo, legalEntity, glAccountType);
             if (file != null) {
-                //todo: refactor RawFileData> -> NamedFileData after upgrading erp to 6.1
-                context.delayUserInterfaction(new WriteClientAction(new RawFileData(file), "export", "dbf", false, true));
+                context.delayUserInterfaction(new WriteClientAction(new NamedFileData(new FileData(new RawFileData(file), "dbf")), "export", false, true));
                 safeFileDelete(file);
             }
             else
