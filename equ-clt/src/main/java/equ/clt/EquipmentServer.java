@@ -15,6 +15,7 @@ import java.io.InvalidClassException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.rmi.ConnectException;
+import java.rmi.NoSuchObjectException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.UnmarshalException;
@@ -152,7 +153,7 @@ public class EquipmentServer {
 
                         if (remote != null) {
                             //checks the connection: if the server has been restarted, exception leads to reconnect
-                            remote.getEquApiVersion();
+                            checkConnection(remote);
                         }
 
                     } catch (Exception e) {
@@ -439,6 +440,31 @@ public class EquipmentServer {
             return !now.isBefore(timeFrom) || !now.isAfter(timeTo);
         else
             return !now.isBefore(timeFrom) && !now.isAfter(timeTo);
+    }
+
+    private static final int connectionCheckAttempts = 3;
+    private static final long connectionCheckRetryDelay = 5000; //ms
+
+    //single failures (e.g. "Read timed out" during the connection establishment) are retried:
+    //reconnect interrupts the transactions being sent to the equipment, and they are sent again from the beginning
+    static void checkConnection(EquipmentServerInterface remote) throws RemoteException, SQLException {
+        for (int attempt = 1; attempt <= connectionCheckAttempts; attempt++) {
+            try {
+                remote.getEquApiVersion();
+                return;
+            } catch (RemoteException e) {
+                //NoSuchObjectException: the server has been restarted, retry won't help
+                if (e instanceof NoSuchObjectException || attempt == connectionCheckAttempts)
+                    throw e;
+                equipmentLogger.error(String.format("Connection check failed (attempt %s of %s), retry in %s ms: %s", attempt, connectionCheckAttempts, connectionCheckRetryDelay, e));
+            }
+            try {
+                Thread.sleep(connectionCheckRetryDelay);
+            } catch (InterruptedException e) { //stop(): the main cycle ends on its next sleep
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
     }
 
     public class TaskPool {
