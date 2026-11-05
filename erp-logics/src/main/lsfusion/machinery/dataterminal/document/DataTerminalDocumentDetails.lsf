@@ -1,7 +1,7 @@
 MODULE DataTerminalDocumentDetails;
 
 // Табличная часть документа ТСД: экран строк документа, открывается касанием карточки в списке «Документы»
-REQUIRE DataTerminalDocuments, TerminalHandler;
+REQUIRE DataTerminalDocuments, TerminalHandler, DataTerminalSkuImage;
 
 NAMESPACE DataTerminal;
 
@@ -26,10 +26,11 @@ orderMismatch (TerminalDocumentDetail d) = terminalOrder(terminalDocument(d)) AN
 // Карточка строки (по структуре повторяет список строк документа нативного приложения ТСД):
 // наименование / штрихкод и ед. изм., время сканирования справа / количество (и количество по заказу) / цена и остаток /
 // дополнительные поля строки, запрашиваемые по настройке типа документа: даты (Дата 1 загружается в дату изготовления,
-// Дата 2 - в срок годности) и поля 1-3 / комментарий
+// Дата 2 - в срок годности) и поля 1-3 / комментарий. Миниатюра товара (smallImage) - справа под наименованием
 htmlDetail '' (TerminalDocumentDetail d) = CONCAT '',
     (IF orderMismatch(d) THEN '<div class="terminal-document-detail order-mismatch">' ELSE '<div class=terminal-document-detail>'),
         '<div class=name>', name(d), '</div>',
+        htmlSmallImage(sku(d)),
         '<div class=header>',
             '<div class=barcode>', barcode(d), ' <b>' + shortNameUOM(sku(d)) + '</b>', '</div>',
             '<div class=time>', STRING[11](toChar(dateTimeScan(d), r'DD.MM HH24:MI')), '</div>',
@@ -103,6 +104,17 @@ DESIGN terminalDocumentDetailMenu {
     }
 }
 
+// Касание миниатюры товара в карточке меню открывает окно изображения (триггер - как в форме ТСД, DataTerminalSkuImage.lsf)
+EXTEND FORM terminalDocumentDetailMenu
+    PROPERTIES dtShowSkuImage = skuImageRequest() ON CHANGE { INPUT l = LONG DO showSkuImage(l); }
+;
+
+DESIGN terminalDocumentDetailMenu {
+    OBJECTS {
+        MOVE PROPERTY (dtShowSkuImage) { class = 'dt-sku-image-trigger'; }
+    }
+}
+
 // После закрытия меню строки, уже в форме ТСД: пункт меню, которому нужен другой экран, запоминает строку
 // и закрывает меню, а экран открывает здесь (из формы меню экраны формы ТСД не переключаются)
 afterTerminalDocumentDetailMenu ABSTRACT LIST (TerminalDocumentDetail);
@@ -169,3 +181,12 @@ DESIGN dataTerminalInternal {
     // Документ открывается первым касанием карточки, без предварительного выбора строки
     PROPERTY (htmlDetail(terminalDocument)) { changeOnSingleClick = TRUE; }
 }
+
+// Быстрый поиск строки по наименованию или штрихкоду: лупа в шапке ТСД (headerSearch() - NULL или строка от 3 символов)
+showHeaderSearch (MenuItem i) += WHEN i = MenuItem.terminalDocumentDetailsOperation THEN TRUE;
+headerSearchPlaceholder (MenuItem i) += WHEN i = MenuItem.terminalDocumentDetailsOperation THEN 'Наименование или штрихкод';
+
+EXTEND FORM dataTerminalInternal
+    FILTERS NOT headerSearch() OR isISubstring(name(terminalDocumentDetail), headerSearch())
+                               OR isISubstring(barcode(terminalDocumentDetail), headerSearch())
+;

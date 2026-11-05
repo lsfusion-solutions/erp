@@ -1,0 +1,75 @@
+MODULE DataTerminalSkuImage;
+
+// Миниатюра товара для HTML-карточек веб-ТСД (строки документа, «Проверка цен», редактирование строки)
+// и окно с полным изображением товара, открываемое касанием миниатюры
+REQUIRE Item, Utils, DataTerminalDefault;
+
+NAMESPACE DataTerminal;
+
+beforeDataTerminalStart() + { INTERNAL CLIENT 'dataTerminalSkuImage.css'; }
+
+// Уменьшенное изображение товара (smallImage) тегом <img> с data-URI; нет изображения - NULL.
+// Тип в data-URI - image/jpeg для любого формата: браузер определяет формат изображения по содержимому.
+// data-sku - id товара: по касанию миниатюры рендерер htmlText (dataTerminalHtmlText.js) передает его в dtShowSkuImage.
+// Размер и положение миниатюры задаются классом sku-image в CSS экрана.
+// Части соединены через +, а не CONCAT: без smallImage NULL должен быть весь тег, иначе в карточку попадет
+// незакрытый <img и следующий за ним html карточки станет атрибутами тега
+htmlSmallImage '' (Sku s) = r'<img class=sku-image data-sku=' + STRING(LONG(s))
+    + r' src="data:image/jpeg;base64,' + encodeBase64Unchunked(smallImage(s)) + r'">';
+
+// Окно изображения товара: полное изображение, если его нет - уменьшенное
+fullImage (Item i) = OVERRIDE image(i), smallImage(i);
+
+FORM skuImage ''
+    OBJECTS i = Item PANEL
+    PROPERTIES(i) READONLY name, fullImage
+;
+
+@defButtonCustom(close, 'Закрыть', skuImage, 'ESCAPE', dialog);
+
+DESIGN skuImage {
+    REMOVE TOOLBARBOX;
+    OBJECTS {
+        MOVE PROPERTY (name(i)) {
+            caption = '';
+            focusable = FALSE;
+            align = STRETCH;
+            class = 'sku-image-name';
+        }
+        // Базовая высота фиксирована: высоту окна платформа считает при открытии, до загрузки изображения.
+        // fill - изображение забирает свободную высоту окна, «Закрыть» остается у нижнего края;
+        // от «Закрыть» изображение отделено линией (dataTerminalSkuImage.css), как пункты меню строки
+        MOVE PROPERTY (fullImage(i)) {
+            caption = '';
+            focusable = FALSE;
+            align = STRETCH;
+            fill = 1;
+            valueHeight = 360;
+            class = 'sku-image-full';
+        }
+        MOVE PROPERTY (close);
+    }
+}
+
+// Товар по id из data-sku: конверсии числа в объект нет, объект находится отбором. Одно условие LONG(i) = id
+// перебор не ограничивает (ошибка «операция над множеством некорректна») - ограничивает fullImage(i)
+showSkuImage (LONG id) {
+    FOR fullImage(Item i) AND LONG(i) = id DO
+        DIALOG skuImage OBJECTS i = i NOMANAGESESSION;
+}
+
+// Свойство-«триггер» для рендерера htmlText: controller.form.changeProperty('dtShowSkuImage', id) вызывает обработчик
+// изменения с id товара как вводом. Должно быть на каждой форме, где показывается миниатюра (меню строки -
+// в DataTerminalDocumentDetails.lsf). Скрыто классом (dataTerminalSkuImage.css), а не SHOWIF: невидимое свойство
+// обработчик изменения не выполняет
+skuImageRequest = DATA LOCAL LONG ();
+
+EXTEND FORM dataTerminalInternal
+    PROPERTIES dtShowSkuImage = skuImageRequest() ON CHANGE { INPUT l = LONG DO showSkuImage(l); }
+;
+
+DESIGN dataTerminalInternal {
+    underTopMenu {
+        MOVE PROPERTY (dtShowSkuImage) { class = 'dt-sku-image-trigger'; }
+    }
+}

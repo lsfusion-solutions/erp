@@ -2,8 +2,20 @@ function htmlText() {
     return {
         render: function( element ) {
             element.setAttribute( 'customType', 'htmlText' );
+            // Касание миниатюры товара (img.sku-image, DataTerminalSkuImage.lsf) открывает окно изображения:
+            // id товара из data-sku уходит в обработчик свойства-триггера dtShowSkuImage формы.
+            // Обработчик один на элемент: innerHTML заменяется при каждом update
+            element.addEventListener( 'click', function( event ) {
+                const image = event.target.closest && event.target.closest( 'img.sku-image[data-sku]' );
+                const controller = element.dtController;
+                if ( !image || !controller || !controller.form )
+                    return;
+                event.stopPropagation();
+                controller.form.changeProperty( 'dtShowSkuImage', Number( image.dataset.sku ) );
+            } );
         },
         update: function( element, controller, value ) {
+            element.dtController = controller;
             element.innerHTML = value;
             if ( element.querySelector( 'div.dialog-header' ) )
                 markDialogWithHeader( element, 20 );

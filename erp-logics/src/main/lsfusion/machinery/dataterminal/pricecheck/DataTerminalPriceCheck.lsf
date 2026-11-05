@@ -1,7 +1,7 @@
 MODULE DataTerminalPriceCheck;
 
 // Операция ТСД «Проверка цен»: поиск товара по штрихкоду, карточка с ценой и остатком
-REQUIRE DataTerminalDefault, TerminalHandler, EmployeeStock;
+REQUIRE DataTerminalDefault, TerminalHandler, EmployeeStock, DataTerminalSkuImage;
 
 NAMESPACE DataTerminal;
 
@@ -11,10 +11,11 @@ priceCheckStock () = stock(currentEmployee());
 
 priceCheckSku = DATA LOCAL Sku ();
 
-// Карточка товара: цена и остаток на складе сотрудника
+// Карточка товара: цена и остаток на складе сотрудника, миниатюра товара (smallImage) - справа под наименованием
 priceCheckDetail '' (Sku s, Stock st) = CONCAT '',
     '<div class=price-check>',
         '<div class=name>', name(s), '</div>',
+        htmlSmallImage(s),
         '<div class=price><span>Цена</span>', (OVERRIDE STRING(NUMERIC[16,2](currentPriceInTerminal(s, st))), '—'), '</div>',
         '<div class=balance><span>Остаток</span>', (OVERRIDE STRING(NUMERIC[16,3](currentBalance(s, st))), '0'), '</div>',
         '<div class=info>', (CONCAT ' ● ', id(s AS Item), name(Item.manufacturer(s AS Item))), '</div>',
