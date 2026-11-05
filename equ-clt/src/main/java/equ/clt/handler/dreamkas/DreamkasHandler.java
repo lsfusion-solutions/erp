@@ -196,5 +196,3 @@ public class DreamkasHandler extends DefaultCashRegisterHandler<DreamkasSalesBat
         return "receipts?" + getRangeDatesSubQuery(dateFrom, dateTo) + devicesSubQuery;
     }
 }
-
-

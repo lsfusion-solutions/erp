@@ -147,5 +147,3 @@ public class NumField2 extends NumField
 		}
 	}	
 }
-
-
