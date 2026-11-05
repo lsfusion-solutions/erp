@@ -14,6 +14,9 @@ value(Barcode b) = OVERRIDE extValue(b), LONG (b);
 
 dataDate 'Дата действия' = DATA DATE (Barcode);
 date 'Дата действия c' = OVERRIDE dataDate(Barcode barcode), (2001_01_01 IF barcode IS Barcode) IN base MATERIALIZED;
+// будущая дата действия не допускается, чтобы active не зависел от currentDate()
+WHEN SETCHANGED(dataDate(Barcode b)) AND dataDate(b) > currentDate() DO
+    dataDate(b) <- currentDate();
 
 caption 'Описание' = DATA ISTRING[30](Barcode);
 
@@ -23,7 +26,7 @@ barcode (id, DATE date) =
           WHERE date(barcode) <= (date AS DATE)
           BY id(barcode) COMPLEX;
 
-barcode (STRING[15] id) = barcode(id, currentDate());
+barcode (STRING[15] id) = GROUP LAST Barcode barcode ORDER date(barcode), barcode BY id(barcode) COMPLEX;
 active 'Активный' (Barcode barcode) = barcode(id(barcode)) == barcode MATERIALIZED;
 
 WHEN CHANGED(id(Barcode b) IF active(b)) AND NOT CHANGED(extId(b)) DO
@@ -103,7 +106,7 @@ nameSku 'Наименование' (Barcode barcode) = name(sku(barcode)) IN id;
 idSku 'Код SKU' (Barcode b) = overId(sku(b)) IN id CHARWIDTH 15;
 
 skuBarcode (STRING[15] id, DATE date) = sku(barcode(id, date));
-skuBarcode (STRING[15] id) = skuBarcode(id, currentDate());
+skuBarcode (STRING[15] id) = sku(barcode(id));
 idSkuBarcode (STRING[15] id) = id(skuBarcode(id));
 
 dataBarcode = DATA Barcode (Sku);
