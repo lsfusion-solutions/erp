@@ -1,22 +1,16 @@
 MODULE SupplierStockReports;
 
-REQUIRE StockReports, SaleLedger, PurchaseLedger, PurchaseShipment, PurchaseInvoiceExtraPack;
+REQUIRE StockReports, SaleLedger, PurchaseLedger, PurchaseShipment;
 
 NAMESPACE StockReports;
 
 inReport 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
 
-overUnitInvoicePriceBatch 'Цена закупки с НДС (за ед.)' = ABSTRACT NUMERIC[16,4] (Batch);
-overUnitPriceBatch 'Цена закупки (за ед.)' = ABSTRACT NUMERIC[16,4] (Batch);
+overUnitInvoicePriceBatch 'Цена закупки с НДС (за ед.)' = ABSTRACT CASE OVERRIDE NUMERIC[16,4] (Batch);
+overUnitPriceBatch 'Цена закупки (за ед.)' = ABSTRACT CASE OVERRIDE NUMERIC[16,4] (Batch);
 
-unitInvoicePriceInvoiceDetail 'Цена закупки с НДС (за ед.)' (Batch b) = OVERRIDE
-    invoiceSum(invoiceDetail(b)) / quantity(invoiceDetail(b)) IF isExtraPack(invoiceDetail(b)) AND quantity(invoiceDetail(b)) != 0,
-    invoicePriceInvoiceDetail(b),
-    overUnitInvoicePriceBatch(b);
-unitPriceInvoiceDetail 'Цена закупки (за ед.)' (Batch b) = OVERRIDE
-    sum(invoiceDetail(b)) / quantity(invoiceDetail(b)) IF isExtraPack(invoiceDetail(b)) AND quantity(invoiceDetail(b)) != 0,
-    priceInvoiceDetail(b),
-    overUnitPriceBatch(b);
+unitInvoicePriceInvoiceDetail 'Цена закупки с НДС (за ед.)' (Batch b) = OVERRIDE overUnitInvoicePriceBatch(b), invoicePriceInvoiceDetail(b);
+unitPriceInvoiceDetail 'Цена закупки (за ед.)' (Batch b) = OVERRIDE overUnitPriceBatch(b), priceInvoiceDetail(b);
 
 //-- закупка
 quantityPurchaseSupplierFromTo 'Закуплено за интервал (кол-во)' (Sku sku, Stock supplierStock, DATE dateFrom, DATE dateTo) = GROUP
