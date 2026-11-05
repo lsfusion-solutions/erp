@@ -602,7 +602,8 @@ quantityPageInventoryDetail 'Кол-во по описям' (collationSheet) =
 //    GROUP SUM sum(PageInventoryDetail pageInventoryDetail) BY collationSheet(pageInventoryDetail) MATERIALIZED;
 
 sumPageInventoryDetail 'Сумма по описям' (CollationSheet cs) = IF isSkuBatch(cs)
-    THEN (GROUP SUM batchSumPageInventoryDetail(cs, Batch batch))
+    // сумма по партиям считается только у ведомости, где есть строки без партий
+    THEN [GROUP SUM batchSumPageInventoryDetail(CollationSheet c, Batch batch) IF isSkuBatch(c) BY c](cs)
     ELSE [GROUP SUM sum(PageInventoryDetail d) BY collationSheet(d)](cs) MATERIALIZED;
     
 // ------------------------------ Определение состава сличительной ведомости (Sku) ------------------------------------ //
