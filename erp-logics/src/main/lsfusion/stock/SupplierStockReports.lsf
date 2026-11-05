@@ -6,12 +6,17 @@ NAMESPACE StockReports;
 
 inReport 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
 
+overUnitInvoicePriceBatch 'Цена закупки с НДС (за ед.)' = ABSTRACT NUMERIC[16,4] (Batch);
+overUnitPriceBatch 'Цена закупки (за ед.)' = ABSTRACT NUMERIC[16,4] (Batch);
+
 unitInvoicePriceInvoiceDetail 'Цена закупки с НДС (за ед.)' (Batch b) = OVERRIDE
     invoiceSum(invoiceDetail(b)) / quantity(invoiceDetail(b)) IF isExtraPack(invoiceDetail(b)) AND quantity(invoiceDetail(b)) != 0,
-    invoicePriceInvoiceDetail(b);
+    invoicePriceInvoiceDetail(b),
+    overUnitInvoicePriceBatch(b);
 unitPriceInvoiceDetail 'Цена закупки (за ед.)' (Batch b) = OVERRIDE
     sum(invoiceDetail(b)) / quantity(invoiceDetail(b)) IF isExtraPack(invoiceDetail(b)) AND quantity(invoiceDetail(b)) != 0,
-    priceInvoiceDetail(b);
+    priceInvoiceDetail(b),
+    overUnitPriceBatch(b);
 
 //-- закупка
 quantityPurchaseSupplierFromTo 'Закуплено за интервал (кол-во)' (Sku sku, Stock supplierStock, DATE dateFrom, DATE dateTo) = GROUP
