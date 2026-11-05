@@ -1,6 +1,7 @@
 package lsfusion.erp.integration.export;
 
 import com.google.common.base.Throwables;
+//todo: com.hexiong.jdbf is used to compile on both 6.3 and 7.0; after upgrading to 7.0 replace DBFWriter, JDBFException and OverJDBField with DBFWriter, JDBFException and JDBField from lsfusion.server.logics.form.stat.struct.export.plain.dbf
 import com.hexiong.jdbf.DBFWriter;
 import com.hexiong.jdbf.JDBFException;
 import lsfusion.base.col.MapFact;
@@ -196,7 +197,6 @@ public class ExportGeneralLedgerDBFAction extends DefaultExportAction {
         }
 
         File dbfFile = File.createTempFile("export", ".dbf");
-        //todo: replace for lsfusion.server.logics.form.stat.struct.export.plain.dbf.DBFWriter after upgrading erp to 6.2
         DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), fields, charset);
 
         List<GeneralLedger> generalLedgerList = new ArrayList<>();
