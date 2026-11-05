@@ -1695,16 +1695,23 @@ batch 'Партия' = DATA STRING (DocumentDetailLog) INDEXED;
 
 overSet  ABSTRACT LIST( DocumentDetailLog, DocumentDetail);
 
+// Документ и партию строки читаем один раз, если читать их через document(d) и batch(d), то на каждом APPLY заново собирается выражение
+// без INLINE платформа выполняет присваивания по каждой строке
+documentObject = DATA LOCAL Document (DocumentDetailLog);
+batchObject = DATA LOCAL Batch (DocumentDetailLog);
+
 WHEN  SET(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO  
-    NEW l = DocumentDetailLog{
-        documentId(l) <- LONG (document(d));
+    FOR TRUE INLINE NEW l = DocumentDetailLog DO {
+        documentObject(l) <- document(d);
+        batchObject(l) <- batch(d);
+        documentId(l) <- LONG (documentObject(l));
         index(l) <- index(d);
-        numberDocument(l) <- number(document(d));
-        seriesDocument(l) <- series(document(d));
-        dateDocument(l) <- date(document(d));
-        typeDocument(l) <- className(document(d));
+        numberDocument(l) <- number(documentObject(l));
+        seriesDocument(l) <- series(documentObject(l));
+        dateDocument(l) <- date(documentObject(l));
+        typeDocument(l) <- className(documentObject(l));
         sku(l) <- sku(d);
-        batch(l) <- CONCAT ', ', 'Код: ' + id(batch(d)), ' Наименование: ' + baseName(d); 
+        batch(l) <- CONCAT ', ', 'Код: ' + id(batchObject(l)), ' Наименование: ' + baseName(batchObject(l)); 
         quantity(l) <- quantity(d);
         price(l) <- price(d);
         nameUser(l) <- ISTRING[100](name(currentUser()));
@@ -1716,15 +1723,17 @@ WHEN  SET(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO
 skipChange = ABSTRACT CASE BOOLEAN (DocumentDetail);
 
 WHEN (CHANGED(price(DocumentDetail d)) OR CHANGED(quantity(d))  OR CHANGED(batch(d)) OR CHANGED(sku(d)) OR skipChange(d)) AND NOT DROPPED(d IS DocumentDetail) AND NOT SET(d IS DocumentDetail) AND NOT disableDocumentLog() DO  
-    NEW l = DocumentDetailLog{
-        documentId(l) <- LONG (document(d));
+    FOR TRUE INLINE NEW l = DocumentDetailLog DO {
+        documentObject(l) <- document(d);
+        batchObject(l) <- batch(d);
+        documentId(l) <- LONG (documentObject(l));
         index(l) <- index(d);
-        numberDocument(l) <- number(document(d));
-        seriesDocument(l) <- series(document(d));
-        dateDocument(l) <- date(document(d));
-        typeDocument(l) <- className(document(d));
+        numberDocument(l) <- number(documentObject(l));
+        seriesDocument(l) <- series(documentObject(l));
+        dateDocument(l) <- date(documentObject(l));
+        typeDocument(l) <- className(documentObject(l));
         sku(l) <- sku(d);
-        batch(l) <- CONCAT ', ', 'Код: ' + id(batch(d)), ' Наименование: ' + baseName(d);
+        batch(l) <- CONCAT ', ', 'Код: ' + id(batchObject(l)), ' Наименование: ' + baseName(batchObject(l));
         prevQuantity(l) <- PREV(quantity(d)); 
         quantity(l) <- quantity(d);
         price(l) <- price(d);
@@ -1737,7 +1746,9 @@ WHEN (CHANGED(price(DocumentDetail d)) OR CHANGED(quantity(d))  OR CHANGED(batch
 overDropped  ABSTRACT LIST( DocumentDetailLog, DocumentDetail); 
    
 WHEN DROPPED(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO  
-    NEW l = DocumentDetailLog{
+    FOR TRUE INLINE NEW l = DocumentDetailLog DO {
+        // Через documentObject(l) <- PREV(document(d)) не выйдет
+        batchObject(l) <- PREV(batch(d));
         documentId(l) <- LONG(PREV(document(d)));
         index(l) <- PREV(index(d));
         numberDocument(l) <- PREV(number(document(d)));
@@ -1745,7 +1756,7 @@ WHEN DROPPED(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO
         dateDocument(l) <- PREV(date(document(d)));
         typeDocument(l) <- prevClassName(PREV(document(d)));
         sku(l) <- PREV(sku(d));
-        batch(l) <- CONCAT ', ', 'Код: ' + id(PREV(batch(d))), ' Наименование: ' + baseName(PREV(batch(d)));
+        batch(l) <- CONCAT ', ', 'Код: ' + id(batchObject(l)), ' Наименование: ' + baseName(batchObject(l));
         quantity(l) <- PREV(quantity(d));
         price(l) <- PREV(price(d));
         nameUser(l) <- ISTRING[100](name(currentUser()));
