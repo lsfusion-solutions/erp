@@ -466,7 +466,7 @@ getWbStatusesCaC 'Получить статусы заданий' () {
         LOCAL messageOrder = STRING ();
         LOCAL response = FILE();
 
-        EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrderCaC(order);
+        EXPORT JSON FROM 'value' = LONG(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrderCaC(order);
         fileToString(exportFile(), 'UTF-8');
         stringToFile('\{"ordersIds":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
         fileToString(resultFile(), 'UTF-8');
@@ -515,7 +515,7 @@ syncCaCOrderStatus (InternetOrder order) {
         setHttpHeadersIS(token(CategoryRequest.marketplace));
         LOCAL response = FILE();
 
-        EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder o)) WHERE o == order;
+        EXPORT JSON FROM 'value' = LONG(number(InternetOrder o)) WHERE o == order;
         fileToString(exportFile(), 'UTF-8');
         stringToFile('\{"ordersIds":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
         fileToString(resultFile(), 'UTF-8');
@@ -569,7 +569,7 @@ changeOrdersCaCStatus (WbStatus wbStatus, InternetOrder order) {
         LOCAL messageOrder = STRING ();
         LOCAL response = FILE();
 
-        EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder o)) WHERE o == order;
+        EXPORT JSON FROM 'value' = LONG(number(InternetOrder o)) WHERE o == order;
         fileToString(exportFile(), 'UTF-8');
         stringToFile('\{"ordersIds":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
         fileToString(resultFile(), 'UTF-8');
@@ -639,7 +639,7 @@ changeOrdersCaCStatus (WbStatus wbStatus) {
         LOCAL messageOrder = STRING ();
         LOCAL response = FILE();
 
-        EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order))
+        EXPORT JSON FROM 'value' = LONG(number(InternetOrder order))
             WHERE isSelected(order) AND isWBOrderCaC(order) AND NOT wbStatus(order) == wbStatus;
         fileToString(exportFile(), 'UTF-8');
         stringToFile('\{"ordersIds":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
@@ -681,6 +681,18 @@ changeOrdersCaCStatus (WbStatus wbStatus) {
     }
     getWbStatusesCaC();
     afterChangeOrdersCaCStatus(wbStatus);
+}
+
+// Автотрансляция локального статуса InternetOrder → статус на WB, по образцу FBS/DBS:
+// isPicking (создана сборка) → confirm, picked (заказ собран) → prepare, cancel → cancel.
+// receive намеренно не транслируется: WB требует код покупателя, выдача — кнопкой «Выдать по коду»
+// (issueCaCOrder с проверкой кода); reject — только вручную. Маппинг ws через statusInternetOrder
+// и проверка перехода — changeOrdersCaCStatusCondition; кастомные правила — customFilterChangeOrdersCaCStatus.
+// Заказ передаётся напрямую: внутри APPLY записи LOCAL не пробрасываются в NEWSESSION действия.
+WHEN SETCHANGED(status(InternetOrder o)) AND statusInternetOrder(WbStatus ws) = status(o)
+    AND (ws = WbStatus.confirm OR ws = WbStatus.prepare OR ws = WbStatus.cancel)
+    AND changeOrdersCaCStatusCondition(ws, o) AND isWBOrderCaC(o) DO {
+    changeOrdersCaCStatus(ws, o);
 }
 
 confirmOrdersCaC 'Перевести задания на сборку' () {
@@ -756,7 +768,7 @@ postInfCustomerCaC 'Получить информацию о покупател�
         LOCAL messageOrder = STRING ();
         LOCAL response = FILE();
 
-        EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order))
+        EXPORT JSON FROM 'value' = LONG(number(InternetOrder order))
             WHERE isSelected(order) AND isWBOrderCaC(order)
             AND (wbStatus(order) == WbStatus.confirm OR wbStatus(order) == WbStatus.prepare);
         fileToString(exportFile(), 'UTF-8');
@@ -1266,7 +1278,7 @@ getFinalPriceCaC 'Получить фактические суммы по зад
         LOCAL messageOrder = STRING ();
         LOCAL response = FILE();
 
-        EXPORT JSON FROM 'value' = INTEGER(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrderCaC(order);
+        EXPORT JSON FROM 'value' = LONG(number(InternetOrder order)) WHERE isSelected(order) AND isWBOrderCaC(order);
         fileToString(exportFile(), 'UTF-8');
         stringToFile('\{"orders":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
         logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + pathMpCaC() + '/final-price');
