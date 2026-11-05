@@ -81,4 +81,3 @@ public class TerminalJadeEKO {
         return (value == null) ? "0" : String.valueOf(value.intValue());
     }
 }
-

@@ -420,4 +420,3 @@ public class FiscalSento {
         return (value + "\0").getBytes(Charset.forName("cp1251"));
     }
 }
-

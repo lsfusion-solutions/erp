@@ -606,4 +606,3 @@ public class FiscalAbsolut {
         return useSKNO ? 0 : -1;
     }
 }
-

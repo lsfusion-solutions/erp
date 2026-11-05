@@ -224,4 +224,3 @@ public abstract class ImportDocumentAction extends ImportUniversalAction {
         return findProperty("allowIncorrectBarcode[]").read(context) != null;
     }
 }
-

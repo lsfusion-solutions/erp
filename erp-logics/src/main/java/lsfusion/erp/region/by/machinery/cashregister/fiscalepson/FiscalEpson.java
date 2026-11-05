@@ -518,4 +518,3 @@ public class FiscalEpson {
         return dResult;
     }
 }
-

@@ -1607,4 +1607,3 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
         return (String) (customerObject == null ? null : findProperty("id[LegalEntity]").read(context, customerObject));
     }
 }
-

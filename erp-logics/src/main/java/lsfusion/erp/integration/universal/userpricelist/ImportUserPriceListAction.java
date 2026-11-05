@@ -1145,4 +1145,3 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
         return false;
     }
 }
-

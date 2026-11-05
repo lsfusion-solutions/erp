@@ -568,4 +568,3 @@ public class FiscalVMK {
         return (value + "\0").getBytes("cp1251");
     }
 }
-
