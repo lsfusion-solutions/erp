@@ -171,8 +171,9 @@ countMarkCodes 'Кол-во марок' (WayBillPosition p, Box b) = GROUP SUM 1
 accepted 'Принята получателем' = DATA BOOLEAN (WayBillMark);
 acceptedMarkCodes (WayBillPosition p) = GROUP SUM 1 IF accepted(WayBillMark m) AND wayBillPosition(m) = p;
 
+textCountMarkCodes = ABSTRACT STRING ();
 CONSTRAINT countMarkCodes(WayBillPosition p) AND (OVERRIDE realQuantity(p), 0.0) != (OVERRIDE acceptedMarkCodes(p), 0.0)
-    MESSAGE 'Количество принятого товара не равно количеству принятых марок';
+    MESSAGE (CONCAT '. ','Количество принятого товара не равно количеству принятых марок', textCountMarkCodes());
 
 edit(WayBillMark p) + { edit(wayBillPosition(p)); }
 
