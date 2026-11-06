@@ -20,3 +20,11 @@ EXTEND FORM lots
         FILTER 'С положительным остатком' currentBalance(l) > 0
         FILTER 'С отрицательным остатком' currentBalance(l) < 0
 ;
+
+// ---- Подбор партии по маркам расхода ----
+
+quantityLotBatch 'Марок из партии' (OutFIFOSkuLedger l, Batch b) =
+    GROUP SUM NUMERIC[16,5](-signedQuantity(l, Lot lt) * count(lt)) IF batch(lt) = b;
+
+order(OutFIFOSkuLedger l, Batch b) += (IF quantityLotBatch(l, b) THEN 1L ELSE 2L) IF (GROUP SUM quantityLotBatch(l, Batch bb)) AND b IS Batch;
+reserve(Batch b, OutFIFOSkuLedger l) += NUMERIC[16,5](currentBalance(b, stock(l)) - quantityLotBatch(l, b)) IF currentBalance(b, stock(l)) > quantityLotBatch(l, b);
