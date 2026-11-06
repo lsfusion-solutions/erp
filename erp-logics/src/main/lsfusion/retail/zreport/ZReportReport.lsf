@@ -59,6 +59,7 @@ countFiscalReceipt 'Кол-во фискальных чеков за день' =
 sumReceiptReturnDetail 'Сумма возвратов' (stock, date)= GROUP SUM sumReceiptReturnDetail(ZReport zReport) IF isPosted(zReport)
     BY departmentStore(zReport), date(zReport);
 
+// в свойстве sumReceiptDetailZReport сумма строк по signedSum, и прибавляется сумма возвратов, чтобы получить только продажи
 averageSumReceipt 'Средняя сумма чека в магазине за день (без возвратов)' (DepartmentStore departmentStore, DATE date) = 
     round2((sumReceiptDetailZReport(departmentStore, date) (+) sumReceiptReturnDetail(departmentStore, date)) / countFiscalReceipt(departmentStore, date));
 
@@ -72,7 +73,8 @@ quantityReceiptDetail 'Кол-во (всего)' (departmentStore, date) =
     GROUP SUM quantityReceiptDetail(ZReport zReport) IF isPosted(zReport) BY departmentStore(zReport), date(zReport);
  
 countReceipt (Stock stock)= name(stock) + ' (кол-во чеков)';        
-averageSumReceipt (Stock stock)= name(stock) + ' (cредняя сумма чека)';        
+averageSumReceipt (Stock stock)= name(stock) + ' (cредняя сумма чека)';
+averageSumReceiptSale (Stock stock)= name(stock) + ' (cредн. сумма чека без возвр.)';
 countReceiptDetail (Stock stock)= name(stock) + ' (кол-во позиций чеков)';
 quantityReceiptDetail (Stock stock)= name(stock) + ' (кол-во всего)';
 averageCountReceiptDetail (Stock stock)= name(stock) + ' (среднее кол-во позиций в чеке)'; 
@@ -267,7 +269,7 @@ FORM saleZreportStock 'Отчет по магазинам'
 
     PROPERTIES READONLY SHOWIF showProperty(sts) countReceipt(sts,d) COLUMNS (sts) HEADER countReceipt(sts)    
     PROPERTIES READONLY SHOWIF showProperty(sts) countFiscalReceipt(sts,d) COLUMNS (sts) HEADER countFiscalReceipt(sts)                                 
-    PROPERTIES READONLY SHOWIF showProperty(sts) averageSumReceipt(sts,d) COLUMNS (sts) HEADER averageSumReceipt(sts)      
+    PROPERTIES READONLY SHOWIF showProperty(sts) averageSumReceipt(sts,d) COLUMNS (sts) HEADER averageSumReceiptSale(sts)      
 //--                               
     PROPERTIES READONLY SHOWIF allStocks() sumReceiptDetailZReportStocks(d) 
     PROPERTIES READONLY SHOWIF allStocks() discountSumZReportStocks(d)                                       
@@ -294,7 +296,7 @@ FORM saleZreportStock 'Отчет по магазинам'
     
     PROPERTIES READONLY SHOWIF showProperty(st) countReceipt(st,dt) COLUMNS (st) HEADER countReceipt(st)   
     PROPERTIES READONLY SHOWIF showProperty(st) countFiscalReceipt(st,dt) COLUMNS (st) HEADER countFiscalReceipt(st)                                 
-    PROPERTIES READONLY SHOWIF showProperty(st) averageSumReceipt(st,dt) COLUMNS (st) HEADER averageSumReceipt(st)                                 
+    PROPERTIES READONLY SHOWIF showProperty(st) averageSumReceipt(st,dt) COLUMNS (st) HEADER averageSumReceiptSale(st)                                 
     PROPERTIES READONLY SHOWIF showProperty(st) countReceiptDetail(st,dt) COLUMNS (st) HEADER countReceiptDetail(st)                                 
     PROPERTIES READONLY SHOWIF showProperty(st) averageCountReceiptDetail(st,dt) COLUMNS (st) HEADER averageCountReceiptDetail(st)   
     PROPERTIES READONLY SHOWIF showProperty(st) quantityReceiptDetail(st,dt) COLUMNS (st) HEADER quantityReceiptDetail(st)
@@ -328,7 +330,7 @@ FORM saleZreportStock 'Отчет по магазинам'
     
     PROPERTIES READONLY SHOWIF showProperty(stw) countReceipt(stw,n,y,dFrom,dTo) COLUMNS (stw) HEADER countReceipt(stw)
     PROPERTIES READONLY SHOWIF showProperty(stw) countFiscalReceipt(stw,n,y,dFrom,dTo) COLUMNS (stw) HEADER countFiscalReceipt(stw)
-    PROPERTIES READONLY SHOWIF showProperty(stw) averageSumReceipt(stw,n,y,dFrom,dTo) COLUMNS (stw) HEADER averageSumReceipt(stw)
+    PROPERTIES READONLY SHOWIF showProperty(stw) averageSumReceipt(stw,n,y,dFrom,dTo) COLUMNS (stw) HEADER averageSumReceiptSale(stw)
     
 //--
     PROPERTIES READONLY SHOWIF allStocks() sumReceiptDetailZReportStocks(n,y,dFrom,dTo)
@@ -356,7 +358,7 @@ FORM saleZreportStock 'Отчет по магазинам'
     
     PROPERTIES READONLY SHOWIF showProperty(stsw) countReceipt(stsw,nw,yw,dFrom,dTo) COLUMNS (stsw) HEADER countReceipt(stsw)
     PROPERTIES READONLY SHOWIF showProperty(stsw) countFiscalReceipt(stsw,nw,yw,dFrom,dTo) COLUMNS (stsw) HEADER countFiscalReceipt(stsw)                                 
-    PROPERTIES READONLY SHOWIF showProperty(stsw) averageSumReceipt(stsw,nw,yw,dFrom,dTo) COLUMNS (stsw) HEADER averageSumReceipt(stsw)                                 
+    PROPERTIES READONLY SHOWIF showProperty(stsw) averageSumReceipt(stsw,nw,yw,dFrom,dTo) COLUMNS (stsw) HEADER averageSumReceiptSale(stsw)                                 
     PROPERTIES READONLY SHOWIF showProperty(stsw) countReceiptDetail(stsw,nw,yw,dFrom,dTo) COLUMNS (stsw) HEADER countReceiptDetail(stsw)                                 
     PROPERTIES READONLY SHOWIF showProperty(stsw) averageCountReceiptDetail(stsw,nw,yw,dFrom,dTo) COLUMNS (stsw) HEADER averageCountReceiptDetail(stsw)
     PROPERTIES READONLY SHOWIF showProperty(stsw) quantityReceiptDetail(stsw,nw,yw,dFrom,dTo) COLUMNS (stsw) HEADER quantityReceiptDetail(stsw)
