@@ -4,6 +4,7 @@ import com.google.common.base.Throwables;
 import lsfusion.base.col.interfaces.immutable.ImList;
 import lsfusion.erp.ERPLoggers;
 import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.logics.form.stat.LimitOffset;
 import lsfusion.server.logics.form.struct.FormEntity;
 import lsfusion.server.logics.form.struct.property.PropertyDrawEntity;
 import lsfusion.server.logics.form.interactive.instance.FormData;
@@ -76,7 +77,7 @@ abstract class ExportSQLAction extends InternalAction {
                 FormEntity formEntity = findForm(idForm);
                 //todo: deprecated createFormInstance is used to compile on both 6.3 and 7.0 (non-deprecated overloads differ); after upgrading to 7.0 move to StaticFormDataManager
                 FormInstance formInstance = context.createFormInstance(formEntity);
-                FormData formData = formInstance.getFormData(0);
+                FormData formData = formInstance.getFormData(formInstance.getProperties(), formInstance.getGroups(), new LimitOffset(0));
 
                 List<List<Object>> rows = new ArrayList<>();
                 List<Map<String, Object>> keysRows = new ArrayList<>();

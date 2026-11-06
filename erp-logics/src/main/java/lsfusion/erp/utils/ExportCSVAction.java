@@ -6,6 +6,7 @@ import lsfusion.erp.ERPLoggers;
 import lsfusion.erp.integration.DefaultExportAction;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.logics.form.stat.LimitOffset;
 import lsfusion.server.logics.form.struct.FormEntity;
 import lsfusion.server.logics.form.struct.property.PropertyDrawEntity;
 import lsfusion.server.logics.form.interactive.instance.FormData;
@@ -130,9 +131,7 @@ public abstract class ExportCSVAction extends DefaultExportAction {
 
         PrintWriter bw = new PrintWriter(new OutputStreamWriter(os, charset));
 
-        //todo: replace deprecated getFormData after upgrading erp to 6.3
-        //FormData formData = formInstance.getFormData(formInstance.getProperties(), formInstance.getGroups(), new LimitOffset(0));
-        FormData formData = formInstance.getFormData(0);
+        FormData formData = formInstance.getFormData(formInstance.getProperties(), formInstance.getGroups(), new LimitOffset(0));
 
         for (FormRow row : formData.rows) {
             if (printHeader) {
