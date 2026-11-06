@@ -49,7 +49,7 @@ public abstract class ExportCSVAction extends DefaultExportAction {
             if (idForm != null && idGroupObject != null) {
 
                 FormEntity formEntity = findForm(idForm);
-                //todo: replace deprecated createFormInstance after upgrading erp to 6.1
+                //todo: deprecated createFormInstance is used to compile on both 6.3 and 7.0 (non-deprecated overloads differ); after upgrading to 7.0 move to StaticFormDataManager
                 FormInstance formInstance = context.createFormInstance(formEntity);
 
                 if (valuesMap != null)
