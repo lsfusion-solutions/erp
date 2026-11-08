@@ -352,11 +352,23 @@ DESIGN loya {
 
 urlLoya 'Адрес API' () = CONCAT '', r'http://', ipLoya(), r':', portLoya(), r'/api/1.0/';
 
-// SHA-1 нет ни в платформе, ни в PostgreSQL без расширения pgcrypto
+// SHA-1 нет ни в платформе, ни в PostgreSQL без расширения pgcrypto;
+// считается средствами JDK: commons-codec в classpath логики может оказаться старой версии без sha1Hex
 sha1PasswordLoya = DATA LOCAL STRING[40] ();
 calculateSha1PasswordLoya INTERNAL <{
     String password = (String) findProperty("passwordLoya[]").read(context);
-    Object hash = password == null ? null : org.apache.commons.codec.digest.DigestUtils.sha1Hex(password);
+    Object hash = null;
+    if (password != null) {
+        try {
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-1").digest(password.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder();
+            for (int i = 0; i < digest.length; i++)
+                hex.append(Integer.toHexString((digest[i] & 0xff) | 0x100).substring(1));
+            hash = hex.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
     findProperty("sha1PasswordLoya[]").change(hash, context);
 }>;
 
