@@ -4,22 +4,24 @@ REQUIRE System, Item, PriceListOperation, Store, MachineryPriceTransactionPromot
 
 PRIORITY PriceList;
 
-sessionKeyLoya 'Сессионный ключ' = DATA STRING[200] ();
+TABLE settings () NODEFAULT;
 
-ipLoya 'IP адрес' = DATA STRING[100] ();
-portLoya 'Порт' = DATA STRING[100] ();
-emailLoya 'Email' = DATA STRING[100] ();
-passwordLoya 'Пароль' = DATA STRING[100] () ECHO;
-apiKeyLoya 'Api Key' = DATA STRING[100] ();
-idPartnerLoya 'Собственный ID' = DATA INTEGER ();
+sessionKeyLoya 'Сессионный ключ' = DATA STRING[200] () TABLE settings;
 
-sessionKey 'Session Key' = DATA TEXT ();
+ipLoya 'IP адрес' = DATA STRING[100] () TABLE settings;
+portLoya 'Порт' = DATA STRING[100] () TABLE settings;
+emailLoya 'Email' = DATA STRING[100] () TABLE settings;
+passwordLoya 'Пароль' = DATA STRING[100] () TABLE settings ECHO;
+apiKeyLoya 'Api Key' = DATA STRING[100] () TABLE settings;
+idPartnerLoya 'Собственный ID' = DATA INTEGER () TABLE settings;
 
-maxDiscountLoya 'Максимальный процент скидки' = DATA INTEGER ();
-maxAllowBonusLoya 'Максимальный процент списания бонусов' = DATA INTEGER ();
-maxAwardBonusLoya 'Максимальный процент начисления бонусов' = DATA INTEGER ();
+sessionKey 'Session Key' = DATA TEXT () TABLE settings;
 
-useRestrictionsForAwardBonus 'Учитывать запрет скидок в начислении бонусов'= DATA BOOLEAN ();
+maxDiscountLoya 'Максимальный процент скидки' = DATA INTEGER () TABLE settings;
+maxAllowBonusLoya 'Максимальный процент списания бонусов' = DATA INTEGER () TABLE settings;
+maxAwardBonusLoya 'Максимальный процент начисления бонусов' = DATA INTEGER () TABLE settings;
+
+useRestrictionsForAwardBonus 'Учитывать запрет скидок в начислении бонусов'= DATA BOOLEAN () TABLE settings;
 
 CLASS LoyaItemGroup 'Группа товаров Loya';
 TABLE loyaItemGroup (LoyaItemGroup);
@@ -45,7 +47,7 @@ loyaItemGroup(UserPriceList p) += loyaItemGroup(p);
 
 isData 'Ручной' = DATA BOOLEAN (LoyaItemGroup);
 
-checkDatesLoyaItemGroupPriceList 'Проверять сроки действия прайсов и групп товаров LOYA' = DATA BOOLEAN ();
+checkDatesLoyaItemGroupPriceList 'Проверять сроки действия прайсов и групп товаров LOYA' = DATA BOOLEAN () TABLE settings;
 EXTEND FORM options
     PROPERTIES checkDatesLoyaItemGroupPriceList()
 ;
@@ -83,6 +85,8 @@ inLoya(DepartmentStore d) = OVERRIDE enabledLoya(d), NOT enabledLoya();
 idLoya 'Id Loya'= DATA INTEGER (DepartmentStore);
 departmentStoreIdLoya (idLoya) = GROUP AGGR DepartmentStore departmentStore BY idLoya(departmentStore);
 
+in 'Вкл.' = DATA BOOLEAN (LoyaItemGroup, DepartmentStore);
+
 EXTEND FORM departmentStore 
     PROPERTIES (d) idLoya;
 DESIGN departmentStore {
@@ -91,7 +95,7 @@ DESIGN departmentStore {
     }
 }
 
-useMinPrice 'Выгружать минимальные цены' = DATA BOOLEAN () COMPLEX;
+useMinPrice 'Выгружать минимальные цены' = DATA BOOLEAN () TABLE settings COMPLEX;
 
 loyaMinPrice 'Минимальная цена' = DATA LOCAL NUMERIC[16,4](Item, DepartmentStore);
 sendToLoya = DATA LOCAL BOOLEAN(Item, DepartmentStore);
@@ -107,10 +111,11 @@ WHEN SETCHANGED (active(LoyaItemGroup g)) DO {
 }
 
 synchronizeLoya 'Синхронизировать'  INTERNAL 'lsfusion.erp.region.by.ukm.SynchronizeLoyaAction' ();
-disableSynchronizeItemsLoya 'Отключить синхронизацию товаров при выгрузке групп' = DATA BOOLEAN ();
-deleteInactiveItemGroupsLoya 'Удалять неактивные группы товаров' = DATA BOOLEAN ();
-logRequestsLoya 'Логировать запросы' = DATA BOOLEAN ();
-useBarcodeAsIdLoya 'Использовать ШК как ID' = DATA BOOLEAN ();
+disableSynchronizeItemsLoya 'Отключить синхронизацию товаров при выгрузке групп' = DATA BOOLEAN () TABLE settings;
+deleteInactiveItemGroupsLoya 'Удалять неактивные группы товаров' = DATA BOOLEAN () TABLE settings;
+logRequestsLoya 'Логировать запросы' = DATA BOOLEAN () TABLE settings;
+useBarcodeAsIdLoya 'Использовать ШК как ID' = DATA BOOLEAN () TABLE settings;
+useLocationCodeGoodGroupLinkLoya 'Передавать магазин в группы товаров кодом (locationCode)' = DATA BOOLEAN () TABLE settings;
 
 synchronizeBrand 'Синхронизировать бренд'  INTERNAL 'lsfusion.erp.region.by.ukm.SynchronizeBrandLoyaAction' (Brand);
 synchronizeItemGroup 'Синхронизировать группу товаров'  INTERNAL 'lsfusion.erp.region.by.ukm.SynchronizeItemGroupLoyaAction' (ItemGroup);
@@ -241,6 +246,11 @@ FORM loyaItemGroup 'Группа товаров Loya'
     PROPERTIES (i, g) READONLYIF NOT dataIn(i, g) in SHOWIF isData(g) BEFORE id(i), quantity
     PROPERTIES (g) DRAW i SHOWIF isData(g) addItems, importXls                                                                
     FILTERS in(i, g)
+
+    OBJECTS st = DepartmentStore
+    PROPERTIES inStore = in(g, st)
+    PROPERTIES(st) READONLY name, idLoya
+    FILTERGROUP activeStore FILTER 'Активные' active(st) DEFAULT
      
     EDIT LoyaItemGroup OBJECT g
 ;
@@ -261,7 +271,14 @@ DESIGN loyaItemGroup {
             MOVE PROPERTY (fromDateTime(g));
             MOVE PROPERTY (toDateTime(g));
         }
-        MOVE BOX(i);
+        NEW itemsStores {
+            fill = 1;
+            horizontal = TRUE;
+            MOVE BOX(i) {
+                fill = 3;
+            }
+            MOVE BOX(st);
+        }
     }
 }
 
@@ -333,24 +350,32 @@ DESIGN loya {
 }
 
 
-//--------------------------------------- Авторизация ---------------------------------------//
-
-// Базовый адрес API. Порт может быть не задан — тогда используется порт по умолчанию.
 urlLoya 'Адрес API' () = CONCAT '', r'http://', ipLoya(), r':', portLoya(), r'/api/1.0/';
 
-// пароль передаётся хэшем SHA-1 в hex; digest() — из расширения pgcrypto
-sha1Loya (TEXT text) = FORMULA TEXT PG 'encode(digest($1, \'sha1\'), \'hex\')';
+// SHA-1 нет ни в платформе, ни в PostgreSQL без расширения pgcrypto
+sha1PasswordLoya = DATA LOCAL STRING[40] ();
+calculateSha1PasswordLoya INTERNAL <{
+    String password = (String) findProperty("passwordLoya[]").read(context);
+    Object hash = password == null ? null : org.apache.commons.codec.digest.DigestUtils.sha1Hex(password);
+    findProperty("sha1PasswordLoya[]").change(hash, context);
+}>;
 
 resultLoginLoya 'Ошибка авторизации' = DATA LOCAL NESTED TEXT ();
 
-// Авторизуется и записывает сессионный ключ в sessionKey(). Ключ пишется в текущую сессию —
-// вызывающий сам решает, сохранять его (APPLY) или использовать разово.
-// При ошибке заполняется resultLoginLoya(), sessionKey() не меняется.
+// ключ пишется в текущую сессию, сохранять ли его (APPLY) — решает вызывающий
 loginLoya 'Авторизоваться' ()  {
     resultLoginLoya() <- NULL;
 
     IF NOT (ipLoya() AND emailLoya() AND passwordLoya() AND apiKeyLoya()) THEN {
         resultLoginLoya() <- 'Не заданы настройки подключения к Loya: IP / email / пароль / api key';
+        RETURN;
+    }
+
+    // исключение встроенного Java-кода не доходит до вызывающего — сбой виден только по пустому результату
+    sha1PasswordLoya() <- NULL;
+    calculateSha1PasswordLoya();
+    IF NOT sha1PasswordLoya() THEN {
+        resultLoginLoya() <- 'Не удалось вычислить хэш пароля Loya';
         RETURN;
     }
 
@@ -360,7 +385,7 @@ loginLoya 'Авторизоваться' ()  {
     LOCAL response = FILE ();
 
     headers(r'content-type') <- r'application/json';
-    EXPORT JSON FROM email = emailLoya(), password = sha1Loya(TEXT(passwordLoya())), apikey = apiKeyLoya() TO body;
+    EXPORT JSON FROM email = emailLoya(), password = sha1PasswordLoya(), apikey = apiKeyLoya() TO body;
 
     TRY {
         EXTERNAL HTTP POST urlLoya() + r'login' HEADERS headers COOKIESTO cookies PARAMS body() TO response;
@@ -388,9 +413,164 @@ checkConnectionLoya 'Проверить подключение' ()  {
     }
 }
 
+resultGoodGroupLinkLoya 'Ошибка обмена списком товаров Loya' = DATA LOCAL NESTED TEXT ();
+
+// как в Java-синхронизации товаров
+idLoya 'Код товара в Loya' (Sku s) = IF useBarcodeAsIdLoya() THEN idBarcode(s) ELSE id(s);
+
+// Приводит товары группы в Loya к составу in / quantity, как Java-синхронизация групп товаров, но по отмеченным
+// магазинам группы (без них — строки без магазина) и меняя только расходящиеся sku.
+// Нужна авторизация (loginLoya) в текущей сессии.
+synchronizeGoodGroupLinksLoya (LoyaItemGroup g) {
+    resultGoodGroupLinkLoya() <- NULL;
+    IF NOT id(g) THEN {
+        resultGoodGroupLinkLoya() <- CONCAT ' ', 'Группа товаров Loya', name(g), 'не выгружена в Loya (нет ID)';
+        RETURN;
+    }
+    IF (GROUP SUM 1 IF in(g, DepartmentStore st) AND NOT idLoya(st)) THEN {
+        resultGoodGroupLinkLoya() <- 'Не задан Id Loya у магазинов группы товаров Loya ' + id(g) + ': ' +
+            (GROUP CONCAT name(DepartmentStore st) IF in(g, st) AND NOT idLoya(st), ', ' ORDER st);
+        RETURN;
+    }
+
+    LOCAL url = STRING ();
+    url() <- urlLoya() + r'goodgrouplink/' + idPartnerLoya() + r'/' + id(g);
+    LOCAL headers = TEXT (STRING[100]);
+    headers(r'content-type') <- r'application/json';
+    headers(r'Cookie') <- r'PLAY2AUTH_SESS_ID=' + sessionKey();
+
+    LOCAL response = FILE ();
+    LOCAL skuPage = STRING[254] (INTEGER);
+    LOCAL locationIdPage = INTEGER (INTEGER);
+    LOCAL locationPage = STRING[100] (INTEGER);
+    LOCAL quantityPage = NUMERIC[14,3] (INTEGER);
+    LOCAL countLoya = INTEGER (STRING[254]);
+    LOCAL countLocationLoya = INTEGER (STRING[254], STRING[100]);
+    LOCAL quantityLoya = NUMERIC[14,3] (STRING[254], STRING[100]);
+    LOCAL drop = INTEGER ();
+    LOCAL countPage = INTEGER ();
+
+    // читаем до пустой страницы, т.к. Loya может вернуть меньше limit
+    drop() <- 0;
+    countPage() <- 1;
+    WHILE countPage() > 0 DO {
+        IF logRequestsLoya() THEN
+            logToFile('loya', 'GET ' + url() + r'?pager.drop=' + drop() + r'&pager.limit=10000');
+        TRY {
+            EXTERNAL HTTP GET url() + r'?pager.drop=' + drop() + r'&pager.limit=10000' HEADERS headers TO response;
+        } CATCH {
+            resultGoodGroupLinkLoya() <- CONCAT '\n', 'Ошибка получения товаров группы Loya ' + id(g), messageCaughtException();
+            RETURN;
+        }
+
+        skuPage(INTEGER i) <- NULL;
+        locationIdPage(INTEGER i) <- NULL;
+        locationPage(INTEGER i) <- NULL;
+        quantityPage(INTEGER i) <- NULL;
+        IMPORT JSON FROM response() TO skuPage = sku, locationIdPage = locationId, locationPage = locationCode, quantityPage = quantity;
+        // магазин строки — в том виде, в каком его передаём (locationCode / locationId), строка без магазина — ключ '-'
+        locationPage(INTEGER i) <- OVERRIDE (locationPage(i) IF useLocationCodeGoodGroupLinkLoya()),
+                                            (STRING[100](locationIdPage(i)) IF NOT useLocationCodeGoodGroupLinkLoya()), r'-'
+            WHERE skuPage(i);
+
+        // если Loya не учитывает pager.drop, страница повторяет уже прочитанные строки — иначе цикл не завершится
+        IF (GROUP SUM 1 IF skuPage(INTEGER i)) AND NOT (GROUP SUM 1 IF skuPage(INTEGER i) AND NOT countLocationLoya(skuPage(i), locationPage(i))) THEN {
+            resultGoodGroupLinkLoya() <- 'Loya повторно вернула уже прочитанные товары группы ' + id(g) + ' (pager.drop=' + drop() + ')';
+            RETURN;
+        }
+
+        countPage() <- OVERRIDE (GROUP SUM 1 IF skuPage(INTEGER i)), 0;
+        countLoya(STRING[254] s) <- countLoya(s) (+) [GROUP SUM 1 BY skuPage(INTEGER i)](s);
+        countLocationLoya(STRING[254] s, STRING[100] l) <- countLocationLoya(s, l) (+) [GROUP SUM 1 BY skuPage(INTEGER i), locationPage(i)](s, l);
+        quantityLoya(STRING[254] s, STRING[100] l) <- OVERRIDE [GROUP MAX quantityPage(INTEGER i) BY skuPage(i), locationPage(i)](s, l), quantityLoya(s, l);
+        drop() <- drop() + countPage();
+    }
+
+    LOCAL inLocation = BOOLEAN (STRING[100]);
+    inLocation(STRING[100] l) <- TRUE WHERE (GROUP SUM 1 IF in(g, DepartmentStore st) AND STRING[100](idLoya(st)) = l);
+    IF NOT (GROUP SUM 1 IF inLocation(STRING[100] l)) THEN
+        inLocation(r'-') <- TRUE;
+
+    LOCAL inGroup = BOOLEAN (STRING[254]);
+    LOCAL quantityGroup = NUMERIC[14,3] (STRING[254]);
+    LOCAL synced = BOOLEAN (STRING[254]);
+    inGroup(STRING[254] s) <- TRUE WHERE (GROUP SUM 1 IF in(Item i, g) AND idLoya(i) = s);
+    quantityGroup(STRING[254] s) <- GROUP MAX quantity(Item i, g) IF in(i, g) AND idLoya(i) = s;
+    // количество сверяется, только если задано в группе
+    synced(STRING[254] s) <- inGroup(s) AND countLoya(s) = (GROUP SUM 1 IF inLocation(STRING[100] l))
+        AND NOT (GROUP SUM 1 IF inLocation(STRING[100] l2)
+            AND NOT (countLocationLoya(s, l2) = 1 AND (NOT quantityGroup(s) OR quantityLoya(s, l2) = quantityGroup(s))));
+
+    LOCAL deleteSkus = JSON ();
+    deleteSkus() <- JSON FROM value = (IF countLoya(STRING[254] s) AND NOT synced(s) THEN s);
+    IF deleteSkus() THEN {
+        IF logRequestsLoya() THEN
+            logToFile('loya', (CONCAT ' ', 'POST', url() + r'/deleteList', TEXT(deleteSkus())));
+        TRY {
+            EXTERNAL HTTP POST url() + r'/deleteList' HEADERS headers PARAMS deleteSkus();
+        } CATCH {
+            resultGoodGroupLinkLoya() <- CONCAT '\n', 'Ошибка удаления товаров группы Loya ' + id(g), messageCaughtException();
+            RETURN;
+        }
+    }
+
+    LOCAL links = JSON ();
+    links() <- JSON FROM sku = (IF inGroup(STRING[254] s) AND inLocation(STRING[100] l) THEN s),
+                         locationId = (INTEGER(l) IF l != r'-' AND NOT useLocationCodeGoodGroupLinkLoya()),
+                         locationCode = (l IF l != r'-' AND useLocationCodeGoodGroupLinkLoya()),
+                         quantity = quantityGroup(s)
+                   WHERE inGroup(s) AND inLocation(l) AND NOT synced(s);
+    IF links() THEN {
+        // строки с locationCode Loya принимает только методом PUT
+        LOCAL put = BOOLEAN ();
+        put() <- useLocationCodeGoodGroupLinkLoya() AND NOT inLocation(r'-');
+        IF logRequestsLoya() THEN
+            logToFile('loya', (CONCAT ' ', IF put() THEN 'PUT' ELSE 'POST', url() + r'/upload', TEXT(links())));
+        TRY {
+            IF put() THEN
+                EXTERNAL HTTP PUT url() + r'/upload' HEADERS headers PARAMS links();
+            ELSE
+                EXTERNAL HTTP POST url() + r'/upload' HEADERS headers PARAMS links();
+        } CATCH {
+            resultGoodGroupLinkLoya() <- CONCAT '\n', 'Ошибка загрузки товаров группы Loya ' + id(g), messageCaughtException();
+            RETURN;
+        }
+    }
+
+    logToFile('loya', 'Группа товаров ' + id(g) + ': строк в Loya ' + drop() +
+        ', удалено sku ' + (OVERRIDE (GROUP SUM 1 IF countLoya(STRING[254] s) AND NOT synced(s)), 0) +
+        ', загружено строк ' + (OVERRIDE (GROUP SUM 1 IF inGroup(STRING[254] s) AND inLocation(STRING[100] l) AND NOT synced(s)), 0));
+}
+
+// как Java-синхронизация — все активные группы; ошибка в одной группе не останавливает остальные
+synchronizeGoodGroupLinksLoya 'Синхронизировать товары групп Loya' () {
+    NEWSESSION {
+        IF NOT idPartnerLoya() THEN
+            resultGoodGroupLinkLoya() <- 'Не задан собственный ID Loya';
+        ELSE {
+            loginLoya();
+            IF resultLoginLoya() THEN
+                resultGoodGroupLinkLoya() <- resultLoginLoya();
+            ELSE {
+                LOCAL errors = TEXT ();
+                FOR active(LoyaItemGroup g) ORDER g DO {
+                    synchronizeGoodGroupLinksLoya(g);
+                    errors() <- CONCAT '\n', errors(), resultGoodGroupLinkLoya();
+                }
+                resultGoodGroupLinkLoya() <- errors();
+                APPLY;
+            }
+        }
+        IF resultGoodGroupLinkLoya() THEN
+            logToFile('loya', resultGoodGroupLinkLoya());
+        MESSAGE OVERRIDE resultGoodGroupLinkLoya(), 'Товары групп Loya синхронизированы';
+    }
+}
+
 EXTEND FORM integrationData
     PROPERTIES() ipLoya, portLoya, emailLoya, passwordLoya, apiKeyLoya, idPartnerLoya, checkConnectionLoya, 
-                 maxDiscountLoya, maxAllowBonusLoya, maxAwardBonusLoya, useRestrictionsForAwardBonus, disableSynchronizeItemsLoya, deleteInactiveItemGroupsLoya, logRequestsLoya, useBarcodeAsIdLoya, useMinPrice
+                 maxDiscountLoya, maxAllowBonusLoya, maxAwardBonusLoya, useRestrictionsForAwardBonus, disableSynchronizeItemsLoya, deleteInactiveItemGroupsLoya, logRequestsLoya, useBarcodeAsIdLoya, useMinPrice,
+                 useLocationCodeGoodGroupLinkLoya, synchronizeGoodGroupLinksLoya
 ;
 
 DESIGN integrationData {
@@ -413,6 +593,8 @@ DESIGN integrationData {
             MOVE PROPERTY(logRequestsLoya());
             MOVE PROPERTY(useBarcodeAsIdLoya());
             MOVE PROPERTY(useMinPrice());
+            MOVE PROPERTY(useLocationCodeGoodGroupLinkLoya());
+            MOVE PROPERTY(synchronizeGoodGroupLinksLoya());
         }
     }
 }
