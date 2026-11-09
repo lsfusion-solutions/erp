@@ -380,8 +380,9 @@ META defineDocumentGISMT(doc, property, form, obj, legalEntityProp, stockProp)
     statusP 'Статус передачи в ГИС МТ' (###doc##Document d) = CASE WHEN isPosted(d) THEN 'Отправлен' 
                                        WHEN toCreate(d) THEN 'Требуется загрузка'
                                        ELSE 'Ожидание подтверждения';
-    status 'Статус передачи в ГИС МТ' (###doc d) = 
-        GROUP CONCAT statusP(###doc##Document dd) + '(' + name(lotType(dd)) + ')' IF doc(dd) = d, ',' ORDER dd CHARWIDTH 20 MATERIALIZED;
+    overStatus 'Статус передачи в ГИС МТ (перегруженный)' = ABSTRACT CASE STRING (###doc);
+    status 'Статус передачи в ГИС МТ' (###doc d) = OVERRIDE overStatus(d),
+        (GROUP CONCAT statusP(###doc##Document dd) + '(' + name(lotType(dd)) + ')' IF doc(dd) = d, ',' ORDER dd) CHARWIDTH 20 MATERIALIZED;
     
     EXTEND FORM form
         PROPERTIES(obj) READONLY status
