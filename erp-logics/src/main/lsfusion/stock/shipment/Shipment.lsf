@@ -161,6 +161,10 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     @defineDocumentInterfaceClosed(shipment);
     @defineDocumentClosedConstraint(UserShipment);
     isClosed[Shipment.Shipment] (Shipment shipment) += isClosed(shipment);
+
+    allowEmptyStock = ABSTRACT VALUE BOOLEAN (Shipment);
+    CONSTRAINT is(Shipment s) AND NOT stockProp##Stock(s) AND NOT (allowEmptyStock(s) AND NOT isPosted(s))
+        MESSAGE 'Для поставки'##sign##' должен быть задан склад';
     
     @defineDocumentInterfaceDescription(shipment, 'Поставка'###sign);
 
