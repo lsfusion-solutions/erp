@@ -100,7 +100,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         List<DeleteBarcodeInfo> deleteBarcodeList = new ArrayList<>();
         if (!deleteBarcodeInSeparateProcess) {
             try {
-                List<DeleteBarcodeInfo> allDeleteBarcodeList = remote.readDeleteBarcodeInfoList();
+                //all equipment servers: the handler doesn't know its one, barcodes are chosen by directory of the transaction
+                List<DeleteBarcodeInfo> allDeleteBarcodeList = remote.readDeleteBarcodeInfoList(null);
                 for (DeleteBarcodeInfo deleteBarcodeInfo : allDeleteBarcodeList) {
                     if (deleteBarcodeInfo.handlerModelGroupMachinery.equals(getClass().getName())) {
                         deleteBarcodeList.add(deleteBarcodeInfo);

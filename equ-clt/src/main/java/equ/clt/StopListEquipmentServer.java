@@ -17,9 +17,9 @@ import java.util.Set;
 class StopListEquipmentServer {
     private final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
 
-    static void processStopListInfo(EquipmentServerInterface remote) throws RemoteException, SQLException {
+    static void processStopListInfo(EquipmentServerInterface remote, String sidEquipmentServer) throws RemoteException, SQLException {
         processStopListLogger.info("Process StopListInfo");
-        List<StopListInfo> stopListInfoList = remote.readStopListInfo();
+        List<StopListInfo> stopListInfoList = remote.readStopListInfo(sidEquipmentServer);
         for (StopListInfo stopListInfo : stopListInfoList) {
             boolean succeeded = true;
             Set<String> succeededStockSet = stopListInfo.idStockSet;
@@ -49,7 +49,7 @@ class StopListEquipmentServer {
                 }
             }
             if (succeeded) {
-                remote.succeedStopList(stopListInfo.number, succeededStockSet);
+                remote.succeedStopList(sidEquipmentServer, stopListInfo.number, succeededStockSet);
             }
         }
         if(!stopListInfoList.isEmpty())

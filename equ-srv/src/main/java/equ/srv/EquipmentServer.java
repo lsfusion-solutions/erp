@@ -365,7 +365,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public List<StopListInfo> readStopListInfo() throws SQLException {
+    public List<StopListInfo> readStopListInfo(String sidEquipmentServer) throws SQLException {
         logSourceHost("readStopList");
         return StopListEquipmentServer.readStopListInfo(this);
     }
@@ -376,7 +376,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public List<DeleteBarcodeInfo> readDeleteBarcodeInfoList() throws SQLException {
+    public List<DeleteBarcodeInfo> readDeleteBarcodeInfoList(String sidEquipmentServer) throws SQLException {
         return DeleteBarcodeEquipmentServer.readDeleteBarcodeInfo(this);
     }
 
@@ -401,7 +401,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public void succeedStopList(String numberStopList, Set<String> idStockSet) {
+    public void succeedStopList(String sidEquipmentServer, String numberStopList, Set<String> idStockSet) {
         StopListEquipmentServer.succeedStopList(getBusinessLogics(), getStack(), this, numberStopList, idStockSet);
     }
 

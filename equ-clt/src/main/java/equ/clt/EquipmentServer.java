@@ -235,10 +235,10 @@ public class EquipmentServer {
         });
 
         if (!disableStopLists && enabledStopListInfo)
-            scheduleJob("StopList", processStopListLogger, millis, () -> StopListEquipmentServer.processStopListInfo(remote));
+            scheduleJob("StopList", processStopListLogger, millis, () -> StopListEquipmentServer.processStopListInfo(remote, sidEquipmentServer));
 
         if (enabledDeleteBarcodeInfo)
-            scheduleJob("DeleteBarcode", processDeleteBarcodeLogger, millis, () -> DeleteBarcodeEquipmentServer.processDeleteBarcodeInfo(remote));
+            scheduleJob("DeleteBarcode", processDeleteBarcodeLogger, millis, () -> DeleteBarcodeEquipmentServer.processDeleteBarcodeInfo(remote, sidEquipmentServer));
 
         //sendSalesDelay - number of skipped cycles between sending sales
         if (!disableSales)

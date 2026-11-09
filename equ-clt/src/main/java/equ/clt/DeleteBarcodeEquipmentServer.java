@@ -12,9 +12,9 @@ import java.util.List;
 class DeleteBarcodeEquipmentServer {
     private final static Logger processDeleteBarcodeLogger = Logger.getLogger("DeleteBarcodeLogger");
 
-    static void processDeleteBarcodeInfo(EquipmentServerInterface remote) throws RemoteException, SQLException {
+    static void processDeleteBarcodeInfo(EquipmentServerInterface remote, String sidEquipmentServer) throws RemoteException, SQLException {
         processDeleteBarcodeLogger.info("Process DeleteBarcodeInfo");
-        List<DeleteBarcodeInfo> deleteBarcodeInfoList = remote.readDeleteBarcodeInfoList();
+        List<DeleteBarcodeInfo> deleteBarcodeInfoList = remote.readDeleteBarcodeInfoList(sidEquipmentServer);
         for(DeleteBarcodeInfo deleteBarcodeInfo : deleteBarcodeInfoList) {
             boolean succeeded = true;
             boolean markSucceeded = true;
