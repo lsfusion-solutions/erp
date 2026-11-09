@@ -17,6 +17,7 @@ skipCreateUserInvoiceDetail = ABSTRACT BOOLEAN (UkdDocumentDetail);
 overCreateInvoice ABSTRACT (InvoiceCorrection, UkdDocument);
 overCreateInvoice ABSTRACT (InvoiceCorrectionDetail, UkdDocumentDetail);
 skipCreateInvoice = ABSTRACT BOOLEAN (UkdDocument, UpdDocument);
+overCanceledCreateInvoice ABSTRACT LIST (UkdDocument, TEXT);
 
 // фоновое создание (планировщик): сохранять корректировку без открытия формы
 createInvoiceInBackground = DATA BOOLEAN ();
@@ -51,8 +52,10 @@ createInvoice 'Создать корректировка накладной'(Ukd
                     invoicePriceA (icd) <- round(priceA(icd) * (100.0 (+) valueVAT(icd)) /100.0, 2);
                     overCreateInvoice(icd, ukdd);
                 }
-                IF createInvoiceInBackground() THEN APPLY;
-                ELSE SHOW invoiceCorrection OBJECTS i = invoice;
+                IF createInvoiceInBackground() THEN {
+                    APPLY;
+                    IF canceled() THEN overCanceledCreateInvoice(ukd, applyMessage());
+                } ELSE SHOW invoiceCorrection OBJECTS i = invoice;
             }
 }
 
