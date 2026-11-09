@@ -16,12 +16,13 @@ invoice =
 skipCreateUserInvoiceDetail = ABSTRACT BOOLEAN (UkdDocumentDetail);
 overCreateInvoice ABSTRACT (InvoiceCorrection, UkdDocument);
 overCreateInvoice ABSTRACT (InvoiceCorrectionDetail, UkdDocumentDetail);
+skipCreateInvoice = ABSTRACT BOOLEAN (UkdDocument, UpdDocument);
 
 // фоновое создание (планировщик): сохранять корректировку без открытия формы
 createInvoiceInBackground = DATA BOOLEAN ();
 
 createInvoice 'Создать корректировка накладной'(UkdDocument ukd){
-        FOR numberInvoice(UpdDocument upd) = baseInvoiceNumber(ukd) AND NOT primaryStatusTextDocument(upd)=='Аннулирован' NOINLINE DO NEWSESSION
+        FOR numberInvoice(UpdDocument upd) = baseInvoiceNumber(ukd) AND NOT primaryStatusTextDocument(upd)=='Аннулирован' AND NOT skipCreateInvoice(ukd, upd) NOINLINE DO NEWSESSION
             NEW invoice = InvoiceCorrection {
                 ukdDocument(invoice) <- ukd;
                 invoice(invoice) <- invoice(upd);
