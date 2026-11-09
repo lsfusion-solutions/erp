@@ -1,0 +1,158 @@
+MODULE PurchaseOrderPriceDateGestori;
+
+REQUIRE PurchaseOrder, StockContract, PriceListContract, Store, Warehouse;
+
+NAMESPACE Purchase;
+
+// ---- Общая настройка ----
+
+useOrderExtensions 'Дополнения для заказов (спецификация договора, график заказов)' = DATA BOOLEAN () PREREAD;
+
+EXTEND FORM options
+    PROPERTIES() useOrderExtensions
+;
+
+DESIGN options {
+    orders {
+        MOVE PROPERTY(useOrderExtensions());
+    }
+}
+
+// ---- Точка актуальности цены поставщика ----
+
+CLASS PriceDateType 'Дата определения цены поставщика' {
+    default 'По умолчанию',
+    orderDate 'Дата/время заказа',
+    shipmentDate 'Плановая дата/время поставки'
+}
+
+priceDateType = DATA PriceDateType (LegalEntity);
+namePriceDateType 'Использовать спецификацию договора поставщика (прайс) на дату' (LegalEntity l) = caption(priceDateType(l)) CHARWIDTH 25;
+
+priceDateType = DATA PriceDateType (ContractSku);
+namePriceDateType 'Использовать спецификацию договора поставщика (прайс) на дату' (ContractSku c) = caption(priceDateType(c)) CHARWIDTH 25;
+
+priceDateType (UserOrder o) = (OVERRIDE (priceDateType(contractSku(o)) IF NOT priceDateType(contractSku(o)) == PriceDateType.default),
+                                        (priceDateType(supplier(o)) IF NOT priceDateType(supplier(o)) == PriceDateType.default)) IF useOrderExtensions();
+
+priceDateTime(UserOrder o) += WHEN priceDateType(o) == PriceDateType.orderDate THEN dateTime(o);
+priceDateTime(UserOrder o) += WHEN priceDateType(o) == PriceDateType.shipmentDate THEN shipmentDateTime(o);
+
+EXTEND FORM legalEntity
+    PROPERTIES(l) SHOWIF (isSupplier(l) AND useOrderExtensions()) namePriceDateType
+;
+
+DESIGN legalEntity {
+    row11 {
+        MOVE PROPERTY(namePriceDateType(l));
+    }
+}
+
+EXTEND FORM userContractSku
+    PROPERTIES(c) SHOWIF useOrderExtensions() namePriceDateType
+;
+
+DESIGN userContractSku {
+    params {
+        MOVE PROPERTY(namePriceDateType(c));
+    }
+}
+
+// ---- Количество календарных дней от даты заказа до даты поставки ----
+
+daysBeforeShipmentDate 'Количество календарных дней от даты заказа до даты поставки' = DATA INTEGER ();
+
+EXTEND FORM options
+    PROPERTIES() SHOWIF useOrderExtensions() daysBeforeShipmentDate
+;
+
+DESIGN options {
+    orders {
+        MOVE PROPERTY(daysBeforeShipmentDate());
+    }
+}
+
+daysBeforeShipmentDate 'Количество календарных дней от даты заказа до даты поставки' = DATA INTEGER (Stock);
+
+EXTEND FORM departmentStore
+    PROPERTIES(d) SHOWIF useOrderExtensions() daysBeforeShipmentDate
+;
+
+DESIGN departmentStore {
+    headerExtraParams {
+        MOVE PROPERTY(daysBeforeShipmentDate(d));
+    }
+}
+
+EXTEND FORM warehouse
+    PROPERTIES(w) SHOWIF useOrderExtensions() daysBeforeShipmentDate
+;
+
+DESIGN warehouse {
+    headerExtraParams {
+        MOVE PROPERTY(daysBeforeShipmentDate(w));
+    }
+}
+
+daysBeforeShipmentDate 'Количество календарных дней от даты заказа до даты поставки' = DATA INTEGER (UserPriceList);
+showDaysBeforeShipmentDate 'Количество календарных дней от даты заказа до даты поставки' = DATA BOOLEAN (PriceList.Operation) PREREAD;
+
+EXTEND FORM PriceList.operation
+    PROPERTIES(o) SHOWIF useOrderExtensions() showDaysBeforeShipmentDate
+;
+
+DESIGN PriceList.operation {
+    showContainer {
+        MOVE PROPERTY(showDaysBeforeShipmentDate(o));
+    }
+}
+
+EXTEND FORM userPriceList
+    PROPERTIES(p) SHOWIF (showDaysBeforeShipmentDate(operation(p)) AND useOrderExtensions()) daysBeforeShipmentDate
+;
+
+DESIGN userPriceList {
+    GROUP(documentPrm,p) {
+        MOVE PROPERTY(daysBeforeShipmentDate(p)) AFTER PROPERTY(isCommission(p));
+    }
+}
+
+daysBeforeShipmentDate 'Количество календарных дней от даты заказа до даты поставки' = DATA INTEGER (ContractSku);
+
+EXTEND FORM userContractSku
+    PROPERTIES(c) SHOWIF useOrderExtensions() daysBeforeShipmentDate
+;
+
+DESIGN userContractSku {
+    params {
+        MOVE PROPERTY(daysBeforeShipmentDate(c));
+    }
+}
+
+daysBeforeShipmentDate 'Количество календарных дней от даты заказа до даты поставки' = DATA INTEGER (LegalEntity);
+
+EXTEND FORM legalEntity
+    PROPERTIES(l) SHOWIF (isSupplier(l) AND useOrderExtensions()) daysBeforeShipmentDate
+;
+
+DESIGN legalEntity {
+    row11 {
+        MOVE PROPERTY(daysBeforeShipmentDate(l));
+    }
+}
+
+DESIGN operation {
+    PROPERTY(daysBeforeShipmentDate(o)) { caption = 'Количество календарных дней от даты заказа до даты поставки'; }
+}
+
+specificationDaysBeforeShipmentDate = ABSTRACT INTEGER (UserOrder);
+
+daysBeforeShipmentDate (UserOrder o) = OVERRIDE daysBeforeShipmentDate(supplierStock(o)), specificationDaysBeforeShipmentDate(o),
+                                                daysBeforeShipmentDate(contractSku(o)), daysBeforeShipmentDate(supplier(o)),
+                                                daysBeforeShipmentDate(operation(o)), daysBeforeShipmentDate() IF o IS UserOrder;
+
+changeShipmentDate = ABSTRACT VALUE BOOLEAN (UserOrder);
+
+skipShipmentDateDerive(UserOrder o) += TRUE IF o IS UserOrder;
+shipmentDate(UserOrder o) <- sum(date(o), (OVERRIDE (daysBeforeShipmentDate(o) IF useOrderExtensions()), daysBeforeShipmentDate(operation(o)), 0))
+    WHEN CHANGED(date(o)) OR (useOrderExtensions() AND (CHANGED(supplierStock(o)) OR CHANGED(contractSku(o)) OR CHANGED(supplier(o)) OR CHANGED(operation(o)) OR changeShipmentDate(o)));

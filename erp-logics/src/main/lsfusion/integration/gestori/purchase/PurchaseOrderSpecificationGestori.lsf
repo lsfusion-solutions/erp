@@ -1,0 +1,181 @@
+MODULE PurchaseOrderSpecificationGestori;
+
+REQUIRE PurchaseOrderPriceDateGestori, PurchaseOrderPriceListLedgerContract, PurchaseInvoicePriceListLedgerContract, PriceListPromotion;
+
+NAMESPACE Purchase;
+
+// ---- Параметр операции ----
+
+isSpecification 'Должна быть указана спецификация договора' = DATA BOOLEAN (Operation) PREREAD;
+
+EXTEND FORM operation
+    PROPERTIES(o) SHOWIF useOrderExtensions() isSpecification READONLYIF NOT isContract(o)
+;
+
+DESIGN operation {
+    constraintContainer {
+        MOVE PROPERTY(isSpecification(o)) AFTER PROPERTY(isContract(o));
+    }
+}
+
+isSpecification(Operation o) <- NULL WHEN DROPPED(isContract(o));
+
+// ---- Выбор спецификации договора ----
+
+isMain 'Основной прайс' (PriceList p) = p IS PriceList AND NOT PriceList.isPromotion(PriceList.operation(p));
+descriptionContractSku 'Договор' (PriceList p) = description(contractSku(p));
+
+FORM specificationDialog 'Спецификации договора'
+    OBJECTS p = PriceList LAST
+    PROPERTIES(p) READONLY isPosted, number, series, date, time, fromDate, fromTime, toDate, toTime,
+                  nameOperation, nameCompany, nameCompanyStock, descriptionContractSku, note
+
+    FILTERGROUP active
+        FILTER 'Активные' NOT toDateTime(p) < currentDateTime() 'F10' DEFAULT
+;
+
+// ---- Спецификация договора в заказе ----
+
+specification = ABSTRACT PriceList (Order) MATERIALIZED;
+specification = DATA PriceList (UserOrder) INDEXED;
+specification(UserOrder o) += specification(o);
+seriesNumberSpecification 'Спецификация договора' (Order o) = seriesNumber(specification(o));
+
+inSpecification (PriceList p, UserOrder o) = isMain(p) AND company(p) == supplier(o) AND (contractSku(p) == contractSku(o) OR NOT contractSku(o));
+
+changeSpecification (UserOrder o) {
+    DIALOG specificationDialog OBJECTS p = specification(o) INPUT NULL FILTERS isPosted(p) AND inSpecification(p, o) DO {
+        specification(o) <- p;
+    }
+}
+
+EXTEND FORM userOrder
+    PROPERTIES(o) SHOWIF useOrderExtensions() seriesNumberSpecification ON CHANGE changeSpecification(o)
+;
+
+DESIGN userOrder {
+    headerContract {
+        MOVE PROPERTY(seriesNumberSpecification(o)) AFTER PROPERTY(seriesNumberContractSku(o));
+    }
+}
+
+EXTEND FORM orders
+    PROPERTIES(o) READONLY SHOWIF useOrderExtensions() seriesNumberSpecification AFTER seriesNumberContractSku(o)
+;
+
+CONSTRAINT useOrderExtensions() AND specification(UserOrder o) AND NOT inSpecification(specification(o), o)
+    CHECKED BY specification[UserOrder] MESSAGE 'Спецификация договора не соответствует поставщику или договору заказа (закупка)';
+
+CONSTRAINT (SETCHANGED(operation(UserOrder o)) OR CHANGED(supplier(o)) OR CHANGED(contractSku(o)) OR DROPPED(specification(o)) OR SET(isPosted(o)))
+    AND useOrderExtensions() AND isSpecification(operation(o)) AND NOT specification(o)
+    MESSAGE 'Для заказа (закупка) обязана быть указана спецификация договора';
+
+specificationDaysBeforeShipmentDate(UserOrder o) += daysBeforeShipmentDate(specification(o) AS UserPriceList);
+changeShipmentDate(UserOrder o) += CHANGED(specification(o));
+
+// ---- Спецификация договора в накладной ----
+
+specification = ABSTRACT PriceList (Invoice) MATERIALIZED;
+specification = DATA PriceList (UserInvoice) INDEXED;
+specification(UserInvoice i) += specification(i);
+seriesNumberSpecification 'Спецификация договора' (Invoice i) = seriesNumber(specification(i));
+
+inSpecification (PriceList p, UserInvoice i) = isMain(p) AND company(p) == supplier(i) AND (contractSku(p) == contractSku(i) OR NOT contractSku(i));
+
+changeSpecification (UserInvoice i) {
+    DIALOG specificationDialog OBJECTS p = specification(i) INPUT NULL FILTERS isPosted(p) AND inSpecification(p, i) DO {
+        specification(i) <- p;
+    }
+}
+
+EXTEND FORM userInvoice
+    PROPERTIES(i) SHOWIF useOrderExtensions() seriesNumberSpecification ON CHANGE changeSpecification(i)
+;
+
+DESIGN userInvoice {
+    headerContract {
+        MOVE PROPERTY(seriesNumberSpecification(i)) AFTER PROPERTY(seriesNumberContractSku(i));
+    }
+}
+
+EXTEND FORM invoices
+    PROPERTIES(i) READONLY SHOWIF useOrderExtensions() seriesNumberSpecification AFTER seriesNumberContractSku(i)
+;
+
+CONSTRAINT useOrderExtensions() AND specification(UserInvoice i) AND NOT inSpecification(specification(i), i)
+    CHECKED BY specification[UserInvoice] MESSAGE 'Спецификация договора не соответствует поставщику или договору накладной (закупка)';
+
+CONSTRAINT (SETCHANGED(operation(UserInvoice i)) OR CHANGED(supplier(i)) OR CHANGED(contractSku(i)) OR DROPPED(specification(i)) OR SET(isPosted(i)))
+    AND useOrderExtensions() AND isSpecification(operation(i)) AND NOT specification(i)
+    MESSAGE 'Для накладной (закупка) обязана быть указана спецификация договора';
+
+// ---- Цена по акционному прайсу договора ----
+
+promotionPriceListDetailA (LedgerPriceListType type, sku, Stock stock, contractSku, DATETIME dateTime) =
+    GROUP LAST PriceListDetail d
+          ORDER fromDateTime(d, type, stock), d
+          WHERE fromDateTime(d, type, stock) <= dateTime AND NOT toDateTime(d, type, stock) < dateTime AND PriceList.isPromotion(PriceList.operation(d))
+          BY sku(d, type, stock), contractSku(d, type, stock) COMPLEX;
+prevPromotionPriceListDetailA (LedgerPriceListType type, Sku sku, Stock stock, ContractSku contractSku, DATETIME dateTime) =
+    PREV(promotionPriceListDetailA(type, sku, stock, contractSku, dateTime)) COMPLEX;
+
+promotionPriceA (LedgerPriceListType type, Sku sku, Stock stock, ContractSku contractSku, DATETIME dateTime) =
+    price(promotionPriceListDetailA(type, sku, stock, contractSku, dateTime), type, stock);
+prevPromotionPriceA (LedgerPriceListType type, Sku sku, Stock stock, ContractSku contractSku, DATETIME dateTime) =
+    PREV(promotionPriceA(type, sku, stock, contractSku, dateTime)) COMPLEX;
+
+prevPromotionPriceListDetailA (LedgerPriceListType type, UserOrderDetail d) =
+    prevPromotionPriceListDetailA(type, sku(d), priceStock(d), contractSku(d), priceDateTime(d)) IF useOrderExtensions();
+prevPromotionPriceA (LedgerPriceListType type, UserOrderDetail d) =
+    prevPromotionPriceA(type, sku(d), priceStock(d), contractSku(d), priceDateTime(d));
+
+prevList (LedgerPriceListType type, UserOrderDetail d) += WHEN prevPromotionPriceListDetailA(type, d) THEN prevPromotionPriceA(type, d);
+changePrevListUserOrder(UserOrderDetail d) += CHANGED(contractSku(d)) IF useOrderExtensions();
+
+promotionPriceList = ABSTRACT PriceList (OrderDetail) MATERIALIZED;
+promotionPriceList = DATA PriceList (UserOrderDetail);
+promotionPriceList(UserOrderDetail d) += promotionPriceList(d);
+seriesNumberPromotionPriceList 'Номер акционного прайса' (OrderDetail d) = seriesNumber(promotionPriceList(d));
+
+WHEN LOCAL FORMS userOrder useOrderExtensions() AND (CHANGED(sku(UserOrderDetail d)) OR CHANGED(priceListType(d)) OR CHANGED(batch(d)) OR changePrevListUserOrder(d)
+        OR ((CHANGED(priceStock(d)) OR CHANGED(priceDateTime(d))) AND NOT isPosted(d)))
+        AND NOT disableUpdateInvoicePrice(d) DO {
+    promotionPriceList(d) <- priceList(prevPromotionPriceListDetailA(ledgerPriceListType(priceListType(d)), d));
+}
+
+EXTEND FORM userOrder
+    PROPERTIES(d) READONLY SHOWIF useOrderExtensions() seriesNumberPromotionPriceList AFTER namePriceListType(d)
+;
+
+EXTEND FORM orders
+    PROPERTIES(d) READONLY SHOWIF useOrderExtensions() seriesNumberPromotionPriceList AFTER namePriceListType(d)
+;
+
+prevPromotionPriceListDetailA (LedgerPriceListType type, UserInvoiceDetail d) =
+    prevPromotionPriceListDetailA(type, sku(d), priceStock(d), contractSku(d), priceDateTime(d)) IF useOrderExtensions();
+prevPromotionPriceA (LedgerPriceListType type, UserInvoiceDetail d) =
+    prevPromotionPriceA(type, sku(d), priceStock(d), contractSku(d), priceDateTime(d));
+
+prevList (LedgerPriceListType type, UserInvoiceDetail d) += WHEN prevPromotionPriceListDetailA(type, d) THEN prevPromotionPriceA(type, d);
+changePrevListUserInvoice(UserInvoiceDetail d) += CHANGED(contractSku(d)) IF useOrderExtensions();
+
+promotionPriceList = ABSTRACT PriceList (InvoiceDetail) MATERIALIZED;
+promotionPriceList = DATA PriceList (UserInvoiceDetail);
+promotionPriceList(UserInvoiceDetail d) += promotionPriceList(d);
+seriesNumberPromotionPriceList 'Номер акционного прайса' (InvoiceDetail d) = seriesNumber(promotionPriceList(d));
+
+WHEN LOCAL FORMS userInvoice useOrderExtensions() AND (CHANGED(sku(UserInvoiceDetail d)) OR CHANGED(priceListType(d)) OR CHANGED(batch(d)) OR changePrevListUserInvoice(d)
+        OR ((CHANGED(priceStock(d)) OR CHANGED(priceDateTime(d))) AND NOT isPosted(d)))
+        AND NOT disableUpdateInvoicePrice(d) DO {
+    promotionPriceList(d) <- priceList(prevPromotionPriceListDetailA(ledgerPriceListType(priceListType(d)), d));
+}
+
+promotionPriceList(UserInvoiceDetail d) <- promotionPriceList(orderDetail(d)) WHEN useOrderExtensions() AND CHANGED(orderDetail(d));
+
+EXTEND FORM userInvoice
+    PROPERTIES(d) READONLY SHOWIF useOrderExtensions() seriesNumberPromotionPriceList AFTER namePriceListType(d)
+;
+
+EXTEND FORM invoices
+    PROPERTIES(d) READONLY SHOWIF useOrderExtensions() seriesNumberPromotionPriceList AFTER namePriceListType(d)
+;
