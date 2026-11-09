@@ -36,8 +36,6 @@ lastStock 'Отправленный остаток' = DATA NUMERIC[16,5] (Depart
 // NULL — товар выбыл из выгрузки, тогда отправляется 0
 pushValue (Item i, DepartmentStore s) = IF inPushStock(i, s) THEN (MAX available(i, s), 0);
 
-stockPush (Item i, DepartmentStore s) = IF pushValue(i, s) THEN rtrim(toChar(pushValue(i, s), 'FM999999999999990.0000'), '.') ELSE '0';
-
 // параметр обязателен: безпараметрическое свойство платформа выносит в корень JSON
 datetimePush (Item i) = toChar(currentDateTime(), 'YYYY-MM-DD"T"HH24:MI:SS') + (OVERRIDE timeZonePush(), '+00:00');
 
@@ -46,9 +44,21 @@ pushChangedClient (YandexEdaAuth a, Item i, DepartmentStore s) =
             OR NOT inPushStock(i, s) AND lastStock(s, i) != 0)
         AND stock(a, placeId(s)) = s;
 
-selectedPush = DATA LOCAL BOOLEAN (Item, DepartmentStore);
-// магазин попадает в place_changes, только если есть отмеченные товары: пустой changes API отвергает
-pushStoreCount (DepartmentStore s) = GROUP SUM 1 IF selectedPush(Item i, s);
+// снимок изменённых позиций на момент запуска: тяжёлый расчет один раз, чанки режутся по снимку
+// NESTED: снимок и счётчик переживают APPLY внутри цикла отправки
+pushStep = DATA LOCAL NESTED INTEGER ();
+pushSelected = DATA LOCAL NESTED BOOLEAN (Item, DepartmentStore);
+pushIndex = DATA LOCAL NESTED INTEGER (Item, DepartmentStore);
+pushSnapshot = DATA LOCAL NESTED NUMERIC[16,5] (Item, DepartmentStore);
+
+// позиции текущего чанка: в одном запросе не более 5000 товаров
+pushInStep (Item i, DepartmentStore s) =
+    pushIndex(i, s) > (pushStep() * 5000) AND pushIndex(i, s) <= ((pushStep() + 1) * 5000);
+// магазин попадает в place_changes, только если есть отправляемые товары: пустой changes API отвергает
+pushStoreCount (DepartmentStore s) = GROUP SUM 1 IF pushInStep(Item i, s);
+
+// сериализация значения из снимка: отправленное всегда равно зафиксированному
+stockPush (Item i, DepartmentStore s) = IF pushSnapshot(i, s) THEN rtrim(toChar(pushSnapshot(i, s), 'FM999999999999990.0000'), '.') ELSE '0';
 
 FORM pushStocks 'Остатки push ЯндексЕда'
     OBJECTS p = DepartmentStore EXTID 'place_changes'
@@ -58,7 +68,7 @@ FORM pushStocks 'Остатки push ЯндексЕда'
     PROPERTIES id(i) EXTID 'origin_product_id',
         stockPush(i, p) EXTID 'stocks',
         datetimePush(i) EXTID 'datetime'
-    FILTERS selectedPush(i, p), pushStoreCount(p)
+    FILTERS pushInStep(i, p), pushStoreCount(p)
 ;
 
 //-------------------- АУТЕНТИФИКАЦИЯ ------------------------//
@@ -77,6 +87,8 @@ getPushToken (YandexEdaAuth a) {
 }
 
 //-------------------- ОТПРАВКА ------------------------//
+
+afterPushExport ABSTRACT LIST (YandexEdaAuth, INTEGER);
 
 // при 401 токен истёк: получается заново и запрос повторяется один раз
 pushSend (YandexEdaAuth a) {
@@ -109,27 +121,32 @@ pushStocksClient (YandexEdaAuth a) {
     }
     getPushToken(a);
     IF NOT tokenPushCurrent() THEN RETURN;
-    LOCAL chunk = INTEGER ();
-    WHILE GROUP SUM 1 IF pushChangedClient(a, Item i, DepartmentStore s) DO {
-        selectedPush(Item i, DepartmentStore s) <- NULL;
-        // в одном запросе не более 5000 товаров
-        FOR pushChangedClient(a, Item i, DepartmentStore s) ORDER placeId(s), s, id(i), i TOP 5000 DO
-            selectedPush(i, s) <- TRUE;
+    // снимок: тяжёлая материализация pushChangedClient один раз, дальше цикл работает только с ним
+    pushSelected(Item i, DepartmentStore s) <- NULL;
+    pushIndex(Item i, DepartmentStore s) <- NULL;
+    pushSnapshot(Item i, DepartmentStore s) <- NULL;
+    pushSelected(Item i, DepartmentStore s) <- TRUE WHERE pushChangedClient(a, i, s);
+    // нумерация по снимку множества, а не по выражению: PARTITION по многотабличному условию задваивает кумулятив
+    pushIndex(Item i, DepartmentStore s) <- PARTITION SUM 1 IF pushSelected(i, s) ORDER placeId(s), s, id(i), i;
+    pushSnapshot(Item i, DepartmentStore s) <- pushValue(i, s) WHERE pushSelected(i, s);
+    pushStep() <- 0;
+    WHILE GROUP SUM 1 IF pushInStep(Item i, DepartmentStore s) DO {
         EXPORT pushStocks JSON;
+        afterPushExport(a, pushStep() + 1);
         pushSent() <- NULL;
         pushSend(a);
         IF NOT pushSent() THEN RETURN;
-        logToFile('yandex', CONCAT ' ', 'push отправлено позиций', STRING(GROUP SUM 1 IF selectedPush(Item i, DepartmentStore s)), 'код ответа', STRING(statusHttp()));
-        lastStock(s, i) <- (IF inPushStock(i, s) THEN pushValue(i, s)) WHERE selectedPush(i, s);
+        logToFile('yandex', CONCAT ' ', 'push отправлено позиций', STRING(GROUP SUM 1 IF pushInStep(Item i, DepartmentStore s)), 'код ответа', STRING(statusHttp()));
+        lastStock(DepartmentStore s, Item i) <- pushSnapshot(i, s) WHERE pushInStep(i, s);
         APPLY;
         IF canceled() THEN {
-            logToFile('yandex', CONCAT ' ', 'ERROR push не зафиксирован (APPLY отменен), позиций', STRING(GROUP SUM 1 IF selectedPush(Item i, DepartmentStore s)));
+            logToFile('yandex', CONCAT ' ', 'ERROR push не зафиксирован (APPLY отменен), позиций', STRING(GROUP SUM 1 IF pushInStep(Item i, DepartmentStore s)));
             RETURN;
         }
-        chunk() <- chunk() (+) 1;
-        // защита от зацикливания при непрерывно меняющихся остатках
-        IF chunk() > 100 THEN {
-            logToFile('yandex', CONCAT ' ', 'WARNING push прерван, осталось изменений', STRING(GROUP SUM 1 IF pushChangedClient(a, Item i, DepartmentStore s)));
+        pushStep() <- pushStep() + 1;
+        // защита от зацикливания: по снимку цикл конечен, это страховка
+        IF pushStep() > 100 THEN {
+            logToFile('yandex', CONCAT ' ', 'WARNING push прерван, осталось позиций в снимке', STRING(GROUP SUM 1 IF pushIndex(Item i, DepartmentStore s) > pushStep() * 5000));
             RETURN;
         }
     }
