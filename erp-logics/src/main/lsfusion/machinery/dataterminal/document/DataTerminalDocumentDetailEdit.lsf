@@ -1,10 +1,10 @@
 MODULE DataTerminalDocumentDetailEdit;
 
 // Экран ввода полей строки документа ТСД: поля, запрашиваемые по настройкам типа документа, вводятся по одному.
-// Enter - проверка поля и следующее поле по кругу (после последнего - первое), OK (F4) - сохранение с любого поля,
-// Esc - возврат к строкам без сохранения. Открывается пунктом «Редактировать» меню «⋮» строки (режим редактирования
-// существующей строки)
-REQUIRE DataTerminalDocumentDetails;
+// Enter - проверка поля и следующее поле по кругу (после последнего - первое), OK в шапке - сохранение с любого поля,
+// Esc - возврат к строкам без сохранения. Режимы: EDIT - пункт «Редактировать» меню «⋮» строки, ADD - кнопка
+// «Добавить» на экране строк (строки добавляются сканированием штрихкода)
+REQUIRE DataTerminalDocumentDetails, DataTerminalPriceCheck;
 
 NAMESPACE DataTerminal;
 
@@ -15,8 +15,8 @@ CLASS TerminalDetailField 'Поле строки документа ТСД' {
     quantity 'Количество',
     extraQuantity 'Доп. количество',
     price 'Цена',
-    date1 'Изготовлен',
-    date2 'Годен до',
+    date1 'Дата 1',
+    date2 'Дата 2',
     field1 'Поле 1',
     field2 'Поле 2',
     field3 'Поле 3'
@@ -31,6 +31,18 @@ order (TerminalDetailField f) = CASE
     WHEN f = TerminalDetailField.field1 THEN 6
     WHEN f = TerminalDetailField.field2 THEN 7
     WHEN f = TerminalDetailField.field3 THEN 8;
+
+// Наименования дополнительных полей - из настроек ТСД (GENERAL_ALIAS_*, preferenceAlias в DataTerminalDocumentDetails.lsf),
+// если настройка включена и заполнена; иначе - наименование поля по умолчанию
+aliasPreference (TerminalDetailField f) = CASE
+    WHEN f = TerminalDetailField.extraQuantity THEN Preference.GENERAL_ALIAS_EXTRAQUANT
+    WHEN f = TerminalDetailField.date1 THEN Preference.GENERAL_ALIAS_DATE1
+    WHEN f = TerminalDetailField.date2 THEN Preference.GENERAL_ALIAS_DATE2
+    WHEN f = TerminalDetailField.field1 THEN Preference.GENERAL_ALIAS_FIELD1
+    WHEN f = TerminalDetailField.field2 THEN Preference.GENERAL_ALIAS_FIELD2
+    WHEN f = TerminalDetailField.field3 THEN Preference.GENERAL_ALIAS_FIELD3;
+
+fieldCaption (TerminalDetailField f) = OVERRIDE preferenceAlias(aliasPreference(f)), caption(f);
 
 // Поле запрашивается по настройкам типа документа строки (preferences)
 requested (TerminalDetailField f, TerminalDocumentDetail d) = CASE
@@ -61,19 +73,38 @@ currentField = DATA LOCAL TerminalDetailField ();
 editQuantity 'Количество' = DATA LOCAL NUMERIC[14,3] ();
 editExtraQuantity 'Доп. количество' = DATA LOCAL NUMERIC[14,3] ();
 editPrice 'Цена' = DATA LOCAL NUMERIC[16,4] ();
-editDate1 'Изготовлен' = DATA LOCAL DATE ();
-editDate2 'Годен до' = DATA LOCAL DATE ();
+editDate1 'Дата 1' = DATA LOCAL DATE ();
+editDate2 'Дата 2' = DATA LOCAL DATE ();
 editField1 'Поле 1' = DATA LOCAL STRING[100] ();
 editField2 'Поле 2' = DATA LOCAL STRING[100] ();
 editField3 'Поле 3' = DATA LOCAL STRING[100] ();
 
+// Режим экрана: EDIT - редактирование строки («Редактировать» в меню строки), ADD - добавление строк сканированием
+// (кнопка «Добавить» на экране строк): поле штрихкода сверху, строка отсканированного товара - в поля ввода,
+// PRICE_CHECK - проверка цен (пункт «Проверка цен» главного меню): поле штрихкода и карточка товара, без документа
+CLASS TerminalDetailEditMode 'Режим экрана строки документа ТСД' {
+    edit 'EDIT',
+    add 'ADD',
+    priceCheck 'PRICE_CHECK'
+}
+editMode = DATA LOCAL TerminalDetailEditMode ();
+// Режимы с полем штрихкода
+scanMode () = editMode() = TerminalDetailEditMode.add OR editMode() = TerminalDetailEditMode.priceCheck;
+
+// Документ, в который добавляют строки (ADD): до первого скана строки еще нет
+editedDocument = DATA LOCAL TerminalDocument ();
+// Сообщение под полем штрихкода (ADD): товар не найден, вне заказа, строка сохранена
+addMessage '' = DATA LOCAL STRING ();
+// Фокус в поле штрихкода: реализация - после добавления поля на форму
+focusAddBarcode ABSTRACT LIST ();
 
 // Экран ввода: возврат (Esc, стрелка в шапке) - к строкам документа
 @defSubMenu(terminalDocumentDetailEditOperation, operation, terminalDocumentDetailsOperation, 'Строка документа');
 
 // Шапка экрана: товар строки и количество по заказу, под ней - номер поля из числа запрашиваемых.
-// Миниатюра товара (smallImage) - справа под наименованием
-htmlEditDetailHeader '' () = CONCAT '',
+// Миниатюра товара (smallImage) - справа под наименованием. В режиме ADD до скана шапки нет (подсказка - в подписи
+// поля штрихкода)
+htmlEditDetailHeader '' () = IF editedDetail() THEN CONCAT '',
     '<div class=terminal-document-detail-edit>',
         '<div class=name>', name(editedDetail()), '</div>',
         htmlSmallImage(sku(editedDetail())),
@@ -94,13 +125,19 @@ htmlEditDetailHeader '' () = CONCAT '',
 EXTEND FORM dataTerminalInternal
     PROPERTIES READONLY terminalDocumentDetailEditHeader = htmlEditDetailHeader() CUSTOM 'htmlText'
     PROPERTIES dtEditQuantity = editQuantity() CUSTOM 'inputDecimalTextSelected' SHOWIF currentField() = TerminalDetailField.quantity,
-               dtEditExtraQuantity = editExtraQuantity() CUSTOM 'inputDecimalTextSelected' SHOWIF currentField() = TerminalDetailField.extraQuantity,
+               dtEditExtraQuantity = editExtraQuantity() CUSTOM 'inputDecimalTextSelected' HEADER fieldCaption(TerminalDetailField.extraQuantity)
+                   SHOWIF currentField() = TerminalDetailField.extraQuantity,
                dtEditPrice = editPrice() CUSTOM 'inputDecimalTextSelected' SHOWIF currentField() = TerminalDetailField.price,
-               dtEditDate1 = editDate1() CUSTOM 'inputDateKeyboardSelected' SHOWIF currentField() = TerminalDetailField.date1,
-               dtEditDate2 = editDate2() CUSTOM 'inputDateKeyboardSelected' SHOWIF currentField() = TerminalDetailField.date2,
-               dtEditField1 = editField1() CUSTOM 'inputTextSelected' SHOWIF currentField() = TerminalDetailField.field1,
-               dtEditField2 = editField2() CUSTOM 'inputTextSelected' SHOWIF currentField() = TerminalDetailField.field2,
-               dtEditField3 = editField3() CUSTOM 'inputTextSelected' SHOWIF currentField() = TerminalDetailField.field3
+               dtEditDate1 = editDate1() CUSTOM 'inputDateKeyboardSelected' HEADER fieldCaption(TerminalDetailField.date1)
+                   SHOWIF currentField() = TerminalDetailField.date1,
+               dtEditDate2 = editDate2() CUSTOM 'inputDateKeyboardSelected' HEADER fieldCaption(TerminalDetailField.date2)
+                   SHOWIF currentField() = TerminalDetailField.date2,
+               dtEditField1 = editField1() CUSTOM 'inputTextSelected' HEADER fieldCaption(TerminalDetailField.field1)
+                   SHOWIF currentField() = TerminalDetailField.field1,
+               dtEditField2 = editField2() CUSTOM 'inputTextSelected' HEADER fieldCaption(TerminalDetailField.field2)
+                   SHOWIF currentField() = TerminalDetailField.field2,
+               dtEditField3 = editField3() CUSTOM 'inputTextSelected' HEADER fieldCaption(TerminalDetailField.field3)
+                   SHOWIF currentField() = TerminalDetailField.field3
 ;
 
 DESIGN dataTerminalInternal {
@@ -137,8 +174,8 @@ focusCurrentField () {
         WHEN currentField() = TerminalDetailField.field3 THEN ACTIVATE PROPERTY dataTerminalInternal.dtEditField3;
 }
 
-// Открытие экрана: значения строки - в поля ввода, текущее - первое запрашиваемое поле
-startEditTerminalDocumentDetail (TerminalDocumentDetail d) {
+// Значения строки - в поля ввода, текущее - первое запрашиваемое поле
+loadEditedDetail (TerminalDocumentDetail d) {
     editedDetail() <- d;
     editQuantity() <- quantity(d);
     editExtraQuantity() <- extraQuantity(d);
@@ -149,6 +186,14 @@ startEditTerminalDocumentDetail (TerminalDocumentDetail d) {
     editField2() <- extraField2(d);
     editField3() <- extraField3(d);
     currentField() <- firstField(d);
+}
+
+// Открытие экрана в режиме EDIT
+startEditTerminalDocumentDetail (TerminalDocumentDetail d) {
+    editMode() <- TerminalDetailEditMode.edit;
+    editedDocument() <- terminalDocument(d);
+    addMessage() <- NULL;
+    loadEditedDetail(d);
     toMenuItem(MenuItem.terminalDocumentDetailEditOperation);
     focusCurrentField();
 }
@@ -189,25 +234,39 @@ fieldError (TerminalDetailField f) = CASE
             AND NOT split(sku(editedDetail())) AND editQuantity() AND NOT (floor(editQuantity()) = editQuantity())
         THEN 'Для штучного товара количество должно быть целым'
     WHEN f = TerminalDetailField.date1 AND required(TerminalDetailField.date1, editedDetail()) AND NOT editDate1()
-        THEN 'Введите дату изготовления'
+        THEN 'Заполните поле «' + fieldCaption(f) + '»'
     WHEN f = TerminalDetailField.date1 AND banExpiredDate1(preferences(editedDetail())) AND editDate1() < currentDate()
-        THEN 'Дата изготовления истекла'
+        THEN '«' + fieldCaption(f) + '»: дата меньше текущей'
     WHEN f = TerminalDetailField.date2 AND required(TerminalDetailField.date2, editedDetail()) AND NOT editDate2()
-        THEN 'Введите срок годности'
+        THEN 'Заполните поле «' + fieldCaption(f) + '»'
     WHEN f = TerminalDetailField.date2 AND banExpiredDate2(preferences(editedDetail())) AND editDate2() < currentDate()
-        THEN 'Срок годности истек'
+        THEN '«' + fieldCaption(f) + '»: дата меньше текущей'
     WHEN f = TerminalDetailField.field1 AND required(TerminalDetailField.field1, editedDetail()) AND NOT editField1()
-        THEN 'Заполните поле 1'
+        THEN 'Заполните поле «' + fieldCaption(f) + '»'
     WHEN f = TerminalDetailField.field2 AND required(TerminalDetailField.field2, editedDetail()) AND NOT editField2()
-        THEN 'Заполните поле 2'
+        THEN 'Заполните поле «' + fieldCaption(f) + '»'
     WHEN f = TerminalDetailField.field3 AND required(TerminalDetailField.field3, editedDetail()) AND NOT editField3()
-        THEN 'Заполните поле 3';
+        THEN 'Заполните поле «' + fieldCaption(f) + '»';
 
 // Первое по порядку запрашиваемое поле с ошибкой
 errorField () = GROUP LAST TerminalDetailField f ORDER DESC order(f), f WHERE requested(f, editedDetail()) AND fieldError(f);
 
+// Экран без строки (ADD до скана и после сохранения): полей ввода нет
+clearEditedDetail () {
+    editedDetail() <- NULL;
+    currentField() <- NULL;
+    editQuantity() <- NULL;
+    editExtraQuantity() <- NULL;
+    editPrice() <- NULL;
+    editDate1() <- NULL;
+    editDate2() <- NULL;
+    editField1() <- NULL;
+    editField2() <- NULL;
+    editField3() <- NULL;
+}
+
 // Сохранение: в строку пишутся только запрашиваемые поля; при изменении количества - время сканирования.
-// Затем возврат к строкам документа на сохраненную строку
+// Затем в EDIT - возврат к строкам документа на сохраненную строку, в ADD - ожидание следующего скана
 editSaved = DATA LOCAL BOOLEAN ();
 
 // Строка берется до NEWSESSION: успешный APPLY очищает локальные свойства новой сессии, и в эту сессию
@@ -235,15 +294,26 @@ saveEditedDetail () {
                 editSaved() <- TRUE;
         }
         IF editSaved() THEN {
-            currentField() <- NULL;
-            toPrevMenuItem();
-            ACTIVATE dataTerminalInternal.terminalDocumentDetail = d;
+            IF editMode() = TerminalDetailEditMode.add THEN {
+                // ADD: остаемся на экране и ждем следующий скан
+                addMessage() <- '<div class="dt-add-message saved">Сохранено: ' + name(d) + '</div>';
+                clearEditedDetail();
+                focusAddBarcode();
+            } ELSE {
+                currentField() <- NULL;
+                toPrevMenuItem();
+                ACTIVATE dataTerminalInternal.terminalDocumentDetail = d;
+            }
         }
     }
 }
 
 // Enter: проверка поля и следующее поле по кругу (после последнего - первое). Сохраняет только OK
 nextDetailField () {
+    IF NOT editedDetail() THEN {
+        message('<em>Отсканируйте штрихкод товара</em>');
+        RETURN;
+    }
     IF fieldError(currentField()) THEN {
         message('<em>' + fieldError(currentField()) + '</em>');
         RETURN;
@@ -254,10 +324,16 @@ nextDetailField () {
     focusCurrentField();
 }
 @defButtonCustom(nextDetailField, 'Далее', dataTerminalInternal, 'ENTER', );
+// Пока строки нет (ADD до скана) - полей нет, «Далее» не показываем
+hideNextDetailFieldDataTerminalInternal() += NOT editedDetail();
 
-// OK: сохранение строки с любого поля, без прохода по остальным. Сначала проверяются все запрашиваемые поля:
-// при ошибке - переход на первое поле с ошибкой
+// OK (кнопка в шапке): сохранение строки с любого поля, без прохода по остальным. Сначала проверяются все
+// запрашиваемые поля: при ошибке - переход на первое поле с ошибкой
 okDetailField () {
+    IF NOT editedDetail() THEN {
+        message('<em>Отсканируйте штрихкод товара</em>');
+        RETURN;
+    }
     IF errorField() THEN {
         currentField() <- errorField();
         focusCurrentField();
@@ -266,10 +342,20 @@ okDetailField () {
     }
     saveEditedDetail();
 }
-@defButtonCustom(okDetailField, 'OK', dataTerminalInternal, 'F4', ok);
 
-// «OK» в шапке - то же сохранение
-showHeaderOk (MenuItem i) += WHEN i = MenuItem.terminalDocumentDetailEditOperation THEN TRUE;
+// Заголовок по режиму; в EDIT - шапка другого цвета (dt-header-edit, dataTerminalDocumentDetailEdit.css).
+// Заголовок короткий: текст шапки не сжимается, и длинный («Редактирование строки») вместе со стрелкой «Назад»
+// выталкивает OK за край экрана
+overHeaderTitle () += CASE
+    WHEN lastMenuItem() = MenuItem.terminalDocumentDetailEditOperation AND editMode() = TerminalDetailEditMode.edit
+        THEN 'Редактирование'
+    WHEN lastMenuItem() = MenuItem.terminalDocumentDetailEditOperation AND editMode() = TerminalDetailEditMode.priceCheck
+        THEN 'Проверка цен';
+headerClass (MenuItem i) += WHEN i = MenuItem.terminalDocumentDetailEditOperation AND editMode() = TerminalDetailEditMode.edit
+    THEN 'dt-header-edit';
+
+// OK в шапке - не в режимах со сканированием (ADD, PRICE_CHECK)
+showHeaderOk (MenuItem i) += WHEN i = MenuItem.terminalDocumentDetailEditOperation AND NOT scanMode() THEN TRUE;
 headerOk (MenuItem i) + WHEN i = MenuItem.terminalDocumentDetailEditOperation THEN { okDetailField(); }
 
 DESIGN dataTerminalInternal {
@@ -279,7 +365,225 @@ DESIGN dataTerminalInternal {
             horizontal = TRUE;
             class = 'dt-edit-buttons';
             MOVE PROPERTY (nextDetailField) { fill = 1; }
-            MOVE PROPERTY (okDetailField) { fill = 1; }
         }
     }
+}
+
+// Режим ADD: добавление строк сканированием
+
+editPreferences () = preferences(terminalDocumentType(editedDocument()));
+
+// Последняя строка товара в документе
+documentDetail (TerminalDocument doc, Sku s) = GROUP LAST TerminalDocumentDetail d ORDER number(d), d
+    WHERE terminalDocument(d) = doc AND sku(d) = s;
+
+// Товар в заказе-основании документа: те же строки заказа, что добавляются при создании документа по заказу
+inOrder (TerminalDocument doc, Sku s) = GROUP SUM 1 IF order(TerminalOrderDetail od) = terminalOrder(doc) AND sku(od) = s
+    AND forNewDocument(od, terminalDocumentType(doc));
+orderQuantity (TerminalDocument doc, Sku s) = GROUP SUM orderQuantity(TerminalOrderDetail od) IF order(od) = terminalOrder(doc)
+    AND sku(od) = s AND forNewDocument(od, terminalDocumentType(doc));
+
+// Ошибка скана - сообщение под полем штрихкода (не модальное окно: лишнее касание при потоковом сканировании) и звук
+addError (STRING title, STRING barcode) {
+    addMessage() <- '<div class="dt-add-message error"><div class=title>' + title + '</div><div class=barcode>'
+        + barcode + '</div></div>';
+    playError();
+    focusAddBarcode();
+}
+
+addedDetail = DATA LOCAL TerminalDocumentDetail ();
+
+// Скан в режиме ADD. Идет ввод полей товара - сначала сохраняется его строка (как по OK; при ошибке в полях скан
+// отбрасывается). Документ по заказу: строка товара из заказа; товар вне заказа - запрет (banItemOutsideOrder) или
+// как без заказа. Без заказа: при группировке по товару (groupItems) - уже отсканированная строка товара, иначе новая
+// строка - только при allowNewItem; новая строка сразу добавляется в документ, затем вводятся ее поля.
+// Количество: строка заказа без количества - по заказу (quantityFromOrder), найденная строка - +1, новая - 1
+// (при zeroQuantityDefault - пустое поле)
+processAddBarcode (STRING barcode) {
+    addMessage() <- NULL;
+    IF editedDetail() THEN {
+        editSaved() <- NULL;
+        okDetailField();
+        IF NOT editSaved() THEN RETURN;
+        addMessage() <- NULL;
+    }
+    FOR TerminalDocument doc = editedDocument() DO {
+        FOR Sku s = skuBarcode(STRING[15](barcode)) DO {
+            IF terminalOrder(doc) AND NOT inOrder(doc, s) AND banItemOutsideOrder(editPreferences()) THEN {
+                addError('Товара нет в заказе', barcode);
+                RETURN;
+            }
+            IF inOrder(doc, s) OR groupItems(editPreferences()) THEN
+                FOR TerminalDocumentDetail d = documentDetail(doc, s) DO {
+                    loadEditedDetail(d);
+                    editQuantity() <- IF inOrder(doc, s) AND quantityFromOrder(editPreferences()) AND NOT (quantity(d) > 0)
+                        THEN orderQuantity(doc, s)
+                        ELSE quantity(d) (+) 1;
+                    focusCurrentField();
+                    RETURN;
+                }
+            IF NOT allowNewItem(editPreferences()) THEN {
+                addError('Добавление нового товара запрещено', barcode);
+                RETURN;
+            }
+            addedDetail() <- NULL;
+            NEWSESSION NESTED (addedDetail) {
+                NEW d = TerminalDocumentDetail {
+                    terminalDocument(d) <- doc;
+                    number(d) <- (GROUP MAX number(TerminalDocumentDetail x) IF terminalDocument(x) = doc) (+) 1;
+                    barcode(d) <- STRING[30](barcode);
+                    sku(d) <- s;
+                    price(d) <- OVERRIDE (GROUP MAX overPrice(TerminalOrderDetail od) IF order(od) = terminalOrder(doc)
+                                              AND sku(od) = s AND forNewDocument(od, terminalDocumentType(doc))),
+                                         currentPriceInTerminal(s, stock(doc));
+                    quantity(d) <- IF inOrder(doc, s) AND quantityFromOrder(preferences(terminalDocumentType(doc)))
+                        THEN orderQuantity(doc, s)
+                        ELSE (1 IF NOT zeroQuantityDefault(preferences(terminalDocumentType(doc))));
+                    dateTimeScan(d) <- currentDateTime();
+                    APPLY;
+                    // успешный APPLY очищает локальные свойства сессии, поэтому строка запоминается после него
+                    IF NOT canceled() THEN
+                        addedDetail() <- d;
+                }
+            }
+            FOR TerminalDocumentDetail d = addedDetail() DO {
+                loadEditedDetail(d);
+                focusCurrentField();
+            }
+        } ELSE
+            addError('Товар не найден', barcode);
+    }
+}
+
+// Скан по режиму: ADD - строка документа, PRICE_CHECK - карточка товара (DataTerminalPriceCheck.lsf)
+processScannedBarcode (STRING barcode) {
+    IF editMode() = TerminalDetailEditMode.priceCheck THEN {
+        processPriceCheckBarcode(barcode);
+        focusAddBarcode();
+    } ELSE
+        processAddBarcode(barcode);
+}
+
+// Поле штрихкода (режимы ADD и PRICE_CHECK): аппаратный сканер слушается, пока поле видно, и во время ввода полей строки
+// (inputBarcodeScan, AndroidClient.js). Набранный вручную текст приходит по мере ввода (addBarcode); скан и Enter
+// в поле - с завершающим '\n', как в defReadBarcode. Кнопка «↵» справа - то же, что Enter
+// Подписи нет - подсказка внутри поля (placeholder в inputBarcodeScan)
+addBarcode '' = DATA LOCAL STRING ();
+
+enterAddBarcode '↵' () {
+    IF NOT addBarcode() > '' THEN {
+        focusAddBarcode();
+        RETURN;
+    }
+    FOR STRING raw = addBarcode() DO {
+        // поле - пустое, к следующему скану
+        addBarcode() <- NULL;
+        processScannedBarcode(OVERRIDE translateBarcode(raw), raw);
+    }
+}
+
+EXTEND FORM dataTerminalInternal
+    PROPERTIES dtAddBarcode = addBarcode() CUSTOM 'inputBarcodeScan' SHOWIF scanMode() ON CHANGE {
+        INPUT s = STRING DO {
+            IF wordCount(s, '\n') > 1 THEN {
+                addBarcode() <- NULL;
+                processScannedBarcode(OVERRIDE translateBarcode(getWord(s, '\n', 1)), getWord(s, '\n', 1));
+            } ELSE
+                addBarcode() <- s;
+        }
+    }
+    PROPERTIES enterAddBarcode() SHOWIF scanMode()
+    PROPERTIES READONLY dtAddMessage = addMessage() CUSTOM 'htmlText' SHOWIF addMessage(),
+                        dtPriceCheckScanned = priceCheckScanned() CUSTOM 'htmlText'
+                            SHOWIF editMode() = TerminalDetailEditMode.priceCheck AND priceCheckBarcode(),
+                        dtPriceCheckCard = priceCheckCard() CUSTOM 'htmlText'
+                            SHOWIF editMode() = TerminalDetailEditMode.priceCheck AND priceCheckBarcode()
+;
+
+DESIGN dataTerminalInternal {
+    terminalDocumentDetailEditOperation {
+        // Поле и кнопка «↵» справа - как поле штрихкода с кнопкой OK на «Проверке цен» (сетка, dataTerminalDocumentDetailEdit.css)
+        NEW terminalDocumentDetailAddBarcode BEFORE PROPERTY (terminalDocumentDetailEditHeader) {
+            align = STRETCH;
+            class = 'input-container dt-add-barcode';
+            MOVE PROPERTY (dtAddBarcode) {
+                captionVertical = TRUE;
+                class = 'input-single';
+                captionClass = 'input-single-caption';
+                valueClass = 'input-single-value';
+            }
+            MOVE PROPERTY (enterAddBarcode()) {
+                focusable = FALSE;
+                class = 'custom-button enterAddBarcode ok input-right';
+            }
+        }
+        MOVE PROPERTY (dtAddMessage) BEFORE PROPERTY (terminalDocumentDetailEditHeader) {
+            focusable = FALSE;
+            align = STRETCH;
+        }
+        // PRICE_CHECK: отсканированный штрихкод и карточка товара - как на прежнем экране «Проверка цен»
+        MOVE PROPERTY (dtPriceCheckScanned) BEFORE PROPERTY (terminalDocumentDetailEditHeader) {
+            focusable = FALSE;
+            align = STRETCH;
+        }
+        MOVE PROPERTY (dtPriceCheckCard) BEFORE PROPERTY (terminalDocumentDetailEditHeader) {
+            focusable = FALSE;
+            align = STRETCH;
+        }
+    }
+}
+
+focusAddBarcode () + {
+    ACTIVATE PROPERTY dataTerminalInternal.dtAddBarcode;
+}
+
+// «Назад» (Esc, стрелка в шапке) в режиме ADD подтверждает ввод строки: введенное сохраняется (как по OK),
+// при ошибке в полях экран остается на месте. В EDIT (и будущем REPLACE) - возврат к строкам без сохранения
+beforePrevMenuItem (MenuItem i) + WHEN i = MenuItem.terminalDocumentDetailEditOperation AND editedDetail()
+        AND editMode() = TerminalDetailEditMode.add THEN {
+    editSaved() <- NULL;
+    okDetailField();
+    IF NOT editSaved() THEN
+        consumedPrevMenuItem() <- TRUE;
+}
+
+// Кнопка «Добавить» на экране строк документа: экран строки в режиме ADD (для закрытого документа скрыта)
+addTerminalDocumentDetail () {
+    editMode() <- TerminalDetailEditMode.add;
+    editedDocument() <- selectedTerminalDocument();
+    addMessage() <- NULL;
+    clearEditedDetail();
+    toMenuItem(MenuItem.terminalDocumentDetailEditOperation);
+    focusAddBarcode();
+}
+@defButtonCustom(addTerminalDocumentDetail, 'Добавить', dataTerminalInternal, 'F3', ok);
+hideAddTerminalDocumentDetailDataTerminalInternal() += NOT isOpened(selectedTerminalDocument());
+
+DESIGN dataTerminalInternal {
+    terminalDocumentDetailsOperation {
+        MOVE PROPERTY (addTerminalDocumentDetail);
+    }
+}
+
+// Пункт «Проверка цен» главного меню: экран в режиме PRICE_CHECK, документа нет
+doMenuItemPriceCheck () + {
+    editMode() <- TerminalDetailEditMode.priceCheck;
+    editedDocument() <- NULL;
+    addMessage() <- NULL;
+    clearEditedDetail();
+    startPriceCheck();
+    toMenuItem(MenuItem.terminalDocumentDetailEditOperation);
+    focusAddBarcode();
+}
+
+// «Назад» в PRICE_CHECK - на экран, с которого пришли (главный), а не к строкам документа (up экрана - строки документа,
+// up хранится и от режима не зависит): как ветка без up в toPrevMenuItem
+beforePrevMenuItem (MenuItem i) + WHEN i = MenuItem.terminalDocumentDetailEditOperation
+        AND editMode() = TerminalDetailEditMode.priceCheck THEN {
+    toMenuItem(top());
+    pop();
+    pop();
+    CANCEL;
+    // после CANCEL: он сбрасывает и этот признак
+    consumedPrevMenuItem() <- TRUE;
 }

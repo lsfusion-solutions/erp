@@ -120,7 +120,9 @@ function inputBarcode() {
 
             const inp = document.createElement('input')
             inp.type = 'text'
-            inp.inputMode = 'none'
+            // Ручной ввод штрихкода - цифровая виртуальная клавиатура ('none' прятал ее совсем).
+            // type остается text: ведущие нули и не цифровые символы аппаратного сканера не теряются
+            inp.inputMode = 'numeric'
             element.append(inp)
             alwaysFocused(inp)
             element.inp = inp
@@ -134,10 +136,81 @@ function inputBarcode() {
         }, clear: (element) => {
 
         }, callback: (tag, value) => {
+            // Вызывается Android-клиентом на broadcast аппаратного сканера (action и extra - в настройках клиента).
+            // Скан - законченный ввод: завершаем значение переводом строки, чтобы defReadBarcode
+            // обработал его сразу (wordCount(s, '\n') > 1), без нажатия OK. Свой суффикс сканера (\r, \n) отбрасываем
             const element = document.getElementById(tag)
             if (element) {
-                element.controller.changeValue(value)
+                element.controller.changeValue(String(value).replace(/[\r\n]+$/, '') + '\n')
                 waitBarcode(element.id, 'inputBarcode().callback')
+            }
+        }
+    }
+}
+
+// Поле штрихкода на экране с другими полями ввода (добавление строки документа ТСД сканированием).
+// В отличие от inputBarcode фокус не удерживает (он в полях строки), а сканер слушает все время, пока поле видно
+// на экране, - скан работает и во время ввода количества. Скан и Enter в поле - законченный ввод: значение
+// с завершающим '\n', как у inputBarcode
+function inputBarcodeScan() {
+    return {
+        render: (element) => {
+            element.setAttribute('customType', 'inputBarcode')
+            element.id = Date.now() + Math.random()
+
+            const inp = document.createElement('input')
+            inp.type = 'text'
+            inp.inputMode = 'numeric'
+            // Подсказка в пустом поле
+            inp.placeholder = 'Отсканируйте штрихкод товара'
+            element.append(inp)
+            element.inp = inp
+
+            new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.intersectionRatio > 0) {
+                        element.waiting = true
+                        waitBarcode(element.id, 'inputBarcodeScan().callback')
+                    } else if (element.waiting) {
+                        element.waiting = false
+                        stopWaitingBarcode()
+                    }
+                })
+            }).observe(inp)
+
+            // Набранный текст - на сервер по мере ввода (для кнопки «↵» справа от поля)
+            inp.addEventListener('input', () => {
+                if (element.controller) element.controller.changeValue(inp.value)
+            })
+            inp.addEventListener('keydown', (e) => {
+                const charCode = e.which ? e.which : e.keyCode
+                if (charCode === 13) {
+                    // Enter - ручной ввод закончен; горячей клавише формы (Enter - «Далее») не отдаем
+                    e.preventDefault()
+                    e.stopPropagation()
+                    const value = inp.value.trim()
+                    if (value && element.controller) {
+                        inp.value = ''
+                        element.controller.changeValue(value + '\n')
+                    }
+                } else if (e.key && e.key.length === 1) {
+                    // Цифры не отдаем горячим клавишам формы
+                    e.stopPropagation()
+                }
+            })
+        }, update: (element, controller, value) => {
+            element.controller = controller
+            // Набранный текст хранится на сервере до обработки, после скана / Enter / «↵» приходит NULL - поле очищается
+            const text = value ? String(value).replace(/[\r\n]+$/, '') : ''
+            if (element.inp.value !== text) element.inp.value = text
+        }, clear: (element) => {
+
+        }, callback: (tag, value) => {
+            const element = document.getElementById(tag)
+            if (element && element.controller) {
+                element.inp.value = ''
+                element.controller.changeValue(String(value).replace(/[\r\n]+$/, '') + '\n')
+                waitBarcode(element.id, 'inputBarcodeScan().callback')
             }
         }
     }

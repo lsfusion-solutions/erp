@@ -107,6 +107,128 @@ div.terminal-document-detail-edit div:empty {
     background-color: var(--active-background-color);
 }
 
+/* Режим EDIT: шапка оранжевая (вместо синей) - видно, что правится существующая строка.
+   Белая «пилюля» OK - с текстом цвета шапки */
+:root {
+    --dt-header-edit-color: #F57C00;
+}
+
+/* свой синий фон у текста шапки (.topInfoPanel) и у кнопок шапки («Назад») - перекрашиваем и их */
+.dt-header.dt-header-edit,
+.dt-header.dt-header-edit .topInfoPanel,
+.dt-header.dt-header-edit button.btn.dt-header-button,
+.dt-header.dt-header-edit button.btn.dt-header-button:hover {
+    background-color: var(--dt-header-edit-color);
+}
+
+.dt-header.dt-header-edit button.btn.dt-header-ok:not(.menu-button),
+.dt-header.dt-header-edit button.btn.dt-header-ok:not(.menu-button):hover {
+    color: var(--dt-header-edit-color);
+    --bs-btn-color: var(--dt-header-edit-color);
+    --bs-btn-hover-color: var(--dt-header-edit-color);
+    --bs-btn-active-color: var(--dt-header-edit-color);
+}
+
+/* Режимы ADD и PRICE_CHECK: поле штрихкода сверху, края - по полям ввода. Кнопка Enter - внутри поля, у правого края:
+   поле и кнопка в одной ячейке сетки, кнопка поверх поля, справа в поле - место под кнопку */
+.dt-add-barcode {
+    margin: 10px 8px 6px;
+    grid-template-columns: 1fr;
+}
+
+.dt-add-barcode > * {
+    grid-column: 1;
+    grid-row: 1;
+}
+
+/* Поле - «пилюля» 48px (удобно пальцем, в перчатках), как кнопки lsFusionBCS; слева отступ текста, справа - место
+   под кнопку */
+.dt-add-barcode .input-single-value input {
+    box-sizing: border-box;
+    height: 48px;
+    padding: 0 64px 0 18px;
+    border: 1px solid var(--standart-border-color);
+    border-radius: 24px;
+}
+
+/* фокус - рамка основного цвета в 2px (вторая - тенью, без сдвига текста), как у Material outlined */
+.dt-add-barcode .input-single-value input:focus {
+    border-color: var(--positive-color);
+    box-shadow: inset 0 0 0 1px var(--positive-color);
+}
+
+/* подсказка в пустом поле - мельче значения, обычным начертанием и серым (само значение - жирное, data-terminal.css) */
+.dt-add-barcode .input-single-value input::placeholder {
+    font-size: 16px;
+    font-weight: normal;
+    color: var(--grey-font-color);
+}
+
+/* Кнопка Enter внутри поля: справа, по центру по высоте, «пилюля» 42px в поле 48px (по 2px до рамки).
+   margin с !important - перебить прижатие input-right к низу ячейки (data-terminal.css). Селектор сильнее правила
+   кнопок custom-button. Символ «↵» в шрифте сидит ниже центра, поэтому подпись скрыта, а значок - иконка Material
+   keyboard_return маской, как иконки шапки */
+.dt-add-barcode button.btn.custom-button.input-right.ok,
+.dt-add-barcode button.btn.custom-button.input-right.ok:hover,
+.dt-add-barcode button.btn.custom-button.input-right.ok:active {
+    box-sizing: border-box;
+    justify-self: end;
+    align-self: center;
+    position: relative;
+    /* зазор до рамки поля - 2px со всех сторон. Центр ячейки сетки выше центра поля на 1px (обертка значения):
+       при высоте 40px без сдвига на эмуляторе было сверху 2px, снизу 4px, справа 2px */
+    top: 1px;
+    z-index: 1;
+    height: 42px;
+    min-height: 0;
+    min-width: 56px;
+    margin: 0 5px 0 0 !important;
+    padding: 0 14px;
+    border-radius: 21px;
+    font-size: 0;
+}
+
+.dt-add-barcode button.btn.custom-button.input-right.ok::before {
+    content: '';
+    width: 24px;
+    height: 24px;
+    background-color: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M19 7v4H5.83l3.58-3.59L8 6l-6 6 6 6 1.41-1.41L5.83 13H21V7z'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M19 7v4H5.83l3.58-3.59L8 6l-6 6 6 6 1.41-1.41L5.83 13H21V7z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* Сообщение под полем штрихкода: ошибка скана (как «Товар не найден» на «Проверке цен») или сохраненная строка */
+div.dt-add-message {
+    margin: 0 8px 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    white-space: normal;
+}
+
+div.dt-add-message.error {
+    text-align: center;
+    background-color: var(--invalid-field-color);
+}
+
+div.dt-add-message.error > div.title {
+    /* темнее --warning-color: тот на светло-розовом фоне читается плохо */
+    color: #CC0000;
+    font-weight: bold;
+    font-size: var(--extra-large-font-size);
+}
+
+div.dt-add-message.error > div.barcode {
+    font-size: var(--standart-font-size);
+    color: var(--grey-font-color);
+}
+
+div.dt-add-message.saved {
+    background-color: var(--tool-background-color);
+    color: var(--grey-font-color);
+    font-size: var(--large-font-size);
+}
+
 /* Кнопки «Далее» и «OK» в ряд: края - по полю ввода (те же 8px, что у .dt-edit-field), ширина поровну.
    Ширину платформа задает inline (flex: 1 0 auto), поэтому flex-basis - с !important */
 .dt-edit-buttons {

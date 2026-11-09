@@ -72,8 +72,12 @@ toMenuItem (MenuItem i) {
 } WAIT;
 
 beforePrevMenuItem ABSTRACT CASE (MenuItem);
+// Экран оставлен на месте (например, «Назад» сохраняет введенное, а проверка не прошла) - взводится в beforePrevMenuItem
+consumedPrevMenuItem = DATA LOCAL BOOLEAN ();
 toPrevMenuItem 'Назад к предыдущему пункту меню' () {
+    consumedPrevMenuItem() <- NULL;
     beforePrevMenuItem(lastMenuItem());
+    IF consumedPrevMenuItem() THEN RETURN;
     IF up(lastMenuItem()) THEN {
         WHILE top() != up(lastMenuItem()) DO pop();
         toMenuItem(up(lastMenuItem()));
@@ -105,6 +109,10 @@ showHeaderLogo () = level(lastMenuItem(), initMenuItem());
 title (MenuItem m) = GROUP LAST name(MenuItem i) ORDER -level(m, i), i WHERE level(m, i) AND name(i);
 overHeaderTitle = ABSTRACT STRING ();
 headerTitle () = OVERRIDE overHeaderTitle(), ('lsFusion BCS' IF showHeaderLogo()), title(lastMenuItem());
+
+// Дополнительный CSS-класс шапки по экрану, например другой цвет шапки в режиме редактирования:
+//   headerClass(MenuItem i) += WHEN i = MenuItem.<экран> AND ... THEN 'dt-header-edit';
+headerClass = ABSTRACT CASE STRING (MenuItem);
 
 // Сотрудник показан только на плашке внизу начального экрана, в шапке подзаголовок - только объект экрана
 objectId = ABSTRACT STRING ();
@@ -210,7 +218,7 @@ DESIGN dataTerminalInternal {
     NEW topInfoPanel {
         align = STRETCH;
         horizontal = TRUE;
-        class = 'dt-header';
+        class = CONCAT ' ', 'dt-header', headerClass(lastMenuItem());
         MOVE PROPERTY (headerBackButton()) {
             focusable = FALSE;
             align = STRETCH;

@@ -1,6 +1,8 @@
 MODULE DataTerminalPriceCheck;
 
-// Операция ТСД «Проверка цен»: поиск товара по штрихкоду, карточка с ценой и остатком
+// Операция ТСД «Проверка цен»: поиск товара по штрихкоду, карточка с ценой и остатком на складе сотрудника.
+// Отдельного экрана нет: пункт главного меню открывает экран строки документа в режиме PRICE_CHECK
+// (DataTerminalDocumentDetailEdit.lsf), здесь - обработка штрихкода и карточка товара
 REQUIRE DataTerminalDefault, TerminalHandler, EmployeeStock, DataTerminalSkuImage;
 
 NAMESPACE DataTerminal;
@@ -10,52 +12,46 @@ beforeDataTerminalStart() + { INTERNAL CLIENT 'dataTerminalPriceCheck.css'; }
 priceCheckStock () = stock(currentEmployee());
 
 priceCheckSku = DATA LOCAL Sku ();
+// Последний отсканированный штрихкод: показывается под полем ввода, если товар по нему не найден - карточка «Товар не найден»
+priceCheckBarcode = DATA LOCAL STRING ();
 
-// Карточка товара: цена и остаток на складе сотрудника, миниатюра товара (smallImage) - справа под наименованием
+// Карточка товара: цена (крупно) и остаток на складе сотрудника, миниатюра товара (smallImage) - справа под наименованием
 priceCheckDetail '' (Sku s, Stock st) = CONCAT '',
     '<div class=price-check>',
         '<div class=name>', name(s), '</div>',
         htmlSmallImage(s),
-        '<div class=price><span>Цена</span>', (OVERRIDE STRING(NUMERIC[16,2](currentPriceInTerminal(s, st))), '—'), '</div>',
-        '<div class=balance><span>Остаток</span>', (OVERRIDE STRING(NUMERIC[16,3](currentBalance(s, st))), '0'), '</div>',
+        '<div class=price><span class=label>Цена</span><span class=value>',
+            (OVERRIDE STRING(NUMERIC[16,2](currentPriceInTerminal(s, st))), '—'), '</span></div>',
+        '<div class=balance><span class=label>Остаток</span><span class=value>',
+            (OVERRIDE STRING(NUMERIC[16,3](currentBalance(s, st))), '0'), '</span></div>',
         '<div class=info>', (CONCAT ' ● ', id(s AS Item), name(Item.manufacturer(s AS Item))), '</div>',
     '</div>';
 
-// Пункт меню и экран операции
+// Пункт главного меню (экран открывает doMenuItemPriceCheck в DataTerminalDocumentDetailEdit.lsf)
 @addMenuItem(priceCheck, 'Проверка цен', '2', lineAction4);
 
-@defSubMenu(priceCheckOperation, operation, 'Проверка цен');
-up (MenuItem i) += WHEN i = MenuItem.priceCheckOperation THEN MenuItem.actions;
-
-@defReadBarcode(priceCheckOperation, 'Отсканируйте штрихкод товара:');
-
-doMenuItemPriceCheck() + {
+// Начало проверки цен: карточки нет
+startPriceCheck () {
     priceCheckSku() <- NULL;
-    toMenuItem(MenuItem.priceCheckOperation);
+    priceCheckBarcode() <- NULL;
 }
 
-readBarcodePriceCheckOperation(STRING barcode, STRING raw) + {
+// Товар не найден - не модальное окно (лишнее касание при потоковом сканировании), а карточка ошибки на месте
+// карточки товара и звук ошибки
+processPriceCheckBarcode (STRING barcode) {
     IF NOT priceCheckStock() THEN {
         message('<em>У сотрудника не задан основной склад</em>');
         RETURN;
     }
+    priceCheckBarcode() <- barcode;
     priceCheckSku() <- skuBarcode(STRING[15](barcode));
-    IF NOT priceCheckSku() THEN {
-        message(CONCAT '<br>', '<b>' + barcode + '</b>', '<em>Товар не найден</em>');
-    }
+    IF NOT priceCheckSku() THEN
+        playError();
 }
 
-priceCheckCard '' () = priceCheckDetail(priceCheckSku(), priceCheckStock());
+priceCheckCard '' () =
+    IF priceCheckSku() THEN priceCheckDetail(priceCheckSku(), priceCheckStock())
+    ELSE '<div class="price-check not-found"><div class=title>Товар не найден</div><div class=hint>Штрихкода нет в справочнике товаров</div></div>';
 
-EXTEND FORM dataTerminalInternal
-    PROPERTIES READONLY priceCheckCard() CUSTOM 'htmlText' SHOWIF priceCheckSku()
-;
-
-DESIGN dataTerminalInternal {
-    priceCheckOperation {
-        MOVE PROPERTY (priceCheckCard()) {
-            focusable = FALSE;
-            align = STRETCH;
-        }
-    }
-}
+// Отсканированный штрихкод - строкой под полем ввода (только код, без подписи)
+priceCheckScanned '' () = '<div class=price-check-barcode>' + priceCheckBarcode() + '</div>';
