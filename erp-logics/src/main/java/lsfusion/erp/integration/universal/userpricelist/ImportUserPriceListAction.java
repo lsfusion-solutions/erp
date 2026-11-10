@@ -1005,7 +1005,7 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("importUserPriceListTypeDetail", importUserPriceListTypeDetailExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
         String[] names = new String[] {"staticName", "staticCaption", "propertyImportUserPriceListTypeDetail", "nameKeyImportUserPriceListTypeDetail"};
-        LP[] properties = findProperties("staticName[ImportUserPriceListTypeDetail]", "staticCaption[ImportUserPriceListTypeDetail]", "canonicalNamePropImport[ImportUserPriceListTypeDetail]", "nameKeyImport[ImportUserPriceListTypeDetail]");
+        LP[] properties = findProperties("name[StaticObject]", "caption[StaticObject]", "canonicalNamePropImport[ImportUserPriceListTypeDetail]", "nameKeyImport[ImportUserPriceListTypeDetail]");
         for (int j = 0; j < properties.length; j++) {
             query.addProperty(names[j], properties[j].getExpr(importUserPriceListTypeDetailExpr));
         }
