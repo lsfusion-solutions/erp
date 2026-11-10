@@ -4,7 +4,10 @@ REQUIRE SaleCreditNoteSkuLedger, PricingSum;
 
 NAMESPACE Sale;
 
-retailSum(CreditNoteDetail idetail) = NUMERIC[18,4](round(quantity(idetail) * shipmentPrice(invoiceDetail(idetail)), currency(idetail))); 
+emptyInvoiceDetails (CreditNote c) = GROUP SUM 1 IF creditNote(CreditNoteDetail d) == c AND NOT invoiceDetail(d);
+
+retailSum(CreditNoteDetail idetail) = NUMERIC[18,4](round(quantity(idetail) * shipmentPrice(invoiceDetail(idetail)), currency(idetail)))
+    IF idetail IS CreditNoteDetail AND NOT emptyInvoiceDetails(creditNote(idetail)); 
             
 retailSumItemCreditNoteDetail 'Сумма, товар' (creditNote) =
     GROUP
