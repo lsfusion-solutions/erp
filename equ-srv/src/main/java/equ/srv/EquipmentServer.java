@@ -2211,7 +2211,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 }
             }
 
-            Map<String, List<ItemGroup>> itemGroupMap = transactionObjects.isEmpty() ? null : readItemGroupMap(session);
+            Map<String, List<ItemGroup>> itemGroupMap = null; //is read only for cash registers: all the item groups with the hierarchy
             List<Integer> troubleMachineryGroups = readTroubleMachineryGroups(session, minutesTroubleMachineryGroups);
             Integer skipCounter = skipTroubleCounter.get(sidEquipmentServer);
             if (skipCounter == null) skipCounter = 1;
@@ -2359,6 +2359,9 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 LP[] machineryProperties = machineryLM.findProperties("npp[Machinery]", "port[Machinery]", "overDirectory[Machinery]");
 
                 if (isCashRegisterPriceTransaction) {
+
+                    if (itemGroupMap == null)
+                        itemGroupMap = readItemGroupMap(session);
 
                     Map<String, List<CashRegisterItemBatch>> barcodeBatchMap = readBarcodeBatchMap(session, transactionObject);
 
