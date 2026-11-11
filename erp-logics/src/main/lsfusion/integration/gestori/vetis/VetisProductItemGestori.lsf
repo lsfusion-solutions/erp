@@ -30,7 +30,7 @@ EXTEND FORM productItems
 // 7.1: выбор номенклатуры Ветис для связи с товаром — без фильтра «Собственная»
 FORM dialogSelectProductItemGestori 'Номенклатура Ветис'
     OBJECTS o = ProductItem
-    PROPERTIES(o) READONLY guid, name, globalID, code, nameProducer, ownProductGestori
+    PROPERTIES(o) READONLY guid, name, code, nameProducer, nameOwner, globalID, ownProductGestori
     LIST ProductItem OBJECT o
 ;
 
@@ -232,39 +232,41 @@ changeSubProduct(ProductItem pi) + {
         subProduct(pi) <- o;
 }
 
+checkOwnGestori (ProductItem p) = ownProductGestori(p) AND (PREV(own(producer(p))) OR CHANGED(producer(p)));
+
 // Обязательные поля для собственной продукции
 // producer: требуем при создании (ownProductGestori зависит от producer, поэтому нельзя проверять через ownProductGestori)
 CONSTRAINT SET(ProductItem p IS ProductItem) AND NOT producer(p) AND NOT skipOwnConstraint()
     MESSAGE 'Укажите Производителя';
 
-CONSTRAINT ownProductGestori(ProductItem p) AND NOT owner(p) AND NOT skipOwnConstraint()
+CONSTRAINT checkOwnGestori(ProductItem p) AND NOT owner(p) AND NOT skipOwnConstraint()
     CHECKED BY owner[ProductItem] MESSAGE 'Для собственной продукции обязательно укажите Владельца';
 
-CONSTRAINT ownProductGestori(ProductItem p) AND NOT (GROUP SUM 1 IF in(p, Enterprise e)) AND NOT skipOwnConstraint()
+CONSTRAINT checkOwnGestori(ProductItem p) AND NOT (GROUP SUM 1 IF in(p, Enterprise e)) AND NOT skipOwnConstraint()
     MESSAGE 'Для собственной продукции обязательно укажите хотя бы одну Площадку';
 
 // --- Контроли значений полей карточки (таблица п.4, колонка Примечание) ---
 
 // Наименование — непустое значение
-CONSTRAINT ownProductGestori(ProductItem p) AND NOT name(p) AND NOT skipOwnConstraint()
+CONSTRAINT checkOwnGestori(ProductItem p) AND NOT name(p) AND NOT skipOwnConstraint()
     MESSAGE 'Укажите наименование номенклатуры';
 
 // Артикул — уникальный в пределах ХС-производителя
 countProducerCodeGestori (BusinessEntity be, ISTRING[100] c) = GROUP SUM 1 IF producer(ProductItem p) = be AND code(p) = c;
-CONSTRAINT ownProductGestori(ProductItem p) AND code(p) AND producer(p)
+CONSTRAINT checkOwnGestori(ProductItem p) AND code(p) AND producer(p)
     AND countProducerCodeGestori(producer(p), code(p)) > 1 AND NOT skipOwnConstraint()
     MESSAGE 'Артикул должен быть уникальным в пределах ХС-производителя';
 
 // ГОСТ — непустое значение, если отмечено "Соответствует ГОСТу"
-CONSTRAINT ownProductGestori(ProductItem p) AND correspondsToGost(p) AND NOT gost(p) AND NOT skipOwnConstraint()
+CONSTRAINT checkOwnGestori(ProductItem p) AND correspondsToGost(p) AND NOT gost(p) AND NOT skipOwnConstraint()
     MESSAGE 'Укажите ГОСТ: отмечено "Соответствует ГОСТу"';
 
 // Кол-во единиц упаковки — больше нуля
-CONSTRAINT ownProductGestori(ProductItem p) AND packagingQuantity(p) AND NOT (packagingQuantity(p) > 0) AND NOT skipOwnConstraint()
+CONSTRAINT checkOwnGestori(ProductItem p) AND packagingQuantity(p) AND NOT (packagingQuantity(p) > 0) AND NOT skipOwnConstraint()
     MESSAGE 'Количество единиц упаковки должно быть больше нуля';
 
 // Объём единицы упаковки — больше нуля
-CONSTRAINT ownProductGestori(ProductItem p) AND packagingVolume(p) AND NOT (packagingVolume(p) > 0) AND NOT skipOwnConstraint()
+CONSTRAINT checkOwnGestori(ProductItem p) AND packagingVolume(p) AND NOT (packagingVolume(p) > 0) AND NOT skipOwnConstraint()
     MESSAGE 'Объём единицы упаковки должен быть больше нуля';
 
 // submit делает внешний HTTP-вызов, недопустимый в транзакции события — событие только помечает запись,
@@ -859,7 +861,7 @@ EXTEND FORM productItems
 
 // карточка товара, вкладка с номенклатурой Ветис
 EXTEND FORM Item.item
-    PROPERTIES(pi) READONLY globalID, code, nameProducer, ownProductGestori
+    PROPERTIES(pi) READONLY code, nameProducer, nameOwner, globalID, ownProductGestori
 ;
 
 DESIGN Item.item {

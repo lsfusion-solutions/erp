@@ -40,6 +40,7 @@ itemLocalName = DATA LOCAL STRING(INTEGER);
 itemLocalCode = DATA LOCAL STRING(INTEGER);
 itemLocalGtin = DATA LOCAL STRING(INTEGER);
 itemLocalCodGood = DATA LOCAL NUMERIC[13,0](INTEGER);
+itemLocalGuidAreaProducerList = DATA LOCAL STRING(INTEGER);
 
 // --- Локальные переменные для MercRestShop ---
 
@@ -98,6 +99,8 @@ vetLocalDateTrDoc = DATA LOCAL DATE(INTEGER);
 
 // в Gestori тип, статус и способ хранения — номер элемента списка (с единицы); нечисловое значение даёт NULL
 vetisListWordGestori = FORMULA NULL STRING 'CASE WHEN trim($2) ~ \'^[0-9]+$\' THEN NULLIF(split_part($1, \',\', trim($2)::integer), \'\') END';
+// элемент списка GUID (через запятую или точку с запятой) по номеру
+vetisListGuidGestori = FORMULA NULL STRING 'NULLIF(trim(split_part(replace($1, \';\', \',\'), \',\', $2)), \'\')';
 
 // даты выработки и срока годности в Gestori — период «год.месяц.день.час - год.месяц.день.час», берём начало периода
 vetisPeriodDateGestori = FORMULA NULL DATE 'CASE WHEN split_part(split_part($1, \' - \', 1), \'.\', 1) ~ \'^ *[0-9][0-9][0-9][0-9] *$\' AND split_part(split_part($1, \' - \', 1), \'.\', 2) ~ \'^ *(0?[1-9]|1[0-2]) *$\' AND split_part(split_part($1, \' - \', 1), \'.\', 3) ~ \'^ *(0?[1-9]|[12][0-9]|3[01]) *$\' THEN make_date(split_part(split_part($1, \' - \', 1), \'.\', 1)::integer, split_part(split_part($1, \' - \', 1), \'.\', 2)::integer, split_part(split_part($1, \' - \', 1), \'.\', 3)::integer) END';
@@ -269,14 +272,14 @@ importProductItemsGestori 'Импорт номенклатуры Ветис' () 
 
     EXTERNAL SQL vetisDbUrl()
         EXEC 'SELECT GuidSubProd, GuidItemProd, UuidItemProd, GuidFirmProducer, GuidFirmOwner, ' +
-             'SUBSTR(NameItemProd, 1, 500), CodeItemProd, GtinItemProd, cod_good ' +
+             'SUBSTR(NameItemProd, 1, 500), CodeItemProd, GtinItemProd, cod_good, SUBSTR(GuidAreaProducerList, 1, 4000) ' +
              'FROM Pub.MercItemProd'
         TO file;
 
     IMPORT TABLE FROM file() TO
         itemLocalGuidSubProd, itemLocalGuidItemProd, itemLocalUuidItemProd,
         itemLocalGuidFirmProducer, itemLocalGuidFirmOwner,
-        itemLocalName, itemLocalCode, itemLocalGtin, itemLocalCodGood;
+        itemLocalName, itemLocalCode, itemLocalGtin, itemLocalCodGood, itemLocalGuidAreaProducerList;
 
     FOR [GROUP MIN INTEGER i BY itemLocalGuidItemProd(i)](STRING str) AND NOT productItem(str) DO NEW p = ProductItem {
         guid(p) <- str;
@@ -293,6 +296,11 @@ importProductItemsGestori 'Импорт номенклатуры Ветис' () 
         producer(p) <- businessEntity(itemLocalGuidFirmProducer(i));
         owner(p) <- businessEntity(itemLocalGuidFirmOwner(i));
     }
+
+    // Площадки, на которых разрешено производство номенклатуры (GuidAreaProducerList — список GUID площадок)
+    FOR ProductItem p = productItem(itemLocalGuidItemProd(INTEGER i)) AND itemLocalGuidAreaProducerList(i)
+        AND iterate(INTEGER n, 1, 120) AND Enterprise e = enterprise(vetisListGuidGestori(itemLocalGuidAreaProducerList(i), n)) DO
+        in(p, e) <- TRUE;
 
     // Блок 3: связать товар (Item) с номенклатурой по cod_good
     FOR ProductItem p = productItem(itemLocalGuidItemProd(INTEGER i)) AND
