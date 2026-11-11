@@ -56,7 +56,13 @@ public class FiscalSentoPrintReceiptClientAction extends FiscalSentoClientAction
 
                 return numberReceipt;
             } catch (RuntimeException e) {
-                FiscalSento.cancelReceipt();
+                // отмена чека тоже может упасть (касса в режиме меню, порт не открыт); исключение отсюда прервало бы
+                // печать на сервере мимо afterPostPrint и потеряло исходную ошибку — возвращаем её сообщением
+                try {
+                    FiscalSento.cancelReceipt();
+                } catch (RuntimeException cancelError) {
+                    return e.getMessage() + "\nНе удалось отменить чек на кассе: " + cancelError.getMessage();
+                }
                 return e.getMessage();
             } finally {
                 FiscalSento.closePort();

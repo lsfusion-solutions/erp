@@ -445,6 +445,22 @@ overPostCash  ABSTRACT LIST ( Receipt);
 overPostCard  ABSTRACT LIST ( Receipt);
 prePostPrint  ABSTRACT LIST ( Receipt);
 afterPostPrint  ABSTRACT LIST ( Receipt);
+// печать чека не состоялась: postPrint прервался исключением или оплата отменена после prePostPrint; чек не сохранён —
+// здесь откатывают внешние операции, сделанные в prePostPrint
+failedPostPrint  ABSTRACT LIST ( Receipt);
+
+// печать чека; если postPrint прервался исключением до сохранения чека, вызывается failedPostPrint, исключение уходит дальше
+tryPostPrint (Receipt receipt) {
+    LOCAL failed = BOOLEAN ();
+    failed() <- TRUE;
+    TRY {
+        postPrint(receipt);
+        failed() <- NULL;
+    } FINALLY {
+        IF failed() THEN failedPostPrint(receipt);
+    }
+}
+
 overCreatePayment ABSTRACT LIST ( Receipt);
 returnPost = DATA LOCAL BOOLEAN();
 
@@ -482,8 +498,11 @@ post 'Смешанная'(Receipt receipt)  {
             postPaymentTerminal(receipt);
             IF NOT postPaymentTerminalReceiptResult() THEN {
                 prePostPrint(receipt);
-                IF returnPost() THEN RETURN;
-                postPrint(receipt);
+                IF returnPost() THEN {
+                    failedPostPrint(receipt);
+                    RETURN;
+                }
+                tryPostPrint(receipt);
                 afterPostPrint(receipt);
                 printed() <- TRUE;
             } ELSE {
@@ -524,7 +543,7 @@ postCard 'Карточкой'(Receipt receipt)  {
         postPaymentTerminal(receipt);
         IF NOT postPaymentTerminalReceiptResult() THEN {
             prePostPrint(receipt);
-            postPrint(receipt);
+            tryPostPrint(receipt);
             afterPostPrint(receipt);
         } ELSE {
             MESSAGE postPaymentTerminalReceiptResult();
@@ -562,7 +581,7 @@ postCash 'Наличными'(Receipt receipt)  {
         printed() <- NULL;
         DIALOG postReceiptPayment OBJECTS r = receipt CHECK DO {
             prePostPrint(receipt);
-            postPrint(receipt);
+            tryPostPrint(receipt);
             afterPostPrint(receipt);
             printed() <- TRUE;
         }
