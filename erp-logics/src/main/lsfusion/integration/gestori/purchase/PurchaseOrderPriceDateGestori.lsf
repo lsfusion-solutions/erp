@@ -27,10 +27,10 @@ CLASS PriceDateType 'Дата определения цены поставщик
 }
 
 priceDateType = DATA PriceDateType (LegalEntity);
-namePriceDateType 'Использовать спецификацию договора поставщика (прайс) на дату' (LegalEntity l) = caption(priceDateType(l)) CHARWIDTH 25;
+namePriceDateType 'Использовать специф. на дату' (LegalEntity l) = caption(priceDateType(l)) CHARWIDTH 25;
 
 priceDateType = DATA PriceDateType (ContractSku);
-namePriceDateType 'Использовать спецификацию договора поставщика (прайс) на дату' (ContractSku c) = caption(priceDateType(c)) CHARWIDTH 25;
+namePriceDateType 'Использовать специф. на дату' (ContractSku c) = caption(priceDateType(c)) CHARWIDTH 25;
 
 priceDateType (UserOrder o) = (OVERRIDE (priceDateType(contractSku(o)) IF NOT priceDateType(contractSku(o)) == PriceDateType.default),
                                         (priceDateType(supplier(o)) IF NOT priceDateType(supplier(o)) == PriceDateType.default)) IF useOrderExtensions();
@@ -44,7 +44,7 @@ EXTEND FORM legalEntity
 
 DESIGN legalEntity {
     row11 {
-        MOVE PROPERTY(namePriceDateType(l));
+        MOVE PROPERTY(namePriceDateType(l)) { tooltip = 'Использовать спецификацию договора поставщика (прайс) на дату'; };
     }
 }
 
@@ -54,13 +54,13 @@ EXTEND FORM userContractSku
 
 DESIGN userContractSku {
     params {
-        MOVE PROPERTY(namePriceDateType(c));
+        MOVE PROPERTY(namePriceDateType(c)) { tooltip = 'Использовать спецификацию договора поставщика (прайс) на дату'; };
     }
 }
 
 // ---- Количество календарных дней от даты заказа до даты поставки ----
 
-daysBeforeShipmentDate 'Количество календарных дней от даты заказа до даты поставки' = DATA INTEGER ();
+daysBeforeShipmentDate 'Кол-во дней до поставки' = DATA INTEGER ();
 
 EXTEND FORM options
     PROPERTIES() SHOWIF useOrderExtensions() daysBeforeShipmentDate
@@ -68,11 +68,11 @@ EXTEND FORM options
 
 DESIGN options {
     orders {
-        MOVE PROPERTY(daysBeforeShipmentDate());
+        MOVE PROPERTY(daysBeforeShipmentDate()) { tooltip = 'Количество календарных дней от даты заказа до даты поставки'; };
     }
 }
 
-daysBeforeShipmentDate 'Количество календарных дней от даты заказа до даты поставки' = DATA INTEGER (Stock);
+daysBeforeShipmentDate 'Кол-во дней до поставки' = DATA INTEGER (Stock);
 
 EXTEND FORM departmentStore
     PROPERTIES(d) SHOWIF useOrderExtensions() daysBeforeShipmentDate
@@ -80,7 +80,7 @@ EXTEND FORM departmentStore
 
 DESIGN departmentStore {
     headerExtraParams {
-        MOVE PROPERTY(daysBeforeShipmentDate(d));
+        MOVE PROPERTY(daysBeforeShipmentDate(d)) { tooltip = 'Количество календарных дней от даты заказа до даты поставки'; };
     }
 }
 
@@ -90,12 +90,12 @@ EXTEND FORM warehouse
 
 DESIGN warehouse {
     headerExtraParams {
-        MOVE PROPERTY(daysBeforeShipmentDate(w));
+        MOVE PROPERTY(daysBeforeShipmentDate(w)) { tooltip = 'Количество календарных дней от даты заказа до даты поставки'; };
     }
 }
 
-daysBeforeShipmentDate 'Количество календарных дней от даты заказа до даты поставки' = DATA INTEGER (UserPriceList);
-showDaysBeforeShipmentDate 'Количество календарных дней от даты заказа до даты поставки' = DATA BOOLEAN (PriceList.Operation) PREREAD;
+daysBeforeShipmentDate 'Кол-во дней до поставки' = DATA INTEGER (UserPriceList);
+showDaysBeforeShipmentDate 'Кол-во дней до поставки' = DATA BOOLEAN (PriceList.Operation) PREREAD;
 
 EXTEND FORM PriceList.operation
     PROPERTIES(o) SHOWIF useOrderExtensions() showDaysBeforeShipmentDate
@@ -103,7 +103,7 @@ EXTEND FORM PriceList.operation
 
 DESIGN PriceList.operation {
     showContainer {
-        MOVE PROPERTY(showDaysBeforeShipmentDate(o));
+        MOVE PROPERTY(showDaysBeforeShipmentDate(o)) { tooltip = 'Количество календарных дней от даты заказа до даты поставки'; };
     }
 }
 
@@ -113,11 +113,11 @@ EXTEND FORM userPriceList
 
 DESIGN userPriceList {
     GROUP(documentPrm,p) {
-        MOVE PROPERTY(daysBeforeShipmentDate(p)) AFTER PROPERTY(isCommission(p));
+        MOVE PROPERTY(daysBeforeShipmentDate(p)) AFTER PROPERTY(isCommission(p)) { tooltip = 'Количество календарных дней от даты заказа до даты поставки'; };
     }
 }
 
-daysBeforeShipmentDate 'Количество календарных дней от даты заказа до даты поставки' = DATA INTEGER (ContractSku);
+daysBeforeShipmentDate 'Кол-во дней до поставки' = DATA INTEGER (ContractSku);
 
 EXTEND FORM userContractSku
     PROPERTIES(c) SHOWIF useOrderExtensions() daysBeforeShipmentDate
@@ -125,11 +125,11 @@ EXTEND FORM userContractSku
 
 DESIGN userContractSku {
     params {
-        MOVE PROPERTY(daysBeforeShipmentDate(c));
+        MOVE PROPERTY(daysBeforeShipmentDate(c)) { tooltip = 'Количество календарных дней от даты заказа до даты поставки'; };
     }
 }
 
-daysBeforeShipmentDate 'Количество календарных дней от даты заказа до даты поставки' = DATA INTEGER (LegalEntity);
+daysBeforeShipmentDate 'Кол-во дней до поставки' = DATA INTEGER (LegalEntity);
 
 EXTEND FORM legalEntity
     PROPERTIES(l) SHOWIF (isSupplier(l) AND useOrderExtensions()) daysBeforeShipmentDate
@@ -137,12 +137,12 @@ EXTEND FORM legalEntity
 
 DESIGN legalEntity {
     row11 {
-        MOVE PROPERTY(daysBeforeShipmentDate(l));
+        MOVE PROPERTY(daysBeforeShipmentDate(l)) { tooltip = 'Количество календарных дней от даты заказа до даты поставки'; };
     }
 }
 
 DESIGN operation {
-    PROPERTY(daysBeforeShipmentDate(o)) { caption = 'Количество календарных дней от даты заказа до даты поставки'; }
+    PROPERTY(daysBeforeShipmentDate(o)) { caption = 'Кол-во дней до поставки'; tooltip = 'Количество календарных дней от даты заказа до даты поставки'; }
 }
 
 specificationDaysBeforeShipmentDate = ABSTRACT INTEGER (UserOrder);
