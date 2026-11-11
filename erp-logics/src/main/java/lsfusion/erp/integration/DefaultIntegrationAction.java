@@ -1,7 +1,7 @@
 package lsfusion.erp.integration;
 
 import lsfusion.base.col.SetFact;
-import lsfusion.interop.action.MessageClientAction;
+import lsfusion.interop.action.MessageClientType;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.language.ScriptingLogicsModule;
@@ -26,6 +26,7 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
@@ -234,13 +235,10 @@ public class DefaultIntegrationAction extends InternalAction {
         return context.requestUserData(TXTClass.get(), null);
     }
 
-    public void messageClientAction(ExecutionContext context, String message, String caption) {
+    public void messageClientAction(ExecutionContext<?> context, String message, String caption) {
         messageClientAction(context, message, caption, false);
     }
-    public void messageClientAction(ExecutionContext context, String message, String caption, boolean delay) {
-        if(delay)
-            context.delayUserInteraction(new MessageClientAction(message, caption));
-        else
-            context.requestUserInteraction(new MessageClientAction(message, caption));
+    public void messageClientAction(ExecutionContext<?> context, String message, String caption, boolean delay) {
+        context.message(context.getRemoteContext(), message, caption, new ArrayList<>(), new ArrayList<>(), MessageClientType.DEFAULT, delay);
     }
 }
