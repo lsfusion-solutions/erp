@@ -1,0 +1,191 @@
+MODULE PurchaseScheduleOrderImportGestori;
+
+REQUIRE PurchaseOrderPriceDateGestori, PurchaseScheduleOrder;
+
+NAMESPACE Purchase;
+
+// ---- Чётность недели ----
+
+CLASS WeekParity 'Неделя' {
+    every 'Еженедельно',
+    odd 'Нечётная неделя',
+    even 'Чётная неделя'
+}
+
+weekParity = DATA WeekParity (ScheduleOrderTime);
+nameWeekParity 'Неделя' (ScheduleOrderTime t) = caption(weekParity(t)) CHARWIDTH 15;
+
+skipWeek (ScheduleOrderTime t, DATE d) = (weekParity(t) == WeekParity.odd AND mod(extractWeek(d), 2) == 0) OR
+                                         (weekParity(t) == WeekParity.even AND mod(extractWeek(d), 2) == 1);
+
+EXTEND FORM scheduleOrder
+    PROPERTIES(d) SHOWIF (toShowGenDayMonth(s) AND useOrderExtensions()) nameWeekParity AFTER shipmentNameDOW(d)
+;
+
+overCreate(ScheduleOrderDetail o, ScheduleOrderTime t) + {
+    IF useOrderExtensions() AND skipWeek(t, dateOrder(o)) THEN DELETE o;
+}
+
+// ---- Импорт графиков заказов из файла ----
+
+importFile 'Файл' = DATA LOCAL EXCELFILE ();
+dateFromImport 'Дата с' = DATA LOCAL DATE ();
+dateToImport 'Дата по' = DATA LOCAL DATE ();
+operationImport = DATA LOCAL Operation ();
+nameOperationImport 'Операция' = name(operationImport());
+
+FORM importScheduleOrders 'Импорт графиков заказов'
+    PROPERTIES() importFile, dateFromImport, dateToImport, nameOperationImport
+;
+
+numberImport = DATA LOCAL STRING (INTEGER);
+idSupplierImport = DATA LOCAL INTEGER (INTEGER);
+idStockImport = DATA LOCAL INTEGER (INTEGER);
+timeImport = DATA LOCAL STRING (INTEGER);
+orderMondayImport = DATA LOCAL STRING (INTEGER);
+orderTuesdayImport = DATA LOCAL STRING (INTEGER);
+orderWednesdayImport = DATA LOCAL STRING (INTEGER);
+orderThursdayImport = DATA LOCAL STRING (INTEGER);
+orderFridayImport = DATA LOCAL STRING (INTEGER);
+orderSaturdayImport = DATA LOCAL STRING (INTEGER);
+orderSundayImport = DATA LOCAL STRING (INTEGER);
+supplyMondayImport = DATA LOCAL STRING (INTEGER);
+supplyTuesdayImport = DATA LOCAL STRING (INTEGER);
+supplyWednesdayImport = DATA LOCAL STRING (INTEGER);
+supplyThursdayImport = DATA LOCAL STRING (INTEGER);
+supplyFridayImport = DATA LOCAL STRING (INTEGER);
+supplySaturdayImport = DATA LOCAL STRING (INTEGER);
+supplySundayImport = DATA LOCAL STRING (INTEGER);
+
+orderImport (INTEGER i, DOW d) = CASE WHEN d == DOW.monday THEN orderMondayImport(i)
+                                      WHEN d == DOW.tuesday THEN orderTuesdayImport(i)
+                                      WHEN d == DOW.wednesday THEN orderWednesdayImport(i)
+                                      WHEN d == DOW.thursday THEN orderThursdayImport(i)
+                                      WHEN d == DOW.friday THEN orderFridayImport(i)
+                                      WHEN d == DOW.saturday THEN orderSaturdayImport(i)
+                                      WHEN d == DOW.sunday THEN orderSundayImport(i);
+supplyImport (INTEGER i, DOW d) = CASE WHEN d == DOW.monday THEN supplyMondayImport(i)
+                                       WHEN d == DOW.tuesday THEN supplyTuesdayImport(i)
+                                       WHEN d == DOW.wednesday THEN supplyWednesdayImport(i)
+                                       WHEN d == DOW.thursday THEN supplyThursdayImport(i)
+                                       WHEN d == DOW.friday THEN supplyFridayImport(i)
+                                       WHEN d == DOW.saturday THEN supplySaturdayImport(i)
+                                       WHEN d == DOW.sunday THEN supplySundayImport(i);
+
+weekParityImport (STRING s) = CASE WHEN upper(trim(s)) == 'Н' OR upper(trim(s)) == 'H' THEN WeekParity.odd
+                                   WHEN upper(trim(s)) == 'Ч' THEN WeekParity.even
+                                   WHEN length(trim(s)) > 0 THEN WeekParity.every;
+
+distanceOrderImport (DOW d, DOW ds) = IF distanceDOWDOW(d, ds) == 0 THEN 7 ELSE distanceDOWDOW(d, ds);
+orderDOWImport (INTEGER i, DOW ds) = GROUP LAST DOW d ORDER DESC distanceOrderImport(d, ds), d
+                                           WHERE weekParityImport(orderImport(i, d)) AND weekParityImport(supplyImport(i, ds));
+
+timeToOrderImport (STRING s) = toTime(INTEGER(getWord(replace(trim(s), ':', '-'), '-', 1)) * 3600 + INTEGER(getWord(replace(trim(s), ':', '-'), '-', 2)) * 60);
+
+legalEntityImport (STRING id) = GROUP MAX LegalEntity l BY id(l);
+stockImport (STRING id) = GROUP MAX Stock st BY id(st);
+
+scheduleOrderImport (LegalEntity l, Stock st) = GROUP LAST ScheduleOrder s ORDER startDate(s), s
+                                                      WHERE supplier(s) == l AND in(s, st) AND countStocks(s) == 1 AND type(s) == GenType.genDayMonth;
+
+createdImport = DATA LOCAL INTEGER ();
+updatedImport = DATA LOCAL INTEGER ();
+pointsImport = DATA LOCAL INTEGER ();
+logImport = DATA LOCAL TEXT ();
+dateImport = DATA LOCAL DATE ();
+
+importScheduleOrder (INTEGER i, LegalEntity l, Stock st) {
+    LOCAL schedule = ScheduleOrder ();
+    schedule() <- scheduleOrderImport(l, st);
+    IF schedule() THEN {
+        updatedImport() <- updatedImport() (+) 1;
+    } ELSE {
+        NEW s = ScheduleOrder {
+            schedule() <- s;
+            supplier(s) <- l;
+            supplierStock(s) <- defaultStock(l);
+            customer(s) <- legalEntity(st);
+            dataIn(s, st) <- TRUE;
+            type(s) <- GenType.genDayMonth;
+            inAllMonth(s) <- TRUE;
+            startDate(s) <- dateFromImport();
+            endDate(s) <- dateToImport();
+            operation(s) <- operationImport();
+        }
+        createdImport() <- createdImport() (+) 1;
+    }
+    IF startDate(schedule()) > dateFromImport() THEN startDate(schedule()) <- dateFromImport();
+    IF endDate(schedule()) < dateToImport() THEN endDate(schedule()) <- dateToImport();
+    timeToOrder(schedule()) <- timeToOrderImport(timeImport(i));
+
+    DELETE ScheduleOrderTime t WHERE scheduleOrder(t) == schedule();
+    FOR DOW ds IS DOW AND orderDOWImport(i, ds) NEW t = ScheduleOrderTime DO {
+        scheduleOrder(t) <- schedule();
+        orderDOW(t) <- orderDOWImport(i, ds);
+        shipmentDOW(t) <- ds;
+        shipmentWeeks(t) <- 1 IF orderDOWImport(i, ds) == ds;
+        weekParity(t) <- weekParityImport(orderImport(i, orderDOWImport(i, ds)));
+        timeToOrder(t) <- timeToOrderImport(timeImport(i));
+    }
+
+    DELETE ScheduleOrderDetail d WHERE scheduleOrder(d) == schedule() AND customerStock(d) == st AND dateOrder(d) >= dateFromImport()
+                                       AND NOT [GROUP SUM 1 BY scheduleOrderDetail(UserOrder o)](d);
+    dateImport() <- dateFromImport();
+    WHILE dateImport() <= dateToImport() DO {
+        FOR scheduleOrder(ScheduleOrderTime t) == schedule() AND orderDOW(t) == extractDOW(dateImport()) AND NOT skipWeek(t, dateImport())
+            AND NOT countDetails(schedule(), sum(dateImport(), shipmentTime(t)), dateImport(), st) NEW o = ScheduleOrderDetail DO {
+            scheduleOrder(o) <- schedule();
+            customerStock(o) <- st;
+            dateOrder(o) <- dateImport();
+            dateSupply(o) <- sum(dateImport(), shipmentTime(t));
+            timeToOrder(o) <- OVERRIDE timeToOrder(t), timeToOrder(schedule());
+            pointsImport() <- pointsImport() (+) 1;
+        }
+        dateImport() <- sum(dateImport(), 1);
+    }
+}
+
+importScheduleOrdersFile () {
+    IMPORT XLS NOHEADER FROM importFile() TO numberImport = A, idSupplierImport = B, idStockImport = C,
+        orderMondayImport = H, orderTuesdayImport = I, orderWednesdayImport = J, orderThursdayImport = K, orderFridayImport = L, orderSaturdayImport = M, orderSundayImport = N,
+        timeImport = O,
+        supplyMondayImport = P, supplyTuesdayImport = Q, supplyWednesdayImport = R, supplyThursdayImport = S, supplyFridayImport = T, supplySaturdayImport = U, supplySundayImport = V;
+    createdImport() <- 0;
+    updatedImport() <- 0;
+    pointsImport() <- 0;
+    logImport() <- NULL;
+    FOR imported(INTEGER i) AND idSupplierImport(i) AND idStockImport(i) ORDER i DO {
+        IF NOT isSupplier(legalEntityImport(STRING(idSupplierImport(i)))) THEN
+            logImport() <- CONCAT '
+', logImport(), 'Строка ' + (OVERRIDE trim(numberImport(i)), STRING(i + 1)) + ': поставщик с кодом ' + STRING(idSupplierImport(i)) + ' не найден';
+        ELSE IF NOT isCompany(stockImport(STRING(idStockImport(i)))) THEN
+            logImport() <- CONCAT '
+', logImport(), 'Строка ' + (OVERRIDE trim(numberImport(i)), STRING(i + 1)) + ': собственный склад с кодом ' + STRING(idStockImport(i)) + ' не найден';
+        ELSE IF NOT (GROUP SUM 1 IF orderDOWImport(i, DOW ds)) THEN
+            logImport() <- CONCAT '
+', logImport(), 'Строка ' + (OVERRIDE trim(numberImport(i)), STRING(i + 1)) + ': не заданы дни заказа и дни поставки';
+        ELSE
+            importScheduleOrder(i, legalEntityImport(STRING(idSupplierImport(i))), stockImport(STRING(idStockImport(i))));
+    }
+}
+
+importScheduleOrders 'Импорт графиков заказов' () {
+    dateFromImport() <- currentDate();
+    dateToImport() <- sum(currentDate(), OVERRIDE countDaysPreOrders(), 30);
+    DIALOG importScheduleOrders DO {
+        IF NOT importFile() THEN MESSAGE 'Не выбран файл';
+        ELSE IF NOT dateFromImport() <= dateToImport() THEN MESSAGE 'Не задан интервал дат';
+        ELSE NEWSESSION NESTED LOCAL {
+            importScheduleOrdersFile();
+            APPLY NESTED LOCAL;
+            IF NOT canceled() THEN
+                MESSAGE CONCAT '
+', 'Графиков создано: ' + STRING(createdImport()), 'Графиков дополнено: ' + STRING(updatedImport()),
+                                     'Точек заказов создано: ' + STRING(pointsImport()), logImport();
+        }
+    }
+}
+
+EXTEND FORM scheduleOrderDashboard
+    PROPERTIES DRAW ss importScheduleOrders() TOOLBAR SHOWIF useOrderExtensions()
+;

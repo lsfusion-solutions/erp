@@ -1,0 +1,54 @@
+MODULE PurchaseOrderScheduleGestori;
+
+REQUIRE PurchaseOrderPriceDateGestori, PurchaseScheduleOrder;
+
+NAMESPACE Purchase;
+
+// ---- Параметры операции ----
+
+showUseScheduleOrder 'Показывать «Использовать график заказов»' = DATA BOOLEAN (Operation) PREREAD;
+defaultUseScheduleOrder 'Использовать график заказов (по умолчанию)' = DATA BOOLEAN (Operation) PREREAD;
+
+EXTEND FORM operation
+    PROPERTIES(o) SHOWIF useOrderExtensions() showUseScheduleOrder, defaultUseScheduleOrder
+;
+
+DESIGN operation {
+    showContainer {
+        MOVE PROPERTY(showUseScheduleOrder(o));
+    }
+    paramsContainer {
+        MOVE PROPERTY(defaultUseScheduleOrder(o));
+    }
+}
+
+// ---- Использование графика заказов в заказе ----
+
+useScheduleOrder 'Использовать график заказов' = DATA BOOLEAN (UserOrder);
+useScheduleOrder(UserOrder o) <- defaultUseScheduleOrder(operation(o)) WHEN useOrderExtensions() AND CHANGED(operation(o));
+
+nextScheduleOrderDetail (UserOrder o) = GROUP LAST ScheduleOrderDetail d ORDER DESC dateOrder(d), d
+                                             WHERE isOpened(d) AND supplier(d) == supplier(o) AND customerStock(d) == customerStock(o) AND dateOrder(d) >= date(o);
+
+scheduleShipmentDate(UserOrder o) += dateSupply(nextScheduleOrderDetail(o)) IF useScheduleOrder(o) AND dateOrder(nextScheduleOrderDetail(o)) == date(o);
+
+changeShipmentDate(UserOrder o) += CHANGED(useScheduleOrder(o)) OR (useScheduleOrder(o) AND CHANGED(customerStock(o)));
+
+WHEN LOCAL FORMS userOrder useOrderExtensions() AND useScheduleOrder(UserOrder o)
+    AND (CHANGED(date(o)) OR CHANGED(useScheduleOrder(o)) OR CHANGED(supplier(o)) OR CHANGED(customerStock(o)) OR CHANGED(operation(o)))
+    AND dateOrder(nextScheduleOrderDetail(o)) > date(o) DO {
+    date(o) <- dateOrder(nextScheduleOrderDetail(o));
+}
+
+CONSTRAINT useOrderExtensions() AND shipmentDate(UserOrder o) < date(o) CHECKED BY shipmentDate[UserOrder]
+    MESSAGE 'Дата поставки заказа (закупка) не может быть ранее даты заказа';
+
+EXTEND FORM userOrder
+    PROPERTIES(o) SHOWIF (useOrderExtensions() AND showUseScheduleOrder(operation(o))) useScheduleOrder
+;
+
+DESIGN userOrder {
+    second {
+        MOVE PROPERTY(useScheduleOrder(o));
+    }
+}

@@ -152,7 +152,8 @@ daysBeforeShipmentDate (UserOrder o) = OVERRIDE daysBeforeShipmentDate(supplierS
                                                 daysBeforeShipmentDate(operation(o)), daysBeforeShipmentDate() IF o IS UserOrder;
 
 changeShipmentDate = ABSTRACT VALUE BOOLEAN (UserOrder);
+scheduleShipmentDate = ABSTRACT DATE (UserOrder);
 
 skipShipmentDateDerive(UserOrder o) += TRUE IF o IS UserOrder;
-shipmentDate(UserOrder o) <- sum(date(o), (OVERRIDE (daysBeforeShipmentDate(o) IF useOrderExtensions()), daysBeforeShipmentDate(operation(o)), 0))
+shipmentDate(UserOrder o) <- OVERRIDE (scheduleShipmentDate(o) IF useOrderExtensions()), sum(date(o), (OVERRIDE (daysBeforeShipmentDate(o) IF useOrderExtensions()), daysBeforeShipmentDate(operation(o)), 0))
     WHEN CHANGED(date(o)) OR (useOrderExtensions() AND (CHANGED(supplierStock(o)) OR CHANGED(contractSku(o)) OR CHANGED(supplier(o)) OR CHANGED(operation(o)) OR changeShipmentDate(o)));
