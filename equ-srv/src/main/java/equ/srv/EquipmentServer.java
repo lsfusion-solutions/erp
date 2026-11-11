@@ -2787,19 +2787,28 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             if (machineryPriceTransactionLM != null) {
                 try (DataSession session = createSession()) {
                     DataObject transactionObject = session.getDataObject((CustomClass)equLM.findClass("MachineryPriceTransaction"), transactionId);
+
+                    Set<Integer> nppMachinerySet = new HashSet<>();
                     for (MachineryInfo machineryInfo : machineryInfoList) {
-                        ObjectValue machineryObject = null;
-                        if (machineryInfo instanceof CashRegisterInfo && cashRegisterLM != null)
-                            machineryObject = cashRegisterLM.findProperty("cashRegisterNppGroupCashRegister[INTEGER,INTEGER]").readClasses(session, new DataObject(machineryInfo.numberGroup), new DataObject(machineryInfo.number));
-                        else if (machineryInfo instanceof ScalesInfo && scalesLM != null)
-                            machineryObject = scalesLM.findProperty("scalesNppGroupScales[INTEGER,INTEGER]").readClasses(session, new DataObject(machineryInfo.numberGroup), new DataObject(machineryInfo.number));
-                        if (machineryObject != null && (!(machineryInfo instanceof CashRegisterInfo) || !((CashRegisterInfo) machineryInfo).succeeded)) {
-                            boolean alreadySucceeded = machineryPriceTransactionLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").read(session, machineryObject, transactionObject) != null;
-                            if (!alreadySucceeded) {
-                                machineryPriceTransactionLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").change(true, session,
-                                        (DataObject) machineryObject, transactionObject);
-                                machineryPriceTransactionLM.findProperty("dateTimeSucceeded[Machinery,MachineryPriceTransaction]").change(dateTime, session,
-                                        (DataObject) machineryObject, transactionObject);
+                        if (machineryInfo instanceof CashRegisterInfo ? cashRegisterLM != null && !((CashRegisterInfo) machineryInfo).succeeded
+                                : machineryInfo instanceof ScalesInfo && scalesLM != null)
+                            nppMachinerySet.add(machineryInfo.number);
+                    }
+
+                    //one query for all the not succeeded machinery of the group of the transaction instead of two queries for each machinery
+                    if (!nppMachinerySet.isEmpty()) {
+                        KeyExpr machineryExpr = new KeyExpr("machinery");
+                        QueryBuilder<Object, Object> machineryQuery = new QueryBuilder<>(MapFact.singletonRev("machinery", machineryExpr));
+                        machineryQuery.addProperty("npp", machineryLM.findProperty("npp[Machinery]").getExpr(machineryExpr));
+                        machineryQuery.and(machineryLM.findProperty("groupMachinery[Machinery]").getExpr(machineryExpr).compare(
+                                equLM.findProperty("groupMachinery[MachineryPriceTransaction]").getExpr(transactionObject.getExpr()), Compare.EQUALS));
+                        machineryQuery.and(machineryPriceTransactionLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").getExpr(machineryExpr, transactionObject.getExpr()).getWhere().not());
+                        ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> machineryResult = machineryQuery.executeClasses(session);
+                        for (int i = 0, size = machineryResult.size(); i < size; i++) {
+                            if (nppMachinerySet.contains((Integer) machineryResult.getValue(i).get("npp").getValue())) {
+                                DataObject machineryObject = machineryResult.getKey(i).get("machinery");
+                                machineryPriceTransactionLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").change(true, session, machineryObject, transactionObject);
+                                machineryPriceTransactionLM.findProperty("dateTimeSucceeded[Machinery,MachineryPriceTransaction]").change(dateTime, session, machineryObject, transactionObject);
                             }
                         }
                     }
