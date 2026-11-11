@@ -3,8 +3,9 @@ MODULE DataTerminalDocumentDetailEdit;
 // Экран ввода полей строки документа ТСД: поля, запрашиваемые по настройкам типа документа, вводятся по одному.
 // Enter - проверка поля и следующее поле по кругу (после последнего - первое), OK в шапке - сохранение с любого поля,
 // Esc - возврат к строкам без сохранения. Режимы: EDIT - пункт «Редактировать» меню «⋮» строки, ADD - кнопка
-// «Добавить» на экране строк (строки добавляются сканированием штрихкода)
-REQUIRE DataTerminalDocumentDetails, DataTerminalPriceCheck;
+// «Добавить» на экране строк (строки добавляются сканированием штрихкода), PRICE_CHECK - пункт «Проверка цен»
+// главного меню (DataTerminalPriceCheck.lsf): карточка товара с ценой и остатком на складе сотрудника
+REQUIRE DataTerminalDocumentDetails, DataTerminalPriceCheck, BarcodeParser;
 
 NAMESPACE DataTerminal;
 
@@ -82,42 +83,61 @@ editField3 'Поле 3' = DATA LOCAL STRING[100] ();
 // Режим экрана: EDIT - редактирование строки («Редактировать» в меню строки), ADD - добавление строк сканированием
 // (кнопка «Добавить» на экране строк): поле штрихкода сверху, строка отсканированного товара - в поля ввода,
 // PRICE_CHECK - проверка цен (пункт «Проверка цен» главного меню): поле штрихкода и карточка товара, без документа
-CLASS TerminalDetailEditMode 'Режим экрана строки документа ТСД' {
+CLASS TerminalDetailScreenMode 'Режим экрана строки документа ТСД' {
     edit 'EDIT',
     add 'ADD',
     priceCheck 'PRICE_CHECK'
 }
-editMode = DATA LOCAL TerminalDetailEditMode ();
+screenMode = DATA LOCAL TerminalDetailScreenMode ();
 // Режимы с полем штрихкода
-scanMode () = editMode() = TerminalDetailEditMode.add OR editMode() = TerminalDetailEditMode.priceCheck;
+scanMode () = screenMode() = TerminalDetailScreenMode.add OR screenMode() = TerminalDetailScreenMode.priceCheck;
 
 // Документ, в который добавляют строки (ADD): до первого скана строки еще нет
 editedDocument = DATA LOCAL TerminalDocument ();
-// Сообщение под полем штрихкода (ADD): товар не найден, вне заказа, строка сохранена
+// Сообщение под полем штрихкода (ADD, PRICE_CHECK): товар не найден, вне заказа, строка сохранена
 addMessage '' = DATA LOCAL STRING ();
 // Фокус в поле штрихкода: реализация - после добавления поля на форму
 focusAddBarcode ABSTRACT LIST ();
 
+// Режим PRICE_CHECK: склад сотрудника, отсканированный товар и его штрихкод упаковки. До первого скана и после скана
+// неизвестного штрихкода товара нет - карточки нет
+priceCheckStock () = stock(currentEmployee());
+priceCheckSku = DATA LOCAL Sku ();
+priceCheckBarcode = DATA LOCAL STRING[30] ();
+
 // Экран ввода: возврат (Esc, стрелка в шапке) - к строкам документа
 @defSubMenu(terminalDocumentDetailEditOperation, operation, terminalDocumentDetailsOperation, 'Строка документа');
 
-// Шапка экрана: товар строки и количество по заказу, под ней - номер поля из числа запрашиваемых.
-// Миниатюра товара (smallImage) - справа под наименованием. В режиме ADD до скана шапки нет (подсказка - в подписи
-// поля штрихкода)
-htmlEditDetailHeader '' () = IF editedDetail() THEN CONCAT '',
+// Карточка товара - общая для всех режимов: наименование, миниатюра товара (smallImage) справа под ним, штрихкод
+// и ед. изм., справа от них - side, ниже - body (по режиму)
+htmlSkuCard '' (Sku s, STRING barcode, STRING side, STRING body) = CONCAT '',
     '<div class=terminal-document-detail-edit>',
-        '<div class=name>', name(editedDetail()), '</div>',
-        htmlSmallImage(sku(editedDetail())),
+        '<div class=name>', name(s), '</div>',
+        htmlSmallImage(s),
         '<div class=header>',
-            '<div class=barcode>', barcode(editedDetail()), ' <b>' + shortNameUOM(sku(editedDetail())) + '</b>', '</div>',
-            ('<div class=order><span>Заказ</span>' + (OVERRIDE shortQuantity(NUMERIC[16,3](orderQuantity(editedDetail()))), '0') + '</div>')
-                IF terminalOrder(terminalDocument(editedDetail())),
+            '<div class=barcode>', barcode, ' <b>' + shortNameUOM(s) + '</b>', '</div>',
+            side,
         '</div>',
-        '<div class=step>',
-            'Поле ' + STRING(GROUP SUM 1 IF requested(TerminalDetailField f, editedDetail()) AND order(f) <= order(currentField()))
-                + ' из ' + STRING(GROUP SUM 1 IF requested(TerminalDetailField g, editedDetail())),
-        '</div>',
+        body,
     '</div>';
+
+// PRICE_CHECK: цена (крупно) и остаток на складе сотрудника, код и производитель товара
+htmlPriceCheck '' (Sku s, Stock st) = CONCAT '',
+    '<div class=price><span class=label>Цена</span><span class=value>',
+        (OVERRIDE STRING(NUMERIC[16,2](currentPriceInTerminal(s, st))), '—'), '</span></div>',
+    '<div class=balance><span class=label>Остаток</span><span class=value>',
+        (OVERRIDE STRING(NUMERIC[16,3](currentBalance(s, st))), '0'), '</span></div>',
+    '<div class=info>', (CONCAT ' ● ', id(s AS Item), name(Item.manufacturer(s AS Item))), '</div>';
+
+// Шапка экрана - карточка товара: в EDIT и ADD - товар строки и количество по заказу, в PRICE_CHECK - отсканированный
+// товар с ценой и остатком. В режимах ADD и PRICE_CHECK до скана карточки нет (подсказка - в поле штрихкода)
+htmlEditDetailHeader '' () = CASE
+    WHEN editedDetail() THEN htmlSkuCard(sku(editedDetail()), barcode(editedDetail()),
+        ('<div class=order><span>Заказ</span>' + (OVERRIDE shortQuantity(NUMERIC[16,3](orderQuantity(editedDetail()))), '0') + '</div>')
+            IF terminalOrder(terminalDocument(editedDetail())),
+        '')
+    WHEN screenMode() = TerminalDetailScreenMode.priceCheck AND priceCheckSku() THEN
+        htmlSkuCard(priceCheckSku(), priceCheckBarcode(), '', htmlPriceCheck(priceCheckSku(), priceCheckStock()));
 
 // На экране все поля, видно только текущее. Числа - с цифровой экранной клавиатурой (inputDecimalText),
 // даты - ДД.ММ.ГГ (inputDateKeyboard), строки - с обычной (inputText). Варианты ...Selected при появлении
@@ -190,7 +210,7 @@ loadEditedDetail (TerminalDocumentDetail d) {
 
 // Открытие экрана в режиме EDIT
 startEditTerminalDocumentDetail (TerminalDocumentDetail d) {
-    editMode() <- TerminalDetailEditMode.edit;
+    screenMode() <- TerminalDetailScreenMode.edit;
     editedDocument() <- terminalDocument(d);
     addMessage() <- NULL;
     loadEditedDetail(d);
@@ -294,7 +314,7 @@ saveEditedDetail () {
                 editSaved() <- TRUE;
         }
         IF editSaved() THEN {
-            IF editMode() = TerminalDetailEditMode.add THEN {
+            IF screenMode() = TerminalDetailScreenMode.add THEN {
                 // ADD: остаемся на экране и ждем следующий скан
                 addMessage() <- '<div class="dt-add-message saved">Сохранено: ' + name(d) + '</div>';
                 clearEditedDetail();
@@ -347,11 +367,11 @@ okDetailField () {
 // Заголовок короткий: текст шапки не сжимается, и длинный («Редактирование строки») вместе со стрелкой «Назад»
 // выталкивает OK за край экрана
 overHeaderTitle () += CASE
-    WHEN lastMenuItem() = MenuItem.terminalDocumentDetailEditOperation AND editMode() = TerminalDetailEditMode.edit
+    WHEN lastMenuItem() = MenuItem.terminalDocumentDetailEditOperation AND screenMode() = TerminalDetailScreenMode.edit
         THEN 'Редактирование'
-    WHEN lastMenuItem() = MenuItem.terminalDocumentDetailEditOperation AND editMode() = TerminalDetailEditMode.priceCheck
+    WHEN lastMenuItem() = MenuItem.terminalDocumentDetailEditOperation AND screenMode() = TerminalDetailScreenMode.priceCheck
         THEN 'Проверка цен';
-headerClass (MenuItem i) += WHEN i = MenuItem.terminalDocumentDetailEditOperation AND editMode() = TerminalDetailEditMode.edit
+headerClass (MenuItem i) += WHEN i = MenuItem.terminalDocumentDetailEditOperation AND screenMode() = TerminalDetailScreenMode.edit
     THEN 'dt-header-edit';
 
 // OK в шапке - не в режимах со сканированием (ADD, PRICE_CHECK)
@@ -373,6 +393,11 @@ DESIGN dataTerminalInternal {
 
 editPreferences () = preferences(terminalDocumentType(editedDocument()));
 
+// Поставщик документа: аналитика вида «Организация» (terminalHandbookType, код значения - exportId + id, как
+// заполняется при выборе заказа - selectNewDocumentOrder и выгрузке поставщиков на ТСД). Читается один раз при
+// входе в режим ADD - на сканах не пересчитывается
+documentSupplier 'Поставщик' = DATA LOCAL Stock ();
+
 // Последняя строка товара в документе
 documentDetail (TerminalDocument doc, Sku s) = GROUP LAST TerminalDocumentDetail d ORDER number(d), d
     WHERE terminalDocument(d) = doc AND sku(d) = s;
@@ -393,12 +418,29 @@ addError (STRING title, STRING barcode) {
 
 addedDetail = DATA LOCAL TerminalDocumentDetail ();
 
-// Скан в режиме ADD. Идет ввод полей товара - сначала сохраняется его строка (как по OK; при ошибке в полях скан
-// отбрасывается). Документ по заказу: строка товара из заказа; товар вне заказа - запрет (banItemOutsideOrder) или
-// как без заказа. Без заказа: при группировке по товару (groupItems) - уже отсканированная строка товара, иначе новая
-// строка - только при allowNewItem; новая строка сразу добавляется в документ, затем вводятся ее поля.
-// Количество: строка заказа без количества - по заказу (quantityFromOrder), найденная строка - +1, новая - 1
-// (при zeroQuantityDefault - пустое поле)
+// Заполнение полей ввода строки из разобранного штрихкода (BarcodeParser: parsedBarcode по группам BarcodeGroup).
+// Вызывается при скане и ручном вводе штрихкода в режиме ADD, когда строка товара уже загружена в поля ввода
+// (editedDetail, edit*) и количество (в т.ч. из штрихкода) подставлено - реализации могут его переопределить.
+// barcode - введенный штрихкод целиком. В строку при сохранении пишутся только запрашиваемые поля. Пример реализации
+// в другой логике (группы штрихкода - EXTEND CLASS BarcodeGroup, номера групп - в форме «Парсеры штрихкодов»):
+//   fillEditFromBarcode (STRING barcode) + {
+//       IF parsedBarcode(barcode, BarcodeGroup.extraQuantity) THEN
+//           editExtraQuantity() <- NUMERIC[14,3](parsedBarcode(barcode, BarcodeGroup.extraQuantity));
+//       IF parsedBarcode(barcode, BarcodeGroup.date1) THEN
+//           editDate1() <- toDateFormat(parsedBarcode(barcode, BarcodeGroup.date1), 'YYMMDD');
+//   }
+fillEditFromBarcode ABSTRACT LIST (STRING);
+
+// Скан или ручной ввод штрихкода в режиме ADD. Идет ввод полей товара - сначала сохраняется его строка (как по OK;
+// при ошибке в полях скан отбрасывается). Штрихкод разбирается парсерами штрихкодов (BarcodeParser): товар ищется
+// и в строку пишется по штрихкоду упаковки (packBarcode). Документ по заказу: строка товара из заказа; товар вне
+// заказа - запрет (banItemOutsideOrder) или как без заказа; новая строка вне ассортимента поставщика - запрет
+// (controlSupplierAssortment) или подтверждение (allowOutsideSupplierAssortment). Без заказа: при группировке по товару
+// (groupItems) - уже отсканированная строка товара, иначе новая строка - только при allowNewItem; новая строка сразу
+// добавляется в документ, затем вводятся ее поля.
+// Количество: есть в штрихкоде - новая строка с ним, найденная строка - + оно. Иначе строка заказа без количества -
+// по заказу (quantityFromOrder), найденная строка - +1, новая - 1 (при zeroQuantityDefault - пустое поле).
+// Остальные поля из штрихкода - fillEditFromBarcode
 processAddBarcode (STRING barcode) {
     addMessage() <- NULL;
     IF editedDetail() THEN {
@@ -408,7 +450,7 @@ processAddBarcode (STRING barcode) {
         addMessage() <- NULL;
     }
     FOR TerminalDocument doc = editedDocument() DO {
-        FOR Sku s = skuBarcode(STRING[15](barcode)) DO {
+        FOR Sku s = skuBarcode(STRING[15](packBarcode(barcode))) DO {
             IF terminalOrder(doc) AND NOT inOrder(doc, s) AND banItemOutsideOrder(editPreferences()) THEN {
                 addError('Товара нет в заказе', barcode);
                 RETURN;
@@ -416,12 +458,29 @@ processAddBarcode (STRING barcode) {
             IF inOrder(doc, s) OR groupItems(editPreferences()) THEN
                 FOR TerminalDocumentDetail d = documentDetail(doc, s) DO {
                     loadEditedDetail(d);
-                    editQuantity() <- IF inOrder(doc, s) AND quantityFromOrder(editPreferences()) AND NOT (quantity(d) > 0)
-                        THEN orderQuantity(doc, s)
-                        ELSE quantity(d) (+) 1;
+                    editQuantity() <- IF hasParsedQuantity(barcode) THEN quantity(d) (+) parsedQuantity(barcode)
+                        ELSE (IF inOrder(doc, s) AND quantityFromOrder(editPreferences()) AND NOT (quantity(d) > 0)
+                            THEN orderQuantity(doc, s)
+                            ELSE quantity(d) (+) 1);
+                    fillEditFromBarcode(barcode);
                     focusCurrentField();
                     RETURN;
                 }
+            // Контроль ассортимента поставщика (controlSupplierAssortment): поставщик - аналитика «Организация»
+            // документа, товар в ассортименте - есть цена в прайс-листе поставщика (price по priceListTypeTerminal,
+            // TerminalHandler). Вне ассортимента: запрет или подтверждение (allowOutsideSupplierAssortment)
+            IF controlSupplierAssortment(editPreferences()) AND documentSupplier()
+                    AND NOT price(s, stock(doc), documentSupplier()) THEN {
+                IF NOT allowOutsideSupplierAssortment(editPreferences()) THEN {
+                    addError('Товар вне ассортимента поставщика', barcode);
+                    RETURN;
+                }
+                askYesNo(CONCAT '<br>', 'Товар вне ассортимента поставщика', '<b>' + name(s) + '</b>');
+                IF NOT askedYesNo() THEN {
+                    focusAddBarcode();
+                    RETURN;
+                }
+            }
             IF NOT allowNewItem(editPreferences()) THEN {
                 addError('Добавление нового товара запрещено', barcode);
                 RETURN;
@@ -431,14 +490,15 @@ processAddBarcode (STRING barcode) {
                 NEW d = TerminalDocumentDetail {
                     terminalDocument(d) <- doc;
                     number(d) <- (GROUP MAX number(TerminalDocumentDetail x) IF terminalDocument(x) = doc) (+) 1;
-                    barcode(d) <- STRING[30](barcode);
+                    barcode(d) <- STRING[30](packBarcode(barcode));
                     sku(d) <- s;
                     price(d) <- OVERRIDE (GROUP MAX overPrice(TerminalOrderDetail od) IF order(od) = terminalOrder(doc)
                                               AND sku(od) = s AND forNewDocument(od, terminalDocumentType(doc))),
                                          currentPriceInTerminal(s, stock(doc));
-                    quantity(d) <- IF inOrder(doc, s) AND quantityFromOrder(preferences(terminalDocumentType(doc)))
-                        THEN orderQuantity(doc, s)
-                        ELSE (1 IF NOT zeroQuantityDefault(preferences(terminalDocumentType(doc))));
+                    quantity(d) <- IF hasParsedQuantity(barcode) THEN parsedQuantity(barcode)
+                        ELSE (IF inOrder(doc, s) AND quantityFromOrder(preferences(terminalDocumentType(doc)))
+                            THEN orderQuantity(doc, s)
+                            ELSE (1 IF NOT zeroQuantityDefault(preferences(terminalDocumentType(doc)))));
                     dateTimeScan(d) <- currentDateTime();
                     APPLY;
                     // успешный APPLY очищает локальные свойства сессии, поэтому строка запоминается после него
@@ -448,6 +508,7 @@ processAddBarcode (STRING barcode) {
             }
             FOR TerminalDocumentDetail d = addedDetail() DO {
                 loadEditedDetail(d);
+                fillEditFromBarcode(barcode);
                 focusCurrentField();
             }
         } ELSE
@@ -455,9 +516,23 @@ processAddBarcode (STRING barcode) {
     }
 }
 
-// Скан по режиму: ADD - строка документа, PRICE_CHECK - карточка товара (DataTerminalPriceCheck.lsf)
+// Скан в режиме PRICE_CHECK: товар - по штрихкоду упаковки (парсеры штрихкодов, BarcodeParser), его карточка - в шапке
+// экрана. Товар не найден - то же сообщение под полем штрихкода и звук, что в режиме ADD
+processPriceCheckBarcode (STRING barcode) {
+    IF NOT priceCheckStock() THEN {
+        message('<em>У сотрудника не задан основной склад</em>');
+        RETURN;
+    }
+    addMessage() <- NULL;
+    priceCheckBarcode() <- STRING[30](packBarcode(barcode));
+    priceCheckSku() <- skuBarcode(STRING[15](packBarcode(barcode)));
+    IF NOT priceCheckSku() THEN
+        addError('Товар не найден', barcode);
+}
+
+// Скан по режиму: ADD - строка документа, PRICE_CHECK - карточка товара
 processScannedBarcode (STRING barcode) {
-    IF editMode() = TerminalDetailEditMode.priceCheck THEN {
+    IF screenMode() = TerminalDetailScreenMode.priceCheck THEN {
         processPriceCheckBarcode(barcode);
         focusAddBarcode();
     } ELSE
@@ -493,16 +568,12 @@ EXTEND FORM dataTerminalInternal
         }
     }
     PROPERTIES enterAddBarcode() SHOWIF scanMode()
-    PROPERTIES READONLY dtAddMessage = addMessage() CUSTOM 'htmlText' SHOWIF addMessage(),
-                        dtPriceCheckScanned = priceCheckScanned() CUSTOM 'htmlText'
-                            SHOWIF editMode() = TerminalDetailEditMode.priceCheck AND priceCheckBarcode(),
-                        dtPriceCheckCard = priceCheckCard() CUSTOM 'htmlText'
-                            SHOWIF editMode() = TerminalDetailEditMode.priceCheck AND priceCheckBarcode()
+    PROPERTIES READONLY dtAddMessage = addMessage() CUSTOM 'htmlText' SHOWIF addMessage()
 ;
 
 DESIGN dataTerminalInternal {
     terminalDocumentDetailEditOperation {
-        // Поле и кнопка «↵» справа - как поле штрихкода с кнопкой OK на «Проверке цен» (сетка, dataTerminalDocumentDetailEdit.css)
+        // Поле и кнопка «↵» справа в одной строке (сетка, dataTerminalDocumentDetailEdit.css)
         NEW terminalDocumentDetailAddBarcode BEFORE PROPERTY (terminalDocumentDetailEditHeader) {
             align = STRETCH;
             class = 'input-container dt-add-barcode';
@@ -521,15 +592,6 @@ DESIGN dataTerminalInternal {
             focusable = FALSE;
             align = STRETCH;
         }
-        // PRICE_CHECK: отсканированный штрихкод и карточка товара - как на прежнем экране «Проверка цен»
-        MOVE PROPERTY (dtPriceCheckScanned) BEFORE PROPERTY (terminalDocumentDetailEditHeader) {
-            focusable = FALSE;
-            align = STRETCH;
-        }
-        MOVE PROPERTY (dtPriceCheckCard) BEFORE PROPERTY (terminalDocumentDetailEditHeader) {
-            focusable = FALSE;
-            align = STRETCH;
-        }
     }
 }
 
@@ -540,7 +602,7 @@ focusAddBarcode () + {
 // «Назад» (Esc, стрелка в шапке) в режиме ADD подтверждает ввод строки: введенное сохраняется (как по OK),
 // при ошибке в полях экран остается на месте. В EDIT (и будущем REPLACE) - возврат к строкам без сохранения
 beforePrevMenuItem (MenuItem i) + WHEN i = MenuItem.terminalDocumentDetailEditOperation AND editedDetail()
-        AND editMode() = TerminalDetailEditMode.add THEN {
+        AND screenMode() = TerminalDetailScreenMode.add THEN {
     editSaved() <- NULL;
     okDetailField();
     IF NOT editSaved() THEN
@@ -549,8 +611,10 @@ beforePrevMenuItem (MenuItem i) + WHEN i = MenuItem.terminalDocumentDetailEditOp
 
 // Кнопка «Добавить» на экране строк документа: экран строки в режиме ADD (для закрытого документа скрыта)
 addTerminalDocumentDetail () {
-    editMode() <- TerminalDetailEditMode.add;
+    screenMode() <- TerminalDetailScreenMode.add;
     editedDocument() <- selectedTerminalDocument();
+    documentSupplier() <- GROUP MAX Stock st
+        IF exportId() + id(st) = handbook(editedDocument(), terminalHandbookType());
     addMessage() <- NULL;
     clearEditedDetail();
     toMenuItem(MenuItem.terminalDocumentDetailEditOperation);
@@ -567,11 +631,12 @@ DESIGN dataTerminalInternal {
 
 // Пункт «Проверка цен» главного меню: экран в режиме PRICE_CHECK, документа нет
 doMenuItemPriceCheck () + {
-    editMode() <- TerminalDetailEditMode.priceCheck;
+    screenMode() <- TerminalDetailScreenMode.priceCheck;
     editedDocument() <- NULL;
     addMessage() <- NULL;
     clearEditedDetail();
-    startPriceCheck();
+    priceCheckSku() <- NULL;
+    priceCheckBarcode() <- NULL;
     toMenuItem(MenuItem.terminalDocumentDetailEditOperation);
     focusAddBarcode();
 }
@@ -579,7 +644,7 @@ doMenuItemPriceCheck () + {
 // «Назад» в PRICE_CHECK - на экран, с которого пришли (главный), а не к строкам документа (up экрана - строки документа,
 // up хранится и от режима не зависит): как ветка без up в toPrevMenuItem
 beforePrevMenuItem (MenuItem i) + WHEN i = MenuItem.terminalDocumentDetailEditOperation
-        AND editMode() = TerminalDetailEditMode.priceCheck THEN {
+        AND screenMode() = TerminalDetailScreenMode.priceCheck THEN {
     toMenuItem(top());
     pop();
     pop();

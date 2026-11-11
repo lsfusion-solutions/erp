@@ -1,0 +1,94 @@
+MODULE BarcodeParser;
+
+REQUIRE MasterData, Utils;
+
+@defineStaticObject(barcodeGroup, 'Группа штрихкода');
+
+EXTEND CLASS BarcodeGroup {
+    pack 'Упаковка',
+    quantityInt 'Количество (цел.)',
+    quantityFrac 'Количество (дроб.)'
+}
+
+CLASS BarcodeParser 'Парсер штрихкода';
+TABLE barcodeParser (BarcodeParser);
+
+name 'Наименование' = DATA STRING[50] (BarcodeParser) IN id NONULL;
+order 'Порядок' = DATA INTEGER (BarcodeParser) CHARWIDTH 5;
+inactive 'Откл' = DATA BOOLEAN (BarcodeParser);
+active 'Вкл' (BarcodeParser p) = p IS BarcodeParser AND NOT inactive(p);
+regex 'Регулярное выражение' = DATA STRING (BarcodeParser) NONULL;
+
+id 'Код группы' = DATA INTEGER (BarcodeParser, BarcodeGroup);
+
+// Возвращает подходящий парсер для штрихкода
+matchingParser 'Парсер' (STRING barcode) =
+    GROUP LAST BarcodeParser p ORDER DESC order(p), p
+    WHERE active(p) AND regexPatternMatch(barcode, regex(p));
+
+// Значение группы захвата с номером id(парсер, группа) из регулярного выражения подходящего парсера
+parsedBarcode(STRING barcode, BarcodeGroup group) =
+    [FORMULA NULL STRING PG '(regexp_match($1, $2))[$3]'](barcode, regex(matchingParser(barcode)), id(matchingParser(barcode), group));
+
+// Штрихкод товара: группа pack подходящего парсера; без парсера (или без группы pack) - штрихкод целиком
+packBarcode 'Штрихкод упаковки' (STRING barcode) = OVERRIDE parsedBarcode(barcode, BarcodeGroup.pack), barcode;
+
+
+hasParsedQuantity(STRING barcode) = parsedBarcode(barcode, BarcodeGroup.quantityInt) AND parsedBarcode(barcode, BarcodeGroup.quantityFrac);
+parsedQuantity(STRING barcode) = NUMERIC[15,3](CONCAT '.', parsedBarcode(barcode, BarcodeGroup.quantityInt), parsedBarcode(barcode, BarcodeGroup.quantityFrac));
+
+// Тестирование парсера
+testBarcode 'Тест штрихкода' = DATA LOCAL STRING () CHARWIDTH 40 CHANGEKEY 'F4';
+
+FORM barcodeParserList 'Парсеры штрихкодов'
+    PROPERTIES testBarcode()
+
+    OBJECTS p = BarcodeParser
+    PROPERTIES (p) BACKGROUND #FFFACD IF p = matchingParser(testBarcode()) name, order, inactive, regex
+    ORDERS order(p)
+    PROPERTIES (p) NEW, DELETE
+    FILTERGROUP active
+        FILTER 'Активные' PREV(active(p)) OR active(p) DEFAULT
+
+    OBJECTS group '№№ группы' = BarcodeGroup
+    PROPERTIES name(group) READONLY, id(p, group), 'Тест' = parsedBarcode(testBarcode(), group) READONLY BACKGROUND #D3D3D3
+;
+
+DESIGN barcodeParserList {
+    OBJECTS {
+        NEW testPane FIRST {
+            align = STRETCH;
+            horizontal = TRUE;
+            lines = 1;
+            MOVE PROPERTY (testBarcode());
+        }
+    }
+}
+
+NAVIGATOR {
+    masterData {
+        NEW barcodeParserList;
+    }
+}
+
+// Тултипы
+DESIGN barcodeParserList {
+    PROPERTY(testBarcode()) {
+        tooltip = 'Введите штрихкод для проверки (F4). Подходящий парсер подсветится жёлтым, результаты извлечения появятся в колонке «Тест».';
+    }
+    PROPERTY(name(p)) {
+        tooltip = 'Произвольное название для удобства, например «EAN-13 с весом» или «Формат поставщика ABC».';
+    }
+    PROPERTY(order(p)) {
+        tooltip = 'Приоритет при конкуренции: если штрихкод подошёл нескольким парсерам, побеждает тот, у которого значение меньше.';
+    }
+    PROPERTY(inactive(p)) {
+        tooltip = 'Отключённый парсер не участвует в распознавании. Используйте для временного отключения без удаления.';
+    }
+    PROPERTY(regex(p)) {
+        tooltip = 'Шаблон для распознавания штрихкода. Части в скобках — группы захвата; их номера указываются в колонке «№№ группы» для каждого поля.';
+    }
+    PROPERTY(id(p, group)) {
+        tooltip = 'Номер группы захвата в регулярном выражении (1, 2, 3...), из которой берётся значение этого поля. Оставьте пустым, если поле в штрихкоде отсутствует.';
+    }
+}

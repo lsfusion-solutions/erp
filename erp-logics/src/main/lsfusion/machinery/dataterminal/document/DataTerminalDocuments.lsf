@@ -125,21 +125,6 @@ deleteTerminalDocument (TerminalDocument d) {
 DESIGN terminalDocumentMenu { items { MOVE PROPERTY (deleteTerminalDocument); } }
 showTerminalDocumentMenu() += TRUE;
 
-// Пункт меню «Комментарий»: ввод с экранной клавиатуры
-commentTerminalDocument (TerminalDocument d) {
-    // Диалог открывается напрямую, а не через inputText(caption): нужно отличать OK с пустым полем
-    // (очистить комментарий) от закрытия по Esc (ничего не менять), а inputedString в обоих случаях NULL
-    DIALOG inputText OBJECTS caption = 'Комментарий:', value = comment(d) INPUT NOMANAGESESSION DO {
-        NEWSESSION {
-            comment(d) <- STRING[100](value);
-            APPLY;
-        }
-    }
-    close();
-}
-@defButtonCustom(commentTerminalDocument, 'Комментарий', terminalDocumentMenu, d, '2', );
-DESIGN terminalDocumentMenu { items { MOVE PROPERTY (commentTerminalDocument); } }
-
 // Пункт меню и экран операции
 @addMenuItem(terminalDocuments, 'Документы', '3', lineAction3);
 
@@ -532,6 +517,104 @@ DESIGN dataTerminalInternal {
         MOVE PROPERTY (createTerminalDocument);
     }
 }
+
+// Редактирование шапки документа (пункт «Редактировать» меню «⋮»): номер (если в настройках типа не запрещено -
+// banEditDocumentNumber) и комментарий. Остальное (тип в заголовке, аналитики, заказ) - только для чтения.
+// Окно - как «Новый документ»; значения вводятся в буфер и пишутся в документ только по «Сохранить»
+editDocumentNumber 'Номер' = DATA LOCAL STRING[1000] ();
+editDocumentComment 'Комментарий' = DATA LOCAL STRING[100] ();
+
+banEditNumber (TerminalDocument d) = banEditDocumentNumber(preferences(terminalDocumentType(d)));
+
+// Наименование значения аналитики документа (код, если значения нет среди загруженных)
+nameHandbook1 (TerminalDocument d) = OVERRIDE handbookValue(terminalHandbookType1(terminalDocumentType(d)), idTerminalHandbookType1(d)),
+                                              idTerminalHandbookType1(d);
+nameHandbook2 (TerminalDocument d) = OVERRIDE handbookValue(terminalHandbookType2(terminalDocumentType(d)), idTerminalHandbookType2(d)),
+                                              idTerminalHandbookType2(d);
+
+FORM editTerminalDocument 'Документ'
+    OBJECTS d = TerminalDocument PANEL
+    PROPERTIES READONLY header = dialogHeader('Документ', nameTerminalDocumentType(d)) CUSTOM 'htmlText'
+    PROPERTIES() editDocumentNumber CUSTOM 'inputText' SHOWIF NOT banEditNumber(d),
+                 editDocumentComment CUSTOM 'inputText'
+    // Только для чтения: номер при запрете редактирования, аналитики по настройке типа, заказ-основание
+    PROPERTIES READONLY lockedNumber 'Номер' = title(d) SHOWIF banEditNumber(d),
+                        handbook1 = nameHandbook1(d) HEADER nameTerminalHandbookType1(terminalDocumentType(d))
+                            SHOWIF terminalHandbookType1(terminalDocumentType(d)),
+                        handbook2 = nameHandbook2(d) HEADER nameTerminalHandbookType2(terminalDocumentType(d))
+                            SHOWIF terminalHandbookType2(terminalDocumentType(d)),
+                        orderNumber 'Заказ' = parentDocument(d) SHOWIF parentDocument(d)
+;
+
+saveTerminalDocument (TerminalDocument d) {
+    IF NOT banEditNumber(d) AND NOT editDocumentNumber() THEN {
+        message('<em>Введите номер документа</em>');
+        RETURN;
+    }
+    ok();
+}
+@defButtonCustom(saveTerminalDocument, 'Сохранить', editTerminalDocument, d, 'ENTER', ok);
+@defButtonCustom(close, 'Закрыть', editTerminalDocument, 'ESCAPE', cancel);
+
+DESIGN editTerminalDocument {
+    OBJECTS {
+        MOVE PROPERTY (header) {
+            focusable = FALSE;
+            align = STRETCH;
+        }
+        MOVE PROPERTY (editDocumentNumber()) {
+            defaultComponent = TRUE;
+            captionVertical = TRUE; class = 'input-single'; captionClass = 'input-single-caption required-caption'; valueClass = 'input-single-value';
+        }
+        MOVE PROPERTY (lockedNumber) {
+            focusable = FALSE;
+            captionVertical = TRUE; class = 'input-single'; captionClass = 'input-single-caption'; valueClass = 'readonly-field-value locked-field-value';
+        }
+        MOVE PROPERTY (editDocumentComment()) {
+            captionVertical = TRUE; class = 'input-single'; captionClass = 'input-single-caption'; valueClass = 'input-single-value';
+        }
+        MOVE PROPERTY (handbook1) {
+            focusable = FALSE;
+            captionVertical = TRUE; class = 'input-single'; captionClass = 'input-single-caption'; valueClass = 'readonly-field-value locked-field-value';
+        }
+        MOVE PROPERTY (handbook2) {
+            focusable = FALSE;
+            captionVertical = TRUE; class = 'input-single'; captionClass = 'input-single-caption'; valueClass = 'readonly-field-value locked-field-value';
+        }
+        MOVE PROPERTY (orderNumber) {
+            focusable = FALSE;
+            captionVertical = TRUE; class = 'input-single'; captionClass = 'input-single-caption'; valueClass = 'readonly-field-value locked-field-value';
+        }
+        // кнопки одной строкой у правого края диалога, как в «Новый документ»
+        NEW otherButtons {
+            horizontal = TRUE;
+            wrap = FALSE;
+            childrenAlignment = END;
+            class = 'ask-buttons';
+            align = STRETCH;
+            MOVE PROPERTY (saveTerminalDocument);
+            MOVE PROPERTY (close);
+        }
+    }
+    REMOVE TOOLBARBOX;
+}
+
+// Пункт меню «Редактировать»
+editTerminalDocumentHeader (TerminalDocument d) {
+    editDocumentNumber() <- title(d);
+    editDocumentComment() <- comment(d);
+    DIALOG editTerminalDocument OBJECTS d = d NOMANAGESESSION DO {
+        NEWSESSION NESTED (editDocumentNumber, editDocumentComment) {
+            IF NOT banEditNumber(d) THEN
+                title(d) <- editDocumentNumber();
+            comment(d) <- editDocumentComment();
+            APPLY;
+        }
+    }
+    close();
+}
+@defButtonCustom(editTerminalDocumentHeader, 'Редактировать', terminalDocumentMenu, d, '2', );
+DESIGN terminalDocumentMenu { items { MOVE PROPERTY (editTerminalDocumentHeader); } }
 
 // Фильтр списка (как в нативном приложении ТСД): период по дате документа и значения аналитик.
 // Строка над списком показывает заданные условия, касание строки открывает окно фильтра, крестик сбрасывает фильтр.

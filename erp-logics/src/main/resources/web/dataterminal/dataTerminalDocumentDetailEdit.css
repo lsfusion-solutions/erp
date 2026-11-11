@@ -1,9 +1,10 @@
 /*
-Экран ввода полей строки документа ТСД: шапка с товаром строки и одно текущее поле ввода.
+Экран строки документа ТСД (режимы EDIT, ADD, PRICE_CHECK): карточка товара в шапке и одно текущее поле ввода.
 Отступы - полями: gap у flex WebView ТСД (Chrome 74) не поддерживает
  */
 
-/* Шапка: наименование товара, штрихкод и ед. изм. слева, количество по заказу справа, номер поля */
+/* Карточка товара: наименование, штрихкод и ед. изм. слева, количество по заказу справа (EDIT, ADD),
+   ниже - цена и остаток (PRICE_CHECK) */
 div.terminal-document-detail-edit {
     padding: 4px 8px 6px;
     margin-bottom: 8px;
@@ -68,13 +69,46 @@ div.terminal-document-detail-edit span {
     color: var(--grey-font-color);
 }
 
-div.terminal-document-detail-edit > div.step {
-    margin-top: 2px;
+div.terminal-document-detail-edit div:empty {
+    display: none;
+}
+
+/* PRICE_CHECK: цена и остаток. Селекторы сильнее правила span карточки выше (серый мелкий текст) */
+div.terminal-document-detail-edit > div.price,
+div.terminal-document-detail-edit > div.balance {
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+/* Подписи одной ширины - значения цены и остатка стоят в одну колонку.
+   Размер подписи - шрифт карточки, размер значения задан отдельно (не через em родителя),
+   поэтому подписи одинаковые при разном размере значений */
+div.terminal-document-detail-edit > div > span.label {
+    display: inline-block;
+    min-width: 5em;
+    margin-right: 6px;
+    font-size: var(--standart-font-size);
+    font-weight: normal;
     color: var(--grey-font-color);
 }
 
-div.terminal-document-detail-edit div:empty {
-    display: none;
+/* Цена - главное на экране: крупнее и жирнее остатка */
+div.terminal-document-detail-edit > div.price > span.value {
+    margin-right: 0;
+    font-size: 2.4em;
+    font-weight: bold;
+    color: var(--main-font-color);
+}
+
+div.terminal-document-detail-edit > div.balance > span.value {
+    margin-right: 0;
+    font-size: 1.6em;
+    color: var(--main-font-color);
+}
+
+div.terminal-document-detail-edit > div.info {
+    font-size: var(--standart-font-size);
+    color: var(--grey-font-color);
 }
 
 /* Поле ввода: подпись над значением, значение крупно */
@@ -164,27 +198,26 @@ div.terminal-document-detail-edit div:empty {
     color: var(--grey-font-color);
 }
 
-/* Кнопка Enter внутри поля: справа, по центру по высоте, «пилюля» 42px в поле 48px (по 2px до рамки).
-   margin с !important - перебить прижатие input-right к низу ячейки (data-terminal.css). Селектор сильнее правила
-   кнопок custom-button. Символ «↵» в шрифте сидит ниже центра, поэтому подпись скрыта, а значок - иконка Material
+/* Кнопка Enter внутри поля: справа, «пилюля» 40px в поле 48px - по 4px до края поля сверху, снизу и справа.
+   Привязка к правому нижнему углу ячейки: над полем в ячейке переменный отступ (подпись, дробные px), под и справа
+   от поля - ровно 2px (padding панели 1px + margin обертки значения 1px), поэтому margin = 2px + 4px.
+   margin с !important - перебить отступы input-right (data-terminal.css). Селектор сильнее правила кнопок
+   custom-button. Символ «↵» в шрифте сидит ниже центра, поэтому подпись скрыта, а значок - иконка Material
    keyboard_return маской, как иконки шапки */
 .dt-add-barcode button.btn.custom-button.input-right.ok,
 .dt-add-barcode button.btn.custom-button.input-right.ok:hover,
 .dt-add-barcode button.btn.custom-button.input-right.ok:active {
     box-sizing: border-box;
     justify-self: end;
-    align-self: center;
+    align-self: end;
     position: relative;
-    /* зазор до рамки поля - 2px со всех сторон. Центр ячейки сетки выше центра поля на 1px (обертка значения):
-       при высоте 40px без сдвига на эмуляторе было сверху 2px, снизу 4px, справа 2px */
-    top: 1px;
     z-index: 1;
-    height: 42px;
+    height: 40px;
     min-height: 0;
     min-width: 56px;
-    margin: 0 5px 0 0 !important;
+    margin: 0 6px 6px 0 !important;
     padding: 0 14px;
-    border-radius: 21px;
+    border-radius: 20px;
     font-size: 0;
 }
 
@@ -197,7 +230,7 @@ div.terminal-document-detail-edit div:empty {
     mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M19 7v4H5.83l3.58-3.59L8 6l-6 6 6 6 1.41-1.41L5.83 13H21V7z'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
-/* Сообщение под полем штрихкода: ошибка скана (как «Товар не найден» на «Проверке цен») или сохраненная строка */
+/* Сообщение под полем штрихкода (ADD, PRICE_CHECK): ошибка скана («Товар не найден» и др.) или сохраненная строка */
 div.dt-add-message {
     margin: 0 8px 8px;
     padding: 6px 10px;
