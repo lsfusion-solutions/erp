@@ -11,13 +11,13 @@ skipCreateLot = ABSTRACT BOOLEAN (STRING);
 process (TerminalDocument document) + {
     DELETE TerminalLotDetail l WHERE terminalDocument(terminalDocumentDetail(l)) == document;
 
-    FOR marking(TerminalDocumentDetail d) AND terminalDocument(d) == document AND count(INTEGER i, jsonArrayLength(marking(d))) 
-        AND STRING mark = jsonArrayElement(marking(d), i, 'id') AND NOT skipCreateLot(mark) DO NEW l = TerminalLotDetail {
+    FOR marking(TerminalDocumentDetail d) AND terminalDocument(d) == document AND JSON e = array(JSON(marking(d)), INTEGER i)
+        AND STRING mark = fieldText(e, 'id') AND NOT skipCreateLot(mark) DO NEW l = TerminalLotDetail {
         id(l) <- STRING[200](barcodeToId(mark));
         tail(l) <- STRING[200](barcodeToTail(mark));
-        quantity(l) <- NUMERIC[14,3](jsonArrayElement(marking(d), i, 'quantity'));
-        idParent(l) <- STRING[200](jsonArrayElement(marking(d), i, 'parent'));
-        expiryDate(l) <- DATE(jsonArrayElement(marking(d), i, 'expDate'));
+        quantity(l) <- NUMERIC[14,3](fieldText(e, 'quantity'));
+        idParent(l) <- STRING[200](fieldText(e, 'parent'));
+        expiryDate(l) <- DATE(fieldText(e, 'expDate'));
         terminalDocumentDetail(l) <- d;
         overProcessMarking(d, l, i);
     }
