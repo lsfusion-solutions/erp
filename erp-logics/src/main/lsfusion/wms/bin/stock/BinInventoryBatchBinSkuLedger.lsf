@@ -180,12 +180,14 @@ needToOutLedger (Batch batch, BinInventory binInventory) =
     (quantityShortage(batch, binInventory) > 0 OR (sumShortage(batch, binInventory) > 0 AND NOT quantityShortage(batch, binInventory)))
         AND in(batch, binInventory)
         AND typeSkuLedger(binInventory) == TypeSkuLedger.byBatches
+        AND createSkuLedger(binInventory)
         AND isPosted(binInventory);
 
 needToInLedger (Batch batch, BinInventory binInventory) =
     (quantityShortage(batch, binInventory) < 0 OR (sumShortage(batch, binInventory) < 0 AND NOT quantityShortage(batch, binInventory)))
         AND in(batch, binInventory)
         AND typeSkuLedger(binInventory) == TypeSkuLedger.byBatches
+        AND createSkuLedger(binInventory)
         AND isPosted(binInventory);
 
 outInventoryBatchDetail = AGGR OutInventoryBatchDetail WHERE needToOutLedger(Batch batch, BinInventory binInventory) MATERIALIZED INDEXED;
@@ -259,6 +261,11 @@ stockDocumentLedger(InInventoryBatchDetail ledger) += OVERRIDE incRoundingBinInv
                                                             incBinInventorySDLedger(binInventory(ledger)) IF NOT isRoundingBatchLedger(ledger),
                                                             outBinInventorySDLedger(binInventory(ledger)) IF NOT isRoundingBatchLedger(ledger)
 ;
+
+inventoryOutQuantity 'Недостача по инвентаризации' (batch, stock, date) = GROUP SUM quantity(OutInventoryBatchDetail d) IF isPosted(d) BY batch(d), stock(d), date(d);
+inventoryInQuantity 'Излишки по инвентаризации' (batch, stock, date) = GROUP SUM quantity(InInventoryBatchDetail d) IF isPosted(d) BY batch(d), stock(d), date(d);
+inventoryOutSum 'Недостача по инвентаризации (сумма)' (batch, stock, date) = GROUP SUM sum(OutInventoryBatchDetail d) IF isPosted(d) BY batch(d), stock(d), date(d);
+inventoryInSum 'Излишки по инвентаризации (сумма)' (batch, stock, date) = GROUP SUM sum(InInventoryBatchDetail d) IF isPosted(d) BY batch(d), stock(d), date(d);
 
 skip[BinLedger] (InListBinInventoryDetail ledger) += TRUE IF notCosted(inInventoryBatchDetail(batch(ledger), binInventory(ledger))) > 0;
 
