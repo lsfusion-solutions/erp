@@ -1,0 +1,39 @@
+MODULE PurchaseDocumentPriceListCheckGestori;
+
+REQUIRE PurchaseOrderPriceDateGestori, PurchaseOrderPriceListLedgerContract, PurchaseInvoicePriceListLedgerContract;
+
+NAMESPACE Purchase;
+
+// ---- Параметр операции ----
+
+isSkuInPriceList 'Запрет проведения Заказа (закупка), Накладной (закупка) с товарами не из прайса поставщика' = DATA BOOLEAN (Operation) PREREAD;
+
+EXTEND FORM operation
+    PROPERTIES(o) SHOWIF useOrderExtensions() isSkuInPriceList
+;
+
+DESIGN operation {
+    constraintContainer {
+        MOVE PROPERTY(isSkuInPriceList(o));
+    }
+}
+
+// ---- Товары не из прайса поставщика в заказе ----
+
+inPriceList (UserOrderDetail d) = OVERRIDE (prevPriceA(ledgerPriceListType(priceListType(d)), sku(d), priceStock(d), contractSku(d), priceDateTime(d)) IF contractSku(d)),
+                                           (prevPriceA(ledgerPriceListType(priceListType(d)), sku(d), priceStock(d), supplier(userOrder(d)), priceDateTime(d)) IF NOT contractSku(d));
+
+CONSTRAINT (SET(isPosted(userOrder(UserOrderDetail d))) OR CHANGED(sku(d)) OR CHANGED(priceListType(d))) AND isPosted(userOrder(d))
+    AND useOrderExtensions() AND isSkuInPriceList(operation(userOrder(d))) AND NOT inPriceList(d)
+    MESSAGE 'Запрещено проведение заказа (закупка) с товарами не из прайса поставщика'
+    PROPERTIES seriesNumber(userOrder(d)), idBarcodeSku(d), nameSku(d);
+
+// ---- Товары не из прайса поставщика в накладной ----
+
+inPriceList (UserInvoiceDetail d) = OVERRIDE (prevPriceA(ledgerPriceListType(priceListType(d)), sku(d), priceStock(d), contractSku(d), priceDateTime(d)) IF contractSku(d)),
+                                             (prevPriceA(ledgerPriceListType(priceListType(d)), sku(d), priceStock(d), supplier(userInvoice(d)), priceDateTime(d)) IF NOT contractSku(d));
+
+CONSTRAINT (SET(isPosted(userInvoice(UserInvoiceDetail d))) OR CHANGED(sku(d)) OR CHANGED(priceListType(d))) AND isPosted(userInvoice(d))
+    AND useOrderExtensions() AND isSkuInPriceList(operation(userInvoice(d))) AND NOT inPriceList(d)
+    MESSAGE 'Запрещено проведение накладной (закупка) с товарами не из прайса поставщика'
+    PROPERTIES seriesNumber(userInvoice(d)), idBarcodeSku(d), nameSku(d);
