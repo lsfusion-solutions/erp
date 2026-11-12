@@ -556,8 +556,38 @@ changeOrdersCaCStatusCondition (WbStatus ws, InternetOrder o) =
             AND NOT customFilterChangeOrdersCaCStatus(ws, o) THEN TRUE
 ;
 
+// Задания, получившие StatusMismatch и ожидающие переспроса (общий для bulk- и одиночного перевода).
+recheckCaC = DATA LOCAL BOOLEAN (InternetOrder);
+
+recheckStatusMismatchCaC (WbStatus wbStatus) {
+    IF GROUP SUM 1 IF recheckCaC(InternetOrder o) THEN {
+        LOCAL response = FILE ();
+        EXPORT JSON FROM 'value' = LONG(number(InternetOrder o)) WHERE recheckCaC(o);
+        fileToString(exportFile(), 'UTF-8');
+        stringToFile('\{"ordersIds":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
+        fileToString(resultFile(), 'UTF-8');
+        logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + pathMpCaC() + '/status/info body: ' + resultString());
+        TRY {
+            EXTERNAL HTTP POST url(CategoryRequest.marketplace) + pathMpCaC() + '/status/info' HEADERS httpHeaders PARAMS resultFile() TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            IF statusHttp() == 200 THEN {
+                IMPORT statusInfoResponseCaC JSON FROM response();
+                FOR cacOrderId(INTEGER i) AND InternetOrder o == orderByNumber(cacOrderId(i)) AND recheckCaC(o)
+                    AND WbStatus ws = wbStatus(cacSupplierStatus(i)) AND ws == wbStatus DO {
+                    wbStatus(o) <- ws;
+                }
+            }
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+        } FINALLY {
+            afterSendRequestIS();
+            sleep(sleepStatusCaC());
+        }
+    }
+}
+
 // Прямой перевод одного задания (триггеры и выдача): без isSelected, условия проверяет
-// changeOrdersCaCStatusCondition; после успеха догоняет одиночным синком.
 changeOrdersCaCStatus (WbStatus wbStatus, InternetOrder order) {
     IF NOT isWBOrderCaC(order) OR wbStatus(order) == wbStatus
         OR NOT changeOrdersCaCStatusCondition(wbStatus, order) THEN
@@ -585,12 +615,18 @@ changeOrdersCaCStatus (WbStatus wbStatus, InternetOrder order) {
                 FOR InternetOrder o = orderByNumber(cacOrderId(INTEGER i)) DO {
                     IF NOT cacIsError(i) THEN {
                         wbStatus(o) <- wbStatus;
+                    } ELSE IF (GROUP MAX cacErrorDetail(INTEGER e) IF cacResultsErrors(e) == i) == 'StatusMismatch' THEN {
+                        recheckCaC(o) <- TRUE;
                     } ELSE {
-                        // detail: NotFound / StatusMismatch / ...
+                        // detail: NotFound / ...
                         messageOrder() <- (OVERRIDE messageOrder() + '\n', '') +
                             (CONCAT ' ', 'Задание', cacOrderId(i), '— ошибка:', (GROUP MAX cacErrorDetail(INTEGER e) IF cacResultsErrors(e) == i));
                     }
                 }
+                recheckStatusMismatchCaC(wbStatus);
+                FOR InternetOrder o2 AND recheckCaC(o2) AND NOT wbStatus(o2) == wbStatus DO
+                    messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + (CONCAT ' ', 'Задание', number(o2), '— ошибка: StatusMismatch');
+                recheckCaC(InternetOrder o3) <- NULL;
                 APPLY NESTED LOCAL;
                 // покупатель и обязательные меты подтягиваются так же, как в bulk-переводе
                 isSelected(order) <- TRUE;
@@ -611,8 +647,6 @@ changeOrdersCaCStatus (WbStatus wbStatus, InternetOrder order) {
 }
 
 // POST /api/marketplace/v3/click-collect/orders/status/{confirm|prepare|receive|reject|cancel}
-// Тело у всех пяти одинаковое: {"ordersIds":[...]} (<=1000). Код выдачи здесь не передаётся — он проверяется
-// отдельным методом client/identity.
 changeOrdersCaCStatus (WbStatus wbStatus) {
     NEWSESSION NESTED LOCAL {
         LOCAL statusNameCaC = STRING ();
@@ -658,12 +692,19 @@ changeOrdersCaCStatus (WbStatus wbStatus) {
                 FOR InternetOrder o = orderByNumber(cacOrderId(INTEGER i)) DO {
                     IF NOT cacIsError(i) THEN {
                         wbStatus(o) <- wbStatus;
+                    } ELSE IF (GROUP MAX cacErrorDetail(INTEGER e) IF cacResultsErrors(e) == i) == 'StatusMismatch' THEN {
+                        // как в одиночном переводе: обычно задание уже в целевом статусе — переспрашиваем
+                        recheckCaC(o) <- TRUE;
                     } ELSE {
-                        // detail: NotFound / StatusMismatch / ...
+                        // detail: NotFound / ...
                         messageOrder() <- (OVERRIDE messageOrder() + '\n', '') +
                             (CONCAT ' ', 'Задание', cacOrderId(i), '— ошибка:', (GROUP MAX cacErrorDetail(INTEGER e) IF cacResultsErrors(e) == i));
                     }
                 }
+                recheckStatusMismatchCaC(wbStatus);
+                FOR InternetOrder o2 AND recheckCaC(o2) AND NOT wbStatus(o2) == wbStatus DO
+                    messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + (CONCAT ' ', 'Задание', number(o2), '— ошибка: StatusMismatch');
+                recheckCaC(InternetOrder o3) <- NULL;
                 APPLY NESTED LOCAL;
             }
         } CATCH {
@@ -681,18 +722,6 @@ changeOrdersCaCStatus (WbStatus wbStatus) {
     }
     getWbStatusesCaC();
     afterChangeOrdersCaCStatus(wbStatus);
-}
-
-// Автотрансляция локального статуса InternetOrder → статус на WB, по образцу FBS/DBS:
-// isPicking (создана сборка) → confirm, picked (заказ собран) → prepare, cancel → cancel.
-// receive намеренно не транслируется: WB требует код покупателя, выдача — кнопкой «Выдать по коду»
-// (issueCaCOrder с проверкой кода); reject — только вручную. Маппинг ws через statusInternetOrder
-// и проверка перехода — changeOrdersCaCStatusCondition; кастомные правила — customFilterChangeOrdersCaCStatus.
-// Заказ передаётся напрямую: внутри APPLY записи LOCAL не пробрасываются в NEWSESSION действия.
-WHEN SETCHANGED(status(InternetOrder o)) AND statusInternetOrder(WbStatus ws) = status(o)
-    AND (ws = WbStatus.confirm OR ws = WbStatus.prepare OR ws = WbStatus.cancel)
-    AND changeOrdersCaCStatusCondition(ws, o) AND isWBOrderCaC(o) DO {
-    changeOrdersCaCStatus(ws, o);
 }
 
 confirmOrdersCaC 'Перевести задания на сборку' () {
@@ -1247,6 +1276,15 @@ actualizeOrdersMetaCaC 'Актуализировать статусы идент
     }
 }
 
+// Одиночная версия для формы заказа: выделяет задание, вызывает пакетную актуализацию и снимает выделение.
+actualizeOrderMetaCaC 'Актуализировать статусы идентификаторов маркировки' (InternetOrder order) {
+    IF NOT GROUP SUM 1 IF isSelected(InternetOrder order1) THEN {
+        isSelected(order) <- TRUE;
+    }
+    actualizeOrdersMetaCaC();
+    isSelected(InternetOrder o) <- NULL;
+}
+
 // ---------------------- 7. Цены, фактически списанные с покупателя ----------------------
 
 cacFinalOrderId = DATA LOCAL STRING (INTEGER);
@@ -1319,9 +1357,50 @@ getFinalPriceCaC 'Получить фактические суммы по зад
 // ---------------------- 8. Интерфейс ----------------------
 
 EXTEND FORM internetOrder
-    PROPERTIES (o) READONLY orderCodeCaC, warehouseAddressCaC, namePayModeCaC, nameCargoTypeCaC, createdAtCaC SHOWIF isWBOrderCaC(o)
+    PROPERTIES (o) READONLY orderCodeCaC SHOWIF isWBOrderCaC(o), warehouseAddressCaC SHOWIF isWBOrderCaC(o),
+        namePayModeCaC SHOWIF isWBOrderCaC(o), nameCargoTypeCaC SHOWIF isWBOrderCaC(o), createdAtCaC SHOWIF isWBOrderCaC(o)
+    PROPERTIES (o) getWbStatusCaC SHOWIF isWBOrderCaC(o), postInfCustomerOrderCaC SHOWIF isWBOrderCaC(o),
+        checkClientIdentityCaC SHOWIF isWBOrderCaC(o), issueCaCOrder SHOWIF isWBOrderCaC(o),
+        actualizeOrderMetaCaC SHOWIF isWBOrderCaC(o),
+        confirmOrderCaC SHOWIF changeOrdersCaCStatusCondition(WbStatus.confirm, o),
+        prepareOrderCaC SHOWIF changeOrdersCaCStatusCondition(WbStatus.prepare, o),
+        receiveOrderCaC SHOWIF changeOrdersCaCStatusCondition(WbStatus.receive, o),
+        rejectOrderCaC SHOWIF changeOrdersCaCStatusCondition(WbStatus.reject, o),
+        cancelOrderCaC SHOWIF changeOrdersCaCStatusCondition(WbStatus.cancel, o)
     PROPERTIES sendOrderMetaCaC(o, mm) SHOWIF isWBOrderCaC(o)
 ;
+
+// Блоки на вкладке WB формы заказа: поля и кнопки самовывоза (BEFORE metaContainer —
+// иначе при более позднем модульном приоритете блоки окажутся после грида мет).
+DESIGN internetOrder {
+    wb {
+        NEW CaCInfo BEFORE metaContainer {
+            caption = 'Самовывоз';
+            showIf = isWBOrderCaC(o);
+            horizontal = TRUE;
+            MOVE PROPERTY(orderCodeCaC(o));
+            MOVE PROPERTY(warehouseAddressCaC(o));
+            MOVE PROPERTY(namePayModeCaC(o));
+            MOVE PROPERTY(nameCargoTypeCaC(o));
+            MOVE PROPERTY(createdAtCaC(o));
+        }
+        NEW CaCActions BEFORE metaContainer {
+            caption = 'Действия (самовывоз)';
+            showIf = isWBOrderCaC(o);
+            horizontal = TRUE;
+            MOVE PROPERTY(getWbStatusCaC(o));
+            MOVE PROPERTY(confirmOrderCaC(o));
+            MOVE PROPERTY(prepareOrderCaC(o));
+            MOVE PROPERTY(issueCaCOrder(o));
+            MOVE PROPERTY(receiveOrderCaC(o));
+            MOVE PROPERTY(rejectOrderCaC(o));
+            MOVE PROPERTY(cancelOrderCaC(o));
+            MOVE PROPERTY(postInfCustomerOrderCaC(o));
+            MOVE PROPERTY(checkClientIdentityCaC(o));
+            MOVE PROPERTY(actualizeOrderMetaCaC(o));
+        }
+    }
+}
 
 EXTEND FORM internetOrders
     PROPERTIES(o) READONLY orderCodeCaC SHOWIF isWBOrderCaC(o)

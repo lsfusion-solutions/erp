@@ -316,7 +316,8 @@ EXTEND FORM internetOrder
     PROPERTIES nameMetaType = caption(mm)
     PROPERTIES (d, mm) READONLY requiredMeta, optionalMeta, valueMeta, nameOrderMetaStatus, validatedMeta
     PROPERTIES wbValueMeta(d, mm)
-    
+    PROPERTIES (o) READONLY nameWbStatus, nameWbSystemStatus, wbIsB2b
+
     FILTERGROUP metaUsed
         FILTER 'Запрошенные WB' usedMeta(d, mm) DEFAULT
 ;
@@ -331,13 +332,23 @@ DESIGN internetOrders {
 }
 
 DESIGN internetOrder {
-    specificationBox {
-        NEW metaContainer {
+    tabbedBox {
+        NEW wb AFTER specificationBox {
+            caption = 'WB';
             showIf = isWBOrder(o);
-            caption = 'Метаданные WB';
-            horizontal = TRUE;
             fill = 1;
-            MOVE BOX(mm);
+            NEW wbCommon {
+                caption = 'Статусы';
+                MOVE PROPERTY(nameWbStatus(o));
+                MOVE PROPERTY(nameWbSystemStatus(o));
+                MOVE PROPERTY(wbIsB2b(o));
+            }
+            NEW metaContainer {
+                caption = 'Метаданные WB';
+                horizontal = TRUE;
+                fill = 1;
+                MOVE BOX(mm);
+            }
         }
     }
 }
