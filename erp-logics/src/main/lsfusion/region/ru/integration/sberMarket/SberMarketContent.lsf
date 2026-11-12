@@ -8,7 +8,9 @@ NAMESPACE SberMarket;
 //auth
 clientIdSber 'Сlient id СМ' = DATA STRING ();
 clientSecretSber 'Сlient secret СМ' = DATA STRING ();
-timeoutHttpSber 'Таймаут запросов СМ, мс (по умолчанию 60000)' = DATA INTEGER ();
+timeoutHttpSber 'Таймаут запросов СМ, мс' = DATA INTEGER ();
+timeoutHttpSberOver 'Таймаут запросов СМ, мс' () = OVERRIDE timeoutHttpSber(), 60000;
+
 accessTokenSber = DATA LOCAL STRING ();
 
 auth(){
@@ -51,7 +53,7 @@ online(Group g) += WHEN groupType(g) = groupTypeSberMarket() AND groupTypeSberMa
 position = PARTITION SUM 1 BY online(Group g), g;
 
 EXTEND FORM integrationData
-    PROPERTIES() nameGroupTypeSberMarket, clientIdSber, clientSecretSber, timeoutHttpSber
+    PROPERTIES() nameGroupTypeSberMarket, clientIdSber, clientSecretSber, timeoutHttpSberOver
 ;
 
 DESIGN integrationData{
@@ -63,7 +65,7 @@ DESIGN integrationData{
                 MOVE PROPERTY (nameGroupTypeSberMarket());
                 MOVE PROPERTY (clientIdSber());
                 MOVE PROPERTY (clientSecretSber());
-                MOVE PROPERTY (timeoutHttpSber());
+                MOVE PROPERTY (timeoutHttpSberOver());
             }
         }
     }
@@ -402,7 +404,7 @@ sendPrices 'Выгрузить цены(по магазину)'(DepartmentStore 
         RETURN;
     }
     maxStep() <- divideInteger(maxSku(), 1000) (+) (1 IF mod(maxSku(), 1000));
-    timeoutHttp() <- OVERRIDE timeoutHttpSber(), 60000;
+    timeoutHttp() <- timeoutHttpSberOver();
     TRY {
         auth();
     } CATCH {
