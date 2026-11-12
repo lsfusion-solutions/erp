@@ -8,6 +8,7 @@ NAMESPACE SberMarket;
 //auth
 clientIdSber 'Сlient id СМ' = DATA STRING ();
 clientSecretSber 'Сlient secret СМ' = DATA STRING ();
+timeoutHttpSber 'Таймаут запросов СМ, мс (по умолчанию 60000)' = DATA INTEGER ();
 accessTokenSber = DATA LOCAL STRING ();
 
 auth(){
@@ -50,7 +51,7 @@ online(Group g) += WHEN groupType(g) = groupTypeSberMarket() AND groupTypeSberMa
 position = PARTITION SUM 1 BY online(Group g), g;
 
 EXTEND FORM integrationData
-    PROPERTIES() nameGroupTypeSberMarket, clientIdSber, clientSecretSber
+    PROPERTIES() nameGroupTypeSberMarket, clientIdSber, clientSecretSber, timeoutHttpSber
 ;
 
 DESIGN integrationData{
@@ -62,6 +63,7 @@ DESIGN integrationData{
                 MOVE PROPERTY (nameGroupTypeSberMarket());
                 MOVE PROPERTY (clientIdSber());
                 MOVE PROPERTY (clientSecretSber());
+                MOVE PROPERTY (timeoutHttpSber());
             }
         }
     }
@@ -308,7 +310,6 @@ sendStocks 'Выгрузить остатки(по магазину)'(Department
         EXPORT stocks OBJECTS d = departmentStore('33498') JSON;
         LOCAL response = FILE();
         TRY {
-            timeoutHttp() <- 60000;
             EXTERNAL HTTP PUT 'https://merchant-api.sbermarket.ru/api/v1/import/stocks'
                 HEADERS headers
                 PARAMS exportFile()
@@ -393,7 +394,6 @@ FORM prices FORMEXTID 'null'
 ;
 
 sendPrices 'Выгрузить цены(по магазину)'(DepartmentStore d){
-    // нумеруем только товары с ценой в магазине: пустая пачка = 400 «request cannot be empty» от Kuper
     sort(Sku s) <- PARTITION SUM 1 IF online(s) AND price(s, d) ORDER s BY d;
     LOCAL maxSku = INTEGER ();
     LOCAL maxStep = INTEGER ();
@@ -402,7 +402,13 @@ sendPrices 'Выгрузить цены(по магазину)'(DepartmentStore 
         RETURN;
     }
     maxStep() <- divideInteger(maxSku(), 1000) (+) (1 IF mod(maxSku(), 1000));
-    auth();
+    timeoutHttp() <- OVERRIDE timeoutHttpSber(), 60000;
+    TRY {
+        auth();
+    } CATCH {
+        MESSAGE (CONCAT '\n', '[Цены] -' + name(d), 'Ошибка авторизации', messageCaughtException()) NOWAIT;
+        RETURN;
+    }
     FOR iterate(INTEGER i, 0, maxStep() - 1) DO {
         EXPORT prices OBJECTS d = d FILTERS (sort(s) > (i * 1000) AND sort(s) <= ((i + 1) * 1000));
         LOCAL response = FILE();
