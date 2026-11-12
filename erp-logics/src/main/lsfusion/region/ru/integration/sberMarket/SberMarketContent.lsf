@@ -285,29 +285,22 @@ FORM stocks FORMEXTID 'null'
 
 sendStocks 'Выгрузить остатки(по магазину)'(DepartmentStore d){
     sort(Sku s) <- PARTITION SUM 1 IF online(s) ORDER s;
-    auth();
-    IF (GROUP SUM 1 IF online(Sku s)) >= 1000 THEN {
-        LOCAL maxSku = INTEGER ();
-        LOCAL maxStep = INTEGER ();
-        maxSku() <- GROUP MAX sort(Sku s);
-        maxStep() <- (maxSku() / 1000) (+) 1 IF mod(maxSku(), 1000);
-        FOR iterate(INTEGER i, 0, maxStep() - 1) DO{
-            EXPORT stocks OBJECTS d = d FILTERS (sort(s) > (i * 1000) AND sort(s) <= ((i + 1) * 1000));
-            LOCAL response = FILE();
-            TRY {
-                EXTERNAL HTTP PUT 'https://merchant-api.sbermarket.ru/api/v1/import/stocks'
-                    HEADERS headers
-                    PARAMS exportFile()
-                    TO response
-                ;
-            } CATCH {
-                fileToString(response());
-                MESSAGE (CONCAT '\n', '[Остатки] -' + name(d), 'Ошибка при выгрузке на шаге' + (i + 1) + ' из ' + maxStep(), resultString(), messageCaughtException()) NOWAIT;
-                RETURN;
-            }
-        }
-    } ELSE {
-        EXPORT stocks OBJECTS d = d JSON;
+    LOCAL maxSku = INTEGER ();
+    LOCAL maxStep = INTEGER ();
+    maxSku() <- GROUP MAX sort(Sku s);
+    IF NOT maxSku() THEN {
+        RETURN;
+    }
+    maxStep() <- divideInteger(maxSku(), 1000) (+) (1 IF mod(maxSku(), 1000));
+    timeoutHttp() <- timeoutHttpSberOver();
+    TRY {
+        auth();
+    } CATCH {
+        MESSAGE (CONCAT '\n', '[Остатки] -' + name(d), 'Ошибка авторизации', messageCaughtException()) NOWAIT;
+        RETURN;
+    }
+    FOR iterate(INTEGER i, 0, maxStep() - 1) DO {
+        EXPORT stocks OBJECTS d = d FILTERS (sort(s) > (i * 1000) AND sort(s) <= ((i + 1) * 1000));
         LOCAL response = FILE();
         TRY {
             EXTERNAL HTTP PUT 'https://merchant-api.sbermarket.ru/api/v1/import/stocks'
@@ -317,7 +310,7 @@ sendStocks 'Выгрузить остатки(по магазину)'(Department
             ;
         } CATCH {
             fileToString(response());
-            MESSAGE (CONCAT '\n', '[Остатки] -' + name(d), 'Ошибка при выгрузке на шаге 1 из 1', resultString(), messageCaughtException()) NOWAIT;
+            MESSAGE (CONCAT '\n', '[Остатки] -' + name(d), 'Ошибка при выгрузке на шаге ' + (i + 1) + ' из ' + maxStep(), resultString(), messageCaughtException()) NOWAIT;
             RETURN;
         }
     }
