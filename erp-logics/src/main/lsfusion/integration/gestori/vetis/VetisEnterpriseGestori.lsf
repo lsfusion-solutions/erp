@@ -1271,3 +1271,64 @@ EXTEND FORM enterprise
 DESIGN enterprise {
     PROPERTY(name(s)) { caption = 'Наименование склада'; }
 }
+
+filterFitEntForStockGestori 'Подходящие площадки' = DATA LOCAL BOOLEAN ();
+
+FORM dialogEnterpriseForStockGestori 'Площадки ХС организации склада'
+    OBJECTS so = Stock PANEL
+    PROPERTIES READONLY nameStockDlgGestori 'Склад' = Stock.name(so), kppStockDlgGestori 'КПП склада' = kppStock(so),
+                        glnStockDlgGestori 'GLN склада' = GLN(so), nameBEDlgGestori 'ХС организации склада' = name(businessEntity(legalEntity(so)))
+    OBJECTS e = Enterprise
+    PROPERTIES() filterFitEntForStockGestori
+    PROPERTIES(e) READONLY guid, name, kpp, gln, addressView, registryStatus, status, nameOwner
+    FILTERS owner(e) == businessEntity(legalEntity(so)),
+            NOT filterFitEntForStockGestori() OR fitStockForEntGestori(so, e)
+;
+
+DESIGN dialogEnterpriseForStockGestori {
+    PROPERTY(guid(e)) { 
+        caption = 'GUID площадки'; 
+    }
+    PROPERTY(name(e)) { 
+        caption = 'Наименование площадки'; 
+    }
+    PROPERTY(nameOwner(e)) {
+        caption = 'Наименование ХС'; 
+    }
+    PANEL(so) { 
+        MOVE PROPERTY(filterFitEntForStockGestori()); 
+    } 
+}
+
+changeEnterpriseStockGestori (Stock st) {
+    IF NOT businessEntity(legalEntity(st)) THEN {
+        MESSAGE 'У организации склада не указан хозяйствующий субъект ВЕТИС — список площадок определяется по площадкам ХС' NOWAIT;
+        RETURN;
+    }
+    filterFitEntForStockGestori() <- TRUE;
+    DIALOG dialogEnterpriseForStockGestori OBJECTS so = st, e = enterprise(st) INPUT NULL DO enterprise(st) <- e;
+}
+
+EXTEND FORM warehouse
+    PROPERTIES nameEnterpriseGestori 'Имя' = nameEnterprise(w) ON CHANGE changeEnterpriseStockGestori(w)
+;
+DESIGN warehouse {
+    vetis {
+        MOVE PROPERTY(nameEnterpriseGestori) AFTER PROPERTY(nameEnterprise(w));
+    }
+    PROPERTY(nameEnterprise(w)) {
+        hide = TRUE; 
+    }
+}
+
+EXTEND FORM departmentStore
+    PROPERTIES nameEnterpriseGestori 'Имя' = nameEnterprise(d) ON CHANGE changeEnterpriseStockGestori(d)
+;
+DESIGN departmentStore {
+    vetis {
+        MOVE PROPERTY(nameEnterpriseGestori) AFTER PROPERTY(nameEnterprise(d));
+    }
+    PROPERTY(nameEnterprise(d)) { 
+        hide = TRUE; 
+    }
+}
