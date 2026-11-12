@@ -140,7 +140,6 @@ public class MettlerToledoBPlusComOneHandler extends DefaultScalesHandler {
         if (value != null) parent.addContent(new Element(id).setText(value));
     }
 
-    //todo: 1800000 -> 1800000L after upgrading equ to version 6
     protected String sendRequest(TCPSocket socket, String request, String messageId) {
         return (String) BaseUtils.executeWithTimeout(() -> {
             try {
@@ -150,7 +149,7 @@ public class MettlerToledoBPlusComOneHandler extends DefaultScalesHandler {
             } finally {
                 socket.close();
             }
-        }, 1800000); //timeout = 30 minutes
+        }, 1800000L); //timeout = 30 minutes
     }
 
     private String receiveResponse(TCPSocket socket, String messageId) throws IOException, JDOMException {
