@@ -1,6 +1,7 @@
 package equ.clt.handler.cas;
 
 import equ.api.scales.ScalesItem;
+import lsfusion.base.file.NamedFileData;
 import lsfusion.base.file.RawFileData;
 import lsfusion.base.file.WriteUtils;
 import org.apache.commons.codec.binary.Hex;
@@ -34,8 +35,7 @@ public class CL7000Handler extends CL5000JHandler {
         String imageName = pluNumber + ".jpg";
 
         if(itemImage != null) {
-            //todo: refactor RawFileData> -> NamedFileData after upgrading equ to 6.1
-            WriteUtils.storeFileToFTP("cas:cascl7200@" + socket.ip + "/image/" + imageName, itemImage, null);
+            WriteUtils.storeFileToFTP("cas:cascl7200@" + socket.ip + "/image/" + imageName, new NamedFileData(itemImage), false);
         }
 
         //10 + 2 bytes; 01.57,2 - ptype = 1, stype = W, data size = 2

@@ -6,6 +6,7 @@ import equ.api.cashregister.*;
 import equ.api.stoplist.StopListInfo;
 import equ.clt.handler.HandlerUtils;
 import lsfusion.base.Pair;
+import lsfusion.base.file.NamedFileData;
 import lsfusion.base.file.RawFileData;
 import lsfusion.base.file.WriteUtils;
 import org.apache.commons.io.FileUtils;
@@ -148,8 +149,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                                     File copyFile = makeExportFile(sftpPath, "catalog-goods");
                                     FileUtils.copyFile(tempFile, copyFile);
                                 } else {
-                                    //todo: refactor RawFileData> -> NamedFileData after upgrading equ to 6.1
-                                    WriteUtils.storeFileToSFTP(sftpPath + "/" + file.getName(), new RawFileData(tempFile), null);
+                                    WriteUtils.storeFileToSFTP(sftpPath + "/" + file.getName(), new NamedFileData(new RawFileData(tempFile)));
                                 }
                             } catch (Exception e) {
                                 processTransactionLogger.error(getLogPrefix() + "sftp error", e);
