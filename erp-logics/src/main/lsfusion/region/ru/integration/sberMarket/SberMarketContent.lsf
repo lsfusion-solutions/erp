@@ -426,7 +426,7 @@ sendSelectPrices'Выгрузить цены(отм.)'(){
     FOR in(DepartmentStore d) AND idSber(d) DO sendPrices(d);
 }
 
-//Многопоточная выгрузка: токен берётся один раз
+//Многопоточная выгрузка
 
 // без auth: headers и timeoutHttp заполняет поток; MESSAGE из потока при WAIT попадает в лог задания
 sendStocksThread (DepartmentStore d){
@@ -441,16 +441,33 @@ sendStocksThread (DepartmentStore d){
     FOR iterate(INTEGER i, 0, maxStep() - 1) DO {
         EXPORT stocks OBJECTS d = d FILTERS (sort(s) > (i * 1000) AND sort(s) <= ((i + 1) * 1000));
         LOCAL response = FILE();
-        TRY {
-            EXTERNAL HTTP PUT 'https://merchant-api.sbermarket.ru/api/v1/import/stocks'
-                HEADERS headers
-                PARAMS exportFile()
-                TO response
-            ;
-        } CATCH {
-            fileToString(response());
-            MESSAGE (CONCAT '\n', '[Остатки] -' + name(d), 'Ошибка при выгрузке на шаге ' + (i + 1) + ' из ' + maxStep(), resultString(), messageCaughtException()) NOWAIT;
-            RETURN;
+        LOCAL attempt = INTEGER ();
+        LOCAL pause = LONG ();
+        LOCAL sent = BOOLEAN ();
+        attempt() <- 1;
+        pause() <- 5000;
+        sent() <- NULL;
+        WHILE NOT sent() DO {
+            statusHttp() <- NULL;
+            TRY {
+                EXTERNAL HTTP PUT 'https://merchant-api.sbermarket.ru/api/v1/import/stocks'
+                    HEADERS headers
+                    PARAMS exportFile()
+                    TO response
+                ;
+                sent() <- TRUE;
+            } CATCH {
+                // 429 — лимит Kuper на частоту запросов: тот же шаг повторяем через 5, 10, 20, 40 с
+                IF statusHttp() == 429 AND attempt() < 5 THEN {
+                    sleep(pause());
+                    pause() <- pause() * 2;
+                    attempt() <- attempt() + 1;
+                } ELSE {
+                    fileToString(response());
+                    MESSAGE (CONCAT '\n', '[Остатки] -' + name(d), 'Ошибка при выгрузке на шаге ' + (i + 1) + ' из ' + maxStep(), resultString(), messageCaughtException()) NOWAIT;
+                    RETURN;
+                }
+            }
         }
     }
 }
@@ -467,65 +484,99 @@ sendPricesThread (DepartmentStore d){
     FOR iterate(INTEGER i, 0, maxStep() - 1) DO {
         EXPORT prices OBJECTS d = d FILTERS (sort(s) > (i * 1000) AND sort(s) <= ((i + 1) * 1000));
         LOCAL response = FILE();
-        TRY {
-            EXTERNAL HTTP PUT 'https://merchant-api.sbermarket.ru/api/v1/import/prices'
-                HEADERS headers
-                PARAMS exportFile()
-                TO response
-            ;
-        } CATCH {
-            fileToString(response());
-            MESSAGE (CONCAT '\n', '[Цены] -' + name(d), 'Ошибка при выгрузке на шаге ' + (i + 1) + ' из ' + maxStep(), resultString(), messageCaughtException()) NOWAIT;
-            RETURN;
+        LOCAL attempt = INTEGER ();
+        LOCAL pause = LONG ();
+        LOCAL sent = BOOLEAN ();
+        attempt() <- 1;
+        pause() <- 5000;
+        sent() <- NULL;
+        WHILE NOT sent() DO {
+            statusHttp() <- NULL;
+            TRY {
+                EXTERNAL HTTP PUT 'https://merchant-api.sbermarket.ru/api/v1/import/prices'
+                    HEADERS headers
+                    PARAMS exportFile()
+                    TO response
+                ;
+                sent() <- TRUE;
+            } CATCH {
+                // 429 — лимит Kuper на частоту запросов: тот же шаг повторяем через 5, 10, 20, 40 с
+                IF statusHttp() == 429 AND attempt() < 5 THEN {
+                    sleep(pause());
+                    pause() <- pause() * 2;
+                    attempt() <- attempt() + 1;
+                } ELSE {
+                    fileToString(response());
+                    MESSAGE (CONCAT '\n', '[Цены] -' + name(d), 'Ошибка при выгрузке на шаге ' + (i + 1) + ' из ' + maxStep(), resultString(), messageCaughtException()) NOWAIT;
+                    RETURN;
+                }
+            }
         }
     }
 }
 
+// Магазины идут волнами по числу потоков, перед каждой волной новый токен: токен Kuper живёт ~6 мин,
+// а одним токеном одновременно пользуются только потоки текущей волны
+waveSber = DATA LOCAL INTEGER (DepartmentStore);
+threadsSber = DATA LOCAL INTEGER ();
+
+fillWavesSber (INTEGER threads){
+    threadsSber() <- OVERRIDE threads IF threads > 0, 1;
+    waveSber(DepartmentStore d) <- NULL WHERE waveSber(d);
+    waveSber(DepartmentStore d) <- divideInteger((PARTITION SUM 1 IF idSber(d) ORDER d) - 1, threadsSber()) WHERE idSber(d);
+}
+
 // токен — параметром: в NEWSESSION NEWSQL локальные свойства не переходят
-sendPricesExecutor (INTEGER threads, STRING token){
+sendPricesExecutor (INTEGER wave, STRING token){
     NEWEXECUTOR {
-        FOR idSber(DepartmentStore d) DO {
+        FOR idSber(DepartmentStore d) AND waveSber(d) == wave DO {
             NEWTHREAD NEWSESSION NEWSQL {
                 headers('Authorization') <- 'Bearer ' + token;
                 timeoutHttp() <- timeoutHttpSberOver();
                 sendPricesThread(d);
             }
         }
-    } THREADS (OVERRIDE threads IF threads > 0, 1) WAIT;
+    } THREADS threadsSber() WAIT;
 }
 
 sendPricesThreads 'Выгрузить цены(многопоточно)'(INTEGER threads){
+    fillWavesSber(threads);
     timeoutHttp() <- timeoutHttpSberOver();
-    TRY {
-        auth();
-    } CATCH {
-        MESSAGE (CONCAT '\n', '[Цены]', 'Ошибка авторизации', messageCaughtException()) NOWAIT;
-        RETURN;
+    FOR iterate(INTEGER w, 0, (GROUP MAX waveSber(DepartmentStore d))) ORDER w DO {
+        TRY {
+            auth();
+        } CATCH {
+            MESSAGE (CONCAT '\n', '[Цены]', 'Ошибка авторизации', messageCaughtException()) NOWAIT;
+            RETURN;
+        }
+        sendPricesExecutor(w, accessTokenSber());
     }
-    sendPricesExecutor(threads, accessTokenSber());
 }
 
-sendStocksExecutor (INTEGER threads, STRING token){
+sendStocksExecutor (INTEGER wave, STRING token){
     NEWEXECUTOR {
-        FOR idSber(DepartmentStore d) DO {
+        FOR idSber(DepartmentStore d) AND waveSber(d) == wave DO {
             NEWTHREAD NEWSESSION NEWSQL {
                 headers('Authorization') <- 'Bearer ' + token;
                 timeoutHttp() <- timeoutHttpSberOver();
                 sendStocksThread(d);
             }
         }
-    } THREADS (OVERRIDE threads IF threads > 0, 1) WAIT;
+    } THREADS threadsSber() WAIT;
 }
 
 sendStocksThreads 'Выгрузить остатки(многопоточно)'(INTEGER threads){
+    fillWavesSber(threads);
     timeoutHttp() <- timeoutHttpSberOver();
-    TRY {
-        auth();
-    } CATCH {
-        MESSAGE (CONCAT '\n', '[Остатки]', 'Ошибка авторизации', messageCaughtException()) NOWAIT;
-        RETURN;
+    FOR iterate(INTEGER w, 0, (GROUP MAX waveSber(DepartmentStore d))) ORDER w DO {
+        TRY {
+            auth();
+        } CATCH {
+            MESSAGE (CONCAT '\n', '[Остатки]', 'Ошибка авторизации', messageCaughtException()) NOWAIT;
+            RETURN;
+        }
+        sendStocksExecutor(w, accessTokenSber());
     }
-    sendStocksExecutor(threads, accessTokenSber());
 }
 
 // для планировщика: в «Параметр» строки задания — число потоков
