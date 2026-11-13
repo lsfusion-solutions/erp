@@ -1691,9 +1691,11 @@ changeAddDetailInput(PageInventory page)  {
         changeAddDetailInputIdSku(s, page);
 };
 addDetailInput 'Код товара:' (page) = DATA LOCAL BPSTRING[20] (PageInventory) TOOLBAR CHANGEKEY 'F6' 
-                                                                        ON CHANGE { changeAddDetailInput(page); } CHARWIDTH 10;  
-                                                                     
-changeAddDetailInputBarcode(STRING[200] barcode, PageInventory page)  { 
+                                                                        ON CHANGE { changeAddDetailInput(page); } CHARWIDTH 10;
+
+changeAddDetailInputBarcode ABSTRACT CASE (STRING[200], PageInventory);
+
+changeAddDetailInputBarcode(STRING[200] barcode, PageInventory page) + WHEN barcode IS STRING[200] AND page IS PageInventory THEN { 
     IF skuBarcode(barcode, date(listInventory(page))) THEN {  
         NEW  d = PageInventoryDetail {
             pageInventory(d) <- page;   
