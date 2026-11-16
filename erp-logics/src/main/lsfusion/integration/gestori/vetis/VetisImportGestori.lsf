@@ -99,8 +99,8 @@ vetLocalDateTrDoc = DATA LOCAL DATE(INTEGER);
 
 // в Gestori тип, статус и способ хранения — номер элемента списка (с единицы); нечисловое значение даёт NULL
 vetisListWordGestori = FORMULA NULL STRING 'CASE WHEN trim($2) ~ \'^[0-9]+$\' THEN NULLIF(split_part($1, \',\', trim($2)::integer), \'\') END';
-// элемент списка GUID (через запятую или точку с запятой) по номеру
-vetisListGuidGestori = FORMULA NULL STRING 'NULLIF(trim(split_part(replace($1, \';\', \',\'), \',\', $2)), \'\')';
+// элемент списка GUID по номеру; разделителем считается любая последовательность символов, не входящих в GUID
+vetisListGuidGestori = FORMULA NULL STRING 'NULLIF(split_part(trim(both \',\' from regexp_replace($1, \'[^0-9a-fA-F-]+\', \',\', \'g\')), \',\', $2), \'\')';
 
 // даты выработки и срока годности в Gestori — период «год.месяц.день.час - год.месяц.день.час», берём начало периода
 vetisPeriodDateGestori = FORMULA NULL DATE 'CASE WHEN split_part(split_part($1, \' - \', 1), \'.\', 1) ~ \'^ *[0-9][0-9][0-9][0-9] *$\' AND split_part(split_part($1, \' - \', 1), \'.\', 2) ~ \'^ *(0?[1-9]|1[0-2]) *$\' AND split_part(split_part($1, \' - \', 1), \'.\', 3) ~ \'^ *(0?[1-9]|[12][0-9]|3[01]) *$\' THEN make_date(split_part(split_part($1, \' - \', 1), \'.\', 1)::integer, split_part(split_part($1, \' - \', 1), \'.\', 2)::integer, split_part(split_part($1, \' - \', 1), \'.\', 3)::integer) END';
@@ -269,6 +269,7 @@ importClassifierGestori 'Импорт классификатора Ветис' (
 
 importProductItemsGestori 'Импорт номенклатуры Ветис' () {
     LOCAL file = FILE();
+    LOCAL NESTED skippedAreas = INTEGER ();
 
     EXTERNAL SQL vetisDbUrl()
         EXEC 'SELECT GuidSubProd, GuidItemProd, UuidItemProd, GuidFirmProducer, GuidFirmOwner, ' +
@@ -302,6 +303,10 @@ importProductItemsGestori 'Импорт номенклатуры Ветис' () 
         AND iterate(INTEGER n, 1, 120) AND Enterprise e = enterprise(vetisListGuidGestori(itemLocalGuidAreaProducerList(i), n)) DO
         in(p, e) <- TRUE;
 
+    skippedAreas() <- GROUP SUM 1 IF productItem(itemLocalGuidItemProd(INTEGER i)) AND iterate(INTEGER n, 1, 120)
+        AND vetisListGuidGestori(itemLocalGuidAreaProducerList(i), n)
+        AND NOT enterprise(vetisListGuidGestori(itemLocalGuidAreaProducerList(i), n));
+
     // Блок 3: связать товар (Item) с номенклатурой по cod_good
     FOR ProductItem p = productItem(itemLocalGuidItemProd(INTEGER i)) AND
         itemLocalCodGood(i) AND Item it = item(TEXT(itemLocalCodGood(i)))
@@ -309,6 +314,10 @@ importProductItemsGestori 'Импорт номенклатуры Ветис' () 
         in(it, p) <- TRUE;
 
     APPLY;
+
+    IF NOT canceled() AND skippedAreas() THEN
+        MESSAGE 'Импорт номенклатуры: не проставлено площадок-производителей — ' + skippedAreas() +
+            '. Площадок с такими GUID нет в справочнике: выполните «Импорт площадок Ветис» и повторите импорт номенклатуры.';
 }
 
 // --- Блок 7: Записи складского журнала из MercRestShop ---
