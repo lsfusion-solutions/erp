@@ -19,6 +19,7 @@ import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.action.controller.stack.ExecutionStack;
 import lsfusion.server.logics.action.session.DataSession;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
+import lsfusion.erp.integration.IntegrationServiceUtils;
 import lsfusion.server.physics.dev.integration.service.*;
 import org.apache.log4j.Logger;
 
@@ -219,8 +220,7 @@ public class TerminalDocumentEquipmentServer {
 
                 try (DataSession session = server.createSession()) {
                     session.pushVolatileStats("ES_TI");
-                    IntegrationService service = new IntegrationService(session, table, keys, props);
-                    service.synchronize(true, false);
+                    IntegrationServiceUtils.synchronize(session, table, keys, props, true, false);
                     String result = session.applyMessage(BL, stack);
                     session.popVolatileStats();
                     return result;

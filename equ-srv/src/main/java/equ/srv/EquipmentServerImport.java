@@ -13,6 +13,7 @@ import lsfusion.server.logics.action.controller.stack.ExecutionStack;
 import lsfusion.server.logics.action.session.DataSession;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.classes.user.CustomClass;
+import lsfusion.erp.integration.IntegrationServiceUtils;
 import lsfusion.server.physics.dev.integration.service.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -110,7 +111,7 @@ public class EquipmentServerImport {
             }
 
             if(!dataPayment.isEmpty()) {
-                new IntegrationService(session, new ImportTable(fields, dataPayment), keys, props).synchronize(true);
+                IntegrationServiceUtils.synchronize(session, new ImportTable(fields, dataPayment), keys, props, true, true);
 
                 ScriptingLogicsModule cashRegisterLM = BL.getModule("EquipmentCashRegister");
                 if (!extraFields.isEmpty() && cashRegisterLM.findProperty("executeProcessPaymentExtraFields[]").read(session) != null) {
@@ -195,8 +196,8 @@ public class EquipmentServerImport {
             }
 
             if (!dataPaymentGiftCard.isEmpty())
-                new IntegrationService(session, new ImportTable(paymentFields, dataPaymentGiftCard),
-                        paymentKeys, paymentProperties).synchronize(true);
+                IntegrationServiceUtils.synchronize(session, new ImportTable(paymentFields, dataPaymentGiftCard),
+                        paymentKeys, paymentProperties, true, true);
         }
     }
 
@@ -274,8 +275,8 @@ public class EquipmentServerImport {
             }
 
             if (!dataPaymentGiftCard.isEmpty())
-                new IntegrationService(session, new ImportTable(paymentGiftCardFields, dataPaymentGiftCard),
-                        paymentGiftCardKeys, paymentGiftCardProperties).synchronize(true);
+                IntegrationServiceUtils.synchronize(session, new ImportTable(paymentGiftCardFields, dataPaymentGiftCard),
+                        paymentGiftCardKeys, paymentGiftCardProperties, true, true);
         }
     }
 
@@ -322,7 +323,7 @@ public class EquipmentServerImport {
             }
 
             if(!dataDiscount.isEmpty()) {
-                new IntegrationService(session, new ImportTable(fields, dataDiscount), keys, props).synchronize(true);
+                IntegrationServiceUtils.synchronize(session, new ImportTable(fields, dataDiscount), keys, props, true, true);
             }
         }
     }

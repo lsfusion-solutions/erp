@@ -30,6 +30,7 @@ import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.property.classes.IsClassProperty;
 import lsfusion.server.logics.property.oraction.PropertyInterface;
 import lsfusion.server.physics.admin.log.ServerLoggers;
+import lsfusion.erp.integration.IntegrationServiceUtils;
 import lsfusion.server.physics.dev.integration.service.*;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -1589,8 +1590,7 @@ public class DefaultTerminalHandler {
                 ImportTable table = new ImportTable(fields, terminalDocumentDetailList);
 
                 ERPLoggers.terminalLogger.info("start importing terminal document " + idTerminalDocument);
-                IntegrationService service = new IntegrationService(session, table, keys, props);
-                service.synchronize(true, false);
+                IntegrationServiceUtils.synchronize(session, table, keys, props, true, false);
 
                 ObjectValue terminalDocumentObject = terminalHandlerLM.findProperty("terminalDocument[STRING[1000]]").readClasses(session, session.getModifier(), session.getQueryEnv(), new DataObject(idTerminalDocument));
                 terminalHandlerLM.findProperty("createdUser[TerminalDocument]").change(userInfo.user, session, (DataObject) terminalDocumentObject);

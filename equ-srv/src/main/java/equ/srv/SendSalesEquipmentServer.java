@@ -22,6 +22,7 @@ import lsfusion.server.logics.action.session.DataSession;
 import lsfusion.server.logics.classes.data.time.DateClass;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.classes.user.CustomClass;
+import lsfusion.erp.integration.IntegrationServiceUtils;
 import lsfusion.server.physics.dev.integration.service.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -244,8 +245,7 @@ public class SendSalesEquipmentServer {
                 String resultIncome;
                 try (DataSession session = server.createSession()) {
                     session.pushVolatileStats("ES_CDI");
-                    IntegrationService service = new IntegrationService(session, table, keysIncome, propsIncome);
-                    service.synchronize(true, false);
+                    IntegrationServiceUtils.synchronize(session, table, keysIncome, propsIncome, true, false);
 
                     JSONObject extraFields = getExtraFields(cashDocumentList, true);
                     if (!extraFields.isEmpty() && equipmentCashRegisterLM.findProperty("executeProcessCashDocumentExtraFields[]").read(session) != null) {
@@ -263,8 +263,7 @@ public class SendSalesEquipmentServer {
 
                 try (DataSession session = server.createSession()) {
                     session.pushVolatileStats("ES_CDI");
-                    IntegrationService service = new IntegrationService(session, table, keysOutcome, propsOutcome);
-                    service.synchronize(true, false);
+                    IntegrationServiceUtils.synchronize(session, table, keysOutcome, propsOutcome, true, false);
 
                     JSONObject extraFields = getExtraFields(cashDocumentList, false);
                     if (!extraFields.isEmpty() && equipmentCashRegisterLM.findProperty("executeProcessCashDocumentExtraFields[]").read(session) != null) {

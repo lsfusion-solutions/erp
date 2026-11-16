@@ -44,6 +44,7 @@ import lsfusion.server.logics.classes.data.StringClass;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.classes.user.CustomClass;
 import lsfusion.server.logics.property.classes.infer.ClassType;
+import lsfusion.erp.integration.IntegrationServiceUtils;
 import lsfusion.server.physics.dev.integration.service.*;
 import lsfusion.server.physics.exec.db.controller.manager.DBManager;
 import org.apache.log4j.Logger;
@@ -961,14 +962,14 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             RowsData rowsData = getRowsData(session, salesInfoList, start, finish, options, allowReceiptsAfterDocumentsClosedDateCashRegisterList);
 
             //sale 5
-            new IntegrationService(session, new ImportTable(saleFields, rowsData.dataSale), saleKeys, saleProperties).synchronize(true);
+            IntegrationServiceUtils.synchronize(session, new ImportTable(saleFields, rowsData.dataSale), saleKeys, saleProperties, true, true);
 
             //return 5
-            new IntegrationService(session, new ImportTable(returnFields, rowsData.dataReturn), returnKeys, returnProperties).synchronize(true);
+            IntegrationServiceUtils.synchronize(session, new ImportTable(returnFields, rowsData.dataReturn), returnKeys, returnProperties, true, true);
 
             //giftCard 5
             if (giftCardLM != null)
-                new IntegrationService(session, new ImportTable(giftCardFields, rowsData.dataGiftCard), giftCardKeys, giftCardProperties).synchronize(true);
+                IntegrationServiceUtils.synchronize(session, new ImportTable(giftCardFields, rowsData.dataGiftCard), giftCardKeys, giftCardProperties, true, true);
 
             EquipmentServerImport.importPayments(getBusinessLogics(), session, stack, salesInfoList.subList(start, finish), rowsData.ignoredIdReceipts, options);
 
@@ -1349,7 +1350,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 }
 
                 //sale 5
-                new IntegrationService(session, new ImportTable(saleImportFields, rowsData.dataSale), saleKeys, saleProperties).synchronize(true);
+                IntegrationServiceUtils.synchronize(session, new ImportTable(saleImportFields, rowsData.dataSale), saleKeys, saleProperties, true, true);
 
                 //return 5
                 List<ImportKey<?>> returnKeys = Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptReturnDetailKey, skuKey, employeeKey, receiptSaleDetailReceiptReturnDetailKey);
@@ -1361,12 +1362,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     returnKeys = new ArrayList<>(returnKeys);
                     returnKeys.add(sectionKey);
                 }
-                new IntegrationService(session, new ImportTable(returnImportFields, rowsData.dataReturn), returnKeys, returnProperties).synchronize(true);
+                IntegrationServiceUtils.synchronize(session, new ImportTable(returnImportFields, rowsData.dataReturn), returnKeys, returnProperties, true, true);
 
                 //giftCard 5
                 if (giftCardLM != null) {
                     List<ImportKey<?>> giftCardKeys = Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptGiftCardSaleDetailKey, giftCardKey, employeeKey);
-                    new IntegrationService(session, new ImportTable(giftCardImportFields, rowsData.dataGiftCard), giftCardKeys, giftCardProperties).synchronize(true);
+                    IntegrationServiceUtils.synchronize(session, new ImportTable(giftCardImportFields, rowsData.dataGiftCard), giftCardKeys, giftCardProperties, true, true);
                 }
 
                 EquipmentServerImport.importPayments(getBusinessLogics(), session, stack, data, rowsData.ignoredIdReceipts, options);
