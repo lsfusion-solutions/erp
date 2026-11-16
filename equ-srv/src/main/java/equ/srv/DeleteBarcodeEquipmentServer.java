@@ -19,6 +19,7 @@ import lsfusion.server.language.property.LP;
 import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.action.controller.stack.ExecutionStack;
 import lsfusion.server.logics.action.session.DataSession;
+import lsfusion.server.logics.classes.data.StringClass;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.physics.admin.log.ServerLoggers;
 
@@ -138,10 +139,13 @@ class DeleteBarcodeEquipmentServer {
     static void succeedDeleteBarcode(BusinessLogics BL, EquipmentServer server, ExecutionStack stack, Integer nppGroupMachinery, Set<String> deleteBarcodeSet) {
         try (DataSession session = server.createSession()) {
             ServerLoggers.importLogger.info("succeedDeleteBarcode for nppGroupMachinery " + nppGroupMachinery);
+            //all the barcodes at once: the action marks the delete barcode requests with two queries instead of two queries for each barcode
+            LP<?> deletedBarcode = deleteBarcodeLM.findProperty("deletedBarcode[STRING[100]]");
             for (String barcode : deleteBarcodeSet) {
                 ServerLoggers.importLogger.info("barcode " + barcode);
-                deleteBarcodeLM.findAction("succeedDeleteBarcode[INTEGER, STRING[28]]").execute(session, stack, new DataObject(nppGroupMachinery), new DataObject(barcode));
+                deletedBarcode.change(true, session, new DataObject(barcode, StringClass.get(100)));
             }
+            deleteBarcodeLM.findAction("succeedDeleteBarcode[INTEGER]").execute(session, stack, new DataObject(nppGroupMachinery));
             session.applyException(BL, stack);
         } catch (Exception e) {
             throw Throwables.propagate(e);

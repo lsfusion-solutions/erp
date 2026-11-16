@@ -40,10 +40,12 @@ finishDeleteBarcode(INTEGER nppGroupMachinery, BOOLEAN markSucceeded)  {
     }
 }
 
-succeedDeleteBarcode(INTEGER nppGroupMachinery, STRING[48] barcode)  { 
-    //todo: присылать не nppGroupMachinery, а directory (потребует изменения equ-api)
-    succeeded(DeleteBarcode d) <- TRUE WHERE NOT succeeded(d) AND directory(groupMachinery(d)) == directory(groupMachineryNpp(nppGroupMachinery)) AND barcode(d) == barcode;
-    dateTimeSucceeded(DeleteBarcode d) <- currentDateTime() WHERE NOT dateTimeSucceeded(d) AND directory(groupMachinery(d)) == directory(groupMachineryNpp(nppGroupMachinery)) AND barcode(d) == barcode;
+// barcodes deleted in the directory of the group of machinery, filled by the equipment server before succeedDeleteBarcode
+deletedBarcode = DATA LOCAL BOOLEAN (STRING[100]);
+
+succeedDeleteBarcode(INTEGER nppGroupMachinery)  {
+    succeeded(DeleteBarcode d) <- TRUE WHERE NOT succeeded(d) AND directory(groupMachinery(d)) == directory(groupMachineryNpp(nppGroupMachinery)) AND deletedBarcode(barcode(d));
+    dateTimeSucceeded(DeleteBarcode d) <- currentDateTime() WHERE NOT dateTimeSucceeded(d) AND directory(groupMachinery(d)) == directory(groupMachineryNpp(nppGroupMachinery)) AND deletedBarcode(barcode(d));
 }
 
 CLASS DeleteBarcodeError 'Ошибка';
