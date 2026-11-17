@@ -36,6 +36,11 @@ afterInputManufacturingPrice(UserDisparityDetail detail) <- curInputManufacturin
 @defineDocumentInterfaceDetailDataSumPrefix(disparity, afterInputManufacturing, ' изготовителя после');
 @deriveDocumentDetailSumPrefix(userDisparity, afterInputManufacturing, currency, inputQuantity);
 
+disparityOutManufacturingSum 'Расход по изменению сортности (сумма РОЦ)' (batch, stock, date) =
+    GROUP SUM curInputManufacturingSum(DisparityDetail d) IF isPosted(d) BY batch(d), stock(d), date(d);
+disparityInManufacturingSum 'Приход пересортицы (сумма РОЦ)' (batch, stock, date) =
+    GROUP SUM afterInputManufacturingSum(disparityDetail(InputDisparityDetail d)) IF isPosted(d) BY d, stock(d), date(d);
+
 showIfManufacturingPrice= ABSTRACT CASE BOOLEAN (DisparityDetail);
  
 skipReadOnlyManufacturingPriceB = ABSTRACT CASE BOOLEAN (DisparityDetail);

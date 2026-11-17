@@ -26,6 +26,11 @@ dateTime '{document.date.time.of} {document.of.document}' (CreditNote o) = dateT
 dateTime '{document.date.time.of} {document.of.document}' (CreditNoteDetail d) = dateTime(creditNote(d)) CHARWIDTH 10;
 date '{document.date.of} {document.of.document}' (CreditNoteDetail d) = date(creditNote(d));
 time '{document.time.of} {document.of.document}' (CreditNoteDetail d) = time(creditNote(d));
+shipmentDate = ABSTRACT DATE (CreditNote) IN documentHeader;
+shipmentTime = ABSTRACT TIME (CreditNote) IN documentHeader;
+shipmentDateTime (CreditNote o) = dateTimeToDateTime(shipmentDate(o), shipmentTime(o));
+shipmentDateTime (CreditNoteDetail d) = shipmentDateTime(creditNote(d)) CHARWIDTH 10;
+shipmentDate (CreditNoteDetail d) = shipmentDate(creditNote(d));
 note '{document.note}' = ABSTRACT ISTRING[500] (CreditNote) CHARWIDTH 30 IN documentPrm;
 is (CreditNote o) = o IS CreditNote;
 is (CreditNoteDetail i) = i IS CreditNoteDetail;
@@ -779,10 +784,16 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     index(InvoiceCreditNoteDetail detail) += index(detail);
     
     overDate = ABSTRACT DATE (InvoiceCreditNote);
-    overTime = ABSTRACT TIME (InvoiceCreditNote);    
+    overTime = ABSTRACT TIME (InvoiceCreditNote);
+    overDateTime (InvoiceCreditNote creditNote) = dateTimeToDateTime(overDate(creditNote), overTime(creditNote));
+
     date(InvoiceCreditNote creditNote) += OVERRIDE overDate(creditNote), date(creditNote);
     time(InvoiceCreditNote creditNote) += OVERRIDE overTime(creditNote), time(creditNote);
 
+    overDate '{document.date.object}' (InvoiceCreditNoteDetail d) = overDate(invoiceCreditNote(d));
+    overTime '{document.time.object}' (InvoiceCreditNoteDetail d) = overTime(invoiceCreditNote(d));
+    overDateTime '{document.date.time.object}' (InvoiceCreditNoteDetail d) = overDateTime(invoiceCreditNote(d));        
+        
     @defineDocumentAggregationStockPrefix(invoice, invoiceCreditNote, supplier, 'Склад поставщика', , );
     supplierStock(InvoiceCreditNote creditNote) += supplierStock(creditNote);
 
