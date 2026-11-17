@@ -1588,14 +1588,25 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         if(machineryPriceTransactionLM != null) {
             try (DataSession session = createSession()) {
                 DataObject transactionObject = session.getDataObject((CustomClass)equLM.findClass("MachineryPriceTransaction"), transactionId);
+
+                Set<Integer> nppMachinerySet = new HashSet<>();
                 for (MachineryInfo machineryInfo : machineryInfoList) {
-                    ObjectValue machineryObject = null;
-                    if (machineryInfo instanceof CashRegisterInfo && cashRegisterLM != null)
-                        machineryObject = cashRegisterLM.findProperty("cashRegisterNppGroupCashRegister[INTEGER,INTEGER]").readClasses(session, new DataObject(machineryInfo.numberGroup), new DataObject(machineryInfo.number));
-                    else if (machineryInfo instanceof ScalesInfo && scalesLM != null)
-                        machineryObject = scalesLM.findProperty("scalesNppGroupScales[INTEGER,INTEGER]").readClasses(session, new DataObject(machineryInfo.numberGroup), new DataObject(machineryInfo.number));
-                    if (machineryObject != null && !machineryInfo.cleared)
-                        machineryPriceTransactionLM.findProperty("cleared[Machinery,MachineryPriceTransaction]").change(true, session, (DataObject) machineryObject, transactionObject);
+                    if (!machineryInfo.cleared && (machineryInfo instanceof CashRegisterInfo ? cashRegisterLM != null : machineryInfo instanceof ScalesInfo && scalesLM != null))
+                        nppMachinerySet.add(machineryInfo.number);
+                }
+
+                //one query for all the machinery of the group of the transaction instead of a query for each machinery
+                if (!nppMachinerySet.isEmpty()) {
+                    KeyExpr machineryExpr = new KeyExpr("machinery");
+                    QueryBuilder<Object, Object> machineryQuery = new QueryBuilder<>(MapFact.singletonRev("machinery", machineryExpr));
+                    machineryQuery.addProperty("npp", machineryLM.findProperty("npp[Machinery]").getExpr(machineryExpr));
+                    machineryQuery.and(machineryLM.findProperty("groupMachinery[Machinery]").getExpr(machineryExpr).compare(
+                            equLM.findProperty("groupMachinery[MachineryPriceTransaction]").getExpr(transactionObject.getExpr()), Compare.EQUALS));
+                    ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> machineryResult = machineryQuery.executeClasses(session);
+                    for (int i = 0, size = machineryResult.size(); i < size; i++) {
+                        if (nppMachinerySet.contains((Integer) machineryResult.getValue(i).get("npp").getValue()))
+                            machineryPriceTransactionLM.findProperty("cleared[Machinery,MachineryPriceTransaction]").change(true, session, machineryResult.getKey(i).get("machinery"), transactionObject);
+                    }
                 }
                 session.applyException(getBusinessLogics(), getStack());
             } catch (Exception e) {
