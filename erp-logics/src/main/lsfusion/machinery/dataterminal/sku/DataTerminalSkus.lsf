@@ -1,0 +1,389 @@
+MODULE DataTerminalSkus;
+
+// Справочник товаров веб-ТСД: пункт «Товары» главного меню (экран со списком товаров, только просмотр) и диалог подбора
+// товара (кнопка в поле штрихкода экрана строки документа, DataTerminalDocumentDetailEdit.lsf).
+// Список - активные товары со штрихкодом, в карточке цена и остаток на складе terminalSkusStock (на экране - склад сотрудника,
+// в подборе - склад документа). Быстрый поиск - по наименованию или штрихкоду, фильтр - категория товара (группа),
+// товары с остатком, маркированные товары (с выбором типа маркировки). Фильтр общий для экрана и подбора
+REQUIRE DataTerminalDocumentDetails, LotType;
+
+NAMESPACE DataTerminal;
+
+beforeDataTerminalStart() + { INTERNAL CLIENT 'dataTerminalSkus.css'; }
+
+// Склад цены и остатка в карточках товаров. NESTED - чтобы значение не сбрасывалось при APPLY / CANCEL в сессии
+// формы ТСД (возврат «Назад» делает CANCEL)
+terminalSkusStock = DATA LOCAL NESTED Stock ();
+
+// Карточка товара - в разметке карточки строки документа (terminal-document-detail, dataTerminalDocumentDetails.css):
+// наименование, миниатюра, основной штрихкод и ед. изм., цена и остаток (остаток - если его показ не запрещен ролью
+// пользователя, как в карточке строки)
+htmlDetail '' (Sku s) = CONCAT '',
+    '<div class=terminal-document-detail>',
+        '<div class=name>', name(s), '</div>',
+        htmlSmallImage(s),
+        '<div class=header>',
+            '<div class=barcode>', idBarcode(s), ' <b>' + shortNameUOM(s) + '</b>', '</div>',
+        '</div>',
+        '<div class=values>',
+            '<div class=price><span>Цена</span>',
+                (OVERRIDE STRING(NUMERIC[16,2](currentPriceInTerminal(s, terminalSkusStock()))), '—'), '</div>',
+            ('<div class=balance><span>Остаток</span>'
+                + (OVERRIDE shortQuantity(NUMERIC[16,3](currentBalance(s, terminalSkusStock()))), '0') + '</div>')
+                IF terminalSkusStock() AND NOT blockCurrentQuantityInTerminal(mainRole(currentUser())),
+        '</div>',
+    '</div>';
+
+// Быстрый поиск: часть наименования или основного штрихкода, либо любой штрихкод товара целиком
+inTerminalSkuSearch (Sku s, STRING search) = isISubstring(name(s), search) OR isISubstring(idBarcode(s), search)
+    OR s = skuBarcode(STRING[15](search));
+
+// Маркированный товар - как в выгрузке на нативный ТСД (флаг goodMarking, TerminalHandlerLot.lsf): тип маркировки
+// задан и это не «Не подлежит маркировке» (none)
+terminalMarked (Sku s) = id(lotType(s)) != r'none';
+
+// Фильтр (как в нативном приложении ТСД): строка над списком показывает заданные условия, касание строки открывает
+// окно фильтра, крестик сбрасывает фильтр. NESTED - чтобы фильтр не сбрасывался при APPLY / CANCEL в сессии формы ТСД
+terminalFilterSkuGroup = DATA LOCAL NESTED SkuGroup ();
+terminalFilterWithBalance = DATA LOCAL NESTED BOOLEAN ();
+terminalFilterMarked = DATA LOCAL NESTED BOOLEAN ();
+// Тип маркировки (только для маркированных), не задан - любой
+terminalFilterLotType = DATA LOCAL NESTED LotType ();
+
+// Строка фильтра: воронка и заданные условия по строке на каждое, иначе «Фильтр не задан»
+// (разметка и стили - строки фильтра документов, dataTerminalDocuments.css)
+htmlFilterTerminalSkus '' () = CONCAT '',
+    '<div class=terminal-documents-filter>',
+        r'<svg viewBox="0 0 24 24"><path d="M3 4h18l-7 8.5V19l-4 2v-8.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
+        '<div class=text>',
+            (OVERRIDE (CONCAT '<br>',
+                    '<b>Категория</b>: ' + name(terminalFilterSkuGroup()),
+                    '<b>С остатком</b>' IF terminalFilterWithBalance(),
+                    ('<b>Маркировка</b>: ' + (OVERRIDE name(terminalFilterLotType()), 'любая')) IF terminalFilterMarked()),
+                'Фильтр не задан'),
+        '</div>',
+    '</div>';
+
+htmlResetFilterTerminalSkus '' () = '<div class=filter-reset>✕</div>'
+    IF (terminalFilterSkuGroup() OR terminalFilterWithBalance() OR terminalFilterMarked()) CHARWIDTH 3;
+
+resetFilterTerminalSkus () {
+    terminalFilterSkuGroup() <- NULL;
+    terminalFilterWithBalance() <- NULL;
+    terminalFilterMarked() <- NULL;
+    terminalFilterLotType() <- NULL;
+}
+
+// Окно фильтра: условия вводятся в свои поля и переносятся в фильтр только по OK
+inputSkuGroup = DATA LOCAL SkuGroup ();
+inputWithBalance 'Только с остатком' = DATA LOCAL BOOLEAN ();
+inputMarked 'Маркированный товар' = DATA LOCAL BOOLEAN ();
+inputLotType = DATA LOCAL LotType ();
+
+// Поля выбора: значение вручную не вводится, касание поля открывает диалог выбора
+nameInputSkuGroup 'Категория товара' () = name(inputSkuGroup());
+nameInputLotType 'Тип маркировки' () = name(inputLotType());
+
+// «(F2) Сброс» в диалогах выбора значения фильтра: закрывает диалог с признаком «значение не задано»
+droppedTerminalSkusFilterValue = DATA LOCAL BOOLEAN ();
+
+dropTerminalSkusFilterValue () {
+    droppedTerminalSkusFilterValue() <- TRUE;
+    close();
+}
+
+// Диалог выбора категории: активные группы товаров, поиск по наименованию (без учета регистра).
+// В карточке - наименование и путь родительской группы
+skuGroupSearch 'Поиск' = DATA LOCAL STRING[100] ();
+
+htmlDetail '' (SkuGroup g) = CONCAT '',
+    '<div class=terminal-document>',
+        '<div class=type>', name(g), '</div>',
+        '<div class=comment>', canonicalName(parent(g)), '</div>',
+    '</div>';
+
+FORM askSelectSkuGroup 'Категория товара'
+    PROPERTIES READONLY header = dialogHeader('Выбор', 'Категория товара') CUSTOM 'htmlText'
+    PROPERTIES() skuGroupSearch CUSTOM 'inputText'
+
+    OBJECTS g = SkuGroup
+    PROPERTIES READONLY htmlDetail = htmlDetail(g) CUSTOM 'htmlText'
+    PROPERTIES(g) READONLY canonicalName SHOWIF NULL
+    FILTERS active(g),
+            NOT skuGroupSearch() OR isISubstring(name(g), skuGroupSearch())
+    ORDERS canonicalName(g)
+;
+@defSelectDialog(askSelectSkuGroup, g);
+@defButtonCustom(dropTerminalSkusFilterValue, 'Сброс', askSelectSkuGroup, 'F2', reset);
+
+DESIGN askSelectSkuGroup {
+    OBJECTS {
+        MOVE PROPERTY (skuGroupSearch()) AFTER PROPERTY (header) {
+            captionVertical = TRUE;
+            class = 'input-single';
+            captionClass = 'input-single-caption';
+            valueClass = 'input-single-value';
+            placeholder = 'Наименование';
+        }
+        // «Сброс» слева, «Выбрать» и «Закрыть» справа (ask-buttons-reset в data-terminal.css)
+        otherButtons {
+            class = 'ask-buttons ask-buttons-reset';
+            MOVE PROPERTY (dropTerminalSkusFilterValue) FIRST;
+        }
+    }
+    // Фокус - в поиске: набранный с клавиатуры ТСД текст сразу фильтрует список, Enter выбирает текущую строку
+    PROPERTY (htmlDetail) { defaultComponent = FALSE; }
+    PROPERTY (skuGroupSearch()) { defaultComponent = TRUE; }
+}
+
+selectInputSkuGroup () {
+    droppedTerminalSkusFilterValue() <- NULL;
+    skuGroupSearch() <- NULL;
+    DIALOG askSelectSkuGroup OBJECTS g = inputSkuGroup() INPUT NOMANAGESESSION DO
+        inputSkuGroup() <- g;
+    IF droppedTerminalSkusFilterValue() THEN
+        inputSkuGroup() <- NULL;
+}
+
+// Диалог выбора типа маркировки: все типы, кроме «Не подлежит маркировке» (none)
+htmlDetail '' (LotType t) = CONCAT '',
+    '<div class=terminal-document>',
+        '<div class=type>', name(t), '</div>',
+    '</div>';
+
+FORM askSelectLotType 'Тип маркировки'
+    PROPERTIES READONLY header = dialogHeader('Выбор', 'Тип маркировки') CUSTOM 'htmlText'
+
+    OBJECTS t = LotType
+    PROPERTIES READONLY htmlDetail = htmlDetail(t) CUSTOM 'htmlText'
+    PROPERTIES(t) READONLY name SHOWIF NULL
+    FILTERS id(t) != r'none'
+    ORDERS name(t)
+;
+@defSelectDialog(askSelectLotType, t);
+@defButtonCustom(dropTerminalSkusFilterValue, 'Сброс', askSelectLotType, 'F2', reset);
+
+DESIGN askSelectLotType {
+    OBJECTS {
+        // «Сброс» слева, «Выбрать» и «Закрыть» справа (ask-buttons-reset в data-terminal.css)
+        otherButtons {
+            class = 'ask-buttons ask-buttons-reset';
+            MOVE PROPERTY (dropTerminalSkusFilterValue) FIRST;
+        }
+    }
+}
+
+selectInputLotType () {
+    droppedTerminalSkusFilterValue() <- NULL;
+    DIALOG askSelectLotType OBJECTS t = inputLotType() INPUT NOMANAGESESSION DO
+        inputLotType() <- t;
+    IF droppedTerminalSkusFilterValue() THEN
+        inputLotType() <- NULL;
+}
+
+FORM terminalSkusFilter 'Фильтр'
+    PROPERTIES READONLY header = dialogHeader('Товары', 'Фильтр') CUSTOM 'htmlText'
+    PROPERTIES() nameInputSkuGroup ON CHANGE selectInputSkuGroup(),
+                 inputWithBalance,
+                 inputMarked,
+                 nameInputLotType SHOWIF inputMarked() ON CHANGE selectInputLotType()
+;
+
+// Класс кнопки 'custom-button ok select': с повтором 'ok' (addclass = ok) класс ok кнопке не достается
+@defButtonCustom(ok, 'OK', terminalSkusFilter, 'ENTER', select);
+@defButtonCustom(close, 'Отмена', terminalSkusFilter, 'ESCAPE', cancel);
+
+// «Сброс»: очищает все условия и закрывает окно (как в нативном приложении)
+resetTerminalSkusFilter () {
+    inputSkuGroup() <- NULL;
+    inputWithBalance() <- NULL;
+    inputMarked() <- NULL;
+    inputLotType() <- NULL;
+    ok();
+}
+@defButtonCustom(resetTerminalSkusFilter, 'Сброс', terminalSkusFilter, 'F2', reset);
+
+DESIGN terminalSkusFilter {
+    OBJECTS {
+        MOVE PROPERTY (header) {
+            focusable = FALSE;
+            align = STRETCH;
+        }
+        // Поля выбора - в стиле полей ввода ТСД: заголовок над значением.
+        // tag = '': вычисляемое свойство с ON CHANGE платформа рисует ссылкой <a>, а нужно поле
+        MOVE PROPERTY (nameInputSkuGroup()) {
+            align = STRETCH; captionVertical = TRUE; changeOnSingleClick = TRUE; tag = '';
+            class = 'input-single'; captionClass = 'input-single-caption'; valueClass = 'readonly-field-value';
+            placeholder = 'Не задано';
+        }
+        // Флажки - крупные, с подписью справа (dataTerminalSkus.css)
+        MOVE PROPERTY (inputWithBalance()) {
+            align = STRETCH;
+            class = 'dt-filter-check';
+        }
+        MOVE PROPERTY (inputMarked()) {
+            align = STRETCH;
+            class = 'dt-filter-check';
+        }
+        MOVE PROPERTY (nameInputLotType()) {
+            align = STRETCH; captionVertical = TRUE; changeOnSingleClick = TRUE; tag = '';
+            class = 'input-single'; captionClass = 'input-single-caption'; valueClass = 'readonly-field-value';
+            placeholder = 'Любой';
+        }
+        // кнопки одной строкой: «Сброс» у левого края, OK и «Отмена» у правого (ask-buttons-reset в data-terminal.css)
+        NEW otherButtons {
+            horizontal = TRUE;
+            wrap = FALSE;
+            childrenAlignment = END;
+            class = 'ask-buttons ask-buttons-reset';
+            align = STRETCH;
+            MOVE PROPERTY (resetTerminalSkusFilter);
+            MOVE PROPERTY (ok);
+            MOVE PROPERTY (close);
+        }
+    }
+    REMOVE TOOLBARBOX;
+}
+
+openTerminalSkusFilter () {
+    inputSkuGroup() <- terminalFilterSkuGroup();
+    inputWithBalance() <- terminalFilterWithBalance();
+    inputMarked() <- terminalFilterMarked();
+    inputLotType() <- terminalFilterLotType();
+    DIALOG terminalSkusFilter NOMANAGESESSION DO {
+        terminalFilterSkuGroup() <- inputSkuGroup();
+        terminalFilterWithBalance() <- inputWithBalance();
+        terminalFilterMarked() <- inputMarked();
+        terminalFilterLotType() <- inputLotType() IF inputMarked();
+    }
+}
+
+// Список товаров на форме form (объект object): активные товары со штрихкодом (подобранный товар обрабатывается
+// как скан основного штрихкода), поиск по search() и фильтр, строка фильтра.
+// Строку фильтра в нужное место дизайна (над списком) переносит форма
+META defTerminalSkuList(form, object, search)
+    EXTEND FORM form
+        PROPERTIES() htmlFilterTerminalSkus CUSTOM 'htmlText' ON CHANGE openTerminalSkusFilter(),
+                     htmlResetFilterTerminalSkus CUSTOM 'htmlText' SHOWIF htmlResetFilterTerminalSkus() ON CHANGE resetFilterTerminalSkus()
+        FILTERS active(object),
+                idBarcode(object),
+                NOT search() OR inTerminalSkuSearch(object, search()),
+                NOT terminalFilterSkuGroup() OR isParent(terminalFilterSkuGroup(), object),
+                NOT terminalFilterWithBalance() OR currentBalance(object, terminalSkusStock()) > 0,
+                NOT terminalFilterMarked() OR (terminalMarked(object) AND (NOT terminalFilterLotType() OR lotType(object) = terminalFilterLotType()))
+    ;
+
+    DESIGN form {
+        PROPERTY (htmlFilterTerminalSkus()) {
+            fill = 1;
+            focusable = FALSE;
+            changeOnSingleClick = TRUE;
+        }
+        PROPERTY (htmlResetFilterTerminalSkus()) {
+            focusable = FALSE;
+            changeOnSingleClick = TRUE;
+        }
+    }
+END
+
+// Экран «Товары» главного меню: список товаров с ценой и остатком на складе сотрудника, только просмотр
+@addMenuItem(terminalSkus, 'Товары', '4', lineAction5);
+
+@defSubMenu(terminalSkusOperation, operation, 'Товары');
+up (MenuItem i) += WHEN i = MenuItem.terminalSkusOperation THEN MenuItem.actions;
+
+EXTEND FORM dataTerminalInternal
+    OBJECTS terminalSku = Sku
+    PROPERTIES (terminalSku) READONLY htmlDetail CUSTOM 'htmlText', name SHOWIF NULL
+    ORDERS name(terminalSku)
+;
+
+// Быстрый поиск по наименованию или штрихкоду: лупа в шапке ТСД (headerSearch() - NULL или строка от 3 символов)
+showHeaderSearch (MenuItem i) += WHEN i = MenuItem.terminalSkusOperation THEN TRUE;
+headerSearchPlaceholder (MenuItem i) += WHEN i = MenuItem.terminalSkusOperation THEN 'Наименование или штрихкод';
+
+@defTerminalSkuList(dataTerminalInternal, terminalSku, headerSearch);
+
+DESIGN dataTerminalInternal {
+    terminalSkusOperation {
+        fill = 1;
+        NEW terminalSkusFilterBar {
+            horizontal = TRUE;
+            align = STRETCH;
+            class = 'terminal-documents-filter-bar';
+            MOVE PROPERTY (htmlFilterTerminalSkus());
+            MOVE PROPERTY (htmlResetFilterTerminalSkus());
+        }
+        MOVE BOX (terminalSku) {
+            caption = '';
+            collapsible = FALSE;
+            fill = 1;
+        }
+    }
+    REMOVE TOOLBARBOX (terminalSku);
+    GRID (terminalSku) {
+        captionHeight = 0;
+        class = 'not-header no-horz-scroll card-list';
+    }
+    // Базовая ширина карточки небольшая: иначе колонка берет ширину самой длинной карточки и обрезается справа
+    PROPERTY (htmlDetail(terminalSku)) { charWidth = 20; }
+}
+
+// Вход с главного меню: цена и остаток - на складе сотрудника (не задан - без остатков), текущий - первый товар списка
+doMenuItemTerminalSkus() + {
+    terminalSkusStock() <- stock(currentEmployee());
+    toMenuItem(MenuItem.terminalSkusOperation);
+    ACTIVATE FIRST dataTerminalInternal.terminalSku;
+}
+
+// Диалог подбора товара: тот же список и фильтр, что на экране «Товары», поиск - полем под шапкой диалога
+terminalSkuSearch 'Поиск' = DATA LOCAL STRING[100] ();
+
+FORM dialogTerminalSkus 'Товары'
+    PROPERTIES READONLY header = dialogHeader('Выбор', 'Товар') CUSTOM 'htmlText'
+    PROPERTIES() terminalSkuSearch CUSTOM 'inputText'
+
+    OBJECTS s = Sku
+    PROPERTIES READONLY htmlDetail = htmlDetail(s) CUSTOM 'htmlText'
+    PROPERTIES(s) READONLY name SHOWIF NULL
+    ORDERS name(s)
+
+    // Касание миниатюры товара в карточке открывает окно изображения (триггер - как в форме ТСД, DataTerminalSkuImage.lsf)
+    PROPERTIES dtShowSkuImage = skuImageRequest() ON CHANGE { INPUT l = LONG DO showSkuImage(l); }
+;
+@defSelectDialog(dialogTerminalSkus, s);
+@defTerminalSkuList(dialogTerminalSkus, s, terminalSkuSearch);
+
+DESIGN dialogTerminalSkus {
+    OBJECTS {
+        MOVE PROPERTY (terminalSkuSearch()) AFTER PROPERTY (header) {
+            captionVertical = TRUE;
+            class = 'input-single';
+            captionClass = 'input-single-caption';
+            valueClass = 'input-single-value';
+            placeholder = 'Наименование или штрихкод';
+        }
+        NEW terminalSkusFilterBar AFTER PROPERTY (terminalSkuSearch()) {
+            horizontal = TRUE;
+            align = STRETCH;
+            class = 'terminal-documents-filter-bar';
+            MOVE PROPERTY (htmlFilterTerminalSkus());
+            MOVE PROPERTY (htmlResetFilterTerminalSkus());
+        }
+        MOVE PROPERTY (dtShowSkuImage) { class = 'dt-sku-image-trigger'; }
+    }
+    // Фокус - в поиске: набранный с клавиатуры ТСД текст сразу фильтрует список, Enter выбирает текущую строку
+    PROPERTY (htmlDetail) { defaultComponent = FALSE; }
+    PROPERTY (terminalSkuSearch()) { defaultComponent = TRUE; }
+}
+
+// Подбор товара (цена и остаток в карточках - на складе terminalSkusStock, его задает вызывающий): выбранный товар -
+// в selectedTerminalSku, подбор отменен - NULL
+selectedTerminalSku = DATA LOCAL Sku ();
+
+selectTerminalSku () {
+    selectedTerminalSku() <- NULL;
+    terminalSkuSearch() <- NULL;
+    DIALOG dialogTerminalSkus OBJECTS s INPUT NOMANAGESESSION DO
+        selectedTerminalSku() <- s;
+}

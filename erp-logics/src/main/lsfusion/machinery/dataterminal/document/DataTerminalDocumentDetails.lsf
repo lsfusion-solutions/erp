@@ -1,7 +1,7 @@
 MODULE DataTerminalDocumentDetails;
 
 // Табличная часть документа ТСД: экран строк документа, открывается касанием карточки в списке «Документы»
-REQUIRE DataTerminalDocuments, TerminalHandler, DataTerminalSkuImage;
+REQUIRE DataTerminalDocuments, DataTerminalSkuImage;
 
 NAMESPACE DataTerminal;
 
@@ -68,7 +68,7 @@ htmlDetail '' (TerminalDocumentDetail d) = CONCAT '',
 // Шапка экрана строк: тип и № документа, дата справа
 htmlHeader '' (TerminalDocument d) = CONCAT '',
     '<div class=terminal-document-header>',
-        '<div class=type>', nameTerminalDocumentType(d), '</div>',
+        htmlType(d),
         '<div class=header>',
             '<div class=number>', '№ ' + title(d), '</div>',
             '<div class=date>', (CONCAT ' ', toDateDDMMYY(date(d)), STRING[5](time(d))), '</div>',
@@ -111,7 +111,15 @@ DESIGN terminalDocumentDetailMenu {
             align = STRETCH;
             class = 'dots-menu-items';
         }
-        MOVE PROPERTY (close);
+        // единственная кнопка - у правого края меню (стили - ask-buttons в data-terminal.css)
+        NEW closeButtons {
+            horizontal = TRUE;
+            wrap = FALSE;
+            childrenAlignment = END;
+            align = STRETCH;
+            class = 'ask-buttons';
+            MOVE PROPERTY (close);
+        }
     }
 }
 
@@ -162,7 +170,9 @@ EXTEND FORM dataTerminalInternal
 
     OBJECTS terminalDocumentDetail = TerminalDocumentDetail
     PROPERTIES (terminalDocumentDetail) READONLY htmlDetail CUSTOM 'htmlText', number SHOWIF NULL
-    PROPERTIES (terminalDocumentDetail) dotsMenu CUSTOM 'htmlText' ON CHANGE showMenu(terminalDocumentDetail)
+    // Документ без типа («Операция не задана») - строки только просматриваются, меню строки нет
+    PROPERTIES (terminalDocumentDetail) dotsMenu CUSTOM 'htmlText' SHOWIF terminalDocumentType(selectedTerminalDocument())
+        ON CHANGE showMenu(terminalDocumentDetail)
     FILTERS terminalDocument(terminalDocumentDetail) = selectedTerminalDocument()
     ORDERS number(terminalDocumentDetail)
 ;

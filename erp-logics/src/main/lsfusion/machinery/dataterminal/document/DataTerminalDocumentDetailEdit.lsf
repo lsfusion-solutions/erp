@@ -5,7 +5,7 @@ MODULE DataTerminalDocumentDetailEdit;
 // Esc - возврат к строкам без сохранения. Режимы: EDIT - пункт «Редактировать» меню «⋮» строки, ADD - кнопка
 // «Добавить» на экране строк (строки добавляются сканированием штрихкода), PRICE_CHECK - пункт «Проверка цен»
 // главного меню (DataTerminalPriceCheck.lsf): карточка товара с ценой и остатком на складе сотрудника
-REQUIRE DataTerminalDocumentDetails, DataTerminalPriceCheck, BarcodeParser;
+REQUIRE DataTerminalDocumentDetails, DataTerminalPriceCheck, BarcodeParser, DataTerminalSkus;
 
 NAMESPACE DataTerminal;
 
@@ -557,6 +557,19 @@ enterAddBarcode '↵' () {
     }
 }
 
+// Подбор товара из справочника товаров (кнопка слева в поле штрихкода, DataTerminalSkus.lsf): выбранный товар
+// (в списке - только товары со штрихкодом) обрабатывается как скан его основного штрихкода. Цена и остаток в карточках
+// подбора - на складе документа (ADD) или сотрудника (PRICE_CHECK). После выбора фокус ставит обработка штрихкода
+// (в ADD - поле строки), подбор отменен - фокус в поле штрихкода
+pickAddSku '' () {
+    terminalSkusStock() <- IF screenMode() = TerminalDetailScreenMode.add THEN stock(editedDocument()) ELSE priceCheckStock();
+    selectTerminalSku();
+    IF selectedTerminalSku() THEN
+        processScannedBarcode(idBarcode(selectedTerminalSku()));
+    ELSE
+        focusAddBarcode();
+}
+
 EXTEND FORM dataTerminalInternal
     PROPERTIES dtAddBarcode = addBarcode() CUSTOM 'inputBarcodeScan' SHOWIF scanMode() ON CHANGE {
         INPUT s = STRING DO {
@@ -567,16 +580,20 @@ EXTEND FORM dataTerminalInternal
                 addBarcode() <- s;
         }
     }
-    PROPERTIES enterAddBarcode() SHOWIF scanMode()
+    PROPERTIES enterAddBarcode() SHOWIF scanMode(), pickAddSku() SHOWIF scanMode()
     PROPERTIES READONLY dtAddMessage = addMessage() CUSTOM 'htmlText' SHOWIF addMessage()
 ;
 
 DESIGN dataTerminalInternal {
     terminalDocumentDetailEditOperation {
-        // Поле и кнопка «↵» справа в одной строке (сетка, dataTerminalDocumentDetailEdit.css)
+        // Поле, кнопка подбора из справочника слева и кнопка «↵» справа в одной строке (сетка, dataTerminalDocumentDetailEdit.css)
         NEW terminalDocumentDetailAddBarcode BEFORE PROPERTY (terminalDocumentDetailEditHeader) {
             align = STRETCH;
             class = 'input-container dt-add-barcode';
+            MOVE PROPERTY (pickAddSku()) {
+                focusable = FALSE;
+                class = 'custom-button pickAddSku input-left';
+            }
             MOVE PROPERTY (dtAddBarcode) {
                 captionVertical = TRUE;
                 class = 'input-single';
@@ -621,7 +638,9 @@ addTerminalDocumentDetail () {
     focusAddBarcode();
 }
 @defButtonCustom(addTerminalDocumentDetail, 'Добавить', dataTerminalInternal, 'F3', ok);
-hideAddTerminalDocumentDetailDataTerminalInternal() += NOT isOpened(selectedTerminalDocument());
+// Скрыта и у документа без типа: без настроек типа строку не добавить («Операция не задана», DataTerminalDocuments.lsf)
+hideAddTerminalDocumentDetailDataTerminalInternal() += NOT isOpened(selectedTerminalDocument())
+    OR NOT terminalDocumentType(selectedTerminalDocument());
 
 DESIGN dataTerminalInternal {
     terminalDocumentDetailsOperation {

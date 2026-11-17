@@ -36,11 +36,17 @@ fillHandbookValues (TerminalHandbookType h) {
 // (код, если значения нет среди загруженных значений справочника)
 htmlHandbook (TerminalHandbookType h, STRING code) = '<div class=handbook>' + (OVERRIDE handbookValue(h, code), code IF h IS TerminalHandbookType) + '</div>';
 
+// Тип документа в карточке и шапке экрана строк. Типа нет (операция с кодом, которого нет в справочнике типов,
+// при приеме документа с нативного ТСД, или тип удален) - красная пометка «Операция не задана»: строки такого
+// документа только просматриваются (без настроек типа их не добавить), тип исправляют на десктопе
+htmlType (TerminalDocument d) = OVERRIDE '<div class=type>' + nameTerminalDocumentType(d) + '</div>',
+    ('<div class="type no-type">Операция не задана</div>' IF NOT terminalDocumentType(d) AND d IS TerminalDocument);
+
 // Карточка документа в списке (по структуре повторяет список документов нативного приложения ТСД):
 // тип / № и дата / комментарий / аналитики / сумма / количество и число позиций
 htmlDetail '' (TerminalDocument d) = CONCAT '',
     '<div class=terminal-document>',
-        '<div class=type>', nameTerminalDocumentType(d), '</div>',
+        htmlType(d),
         '<div class=header>',
             '<div class=number>', '№ ' + title(d), '</div>',
             '<div class=date>', (CONCAT ' ', toDateDDMMYY(date(d)), STRING[5](time(d))), '</div>',
@@ -85,7 +91,15 @@ DESIGN terminalDocumentMenu {
             align = STRETCH;
             class = 'dots-menu-items';
         }
-        MOVE PROPERTY (close);
+        // единственная кнопка - у правого края меню (стили - ask-buttons в data-terminal.css)
+        NEW closeButtons {
+            horizontal = TRUE;
+            wrap = FALSE;
+            childrenAlignment = END;
+            align = STRETCH;
+            class = 'ask-buttons';
+            MOVE PROPERTY (close);
+        }
     }
 }
 
@@ -419,7 +433,7 @@ createNewDocument () {
     }
     ok();
 }
-@defButtonCustom(createNewDocument, 'Создать', newTerminalDocument, 'ENTER', ok);
+@defButtonCustom(createNewDocument, 'OK', newTerminalDocument, 'ENTER', ok);
 @defButtonCustom(close, 'Закрыть', newTerminalDocument, 'ESCAPE', cancel);
 
 DESIGN newTerminalDocument {
@@ -510,11 +524,19 @@ createTerminalDocument () {
     }
 }
 // ok - основное действие экрана: filled-кнопка (tonal сливалась с карточками списка)
-@defButtonCustom(createTerminalDocument, 'Создать', dataTerminalInternal, 'F5', ok);
+@defButtonCustom(createTerminalDocument, 'Новый документ', dataTerminalInternal, 'F5', ok);
 
 DESIGN dataTerminalInternal {
     terminalDocumentsOperation {
-        MOVE PROPERTY (createTerminalDocument);
+        // кнопка под списком - у правого края экрана (стили - ask-buttons в data-terminal.css)
+        NEW terminalDocumentsButtons {
+            horizontal = TRUE;
+            wrap = FALSE;
+            childrenAlignment = END;
+            align = STRETCH;
+            class = 'ask-buttons';
+            MOVE PROPERTY (createTerminalDocument);
+        }
     }
 }
 
@@ -613,7 +635,7 @@ editTerminalDocumentHeader (TerminalDocument d) {
     }
     close();
 }
-@defButtonCustom(editTerminalDocumentHeader, 'Редактировать', terminalDocumentMenu, d, '2', );
+@defButtonCustom(editTerminalDocumentHeader, 'Редактировать заголовок', terminalDocumentMenu, d, '2', );
 DESIGN terminalDocumentMenu { items { MOVE PROPERTY (editTerminalDocumentHeader); } }
 
 // Фильтр списка (как в нативном приложении ТСД): период по дате документа и значения аналитик.
@@ -667,13 +689,15 @@ dropHandbookValue () {
     droppedHandbookValue() <- TRUE;
     close();
 }
-@defButtonCustom(dropHandbookValue, 'Сброс', askSelectHandbookValue, 'F2', );
+@defButtonCustom(dropHandbookValue, 'Сброс', askSelectHandbookValue, 'F2', reset);
 hideDropHandbookValueAskSelectHandbookValue() += NOT allowDropHandbookValue();
 
 DESIGN askSelectHandbookValue {
     OBJECTS {
+        // «Сброс» слева, «Выбрать» и «Закрыть» справа (ask-buttons-reset в data-terminal.css)
         otherButtons {
-            MOVE PROPERTY (dropHandbookValue);
+            class = 'ask-buttons ask-buttons-reset';
+            MOVE PROPERTY (dropHandbookValue) FIRST;
         }
     }
 }
@@ -724,7 +748,7 @@ resetTerminalDocumentsFilter () {
     inputHandbookName(TerminalHandbookType h) <- NULL;
     ok();
 }
-@defButtonCustom(resetTerminalDocumentsFilter, 'Сброс', terminalDocumentsFilter, 'F2', );
+@defButtonCustom(resetTerminalDocumentsFilter, 'Сброс', terminalDocumentsFilter, 'F2', reset);
 
 DESIGN terminalDocumentsFilter {
     OBJECTS {
@@ -756,12 +780,16 @@ DESIGN terminalDocumentsFilter {
                 changeOnSingleClick = TRUE;
             }
         }
+        // кнопки одной строкой: «Сброс» у левого края, OK и «Отмена» у правого (ask-buttons-reset в data-terminal.css)
         NEW otherButtons {
-            class = 'other-buttons';
+            horizontal = TRUE;
+            wrap = FALSE;
+            childrenAlignment = END;
+            class = 'ask-buttons ask-buttons-reset';
             align = STRETCH;
+            MOVE PROPERTY (resetTerminalDocumentsFilter);
             MOVE PROPERTY (applyTerminalDocumentsFilter);
             MOVE PROPERTY (close);
-            MOVE PROPERTY (resetTerminalDocumentsFilter);
         }
     }
     REMOVE TOOLBARBOX;
