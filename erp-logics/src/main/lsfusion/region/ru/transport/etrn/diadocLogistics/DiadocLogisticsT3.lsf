@@ -166,3 +166,20 @@ DESIGN incomingEtrn {
         MOVE PROPERTY(carrierBoxRoaming(e)) AFTER PROPERTY(carrierDiadocParticipantId(e));
     }
 }
+
+// ------------------------- Партнёрство с перевозчиком в списке ЭТрН ------------------------- //
+carrierCounteragentStatus (ETRN.ETRN e) = counteragentStatus(
+    organization(diadocBox(IF ETRN.roleConsignee(e) THEN ETRN.consignee(e) ELSE ETRN.shipper(e))),
+    organization(carrierT3Box(e)));
+
+nameCarrierCounteragentStatus 'Партнерство с перевозчиком' (ETRN.ETRN e) = OVERRIDE ISTRING[100](caption(carrierCounteragentStatus(e))),
+    ISTRING[100]('Нет в списке контрагентов') IF carrierT3Box(e),
+    ISTRING[100]('Не найден ящик перевозчика') IF ETRN.nameCarrier(e) CHARWIDTH 20;
+
+backgroundCarrierCounteragent (ETRN.ETRN e) = RGB(255, 200, 200) IF ETRN.isOpened(e) AND ETRN.provider(e) == ETRN.ETRNProvider.diadoc AND
+    ETRN.nameCarrier(e) AND NOT carrierCounteragentStatus(e) == CounteragentStatus.isMyCounteragent;
+
+EXTEND FORM ETRN.etrns
+    PROPERTIES(e) READONLY AFTER nameCarrier(e) nameCarrierCounteragentStatus
+                           BACKGROUND backgroundCarrierCounteragent(e) SHOWIF isDiadocETRN()
+;
