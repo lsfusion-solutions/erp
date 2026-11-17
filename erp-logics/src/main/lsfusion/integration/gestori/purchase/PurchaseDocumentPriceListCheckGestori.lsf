@@ -1,6 +1,6 @@
 MODULE PurchaseDocumentPriceListCheckGestori;
 
-REQUIRE PurchaseOrderPriceDateGestori, PurchaseOrderPriceListLedgerContract, PurchaseInvoicePriceListLedgerContract;
+REQUIRE PurchaseOrderPriceDateGestori, PurchaseOrderPriceList, PurchaseInvoice, PriceListContract;
 
 NAMESPACE Purchase;
 
@@ -18,9 +18,19 @@ DESIGN operation {
     }
 }
 
+// ---- Цена по прайсу договора ----
+
+contractPriceA (LedgerPriceListType type, sku, Stock stock, contractSku, DATETIME dateTime) =
+    GROUP LAST price(PriceListDetail d, type, stock)
+          ORDER fromDateTime(d, type, stock), d
+          WHERE fromDateTime(d, type, stock) <= dateTime AND NOT toDateTime(d, type, stock) < dateTime
+          BY sku(d, type, stock), contractSku(d) COMPLEX;
+prevContractPriceA (LedgerPriceListType type, Sku sku, Stock stock, ContractSku contractSku, DATETIME dateTime) =
+    PREV(contractPriceA(type, sku, stock, contractSku, dateTime)) COMPLEX;
+
 // ---- Товары не из прайса поставщика в заказе ----
 
-inPriceList (UserOrderDetail d) = OVERRIDE (prevPriceA(ledgerPriceListType(priceListType(d)), sku(d), priceStock(d), contractSku(d), priceDateTime(d)) IF contractSku(d)),
+inPriceList (UserOrderDetail d) = OVERRIDE (prevContractPriceA(ledgerPriceListType(priceListType(d)), sku(d), priceStock(d), contractSku(d), priceDateTime(d)) IF contractSku(d)),
                                            (prevPriceA(ledgerPriceListType(priceListType(d)), sku(d), priceStock(d), supplier(userOrder(d)), priceDateTime(d)) IF NOT contractSku(d));
 
 CONSTRAINT (SET(isPosted(userOrder(UserOrderDetail d))) OR CHANGED(sku(d)) OR CHANGED(priceListType(d))) AND isPosted(userOrder(d))
@@ -30,7 +40,7 @@ CONSTRAINT (SET(isPosted(userOrder(UserOrderDetail d))) OR CHANGED(sku(d)) OR CH
 
 // ---- Товары не из прайса поставщика в накладной ----
 
-inPriceList (UserInvoiceDetail d) = OVERRIDE (prevPriceA(ledgerPriceListType(priceListType(d)), sku(d), priceStock(d), contractSku(d), priceDateTime(d)) IF contractSku(d)),
+inPriceList (UserInvoiceDetail d) = OVERRIDE (prevContractPriceA(ledgerPriceListType(priceListType(d)), sku(d), priceStock(d), contractSku(d), priceDateTime(d)) IF contractSku(d)),
                                              (prevPriceA(ledgerPriceListType(priceListType(d)), sku(d), priceStock(d), supplier(userInvoice(d)), priceDateTime(d)) IF NOT contractSku(d));
 
 CONSTRAINT (SET(isPosted(userInvoice(UserInvoiceDetail d))) OR CHANGED(sku(d)) OR CHANGED(priceListType(d))) AND isPosted(userInvoice(d))
