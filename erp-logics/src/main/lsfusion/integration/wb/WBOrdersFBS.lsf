@@ -691,9 +691,10 @@ sendSupplyToDeliver 'Передать поставку в доставку'(Pick
 }
 
 cargoType = DATA LOCAL NUMERIC();
-createdAt = DATA LOCAL DATETIME ();
-closedAt = DATA LOCAL DATETIME ();
-scanDt = DATA LOCAL DATETIME ();
+// WB отдаёт время в UTC ('…Z'): DATETIME такую строку не разбирает, принимаем в ZDATETIME.
+createdAt = DATA LOCAL ZDATETIME ();
+closedAt = DATA LOCAL ZDATETIME ();
+scanDt = DATA LOCAL ZDATETIME ();
 isB2b = DATA LOCAL BOOLEAN();
 
 destinationOfficeId = DATA LOCAL NUMERIC();
@@ -744,9 +745,9 @@ getSupplyInfo 'Получить информацию о поставке'(Pickin
             IF statusHttp() == 200 THEN {
                 IMPORT supplyInfoResponse JSON FROM response();
 
-                wbCreatedAt(p) <- createdAt();
-                wbClosedAt(p) <- closedAt();
-                wbScanDt(p) <- scanDt();
+                wbCreatedAt(p) <- DATETIME(createdAt());
+                wbClosedAt(p) <- DATETIME(closedAt());
+                wbScanDt(p) <- DATETIME(scanDt());
                 wbDestinationOfficeId(p) <- destinationOfficeId();
                 wbIsB2b(p) <- isB2b();
                 wbIsPickupPointShipmentAllowed(p) <- isPickupPointShipmentAllowed();
@@ -1153,9 +1154,9 @@ clearWbBox 'Убрать из короба' (InternetOrderDetail d) {
 // Префикс supplies* — чтобы не конфликтовать с одноимёнными LOCAL'ами getSupplyInfo.
 suppliesId = DATA LOCAL STRING(INTEGER);
 suppliesDone = DATA LOCAL BOOLEAN(INTEGER);
-suppliesCreatedAt = DATA LOCAL DATETIME(INTEGER);
-suppliesClosedAt = DATA LOCAL DATETIME(INTEGER);
-suppliesScanDt = DATA LOCAL DATETIME(INTEGER);
+suppliesCreatedAt = DATA LOCAL ZDATETIME(INTEGER);
+suppliesClosedAt = DATA LOCAL ZDATETIME(INTEGER);
+suppliesScanDt = DATA LOCAL ZDATETIME(INTEGER);
 suppliesName = DATA LOCAL STRING(INTEGER);
 suppliesCargoType = DATA LOCAL INTEGER(INTEGER);
 suppliesDestinationOfficeId = DATA LOCAL INTEGER(INTEGER);
@@ -1224,9 +1225,9 @@ listSuppliesFBS 'Синхронизировать список поставок 
                 pickingFor(INTEGER i) <- GROUP MAX Picking p1 IF imported(i) AND suppliesId(i) AND wbSupplyId(p1) == suppliesId(i);
 
                 FOR INTEGER i AND suppliesId(i) AND Picking p == pickingFor(i) DO {
-                    wbCreatedAt(p) <- suppliesCreatedAt(i);
-                    wbClosedAt(p) <- suppliesClosedAt(i);
-                    wbScanDt(p) <- suppliesScanDt(i);
+                    wbCreatedAt(p) <- DATETIME(suppliesCreatedAt(i));
+                    wbClosedAt(p) <- DATETIME(suppliesClosedAt(i));
+                    wbScanDt(p) <- DATETIME(suppliesScanDt(i));
                     wbDestinationOfficeId(p) <- suppliesDestinationOfficeId(i);
                     wbIsB2b(p) <- suppliesIsB2b(i);
                     wbIsPickupPointShipmentAllowed(p) <- suppliesIsPickupPointShipmentAllowed(i);
@@ -1459,7 +1460,9 @@ moveOrderFBSDialog 'Перенести в другую поставку' (Intern
     moveOrderFBSDialog(internetOrder(d));
 }
 
-acceptanceDate 'Дата' = DATA LOCAL DATETIME(INTEGER);
+// WB отдаёт дату в UTC ('…Z'): DATETIME её не разбирает, принимаем в ZDATETIME и показываем локальное время.
+acceptanceZDate = DATA LOCAL ZDATETIME(INTEGER);
+acceptanceDate 'Дата' (INTEGER i) = DATETIME(acceptanceZDate(i));
 acceptanceCoefficient 'Коэффициент' = DATA LOCAL NUMERIC(INTEGER);
 acceptanceWarehouseID 'ID склада' = DATA LOCAL INTEGER(INTEGER);
 acceptanceWarehouseName 'Склад' = DATA LOCAL STRING(INTEGER);
@@ -1471,7 +1474,7 @@ acceptanceIsSortingCenter 'Сорт. центр' = DATA LOCAL BOOLEAN(INTEGER);
 FORM importAcceptanceCoefficients
     OBJECTS value = INTEGER
     PROPERTIES(value)
-    acceptanceDate EXTID 'date',
+    acceptanceZDate EXTID 'date',
         acceptanceCoefficient EXTID 'coefficient',
         acceptanceWarehouseID EXTID 'warehouseID',
         acceptanceWarehouseName EXTID 'warehouseName',

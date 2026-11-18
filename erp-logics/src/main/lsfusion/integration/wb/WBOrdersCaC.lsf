@@ -48,6 +48,15 @@ apiMetaKeyCaC 'Ключ значения меты (CaC)' (OrderMeta m) =
         WHEN m = OrderMeta.gtin THEN 'gtin'
         WHEN m = OrderMeta.customsDeclaration THEN 'customsDeclaration';
 
+// Ключ типа в /meta/delete — имя типа как есть (sgtin в ед.ч., customsDeclaration camelCase):
+// отличается и от apiMetaPath (customs-declaration с дефисом), и от apiMetaKeyCaC (sgtins — массив в теле закрепления).
+apiMetaDeleteKeyCaC 'Ключ типа меты в delete' (OrderMeta m) =
+    CASE WHEN m = OrderMeta.sgtin THEN 'sgtin'
+        WHEN m = OrderMeta.uin THEN 'uin'
+        WHEN m = OrderMeta.imei THEN 'imei'
+        WHEN m = OrderMeta.gtin THEN 'gtin'
+        WHEN m = OrderMeta.customsDeclaration THEN 'customsDeclaration';
+
 apiMetaScalarCaC 'Значение меты — скаляр' (OrderMeta m) =
     TRUE IF m = OrderMeta.uin OR m = OrderMeta.imei OR m = OrderMeta.gtin OR m = OrderMeta.customsDeclaration;
 
@@ -77,6 +86,9 @@ orderCodeCaC 'Код заказа для выдачи' = DATA STRING[20] (Intern
 // Несколько сборочных заданий одного заказа покупателя имеют общий orderCode — он же играет роль orderUID.
 ordersByCodeCaC 'Задания заказа' (STRING[20] code) = GROUP SUM 1 IF orderCodeCaC(InternetOrder o) == code;
 
+// Поиск задания самовывоза по номеру: фильтр канала страхует от коллизий номеров с FBS/DBS/DBW.
+orderByNumberCaC (STRING number) = GROUP MAX InternetOrder o IF number(o) = number AND isWBOrderCaC(o);
+
 warehouseAddressCaC 'Адрес магазина выдачи' = DATA STRING[250] (InternetOrder);
 
 CLASS PayModeCaC 'Способ оплаты' {
@@ -99,8 +111,8 @@ cargoTypeCaC (INTEGER typeCaC) = CASE WHEN typeCaC == 1 THEN CargoType.MGT
 // по которому берутся цены, а createdAt приходит в UTC и для архива может быть давним.
 createdAtCaC 'Создано в WB' = DATA DATETIME (InternetOrder);
 
-// Даты WB — ISO-8601. Обрезка до фиксированной длины снимает разницу между 'Z' и '+03:00'.
-fromDateTimeCaC (STRING dateStrCaC) = toDateTimeFormat(substr(dateStrCaC, 1, 19), r'YYYY-MM-DD"T"HH24:MI:SS');
+// Даты WB — ISO-8601 со смещением ('Z' = UTC): через ZDATETIME переводим в локальное время сервера.
+fromDateTimeCaC (STRING dateStrCaC) = DATETIME(ZDATETIME(dateStrCaC));
 fromDateCaC (STRING dateStrCaC) = toDateFormat(substr(dateStrCaC, 1, 10), 'DD.MM.YYYY');
 
 isB2bCaC 'B2B-продажа' = DATA BOOLEAN (InternetOrder);
@@ -137,7 +149,7 @@ cacOrdersSkus = DATA LOCAL INTEGER (INTEGER);
 cacRequiredMeta = DATA LOCAL STRING (INTEGER);
 cacOrdersRequiredMeta = DATA LOCAL INTEGER (INTEGER);
 
-cacNext = DATA LOCAL INTEGER ();
+cacNext = DATA LOCAL LONG ();
 
 // ---------------------- 1. Новые сборочные задания ----------------------
 
@@ -246,7 +258,7 @@ getOrdersCaCNew 'Получить список новых сборочных з�
                 IMPORT importError JSON FROM response();
                 extraDescriptionStatusHTTP() <- 'Список новых сборочных заданий не получен: ' + message();
             }
-            messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
         } FINALLY {
             isSelected(InternetOrder o) <- NULL;
             afterSendRequestIS();
@@ -291,20 +303,24 @@ getOrdersCaC 'Получить информацию о сборочных зад
         limitCaC() <- getOrdersLimitCaC();
         IF limitCaC() > 1000 THEN limitCaC() <- 1000;
 
-        LOCAL nextCaC = INTEGER ();
+        LOCAL nextCaC = LONG ();
         nextCaC() <- 0;
 
         LOCAL dFrom = LONG ();
         LOCAL dTo = LONG ();
 
-        IF to THEN dTo() <- LONG(getSeconds(toZDateTime(to)));
+        // to без времени = полночь начала дня: без +86399 сам день to в выборку не попадает.
+        IF to THEN dTo() <- LONG(getSeconds(toZDateTime(to))) + 86399L;
         ELSE dTo() <- LONG(getSeconds(currentZDateTime()));
 
         IF from THEN dFrom() <- LONG(getSeconds(toZDateTime(from)));
         ELSE dFrom() <- dTo() - 2592000L;
 
         // Окно жёстко ограничено 30 сутками, иначе 400.
-        IF dTo() - dFrom() > 2592000L THEN dFrom() <- dTo() - 2592000L;
+        IF dTo() - dFrom() > 2592000L THEN {
+            dFrom() <- dTo() - 2592000L;
+            messageOrder() <- 'Окно выборки усечено до 30 суток.';
+        }
 
         LOCAL stopCaC = BOOLEAN ();
 
@@ -321,7 +337,7 @@ getOrdersCaC 'Получить информацию о сборочных зад
                 logToFile('WB', resultString());
                 IMPORT importOrdersCaC JSON FROM response();
 
-                LOCAL currentNext = INTEGER ();
+                LOCAL currentNext = LONG ();
                 currentNext() <- cacNext();
 
                 FOR INTEGER i = [GROUP MAX INTEGER i1 BY cacId(i1)](STRING number)
@@ -367,7 +383,7 @@ getOrdersCaC 'Получить информацию о сборочных зад
                     IMPORT importError JSON FROM response();
                     extraDescriptionStatusHTTP() <- 'Список сборочных заданий не получен: ' + message();
                 }
-                messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
                 stopCaC() <- TRUE;
             } FINALLY {
                 afterSendRequestIS();
@@ -436,7 +452,7 @@ applyCaCStatusMapping (InternetOrder o, WbStatus ws, WbSystemStatus wss) {
     // Отмена покупателем в первый час, пока задание не переведено на сборку (autoAggreed даёт сразу «Согласован»).
     IF wss = WbSystemStatus.declined_by_client
         AND (PREV(status(o)) = StatusInternetOrder.new OR PREV(status(o)) = StatusInternetOrder.agreed)
-        AND secondsBetweenDates(currentDateTime(), dateTime(o)) <= 3600 THEN {
+        AND secondsBetweenDates(currentDateTime(), OVERRIDE createdAtCaC(o), dateTime(o)) <= 3600 THEN {
         IF customCancelOrder() THEN {
             overCancelOrder(o);
         } ELSE {
@@ -446,7 +462,10 @@ applyCaCStatusMapping (InternetOrder o, WbStatus ws, WbSystemStatus wss) {
         wbStatus(o) <- WbStatus.cancel;
     } ELSE IF NOT customSetCaCStatus() THEN {
         // синк ведёт ERP-статус, как в FBS; OVERRIDE страхует от неизвестного WB-статуса.
-        status(o) <- OVERRIDE statusInternetOrderCaC(ws, wss), status(o);
+        // авто-согласованный (autoAggreed) заказ не откатываем в «Новый», пока задание на WB ещё в new:
+        // до confirm любой синк статусов вернул бы его из «Согласован» обратно в «Новый».
+        IF NOT (ws = WbStatus.new AND status(o) = StatusInternetOrder.agreed) THEN
+            status(o) <- OVERRIDE statusInternetOrderCaC(ws, wss), status(o);
         wbStatus(o) <- ws;
     } ELSE {
         wbStatus(o) <- ws;
@@ -481,7 +500,7 @@ getWbStatusesCaC 'Получить статусы заданий' () {
             IF statusHttp() == 200 THEN {
                 IMPORT statusInfoResponseCaC JSON FROM response();
 
-                FOR cacOrderId(INTEGER i) AND InternetOrder o == orderByNumber(cacOrderId(i))
+                FOR cacOrderId(INTEGER i) AND InternetOrder o == orderByNumberCaC(cacOrderId(i))
                     AND WbStatus ws = wbStatus(cacSupplierStatus(i)) AND WbSystemStatus wss = wbSystemStatus(cacWbStatus(i)) DO {
                     applyCaCStatusMapping(o, ws, wss);
                 }
@@ -493,7 +512,7 @@ getWbStatusesCaC 'Получить статусы заданий' () {
                 IMPORT importError JSON FROM response();
                 extraDescriptionStatusHTTP() <- 'Статус сборочного задания не получен: ' + message();
             }
-            messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
         } FINALLY {
             afterSendRequestIS();
             sleep(sleepStatusCaC());
@@ -527,7 +546,7 @@ syncCaCOrderStatus (InternetOrder order) {
             logToFile('WB', resultString());
             IF statusHttp() == 200 THEN {
                 IMPORT statusInfoResponseCaC JSON FROM response();
-                FOR cacOrderId(INTEGER i) AND InternetOrder o == orderByNumber(cacOrderId(i))
+                FOR cacOrderId(INTEGER i) AND InternetOrder o == orderByNumberCaC(cacOrderId(i))
                     AND WbStatus ws = wbStatus(cacSupplierStatus(i)) AND WbSystemStatus wss = wbSystemStatus(cacWbStatus(i)) DO {
                     applyCaCStatusMapping(o, ws, wss);
                 }
@@ -573,7 +592,7 @@ recheckStatusMismatchCaC (WbStatus wbStatus) {
             logToFile('WB', resultString());
             IF statusHttp() == 200 THEN {
                 IMPORT statusInfoResponseCaC JSON FROM response();
-                FOR cacOrderId(INTEGER i) AND InternetOrder o == orderByNumber(cacOrderId(i)) AND recheckCaC(o)
+                FOR cacOrderId(INTEGER i) AND InternetOrder o == orderByNumberCaC(cacOrderId(i)) AND recheckCaC(o)
                     AND WbStatus ws = wbStatus(cacSupplierStatus(i)) AND ws == wbStatus DO {
                     wbStatus(o) <- ws;
                 }
@@ -612,7 +631,7 @@ changeOrdersCaCStatus (WbStatus wbStatus, InternetOrder order) {
             logToFile('WB', resultString());
             IF statusHttp() == 200 THEN {
                 IMPORT changeStatusResponseCaC JSON FROM response();
-                FOR InternetOrder o = orderByNumber(cacOrderId(INTEGER i)) DO {
+                FOR InternetOrder o = orderByNumberCaC(cacOrderId(INTEGER i)) DO {
                     IF NOT cacIsError(i) THEN {
                         wbStatus(o) <- wbStatus;
                     } ELSE IF (GROUP MAX cacErrorDetail(INTEGER e) IF cacResultsErrors(e) == i) == 'StatusMismatch' THEN {
@@ -689,7 +708,7 @@ changeOrdersCaCStatus (WbStatus wbStatus) {
 
             IF statusHttp() == 200 THEN {
                 IMPORT changeStatusResponseCaC JSON FROM response();
-                FOR InternetOrder o = orderByNumber(cacOrderId(INTEGER i)) DO {
+                FOR InternetOrder o = orderByNumberCaC(cacOrderId(INTEGER i)) DO {
                     IF NOT cacIsError(i) THEN {
                         wbStatus(o) <- wbStatus;
                     } ELSE IF (GROUP MAX cacErrorDetail(INTEGER e) IF cacResultsErrors(e) == i) == 'StatusMismatch' THEN {
@@ -713,7 +732,7 @@ changeOrdersCaCStatus (WbStatus wbStatus) {
                 IMPORT importError JSON FROM response();
                 extraDescriptionStatusHTTP() <- 'Статус сборочного задания НЕ изменен: ' + message();
             }
-            messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
         } FINALLY {
             afterSendRequestIS();
             MESSAGE messageOrder() NOWAIT;
@@ -823,7 +842,7 @@ postInfCustomerCaC 'Получить информацию о покупател�
                 IMPORT importError JSON FROM response();
                 extraDescriptionStatusHTTP() <- 'Информация о покупателе не получена: ' + message();
             }
-            messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
         } FINALLY {
             afterSendRequestIS();
             MESSAGE messageOrder() NOWAIT;
@@ -855,67 +874,14 @@ FORM identityResponseCaC
 
 identityCheckedCaC 'Код покупателя проверен' = DATA BOOLEAN (InternetOrder);
 
+// Код покупателя для проверки вводится в поле формы (INPUT в действии не поддерживается веб-клиентом).
+// LOCAL: не сохраняется в БД; ввод на форме/в списке виден экшенам через сессию, NESTED LOCAL пробрасывает оба направления.
+passcodeCaC 'Код покупателя' = DATA LOCAL STRING[10] (InternetOrder);
+
 // POST /api/v3/click-collect/orders/client/identity  body: {"orderCode":"...","passcode":"..."}
 // 409 — введён неверный код подтверждения. Доступно, если хотя бы одно задание заказа в статусе prepare.
-checkClientIdentityCaC 'Проверить код покупателя' (InternetOrder order) {
-    NEWSESSION NESTED LOCAL {
-        IF NOT orderCodeCaC(order) THEN {
-            MESSAGE 'У задания отсутствует код заказа.';
-            RETURN;
-        }
-        IF NOT wbStatus(order) == WbStatus.prepare THEN {
-            MESSAGE 'Проверка доступна только для заданий в статусе «Готов к выдаче».';
-            RETURN;
-        }
-
-        INPUT p = STRING[10] DO {
-            setHttpHeadersIS(token(CategoryRequest.marketplace));
-            LOCAL messageOrder = STRING ();
-            LOCAL response = FILE();
-
-            EXPORT JSON FROM 'orderCode' = orderCodeCaC(order), 'passcode' = p;
-            logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + pathCaC() + '/client/identity');
-
-            TRY {
-                EXTERNAL HTTP POST url(CategoryRequest.marketplace) + pathCaC() + '/client/identity'
-                    HEADERS httpHeaders PARAMS exportFile() TO response;
-                fileToString(response());
-                logToFile('WB', resultString());
-
-                IF statusHttp() == 200 THEN {
-                    IMPORT identityResponseCaC JSON FROM response();
-                    IF cacIdentityOk() THEN {
-                        identityCheckedCaC(order) <- TRUE;
-                        messageOrder() <- 'Код верный, заказ принадлежит покупателю.';
-                        APPLY NESTED LOCAL;
-                    } ELSE {
-                        messageOrder() <- 'Заказ покупателю не принадлежит.';
-                    }
-                } ELSE {
-                    messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
-                }
-            } CATCH {
-                logToFile('WB', messageCaughtException());
-                IF statusHttp() == 409 THEN {
-                    messageOrder() <- 'Введён неверный код подтверждения.';
-                } ELSE {
-                    IF statusHttp() == 400 OR statusHttp() == 401 OR statusHttp() == 403 OR statusHttp() == 404 THEN {
-                        IMPORT importError JSON FROM response();
-                        extraDescriptionStatusHTTP() <- 'Проверка кода не выполнена: ' + message();
-                    }
-                    messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
-                }
-            } FINALLY {
-                afterSendRequestIS();
-                MESSAGE messageOrder() NOWAIT;
-                sleep(2100);
-            }
-        }
-    }
-}
-
 // Проверка кода покупателя переданным значением (для выдачи сканом); при успехе ставит identityCheckedCaC.
-checkClientIdentityCaC (InternetOrder order, STRING[10] code) {
+checkClientIdentityCaC (InternetOrder order, STRING code) {
     NEWSESSION NESTED LOCAL {
         setHttpHeadersIS(token(CategoryRequest.marketplace));
         LOCAL messageOrder = STRING ();
@@ -934,6 +900,8 @@ checkClientIdentityCaC (InternetOrder order, STRING[10] code) {
                 IMPORT identityResponseCaC JSON FROM response();
                 IF cacIdentityOk() THEN {
                     identityCheckedCaC(order) <- TRUE;
+                    messageOrder() <- 'Код верный, заказ принадлежит покупателю.';
+                    passcodeCaC(order) <- NULL;
                     APPLY NESTED LOCAL;
                 } ELSE {
                     messageOrder() <- 'Заказ покупателю не принадлежит.';
@@ -950,7 +918,7 @@ checkClientIdentityCaC (InternetOrder order, STRING[10] code) {
                     IMPORT importError JSON FROM response();
                     extraDescriptionStatusHTTP() <- 'Проверка кода не выполнена: ' + message();
                 }
-                messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
             }
         } FINALLY {
             afterSendRequestIS();
@@ -962,9 +930,25 @@ checkClientIdentityCaC (InternetOrder order, STRING[10] code) {
     }
 }
 
+checkClientIdentityCaC 'Проверить код покупателя' (InternetOrder order) {
+    IF NOT orderCodeCaC(order) THEN {
+        MESSAGE 'У задания отсутствует код заказа.';
+        RETURN;
+    }
+    IF NOT wbStatus(order) == WbStatus.prepare THEN {
+        MESSAGE 'Проверка доступна только для заданий в статусе «Готов к выдаче».';
+        RETURN;
+    }
+    IF NOT passcodeCaC(order) THEN {
+        MESSAGE 'Введите код покупателя в поле «Код покупателя» на вкладке WB.';
+        RETURN;
+    }
+    // значение читаем в сессии формы (несохранённый ввод LOCAL-поля) и передаём параметром
+    checkClientIdentityCaC(order, passcodeCaC(order));
+}
+
 // Выдача по коду: при необходимости проверяет код и отправляет receive по всем заданиям одного orderCode.
-// Код запрашивается INPUT-диалогом, как в FBS-скане: ON CHANGE поля срабатывает на попытке изменения,
-// до ввода значения, поэтому редактируемое поле-хранилище не работает.
+// Код покупателя вводится в поле «Код покупателя» на вкладке WB: INPUT в действии не работает в веб-клиенте.
 issueCaCOrder 'Выдать по коду' (InternetOrder order) {
     IF NOT orderCodeCaC(order) THEN {
         MESSAGE 'У задания отсутствует код заказа.';
@@ -979,9 +963,11 @@ issueCaCOrder 'Выдать по коду' (InternetOrder order) {
         RETURN;
     }
     IF NOT identityCheckedCaC(order) THEN {
-        INPUT code = STRING[10] DO {
-            checkClientIdentityCaC(order, code);
+        IF NOT passcodeCaC(order) THEN {
+            MESSAGE 'Введите код покупателя в поле «Код покупателя» на вкладке WB и повторите выдачу.';
+            RETURN;
         }
+        checkClientIdentityCaC(order, passcodeCaC(order));
         IF NOT identityCheckedCaC(order) THEN {
             RETURN;
         }
@@ -1002,6 +988,31 @@ issueCaCOrder 'Выдать по коду' (InternetOrder order) {
 // sgtin:               {"orders":[{"orderId":N,"sgtins":["..."]}]}
 // uin / imei / gtin:   {"orders":[{"orderId":N,"uin":"..."}]}            — скаляр, не массив
 // customs-declaration: {"orders":[{"orderId":N,"customsDeclaration":"...","originCountryCode":"..."}]}
+// Ответ при 200: results[]{orderId, isError, errors[]{code, detail}} — закрепление может
+// частично провалиться по отдельным заданиям при общем HTTP 200, поэтому ответ разбирается.
+cacAddResOrderId = DATA LOCAL STRING (INTEGER);
+cacAddResIsError = DATA LOCAL BOOLEAN (INTEGER);
+cacAddResErrCode = DATA LOCAL INTEGER (INTEGER);
+cacAddResErrDetail = DATA LOCAL STRING (INTEGER);
+cacAddResErrors = DATA LOCAL INTEGER (INTEGER);
+
+FORM ordersMetaAddResponseCaC
+    OBJECTS results = INTEGER
+    PROPERTIES(results) cacAddResOrderId EXTID 'orderId', cacAddResIsError EXTID 'isError'
+    FILTERS imported(results)
+
+    OBJECTS errors = INTEGER
+    FILTERS cacAddResErrors(errors) == results
+    PROPERTIES(errors) cacAddResErrCode EXTID 'code', cacAddResErrDetail EXTID 'detail'
+    FILTERS imported(errors)
+;
+
+// Несохранённый ввод мет из сессии формы: LOCAL-изменения наследуются в NEWSESSION NESTED LOCAL,
+// поэтому sendOrderMetaCaC передаёт значения без предварительного сохранения заказа (механика как у passcodeCaC).
+formValueMetaCaC = DATA LOCAL STRING (InternetOrderDetail, OrderMeta);
+// Значение меты с приоритетом ввода с формы над сохранённым в БД.
+effValueMetaCaC (InternetOrderDetail d, OrderMeta m) = OVERRIDE formValueMetaCaC(d, m), valueMeta(d, m);
+
 sendOrdersMetaCaC 'Передать идентификаторы маркировки (пакет)' (OrderMeta m) {
     NEWSESSION NESTED LOCAL {
         IF NOT (GROUP SUM 1 IF isSelected(InternetOrder order) AND isWBOrderCaC(order) AND number(order)) THEN {
@@ -1032,6 +1043,7 @@ sendOrdersMetaCaC 'Передать идентификаторы маркиро�
         LOCAL valueJsonCaC = STRING ();
         LOCAL scalarValueCaC = STRING ();
         LOCAL countryValueCaC = STRING ();
+        LOCAL errTextCaC = STRING ();
 
         WHILE exportedCaC() < totalCaC() DO {
             ordersJsonCaC() <- NULL;
@@ -1046,11 +1058,11 @@ sendOrdersMetaCaC 'Передать идентификаторы маркиро�
                 countryValueCaC() <- NULL;
 
                 IF apiMetaScalarCaC(m) THEN {
-                    scalarValueCaC() <- GROUP MAX valueMeta(InternetOrderDetail d, m) IF internetOrder(d) == o AND valueMeta(d, m);
+                    scalarValueCaC() <- GROUP MAX effValueMetaCaC(InternetOrderDetail d, m) IF internetOrder(d) == o AND effValueMetaCaC(d, m);
                     IF scalarValueCaC() THEN {
                         IF m == OrderMeta.customsDeclaration THEN {
-                            countryValueCaC() <- GROUP MAX valueMeta(InternetOrderDetail d, OrderMeta.originCountryCode)
-                                IF internetOrder(d) == o AND valueMeta(d, OrderMeta.originCountryCode);
+                            countryValueCaC() <- GROUP MAX effValueMetaCaC(InternetOrderDetail d, OrderMeta.originCountryCode)
+                                IF internetOrder(d) == o AND effValueMetaCaC(d, OrderMeta.originCountryCode);
                             IF NOT countryValueCaC() THEN {
                                 messageOrder() <- (OVERRIDE messageOrder() + '\n', '') +
                                     'Задание ' + number(o) + ': не заполнен код страны происхождения.';
@@ -1063,7 +1075,7 @@ sendOrdersMetaCaC 'Передать идентификаторы маркиро�
                         }
                     }
                 } ELSE {
-                    EXPORT JSON FROM 'value' = valueMeta(InternetOrderDetail d, m) WHERE internetOrder(d) == o AND valueMeta(d, m);
+                    EXPORT JSON FROM 'value' = effValueMetaCaC(InternetOrderDetail d, m) WHERE internetOrder(d) == o AND effValueMetaCaC(d, m);
                     fileToString(exportFile(), 'UTF-8');
                     valueJsonCaC() <- replace(resultString(), '\n', '');
                     IF valueJsonCaC() AND valueJsonCaC() != '[]' THEN {
@@ -1085,14 +1097,23 @@ sendOrdersMetaCaC 'Передать идентификаторы маркиро�
                     EXTERNAL HTTP POST url(CategoryRequest.marketplace) + postUrlCaC() HEADERS httpHeaders PARAMS resultFile() TO response;
                     fileToString(response());
                     logToFile('WB', resultString());
-                    messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+                    IF statusHttp() == 200 THEN {
+                        IMPORT ordersMetaAddResponseCaC JSON FROM response();
+                        FOR INTEGER r AND imported(r) AND cacAddResIsError(r) DO {
+                            errTextCaC() <- GROUP MAX cacAddResErrDetail(INTEGER e) IF cacAddResErrors(e) == r AND cacAddResErrDetail(e);
+                            IF NOT errTextCaC() THEN errTextCaC() <- GROUP MAX STRING(cacAddResErrCode(INTEGER e)) IF cacAddResErrors(e) == r;
+                            messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + 'Задание ' + cacAddResOrderId(r) + ': мета не закреплена (' + (OVERRIDE errTextCaC(), '') + ')';
+                        }
+                    }
+                    // дописываем, а не перезаписываем: выше могли накопиться ошибки заданий и прошлых пакетов
+                    messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + messageStatusHTTP(STRING(statusHttp()));
                 } CATCH {
                     logToFile('WB', messageCaughtException());
                     IF statusHttp() == 400 OR statusHttp() == 401 OR statusHttp() == 403 THEN {
                         IMPORT importError JSON FROM response();
                         extraDescriptionStatusHTTP() <- 'Идентификаторы маркировки не переданы: ' + message();
                     }
-                    messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                    messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
                 } FINALLY {
                     afterSendRequestIS();
                     // Лимит на добавление — 20 запросов в минуту.
@@ -1120,14 +1141,19 @@ afterChangeOrdersCaCStatus (WbStatus wbStatus) + {
 }
 
 sendOrderMetaCaC 'Передать идентификатор маркировки' (InternetOrder o, OrderMeta m) {
+    IF NOT number(o) THEN {
+        MESSAGE 'У задания отсутствует номер.';
+        RETURN;
+    }
+    // Несохранённый ввод читается в сессии формы в LOCAL-буфер (см. formValueMetaCaC) и через
+    // NEWSESSION NESTED LOCAL доходит до пакетной передачи — сохранять заказ перед «Передать» не нужно.
+    FOR InternetOrderDetail d AND internetOrder(d) == o AND OrderMeta mm AND valueMeta(d, mm) DO
+        formValueMetaCaC(d, mm) <- valueMeta(d, mm);
     NEWSESSION NESTED LOCAL {
-        IF NOT number(o) THEN {
-            MESSAGE 'У задания отсутствует номер.';
-            RETURN;
-        }
         isSelected(InternetOrder ord) <- (ord == o);
         sendOrdersMetaCaC(m);
     }
+    formValueMetaCaC(InternetOrderDetail d, OrderMeta mm) <- NULL;
 }
 
 // POST /api/marketplace/v3/click-collect/orders/meta/delete  body: {"key":"imei","ordersIds":[...]}
@@ -1147,10 +1173,11 @@ deleteOrdersMetaCaC 'Удалить идентификаторы маркиро�
         LOCAL messageOrder = STRING ();
         LOCAL response = FILE();
         LOCAL bodyIdsCaC = STRING ();
+        LOCAL errTextCaC = STRING ();
+        LOCAL metaDelErrorCaC = BOOLEAN (InternetOrder);
 
         bodyIdsCaC() <- (GROUP CONCAT number(InternetOrder o), ',' ORDER o WHERE isSelected(o) AND isWBOrderCaC(o));
-        // key — apiMetaPath не подходит: в delete ожидается camelCase customsDeclaration.
-        stringToFile('\{"key":"' + apiMetaKeyCaC(m) + '","ordersIds":[' + bodyIdsCaC() + ']\}', 'UTF-8', 'json');
+        stringToFile('\{"key":"' + apiMetaDeleteKeyCaC(m) + '","ordersIds":[' + bodyIdsCaC() + ']\}', 'UTF-8', 'json');
         fileToString(resultFile(), 'UTF-8');
         logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + pathMpCaC() + '/meta/delete body: ' + resultString());
 
@@ -1161,9 +1188,24 @@ deleteOrdersMetaCaC 'Удалить идентификаторы маркиро�
             messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
 
             IF statusHttp() == 200 THEN {
-                FOR isSelected(InternetOrder o) AND isWBOrderCaC(o) AND InternetOrderDetail d AND internetOrder(d) == o DO {
+                // Ответ может нести частичные неудачи (results[].isError, как у закрепления меты) —
+                // провалившиеся задания не очищаем локально, чтобы ERP и WB не разошлись.
+                IMPORT ordersMetaAddResponseCaC JSON FROM response();
+                FOR INTEGER r AND imported(r) AND cacAddResIsError(r) DO {
+                    metaDelErrorCaC(orderByNumberCaC(cacAddResOrderId(r))) <- TRUE;
+                    errTextCaC() <- GROUP MAX cacAddResErrDetail(INTEGER e) IF cacAddResErrors(e) == r AND cacAddResErrDetail(e);
+                    IF NOT errTextCaC() THEN errTextCaC() <- GROUP MAX STRING(cacAddResErrCode(INTEGER e)) IF cacAddResErrors(e) == r;
+                    messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + 'Задание ' + cacAddResOrderId(r) + ': идентификаторы не удалены (' + (OVERRIDE errTextCaC(), '') + ')';
+                }
+                FOR isSelected(InternetOrder o) AND isWBOrderCaC(o) AND NOT metaDelErrorCaC(o)
+                    AND InternetOrderDetail d AND internetOrder(d) == o DO {
                     orderMetaStatus(d, m) <- NULL;
                     wbValueMeta(d, m) <- NULL;
+                    // WB при удалении номера ДТ удаляет и код страны происхождения.
+                    IF m == OrderMeta.customsDeclaration THEN {
+                        orderMetaStatus(d, OrderMeta.originCountryCode) <- NULL;
+                        wbValueMeta(d, OrderMeta.originCountryCode) <- NULL;
+                    }
                 }
                 APPLY NESTED LOCAL;
             }
@@ -1173,7 +1215,7 @@ deleteOrdersMetaCaC 'Удалить идентификаторы маркиро�
                 IMPORT importError JSON FROM response();
                 extraDescriptionStatusHTTP() <- 'Идентификаторы маркировки не удалены: ' + message();
             }
-            messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
         } FINALLY {
             afterSendRequestIS();
             MESSAGE messageOrder() NOWAIT;
@@ -1182,23 +1224,33 @@ deleteOrdersMetaCaC 'Удалить идентификаторы маркиро�
 }
 
 // POST /api/marketplace/v3/click-collect/orders/meta/details  body: {"ordersIds":[...]}
-// Ответ: orders[].orderId + metaDetails[]{key, value, decision} — форма ordersMetaResponse (WBOrders)
-// подходит по структуре, но ключ заказа там EXTID 'id', здесь orderId, поэтому своя форма.
+// Ответ: orders[]{orderId, isError, errors[]{code, detail}} + metaDetails[]{key, value, decision} —
+// форма ordersMetaResponse (WBOrders) подходит по структуре, но ключ заказа там EXTID 'id', здесь orderId,
+// поэтому своя форма. isError-задания разбираются: их metaDetails пуст, фактических статусов в ответе нет.
 cacMetaOrderId = DATA LOCAL STRING (INTEGER);
+cacMetaIsError = DATA LOCAL BOOLEAN (INTEGER);
 cacOrdersMetaDetails = DATA LOCAL INTEGER (INTEGER);
 cacMetaKey = DATA LOCAL STRING (INTEGER);
 cacMetaValue = DATA LOCAL STRING (INTEGER);
 cacMetaDecision = DATA LOCAL STRING (INTEGER);
+cacMetaErrors = DATA LOCAL INTEGER (INTEGER);
+cacMetaErrCode = DATA LOCAL INTEGER (INTEGER);
+cacMetaErrDetail = DATA LOCAL STRING (INTEGER);
 
 FORM ordersMetaResponseCaC
     OBJECTS orders = INTEGER
-    PROPERTIES(orders) cacMetaOrderId EXTID 'orderId'
+    PROPERTIES(orders) cacMetaOrderId EXTID 'orderId', cacMetaIsError EXTID 'isError'
     FILTERS imported(orders)
 
     OBJECTS metaDetails = INTEGER
     FILTERS cacOrdersMetaDetails(metaDetails) == orders
     PROPERTIES(metaDetails) cacMetaKey EXTID 'key', cacMetaValue EXTID 'value', cacMetaDecision EXTID 'decision'
     FILTERS imported(metaDetails)
+
+    OBJECTS metaErrors = INTEGER
+    FILTERS cacMetaErrors(metaErrors) == orders
+    PROPERTIES(metaErrors) cacMetaErrCode EXTID 'code', cacMetaErrDetail EXTID 'detail'
+    FILTERS imported(metaErrors)
 ;
 
 actualizeOrdersMetaCaC 'Актуализировать статусы идентификаторов маркировки' () {
@@ -1214,6 +1266,7 @@ actualizeOrdersMetaCaC 'Актуализировать статусы идент
         LOCAL indexCaC = INTEGER (InternetOrder);
         LOCAL exportedCaC = INTEGER ();
         LOCAL bodyIdsCaC = STRING ();
+        LOCAL errTextCaC = STRING ();
 
         indexCaC(InternetOrder o) <- PARTITION SUM 1 IF isSelected(o) AND isWBOrderCaC(o) ORDER o;
         exportedCaC() <- 0;
@@ -1235,9 +1288,16 @@ actualizeOrdersMetaCaC 'Актуализировать статусы идент
                 IF statusHttp() == 200 THEN {
                     IMPORT ordersMetaResponseCaC JSON FROM response();
 
+                    // isError-задания: фактических статусов в ответе нет — сообщаем, что не получены.
+                    FOR INTEGER r AND imported(r) AND cacMetaIsError(r) DO {
+                        errTextCaC() <- GROUP MAX cacMetaErrDetail(INTEGER e) IF cacMetaErrors(e) == r AND cacMetaErrDetail(e);
+                        IF NOT errTextCaC() THEN errTextCaC() <- GROUP MAX STRING(cacMetaErrCode(INTEGER e)) IF cacMetaErrors(e) == r;
+                        messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + 'Задание ' + cacMetaOrderId(r) + ': статусы идентификаторов не получены (' + (OVERRIDE errTextCaC(), '') + ')';
+                    }
+
                     FOR INTEGER d AND imported(d)
                         AND OrderMeta meta == orderMetaByName(cacMetaKey(d))
-                        AND InternetOrder ord == orderByNumber(cacMetaOrderId(cacOrdersMetaDetails(d))) DO {
+                        AND InternetOrder ord == orderByNumberCaC(cacMetaOrderId(cacOrdersMetaDetails(d))) DO {
 
                         LOCAL metaStatusCaC = OrderMetaStatus ();
                         metaStatusCaC() <- orderMetaStatusById(meta, cacMetaDecision(d));
@@ -1255,14 +1315,15 @@ actualizeOrdersMetaCaC 'Актуализировать статусы идент
                         }
                     }
                 }
-                messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+                // дописываем, а не перезаписываем: выше могли накопиться ошибки заданий и прошлых пакетов
+                messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + messageStatusHTTP(STRING(statusHttp()));
             } CATCH {
                 logToFile('WB', messageCaughtException());
                 IF statusHttp() == 400 OR statusHttp() == 401 OR statusHttp() == 403 THEN {
                     IMPORT importError JSON FROM response();
                     extraDescriptionStatusHTTP() <- 'Статусы идентификаторов не получены: ' + message();
                 }
-                messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
             } FINALLY {
                 afterSendRequestIS();
                 APPLY NESTED LOCAL;
@@ -1329,7 +1390,10 @@ getFinalPriceCaC 'Получить фактические суммы по зад
 
             IF statusHttp() == 200 THEN {
                 IMPORT finalPriceResponseCaC JSON FROM response();
-                FOR InternetOrder o == orderByNumber(cacFinalOrderId(INTEGER i)) AND cacOriginalFinalPrice(i) DO {
+                // data = {} — WB ещё формирует суммы (до ~3 минут), данных в ответе нет.
+                IF NOT (GROUP SUM 1 IF cacFinalOrderId(INTEGER i)) THEN
+                    messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + 'WB ещё формирует фактические суммы, повторите запрос позже.';
+                FOR InternetOrder o == orderByNumberCaC(cacFinalOrderId(INTEGER i)) AND cacOriginalFinalPrice(i) DO {
                     FOR InternetOrderDetail d AND internetOrder(d) == o DO {
                         price(d) <- cacOriginalFinalPrice(i) / 100.0;
                         discountPrice(d) <- cacOriginalFinalPrice(i) / 100.0;
@@ -1345,7 +1409,7 @@ getFinalPriceCaC 'Получить фактические суммы по зад
                 IMPORT importError JSON FROM response();
                 extraDescriptionStatusHTTP() <- 'Суммы по заданиям не получены: ' + message();
             }
-            messageOrder() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            messageOrder() <- (OVERRIDE messageOrder() + '\n', '') + CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
         } FINALLY {
             afterSendRequestIS();
             MESSAGE messageOrder() NOWAIT;
@@ -1359,6 +1423,7 @@ getFinalPriceCaC 'Получить фактические суммы по зад
 EXTEND FORM internetOrder
     PROPERTIES (o) READONLY orderCodeCaC SHOWIF isWBOrderCaC(o), warehouseAddressCaC SHOWIF isWBOrderCaC(o),
         namePayModeCaC SHOWIF isWBOrderCaC(o), nameCargoTypeCaC SHOWIF isWBOrderCaC(o), createdAtCaC SHOWIF isWBOrderCaC(o)
+    PROPERTIES (o) passcodeCaC SHOWIF isWBOrderCaC(o)
     PROPERTIES (o) getWbStatusCaC SHOWIF isWBOrderCaC(o), postInfCustomerOrderCaC SHOWIF isWBOrderCaC(o),
         checkClientIdentityCaC SHOWIF isWBOrderCaC(o), issueCaCOrder SHOWIF isWBOrderCaC(o),
         actualizeOrderMetaCaC SHOWIF isWBOrderCaC(o),
@@ -1379,6 +1444,7 @@ DESIGN internetOrder {
             showIf = isWBOrderCaC(o);
             horizontal = TRUE;
             MOVE PROPERTY(orderCodeCaC(o));
+            MOVE PROPERTY(passcodeCaC(o));
             MOVE PROPERTY(warehouseAddressCaC(o));
             MOVE PROPERTY(namePayModeCaC(o));
             MOVE PROPERTY(nameCargoTypeCaC(o));
@@ -1410,6 +1476,7 @@ EXTEND FORM internetOrders
         receiveOrderCaC SHOWIF changeOrdersCaCStatusCondition(WbStatus.receive, o),
         rejectOrderCaC SHOWIF changeOrdersCaCStatusCondition(WbStatus.reject, o),
         cancelOrderCaC SHOWIF changeOrdersCaCStatusCondition(WbStatus.cancel, o)
+    PROPERTIES(o) passcodeCaC SHOWIF isWBOrderCaC(o)
     PROPERTIES(o) issueCaCOrder SHOWIF isWBOrderCaC(o)
     PROPERTIES() getOrdersCaCNew, getOrdersCaC, actualizeOrdersMetaCaC, getFinalPriceCaC
 ;
@@ -1450,12 +1517,16 @@ DESIGN options {
     }
 }
 
-// Трансляция ERP-статуса в статус WB — по образцу DBS. Неоднозначность (в cancel транслируются
-// четыре статуса WB) снимает changeOrdersCaCStatusCondition: она проверяет текущий wbStatus заказа.
-// Заказ передаётся напрямую: внутри APPLY записи LOCAL не пробрасываются в NEWSESSION действия.
+// Трансляция ERP-статуса в статус WB — отправка в отдельном потоке после commit внешнего APPLY.
 WHEN SETCHANGED(status(InternetOrder o)) AND statusInternetOrder(WbStatus ws) = status(o)
     AND changeOrdersCaCStatusCondition(ws, o) AND isWBOrderCaC(o) DO {
-    changeOrdersCaCStatus(ws, o);
+    NEWTHREAD {
+        sleep(1000);
+        NEWSESSION {
+            changeOrdersCaCStatus(ws, o);
+            APPLY;
+        }
+    }
 }
 
 // Комплектация собрана → задание готово к выдаче; обязательные меты без валидации блокируют перевод.
@@ -1465,7 +1536,13 @@ WHEN SETCHANGED(status(Picking p)) AND status(p) = StatusPicking.picked DO {
         IF hasUnvalidatedRequiredMeta(o) THEN {
             MESSAGE CONCAT ' ', 'Заказ', number(o), ': есть невалидированная обязательная мета — «Готов к выдаче» не отправлен.';
         } ELSE {
-            changeOrdersCaCStatus(WbStatus.prepare, o);
+            NEWTHREAD {
+                sleep(1000);
+                NEWSESSION {
+                    changeOrdersCaCStatus(WbStatus.prepare, o);
+                    APPLY;
+                }
+            }
         }
     }
 }
