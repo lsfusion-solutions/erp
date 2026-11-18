@@ -1,0 +1,224 @@
+MODULE WBSaleInvoice;
+
+REQUIRE WBSalesReport, WBDocuments, WBOrders, WBItemMapping, SaleInternetOrderLot, SaleShipmentLot;
+
+NAMESPACE WB;
+
+wbInternetOrder (STRING number) = GROUP MAX InternetOrder o IF isWBOrder(o) BY number(o);
+wbInternetOrder (SalesReportDetail d) = wbInternetOrder(STRING(orderId(d)));
+
+kizLot (SalesReportDetail d) = OVERRIDE lot(barcodeToId(STRING[200](kiz(d)))),
+    lot(barcodeToId(STRING[200](replace(kiz(d), '\\u001d', ''))));
+
+countOrderLots (SalesReportDetail d) = GROUP SUM 1 IF internetOrder(InternetOrderDetailLot ld) == wbInternetOrder(d) AND lot(id(ld));
+
+lotFound (SalesReportDetail d) = kizLot(d) OR countOrderLots(d);
+
+skuBarcodeWB (STRING code) = OVERRIDE skuBarcode(STRING[15](code)),
+    (skuBarcode(STRING[15](substr(code, 2, 14))) IF substr(code, 1, 1) == '0');
+barcodeSku (SalesReportDetail d) = skuBarcodeWB(barcode(d)) IF NOT kiz(d) AND NOT lotFound(d);
+
+filledSalesReport 'Заполнена из отчёта WB' = DATA BOOLEAN (UserInvoice, SalesReport);
+
+addLotUserInvoiceDetail (UserInvoice i, Lot l) {
+    IF explicitBatchLedger(supplierStock(i)) AND batch(l) THEN {
+        FOR UserInvoiceDetail d = userInvoiceDetail(batch(l), i) DO {
+            quantity(d, l) <- 1.0;
+            IF NOT quantity(d) >= quantityLot(d) THEN
+                quantity(d) <- quantityLot(d);
+        } ELSE NEW d = UserInvoiceDetail {
+            userInvoice(d) <- i;
+            sku(d) <- sku(l);
+            batch(d) <- batch(l);
+            quantity(d, l) <- 1.0;
+            quantity(d) <- quantityLot(d);
+        }
+    } ELSE {
+        FOR UserInvoiceDetail d = userInvoiceDetail(i, sku(l)) DO {
+            quantity(d, l) <- 1.0;
+            IF NOT quantity(d) >= quantityLot(d) THEN
+                quantity(d) <- quantityLot(d);
+        } ELSE NEW d = UserInvoiceDetail {
+            userInvoice(d) <- i;
+            sku(d) <- sku(l);
+            quantity(d, l) <- 1.0;
+            quantity(d) <- quantityLot(d);
+        }
+    }
+}
+
+fillLotsSalesReport 'Заполнить из детализации' (UserInvoice i, SalesReport r) {
+    LOCAL lotToAdd = BOOLEAN (Lot);
+    lotToAdd(Lot l) <- TRUE WHERE (GROUP SUM 1 IF salesReport(SalesReportDetail d) == r AND sale(d) AND kizLot(d) == l);
+    lotToAdd(Lot l) <- TRUE WHERE (GROUP SUM 1 IF salesReport(SalesReportDetail d) == r AND sale(d) AND NOT kizLot(d)
+        AND internetOrder(InternetOrderDetailLot ld) == wbInternetOrder(d) AND lot(id(ld)) == l);
+
+    LOCAL countAlready = INTEGER ();
+    countAlready() <- GROUP SUM 1 IF lotToAdd(Lot l) AND quantity(i, l) == 1.0;
+    LOCAL countAdded = INTEGER ();
+    countAdded() <- GROUP SUM 1 IF lotToAdd(Lot l) AND NOT quantity(i, l) == 1.0;
+
+    FOR lotToAdd(Lot l) AND NOT quantity(i, l) == 1.0 ORDER id(l) DO
+        addLotUserInvoiceDetail(i, l);
+
+    // Строки без маркировки — количеством по товару
+    LOCAL quantitySku = NUMERIC[16,5] (Sku);
+    quantitySku(Sku s) <- GROUP SUM quantity(SalesReportDetail d) IF salesReport(d) == r AND sale(d) AND barcodeSku(d) == s;
+    LOCAL countSkuRows = INTEGER ();
+    countSkuRows() <- GROUP SUM 1 IF salesReport(SalesReportDetail d) == r AND sale(d) AND barcodeSku(d);
+    LOCAL repeated = BOOLEAN ();
+    repeated() <- filledSalesReport(i, r);
+    IF NOT repeated() THEN {
+        FOR quantitySku(Sku s) ORDER s DO {
+            FOR UserInvoiceDetail d = userInvoiceDetail(i, s) DO {
+                quantity(d) <- quantity(d) (+) quantitySku(s);
+            } ELSE NEW d = UserInvoiceDetail {
+                userInvoice(d) <- i;
+                sku(d) <- s;
+                quantity(d) <- quantitySku(s);
+            }
+        }
+        filledSalesReport(i, r) <- TRUE;
+    }
+
+    LOCAL countNotFound = INTEGER ();
+    countNotFound() <- GROUP SUM 1 IF salesReport(SalesReportDetail d) == r AND sale(d) AND NOT lotFound(d) AND NOT barcodeSku(d);
+    LOCAL notFound = TEXT ();
+    notFound() <- GROUP CONCAT (CONCAT ' ', vendorCode(SalesReportDetail d), techSize(d), barcode(d), 'задание ' + orderId(d), kiz(d))
+        IF salesReport(d) == r AND sale(d) AND NOT lotFound(d) AND NOT barcodeSku(d), '\n' ORDER rrdId(d);
+
+    MESSAGE '<h3>Заполнение из детализации WB</h3>' NOWAIT;
+    MESSAGE CONCAT '\n',
+        'Отчёт ' + reportId(r) + ', строк продаж: ' + (OVERRIDE countSaleDetails(r), 0) + '.',
+        'Добавлено марок: ' + (OVERRIDE countAdded(), 0) + '.',
+        'Марки уже были в накладной: ' + countAlready() + '.',
+        ('Добавлено строк без маркировки: ' + countSkuRows() + '.') IF NOT repeated(),
+        ('Строки без маркировки уже добавлялись из этого отчёта, повторно не добавлены: ' + countSkuRows() + '.') IF repeated(),
+        'В системе не найдено ' + countNotFound() + ' марок и товаров по строкам отчёта:\n' + notFound() NOWAIT;
+}
+
+FORM dialogSalesReports 'Отчёты о реализации WB'
+    OBJECTS r = SalesReport
+    PROPERTIES(r) READONLY reportId, reportType, dateFrom, dateTo, createDate, period, retailAmountSum, countDetails, countSaleDetails, loadDateTime
+    ORDERS dateFrom(r) DESC
+    FILTERS countDetails(r)
+;
+
+fillLotsSalesReport 'Заполнить из детализации WB' (UserInvoice i) {
+    DIALOG dialogSalesReports OBJECTS r INPUT DO
+        fillLotsSalesReport(i, r);
+}
+
+normVendorCode (STRING s) = upper(trim(replace(s, '  ', ' ')));
+wbItemVendorCode (STRING code) = GROUP MAX Item i BY normVendorCode(id(i));
+
+wbItemSku = GROUP MAX itemWB(Size s) BY item(s);
+wbItem (UserInvoiceDetail d) = wbItemSku(sku(d));
+vatRate (UserInvoiceDetail d) = OVERRIDE valueVAT(d), 0.0;
+
+wbItem (RedeemNotificationDetail dd) = wbItemVendorCode(normVendorCode(vendorCode(dd)));
+vatRate (RedeemNotificationDetail dd) = OVERRIDE vat(dd), 0.0;
+
+fillPricesRedeemNotification 'Заполнить из уведомления' (UserInvoice i, RedeemNotification doc) {
+    IF NOT (GROUP SUM 1 IF userInvoice(UserInvoiceDetail d) == i) THEN {
+        MESSAGE 'В накладной должны быть строки.';
+        RETURN;
+    }
+    IF NOT countDetails(doc) THEN {
+        MESSAGE 'В уведомлении нет строк. Загрузите документ из WB или нажмите «Заполнить строки из файла» в журнале уведомлений.';
+        RETURN;
+    }
+
+    LOCAL sumItem = NUMERIC[18,4] (Item, NUMERIC[10,5]);
+    LOCAL quantityItem = NUMERIC[16,4] (Item, NUMERIC[10,5]);
+    LOCAL sumVatItem = NUMERIC[18,4] (Item, NUMERIC[10,5]);
+    sumItem(Item c, NUMERIC[10,5] r) <- GROUP SUM sum(RedeemNotificationDetail dd) IF redeemNotification(dd) == doc AND wbItem(dd) == c AND vatRate(dd) == r;
+    quantityItem(Item c, NUMERIC[10,5] r) <- GROUP SUM quantity(RedeemNotificationDetail dd) IF redeemNotification(dd) == doc AND wbItem(dd) == c AND vatRate(dd) == r;
+    sumVatItem(Item c, NUMERIC[10,5] r) <- GROUP SUM sumVat(RedeemNotificationDetail dd) IF redeemNotification(dd) == doc AND wbItem(dd) == c AND vatRate(dd) == r;
+
+    LOCAL quantityItemInvoice = NUMERIC[18,4] (Item, NUMERIC[10,5]);
+    quantityItemInvoice(Item c, NUMERIC[10,5] r) <- GROUP SUM quantity(UserInvoiceDetail d) IF userInvoice(d) == i AND wbItem(d) == c AND vatRate(d) == r;
+
+    FOR wbItem(UserInvoiceDetail d) == Item c AND sumItem(c, NUMERIC[10,5] r) AND vatRate(d) == r AND userInvoice(d) == i DO {
+        invoicePrice(d) <- floor(sumItem(c, r) / quantityItem(c, r), 0.01);
+        price(d) <- round2(invoicePrice(d) * 100 / (100 + calcValueVAT(d)));
+        invoiceSum(d) <- invoiceSum(d);
+    }
+    
+    LOCAL sumItemInvoice = NUMERIC[18,4] (Item, NUMERIC[10,5]);
+    sumItemInvoice(Item c, NUMERIC[10,5] r) <- GROUP SUM invoiceSum(UserInvoiceDetail d) IF userInvoice(d) == i AND wbItem(d) == c AND vatRate(d) == r;
+
+    LOCAL det = UserInvoiceDetail (Item, NUMERIC[10,5]);
+    det(Item c, NUMERIC[10,5] r) <- GROUP LAST UserInvoiceDetail dd IF userInvoice(dd) == i AND wbItem(dd) == c AND vatRate(dd) == r ORDER invoiceSum(dd), dd;
+
+    FOR (sumItem(Item c, NUMERIC[10,5] r) - sumItemInvoice(c, r)) == NUMERIC[18,4] s AND s != 0.0 AND UserInvoiceDetail d == det(c, r) DO {
+        invoiceSum(d) <- invoiceSum(d) (+) s;
+        VATSum(d) <- VATSum(d) (+) s;
+    }
+
+    LOCAL sumVatItemInvoice = NUMERIC[18,4] (Item, NUMERIC[10,5]);
+    sumVatItemInvoice(Item c, NUMERIC[10,5] r) <- GROUP SUM VATSum(UserInvoiceDetail d) IF userInvoice(d) == i AND wbItem(d) == c AND vatRate(d) == r;
+
+    FOR (sumVatItem(Item c, NUMERIC[10,5] r) - sumVatItemInvoice(c, r)) == NUMERIC[18,4] s AND s != 0.0 AND UserInvoiceDetail d == det(c, r) DO {
+        invoiceSum(d) <- invoiceSum(d);
+        sum(d) <- sum(d);
+        VATSum(d) <- VATSum(d);
+        VATSum(d) <- VATSum(d) (+) s;
+        sum(d) <- invoiceSum(d) (-) VATSum(d);
+        price(d) <- round2(sum(d) / quantity(d));
+    }
+    
+    LOCAL countPriced = INTEGER ();
+    countPriced() <- GROUP SUM 1 IF userInvoice(UserInvoiceDetail d) == i AND sumItem(wbItem(d), vatRate(d));
+
+    LOCAL countNotFoundCodes = INTEGER ();
+    countNotFoundCodes() <- GROUP SUM 1 IF redeemNotification(RedeemNotificationDetail dd) == doc AND NOT wbItem(dd);
+    LOCAL notFoundCodes = TEXT ();
+    notFoundCodes() <- GROUP CONCAT vendorCode(RedeemNotificationDetail dd) IF redeemNotification(dd) == doc AND NOT wbItem(dd), '\n' ORDER rowNumber(dd), dd;
+
+    LOCAL countDiffItems = INTEGER ();
+    countDiffItems() <- GROUP SUM 1 IF quantityItem(Item c, NUMERIC[10,5] r) AND NOT quantityItem(c, r) == quantityItemInvoice(c, r);
+    LOCAL diffItems = TEXT ();
+    diffItems() <- GROUP CONCAT (CONCAT ' ', id(Item c), 'НДС ' + NUMERIC[10,2](NUMERIC[10,5] r) + '%',
+            'в уведомлении ' + quantityItem(c, r), 'в накладной ' + (OVERRIDE quantityItemInvoice(c, r), 0.0))
+        IF quantityItem(c, r) AND NOT quantityItem(c, r) == quantityItemInvoice(c, r), '\n' ORDER id(c);
+
+    LOCAL countLinesWithoutItem = INTEGER ();
+    countLinesWithoutItem() <- GROUP SUM 1 IF userInvoice(UserInvoiceDetail d) == i AND NOT wbItem(d);
+    LOCAL linesWithoutItem = TEXT ();
+    linesWithoutItem() <- GROUP CONCAT (CONCAT ' ', idSku(UserInvoiceDetail d), nameSku(d)) IF userInvoice(d) == i AND NOT wbItem(d), '\n' ORDER d;
+
+    MESSAGE '<h3>Заполнение из уведомления о выкупе WB</h3>' NOWAIT;
+    MESSAGE CONCAT '\n\n',
+        name(doc) + '.',
+        'Заполнены цены и суммы в строках накладной: ' + (OVERRIDE countPriced(), 0) + '.',
+        'В карточках WB не найдено ' + countNotFoundCodes() + ' артикулов из уведомления:\n' + notFoundCodes(),
+        'Не совпадает количество по ' + countDiffItems() + ' позициям (сверьте ставку НДС):\n' + diffItems(),
+        'Не связано с карточкой WB ' + countLinesWithoutItem() + ' строк накладной:\n' + linesWithoutItem() NOWAIT;
+}
+
+FORM dialogRedeemNotifications 'Уведомления о выкупе'
+    OBJECTS d = RedeemNotification
+    PROPERTIES(d) READONLY serviceId, name, creationDateTime, countDetails, quantityDetails, sumDetails, downloadDateTime
+    ORDERS creationDateTime(d) DESC
+    FILTERS countDetails(d)
+;
+
+fillPricesRedeemNotification 'Заполнить из уведомления о выкупе WB' (UserInvoice i) {
+    DIALOG dialogRedeemNotifications OBJECTS d INPUT DO
+        fillPricesRedeemNotification(i, d);
+}
+
+EXTEND FORM userInvoice
+    PROPERTIES(i) fillLotsSalesReport, fillPricesRedeemNotification
+;
+
+DESIGN userInvoice {
+    import {
+        NEW wbImport {
+            caption = 'WB';
+            MOVE PROPERTY (fillLotsSalesReport(i));
+            MOVE PROPERTY (fillPricesRedeemNotification(i));
+        }
+    }
+}

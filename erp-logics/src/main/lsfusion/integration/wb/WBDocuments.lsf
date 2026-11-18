@@ -1,0 +1,459 @@
+MODULE WBDocuments;
+
+REQUIRE WB, Time;
+
+NAMESPACE WB;
+
+CLASS SellerDocumentCategory 'Категория документов WB';
+TABLE sellerDocumentCategory (SellerDocumentCategory);
+
+id 'ID категории' = DATA STRING[100] (SellerDocumentCategory) IN id INDEXED CHARWIDTH 20;
+sellerDocumentCategory (id) = GROUP AGGR SellerDocumentCategory c BY id(c);
+name 'Наименование' = DATA STRING[200] (SellerDocumentCategory) IN id CHARWIDTH 25;
+sellerDocumentCategoryName (STRING nameCategory) = GROUP MAX SellerDocumentCategory c BY name(c);
+redeemNotificationCategory (SellerDocumentCategory c) = id(c) == 'redeem-notification';
+
+// Документ WB любой категории. Категории со своей обработкой — классы-наследники
+CLASS SellerDocument 'Документ WB';
+TABLE sellerDocument (SellerDocument);
+
+CLASS RedeemNotification 'Уведомление о выкупе WB' : SellerDocument;
+
+serviceId 'Уникальный ID' = DATA STRING[100] (SellerDocument) IN id INDEXED CHARWIDTH 25;
+sellerDocument (serviceId) = GROUP AGGR SellerDocument d BY serviceId(d);
+name 'Наименование' = DATA STRING[250] (SellerDocument) IN id CHARWIDTH 35;
+
+category 'Категория' = DATA SellerDocumentCategory (SellerDocument) INDEXED;
+idCategory 'ID категории' (SellerDocument d) = id(category(d)) IN base;
+nameCategory 'Категория' (SellerDocument d) = name(category(d)) IN base;
+
+extensions 'Доступные форматы' = DATA STRING[100] (SellerDocument) CHARWIDTH 8;
+creationDateTime 'Дата создания (UTC)' = DATA DATETIME (SellerDocument) IN base;
+viewed 'Просмотрен в WB' = DATA BOOLEAN (SellerDocument);
+
+fileName 'Имя файла' = DATA STRING[250] (SellerDocument) CHARWIDTH 30;
+extension 'Формат файла' = DATA STRING[10] (SellerDocument) CHARWIDTH 6;
+file 'Файл' = DATA FILE (SellerDocument);
+loaded 'Загружен' (SellerDocument d) = TRUE IF file(d);
+downloadDateTime 'Дата загрузки' = DATA DATETIME (SellerDocument);
+
+requestExtension 'Формат запроса' (SellerDocument d) =
+    OVERRIDE ('xlsx' IF extensions(d) LIKE '%xlsx%'), STRING[10](getWord(extensions(d), ',', 1)), 'zip';
+
+isSelected 'Отм.' = DATA LOCAL NESTED BOOLEAN (SellerDocument);
+
+dataDocumentsRequestDelay = DATA INTEGER ();
+documentsRequestDelay 'Пауза между запросами документов, мс' = OVERRIDE dataDocumentsRequestDelay(), 10000;
+
+dataDocumentsPeriod = DATA INTEGER ();
+documentsPeriod 'Период загрузки документов по умолчанию, дней' = OVERRIDE dataDocumentsPeriod(), 30;
+
+dateFromDocuments 'Дата с' = DATA LOCAL DATE ();
+dateToDocuments 'Дата по' = DATA LOCAL DATE ();
+
+setDefaultDatesDocuments 'Период по умолчанию' () {
+    dateToDocuments() <- currentDate();
+    dateFromDocuments() <- sum(currentDate(), -documentsPeriod());
+}
+
+GROUP dataDocumentsWB EXTID 'data';
+
+// Категории документов
+wbCategoryId = DATA LOCAL STRING[100] (INTEGER);
+wbCategoryName = DATA LOCAL STRING[200] (INTEGER);
+
+FORM importSellerDocumentCategories
+    OBJECTS c = INTEGER EXTID 'categories' IN dataDocumentsWB
+    PROPERTIES(c) wbCategoryId EXTID 'name', wbCategoryName EXTID 'title'
+    FILTERS imported(c)
+;
+
+getSellerDocumentCategories 'Получить категории документов' () {
+    NEWSESSION {
+        setHttpHeadersIS(token(CategoryRequest.documents));
+        LOCAL message = STRING ();
+        LOCAL response = FILE ();
+
+        LOCAL request = STRING ();
+        request() <- url(CategoryRequest.documents) + '/api/v1/documents/categories?locale=ru';
+        logToFile('WB', 'GET: ' + request());
+        TRY {
+            EXTERNAL HTTP GET request() HEADERS httpHeaders TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            IMPORT importSellerDocumentCategories JSON FROM response();
+
+            FOR INTEGER i = [GROUP MAX INTEGER i1 BY wbCategoryId(i1)](STRING[100] categoryIdWB)
+                AND NOT sellerDocumentCategory(categoryIdWB) INLINE DO NEW c = SellerDocumentCategory {
+                id(c) <- categoryIdWB;
+            }
+            FOR imported(INTEGER i) AND SellerDocumentCategory c == sellerDocumentCategory(wbCategoryId(i)) INLINE DO {
+                name(c) <- wbCategoryName(i);
+            }
+            message() <- CONCAT '', messageStatusHTTP(STRING(statusHttp())),
+                '<h3>Получено категорий: ', (OVERRIDE (GROUP SUM 1 IF imported(INTEGER i)), 0), '</h3>';
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 401 OR statusHttp() == 402 OR statusHttp() == 403 OR statusHttp() == 429 THEN {
+                IMPORT importError429 JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Категории документов не получены: ' + (OVERRIDE detail429(), title429());
+            }
+            message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE '<h3>Получение категорий документов</h3>' NOWAIT;
+            MESSAGE message() NOWAIT;
+            APPLY;
+        }
+    }
+}
+
+// Список документов
+wbDocServiceName = DATA LOCAL STRING[100] (INTEGER);
+wbDocName = DATA LOCAL STRING[250] (INTEGER);
+wbDocNameCategory = DATA LOCAL STRING[200] (INTEGER);
+wbDocCreationTime = DATA LOCAL STRING[30] (INTEGER);
+wbDocViewed = DATA LOCAL STRING[5] (INTEGER);
+wbDocExtensionDocument = DATA LOCAL INTEGER (INTEGER);
+wbDocExtension = DATA LOCAL STRING[10] (INTEGER);
+wbDocExtensions (INTEGER i) = GROUP CONCAT wbDocExtension(INTEGER e) IF wbDocExtensionDocument(e) == i, ',' ORDER e;
+
+FORM importSellerDocuments
+    OBJECTS d = INTEGER EXTID 'documents' IN dataDocumentsWB
+    PROPERTIES(d) wbDocServiceName EXTID 'serviceName', wbDocName EXTID 'name',
+        wbDocNameCategory EXTID 'category', wbDocCreationTime EXTID 'creationTime', wbDocViewed EXTID 'viewed'
+    FILTERS imported(d)
+
+    OBJECTS e = INTEGER EXTID 'extensions'
+    PROPERTIES(e) wbDocExtension EXTID 'value'
+    FILTERS wbDocExtensionDocument(e) == d
+;
+
+getSellerDocuments 'Получить список документов' (STRING categoryId, DATE dateFrom, DATE dateTo) {
+    NEWSESSION {
+        setHttpHeadersIS(token(CategoryRequest.documents));
+        LOCAL NESTED message = STRING ();
+        LOCAL NESTED stop = BOOLEAN ();
+        LOCAL NESTED offset = INTEGER ();
+        LOCAL NESTED total = INTEGER ();
+        LOCAL response = FILE ();
+        offset() <- 0;
+
+        LOCAL NESTED dateTill = DATE ();
+        dateTill() <- OVERRIDE dateTo, currentDate();
+        LOCAL NESTED dateSince = DATE ();
+        dateSince() <- OVERRIDE dateFrom, sum(dateTill(), -documentsPeriod());
+
+        IF categoryId AND NOT sellerDocumentCategory(categoryId) THEN NEW c = SellerDocumentCategory {
+            id(c) <- STRING[100](categoryId);
+        }
+
+        WHILE NOT stop() DO {
+            LOCAL request = STRING ();
+            request() <- CONCAT '', url(CategoryRequest.documents), '/api/v1/documents/list?locale=ru',
+                '&category=' + categoryId,
+                '&beginTime=', toDateISO(dateSince()), '&endTime=', toDateISO(dateTill()),
+                '&sort=date&order=asc&limit=50&offset=', offset();
+            logToFile('WB', 'GET: ' + request());
+            TRY {
+                EXTERNAL HTTP GET request() HEADERS httpHeaders TO response;
+                fileToString(response());
+                logToFile('WB', resultString());
+                IMPORT importSellerDocuments JSON FROM response();
+
+                LOCAL countImported = INTEGER ();
+                countImported() <- GROUP SUM 1 IF imported(INTEGER i);
+
+                FOR SellerDocumentCategory c == sellerDocumentCategory(categoryId) AND NOT name(c) AND imported(INTEGER i) DO {
+                    name(c) <- wbDocNameCategory(i);
+                }
+
+                LOCAL wbDocCategory = SellerDocumentCategory (INTEGER);
+                wbDocCategory(INTEGER i) <- OVERRIDE sellerDocumentCategory(categoryId), sellerDocumentCategoryName(wbDocNameCategory(i))
+                    WHERE imported(i);
+
+                FOR INTEGER i = [GROUP MAX INTEGER i1 BY wbDocServiceName(i1)](STRING[100] serviceIdWB)
+                    AND NOT sellerDocument(serviceIdWB) AND redeemNotificationCategory(wbDocCategory(i)) INLINE DO NEW doc = RedeemNotification {
+                    serviceId(doc) <- serviceIdWB;
+                }
+                FOR INTEGER i = [GROUP MAX INTEGER i1 BY wbDocServiceName(i1)](STRING[100] serviceIdWB)
+                    AND NOT sellerDocument(serviceIdWB) INLINE DO NEW doc = SellerDocument {
+                    serviceId(doc) <- serviceIdWB;
+                }
+
+                FOR imported(INTEGER i) AND SellerDocument doc == sellerDocument(wbDocServiceName(i)) INLINE DO {
+                    name(doc) <- wbDocName(i);
+                    category(doc) <- wbDocCategory(i);
+                    creationDateTime(doc) <- toDateTimeFormat(substr(wbDocCreationTime(i), 1, 19), 'YYYY-MM-DD"T"HH24:MI:SS');
+                    viewed(doc) <- TRUE IF wbDocViewed(i) == 'true';
+                    extensions(doc) <- STRING[100](wbDocExtensions(i));
+                }
+               
+                total() <- total() (+) countImported();
+                IF countImported() < 50 THEN
+                    stop() <- TRUE;
+                ELSE
+                    offset() <- offset() + 50;
+
+                message() <- CONCAT '', messageStatusHTTP(STRING(statusHttp())), '<h3>Получено документов: ', (OVERRIDE total(), 0), '</h3>';
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+                IF statusHttp() == 400 OR statusHttp() == 401 OR statusHttp() == 402 OR statusHttp() == 403 OR statusHttp() == 429 THEN {
+                    IMPORT importError429 JSON FROM response();
+                    extraDescriptionStatusHTTP() <- 'Список документов не получен: ' + (OVERRIDE detail429(), title429());
+                }
+                message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                stop() <- TRUE;
+            } FINALLY {
+                afterSendRequestIS();
+                IF NOT (statusHttp() >= 200 AND statusHttp() < 300) THEN {
+                    stop() <- TRUE;
+                }
+                APPLY;
+                IF NOT stop() THEN {
+                    sleep(LONG(documentsRequestDelay()));
+                }
+            }
+        }
+        MESSAGE '<h3>Получение списка документов</h3>' NOWAIT;
+        MESSAGE message() NOWAIT;
+    }
+}
+
+getSellerDocuments 'Получить список уведомлений' () {
+    IF NOT dateFromDocuments() OR NOT dateToDocuments() THEN setDefaultDatesDocuments();
+    getSellerDocuments('redeem-notification', dateFromDocuments(), dateToDocuments());
+}
+
+// Получение документа
+wbDownloadFileName = DATA LOCAL STRING[250] ();
+wbDownloadExtension = DATA LOCAL STRING[10] ();
+wbDownloadDocument = DATA LOCAL TEXT ();
+
+FORM importSellerDocumentFile
+    PROPERTIES() IN dataDocumentsWB wbDownloadFileName EXTID 'fileName', wbDownloadExtension EXTID 'extension',
+        wbDownloadDocument EXTID 'document'
+;
+
+afterDownloadSellerDocument ABSTRACT (SellerDocument);
+
+downloadSellerDocument 'Загрузить документ' (SellerDocument d) {
+    NEWSESSION {
+        setHttpHeadersIS(token(CategoryRequest.documents));
+        LOCAL message = STRING ();
+        LOCAL response = FILE ();
+
+        LOCAL request = STRING ();
+        request() <- CONCAT '', url(CategoryRequest.documents), '/api/v1/documents/download?serviceName=', serviceId(d),
+            '&extension=', requestExtension(d);
+        logToFile('WB', 'GET: ' + request());
+        TRY {
+            EXTERNAL HTTP GET request() HEADERS httpHeaders TO response;
+            
+            IMPORT importSellerDocumentFile JSON FROM response();
+            IF wbDownloadDocument() THEN {
+                file(d) <- file(decode(wbDownloadDocument(), 'base64'), wbDownloadExtension());
+                fileName(d) <- wbDownloadFileName();
+                extension(d) <- wbDownloadExtension();
+                downloadDateTime(d) <- currentDateTime();
+                viewed(d) <- TRUE;
+                afterDownloadSellerDocument(d);
+                message() <- CONCAT '', messageStatusHTTP(STRING(statusHttp())), '<h3>Загружен файл: ', wbDownloadFileName(), '</h3>';
+            } ELSE {
+                message() <- 'В ответе WB нет файла документа ' + serviceId(d) + '.';
+            }
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 400 OR statusHttp() == 401 OR statusHttp() == 402 OR statusHttp() == 403 OR statusHttp() == 429 THEN {
+                IMPORT importError429 JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Документ ' + serviceId(d) + ' не получен: ' + (OVERRIDE detail429(), title429());
+            }
+            message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE '<h3>Получение документа</h3>' NOWAIT;
+            MESSAGE message() NOWAIT;
+            APPLY;
+        }
+    }
+}
+
+downloadSelectedSellerDocuments 'Загрузить отмеченные' () {
+    IF NOT (GROUP SUM 1 IF isSelected(SellerDocument d)) THEN {
+        MESSAGE 'Не отмечен ни один документ.';
+        RETURN;
+    }
+    LOCAL next = BOOLEAN ();
+    FOR isSelected(SellerDocument d) ORDER creationDateTime(d), d DO {
+        IF next() THEN sleep(LONG(documentsRequestDelay()));
+        downloadSellerDocument(d);
+        next() <- TRUE;
+    }
+}
+
+getDownloadRedeemNotifications 'Получить и загрузить уведомления о выкупе' (DATE dateFrom, DATE dateTo) {
+    getSellerDocuments('redeem-notification', dateFrom, dateTo);
+    isSelected(SellerDocument d) <- NULL;
+    isSelected(SellerDocument d) <- TRUE WHERE d IS RedeemNotification AND NOT loaded(d);
+    IF (GROUP SUM 1 IF isSelected(SellerDocument d)) THEN {
+        sleep(LONG(documentsRequestDelay()));
+        downloadSelectedSellerDocuments();
+    }
+}
+
+openFile 'Открыть файл' (SellerDocument d) {
+    open(file(d));
+}
+
+spreadsheetFile = DATA LOCAL FILE ();
+
+readSpreadsheetFile 'Извлечь таблицу' (SellerDocument d) {
+    spreadsheetFile() <- NULL;
+    IF upper(extension(d)) == 'ZIP' THEN {
+        unzipping() <- file(d);
+        makeUnzipFile();
+        FOR unzipped(STRING s) AND (upper(s) LIKE '%.XLSX' OR upper(s) LIKE '%.XLS') ORDER s DO
+            spreadsheetFile() <- unzipped(s);
+    } ELSE {
+        spreadsheetFile() <- file(d);
+    }
+}
+
+CLASS RedeemNotificationDetail 'Строка уведомления о выкупе WB';
+TABLE redeemNotificationDetail (RedeemNotificationDetail);
+
+redeemNotification 'Уведомление' = DATA RedeemNotification (RedeemNotificationDetail) NONULL DELETE INDEXED;
+rowNumber 'Номер' = DATA INTEGER (RedeemNotificationDetail);
+vendorCode 'Артикул' = DATA STRING[100] (RedeemNotificationDetail) CHARWIDTH 25;
+nameItem 'Наименование' = DATA STRING[250] (RedeemNotificationDetail) CHARWIDTH 30;
+quantity 'Количество' = DATA NUMERIC[16,4] (RedeemNotificationDetail);
+sum 'Сумма выкупа (с НДС)' = DATA NUMERIC[18,4] (RedeemNotificationDetail);
+vatString 'Ставка НДС (как в файле)' = DATA STRING[20] (RedeemNotificationDetail) CHARWIDTH 6;
+vat 'Ставка НДС, %' = DATA NUMERIC[10,5] (RedeemNotificationDetail);
+sumVat 'Сумма НДС' = DATA NUMERIC[18,4] (RedeemNotificationDetail);
+
+countDetails 'Строк' (RedeemNotification d) = GROUP SUM 1 BY redeemNotification(RedeemNotificationDetail dd);
+quantityDetails 'Количество' (RedeemNotification d) = GROUP SUM quantity(RedeemNotificationDetail dd) BY redeemNotification(dd);
+sumDetails 'Сумма выкупа' (RedeemNotification d) = GROUP SUM sum(RedeemNotificationDetail dd) BY redeemNotification(dd);
+sumVatDetails 'Сумма НДС' (RedeemNotification d) = GROUP SUM sumVat(RedeemNotificationDetail dd) BY redeemNotification(dd);
+
+wbFileNumber (STRING s) = NUMERIC[18,4](replace(replace(replace(trim(s), ' ', ''), ' ', ''), ',', '.'));
+
+ntfNo = DATA LOCAL STRING (INTEGER);
+ntfVendorCode = DATA LOCAL STRING (INTEGER);
+ntfName = DATA LOCAL STRING (INTEGER);
+ntfQuantity = DATA LOCAL STRING (INTEGER);
+ntfSum = DATA LOCAL STRING (INTEGER);
+ntfVatString = DATA LOCAL STRING (INTEGER);
+ntfSumVat = DATA LOCAL STRING (INTEGER);
+
+ntfRow (INTEGER i) = imported(i) AND trim(ntfVendorCode(i)) AND trim(ntfQuantity(i)) AND NOT upper(trim(ntfVendorCode(i))) == 'АРТИКУЛ';
+
+parseRedeemNotificationFile (RedeemNotification d) {
+    readSpreadsheetFile(d);
+    IF NOT spreadsheetFile() THEN {
+        MESSAGE 'В файле документа ' + serviceId(d) + ' не найдена таблица.' NOWAIT;
+        RETURN;
+    }
+    IMPORT XLS FROM spreadsheetFile() TO ntfNo = A, ntfVendorCode = B, ntfName = C, ntfQuantity = D, ntfSum = E,
+        ntfVatString = F, ntfSumVat = G;
+
+    DELETE RedeemNotificationDetail dd WHERE redeemNotification(dd) == d;
+    FOR ntfRow(INTEGER i) ORDER i NEW dd = RedeemNotificationDetail DO {
+        redeemNotification(dd) <- d;
+        rowNumber(dd) <- INTEGER(trim(ntfNo(i)));
+        vendorCode(dd) <- STRING[100](trim(ntfVendorCode(i)));
+        nameItem(dd) <- STRING[250](trim(ntfName(i)));
+        quantity(dd) <- wbFileNumber(ntfQuantity(i));
+        sum(dd) <- wbFileNumber(ntfSum(i));
+        vatString(dd) <- STRING[20](trim(ntfVatString(i)));
+        vat(dd) <- NUMERIC[10,5](wbFileNumber(replace(ntfVatString(i), '%', '')));
+        sumVat(dd) <- wbFileNumber(ntfSumVat(i));
+    }
+}
+
+afterDownloadSellerDocument (RedeemNotification d) + {
+    parseRedeemNotificationFile(d);
+}
+
+parseRedeemNotification 'Заполнить строки из файла' (RedeemNotification d) {
+    NEWSESSION {
+        IF NOT file(d) THEN {
+            MESSAGE 'Файл документа ' + serviceId(d) + ' не загружен из WB.';
+            RETURN;
+        }
+        parseRedeemNotificationFile(d);
+        APPLY;
+        MESSAGE '<h3>Заполнение строк уведомления</h3>' NOWAIT;
+        MESSAGE CONCAT '\n',
+            name(d) + '.',
+            'Заполнено строк: ' + (OVERRIDE countDetails(d), 0) + ', количество ' + (OVERRIDE quantityDetails(d), 0.0) +
+                ', сумма выкупа ' + (OVERRIDE sumDetails(d), 0.0) + '.' NOWAIT;
+    }
+}
+
+FORM redeemNotifications 'Уведомления о выкупе'
+    PROPERTIES() dateFromDocuments, dateToDocuments, getSellerDocuments, downloadSelectedSellerDocuments
+
+    OBJECTS d = RedeemNotification
+    PROPERTIES(d) isSelected
+    PROPERTIES(d) READONLY serviceId, name, creationDateTime, viewed, loaded, fileName,
+        downloadDateTime, countDetails, quantityDetails, sumDetails, sumVatDetails
+    PROPERTIES(d) downloadSellerDocument TOOLBAR, openFile TOOLBAR, parseRedeemNotification TOOLBAR
+    ORDERS creationDateTime(d) DESC
+
+    OBJECTS dd = RedeemNotificationDetail
+    PROPERTIES(dd) READONLY rowNumber, vendorCode, nameItem, quantity, sum, vatString, vat, sumVat
+    ORDERS rowNumber(dd)
+    FILTERS redeemNotification(dd) == d
+
+    LIST RedeemNotification OBJECT d
+
+    EVENTS ON INIT setDefaultDatesDocuments()
+;
+
+DESIGN redeemNotifications {
+    OBJECTS {
+        NEW filterContainer {
+            horizontal = TRUE;
+            caption = 'Получение уведомлений из WB';
+            MOVE PROPERTY (dateFromDocuments());
+            MOVE PROPERTY (dateToDocuments());
+            MOVE PROPERTY (getSellerDocuments());
+            MOVE PROPERTY (downloadSelectedSellerDocuments());
+        }
+        NEW pane {
+            fill = 1;
+            MOVE BOX(d);
+            MOVE BOX(dd);
+        }
+    }
+}
+
+NAVIGATOR {
+    WBNavigator {
+        NEW redeemNotifications;
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() documentsRequestDelay, documentsPeriod, getSellerDocumentCategories
+
+    OBJECTS sdc = SellerDocumentCategory
+    PROPERTIES(sdc) READONLY id, name
+    ORDERS name(sdc)
+;
+
+DESIGN integrationData {
+    tabContainer {
+        NEW sellerDocumentCategories {
+            caption = 'Категории документов';
+            MOVE PROPERTY (getSellerDocumentCategories());
+            MOVE BOX(sdc);
+        }
+    }
+    requestLimits {
+        MOVE PROPERTY (documentsRequestDelay());
+        MOVE PROPERTY (documentsPeriod());
+    }
+}

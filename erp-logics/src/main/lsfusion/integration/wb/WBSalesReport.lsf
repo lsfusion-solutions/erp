@@ -1,0 +1,403 @@
+MODULE WBSalesReport;
+
+REQUIRE WB, Time;
+
+NAMESPACE WB;
+
+CLASS SalesReport 'Отчёт о реализации WB';
+TABLE salesReport (SalesReport);
+
+reportId 'ID отчёта' = DATA LONG (SalesReport) IN id INDEXED;
+salesReport (reportId) = GROUP AGGR SalesReport r BY reportId(r);
+
+dateFrom 'Дата с' = DATA DATE (SalesReport) IN base;
+dateTo 'Дата по' = DATA DATE (SalesReport) IN base;
+createDate 'Дата формирования' = DATA DATE (SalesReport);
+period 'Периодичность' = DATA STRING[10] (SalesReport) CHARWIDTH 8;
+currency 'Валюта' = DATA STRING[10] (SalesReport) CHARWIDTH 5;
+reportType 'Тип отчёта' = DATA INTEGER (SalesReport);
+retailAmountSum 'Продано WB' = DATA NUMERIC[18,2] (SalesReport);
+forPaySum 'К перечислению' = DATA NUMERIC[18,2] (SalesReport);
+loadDateTime 'Дата загрузки строк' = DATA DATETIME (SalesReport);
+
+isSelected 'Отм.' = DATA LOCAL NESTED BOOLEAN (SalesReport);
+
+CLASS SalesReportDetail 'Строка детализации отчёта WB';
+TABLE salesReportDetail (SalesReportDetail);
+
+salesReport 'Отчёт' = DATA SalesReport (SalesReportDetail) NONULL DELETE INDEXED;
+rrdId 'ID строки' = DATA LONG (SalesReportDetail) INDEXED;
+salesReportDetail (rrdId) = GROUP AGGR SalesReportDetail d BY rrdId(d);
+
+docTypeName 'Тип документа' = DATA STRING[50] (SalesReportDetail) CHARWIDTH 10;
+sellerOperName 'Обоснование для оплаты' = DATA STRING[100] (SalesReportDetail) CHARWIDTH 15;
+subjectName 'Предмет' = DATA STRING[100] (SalesReportDetail) CHARWIDTH 15;
+nmId 'Артикул WB' = DATA LONG (SalesReportDetail);
+brandName 'Бренд' = DATA STRING[100] (SalesReportDetail) CHARWIDTH 12;
+vendorCode 'Артикул продавца' = DATA STRING[100] (SalesReportDetail) CHARWIDTH 15;
+title 'Название' = DATA STRING[250] (SalesReportDetail) CHARWIDTH 25;
+techSize 'Размер' = DATA STRING[50] (SalesReportDetail) CHARWIDTH 6;
+barcode 'Баркод' = DATA STRING[50] (SalesReportDetail) CHARWIDTH 14;
+quantity 'Кол-во' = DATA INTEGER (SalesReportDetail);
+retailPrice 'Цена розничная' = DATA NUMERIC[18,2] (SalesReportDetail);
+retailPriceWithDisc 'Цена розничная с учётом скидки' = DATA NUMERIC[18,2] (SalesReportDetail);
+retailAmount 'Продано WB' = DATA NUMERIC[18,2] (SalesReportDetail);
+forPay 'К перечислению' = DATA NUMERIC[18,2] (SalesReportDetail);
+orderDateTime 'Дата заказа' = DATA DATETIME (SalesReportDetail);
+saleDateTime 'Дата продажи' = DATA DATETIME (SalesReportDetail);
+orderId 'Номер сборочного задания' = DATA LONG (SalesReportDetail) INDEXED;
+srid 'Srid' = DATA STRING[100] (SalesReportDetail) CHARWIDTH 15;
+shkId 'ШК' = DATA LONG (SalesReportDetail);
+stickerId 'Стикер' = DATA STRING[50] (SalesReportDetail) CHARWIDTH 10;
+kiz 'Код маркировки' = DATA STRING (SalesReportDetail) CHARWIDTH 30;
+deliveryMethod 'Способ продажи' = DATA STRING[50] (SalesReportDetail) CHARWIDTH 10;
+officeName 'Склад' = DATA STRING[100] (SalesReportDetail) CHARWIDTH 12;
+
+sale 'Продажа' (SalesReportDetail d) = trim(docTypeName(d)) == 'Продажа';
+
+countDetails 'Строк загружено' (SalesReport r) = GROUP SUM 1 BY salesReport(SalesReportDetail d);
+countSaleDetails 'Строк продаж' (SalesReport r) = GROUP SUM 1 IF sale(SalesReportDetail d) BY salesReport(d);
+
+// Настройки
+dataFinanceRequestDelay = DATA INTEGER ();
+financeRequestDelay 'Пауза между запросами финансовых отчётов, мс' = OVERRIDE dataFinanceRequestDelay(), 60000;
+
+dataSalesReportsPeriod = DATA INTEGER ();
+salesReportsPeriod 'Период загрузки отчётов о реализации по умолчанию, дней' = OVERRIDE dataSalesReportsPeriod(), 30;
+
+dailySalesReports 'Ежедневные отчёты о реализации' = DATA BOOLEAN ();
+salesReportPeriodRequest (BOOLEAN daily) = IF daily THEN 'daily' ELSE 'weekly';
+
+dateFromSalesReports 'Дата с' = DATA LOCAL DATE ();
+dateToSalesReports 'Дата по' = DATA LOCAL DATE ();
+
+setDefaultDatesSalesReports 'Период по умолчанию' () {
+    dateToSalesReports() <- currentDate();
+    dateFromSalesReports() <- sum(currentDate(), -salesReportsPeriod());
+}
+
+salesReportDetailsLimit () = 100000;
+
+// Поля строки детализации
+salesReportDetailFields () = '["rrdId","docTypeName","sellerOperName","subjectName","nmId","brandName","vendorCode","title","techSize","sku","quantity","retailPrice","retailPriceWithDisc","retailAmount","forPay","orderDt","saleDt","orderId","srid","shkId","stickerId","kiz","deliveryMethod","officeName"]';
+
+wbDateTime (STRING s) = toDateTimeFormat(substr(s, 1, 19), 'YYYY-MM-DD"T"HH24:MI:SS');
+wbDate (STRING s) = DATE(toDateTimeFormat(substr(s, 1, 10), 'YYYY-MM-DD'));
+
+// Список отчётов
+wbRepReportId = DATA LOCAL LONG (INTEGER);
+wbRepDateFrom = DATA LOCAL STRING[30] (INTEGER);
+wbRepDateTo = DATA LOCAL STRING[30] (INTEGER);
+wbRepCreateDate = DATA LOCAL STRING[30] (INTEGER);
+wbRepCurrency = DATA LOCAL STRING[10] (INTEGER);
+wbRepReportType = DATA LOCAL INTEGER (INTEGER);
+wbRepRetailAmountSum = DATA LOCAL STRING[30] (INTEGER);
+wbRepForPaySum = DATA LOCAL STRING[30] (INTEGER);
+
+// Ответ
+FORM importSalesReports
+    OBJECTS r = INTEGER EXTID 'value'
+    PROPERTIES(r) wbRepReportId EXTID 'reportId', wbRepDateFrom EXTID 'dateFrom', wbRepDateTo EXTID 'dateTo',
+        wbRepCreateDate EXTID 'createDate', wbRepCurrency EXTID 'currency', wbRepReportType EXTID 'reportType',
+        wbRepRetailAmountSum EXTID 'retailAmountSum', wbRepForPaySum EXTID 'forPaySum'
+    FILTERS imported(r)
+;
+
+getSalesReports 'Получить список отчётов' (DATE dateFrom, DATE dateTo, BOOLEAN daily) {
+    NEWSESSION {
+        setHttpHeadersIS(token(CategoryRequest.finance));
+        LOCAL NESTED message = STRING ();
+        LOCAL NESTED stop = BOOLEAN ();
+        LOCAL NESTED offset = INTEGER ();
+        LOCAL NESTED total = INTEGER ();
+        LOCAL response = FILE ();
+        offset() <- 0;
+
+        LOCAL NESTED dateTill = DATE ();
+        dateTill() <- OVERRIDE dateTo, currentDate();
+        LOCAL NESTED dateSince = DATE ();
+        dateSince() <- OVERRIDE dateFrom, sum(dateTill(), -salesReportsPeriod());
+
+        WHILE NOT stop() DO {
+            stringToFile(CONCAT '', '\{"dateFrom":"', toDateISO(dateSince()), '","dateTo":"', toDateISO(dateTill()),
+                '","limit":1000,"offset":', offset(), ',"period":"', salesReportPeriodRequest(daily), '"\}', 'UTF-8', 'json');
+            fileToString(resultFile(), 'UTF-8');
+            logToFile('WB', 'POST: ' + url(CategoryRequest.finance) + '/api/finance/v1/sales-reports/list body: ' + resultString());
+            TRY {
+                EXTERNAL HTTP POST url(CategoryRequest.finance) + '/api/finance/v1/sales-reports/list' HEADERS httpHeaders PARAMS resultFile() TO response;
+                IF statusHttp() == 204 THEN {
+                    stop() <- TRUE;
+                } ELSE {
+                    fileToString(response());
+                    logToFile('WB', resultString());
+                    IMPORT importSalesReports JSON FROM response();
+
+                    LOCAL countImported = INTEGER ();
+                    countImported() <- GROUP SUM 1 IF imported(INTEGER i);
+
+                    FOR INTEGER i = [GROUP MAX INTEGER i1 BY wbRepReportId(i1)](LONG id)
+                        AND NOT salesReport(id) INLINE DO NEW r = SalesReport {
+                        reportId(r) <- id;
+                    }
+                    FOR imported(INTEGER i) AND SalesReport r == salesReport(wbRepReportId(i)) INLINE DO {
+                        dateFrom(r) <- wbDate(wbRepDateFrom(i));
+                        dateTo(r) <- wbDate(wbRepDateTo(i));
+                        createDate(r) <- wbDate(wbRepCreateDate(i));
+                        currency(r) <- wbRepCurrency(i);
+                        reportType(r) <- wbRepReportType(i);
+                        period(r) <- salesReportPeriodRequest(daily);
+                        retailAmountSum(r) <- NUMERIC[18,2](wbRepRetailAmountSum(i));
+                        forPaySum(r) <- NUMERIC[18,2](wbRepForPaySum(i));
+                    }
+
+                    total() <- total() (+) countImported();
+                    IF NOT countImported() >= 1000 THEN
+                        stop() <- TRUE;
+                    ELSE
+                        offset() <- offset() + 1000;
+                }
+                message() <- CONCAT '', messageStatusHTTP(STRING(statusHttp())), '<h3>Получено отчётов: ', (OVERRIDE total(), 0), '</h3>';
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+                IF statusHttp() == 400 OR statusHttp() == 401 OR statusHttp() == 402 OR statusHttp() == 403 OR statusHttp() == 429 THEN {
+                    IMPORT importError429 JSON FROM response();
+                    extraDescriptionStatusHTTP() <- 'Список отчётов не получен: ' + (OVERRIDE detail429(), title429());
+                }
+                message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                stop() <- TRUE;
+            } FINALLY {
+                afterSendRequestIS();
+                IF NOT (statusHttp() >= 200 AND statusHttp() < 300) THEN {
+                    stop() <- TRUE;
+                }
+                APPLY;
+                IF NOT stop() THEN {
+                    sleep(LONG(financeRequestDelay()));
+                }
+            }
+        }
+        MESSAGE '<h3>Получение списка отчётов о реализации</h3>' NOWAIT;
+        MESSAGE message() NOWAIT;
+    }
+}
+
+getSalesReports 'Получить список отчётов' () {
+    IF NOT dateFromSalesReports() OR NOT dateToSalesReports() THEN setDefaultDatesSalesReports();
+    getSalesReports(dateFromSalesReports(), dateToSalesReports(), dailySalesReports());
+}
+
+// Детализация отчёта
+wbRrdId = DATA LOCAL LONG (INTEGER);
+wbRrdDocTypeName = DATA LOCAL STRING[50] (INTEGER);
+wbRrdSellerOperName = DATA LOCAL STRING[100] (INTEGER);
+wbRrdSubjectName = DATA LOCAL STRING[100] (INTEGER);
+wbRrdNmId = DATA LOCAL LONG (INTEGER);
+wbRrdBrandName = DATA LOCAL STRING[100] (INTEGER);
+wbRrdVendorCode = DATA LOCAL STRING[100] (INTEGER);
+wbRrdTitle = DATA LOCAL STRING[250] (INTEGER);
+wbRrdTechSize = DATA LOCAL STRING[50] (INTEGER);
+wbRrdSku = DATA LOCAL STRING[50] (INTEGER);
+wbRrdQuantity = DATA LOCAL INTEGER (INTEGER);
+wbRrdRetailPrice = DATA LOCAL STRING[30] (INTEGER);
+wbRrdRetailPriceWithDisc = DATA LOCAL STRING[30] (INTEGER);
+wbRrdRetailAmount = DATA LOCAL STRING[30] (INTEGER);
+wbRrdForPay = DATA LOCAL STRING[30] (INTEGER);
+wbRrdOrderDt = DATA LOCAL STRING[30] (INTEGER);
+wbRrdSaleDt = DATA LOCAL STRING[30] (INTEGER);
+wbRrdOrderId = DATA LOCAL LONG (INTEGER);
+wbRrdSrid = DATA LOCAL STRING[100] (INTEGER);
+wbRrdShkId = DATA LOCAL LONG (INTEGER);
+wbRrdStickerId = DATA LOCAL STRING[50] (INTEGER);
+wbRrdKiz = DATA LOCAL STRING (INTEGER);
+wbRrdDeliveryMethod = DATA LOCAL STRING[50] (INTEGER);
+wbRrdOfficeName = DATA LOCAL STRING[100] (INTEGER);
+
+// Ответ
+FORM importSalesReportDetails
+    OBJECTS r = INTEGER EXTID 'value'
+    PROPERTIES(r) wbRrdId EXTID 'rrdId', wbRrdDocTypeName EXTID 'docTypeName', wbRrdSellerOperName EXTID 'sellerOperName',
+        wbRrdSubjectName EXTID 'subjectName', wbRrdNmId EXTID 'nmId', wbRrdBrandName EXTID 'brandName',
+        wbRrdVendorCode EXTID 'vendorCode', wbRrdTitle EXTID 'title', wbRrdTechSize EXTID 'techSize', wbRrdSku EXTID 'sku',
+        wbRrdQuantity EXTID 'quantity', wbRrdRetailPrice EXTID 'retailPrice', wbRrdRetailPriceWithDisc EXTID 'retailPriceWithDisc',
+        wbRrdRetailAmount EXTID 'retailAmount', wbRrdForPay EXTID 'forPay', wbRrdOrderDt EXTID 'orderDt', wbRrdSaleDt EXTID 'saleDt',
+        wbRrdOrderId EXTID 'orderId', wbRrdSrid EXTID 'srid', wbRrdShkId EXTID 'shkId', wbRrdStickerId EXTID 'stickerId',
+        wbRrdKiz EXTID 'kiz', wbRrdDeliveryMethod EXTID 'deliveryMethod', wbRrdOfficeName EXTID 'officeName'
+    FILTERS imported(r)
+;
+
+getSalesReportDetails 'Загрузить строки отчёта' (SalesReport sr) {
+    NEWSESSION {
+        setHttpHeadersIS(token(CategoryRequest.finance));
+        LOCAL NESTED message = STRING ();
+        LOCAL NESTED stop = BOOLEAN ();
+        LOCAL NESTED lastRrdId = LONG ();
+        LOCAL NESTED total = INTEGER ();
+        LOCAL response = FILE ();
+        lastRrdId() <- LONG(0);
+
+        WHILE NOT stop() DO {
+            stringToFile(CONCAT '', '\{"limit":', salesReportDetailsLimit(), ',"rrdId":', lastRrdId(),
+                ',"fields":', salesReportDetailFields(), '\}', 'UTF-8', 'json');
+            fileToString(resultFile(), 'UTF-8');
+            logToFile('WB', 'POST: ' + url(CategoryRequest.finance) + '/api/finance/v1/sales-reports/detailed/' + reportId(sr) + ' body: ' + resultString());
+            TRY {
+                EXTERNAL HTTP POST url(CategoryRequest.finance) + '/api/finance/v1/sales-reports/detailed/' + reportId(sr)
+                    HEADERS httpHeaders PARAMS resultFile() TO response;
+                IF statusHttp() == 204 THEN {
+                    stop() <- TRUE;
+                } ELSE {                    
+                    IMPORT importSalesReportDetails JSON FROM response();
+
+                    LOCAL countImported = INTEGER ();
+                    countImported() <- GROUP SUM 1 IF imported(INTEGER i);
+                    logToFile('WB', 'Строк детализации в ответе: ' + (OVERRIDE countImported(), 0)); // в лог записывается только объём
+
+                    wbRrdKiz(INTEGER i) <- NULL WHERE wbRrdKiz(i) == '';
+                    wbRrdStickerId(INTEGER i) <- NULL WHERE wbRrdStickerId(i) == '';
+
+                    FOR INTEGER i = [GROUP MAX INTEGER i1 BY wbRrdId(i1)](LONG id)
+                        AND NOT salesReportDetail(id) INLINE DO NEW d = SalesReportDetail {
+                        rrdId(d) <- id;
+                        salesReport(d) <- sr;
+                    }
+                    FOR imported(INTEGER i) AND SalesReportDetail d == salesReportDetail(wbRrdId(i)) INLINE DO {
+                        docTypeName(d) <- wbRrdDocTypeName(i);
+                        sellerOperName(d) <- wbRrdSellerOperName(i);
+                        subjectName(d) <- wbRrdSubjectName(i);
+                        nmId(d) <- wbRrdNmId(i);
+                        brandName(d) <- wbRrdBrandName(i);
+                        vendorCode(d) <- wbRrdVendorCode(i);
+                        title(d) <- wbRrdTitle(i);
+                        techSize(d) <- wbRrdTechSize(i);
+                        barcode(d) <- wbRrdSku(i);
+                        quantity(d) <- wbRrdQuantity(i);
+                        retailPrice(d) <- NUMERIC[18,2](wbRrdRetailPrice(i));
+                        retailPriceWithDisc(d) <- NUMERIC[18,2](wbRrdRetailPriceWithDisc(i));
+                        retailAmount(d) <- NUMERIC[18,2](wbRrdRetailAmount(i));
+                        forPay(d) <- NUMERIC[18,2](wbRrdForPay(i));
+                        orderDateTime(d) <- wbDateTime(wbRrdOrderDt(i));
+                        saleDateTime(d) <- wbDateTime(wbRrdSaleDt(i));
+                        orderId(d) <- wbRrdOrderId(i);
+                        srid(d) <- wbRrdSrid(i);
+                        shkId(d) <- wbRrdShkId(i);
+                        stickerId(d) <- wbRrdStickerId(i);
+                        kiz(d) <- wbRrdKiz(i);
+                        deliveryMethod(d) <- wbRrdDeliveryMethod(i);
+                        officeName(d) <- wbRrdOfficeName(i);
+                    }
+
+                    total() <- total() (+) countImported();
+                    // следующую порцию запрашиваем от rrdId последней строки ответа
+                    IF countImported() >= salesReportDetailsLimit() THEN
+                        lastRrdId() <- wbRrdId(GROUP MAX INTEGER i IF imported(i));
+                    ELSE
+                        stop() <- TRUE;
+                }
+                loadDateTime(sr) <- currentDateTime();
+                message() <- CONCAT '', messageStatusHTTP(STRING(statusHttp())), '<h3>Отчёт ', reportId(sr), ': получено строк ', (OVERRIDE total(), 0), '</h3>';
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+                IF statusHttp() == 400 OR statusHttp() == 401 OR statusHttp() == 402 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 429 THEN {
+                    IMPORT importError429 JSON FROM response();
+                    extraDescriptionStatusHTTP() <- 'Строки отчёта ' + reportId(sr) + ' не получены: ' + (OVERRIDE detail429(), title429());
+                }
+                message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                stop() <- TRUE;
+            } FINALLY {
+                afterSendRequestIS();
+                IF NOT (statusHttp() >= 200 AND statusHttp() < 300) THEN {
+                    stop() <- TRUE;
+                }
+                APPLY;
+                IF NOT stop() THEN {
+                    sleep(LONG(financeRequestDelay()));
+                }
+            }
+        }
+        MESSAGE '<h3>Получение детализации отчёта о реализации</h3>' NOWAIT;
+        MESSAGE message() NOWAIT;
+    }
+}
+
+getSelectedSalesReportDetails 'Загрузить строки отмеченных' () {
+    IF NOT (GROUP SUM 1 IF isSelected(SalesReport r)) THEN {
+        MESSAGE 'Не отмечен ни один отчёт.';
+        RETURN;
+    }
+    LOCAL next = BOOLEAN ();
+    FOR isSelected(SalesReport r) ORDER dateFrom(r), r DO {
+        IF next() THEN sleep(LONG(financeRequestDelay()));
+        getSalesReportDetails(r);
+        next() <- TRUE;
+    }
+}
+
+getLoadSalesReports 'Получить отчёты о реализации и загрузить строки' (DATE dateFrom, DATE dateTo) {
+    getSalesReports(dateFrom, dateTo, dailySalesReports());
+    isSelected(SalesReport r) <- NULL;
+    isSelected(SalesReport r) <- TRUE WHERE r IS SalesReport AND NOT loadDateTime(r);
+    IF (GROUP SUM 1 IF isSelected(SalesReport r)) THEN {
+        sleep(LONG(financeRequestDelay()));
+        getSelectedSalesReportDetails();
+    }
+}
+
+FORM salesReports 'Отчёты о реализации WB'
+    PROPERTIES() dateFromSalesReports, dateToSalesReports, dailySalesReports, getSalesReports, getSelectedSalesReportDetails
+
+    OBJECTS r = SalesReport
+    PROPERTIES(r) isSelected
+    PROPERTIES(r) READONLY reportId, reportType, dateFrom, dateTo, createDate, period, currency, retailAmountSum, forPaySum,
+        countDetails, countSaleDetails, loadDateTime
+    PROPERTIES(r) getSalesReportDetails TOOLBAR
+    ORDERS dateFrom(r) DESC
+
+    OBJECTS d = SalesReportDetail
+    PROPERTIES(d) READONLY rrdId, docTypeName, sellerOperName, saleDateTime, orderDateTime, subjectName, nmId, brandName,
+        vendorCode, title, techSize, barcode, quantity, retailPrice, retailPriceWithDisc, retailAmount, forPay,
+        orderId, stickerId, shkId, srid, kiz, deliveryMethod, officeName
+    ORDERS rrdId(d)
+    FILTERS salesReport(d) == r
+    FILTERGROUP docType
+        FILTER 'Продажи' sale(d) 'F10'
+
+    LIST SalesReport OBJECT r
+
+    EVENTS ON INIT setDefaultDatesSalesReports()
+;
+
+DESIGN salesReports {
+    OBJECTS {
+        NEW filterContainer {
+            horizontal = TRUE;
+            caption = 'Получение отчётов из WB';
+            MOVE PROPERTY (dateFromSalesReports());
+            MOVE PROPERTY (dateToSalesReports());
+            MOVE PROPERTY (dailySalesReports());
+            MOVE PROPERTY (getSalesReports());
+            MOVE PROPERTY (getSelectedSalesReportDetails());
+        }
+        NEW pane {
+            fill = 1;
+            MOVE BOX(r);
+            MOVE BOX(d);
+        }
+    }
+}
+
+NAVIGATOR {
+    WBNavigator {
+        NEW salesReports;
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() financeRequestDelay, salesReportsPeriod
+;
+
+DESIGN integrationData {
+    requestLimits {
+        MOVE PROPERTY (financeRequestDelay());
+        MOVE PROPERTY (salesReportsPeriod());
+    }
+}
