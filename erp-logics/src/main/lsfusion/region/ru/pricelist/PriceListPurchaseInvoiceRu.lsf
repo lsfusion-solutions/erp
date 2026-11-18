@@ -4,7 +4,19 @@ REQUIRE PriceListOperation, PurchaseInvoiceVATRu, PurchaseOrderVATRu, LegalEntit
 
 NAMESPACE PriceList;
 
-disableUpdateInvoicePrice (UserInvoiceDetail d) += TRUE IF d IS UserInvoiceDetail;
+fillPriceListPrice 'Заполнять цену из прайса поставщика' = DATA BOOLEAN (Purchase.Operation) PREREAD;
+
+EXTEND FORM Purchase.operation
+    PROPERTIES(o) fillPriceListPrice
+;
+
+DESIGN Purchase.operation {
+    paramsContainer {
+        MOVE PROPERTY(fillPriceListPrice(o));
+    }
+}
+
+disableUpdateInvoicePrice (UserInvoiceDetail d) += d IS UserInvoiceDetail AND NOT fillPriceListPrice(Purchase.operation(d));
 //disableUpdateInvoicePrice (UserOrderDetail d) += TRUE IF d IS UserOrderDetail;
 isShowIfPrice (Purchase.Invoice i) += TRUE IF i IS Purchase.Invoice;
 isShowIfPrice (Purchase.Order i) += TRUE IF i IS Purchase.Order;
