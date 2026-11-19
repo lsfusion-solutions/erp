@@ -367,7 +367,7 @@ class TransactionEquipmentServer {
             String portMachinery = trim((String) row.get("portMachinery"));
             String directoryCashRegister = trim((String) row.get("overDirectoryMachinery"));
             boolean succeeded = row.get("succeededMachineryMachineryPriceTransaction") != null;
-            boolean cleared = row.get("clearedMachineryPriceTransaction") != null;
+            boolean cleared = row.get("clearedMachineryMachineryPriceTransaction") != null;
             Boolean disableSalesCashRegister = row.get("disableSalesCashRegister") != null;
             boolean enabled = row.get("inMachineryPriceTransactionMachinery") != null;
             cashRegisterInfoList.add(new CashRegisterInfo(enabled, cleared, succeeded, nppGroupMachinery, nppMachinery,
