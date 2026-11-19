@@ -1,0 +1,334 @@
+MODULE DataTerminalBatches;
+
+// Партии товара в документах веб-ТСД (как в нативном приложении ТСД). Работа с партиями включена, если в настройках
+// обмена с ТСД задано количество дней для выгрузки партий (countDaysFilterBatches больше 0, TerminalHandler.lsf), в документе -
+// если в настройках его типа включена работа с партиями товара (withBatches).
+// Партии товара - те же, что выгружаются на нативный ТСД (filterBatch), но отбираются по товару, а не по штрихкоду.
+// Расписанное по партиям хранится в строке документа ТСД (batch) в формате нативного ТСД: «id партии:количество» через «;»,
+// поэтому строки, расписанные на нативном ТСД и в веб-ТСД, взаимозаменяемы
+REQUIRE DataTerminalDocumentDetailEdit, DataTerminalSkus, TerminalHandler;
+
+NAMESPACE DataTerminal;
+
+beforeDataTerminalStart() + { INTERNAL CLIENT 'dataTerminalBatches.css'; }
+
+// Партии
+
+terminalBatches () = countDaysFilterBatches() > 0;
+
+terminalBatch (Batch b, Sku s, Stock st) = sku(b) = s AND filterBatch(b, st) AND terminalBatches();
+countTerminalBatches (Sku s, Stock st) = GROUP SUM 1 IF terminalBatch(Batch b, s, st);
+
+withTerminalBatches (TerminalDocument doc) = withBatches(preferences(terminalDocumentType(doc))) AND terminalBatches();
+withTerminalBatches (TerminalDocumentDetail d) = withTerminalBatches(terminalDocument(d));
+countTerminalBatches (TerminalDocumentDetail d) = countTerminalBatches(sku(d), stock(d));
+
+// Строка партий: i-я запись «id партии:количество»
+batchEntry (STRING batches, INTEGER i) = getWord(batches, ';', i);
+inBatches (STRING batches, INTEGER i) = iterate(i, 1, wordCount(batches, ';'));
+idBatchEntry (STRING batches, INTEGER i) = getWord(batchEntry(batches, i), ':', 1);
+quantityBatchEntry (STRING batches, INTEGER i) = NUMERIC[16,3](getWord(batchEntry(batches, i), ':', 2));
+
+terminalFilledQuantity (STRING batches) = GROUP SUM quantityBatchEntry(batches, INTEGER i) IF inBatches(batches, i);
+
+// Экран строки документа: расписанное по партиям вводится вместе с полями строки и пишется в строку при сохранении.
+// NESTED - значение видно в сессии сохранения строки (saveEditedDetail)
+editBatches = DATA LOCAL NESTED STRING ();
+
+afterLoadEditedDetail (TerminalDocumentDetail d) + {
+    editBatches() <- batch(d) IF withTerminalBatches(d);
+}
+
+beforeSaveEditedDetail (TerminalDocumentDetail d) + {
+    IF withTerminalBatches(d) THEN
+        batch(d) <- editBatches();
+}
+
+// Количество строки - не меньше расписанного по партиям
+extraFieldError (TerminalDetailField f) += WHEN f = TerminalDetailField.quantity AND editQuantity() < terminalFilledQuantity(editBatches())
+    THEN STRING('Количество меньше расписанного по партиям: ' + shortQuantity(terminalFilledQuantity(editBatches())));
+
+htmlEditDetailExtra () += STRING('<div class=batches><span>Расписано по партиям</span>'
+    + shortQuantity(terminalFilledQuantity(editBatches())) + '</div>');
+
+htmlDetailExtra (TerminalDocumentDetail d) += STRING('<div class=batches><span>Расписано по партиям</span>'
+    + shortQuantity(terminalFilledQuantity(batch(d))) + '</div>') IF withTerminalBatches(d);
+
+// Скан (режим ADD): одна строка на товар - расписанное хранится в строке, а нативный ТСД выгружает строки товара
+// одной строкой. У товара с партиями количество сканом не подставляется - вводится распределением по партиям
+forceGroupItems (TerminalDocument doc) += withTerminalBatches(doc);
+noAutoQuantity (TerminalDocument doc, Sku s) += withTerminalBatches(doc) AND countTerminalBatches(s, stock(doc));
+
+// Окно «Партии»: партии товара и количество по каждой. Товар и склад - строки (на экране «Товары» - товара и склада
+// экрана)
+batchesSku = DATA LOCAL Sku ();
+batchesStock = DATA LOCAL Stock ();
+
+// Карточка партии - в разметке карточки строки документа (terminal-document-detail): номер, поставщик и дата партии,
+// количество по партии (в окне «Партии»), цена и дополнительная информация (extraField)
+htmlBatch '' (Batch b, Stock st, STRING quantity, STRING cls) = CONCAT '',
+    '<div class="', (CONCAT ' ', 'terminal-document-detail terminal-batch', cls), '">',
+        '<div class=name>', (OVERRIDE seriesNumber(b), 'Без номера'), '</div>',
+        '<div class=header>',
+            '<div class=supplier>', nameSupplier(b), '</div>',
+            '<div class=date>', toDateDDMMYYYY(date(b)), '</div>',
+        '</div>',
+        quantity,
+        '<div class=values>',
+            '<div class=price><span>Цена</span>', (OVERRIDE STRING(NUMERIC[16,2](currentPriceInTerminal(b, st))), '—'), '</div>',
+        '</div>',
+        '<div class=fields>', extraField(b, st), '</div>',
+    '</div>';
+
+// Количество по партиям в окне: открывается с расписанным в строке, в строку пишется по OK
+fillBatchQuantity = DATA LOCAL NUMERIC[14,3] (Batch);
+// Количество строки при открытии окна и записи строки партий не по партиям товара
+fillInitialQuantity = DATA LOCAL NUMERIC[14,3] ();
+fillForeignBatches = DATA LOCAL STRING ();
+
+fillTotalQuantity () = GROUP SUM NUMERIC[16,3](fillBatchQuantity(Batch b));
+// Количество строки, как в нативном ТСД: было 0 - равно расписанному, иначе - не меньше расписанного
+fillResultQuantity () = IF fillInitialQuantity() > 0 THEN (MAX fillInitialQuantity(), fillTotalQuantity()) ELSE fillTotalQuantity();
+
+htmlFillBatch '' (Batch b) = htmlBatch(b, batchesStock(),
+    STRING('<div class=quantity><span>Кол-во</span><div class=value>'
+        + (OVERRIDE shortQuantity(NUMERIC[16,3](fillBatchQuantity(b))), '0') + '</div></div>'),
+    'filled' IF fillBatchQuantity(b) > 0);
+
+htmlFillTotals '' () = CONCAT '',
+    '<div class=terminal-batches-totals>',
+        '<div><span>Количество</span>', (OVERRIDE shortQuantity(NUMERIC[16,3](fillResultQuantity())), '0'), '</div>',
+        '<div><span>Расписано</span>', (OVERRIDE shortQuantity(fillTotalQuantity()), '0'), '</div>',
+    '</div>';
+
+// Ввод количества по партии: нижняя панель с полем, как на экране строки (системная цифровая клавиатура,
+// inputDecimalTextSelected), Enter - OK
+batchQuantityInput 'Количество' = DATA LOCAL NUMERIC[14,3] ();
+
+FORM terminalBatchQuantity 'Количество'
+    OBJECTS b = Batch PANEL
+    PROPERTIES READONLY header = dialogHeader('Количество по партии',
+        (CONCAT ' от ', (OVERRIDE seriesNumber(b), 'без номера'), toDateDDMMYYYY(date(b)))) CUSTOM 'htmlText'
+    PROPERTIES batchQuantity = batchQuantityInput() CUSTOM 'inputDecimalTextSelected'
+;
+
+@defButtonCustom(ok, 'OK', terminalBatchQuantity, 'ENTER', select);
+@defButtonCustom(close, 'Отмена', terminalBatchQuantity, 'ESCAPE', cancel);
+
+DESIGN terminalBatchQuantity {
+    OBJECTS {
+        MOVE PROPERTY (header) FIRST {
+            focusable = FALSE;
+            align = STRETCH;
+        }
+        MOVE PROPERTY (batchQuantity) {
+            align = STRETCH;
+            captionVertical = TRUE;
+            defaultComponent = TRUE;
+            class = 'dt-edit-field';
+            captionClass = 'dt-edit-field-caption';
+            valueClass = 'dt-edit-field-value';
+        }
+        // кнопки одной строкой у правого края окна (стили - ask-buttons в data-terminal.css)
+        NEW otherButtons {
+            horizontal = TRUE;
+            wrap = FALSE;
+            childrenAlignment = END;
+            class = 'ask-buttons';
+            align = STRETCH;
+            MOVE PROPERTY (ok);
+            MOVE PROPERTY (close);
+        }
+    }
+    REMOVE TOOLBARBOX;
+}
+
+// Касание карточки партии - ввод количества по ней (0 или пусто - партия не расписана)
+changeFillBatchQuantity (Batch b) {
+    batchQuantityInput() <- fillBatchQuantity(b);
+    DIALOG terminalBatchQuantity OBJECTS b = b NOMANAGESESSION DO {
+        IF batchQuantityInput() < 0 THEN {
+            message('<em>Количество не может быть отрицательным</em>');
+            RETURN;
+        }
+        // запрет дробного количества для штучного товара - как у поля количества на экране строки (fieldError)
+        IF banFractQuantityForPieceItem(preferences(editedDetail())) AND NOT split(batchesSku())
+                AND NOT (floor(batchQuantityInput()) = batchQuantityInput()) THEN {
+            message('<em>Для штучного товара количество должно быть целым</em>');
+            RETURN;
+        }
+        fillBatchQuantity(b) <- batchQuantityInput() IF batchQuantityInput() > 0;
+    }
+}
+
+// «Сброс»: количество по всем партиям - 0, окно остается открытым (как в нативном ТСД)
+resetFillBatches () {
+    askYesNo('Обнулить количество по всем партиям?');
+    IF askedYesNo() THEN
+        fillBatchQuantity(Batch b) <- NULL;
+}
+
+// Партии в окне: партии товара на складе строки и уже расписанные в строке (даже если по отбору партий их уже нет)
+FORM terminalFillBatches 'Партии'
+    PROPERTIES READONLY header = dialogHeader(name(batchesSku()), 'Партии') CUSTOM 'htmlText',
+                        totals = htmlFillTotals() CUSTOM 'htmlText'
+
+    OBJECTS b = Batch
+    PROPERTIES htmlDetail = htmlFillBatch(b) CUSTOM 'htmlText' ON CHANGE changeFillBatchQuantity(b)
+    PROPERTIES (b) READONLY dateTime SHOWIF NULL
+    FILTERS terminalBatch(b, batchesSku(), batchesStock()) OR fillBatchQuantity(b)
+    ORDERS dateTime(b) DESC
+;
+
+// Класс кнопки 'custom-button ok select': с повтором 'ok' (addclass = ok) класс ok кнопке не достается
+@defButtonCustom(ok, 'OK', terminalFillBatches, 'ENTER', select);
+@defButtonCustom(close, 'Отмена', terminalFillBatches, 'ESCAPE', cancel);
+@defButtonCustom(resetFillBatches, 'Сброс', terminalFillBatches, 'F2', reset);
+
+DESIGN terminalFillBatches {
+    OBJECTS {
+        MOVE PROPERTY (header) FIRST {
+            focusable = FALSE;
+            align = STRETCH;
+        }
+        MOVE PROPERTY (totals) AFTER PROPERTY (header) {
+            focusable = FALSE;
+            align = STRETCH;
+        }
+        BOX (b) {
+            align = STRETCH;
+            collapsible = FALSE;
+            caption = NULL;
+            REMOVE TOOLBARBOX (b);
+            GRID (b) {
+                height = 400;
+                captionHeight = 0;
+                class = 'not-header no-horz-scroll card-list';
+            }
+        }
+        // кнопки одной строкой: «Сброс» у левого края, OK и «Отмена» у правого (ask-buttons-reset в data-terminal.css)
+        NEW otherButtons {
+            horizontal = TRUE;
+            wrap = FALSE;
+            childrenAlignment = END;
+            class = 'ask-buttons ask-buttons-reset';
+            align = STRETCH;
+            MOVE PROPERTY (resetFillBatches);
+            MOVE PROPERTY (ok);
+            MOVE PROPERTY (close);
+        }
+    }
+    // Базовая ширина карточки небольшая: иначе окно и колонка при открытии берут ширину самой длинной карточки.
+    // Количество вводится первым касанием карточки
+    PROPERTY (htmlDetail) {
+        defaultComponent = TRUE;
+        charWidth = 20;
+        changeOnSingleClick = TRUE;
+    }
+    REMOVE TOOLBARBOX;
+}
+
+// Кнопка «Расписать по партиям (N)» на экране строки (N - партий товара на складе документа): окно «Партии» для товара строки.
+// По OK - расписанное и количество строки (как в нативном ТСД), затем фокус в поле количества
+fillTerminalBatches () {
+    FOR TerminalDocumentDetail d = editedDetail() DO {
+        batchesSku() <- sku(d);
+        batchesStock() <- stock(d);
+        fillInitialQuantity() <- editQuantity();
+        fillBatchQuantity(Batch b) <- NUMERIC[14,3](GROUP SUM quantityBatchEntry(editBatches(), INTEGER i)
+            IF inBatches(editBatches(), i) AND idBatchEntry(editBatches(), i) = STRING(LONG(b))) IF sku(b) = sku(d);
+        // записи не по партиям товара (например серии внешних партий нативного ТСД) сохраняются как есть
+        fillForeignBatches() <- STRING(GROUP CONCAT batchEntry(editBatches(), INTEGER i) IF inBatches(editBatches(), i)
+            AND NOT (GROUP SUM 1 IF sku(Batch b) = sku(d) AND STRING(LONG(b)) = idBatchEntry(editBatches(), i)), ';' ORDER i);
+        DIALOG terminalFillBatches NOMANAGESESSION DO {
+            editBatches() <- CONCAT ';',
+                (GROUP CONCAT (STRING(LONG(Batch b)) + ':' + shortQuantity(NUMERIC[16,3](fillBatchQuantity(b))))
+                    IF fillBatchQuantity(b) > 0, ';' ORDER b),
+                fillForeignBatches();
+            IF fillResultQuantity() THEN
+                editQuantity() <- NUMERIC[14,3](fillResultQuantity());
+        }
+        IF requested(TerminalDetailField.quantity, d) THEN
+            currentField() <- TerminalDetailField.quantity;
+        focusCurrentField();
+    }
+}
+@defButtonCustom(fillTerminalBatches, 'Расписать по партиям', dataTerminalInternal, 'F4', );
+
+overFillTerminalBatchesDataTerminalInternal() += STRING('Расписать по партиям (' + countTerminalBatches(editedDetail()) + ')');
+// Кнопка - только у строки документа с партиями: у товара есть партии или строка уже расписана
+hideFillTerminalBatchesDataTerminalInternal() += NOT (withTerminalBatches(editedDetail())
+    AND (countTerminalBatches(editedDetail()) OR editBatches()));
+
+DESIGN dataTerminalInternal {
+    terminalDocumentDetailEditButtons {
+        MOVE PROPERTY (fillTerminalBatches) { fill = 1; }
+    }
+}
+
+// Экран «Товары»: справа от карточки товара - число его партий на складе экрана, касание - список партий
+htmlTerminalSkuBatches '' (Sku s) = '<div class=sku-batches>✽<div>' + countTerminalBatches(s, terminalSkusStock()) + '</div></div>'
+    CHARWIDTH 3;
+
+FORM terminalSkuBatches 'Партии'
+    PROPERTIES READONLY header = dialogHeader(name(batchesSku()), 'Партии') CUSTOM 'htmlText'
+
+    OBJECTS b = Batch
+    PROPERTIES READONLY htmlDetail = htmlBatch(b, batchesStock(), '', '') CUSTOM 'htmlText'
+    PROPERTIES (b) READONLY dateTime SHOWIF NULL
+    FILTERS terminalBatch(b, batchesSku(), batchesStock())
+    ORDERS dateTime(b) DESC
+;
+
+@defButtonCustom(close, 'Закрыть', terminalSkuBatches, 'ESCAPE', cancel);
+
+DESIGN terminalSkuBatches {
+    OBJECTS {
+        MOVE PROPERTY (header) FIRST {
+            focusable = FALSE;
+            align = STRETCH;
+        }
+        BOX (b) {
+            align = STRETCH;
+            collapsible = FALSE;
+            caption = NULL;
+            REMOVE TOOLBARBOX (b);
+            GRID (b) {
+                height = 400;
+                captionHeight = 0;
+                class = 'not-header no-horz-scroll card-list';
+            }
+        }
+        // единственная кнопка - у правого края окна (стили - ask-buttons в data-terminal.css)
+        NEW closeButtons {
+            horizontal = TRUE;
+            wrap = FALSE;
+            childrenAlignment = END;
+            class = 'ask-buttons';
+            align = STRETCH;
+            MOVE PROPERTY (close);
+        }
+    }
+    PROPERTY (htmlDetail) {
+        defaultComponent = TRUE;
+        charWidth = 20;
+    }
+    REMOVE TOOLBARBOX;
+}
+
+showTerminalSkuBatches (Sku s) {
+    IF NOT countTerminalBatches(s, terminalSkusStock()) THEN RETURN;
+    batchesSku() <- s;
+    batchesStock() <- terminalSkusStock();
+    DIALOG terminalSkuBatches NOMANAGESESSION;
+}
+
+EXTEND FORM dataTerminalInternal
+    PROPERTIES (terminalSku) htmlTerminalSkuBatches CUSTOM 'htmlText' SHOWIF terminalBatches()
+        ON CHANGE showTerminalSkuBatches(terminalSku)
+;
+
+DESIGN dataTerminalInternal {
+    // Список открывается первым касанием, без предварительного выбора строки
+    PROPERTY (htmlTerminalSkuBatches(terminalSku)) { changeOnSingleClick = TRUE; }
+}

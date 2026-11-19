@@ -129,13 +129,17 @@ htmlPriceCheck '' (Sku s, Stock st) = CONCAT '',
         (OVERRIDE STRING(NUMERIC[16,3](currentBalance(s, st))), '0'), '</span></div>',
     '<div class=info>', (CONCAT ' ● ', id(s AS Item), name(Item.manufacturer(s AS Item))), '</div>';
 
+// Дополнительные строки карточки товара в шапке экрана строки (EDIT, ADD), например расписанное по партиям
+// (DataTerminalBatches.lsf)
+htmlEditDetailExtra = ABSTRACT STRING ();
+
 // Шапка экрана - карточка товара: в EDIT и ADD - товар строки и количество по заказу, в PRICE_CHECK - отсканированный
 // товар с ценой и остатком. В режимах ADD и PRICE_CHECK до скана карточки нет (подсказка - в поле штрихкода)
 htmlEditDetailHeader '' () = CASE
     WHEN editedDetail() THEN htmlSkuCard(sku(editedDetail()), barcode(editedDetail()),
         ('<div class=order><span>Заказ</span>' + (OVERRIDE shortQuantity(NUMERIC[16,3](orderQuantity(editedDetail()))), '0') + '</div>')
             IF terminalOrder(terminalDocument(editedDetail())),
-        '')
+        htmlEditDetailExtra())
     WHEN screenMode() = TerminalDetailScreenMode.priceCheck AND priceCheckSku() THEN
         htmlSkuCard(priceCheckSku(), priceCheckBarcode(), '', htmlPriceCheck(priceCheckSku(), priceCheckStock()));
 
@@ -167,16 +171,23 @@ DESIGN dataTerminalInternal {
             focusable = FALSE;
             align = STRETCH;
         }
-        NEW terminalDocumentDetailEditFields {
+        // Поле ввода и справа от него кнопка «Далее» (dataTerminalDocumentDetailEdit.css)
+        NEW terminalDocumentDetailEditInput {
             align = STRETCH;
-            MOVE PROPERTY (dtEditQuantity) { align = STRETCH; captionVertical = TRUE; class = 'dt-edit-field'; captionClass = 'dt-edit-field-caption'; valueClass = 'dt-edit-field-value'; }
-            MOVE PROPERTY (dtEditExtraQuantity) { align = STRETCH; captionVertical = TRUE; class = 'dt-edit-field'; captionClass = 'dt-edit-field-caption'; valueClass = 'dt-edit-field-value'; }
-            MOVE PROPERTY (dtEditPrice) { align = STRETCH; captionVertical = TRUE; class = 'dt-edit-field'; captionClass = 'dt-edit-field-caption'; valueClass = 'dt-edit-field-value'; }
-            MOVE PROPERTY (dtEditDate1) { align = STRETCH; captionVertical = TRUE; class = 'dt-edit-field'; captionClass = 'dt-edit-field-caption'; valueClass = 'dt-edit-field-value'; }
-            MOVE PROPERTY (dtEditDate2) { align = STRETCH; captionVertical = TRUE; class = 'dt-edit-field'; captionClass = 'dt-edit-field-caption'; valueClass = 'dt-edit-field-value'; }
-            MOVE PROPERTY (dtEditField1) { align = STRETCH; captionVertical = TRUE; class = 'dt-edit-field'; captionClass = 'dt-edit-field-caption'; valueClass = 'dt-edit-field-value'; }
-            MOVE PROPERTY (dtEditField2) { align = STRETCH; captionVertical = TRUE; class = 'dt-edit-field'; captionClass = 'dt-edit-field-caption'; valueClass = 'dt-edit-field-value'; }
-            MOVE PROPERTY (dtEditField3) { align = STRETCH; captionVertical = TRUE; class = 'dt-edit-field'; captionClass = 'dt-edit-field-caption'; valueClass = 'dt-edit-field-value'; }
+            horizontal = TRUE;
+            wrap = FALSE;
+            class = 'dt-edit-input';
+            NEW terminalDocumentDetailEditFields {
+                fill = 1;
+                MOVE PROPERTY (dtEditQuantity) { align = STRETCH; captionVertical = TRUE; class = 'dt-edit-field'; captionClass = 'dt-edit-field-caption'; valueClass = 'dt-edit-field-value'; }
+                MOVE PROPERTY (dtEditExtraQuantity) { align = STRETCH; captionVertical = TRUE; class = 'dt-edit-field'; captionClass = 'dt-edit-field-caption'; valueClass = 'dt-edit-field-value'; }
+                MOVE PROPERTY (dtEditPrice) { align = STRETCH; captionVertical = TRUE; class = 'dt-edit-field'; captionClass = 'dt-edit-field-caption'; valueClass = 'dt-edit-field-value'; }
+                MOVE PROPERTY (dtEditDate1) { align = STRETCH; captionVertical = TRUE; class = 'dt-edit-field'; captionClass = 'dt-edit-field-caption'; valueClass = 'dt-edit-field-value'; }
+                MOVE PROPERTY (dtEditDate2) { align = STRETCH; captionVertical = TRUE; class = 'dt-edit-field'; captionClass = 'dt-edit-field-caption'; valueClass = 'dt-edit-field-value'; }
+                MOVE PROPERTY (dtEditField1) { align = STRETCH; captionVertical = TRUE; class = 'dt-edit-field'; captionClass = 'dt-edit-field-caption'; valueClass = 'dt-edit-field-value'; }
+                MOVE PROPERTY (dtEditField2) { align = STRETCH; captionVertical = TRUE; class = 'dt-edit-field'; captionClass = 'dt-edit-field-caption'; valueClass = 'dt-edit-field-value'; }
+                MOVE PROPERTY (dtEditField3) { align = STRETCH; captionVertical = TRUE; class = 'dt-edit-field'; captionClass = 'dt-edit-field-caption'; valueClass = 'dt-edit-field-value'; }
+            }
         }
     }
 }
@@ -194,6 +205,11 @@ focusCurrentField () {
         WHEN currentField() = TerminalDetailField.field3 THEN ACTIVATE PROPERTY dataTerminalInternal.dtEditField3;
 }
 
+// Загрузка в поля ввода и запись в строку значений, которые вводятся не полями экрана (например партии,
+// DataTerminalBatches.lsf). Запись - в сессии сохранения строки, перед APPLY
+afterLoadEditedDetail ABSTRACT LIST (TerminalDocumentDetail);
+beforeSaveEditedDetail ABSTRACT LIST (TerminalDocumentDetail);
+
 // Значения строки - в поля ввода, текущее - первое запрашиваемое поле
 loadEditedDetail (TerminalDocumentDetail d) {
     editedDetail() <- d;
@@ -206,6 +222,7 @@ loadEditedDetail (TerminalDocumentDetail d) {
     editField2() <- extraField2(d);
     editField3() <- extraField3(d);
     currentField() <- firstField(d);
+    afterLoadEditedDetail(d);
 }
 
 // Открытие экрана в режиме EDIT
@@ -243,6 +260,10 @@ afterTerminalDocumentDetailMenu (TerminalDocumentDetail d) + {
     }
 }
 
+// Дополнительная проверка поля в других модулях (например количество не меньше расписанного по партиям,
+// DataTerminalBatches.lsf): текст ошибки или NULL
+extraFieldError = ABSTRACT CASE STRING (TerminalDetailField);
+
 // Проверка введенного значения поля: перед переходом к следующему (текущее поле) и перед сохранением по OK (все поля).
 // Количество 0 допустимо всегда (обнуление строки)
 fieldError (TerminalDetailField f) = CASE
@@ -266,7 +287,8 @@ fieldError (TerminalDetailField f) = CASE
     WHEN f = TerminalDetailField.field2 AND required(TerminalDetailField.field2, editedDetail()) AND NOT editField2()
         THEN 'Заполните поле «' + fieldCaption(f) + '»'
     WHEN f = TerminalDetailField.field3 AND required(TerminalDetailField.field3, editedDetail()) AND NOT editField3()
-        THEN 'Заполните поле «' + fieldCaption(f) + '»';
+        THEN 'Заполните поле «' + fieldCaption(f) + '»'
+    WHEN extraFieldError(f) THEN extraFieldError(f);
 
 // Первое по порядку запрашиваемое поле с ошибкой
 errorField () = GROUP LAST TerminalDetailField f ORDER DESC order(f), f WHERE requested(f, editedDetail()) AND fieldError(f);
@@ -308,6 +330,7 @@ saveEditedDetail () {
             IF requested(TerminalDetailField.field1, d) THEN extraField1(d) <- editField1();
             IF requested(TerminalDetailField.field2, d) THEN extraField2(d) <- editField2();
             IF requested(TerminalDetailField.field3, d) THEN extraField3(d) <- editField3();
+            beforeSaveEditedDetail(d);
             APPLY;
             // успешный APPLY очищает локальные свойства сессии, поэтому признак ставится после него
             IF NOT canceled() THEN
@@ -343,7 +366,7 @@ nextDetailField () {
                                firstField(editedDetail());
     focusCurrentField();
 }
-@defButtonCustom(nextDetailField, 'Далее', dataTerminalInternal, 'ENTER', );
+@defButtonCustom(nextDetailField, 'Далее', dataTerminalInternal, 'ENTER', ok);
 // Пока строки нет (ADD до скана) - полей нет, «Далее» не показываем
 hideNextDetailFieldDataTerminalInternal() += NOT editedDetail();
 
@@ -378,13 +401,20 @@ headerClass (MenuItem i) += WHEN i = MenuItem.terminalDocumentDetailEditOperatio
 showHeaderOk (MenuItem i) += WHEN i = MenuItem.terminalDocumentDetailEditOperation AND NOT scanMode() THEN TRUE;
 headerOk (MenuItem i) + WHEN i = MenuItem.terminalDocumentDetailEditOperation THEN { okDetailField(); }
 
+// «Далее» - справа от поля ввода, значком (подпись скрыта, dataTerminalDocumentDetailEdit.css), по нижнему краю - на
+// уровне поля под его подписью. Ниже поля - строка кнопок экрана (например «Расписать по партиям», DataTerminalBatches.lsf)
 DESIGN dataTerminalInternal {
     terminalDocumentDetailEditOperation {
+        terminalDocumentDetailEditInput {
+            MOVE PROPERTY (nextDetailField) {
+                align = END;
+                focusable = FALSE;
+            }
+        }
         NEW terminalDocumentDetailEditButtons {
             align = STRETCH;
             horizontal = TRUE;
             class = 'dt-edit-buttons';
-            MOVE PROPERTY (nextDetailField) { fill = 1; }
         }
     }
 }
@@ -417,6 +447,13 @@ addError (STRING title, STRING barcode) {
 }
 
 addedDetail = DATA LOCAL TerminalDocumentDetail ();
+
+// Расширение скана в других модулях (например партии, DataTerminalBatches.lsf):
+// forceGroupItems - одна строка на товар, как при группировке по товару (groupItems);
+// noAutoQuantity - количество товара сканом не подставляется (новая строка - 0, у найденной строки - без изменений),
+// если его нет в штрихкоде
+forceGroupItems = ABSTRACT BOOLEAN (TerminalDocument);
+noAutoQuantity = ABSTRACT BOOLEAN (TerminalDocument, Sku);
 
 // Заполнение полей ввода строки из разобранного штрихкода (BarcodeParser: parsedBarcode по группам BarcodeGroup).
 // Вызывается при скане и ручном вводе штрихкода в режиме ADD, когда строка товара уже загружена в поля ввода
@@ -455,13 +492,14 @@ processAddBarcode (STRING barcode) {
                 addError('Товара нет в заказе', barcode);
                 RETURN;
             }
-            IF inOrder(doc, s) OR groupItems(editPreferences()) THEN
+            IF inOrder(doc, s) OR groupItems(editPreferences()) OR forceGroupItems(doc) THEN
                 FOR TerminalDocumentDetail d = documentDetail(doc, s) DO {
                     loadEditedDetail(d);
-                    editQuantity() <- IF hasParsedQuantity(barcode) THEN quantity(d) (+) parsedQuantity(barcode)
-                        ELSE (IF inOrder(doc, s) AND quantityFromOrder(editPreferences()) AND NOT (quantity(d) > 0)
-                            THEN orderQuantity(doc, s)
-                            ELSE quantity(d) (+) 1);
+                    IF hasParsedQuantity(barcode) OR NOT noAutoQuantity(doc, s) THEN
+                        editQuantity() <- IF hasParsedQuantity(barcode) THEN quantity(d) (+) parsedQuantity(barcode)
+                            ELSE (IF inOrder(doc, s) AND quantityFromOrder(editPreferences()) AND NOT (quantity(d) > 0)
+                                THEN orderQuantity(doc, s)
+                                ELSE quantity(d) (+) 1);
                     fillEditFromBarcode(barcode);
                     focusCurrentField();
                     RETURN;
@@ -496,9 +534,10 @@ processAddBarcode (STRING barcode) {
                                               AND sku(od) = s AND forNewDocument(od, terminalDocumentType(doc))),
                                          currentPriceInTerminal(s, stock(doc));
                     quantity(d) <- IF hasParsedQuantity(barcode) THEN parsedQuantity(barcode)
+                        ELSE (IF noAutoQuantity(doc, s) THEN 0
                         ELSE (IF inOrder(doc, s) AND quantityFromOrder(preferences(terminalDocumentType(doc)))
                             THEN orderQuantity(doc, s)
-                            ELSE (1 IF NOT zeroQuantityDefault(preferences(terminalDocumentType(doc)))));
+                            ELSE (1 IF NOT zeroQuantityDefault(preferences(terminalDocumentType(doc))))));
                     dateTimeScan(d) <- currentDateTime();
                     APPLY;
                     // успешный APPLY очищает локальные свойства сессии, поэтому строка запоминается после него

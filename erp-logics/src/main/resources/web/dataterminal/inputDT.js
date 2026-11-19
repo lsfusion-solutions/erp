@@ -68,10 +68,53 @@ function inputBarcodeLiteAlwaysFocused() {
     };
 }
 
+// Поля экрана ввода (selectOnShow) и возврат фокуса после модальных окон: когда закрывается последнее окно
+// (например «Партии» или сообщение об ошибке поля), а фокус не в поле ввода - фокус в видимое поле экрана ввода
+// вне окон (на экране строки показывается только текущее поле). Одно наблюдение на документ, проверка дешевая:
+// живые коллекции окон, срабатывает только на переходе «окно открыто -> окон нет»
+var selectOnShowInputs = new Set()
+var selectOnShowModalObserver = null
+
+function focusSelectOnShowInput() {
+    const active = document.activeElement
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return
+    for (const inp of selectOnShowInputs) {
+        if (!inp.isConnected) {
+            selectOnShowInputs.delete(inp)
+            continue
+        }
+        if (!inp.closest('.modal-dialog') && inp.offsetParent !== null) {
+            inp.focus()
+            return
+        }
+    }
+}
+
+function observeModalsClosing() {
+    if (selectOnShowModalObserver) return
+    const backdrops = document.getElementsByClassName('modal-backdrop')
+    const glasses = document.getElementsByClassName('gwt-PopupPanelGlass')
+    let modalOpen = backdrops.length > 0 || glasses.length > 0
+    selectOnShowModalObserver = new MutationObserver(() => {
+        const open = backdrops.length > 0 || glasses.length > 0
+        if (modalOpen && !open) {
+            // окно при закрытии может вернуть фокус на свою кнопку-источник позже - вторая попытка
+            setTimeout(focusSelectOnShowInput, 0)
+            setTimeout(focusSelectOnShowInput, 300)
+        }
+        modalOpen = open
+    })
+    selectOnShowModalObserver.observe(document.body, {childList: true, subtree: true})
+}
+
 // Поле экрана ввода по одному полю: при появлении на экране (и при фокусе, например по ACTIVATE PROPERTY
 // или после закрытия сообщения) - фокус и выделение текста, чтобы ввод заменял старое значение.
-// Значение с сервера может прийти позже фокуса - тогда update выделяет его снова, пока пользователь не начал ввод
+// Значение с сервера может прийти позже фокуса - тогда update выделяет его снова, пока пользователь не начал ввод.
+// Пока открыто модальное окно, фокус берет только поле в самом окне (например ввод количества по партии):
+// поле основного экрана под окном фокус у окна не перехватывает
 function selectOnShow(inp) {
+    selectOnShowInputs.add(inp)
+    observeModalsClosing()
     function select() {
         if (document.activeElement !== inp) return
         inp.select()
@@ -79,8 +122,9 @@ function selectOnShow(inp) {
     }
     new IntersectionObserver((entries) => {
         entries.forEach(entry => {
-            if (entry.intersectionRatio > 0 && !document.getElementsByClassName('modal-backdrop').length &&
-                !document.getElementsByClassName('gwt-PopupPanelGlass').length)
+            if (entry.intersectionRatio > 0 && (inp.closest('.modal-dialog') ||
+                    (!document.getElementsByClassName('modal-backdrop').length &&
+                     !document.getElementsByClassName('gwt-PopupPanelGlass').length)))
                 setTimeout(() => {
                     inp.focus()
                     select()
@@ -145,7 +189,18 @@ function initInputRender(mode, options) {
                 inp.addEventListener("focusout", (event) => setFocusOnVisible(inp, event))
             }
 
-            if (options && options.selectOnShow) selectOnShow(inp)
+            if (options && options.selectOnShow) {
+                selectOnShow(inp)
+                // ACTIVATE PROPERTY для уже видимого поля (например возврат к количеству после окна «Партии»):
+                // платформа помечает значение классом panel-renderer-value-focused, но фокус в само поле не ставит.
+                // Фокус - при появлении класса (выделение текста - обработчик focus в selectOnShow)
+                new MutationObserver(() => {
+                    const focused = element.classList.contains('panel-renderer-value-focused')
+                    if (focused && !element.wasFocused && document.activeElement !== inp)
+                        setTimeout(() => inp.focus(), 0)
+                    element.wasFocused = focused
+                }).observe(element, {attributes: true, attributeFilter: ['class']})
+            }
 
             new MutationObserver(function (mutation, observer) {
                 if (document.body.contains(element) && element.classList.contains("panelRendererValueFocused")) {
