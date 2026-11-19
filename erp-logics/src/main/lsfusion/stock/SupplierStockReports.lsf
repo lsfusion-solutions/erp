@@ -6,6 +6,9 @@ NAMESPACE StockReports;
 
 inReport 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
 
+overInSession = ABSTRACT BOOLEAN (Sku);
+inSession 'Отм.' (Sku sk) = OVERRIDE overInSession(sk), inSession(skuGroup(sk));
+
 overUnitInvoicePriceBatch 'Цена закупки с НДС (за ед.)' = ABSTRACT CASE OVERRIDE NUMERIC[16,4] (Batch);
 overUnitPriceBatch 'Цена закупки (за ед.)' = ABSTRACT CASE OVERRIDE NUMERIC[16,4] (Batch);
 
@@ -25,11 +28,11 @@ averagePricePurchaseSupplier 'Средняя цена закупки с НДС' 
     quantityPurchaseSupplierFromTo(sku, supplierStock, dateFrom, dateTo);         
 
 quantityPurchaseSupplierFromTo 'Закуплено за интервал (кол-во)' (Stock supplierStock, DATE dateFrom, DATE dateTo) = GROUP
-    SUM quantityPurchaseSupplierFromTo(Sku sku, supplierStock, dateFrom, dateTo) IF inSession(skuGroup(sku));
+    SUM quantityPurchaseSupplierFromTo(Sku sku, supplierStock, dateFrom, dateTo) IF inSession(sku);
 sumPurchaseSupplierFromTo 'Закуплено за интервал (сумма с НДС)' (Stock supplierStock, DATE dateFrom, DATE dateTo) = GROUP
-    SUM sumPurchaseSupplierFromTo(Sku sku, supplierStock, dateFrom, dateTo) IF inSession(skuGroup(sku));
+    SUM sumPurchaseSupplierFromTo(Sku sku, supplierStock, dateFrom, dateTo) IF inSession(sku);
 supplierSumPurchaseSupplierFromTo 'Закуплено за интервал (сумма без НДС)' (Stock supplierStock, DATE dateFrom, DATE dateTo) = GROUP
-    SUM supplierSumPurchaseSupplierFromTo(Sku sku, supplierStock, dateFrom, dateTo) IF inSession(skuGroup(sku));
+    SUM supplierSumPurchaseSupplierFromTo(Sku sku, supplierStock, dateFrom, dateTo) IF inSession(sku);
 
 //-- реализация         
 quantitySoldSupplier 'Реализация (кол-во)' (sku, supplierStock, DATE dateFrom, DATE dateTo)= GROUP SUM 
@@ -42,9 +45,9 @@ averagePriceSupplier 'Средняя цена реализации' =  sumSoldSu
     (quantitySoldSupplier(sku, supplierStock, dateFrom, dateTo) IF quantitySoldSupplier(sku, supplierStock, dateFrom, dateTo) !=0);
 
 quantitySoldSupplierFromTo 'Реализация (кол-во)' (Stock supplierStock, DATE dateFrom, DATE dateTo) = GROUP
-    SUM quantitySoldSupplier(Sku sku, supplierStock, dateFrom, dateTo) IF inSession(skuGroup(sku));
+    SUM quantitySoldSupplier(Sku sku, supplierStock, dateFrom, dateTo) IF inSession(sku);
 sumSoldSupplierFromTo 'Реализация (сумма)' (Stock supplierStock, DATE dateFrom, DATE dateTo) = GROUP
-    SUM sumSoldSupplier(Sku sku, supplierStock, dateFrom, dateTo) IF inSession(skuGroup(sku));
+    SUM sumSoldSupplier(Sku sku, supplierStock, dateFrom, dateTo) IF inSession(sku);
 
 //-- р-ия в ценах поставщика  
 sumSaleSupplier 'Продано за интервал (сумма с НДС)' (batch, stock, DATE dateFrom, DATE dateTo)= GROUP SUM 
@@ -59,9 +62,9 @@ averageSalePriceSupplier 'Средняя цена реализации с НДС
     (quantitySoldSupplier(sku, supplierStock, dateFrom, dateTo) IF quantitySoldSupplier(sku, supplierStock, dateFrom, dateTo) !=0);        
 
 sumSaleSupplierFromTo 'Продано за интервал (сумма с НДС)' (Stock supplierStock, DATE dateFrom, DATE dateTo) = GROUP
-    SUM sumSaleSupplier(Sku sku, supplierStock, dateFrom, dateTo) IF inSession(skuGroup(sku));
+    SUM sumSaleSupplier(Sku sku, supplierStock, dateFrom, dateTo) IF inSession(sku);
 supplierSumSaleSupplierFromTo 'Продано за интервал (сумма без НДС)' (Stock supplierStock, DATE dateFrom, DATE dateTo) = GROUP
-    SUM supplierSumSaleSupplier(Sku sku, supplierStock, dateFrom, dateTo) IF inSession(skuGroup(sku));
+    SUM supplierSumSaleSupplier(Sku sku, supplierStock, dateFrom, dateTo) IF inSession(sku);
 
 // остаток на начало
 balanceBSupplierFrom 'Остаток на начало'  =  GROUP SUM balanceB(Batch batch, Stock stock, DATE dateFrom) IF inReport(stock)
@@ -72,11 +75,11 @@ supplierSumBSupplierFrom 'Сумма без НДС начало'  =  GROUP SUM b
         BY sku(batch), supplierStock(batch), dateFrom;    
                        
 balanceBSupplierFrom 'Остаток на начало' (Stock supplierStock, DATE dateFrom) = GROUP
-    SUM balanceBSupplierFrom(Sku sku, supplierStock, dateFrom) IF inSession(skuGroup(sku));
+    SUM balanceBSupplierFrom(Sku sku, supplierStock, dateFrom) IF inSession(sku);
 sumBSupplierFrom 'Сумма с НДС начало' (Stock supplierStock, DATE dateFrom) = GROUP
-    SUM sumBSupplierFrom(Sku sku, supplierStock, dateFrom) IF inSession(skuGroup(sku));                       
+    SUM sumBSupplierFrom(Sku sku, supplierStock, dateFrom) IF inSession(sku);                       
 supplierSumBSupplierFrom 'Сумма без НДС начало' (Stock supplierStock, DATE dateFrom) = GROUP
-    SUM supplierSumBSupplierFrom(Sku sku, supplierStock, dateFrom) IF inSession(skuGroup(sku));   
+    SUM supplierSumBSupplierFrom(Sku sku, supplierStock, dateFrom) IF inSession(sku);   
 
 // остаток на конец
 balanceASupplierTo'Остаток на конец'  =  GROUP SUM balanceA(Batch batch, Stock stock, DATE dateTo) IF inReport(stock)
@@ -87,11 +90,11 @@ supplierSumASupplierTo 'Сумма без НДС конец'  =  GROUP SUM balan
         BY sku(batch), supplierStock(batch), dateTo; 
 
 balanceASupplierTo 'Остаток на конец' (Stock supplierStock, DATE dateTo) = GROUP
-    SUM balanceASupplierTo(Sku sku, supplierStock, dateTo) IF inSession(skuGroup(sku));
+    SUM balanceASupplierTo(Sku sku, supplierStock, dateTo) IF inSession(sku);
 sumASupplierTo 'Сумма с НДС конец' (Stock supplierStock, DATE dateTo) = GROUP
-    SUM sumASupplierTo(Sku sku, supplierStock, dateTo) IF inSession(skuGroup(sku));                       
+    SUM sumASupplierTo(Sku sku, supplierStock, dateTo) IF inSession(sku);                       
 supplierSumASupplierTo 'Сумма без НДС конец' (Stock supplierStock, DATE dateTo) = GROUP
-    SUM supplierSumASupplierTo(Sku sku, supplierStock, dateTo) IF inSession(skuGroup(sku));   
+    SUM supplierSumASupplierTo(Sku sku, supplierStock, dateTo) IF inSession(sku);   
        
 stocksReport 'Склады' () = GROUP CONCAT name(Stock stock) IF inReport(stock) , ', '                                                 
                                                  ORDER stock CHARWIDTH 30;
@@ -133,8 +136,6 @@ resetLocSup()  {
     resetLocSupOver();
 }
 
-overInSession = ABSTRACT BOOLEAN (Sku);
-inSession 'Отм.' (Sku sk) = OVERRIDE overInSession(sk), inSession(skuGroup(sk));       
 
 FORM supplierStockReportPrint 'По поставщикам'
 
@@ -160,7 +161,7 @@ FORM supplierStockReportPrint 'По поставщикам'
     FILTERS quantityPurchaseSupplierFromToLocal(sk) OR 
             quantitySoldSupplierLocal(sk) OR 
             balanceASupplierToLocal(sk)
-    FILTERS inSession(skuGroup(sk)) AND st IS Stock AND dFrom IS DATE 
+    FILTERS inSession(sk) AND st IS Stock AND dFrom IS DATE 
 ;
 supplierReportPrintOver ABSTRACT LIST(Stock,DATE,DATE);
 supplierReportPrint 'Отчет по поставщику (xls)' (Stock st,DATE dFrom,DATE dTo)  { 
@@ -317,31 +318,31 @@ FORM supplierStockReportPrintAll 'По поставщикам'
 
 supplierReportPrintAllCustom  (Stock st, DATE dFrom, DATE  dTo)  { 
     quantityPurchaseSupplierFromToLocal (st) <- (GROUP SUM quantityPurchaseSupplier(Sku sku, Stock stock, st, DATE date) IF date >= dFrom AND date <= dTo 
-        AND inReport(stock) AND inSession(skuGroup(sku)));
+        AND inReport(stock) AND inSession(sku));
     sumPurchaseSupplierFromToLocal (st) <- (GROUP SUM sumPurchaseSupplier(Sku sku, Stock stock, st, DATE date) IF date >= dFrom AND date <= dTo 
-        AND inReport(stock) AND inSession(skuGroup(sku)));
+        AND inReport(stock) AND inSession(sku));
     supplierSumPurchaseSupplierFromToLocal (st) <- (GROUP SUM (sumPurchaseSupplier(Sku sku, Stock stock, st, DATE date) (-)
-        sumVATPurchaseSupplier (sku, stock, st, date))  IF date >= dFrom AND date <= dTo AND inReport(stock) AND inSession(skuGroup(sku)));
+        sumVATPurchaseSupplier (sku, stock, st, date))  IF date >= dFrom AND date <= dTo AND inReport(stock) AND inSession(sku));
     quantitySoldSupplierFromToLocal (st) <- [ GROUP SUM quantitySold(Batch batch, Stock stock, DATE date) IF date >= dFrom AND date <= dTo 
-        AND inReport(stock) AND inSession(skuGroup(sku(batch))) BY supplierStock(batch)](st);
+        AND inReport(stock) AND inSession(sku(batch)) BY supplierStock(batch)](st);
     sumSoldSupplierFromToLocal (st) <- [ GROUP SUM sumSold(Batch batch, Stock stock, DATE date) IF date >= dFrom AND date <= dTo 
-        AND inReport(stock) AND inSession(skuGroup(sku(batch))) BY supplierStock(batch)](st);
+        AND inReport(stock) AND inSession(sku(batch)) BY supplierStock(batch)](st);
     sumSaleSupplierFromToLocal (st) <- NUMERIC[18,4]([ GROUP SUM quantitySold(Batch batch, Stock stock, DATE date)* unitInvoicePriceInvoiceDetail(batch)
-        IF date >= dFrom AND date <= dTo AND inReport(stock) AND inSession(skuGroup(sku(batch))) BY supplierStock(batch)](st));        
+        IF date >= dFrom AND date <= dTo AND inReport(stock) AND inSession(sku(batch)) BY supplierStock(batch)](st));        
     supplierSumSaleSupplierFromToLocal (st) <- NUMERIC[18,4]([ GROUP SUM quantitySold(Batch batch, Stock stock, DATE date)* unitPriceInvoiceDetail(batch)
-        IF date >= dFrom AND date <= dTo AND inReport(stock) AND inSession(skuGroup(sku(batch))) BY supplierStock(batch)](st)); 
-    balanceBSupplierFromLocal (st) <- [ GROUP SUM balanceB(Batch batch, Stock stock, dFrom) IF inReport(stock) AND inSession(skuGroup(sku(batch)))
+        IF date >= dFrom AND date <= dTo AND inReport(stock) AND inSession(sku(batch)) BY supplierStock(batch)](st)); 
+    balanceBSupplierFromLocal (st) <- [ GROUP SUM balanceB(Batch batch, Stock stock, dFrom) IF inReport(stock) AND inSession(sku(batch))
         BY supplierStock(batch)](st);
     sumBSupplierFromLocal (st) <- NUMERIC[18,4]([  GROUP SUM balanceB(Batch batch, Stock stock, dFrom) * unitInvoicePriceInvoiceDetail(batch) 
-        IF inReport(stock) AND inSession(skuGroup(sku(batch))) BY supplierStock(batch)](st));        
+        IF inReport(stock) AND inSession(sku(batch)) BY supplierStock(batch)](st));        
     supplierSumBSupplierFromLocal (st) <- NUMERIC[18,4]([ GROUP SUM balanceB(Batch batch, Stock stock, dFrom)*unitPriceInvoiceDetail(batch) 
-        IF inReport(stock) AND inSession(skuGroup(sku(batch))) BY supplierStock(batch)](st)); 
-    balanceASupplierToLocal (st) <- [ GROUP SUM balanceA(Batch batch, Stock stock, dTo) IF inReport(stock) AND inSession(skuGroup(sku(batch)))
+        IF inReport(stock) AND inSession(sku(batch)) BY supplierStock(batch)](st)); 
+    balanceASupplierToLocal (st) <- [ GROUP SUM balanceA(Batch batch, Stock stock, dTo) IF inReport(stock) AND inSession(sku(batch))
         BY supplierStock(batch)](st);
     sumASupplierToLocal (st) <- NUMERIC[18,4]([  GROUP SUM balanceA(Batch batch, Stock stock, dTo) * unitInvoicePriceInvoiceDetail(batch) 
-        IF inReport(stock) AND inSession(skuGroup(sku(batch))) BY supplierStock(batch)](st));        
+        IF inReport(stock) AND inSession(sku(batch)) BY supplierStock(batch)](st));        
     supplierSumASupplierToLocal (st) <- NUMERIC[18,4]([ GROUP SUM balanceA(Batch batch, Stock stock, dTo)*unitPriceInvoiceDetail(batch) 
-        IF inReport(stock) AND inSession(skuGroup(sku(batch))) BY supplierStock(batch)](st)); 
+        IF inReport(stock) AND inSession(sku(batch)) BY supplierStock(batch)](st)); 
 }
 
 supplierReportPrintAll 'Отчет по поставщику итог (xls)' (Stock st, DATE dFrom, DATE  dTo)  { 
