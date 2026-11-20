@@ -89,6 +89,7 @@ class TransactionEquipmentServer {
         final DataObject groupMachineryObject;
         final Integer nppGroupMachinery;
         final String nameGroupMachinery;
+        final String handlerModelGroupMachinery;
         final DataObject transactionObject;
         final String dateTimeCode;
         final LocalDate date;
@@ -97,11 +98,12 @@ class TransactionEquipmentServer {
         final LocalDateTime lastErrorDateTransaction;
         final String infoMPT;
 
-        Transaction(DataObject groupMachineryObject, Integer nppGroupMachinery, String nameGroupMachinery, DataObject transactionObject, String dateTimeCode,
-                    LocalDate date, boolean snapshotTransaction, String descriptionTransaction, LocalDateTime lastErrorDateTransaction, String infoMPT) {
+        Transaction(DataObject groupMachineryObject, Integer nppGroupMachinery, String nameGroupMachinery, String handlerModelGroupMachinery, DataObject transactionObject,
+                    String dateTimeCode, LocalDate date, boolean snapshotTransaction, String descriptionTransaction, LocalDateTime lastErrorDateTransaction, String infoMPT) {
             this.groupMachineryObject = groupMachineryObject;
             this.nppGroupMachinery = nppGroupMachinery;
             this.nameGroupMachinery = nameGroupMachinery;
+            this.handlerModelGroupMachinery = handlerModelGroupMachinery;
             this.transactionObject = transactionObject;
             this.dateTimeCode = dateTimeCode;
             this.date = date;
@@ -138,6 +140,8 @@ class TransactionEquipmentServer {
             for (int i = 0; i < mptProperties.length; i++) {
                 query.addProperty(mptNames[i], mptProperties[i].getExpr(machineryPriceTransactionExpr));
             }
+            query.addProperty("handlerModelGroupMachineryMachineryPriceTransaction", equLM.findProperty("handlerModel[GroupMachinery]").getExpr(
+                    equLM.findProperty("groupMachinery[MachineryPriceTransaction]").getExpr(machineryPriceTransactionExpr)));
             query.and(equLM.findProperty("sidEquipmentServer[MachineryPriceTransaction]").getExpr(machineryPriceTransactionExpr).compare(new DataObject(sidEquipmentServer), Compare.EQUALS));
             query.and(equLM.findProperty("process[MachineryPriceTransaction]").getExpr(machineryPriceTransactionExpr).getWhere());
 
@@ -152,17 +156,19 @@ class TransactionEquipmentServer {
                     DataObject groupMachineryMPT = (DataObject) value.get("groupMachineryMachineryPriceTransaction");
                     Integer nppGroupMachineryMPT = (Integer) value.get("nppGroupMachineryMachineryPriceTransaction").getValue();
                     String nameGroupMachineryMPT = (String) value.get("nameGroupMachineryMachineryPriceTransaction").getValue();
+                    String handlerModelGroupMachineryMPT = (String) value.get("handlerModelGroupMachineryMachineryPriceTransaction").getValue();
                     DataObject transactionObject = result.getKey(i).singleValue();
                     boolean snapshotMPT = value.get("snapshotMachineryPriceTransaction") instanceof DataObject;
                     String descriptionMPT = (String) value.get("descriptionMachineryPriceTransaction").getValue();
                     LocalDateTime lastErrorDate = (LocalDateTime) value.get("lastDateMachineryPriceTransactionErrorMachineryPriceTransaction").getValue();
                     String infoMPT = (String) value.get("infoMPT").getValue();
-                    transactions.add(new Transaction(groupMachineryMPT, nppGroupMachineryMPT, nameGroupMachineryMPT, transactionObject,
+                    transactions.add(new Transaction(groupMachineryMPT, nppGroupMachineryMPT, nameGroupMachineryMPT, handlerModelGroupMachineryMPT, transactionObject,
                             dateTimeCode((LocalDateTime) dateTimeMPT.getValue()), ((LocalDateTime) dateTimeMPT.getValue()).toLocalDate(), snapshotMPT, descriptionMPT, lastErrorDate, infoMPT));
                 }
             }
 
             Map<String, List<ItemGroup>> itemGroupMap = null; //is read only for cash registers: all the item groups with the hierarchy
+            Map<DataObject, ImMap<Object, Object>> groupValuesMap = new HashMap<>(); //the properties of the groups of machinery, see readGroupValues
             List<Integer> troubleMachineryGroups = readTroubleMachineryGroups(session, minutesTroubleMachineryGroups);
             Integer skipCounter = skipTroubleCounter.get(sidEquipmentServer);
             if (skipCounter == null) skipCounter = 1;
@@ -191,20 +197,18 @@ class TransactionEquipmentServer {
                 boolean isPriceCheckerPriceTransaction = priceCheckerLM != null && transactionObject.objectClass.equals(priceCheckerLM.findClass("PriceCheckerPriceTransaction"));
                 boolean isTerminalPriceTransaction = terminalLM != null && transactionObject.objectClass.equals(terminalLM.findClass("TerminalPriceTransaction"));
 
-                String handlerModelGroupMachinery = (String) equLM.findProperty("handlerModel[GroupMachinery]").read(session, transaction.groupMachineryObject);
-
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> skuResult = readSkuResult(session, transactionObject, isCashRegisterPriceTransaction);
 
                 if (isCashRegisterPriceTransaction) {
                     if (itemGroupMap == null)
                         itemGroupMap = readItemGroupMap(session);
-                    transactionList.add(readCashRegisterTransaction(session, transaction, handlerModelGroupMachinery, skuResult, itemGroupMap));
+                    transactionList.add(readCashRegisterTransaction(session, transaction, skuResult, itemGroupMap, groupValuesMap));
                 } else if (isScalesPriceTransaction) {
-                    transactionList.add(readScalesTransaction(session, transaction, handlerModelGroupMachinery, skuResult));
+                    transactionList.add(readScalesTransaction(session, transaction, skuResult, groupValuesMap));
                 } else if (isPriceCheckerPriceTransaction) {
-                    transactionList.add(readPriceCheckerTransaction(session, transaction, handlerModelGroupMachinery, skuResult));
+                    transactionList.add(readPriceCheckerTransaction(session, transaction, skuResult));
                 } else if (isTerminalPriceTransaction) {
-                    transactionList.add(readTerminalTransaction(server.getBusinessLogics(), session, transaction, handlerModelGroupMachinery, skuResult));
+                    transactionList.add(readTerminalTransaction(server.getBusinessLogics(), session, transaction, skuResult, groupValuesMap));
                 }
             }
             logger.info("Sending " + transactionList.size() + " transactions");
@@ -220,6 +224,27 @@ class TransactionEquipmentServer {
         for (int i = 0; i < machineryProperties.length; i++) {
             machineryQuery.addProperty(machineryNames[i], machineryProperties[i].getExpr(machineryExpr));
         }
+    }
+
+    //the properties of the group of machinery are read in one query, once per group for all the transactions of this group; the values are keyed by the property names
+    private static ImMap<Object, Object> readGroupValues(DataSession session, Map<DataObject, ImMap<Object, Object>> groupValuesMap, DataObject groupMachineryObject,
+                                                         ScriptingLogicsModule LM, String... propertyNames) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        ImMap<Object, Object> groupValues = groupValuesMap.get(groupMachineryObject);
+        if (groupValues == null) {
+            KeyExpr groupMachineryExpr = new KeyExpr("groupMachinery");
+            ImRevMap<Object, KeyExpr> groupMachineryKeys = MapFact.singletonRev("groupMachinery", groupMachineryExpr);
+            QueryBuilder<Object, Object> groupQuery = new QueryBuilder<>(groupMachineryKeys);
+            LP[] properties = LM.findProperties(propertyNames);
+            for (int i = 0; i < properties.length; i++) {
+                groupQuery.addProperty(propertyNames[i], properties[i].getExpr(groupMachineryExpr));
+            }
+            groupQuery.and(groupMachineryExpr.compare(groupMachineryObject, Compare.EQUALS));
+
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> groupResult = groupQuery.execute(session);
+            groupValues = groupResult.isEmpty() ? MapFact.EMPTY() : groupResult.getValue(0);
+            groupValuesMap.put(groupMachineryObject, groupValues);
+        }
+        return groupValues;
     }
 
     private static ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> readSkuResult(DataSession session, DataObject transactionObject, boolean isCashRegisterPriceTransaction) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
@@ -327,22 +352,27 @@ class TransactionEquipmentServer {
         return skuQuery.execute(session);
     }
 
-    private static TransactionCashRegisterInfo readCashRegisterTransaction(DataSession session, Transaction transaction, String handlerModelGroupMachinery, ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> skuResult, Map<String, List<ItemGroup>> itemGroupMap) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private static TransactionCashRegisterInfo readCashRegisterTransaction(DataSession session, Transaction transaction, ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> skuResult,
+                                                                           Map<String, List<ItemGroup>> itemGroupMap, Map<DataObject, ImMap<Object, Object>> groupValuesMap) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         DataObject transactionObject = transaction.transactionObject;
         DataObject groupMachineryObject = transaction.groupMachineryObject;
         Integer nppGroupMachinery = transaction.nppGroupMachinery;
+        String handlerModelGroupMachinery = transaction.handlerModelGroupMachinery;
         ValueExpr transactionExpr = transactionObject.getExpr();
 
         Map<String, List<CashRegisterItemBatch>> barcodeBatchMap = readBarcodeBatchMap(session, transactionObject);
 
-        LocalDate startDateGroupCashRegister = (LocalDate) cashRegisterLM.findProperty("startDate[GroupCashRegister]").read(session, groupMachineryObject);
-        boolean notDetailedGroupCashRegister = cashRegisterLM.findProperty("notDetailed[GroupCashRegister]").read(session, groupMachineryObject) != null;
-        Integer overDepartmentNumberGroupCashRegister = (Integer) cashRegisterLM.findProperty("overDepartmentNumberCashRegister[GroupMachinery]").read(session, groupMachineryObject);
-        String idDepartmentStoreGroupCashRegister = (String) cashRegisterLM.findProperty("idStock[GroupCashRegister]").read(session, groupMachineryObject);
-        String pieceCodeGroupCashRegister = (String) cashRegisterLM.findProperty("pieceCode[GroupCashRegister]").read(session, groupMachineryObject);
-        String weightCodeGroupCashRegister = (String) cashRegisterLM.findProperty("weightCode[GroupCashRegister]").read(session, groupMachineryObject);
-        String nameStockGroupCashRegister = (String) cashRegisterLM.findProperty("nameStock[GroupMachinery]").read(session, groupMachineryObject);
-        String sectionGroupCashRegister = (String) cashRegisterLM.findProperty("section[GroupMachinery]").read(session, groupMachineryObject);
+        ImMap<Object, Object> groupValues = readGroupValues(session, groupValuesMap, groupMachineryObject, cashRegisterLM,
+                "startDate[GroupCashRegister]", "notDetailed[GroupCashRegister]", "overDepartmentNumberCashRegister[GroupMachinery]", "idStock[GroupCashRegister]",
+                "pieceCode[GroupCashRegister]", "weightCode[GroupCashRegister]", "nameStock[GroupMachinery]", "section[GroupMachinery]");
+        LocalDate startDateGroupCashRegister = (LocalDate) groupValues.get("startDate[GroupCashRegister]");
+        boolean notDetailedGroupCashRegister = groupValues.get("notDetailed[GroupCashRegister]") != null;
+        Integer overDepartmentNumberGroupCashRegister = (Integer) groupValues.get("overDepartmentNumberCashRegister[GroupMachinery]");
+        String idDepartmentStoreGroupCashRegister = (String) groupValues.get("idStock[GroupCashRegister]");
+        String pieceCodeGroupCashRegister = (String) groupValues.get("pieceCode[GroupCashRegister]");
+        String weightCodeGroupCashRegister = (String) groupValues.get("weightCode[GroupCashRegister]");
+        String nameStockGroupCashRegister = (String) groupValues.get("nameStock[GroupMachinery]");
+        String sectionGroupCashRegister = (String) groupValues.get("section[GroupMachinery]");
 
         List<CashRegisterInfo> cashRegisterInfoList = new ArrayList<>();
         KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
@@ -433,16 +463,20 @@ class TransactionEquipmentServer {
                 idDepartmentStoreGroupCashRegister, pieceCodeGroupCashRegister, weightCodeGroupCashRegister, nameStockGroupCashRegister, transaction.infoMPT);
     }
 
-    private static TransactionScalesInfo readScalesTransaction(DataSession session, Transaction transaction, String handlerModelGroupMachinery, ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> skuResult) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private static TransactionScalesInfo readScalesTransaction(DataSession session, Transaction transaction, ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> skuResult,
+                                                               Map<DataObject, ImMap<Object, Object>> groupValuesMap) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         DataObject transactionObject = transaction.transactionObject;
         DataObject groupMachineryObject = transaction.groupMachineryObject;
         Integer nppGroupMachinery = transaction.nppGroupMachinery;
+        String handlerModelGroupMachinery = transaction.handlerModelGroupMachinery;
         ValueExpr transactionExpr = transactionObject.getExpr();
 
         List<ScalesInfo> scalesInfoList = new ArrayList<>();
-        String directory = trim((String) scalesLM.findProperty("directory[GroupScales]").read(session, groupMachineryObject));
-        String pieceCodeGroupScales = (String) scalesLM.findProperty("pieceCode[GroupScales]").read(session, groupMachineryObject);
-        String weightCodeGroupScales = (String) scalesLM.findProperty("weightCode[GroupScales]").read(session, groupMachineryObject);
+        ImMap<Object, Object> groupValues = readGroupValues(session, groupValuesMap, groupMachineryObject, scalesLM,
+                "directory[GroupScales]", "pieceCode[GroupScales]", "weightCode[GroupScales]");
+        String directory = trim((String) groupValues.get("directory[GroupScales]"));
+        String pieceCodeGroupScales = (String) groupValues.get("pieceCode[GroupScales]");
+        String weightCodeGroupScales = (String) groupValues.get("weightCode[GroupScales]");
 
         KeyExpr scalesExpr = new KeyExpr("scales");
         ImRevMap<Object, KeyExpr> scalesKeys = MapFact.singletonRev("scales", scalesExpr);
@@ -480,7 +514,7 @@ class TransactionEquipmentServer {
                     handlerModelGroupMachinery, portMachinery, directory,
                     pieceCodeGroupScales, weightCodeGroupScales));
         }
-        //если все отмеченные - неактивные, то не посылаем весы вообще
+        //if all the marked scales are inactive, the scales aren't sent at all
         if(enabledCount > 0 && enabledCount==enabledInactiveCount)
             scalesInfoList = new ArrayList<>();
 
@@ -528,10 +562,11 @@ class TransactionEquipmentServer {
                 transaction.lastErrorDateTransaction, transaction.infoMPT);
     }
 
-    private static TransactionPriceCheckerInfo readPriceCheckerTransaction(DataSession session, Transaction transaction, String handlerModelGroupMachinery, ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> skuResult) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private static TransactionPriceCheckerInfo readPriceCheckerTransaction(DataSession session, Transaction transaction, ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> skuResult) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         DataObject transactionObject = transaction.transactionObject;
         DataObject groupMachineryObject = transaction.groupMachineryObject;
         Integer nppGroupMachinery = transaction.nppGroupMachinery;
+        String handlerModelGroupMachinery = transaction.handlerModelGroupMachinery;
         ValueExpr transactionExpr = transactionObject.getExpr();
 
         List<PriceCheckerInfo> priceCheckerInfoList = new ArrayList<>();
@@ -583,19 +618,20 @@ class TransactionEquipmentServer {
                 transaction.snapshotTransaction, transaction.lastErrorDateTransaction, transaction.infoMPT);
     }
 
-    private static TransactionTerminalInfo readTerminalTransaction(BusinessLogics BL, DataSession session, Transaction transaction, String handlerModelGroupMachinery, ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> skuResult) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private static TransactionTerminalInfo readTerminalTransaction(BusinessLogics BL, DataSession session, Transaction transaction, ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> skuResult,
+                                                                   Map<DataObject, ImMap<Object, Object>> groupValuesMap) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         DataObject transactionObject = transaction.transactionObject;
         DataObject groupMachineryObject = transaction.groupMachineryObject;
         Integer nppGroupMachinery = transaction.nppGroupMachinery;
+        String handlerModelGroupMachinery = transaction.handlerModelGroupMachinery;
         ValueExpr transactionExpr = transactionObject.getExpr();
 
         List<TerminalInfo> terminalInfoList = new ArrayList<>();
 
-        Integer nppGroupTerminal = (Integer) terminalLM.findProperty("npp[GroupMachinery]").read(session, groupMachineryObject);
-        String directoryGroupTerminal = trim((String) terminalLM.findProperty("directory[GroupTerminal]").read(session, groupMachineryObject));
-        ObjectValue priceListTypeGroupMachinery = terminalLM.findProperty("priceListType[GroupMachinery]").readClasses(session, groupMachineryObject);
-        ObjectValue stockGroupTerminal = terminalLM.findProperty("stock[GroupTerminal]").readClasses(session, groupMachineryObject);
-        String idPriceListType = (String) terminalLM.findProperty("id[PriceListType]").read(session, priceListTypeGroupMachinery);
+        ImMap<Object, Object> groupValues = readGroupValues(session, groupValuesMap, groupMachineryObject, terminalLM,
+                "directory[GroupTerminal]", "idPriceListType[GroupMachinery]");
+        String directoryGroupTerminal = trim((String) groupValues.get("directory[GroupTerminal]"));
+        String idPriceListType = (String) groupValues.get("idPriceListType[GroupMachinery]");
 
         KeyExpr terminalExpr = new KeyExpr("terminal");
         ImRevMap<Object, KeyExpr> terminalKeys = MapFact.singletonRev("terminal", terminalExpr);
@@ -643,7 +679,7 @@ class TransactionEquipmentServer {
                     expiryDate, passScales, valueVAT, pluNumber, flags, null, canonicalNameSkuGroup, null, extraInfo, null, null));
         }
 
-        //закомментировали, чтобы снизить объём передаваемых данных
+        //commented out to reduce the amount of the transferred data (priceListType[GroupMachinery] and stock[GroupTerminal] of the group are not read anymore)
         List<TerminalAssortment> terminalAssortmentList = new ArrayList<>();//TerminalEquipmentServer.readTerminalAssortmentList(session, BL, priceListTypeGroupMachinery, stockGroupTerminal);
         List<TerminalHandbookType> terminalHandbookTypeList = TerminalEquipmentServer.readTerminalHandbookTypeList(session, BL);
         List<TerminalDocumentType> terminalDocumentTypeList = TerminalEquipmentServer.readTerminalDocumentTypeListEquipment(session, BL, groupMachineryObject);
@@ -653,7 +689,7 @@ class TransactionEquipmentServer {
                 transaction.date, handlerModelGroupMachinery, (Long) groupMachineryObject.object, nppGroupMachinery, transaction.nameGroupMachinery,
                 transaction.descriptionTransaction, terminalItemList, terminalInfoList, transaction.snapshotTransaction, transaction.lastErrorDateTransaction,
                 terminalHandbookTypeList, terminalDocumentTypeList, terminalLegalEntityList, terminalAssortmentList,
-                nppGroupTerminal, directoryGroupTerminal, transaction.infoMPT);
+                nppGroupMachinery, directoryGroupTerminal, transaction.infoMPT);
     }
 
     private static List<Integer> readTroubleMachineryGroups(DataSession session, Integer minutes) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
