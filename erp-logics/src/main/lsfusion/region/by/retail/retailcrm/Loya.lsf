@@ -87,7 +87,14 @@ departmentStoreIdLoya (idLoya) = GROUP AGGR DepartmentStore departmentStore BY i
 
 in 'Вкл.' = DATA BOOLEAN (LoyaItemGroup, DepartmentStore);
 
-EXTEND FORM departmentStore 
+// магазины товара в группе: отмеченные в группе, а у группы, наполненной прайсами, — магазины привязанных прайсов,
+// в которых товар есть; у разных товаров группы список магазинов может быть разным
+in 'Вкл.' (Item i, LoyaItemGroup g, DepartmentStore st) = OVERRIDE
+    dataIn(i, g) AND in(g, st),
+    [GROUP SUM 1 IF sku(PriceListDetail d) = i AND in(priceList(d), st) AND st IS DepartmentStore AND isPosted(d)
+        AND isActive(d) AND NOT exclude(d) AND NOT resultForbidPromotion(i, st) BY loyaItemGroup(priceList(d))](g) > 0;
+
+EXTEND FORM departmentStore
     PROPERTIES (d) idLoya;
 DESIGN departmentStore {
     headerMainParams{
@@ -430,8 +437,8 @@ resultGoodGroupLinkLoya 'Ошибка обмена списком товаров
 // как в Java-синхронизации товаров
 idLoya 'Код товара в Loya' (Sku s) = IF useBarcodeAsIdLoya() THEN idBarcode(s) ELSE id(s);
 
-// Приводит товары группы в Loya к составу in / quantity, как Java-синхронизация групп товаров, но по отмеченным
-// магазинам группы (без них — строки без магазина) и меняя только расходящиеся sku.
+// Приводит товары группы в Loya к составу in / quantity, как Java-синхронизация групп товаров, но по магазинам
+// каждого товара (без них — строки без магазина) и меняя только расходящиеся sku.
 // Нужна авторизация (loginLoya) в текущей сессии.
 synchronizeGoodGroupLinksLoya (LoyaItemGroup g) {
     resultGoodGroupLinkLoya() <- NULL;
@@ -439,9 +446,11 @@ synchronizeGoodGroupLinksLoya (LoyaItemGroup g) {
         resultGoodGroupLinkLoya() <- CONCAT ' ', 'Группа товаров Loya', name(g), 'не выгружена в Loya (нет ID)';
         RETURN;
     }
-    IF (GROUP SUM 1 IF in(g, DepartmentStore st) AND NOT idLoya(st)) THEN {
+    LOCAL noIdLoyaStore = BOOLEAN (DepartmentStore);
+    noIdLoyaStore(DepartmentStore st) <- TRUE WHERE (GROUP SUM 1 IF in(Item i, g, st) AND NOT idLoya(st));
+    IF (GROUP SUM 1 IF noIdLoyaStore(DepartmentStore st)) THEN {
         resultGoodGroupLinkLoya() <- 'Не задан Id Loya у магазинов группы товаров Loya ' + id(g) + ': ' +
-            (GROUP CONCAT name(DepartmentStore st) IF in(g, st) AND NOT idLoya(st), ', ' ORDER st);
+            (GROUP CONCAT name(DepartmentStore st) IF noIdLoyaStore(st), ', ' ORDER st);
         RETURN;
     }
 
@@ -480,9 +489,10 @@ synchronizeGoodGroupLinksLoya (LoyaItemGroup g) {
         locationPage(INTEGER i) <- NULL;
         quantityPage(INTEGER i) <- NULL;
         IMPORT JSON FROM response() TO skuPage = sku, locationIdPage = locationId, locationPage = locationCode, quantityPage = quantity;
-        // магазин строки — в том виде, в каком его передаём (locationCode / locationId), строка без магазина — ключ '-'
+        // магазин строки — в том виде, в каком его передаём (locationCode / locationId); строка без магазина — ключ '-',
+        // в Loya «все ТП» приходит как locationId -1
         locationPage(INTEGER i) <- OVERRIDE (locationPage(i) IF useLocationCodeGoodGroupLinkLoya()),
-                                            (STRING[100](locationIdPage(i)) IF NOT useLocationCodeGoodGroupLinkLoya()), r'-'
+                                            (STRING[100](locationIdPage(i)) IF NOT useLocationCodeGoodGroupLinkLoya() AND locationIdPage(i) != -1), r'-'
             WHERE skuPage(i);
 
         // если Loya не учитывает pager.drop, страница повторяет уже прочитанные строки — иначе цикл не завершится
@@ -498,19 +508,24 @@ synchronizeGoodGroupLinksLoya (LoyaItemGroup g) {
         drop() <- drop() + countPage();
     }
 
-    LOCAL inLocation = BOOLEAN (STRING[100]);
-    inLocation(STRING[100] l) <- TRUE WHERE (GROUP SUM 1 IF in(g, DepartmentStore st) AND STRING[100](idLoya(st)) = l);
-    IF NOT (GROUP SUM 1 IF inLocation(STRING[100] l)) THEN
-        inLocation(r'-') <- TRUE;
+    LOCAL inGroupLocation = BOOLEAN (STRING[254], STRING[100]);
+    inGroupLocation(STRING[254] s, STRING[100] l) <- TRUE WHERE
+        (GROUP SUM 1 IF in(Item i, g, DepartmentStore st) AND idLoya(i) = s AND STRING[100](idLoya(st)) = l);
 
     LOCAL inGroup = BOOLEAN (STRING[254]);
     LOCAL quantityGroup = NUMERIC[14,3] (STRING[254]);
     LOCAL synced = BOOLEAN (STRING[254]);
-    inGroup(STRING[254] s) <- TRUE WHERE (GROUP SUM 1 IF in(Item i, g) AND idLoya(i) = s);
+    inGroup(STRING[254] s) <- TRUE WHERE (GROUP SUM 1 IF inGroupLocation(s, STRING[100] l));
+    // строки без магазина (в Loya это все ТП) — только у группы без привязанных прайсов: у прайсовой группы
+    // магазины берутся из прайсов, и товар, которому их не досталось (истёк срок, исключён, запрет скидок), не выгружается
+    IF NOT (GROUP SUM 1 IF inGroup(STRING[254] s)) AND NOT (GROUP SUM 1 IF loyaItemGroup(UserPriceList p) = g) THEN {
+        inGroup(STRING[254] s) <- TRUE WHERE (GROUP SUM 1 IF in(Item i, g) AND idLoya(i) = s);
+        inGroupLocation(STRING[254] s, r'-') <- TRUE WHERE inGroup(s);
+    }
     quantityGroup(STRING[254] s) <- GROUP MAX quantity(Item i, g) IF in(i, g) AND idLoya(i) = s;
     // количество сверяется, только если задано в группе
-    synced(STRING[254] s) <- inGroup(s) AND countLoya(s) = (GROUP SUM 1 IF inLocation(STRING[100] l))
-        AND NOT (GROUP SUM 1 IF inLocation(STRING[100] l2)
+    synced(STRING[254] s) <- inGroup(s) AND countLoya(s) = (GROUP SUM 1 IF inGroupLocation(s, STRING[100] l))
+        AND NOT (GROUP SUM 1 IF inGroupLocation(s, STRING[100] l2)
             AND NOT (countLocationLoya(s, l2) = 1 AND (NOT quantityGroup(s) OR quantityLoya(s, l2) = quantityGroup(s))));
 
     LOCAL deleteSkus = JSON ();
@@ -527,15 +542,15 @@ synchronizeGoodGroupLinksLoya (LoyaItemGroup g) {
     }
 
     LOCAL links = JSON ();
-    links() <- JSON FROM sku = (IF inGroup(STRING[254] s) AND inLocation(STRING[100] l) THEN s),
+    links() <- JSON FROM sku = (IF inGroup(STRING[254] s) AND inGroupLocation(s, STRING[100] l) THEN s),
                          locationId = (INTEGER(l) IF l != r'-' AND NOT useLocationCodeGoodGroupLinkLoya()),
                          locationCode = (l IF l != r'-' AND useLocationCodeGoodGroupLinkLoya()),
                          quantity = quantityGroup(s)
-                   WHERE inGroup(s) AND inLocation(l) AND NOT synced(s);
+                   WHERE inGroup(s) AND inGroupLocation(s, l) AND NOT synced(s);
     IF links() THEN {
         // строки с locationCode Loya принимает только методом PUT
         LOCAL put = BOOLEAN ();
-        put() <- useLocationCodeGoodGroupLinkLoya() AND NOT inLocation(r'-');
+        put() <- useLocationCodeGoodGroupLinkLoya() AND NOT (GROUP SUM 1 IF inGroupLocation(STRING[254] s, r'-'));
         IF logRequestsLoya() THEN
             logToFile('loya', (CONCAT ' ', IF put() THEN 'PUT' ELSE 'POST', url() + r'/upload', TEXT(links())));
         TRY {
@@ -551,7 +566,7 @@ synchronizeGoodGroupLinksLoya (LoyaItemGroup g) {
 
     logToFile('loya', 'Группа товаров ' + id(g) + ': строк в Loya ' + drop() +
         ', удалено sku ' + (OVERRIDE (GROUP SUM 1 IF countLoya(STRING[254] s) AND NOT synced(s)), 0) +
-        ', загружено строк ' + (OVERRIDE (GROUP SUM 1 IF inGroup(STRING[254] s) AND inLocation(STRING[100] l) AND NOT synced(s)), 0));
+        ', загружено строк ' + (OVERRIDE (GROUP SUM 1 IF inGroup(STRING[254] s) AND inGroupLocation(s, STRING[100] l) AND NOT synced(s)), 0));
 }
 
 // как Java-синхронизация — все активные группы; ошибка в одной группе не останавливает остальные
