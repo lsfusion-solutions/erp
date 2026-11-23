@@ -170,7 +170,16 @@ DESIGN userPriceList{
     }
 }
 
-CONSTRAINT isLoya(UserPriceList p) AND (SET (isPosted( p))  AND  NOT loyaItemGroup(p) OR DROPPED (loyaItemGroup(p)) AND isPosted(p)) 
+skipConstraintLoyaItemGroup 'Может быть не задана группа товаров LOYA' = DATA BOOLEAN (PriceList.Operation);
+
+EXTEND FORM operation PROPERTIES(o) skipConstraintLoyaItemGroup SHOWIF isLoya(o);
+DESIGN operation {
+    constraintContainer {
+        MOVE PROPERTY(skipConstraintLoyaItemGroup(o));
+    }
+}
+
+CONSTRAINT isLoya(UserPriceList p) AND NOT skipConstraintLoyaItemGroup(operation(p)) AND (SET(isPosted( p)) AND NOT loyaItemGroup(p) OR DROPPED(loyaItemGroup(p)) AND isPosted(p))
     MESSAGE 'Для прайса должна быть задана группа товаров LOYA';
 
 include 'Вкл' = DATA LOCAL BOOLEAN (Sku);
