@@ -38,6 +38,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static lsfusion.erp.integration.DefaultIntegrationAction.localDateTimeToSqlTimestamp;
 import static org.apache.commons.lang3.StringUtils.trim;
@@ -63,7 +64,8 @@ class TransactionEquipmentServer {
     private static ScriptingLogicsModule scalesItemLM;
     private static ScriptingLogicsModule terminalLM;
 
-    private static final Map<String, Integer> skipTroubleCounter = new HashMap<>();
+    //readTransactionInfo isn't synchronized: the equipment servers call it in parallel
+    private static final Map<String, Integer> skipTroubleCounter = new ConcurrentHashMap<>();
 
     static void init(BusinessLogics BL) {
         equLM = BL.getModule("Equipment");
