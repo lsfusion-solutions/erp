@@ -86,6 +86,12 @@ changePurchaseSku(Sale.InvoiceDetail d)  {
 wholeCatering = ABSTRACT CASE BOOLEAN (Sale.Invoice);// Без расценки, оптовые склады
 wholeCatering (Sale.InvoiceDetail d) = wholeCatering(invoice(d));
 
+customPrice 'Цена' = DATA LOCAL NUMERIC[16,4] (Sale.InvoiceDetail);
+overSetCustomPrice ABSTRACT LIST (Sale.Invoice);
+overSetCustomPrice (Sale.Invoice si) +{
+    FOR invoice(Sale.InvoiceDetail sd) == si DO customPrice(sd) <- price(sd);
+}
+
 
 FORM selectParams 'Перемещение на цех'
     OBJECTS si = Sale.Invoice PANEL
@@ -139,6 +145,8 @@ createManufacturingPurchaseSale 'Создать поступление на це
 	    }
         createManufacturingPurchaseSaleBefore(si);
         okManufacturingPurchaseSale() <- NULL;
+        FOR invoice(Sale.InvoiceDetail sd) == si DO customPrice(sd) <- NULL;
+        overSetCustomPrice(si);
 	    DIALOG selectParams OBJECTS si = si NOMANAGESESSION DO {
             okManufacturingPurchaseSale() <- TRUE;
 	    }
@@ -174,7 +182,7 @@ createManufacturingPurchaseSale 'Создать поступление на це
                     VAT (pd) <- IF valueVAT(sd) == 0 THEN VAT(sku[Sale.UserInvoiceDetail](sd), country(supplierStock[Sale.UserInvoiceDetail](sd))) ELSE VAT(sd);
                     valueVAT (pd) <- IF valueVAT(sd) == 0 THEN valueRate(VAT (pd), date(pd)) ELSE valueVAT(sd);
 
-                    price (pd) <- NUMERIC[16,4](price(sd) / coeffPurchase(sd));
+                    price (pd) <- NUMERIC[16,4](customPrice(sd) / coeffPurchase(sd));
                     invoicePrice (pd) <- NUMERIC[16,4](invoicePrice(sd) / coeffPurchase(sd));
                     createManufacturingPurchaseSaleBefore(sd,pd);
 
