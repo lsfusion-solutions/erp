@@ -4,7 +4,7 @@ REQUIRE Set10Cashier, CashDocument, CashOperation;
 
 NAMESPACE Set10;
 
-regtime = DATA LOCAL ZDATETIME(INTEGER);
+regtime = DATA LOCAL STRING(INTEGER);
 currency = DATA LOCAL STRING(INTEGER);
 cashierName = DATA LOCAL STRING(INTEGER);
 cashierTabNumber = DATA LOCAL STRING(INTEGER);
@@ -30,8 +30,8 @@ importIntroductions(FILE f){
     FOR INTEGER x = [GROUP MAX INTEGER i BY idCashDocument(i)](STRING id) AND IncomeCashOperation o = cashDocument(id) AND o IS IncomeCashOperation DO{
         number(o) <- number(x);
         cashRegister(o) <- crIntroduction(x);
-        date(o) <- DATE(regtime(x));
-        time(o) <- TIME(regtime(x));
+        date(o) <- DATE(DATETIME(regtime(x)));
+        time(o) <- TIME(DATETIME(regtime(x)));
         employee(o) <- cashierTabNumber(cashierTabNumber(x));
         sumCash (o) <- NUMERIC[18,4](amount(x));
     }
@@ -102,8 +102,8 @@ importWithdrawals(FILE f){
     FOR INTEGER x = [GROUP MAX INTEGER i BY idCashDocument(i)](STRING id) AND OutcomeCashOperation o = cashDocument(id) AND o IS OutcomeCashOperation DO{
         number(o) <- number(x);
         cashRegister(o) <- crIntroduction(x);
-        date(o) <- DATE(regtime(x));
-        time(o) <- TIME(regtime(x));
+        date(o) <- DATE(DATETIME(regtime(x)));
+        time(o) <- TIME(DATETIME(regtime(x)));
         employee(o) <- cashierTabNumber(cashierTabNumber(x));
         sumCash (o) <- NUMERIC[18,4](amount(x));
     }
