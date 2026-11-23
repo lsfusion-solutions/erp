@@ -1,6 +1,6 @@
 MODULE ExportItemLegalEntity;
 
-REQUIRE ExportStockDocumentSkuLedger, LegalEntity, Sku, Item, ItemDescription, ItemNutrition, ItemDescription, Warehouse, LotType, PurchasePackItem, SalePackItem;
+REQUIRE ExportStockDocumentSkuLedger, LegalEntity, Sku, Item, ItemDescription, ItemNutrition, ItemDescription, Warehouse, LotType, PurchasePackItem, SalePackItem, Service;
 
 NAMESPACE Stock;
 
@@ -41,6 +41,7 @@ actExportItem 'Выгрузка товаров' () {
     }
     exportFile() <- NULL;
 
+    pushSetting('queryRowCountOptDivider', '2');
     TRY {
         CASE
             WHEN exportType() == ExportType.json THEN {
@@ -58,8 +59,9 @@ actExportItem 'Выгрузка товаров' () {
             ELSE throwException('Не задан тип экспорта');
 
         actWriteFile('items');
-
-    } FINALLY {}
+    } FINALLY {
+        popSetting('queryRowCountOptDivider');
+    }
 }
 
 actExportLegalEntity 'Выгрузка организаций' () {

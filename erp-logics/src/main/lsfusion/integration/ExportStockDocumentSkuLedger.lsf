@@ -1,6 +1,6 @@
 MODULE ExportStockDocumentSkuLedger;
 
-REQUIRE StockDocumentSkuLedger, SkuLedgerTax, Barcode, ZReport;
+REQUIRE StockDocumentSkuLedger, SkuLedgerTax, Barcode, ZReport, Service;
 
 NAMESPACE Stock;
 
@@ -137,20 +137,25 @@ export() {
         RETURN;
     }
 
-    CASE
-        WHEN exportType() == ExportType.xlsx THEN {
-            EXPORT exportPlain XLSX HEADER TO l = exportFile;
-        }        
-        WHEN exportType() == ExportType.csv THEN {
-            EXPORT exportPlain CSV HEADER TO l = exportFile;
-        }
-        WHEN exportType() == ExportType.json THEN {
-            EXPORT exportDocument JSON;
-        }
-        WHEN exportType() == ExportType.xml THEN {
-            EXPORT exportDocument XML;
-        }
-        ELSE MESSAGE 'Не задан тип экспорта.' NOWAIT;
+    pushSetting('groupIntegrationHierarchyOldOrder', 'true');
+    TRY {
+        CASE
+            WHEN exportType() == ExportType.xlsx THEN {
+                EXPORT exportPlain XLSX HEADER TO l = exportFile;
+            }
+            WHEN exportType() == ExportType.csv THEN {
+                EXPORT exportPlain CSV HEADER TO l = exportFile;
+            }
+            WHEN exportType() == ExportType.json THEN {
+                EXPORT exportDocument JSON;
+            }
+            WHEN exportType() == ExportType.xml THEN {
+                EXPORT exportDocument XML;
+            }
+            ELSE MESSAGE 'Не задан тип экспорта.' NOWAIT;
+    } FINALLY {
+        popSetting('groupIntegrationHierarchyOldOrder');
+    }
 }
 
 write 'Выгрузить' () {
