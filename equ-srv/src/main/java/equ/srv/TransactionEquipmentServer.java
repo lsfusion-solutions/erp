@@ -171,6 +171,10 @@ class TransactionEquipmentServer {
 
             Map<String, List<ItemGroup>> itemGroupMap = null; //is read only for cash registers: all the item groups with the hierarchy
             Map<DataObject, ImMap<Object, Object>> groupValuesMap = new HashMap<>(); //the properties of the groups of machinery, see readGroupValues
+            //are read only for terminals: the handbook types and the legal entities once for all the transactions, the document types once per group
+            List<TerminalHandbookType> terminalHandbookTypeList = null;
+            List<TerminalLegalEntity> terminalLegalEntityList = null;
+            Map<DataObject, List<TerminalDocumentType>> terminalDocumentTypeMap = new HashMap<>();
             List<Integer> troubleMachineryGroups = readTroubleMachineryGroups(session, minutesTroubleMachineryGroups);
             Integer skipCounter = skipTroubleCounter.get(sidEquipmentServer);
             if (skipCounter == null) skipCounter = 1;
@@ -210,7 +214,18 @@ class TransactionEquipmentServer {
                 } else if (isPriceCheckerPriceTransaction) {
                     transactionList.add(readPriceCheckerTransaction(session, transaction, skuResult));
                 } else if (isTerminalPriceTransaction) {
-                    transactionList.add(readTerminalTransaction(server.getBusinessLogics(), session, transaction, skuResult, groupValuesMap));
+                    BusinessLogics BL = server.getBusinessLogics();
+                    if (terminalHandbookTypeList == null) {
+                        terminalHandbookTypeList = TerminalEquipmentServer.readTerminalHandbookTypeList(session, BL);
+                        terminalLegalEntityList = TerminalEquipmentServer.readTerminalLegalEntityList(session, BL);
+                    }
+                    List<TerminalDocumentType> terminalDocumentTypeList = terminalDocumentTypeMap.get(transaction.groupMachineryObject);
+                    if (terminalDocumentTypeList == null) {
+                        terminalDocumentTypeList = TerminalEquipmentServer.readTerminalDocumentTypeListEquipment(session, BL, transaction.groupMachineryObject);
+                        terminalDocumentTypeMap.put(transaction.groupMachineryObject, terminalDocumentTypeList);
+                    }
+                    transactionList.add(readTerminalTransaction(session, transaction, skuResult, groupValuesMap,
+                            terminalHandbookTypeList, terminalDocumentTypeList, terminalLegalEntityList));
                 }
             }
             logger.info("Sending " + transactionList.size() + " transactions");
@@ -620,8 +635,9 @@ class TransactionEquipmentServer {
                 transaction.snapshotTransaction, transaction.lastErrorDateTransaction, transaction.infoMPT);
     }
 
-    private static TransactionTerminalInfo readTerminalTransaction(BusinessLogics BL, DataSession session, Transaction transaction, ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> skuResult,
-                                                                   Map<DataObject, ImMap<Object, Object>> groupValuesMap) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private static TransactionTerminalInfo readTerminalTransaction(DataSession session, Transaction transaction, ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> skuResult,
+                                                                   Map<DataObject, ImMap<Object, Object>> groupValuesMap, List<TerminalHandbookType> terminalHandbookTypeList,
+                                                                   List<TerminalDocumentType> terminalDocumentTypeList, List<TerminalLegalEntity> terminalLegalEntityList) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         DataObject transactionObject = transaction.transactionObject;
         DataObject groupMachineryObject = transaction.groupMachineryObject;
         Integer nppGroupMachinery = transaction.nppGroupMachinery;
@@ -683,9 +699,6 @@ class TransactionEquipmentServer {
 
         //commented out to reduce the amount of the transferred data (priceListType[GroupMachinery] and stock[GroupTerminal] of the group are not read anymore)
         List<TerminalAssortment> terminalAssortmentList = new ArrayList<>();//TerminalEquipmentServer.readTerminalAssortmentList(session, BL, priceListTypeGroupMachinery, stockGroupTerminal);
-        List<TerminalHandbookType> terminalHandbookTypeList = TerminalEquipmentServer.readTerminalHandbookTypeList(session, BL);
-        List<TerminalDocumentType> terminalDocumentTypeList = TerminalEquipmentServer.readTerminalDocumentTypeListEquipment(session, BL, groupMachineryObject);
-        List<TerminalLegalEntity> terminalLegalEntityList = TerminalEquipmentServer.readTerminalLegalEntityList(session, BL);
 
         return new TransactionTerminalInfo((Long) transactionObject.getValue(), transaction.dateTimeCode,
                 transaction.date, handlerModelGroupMachinery, (Long) groupMachineryObject.object, nppGroupMachinery, transaction.nameGroupMachinery,
