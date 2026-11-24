@@ -34,6 +34,7 @@ ordersSupplierGLN = DATA LOCAL NESTED STRING[13]();
 ordersDeliveryDateTimeFirst = DATA LOCAL NESTED DATETIME();
 ordersComment = DATA LOCAL NESTED ISTRING[500]();
 ordersGTIN = DATA LOCAL NESTED STRING[15](INTEGER);
+ordersSupplierCode = DATA LOCAL NESTED STRING[100](INTEGER); //код товара у поставщика (PIA SA в EANCOM)
 ordersQuantityOrdered = DATA LOCAL NESTED NUMERIC[16,5](INTEGER);
 ordersPriceElement = DATA LOCAL NESTED NUMERIC[16,2](INTEGER);
 ordersTax = DATA LOCAL NESTED NUMERIC[4,2](INTEGER);
@@ -48,6 +49,10 @@ FORM importOrders
                   ordersPriceElement EXTID 'priceElement', ordersTax EXTID 'tax'
 ;
 
+//разбор ORDERS другого формата (V2 API СТТ — EANCOM): заполняет orders* и выставляет ordersParsed;
+ordersParsed = DATA LOCAL NESTED BOOLEAN ();
+ordersSkipped = DATA LOCAL NESTED BOOLEAN ();
+parseOrders ABSTRACT LIST (INTEGER, STRING[100], STRING[100]);
 orderDocumentNumber = DATA STRING[48](Sale.UserOrder);
 isCancel 'Отменен' = DATA BOOLEAN (Sale.UserOrder);
 quantityOrdered = DATA NUMERIC[16,5] (Sale.UserOrderDetail);
@@ -56,11 +61,22 @@ CONSTRAINT SET(isPosted(Sale.UserOrder o)) AND isCancel(o) MESSAGE 'Нельзя
 
 @openRawData(Sale.UserOrder,o,Sale.orders);
 
+overImportOrder ABSTRACT LIST (Sale.UserOrder);
+
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
-    IF lower(documentType(i)) == 'orders' THEN {
+    IF lower(documentType(i)) == 'orders' AND skipImportOrders() THEN {
+        logToFile('edi', provider + ' (' + login + ') Import Order ' + id(i) + ' skipped: orders are received via REST API');
+        messagesSkipped() <- messagesSkipped() + 1;
+    }
+    IF lower(documentType(i)) == 'orders' AND NOT skipImportOrders() THEN {
         TRY {
-            IMPORT importOrders XML FROM data(i);
-            IF ordersDocumentType() == 31 OR (ordersDocumentType() == 9 AND Sale.userOrder(ordersSupplierGLN() + '/' + ordersDocumentNumber())) THEN {
+            ordersParsed() <- NULL;
+            ordersSkipped() <- NULL;
+            ordersSupplierCode(INTEGER l) <- NULL;
+            parseOrders(i, login, provider);
+            IF NOT ordersParsed() AND NOT ordersSkipped() THEN IMPORT importOrders XML FROM data(i);
+            IF ordersSkipped() THEN {}
+            ELSE IF ordersDocumentType() == 31 OR (ordersDocumentType() == 9 AND Sale.userOrder(ordersSupplierGLN() + '/' + ordersDocumentNumber())) THEN {
                 logToFile('edi', provider + ' (' + login + ') Parse Order ' + id(i) + ' skipped for documentType ' + ordersDocumentType());
                 confirmMessage(i, login, password, url, provider, disableConfirmation);
                 supplierOrdersFailed() <- supplierOrdersFailed() + 1;
@@ -84,17 +100,20 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                             orderDocumentNumber(o) <- ordersDocumentNumber();
                             date(o) <- ordersDocumentDate();
                             supplier(o) <- legalEntityGLN(ordersSupplierGLN());
-                            //возможно операцию и склад нужно пеедавать параметрами 
                             supplierStock(o) <- supplierStockTopBy();
                             customer(o) <- legalEntityGLN(ordersBuyerGLN());
-                            customerStock(o) <- stockGLN(ordersDestinationGLN());
+                            customerStock(o) <- OVERRIDE [GROUP MAX Stock s IF active(s) BY GLN(s), legalEntity(s)](ordersDestinationGLN(), customer(o)),
+                                stockGLN(ordersDestinationGLN());
                             operation(o) <- saleOperationTopBy();
                             shipmentDate(o) <- DATE(ordersDeliveryDateTimeFirst());
                             shipmentTime(o) <- TIME(ordersDeliveryDateTimeFirst());
                             note(o) <- ordersComment();
                             
                             FOR ordersGTIN(INTEGER l) AND Sale.UserOrderDetail d == Sale.userOrderDetail(ordersSupplierGLN() + '/' + ordersDocumentNumber() + '/' + l) DO {
-                                sku(d) <- skuGTIN(ordersGTIN(l));
+                                sku(d) <- OVERRIDE skuGTIN(ordersGTIN(l)), sku(ordersSupplierCode(l));
+                                IF NOT sku(d) THEN
+                                    logToFile('edi', provider + ' (' + login + ') Import Order ' + id(i) + ' warning: товар не найден, строка ' + l
+                                        + ', GTIN ' + (OVERRIDE ordersGTIN(l), 'NULL') + ', код поставщика ' + (OVERRIDE ordersSupplierCode(l), 'NULL'));
                                 quantity(d) <- ordersQuantityOrdered(l);
                                 quantityOrdered(d) <- ordersQuantityOrdered(l);
                                 price(d) <- ordersPriceElement(l);
@@ -102,6 +121,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                             }
                         }
                         XMLPath(o) <- receivedPath(archiveDir, i);
+                        overImportOrder(o);
                         APPLY NESTED LOCAL;
                         IF canceled() THEN {
                             logToFile('edi', provider + ' (' + login + ') Import Order ' + id(i) + ' failed: ' + applyMessage());
@@ -140,7 +160,8 @@ exported 'Экспортирован' = DATA BOOLEAN (Sale.UserOrder);
 exportedCanceled 'Экспортирован (отмена)' = DATA BOOLEAN (Sale.UserOrder);
 sendSaleOrderSupplier 'Отправить (поставщик)'  ABSTRACT LIST (Sale.UserOrder);
 sendCancelSaleOrderSupplier 'Отменить (поставщик)'  ABSTRACT LIST (Sale.UserOrder);
-EXTEND FORM Sale.orders PROPERTIES(o) isCancel READONLY, exported READONLY, exportedCanceled READONLY, sendSaleOrderSupplier PANEL SHOWIF orderDocumentNumber(o), sendCancelSaleOrderSupplier PANEL SHOWIF orderDocumentNumber(o);
+
+EXTEND FORM Sale.orders PROPERTIES(o) isCancel READONLY, exported READONLY, exportedCanceled READONLY, sendSaleOrderSupplier PANEL SHOWIF NOT useV2EOrder() AND orderDocumentNumber(o), sendCancelSaleOrderSupplier PANEL SHOWIF NOT useV2EOrder() AND orderDocumentNumber(o);
 DESIGN Sale.orders {
     actionContainer {
         NEW edi {

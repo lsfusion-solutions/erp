@@ -1,0 +1,675 @@
+MODULE EOrderCTT;
+
+REQUIRE EOrder, CTT;
+
+NAMESPACE EDI;
+
+documentId = DATA STRING (EOrder) INDEXED;
+eOrderByDocumentId (STRING docId) = GROUP MAX EOrder o BY documentId(o);
+
+codeEOrderStatusV2 (STRING status) = CASE
+    WHEN status == 'TRANSFERRED' THEN '1250'
+    WHEN status == 'ACCEPTED' THEN '29'
+    WHEN status == 'ACCEPTED_WITH_CHANGES' THEN '4'
+    WHEN status == 'CANCELED_BY_SUPPLIER' THEN '27'
+    WHEN status == 'CANCELED_BY_BUYER' THEN '27'
+;
+
+good(EOrderMessage m) += WHEN documentId(eOrder(m)) AND (code(m) == '29' OR code(m) == '4' OR code(m) == '27'
+    OR code(m) == '9' OR code(m) == '1' OR code(m) == '1250') THEN TRUE;
+
+statusMessageNumberV2 (EOrder o, STRING status) = STRING[35](documentId(o) + '/' + status);
+
+addStatusMessageV2 (EOrder o, STRING status, STRING name) {
+    IF codeEOrderStatusV2(status) AND NOT eOrderMessage(statusMessageNumberV2(o, status)) THEN NEW m = EOrderMessage {
+        number(m) <- statusMessageNumberV2(o, status);
+        eOrder(m) <- o;
+        dateTime(m) <- currentDateTime();
+        code(m) <- codeEOrderStatusV2(status);
+        description(m) <- STRING[1000](OVERRIDE name, status);
+    }
+}
+
+GROUP eOrderProcessingStatus EXTID 'processingStatus';
+
+responseDateTimeV2 = DATA LOCAL STRING (INTEGER);
+
+FORM importEOrdersV2
+    PROPERTIES() last, totalPages
+
+    OBJECTS content = INTEGER
+    PROPERTIES(content) id, dateTime, responseDateTimeV2 EXTID 'responseDateTime', documentNumber
+    PROPERTIES(content) IN eOrderProcessingStatus name1 EXTID 'name', id1 EXTID 'id'
+    FILTERS imported(content)
+;
+
+sentDocumentIdV2 (EOrder o) = GROUP MAX id(INTEGER i) IF NOT eOrderByDocumentId(id(i)) BY eOrder(documentNumber(i));
+
+processedVersionV2 = DATA STRING[100] (STRING[100]);
+keyV2 (INTEGER i) = STRING[100]('ORDERS/' + id(i));
+versionV2 (INTEGER i) = STRING[100](CONCAT '|', id1(i), responseDateTimeV2(i));
+
+receiveFailures () = (OVERRIDE responsesFailed(), 0) + (OVERRIDE supplierOrdersFailed(), 0) + (OVERRIDE despatchAdvicesFailed(), 0)
+    + (OVERRIDE orderMessagesFailed(), 0) + (OVERRIDE messagesWithoutResult(), 0);
+
+resolveDocumentIdV2 (EOrder o, LegalEntity le, STRING[100] provider) {
+    LOCAL response = FILE ();
+    LOCAL docId = STRING ();
+    LOCAL attempt = INTEGER ();
+    attempt() <- 0;
+    TRY {
+        WHILE attempt() < 5 AND NOT docId() DO {
+            attempt() <- attempt() + 1;
+            sleep(1000);
+            EXPORT JSON FROM documentDateStart = ZDATETIME(sumDay(currentDateTime(), -1)), documentDateEnd = ZDATETIME(sumDay(currentDateTime(), 1)),
+            useDocumentDate = TFALSE, documentNumber = number(o);
+            EXTERNAL HTTP POST url(profile(le)) + 'ORDERS/ALL/filteredPage?page=1' HEADERS headersV2 PARAMS exportFile() TO response;
+            id(INTEGER i) <- NULL;
+            documentNumber(INTEGER i) <- NULL;
+            IMPORT importEOrdersV2 JSON FROM response();
+            docId() <- GROUP MAX id(INTEGER i) IF documentNumber(i) = number(o) AND NOT id(i) = documentId(o);
+        }
+        IF docId() THEN {
+            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendEOrder V2 ' + number(o) + ': документ ' + docId() + ' (черновик ' + documentId(o) + ')');
+            documentId(o) <- docId();
+        } ELSE
+            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendEOrder V2 ' + number(o) + ': документ по черновику ' + documentId(o) + ' пока не найден, id обновится при приёме');
+    } CATCH {
+        logToFile('edi', provider + ' (' + loginProfile(le) + ') SendEOrder V2 ' + number(o) + ': id документа не получен: ' + messageCaughtException());
+    }
+}
+
+markOrdersAsReadV2 (LegalEntity le, STRING docId, STRING[100] provider) {
+    LOCAL result = FILE ();
+    TRY {
+        EXPORT JSON FROM value = '[' + docId + ']';
+        EXTERNAL HTTP POST url(profile(le)) + 'ORDERS/markAsRead' HEADERS headersV2 PARAMS exportFile() TO result;
+        IF NOT (statusHttp() == 200 OR statusHttp() == 201) THEN
+            logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveEOrders V2: markAsRead ' + docId + ': неожиданный ответ ' + statusHttp());
+    } CATCH {
+        logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveEOrders V2: markAsRead ' + docId + ' error: ' + messageCaughtException());
+    }
+}
+
+receiveEOrdersV2 (LegalEntity le, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) {
+    IF loginProfile(le) AND password(profile(le)) AND url(profile(le)) THEN {
+        LOCAL response = FILE ();
+        TRY {
+            authV2(le);
+            IF token() THEN {
+                LOCAL NESTED page = INTEGER ();
+                fillStartParams();
+                WHILE TRUE DO {
+                    timeoutHttp() <- 300000;
+                    page() <- page() (+) 1;
+
+                    EXPORT JSON FROM documentDateStart = ZDATETIME(receiveDateStartV2()), documentDateEnd = ZDATETIME(receiveDateEndV2()), useDocumentDate = TFALSE;
+                    logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveEOrders V2 request sent. POST /api/v1/ORDERS/' + (OVERRIDE id(filterPageStatus()), id(FilterPageStatus.ALL_)) + '/filteredPage?page=' + page());
+                    EXTERNAL HTTP POST url(profile(le)) + 'ORDERS/' + (OVERRIDE id(filterPageStatus()), id(FilterPageStatus.ALL_)) + '/filteredPage?page=' + page() HEADERS headersV2 PARAMS exportFile() TO response;
+
+                    IF NOT statusHttp() == 200 THEN {
+                        logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveEOrders V2: неожиданный ответ ' + statusHttp());
+                        BREAK;
+                    }
+
+                    id(INTEGER i) <- NULL;
+                    dateTime(INTEGER i) <- NULL;
+                    responseDateTimeV2(INTEGER i) <- NULL;
+                    documentNumber(INTEGER i) <- NULL;
+                    name1(INTEGER i) <- NULL;
+                    id1(INTEGER i) <- NULL;
+                    IMPORT importEOrdersV2 JSON FROM response();
+                    IF NOT (GROUP SUM 1 IF id(INTEGER i)) THEN BREAK;
+
+                    documentId(EOrder o) <- sentDocumentIdV2(o) WHERE sentDocumentIdV2(o) AND exported(o) AND documentId(o) AND NOT documentId(o) = sentDocumentIdV2(o);
+
+                    FOR id(INTEGER i) DO {
+                        IF eOrderByDocumentId(id(i)) THEN addStatusMessageV2(eOrderByDocumentId(id(i)), id1(i), name1(i));
+                        IF NOT id1(i) THEN
+                            logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveEOrders V2 warning: не заполнен статус документа ' + id(i));
+                        IF id1(i) == 'DRAFT' THEN {
+                            logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveEOrders V2: документ ' + id(i) + ' пропущен (черновик)');
+                        } ELSE IF NOT processedVersionV2(keyV2(i)) = versionV2(i) THEN {
+                            LOCAL failuresBefore = INTEGER ();
+                            failuresBefore() <- receiveFailures();
+                            startReceiveResult();
+                            unzipped(STRING[100] s) <- NULL;
+                            EXPORT JSON FROM value = '[' + id(i) + ']';
+                            logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveEOrders V2 request sent. POST /api/v1/ORDERS/downloadArchive/XML\n' + exportFile());
+                            EXTERNAL HTTP POST url(profile(le)) + 'ORDERS/downloadArchive/XML' HEADERS headersV2 PARAMS exportFile() TO unzipping;
+                            TRY { makeUnzipFile(); }
+                            IF NOT (GROUP SUM 1 IF unzipped(STRING[100] s)) THEN {
+                                IF unzipping() THEN {
+                                    unzipped('document.xml') <- unzipping();
+                                } ELSE {
+                                    logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveEOrders V2: пустой ответ downloadArchive для документа ' + id(i));
+                                }
+                            }
+                            FOR FILE f = unzipped(STRING[100] s) DO {
+                                currentDocId() <- id(i);
+                                IMPORT message XML FROM f;
+                                data(i) <- XMLFILE(f);
+                                documentType(i) <- e0026();
+
+                                receivedFileName(i) <- id(i) + '_' + regexpReplace(s, '\\.[^.]*$', '', 'g');
+                                IF archiveDir THEN {
+                                    TRY { mkdir(receivedDir(archiveDir)); }
+                                    WRITE data(i) TO receivedPath(archiveDir, i);
+                                }
+                                overReceiveMessages(i, loginProfile(le), password(profile(le)), url(profile(le)), archiveDir, disableConfirmation, provider);
+                                currentDocId() <- NULL;
+                            }
+                            checkReceiveResult(i, loginProfile(le), provider);
+                            receivedFileName(i) <- NULL;
+                            IF receiveFailures() = failuresBefore() THEN {
+                                processedVersionV2(keyV2(i)) <- versionV2(i);
+                                IF NOT disableConfirmation THEN markOrdersAsReadV2(le, id(i), provider);
+                            }
+                        }
+                    }
+                    APPLY;
+                    IF totalPages() == page() OR last() THEN BREAK;
+                }
+                fillEndParams();
+                IF sendRecipientErrorFailed() == 0 THEN {
+                    MESSAGE (OVERRIDE textMessage(), provider + ' (' + loginProfile(le) + ') Не найдено новых сообщений (EOrders V2)') NOWAIT;
+                }
+            }
+        } CATCH {
+            logToFile('edi', CONCAT '\n', provider + ' (' + loginProfile(le) + ') error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
+            MESSAGE 'Запрос на получение заказов не отправлен. Обратитесь к администратору' NOWAIT;
+            CANCEL;
+        }
+    }
+}
+
+overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
+    IF lower(documentType(i)) == 'orders' AND eOrderByDocumentId(currentDocId()) THEN {
+        logToFile('edi', provider + ' (' + login + ') Message ORDERS ' + id(i) + ' skipped: own order ' + number(eOrderByDocumentId(currentDocId())));
+        messagesSkipped() <- messagesSkipped() + 1;
+    }
+}
+
+receiveOrdersV2 (STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
+    FOR LegalEntity le == [GROUP MIN LegalEntity l BY profile(l)](Profile p) AND login(p) AND password(p) DO {
+        NEWSESSION {
+            lockTopBy(login(p));
+            IF lockResultTopBy() THEN {
+                TRY {
+                    receiveEOrdersV2(le, archiveDir, disableConfirmation, provider );
+                } FINALLY {
+                    unlockTopBy(login(p));
+                }
+            } ELSE
+                MESSAGE provider + ' (' + login(p) + ') Уже выполняется получение сообщений. Подождите...' NOWAIT;
+        }
+    }
+}
+
+//Разбор документов EANCOM (V2)
+
+GROUP eancomBGM EXTID 'BGM';
+GROUP eancomBGMC106 EXTID 'C106' : eancomBGM;
+GROUP eancomDTMC507 EXTID 'C507';
+GROUP eancomRFF EXTID 'RFF';
+GROUP eancomRFFC506 EXTID 'C506' : eancomRFF;
+GROUP eancomNAD EXTID 'NAD';
+GROUP eancomNADC082 EXTID 'C082' : eancomNAD;
+GROUP eancomLIN EXTID 'LIN';
+GROUP eancomLINC212 EXTID 'C212' : eancomLIN;
+GROUP eancomQTYC186 EXTID 'C186';
+GROUP eancomMOAC516 EXTID 'C516';
+GROUP eancomPRI EXTID 'PRI';
+GROUP eancomPRIC509 EXTID 'C509' : eancomPRI;
+
+eancomNumber = DATA LOCAL STRING ();
+eancomFunction = DATA LOCAL STRING ();
+
+eancomDtmQualifier = DATA LOCAL STRING (INTEGER);
+eancomDtmValue = DATA LOCAL STRING (INTEGER);
+eancomDtmFormat = DATA LOCAL STRING (INTEGER);
+
+eancomRffQualifier = DATA LOCAL STRING (INTEGER);
+eancomRffValue = DATA LOCAL STRING (INTEGER);
+
+eancomNadQualifier = DATA LOCAL STRING (INTEGER);
+eancomNadGLN = DATA LOCAL STRING (INTEGER);
+
+eancomLinPosition = DATA LOCAL INTEGER (INTEGER);
+eancomLinAction = DATA LOCAL INTEGER (INTEGER);
+eancomLinGTIN = DATA LOCAL STRING (INTEGER);
+
+eancomQtyLine = DATA LOCAL INTEGER (INTEGER);
+eancomQtyQualifier = DATA LOCAL STRING (INTEGER);
+eancomQtyValue = DATA LOCAL NUMERIC[16,5] (INTEGER);
+
+eancomMoaLine = DATA LOCAL INTEGER (INTEGER);
+eancomMoaQualifier = DATA LOCAL STRING (INTEGER);
+eancomMoaValue = DATA LOCAL NUMERIC[16,4] (INTEGER);
+
+eancomPriLine = DATA LOCAL INTEGER (INTEGER);
+eancomPriQualifier = DATA LOCAL STRING (INTEGER);
+eancomPriValue = DATA LOCAL NUMERIC[16,4] (INTEGER);
+
+FORM eancomOrdrsp
+    PROPERTIES() IN eancomBGMC106 eancomNumber EXTID 'E1004'
+    PROPERTIES() IN eancomBGM eancomFunction EXTID 'E1225'
+
+    OBJECTS dtm = INTEGER EXTID 'DTM'
+    PROPERTIES(dtm) IN eancomDTMC507 eancomDtmQualifier EXTID 'E2005', eancomDtmValue EXTID 'E2380', eancomDtmFormat EXTID 'E2379'
+
+    OBJECTS sg1 = INTEGER EXTID 'SG1'
+    PROPERTIES(sg1) IN eancomRFFC506 eancomRffQualifier EXTID 'E1153', eancomRffValue EXTID 'E1154'
+
+    OBJECTS sg3 = INTEGER EXTID 'SG3'
+    PROPERTIES(sg3) IN eancomNAD eancomNadQualifier EXTID 'E3035'
+    PROPERTIES(sg3) IN eancomNADC082 eancomNadGLN EXTID 'E3039'
+
+    OBJECTS sg26 = INTEGER EXTID 'SG26'
+    PROPERTIES(sg26) IN eancomLIN eancomLinPosition EXTID 'E1082', eancomLinAction EXTID 'E1229'
+    PROPERTIES(sg26) IN eancomLINC212 eancomLinGTIN EXTID 'E7140'
+
+    OBJECTS qty = INTEGER EXTID 'QTY'
+    PROPERTIES(qty) IN eancomQTYC186 eancomQtyQualifier EXTID 'E6063', eancomQtyValue EXTID 'E6060'
+    FILTERS eancomQtyLine(qty) = sg26
+
+    OBJECTS moa = INTEGER EXTID 'MOA'
+    PROPERTIES(moa) IN eancomMOAC516 eancomMoaQualifier EXTID 'E5025', eancomMoaValue EXTID 'E5004'
+    FILTERS eancomMoaLine(moa) = sg26
+
+    OBJECTS sg30 = INTEGER EXTID 'SG30'
+    PROPERTIES(sg30) IN eancomPRIC509 eancomPriQualifier EXTID 'E5125', eancomPriValue EXTID 'E5118'
+    FILTERS eancomPriLine(sg30) = sg26
+;
+
+eancomDtm (STRING qualifier) = GROUP MAX eancomDtmValue(INTEGER d) IF eancomDtmQualifier(d) = qualifier;
+eancomRff (STRING qualifier) = GROUP MAX eancomRffValue(INTEGER r) IF eancomRffQualifier(r) = qualifier;
+eancomNad (STRING qualifier) = GROUP MAX eancomNadGLN(INTEGER n) IF eancomNadQualifier(n) = qualifier;
+eancomQty (INTEGER l, STRING qualifier) = GROUP SUM eancomQtyValue(INTEGER q) IF eancomQtyLine(q) = l AND eancomQtyQualifier(q) = qualifier;
+eancomMoa (INTEGER l, STRING qualifier) = GROUP SUM eancomMoaValue(INTEGER m) IF eancomMoaLine(m) = l AND eancomMoaQualifier(m) = qualifier;
+eancomPri (INTEGER l, STRING qualifier) = GROUP MAX eancomPriValue(INTEGER p) IF eancomPriLine(p) = l AND eancomPriQualifier(p) = qualifier;
+
+eancomDateTime (STRING s) = toDateTimeFormat(left(s + '0000', 12), 'YYYYMMDDHH24MI');
+eancomDateTimeText (STRING s) = toChar(eancomDateTime(s), 'yyyy-MM-ddThh24:mi:ss');
+
+GROUP eancomTAX EXTID 'TAX';
+GROUP eancomTAXC243 EXTID 'C243' : eancomTAX;
+
+eancomTaxLine = DATA LOCAL INTEGER (INTEGER);
+eancomTaxRate = DATA LOCAL NUMERIC[10,5] (INTEGER);
+
+//дополнительные коды товара строки (PIA): SA — код поставщика, IN — код покупателя
+GROUP eancomPIAC212 EXTID 'C212';
+
+eancomPiaLine = DATA LOCAL INTEGER (INTEGER);
+eancomPiaQualifier = DATA LOCAL STRING (INTEGER);
+eancomPiaValue = DATA LOCAL STRING (INTEGER);
+
+FORM eancomOrders
+    PROPERTIES() IN eancomBGMC106 eancomNumber EXTID 'E1004'
+    PROPERTIES() IN eancomBGM eancomFunction EXTID 'E1225'
+
+    OBJECTS dtm = INTEGER EXTID 'DTM'
+    PROPERTIES(dtm) IN eancomDTMC507 eancomDtmQualifier EXTID 'E2005', eancomDtmValue EXTID 'E2380', eancomDtmFormat EXTID 'E2379'
+
+    OBJECTS sg1 = INTEGER EXTID 'SG1'
+    PROPERTIES(sg1) IN eancomRFFC506 eancomRffQualifier EXTID 'E1153', eancomRffValue EXTID 'E1154'
+
+    OBJECTS sg2 = INTEGER EXTID 'SG2'
+    PROPERTIES(sg2) IN eancomNAD eancomNadQualifier EXTID 'E3035'
+    PROPERTIES(sg2) IN eancomNADC082 eancomNadGLN EXTID 'E3039'
+
+    OBJECTS sg28 = INTEGER EXTID 'SG28'
+    PROPERTIES(sg28) IN eancomLIN eancomLinPosition EXTID 'E1082', eancomLinAction EXTID 'E1229'
+    PROPERTIES(sg28) IN eancomLINC212 eancomLinGTIN EXTID 'E7140'
+
+    OBJECTS pia = INTEGER EXTID 'PIA'
+    PROPERTIES(pia) IN eancomPIAC212 eancomPiaQualifier EXTID 'E7143', eancomPiaValue EXTID 'E7140'
+    FILTERS eancomPiaLine(pia) = sg28
+
+    OBJECTS qty = INTEGER EXTID 'QTY'
+    PROPERTIES(qty) IN eancomQTYC186 eancomQtyQualifier EXTID 'E6063', eancomQtyValue EXTID 'E6060'
+    FILTERS eancomQtyLine(qty) = sg28
+
+    OBJECTS moa = INTEGER EXTID 'MOA'
+    PROPERTIES(moa) IN eancomMOAC516 eancomMoaQualifier EXTID 'E5025', eancomMoaValue EXTID 'E5004'
+    FILTERS eancomMoaLine(moa) = sg28
+
+    OBJECTS sg32 = INTEGER EXTID 'SG32'
+    PROPERTIES(sg32) IN eancomPRIC509 eancomPriQualifier EXTID 'E5125', eancomPriValue EXTID 'E5118'
+    FILTERS eancomPriLine(sg32) = sg28
+
+    OBJECTS sg38 = INTEGER EXTID 'SG38'
+    PROPERTIES(sg38) IN eancomTAXC243 eancomTaxRate EXTID 'E5278'
+    FILTERS eancomTaxLine(sg38) = sg28
+;
+
+eancomTax (INTEGER l) = GROUP MAX eancomTaxRate(INTEGER t) IF eancomTaxLine(t) = l;
+eancomPia (INTEGER l, STRING qualifier) = GROUP MAX eancomPiaValue(INTEGER p) IF eancomPiaLine(p) = l AND eancomPiaQualifier(p) = qualifier;
+
+//Отправка заказов V2
+
+GROUP eOrderUom EXTID 'uom';
+GROUP eOrderFormSettings EXTID 'formSettings';
+
+eOrderId = DATA LOCAL INTEGER();
+eOrderDocumentNumber = DATA LOCAL STRING();
+eOrderDocumentDate = DATA LOCAL STRING();
+eOrderDeliveryDateFrom = DATA LOCAL ZDATETIME();
+eOrderDeliveryDateTo = DATA LOCAL ZDATETIME();
+eOrderShipmentDate = DATA LOCAL ZDATETIME();
+eOrderBuyerId = DATA LOCAL INTEGER();
+eOrderSupplierId = DATA LOCAL INTEGER();
+eOrderDeliveryPointId = DATA LOCAL INTEGER();
+eOrderBuyerName = DATA LOCAL STRING();
+eOrderBuyerGln = DATA LOCAL STRING();
+eOrderSupplierName = DATA LOCAL STRING();
+eOrderSupplierGln = DATA LOCAL STRING();
+eOrderDeliveryPointAddress = DATA LOCAL STRING();
+eOrderDeliveryPointGln = DATA LOCAL STRING();
+eOrderDeliveryPointName = DATA LOCAL STRING();
+eOrderShipFromPointAddress = DATA LOCAL STRING();
+eOrderShipFromPointGln = DATA LOCAL STRING();
+eOrderShipFromPointName = DATA LOCAL STRING();
+eOrderDocumentNameCode = DATA LOCAL STRING();
+eOrderContractNumber = DATA LOCAL STRING();
+eOrderContractNumbers = DATA LOCAL STRING(INTEGER);
+eOrderComment = DATA LOCAL STRING();
+eOrderTotalQuantity = DATA LOCAL NUMERIC[16,5]();
+eOrderTotalAmountWithoutVat = DATA LOCAL NUMERIC[18,2]();
+eOrderTotalAmountVat = DATA LOCAL NUMERIC[18,2]();
+eOrderTotalAmountWithVat = DATA LOCAL NUMERIC[18,2]();
+eOrderIsAutoSum = DATA LOCAL BOOLEAN();
+
+eOrderItemAction = DATA LOCAL INTEGER(INTEGER);
+eOrderItemPosition = DATA LOCAL INTEGER(INTEGER);
+eOrderItemCodeByBuyer = DATA LOCAL STRING(INTEGER);
+eOrderItemFullName = DATA LOCAL STRING(INTEGER);
+eOrderItemGtin = DATA LOCAL STRING(INTEGER);
+eOrderItemUomName = DATA LOCAL STRING(INTEGER);
+eOrderItemUomAlpha3 = DATA LOCAL STRING(INTEGER);
+eOrderItemQuantityOrdered = DATA LOCAL NUMERIC[16,5](INTEGER);
+eOrderItemPriceNet = DATA LOCAL NUMERIC[16,4](INTEGER);
+eOrderItemVatRate = DATA LOCAL NUMERIC[10,5](INTEGER);
+eOrderItemAmountWithoutVat = DATA LOCAL NUMERIC[18,2](INTEGER);
+eOrderItemAmountVat = DATA LOCAL NUMERIC[18,2](INTEGER);
+eOrderItemAmountWithVat = DATA LOCAL NUMERIC[18,2](INTEGER);
+eOrderFormItems = DATA LOCAL BOOLEAN(INTEGER);
+
+FORM exportEOrderV2
+    PROPERTIES() eOrderId EXTID 'id', eOrderDocumentNumber EXTID 'documentNumber', eOrderDocumentDate EXTID 'documentDate', eOrderDeliveryDateFrom EXTID 'deliveryDateFrom', eOrderDeliveryDateTo EXTID 'deliveryDateTo',
+        eOrderShipmentDate EXTID 'shipmentDate', eOrderBuyerId EXTID 'buyerId', eOrderBuyerName EXTID 'buyerName', eOrderBuyerGln EXTID 'buyerGln',
+        eOrderSupplierId EXTID 'supplierId', eOrderSupplierName EXTID 'supplierName', eOrderSupplierGln EXTID 'supplierGln',
+        eOrderDeliveryPointId EXTID 'deliveryPointId', eOrderDeliveryPointAddress EXTID 'deliveryPointAddress', eOrderDeliveryPointGln EXTID 'deliveryPointGln', eOrderDeliveryPointName EXTID 'deliveryPointName',
+        eOrderShipFromPointAddress EXTID 'shipFromPointAddress', eOrderShipFromPointGln EXTID 'shipFromPointGln', eOrderShipFromPointName EXTID 'shipFromPointName',
+        eOrderDocumentNameCode EXTID 'documentNameCode', eOrderTotalQuantity EXTID 'totalQuantity',
+        eOrderTotalAmountWithoutVat EXTID 'totalAmountWithoutVat', eOrderTotalAmountVat EXTID 'totalAmountVat', eOrderTotalAmountWithVat EXTID 'totalAmountWithVat',
+        eOrderContractNumber EXTID 'contractNumber', eOrderComment EXTID 'orderComment'
+
+    OBJECTS contractNumbers = INTEGER
+    PROPERTIES(contractNumbers) eOrderContractNumbers EXTID 'value'
+    FILTERS eOrderContractNumbers(contractNumbers)
+
+    OBJECTS msgOrdersItems = INTEGER
+    PROPERTIES(msgOrdersItems) eOrderItemAction EXTID 'action', eOrderItemPosition EXTID 'position', eOrderItemCodeByBuyer EXTID 'codeByBuyer',
+        eOrderItemFullName EXTID 'fullName', eOrderItemGtin EXTID 'gtin', eOrderItemQuantityOrdered EXTID 'quantityOrdered',
+        eOrderItemPriceNet EXTID 'priceNet', eOrderItemVatRate EXTID 'vatRate', eOrderItemAmountWithoutVat EXTID 'amountWithoutVat',
+        eOrderItemAmountVat EXTID 'amountVat', eOrderItemAmountWithVat EXTID 'amountWithVat'
+    PROPERTIES(msgOrdersItems) IN eOrderUom eOrderItemUomAlpha3 EXTID 'alpha3', eOrderItemUomName EXTID 'name'
+    FILTERS eOrderItemPosition(msgOrdersItems)
+
+    PROPERTIES() IN eOrderFormSettings eOrderIsAutoSum EXTID 'isAutoSum'
+
+    OBJECTS items = INTEGER IN eOrderFormSettings
+    PROPERTIES(items) eOrderFormItems EXTID 'value'
+    FILTERS eOrderFormItems(items)
+;
+
+ordersSentDirV2 (STRING[100] outputDir) = outputDir + '/sent/orders/' + toChar(currentDate(), 'yyyyMMdd');
+ordersSentPathV2 (STRING[100] outputDir, DATETIME dateTime) = ordersSentDirV2(outputDir) + '/' + 'orders-' + toChar(dateTime, 'YYYY-MM-DD-HH24-MI-SS-MS');
+
+//СТТ требует, чтобы окончание периода доставки было позже начала: до конца дня поставки, иначе час
+deliveryDateToV2 (EOrder o) = OVERRIDE (dateTimeToDateTime(DATE(shipmentDateTime(o)), 23:59) IF dateTimeToDateTime(DATE(shipmentDateTime(o)), 23:59) > shipmentDateTime(o)),
+    sumMinutes(shipmentDateTime(o), 60);
+
+GLNSupplierV2 (EOrder o) = OVERRIDE GLNSupplier(o), GLNSupplierStock(o);
+
+//склад указывается в СТТ своим идентификатором, а не GLN
+storageIdV2 'ID склада в СТТ' = DATA INTEGER (Stock);
+
+fillStorageIdV2 (Stock st, LegalEntity le, STRING provider) {
+    IF GLN(st) AND NOT storageIdV2(st) THEN {
+        LOCAL response = FILE ();
+        LOCAL storageId = INTEGER (INTEGER);
+        LOCAL storageGLN = STRING (INTEGER);
+        LOCAL page = INTEGER ();
+        page() <- 0;
+        WHILE page() < 20 AND NOT storageIdV2(st) DO {
+            page() <- page() + 1;
+            EXTERNAL HTTP GET url(profile(le)) + 'organization/storages/list?page=' + page() + '&size=500' HEADERS headersV2 TO response;
+            checkResponseV2(response(), 'organization/storages/list', le, provider);
+            IF NOT requestSucceededV2() THEN BREAK;
+            storageId(INTEGER i) <- NULL;
+            storageGLN(INTEGER i) <- NULL;
+            IMPORT JSON FROM response() TO storageId = id, storageGLN = gln;
+            IF NOT (GROUP SUM 1 IF storageId(INTEGER i)) THEN BREAK;
+            storageIdV2(st) <- GROUP MAX storageId(INTEGER i) IF storageGLN(i) = GLN(st);
+        }
+    }
+}
+
+createExportEOrder (EOrder o) {
+    eOrderItemPosition(INTEGER i) <- NULL;
+    eOrderFormItems(INTEGER i) <- NULL;
+    eOrderContractNumbers(INTEGER i) <- NULL;
+
+    //черновик, созданный прошлой неудачной отправкой, редактируется, а не создаётся заново
+    eOrderId() <- INTEGER(documentId(o)) IF NOT exported(o);
+    eOrderDocumentNumber() <- number(o);
+    eOrderDocumentDate() <- toChar(DATE(sendDateTime(o)), 'yyyy-MM-dd');
+    eOrderDeliveryDateFrom() <- ZDATETIME(shipmentDateTime(o));
+    eOrderDeliveryDateTo() <- ZDATETIME(deliveryDateToV2(o));
+    eOrderShipmentDate() <- ZDATETIME(shipmentDateTime(o));
+    eOrderBuyerId() <- INTEGER(id(customer(o), supplier(o)));
+    eOrderSupplierId() <- INTEGER(id(supplier(o), customer(o)));
+    eOrderDeliveryPointId() <- storageIdV2(customerStock(o));
+    eOrderBuyerName() <- nameCustomer(o);
+    eOrderBuyerGln() <- GLNCustomer(o);
+    eOrderSupplierName() <- nameSupplier(o);
+    eOrderSupplierGln() <- GLNSupplierV2(o);
+    eOrderDeliveryPointAddress() <- address(customerStock(o));
+    eOrderDeliveryPointGln() <- GLNCustomerStock(o);
+    eOrderDeliveryPointName() <- nameCustomerStock(o);
+    eOrderShipFromPointAddress() <- address(supplierStock(o));
+    eOrderShipFromPointGln() <- OVERRIDE GLNSupplierStock1(o), GLNSupplierStock(o);
+    eOrderShipFromPointName() <- nameSupplierStock(o);
+    eOrderDocumentNameCode() <- IF isReturn(o) THEN '70E' ELSE '220';
+    eOrderContractNumber() <- contractNumber(o);
+    eOrderContractNumbers(0) <- contractNumber(o);
+    eOrderComment() <- note(o);
+
+    FOR order(EOrderDetail d) = o AND index(d) = INTEGER i ORDER index(d) DO {
+        eOrderItemPosition(i) <- index(d);
+        eOrderItemAction(i) <- 1;
+        eOrderItemCodeByBuyer(i) <- idSku(d);
+        eOrderItemFullName(i) <- nameSku(d);
+        eOrderItemGtin(i) <- GTINBarcode(d);
+        eOrderItemUomAlpha3(i) <- extraCodeUOMSku(d);
+        eOrderItemUomName(i) <- name(UOMExtraCode(extraCodeUOMSku(d)));
+        eOrderItemQuantityOrdered(i) <- overQuantity(d);
+        eOrderItemPriceNet(i) <- price(d);
+        eOrderItemVatRate(i) <- valueVAT(d);
+        eOrderItemAmountWithoutVat(i) <- NUMERIC[18,2](round2(price(d) * overQuantity(d)));
+        eOrderItemAmountVat(i) <- NUMERIC[18,2](round2(price(d) * overQuantity(d) * valueVAT(d) / 100));
+        eOrderItemAmountWithVat(i) <- eOrderItemAmountWithoutVat(i) + eOrderItemAmountVat(i);
+        eOrderFormItems(i) <- TRUE;
+    }
+
+    eOrderTotalQuantity() <- GROUP SUM overQuantity(EOrderDetail d) IF order(d) = o;
+    eOrderTotalAmountWithoutVat() <- GROUP SUM eOrderItemAmountWithoutVat(INTEGER i) IF eOrderItemPosition(i);
+    eOrderTotalAmountVat() <- GROUP SUM eOrderItemAmountVat(INTEGER i) IF eOrderItemPosition(i);
+    eOrderTotalAmountWithVat() <- GROUP SUM eOrderItemAmountWithVat(INTEGER i) IF eOrderItemPosition(i);
+    eOrderIsAutoSum() <- TRUE;
+}
+
+sendPurchaseOrderV2 (EOrder o, LegalEntity le, STRING[100] outputDir, STRING[100] provider) {
+    LOCAL result = FILE ();
+    LOCAL orderFile = FILE ();
+    LOCAL sentDateTime = DATETIME ();
+    sendingCancelled() <- NULL;
+    TRY {
+        IF NOT profile(le) THEN {
+            logToFile('edi', provider + ' SendEOrder V2: не задан профиль СТТ');
+            MESSAGE provider + ' Заказ ' + (OVERRIDE number(o), '') + ' не выгружен: не задан профиль СТТ' NOWAIT;
+            RETURN;
+        }
+        authV2(le);
+        IF NOT token() THEN {
+            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendEOrder V2: ошибка при аутентификации');
+            MESSAGE provider + ' (' + loginProfile(le) + ') Заказ не выгружен: ошибка при аутентификации' NOWAIT;
+            RETURN;
+        }
+
+        IF isCancel(o) AND NOT documentId(o) THEN {
+            logToFile('edi', provider + ' SendEOrderCancel V2 ' + number(o) + ': не заполнен documentId');
+            MESSAGE provider + ' Отмена заказа ' + number(o) + ' не выгружена: заказ не отправлялся через API V2' NOWAIT;
+            RETURN;
+        }
+
+        fillPartnerIdV2(customer(o), supplier(o), GLNCustomer(o), taxpayerId(customer(o)), le, provider);
+        fillPartnerIdV2(supplier(o), customer(o), GLNSupplierV2(o), taxpayerId(supplier(o)), le, provider);
+        fillStorageIdV2(customerStock(o), le, provider);
+
+        IF NOT isCancel(o) THEN {
+            LOCAL error = TEXT ();
+            error() <- CONCAT '\n',
+                ('Покупатель с GLN ' + GLNCustomer(o) + ' не найден в СТТ' IF NOT id(customer(o), supplier(o))),
+                ('Поставщик с GLN ' + GLNSupplierV2(o) + ' не найден среди партнёров организации в СТТ' IF NOT id(supplier(o), customer(o))),
+                ('Склад доставки ' + nameCustomerStock(o) + ' (GLN ' + GLNCustomerStock(o) + ') не найден среди складов организации в СТТ' IF NOT storageIdV2(customerStock(o)));
+            IF error() THEN {
+                logToFile('edi', provider + ' (' + loginProfile(le) + ') SendEOrder V2 ' + number(o) + ': ' + error());
+                MESSAGE provider + ' (' + loginProfile(le) + ') Заказ ' + number(o) + ' не выгружен:\n' + error() NOWAIT;
+                RETURN;
+            }
+        }
+
+        IF NOT isCancel(o) THEN {
+            createExportEOrder(o);
+            EXPORT exportEOrderV2 JSON;
+            orderFile() <- exportFile();
+
+            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendEOrder V2 ' + number(o) + ' request sent. POST /api/v1/ORDERS/draft/createWithValidation\n' + exportFile());
+            EXTERNAL HTTP POST url(profile(le)) + 'ORDERS/draft/createWithValidation' HEADERS headersV2 PARAMS exportFile() TO result;
+            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendEOrder V2 ' + number(o) + ' response:\n' + result());
+
+            checkResponseV2(result(), 'SendEOrder V2 ' + number(o), le, provider);
+            IF NOT requestSucceededV2() THEN RETURN;
+
+            IMPORT importSignDoc JSON FROM result();
+            IF id() THEN {
+                documentId(o) <- id(); //черновик у СТТ уже создан: сохраняем его id, даже если отправка дальше не пройдёт
+                APPLY NESTED LOCAL;
+            }
+            IF errorDescription() != '' THEN {
+                MESSAGE errorDescription();
+                RETURN;
+            }
+        } ELSE {
+            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendEOrderCancel V2 ' + number(o) + ' request sent. GET /api/v1/ORDERS/' + documentId(o) + '/cancel');
+            EXTERNAL HTTP GET url(profile(le)) + 'ORDERS/' + documentId(o) + '/cancel' HEADERS headersV2 TO result;
+            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendEOrderCancel V2 ' + number(o) + ' response:\n' + result());
+
+            checkResponseV2(result(), 'SendEOrderCancel V2 ' + number(o), le, provider);
+            IF NOT requestSucceededV2() THEN RETURN;
+
+            IMPORT importSignDoc JSON FROM result();
+            IF errorDescription() != '' THEN {
+                MESSAGE errorDescription();
+                RETURN;
+            }
+        }
+
+        IF NOT isCancel(o) THEN { //отмена отправляется самим ORDERS/{id}/cancel, повторная отправка через activemq отвечает «already been sent»
+            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendEOrder V2 ' + number(o) + ' request sent. GET /api/v1/activemq/send/ORDERS/' + (OVERRIDE id(), documentId(o)));
+            EXTERNAL HTTP GET url(profile(le)) + 'activemq/send/ORDERS/' + (OVERRIDE id(), documentId(o)) HEADERS headersV2 TO result;
+            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendEOrder V2 ' + number(o) + ' (activemq/send) response:\n' + result());
+
+            checkResponseV2(result(), 'SendEOrder V2 ' + number(o) + ' (activemq/send)', le, provider);
+        }
+        IF requestSucceededV2() THEN {
+            sentDateTime() <- currentDateTime();
+            IF NOT isCancel(o) THEN resolveDocumentIdV2(o, le, provider);
+
+            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendEOrder V2 ' + number(o) + ' request succeeded');
+            MESSAGE provider + ' (' + loginProfile(le) + ') Заказ ' + number(o) + (IF isCancel(o) THEN ' (отмена)' ELSE '') + ' выгружен' NOWAIT;
+            IF isCancel(o) THEN exportedCanceled(o) <- TRUE; ELSE exported(o) <- TRUE;
+
+            NEW m = EOrderMessage {
+                number(m) <- STRING[35]((OVERRIDE id(), documentId(o)));
+                eOrder(m) <- o;
+                dateTime(m) <- sentDateTime();
+                code(m) <- IF isCancel(o) THEN '1' ELSE '9';
+                description(m) <- IF isCancel(o) THEN 'Отмена отправлена (V2)' ELSE 'Отправлено (V2)';
+                XMLPath(m) <- ordersSentPathV2(outputDir, sentDateTime());
+            }
+
+            IF outputDir THEN {
+                TRY { mkdir(ordersSentDirV2(outputDir)); }
+                WRITE orderFile() TO ordersSentPathV2(outputDir, sentDateTime());
+            }
+        }
+
+        APPLY NESTED LOCAL;
+        IF canceled() THEN
+            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendEOrder V2: apply canceled ' + applyMessage());
+    } CATCH {
+        logToFile('edi', CONCAT '\n', provider + ' (' + loginProfile(le) + ') error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
+        importRequestResult(result(), statusHttp());
+        MESSAGE 'Заказ не выгружен:\n' + requestError() NOWAIT;
+
+        CANCEL;
+        sendingCancelled() <- TRUE;
+    }
+}
+
+//Статус заказа V2
+
+GROUP eOrderStatusProcessing EXTID 'processingStatus';
+eOrderStatusIdV2 = DATA LOCAL STRING ();
+eOrderStatusNameV2 = DATA LOCAL STRING ();
+
+FORM importEOrderStatusV2
+    PROPERTIES() IN eOrderStatusProcessing eOrderStatusIdV2 EXTID 'id', eOrderStatusNameV2 EXTID 'name'
+;
+
+updateStatusV2 'Обновить статус СТТ' (EOrder o) {
+    checkIsServer();
+    IF isServer() THEN NEWSESSION {
+        IF NOT documentId(o) THEN {
+            MESSAGE 'Заказ ' + (OVERRIDE number(o), '') + ' не отправлялся через API V2' NOWAIT;
+        } ELSE IF NOT profile(customer(o)) THEN {
+            MESSAGE 'Не задан профиль СТТ для ' + (OVERRIDE nameCustomer(o), '') NOWAIT;
+        } ELSE {
+            authV2(customer(o));
+            IF NOT token() THEN {
+                MESSAGE 'Ошибка при аутентификации в СТТ (' + loginProfile(customer(o)) + ')' NOWAIT;
+            } ELSE {
+                LOCAL result = FILE ();
+                EXTERNAL HTTP GET url(profile(customer(o))) + 'ORDERS/' + documentId(o) + '/status' HEADERS headersV2 TO result;
+                IF statusHttp() == 200 THEN {
+                    IMPORT importEOrderStatusV2 JSON FROM result();
+                    addStatusMessageV2(o, eOrderStatusIdV2(), eOrderStatusNameV2());
+                    APPLY;
+                } ELSE {
+                    logToFile('edi', 'UpdateStatus V2 ' + number(o) + ': неожиданный ответ ' + statusHttp());
+                    MESSAGE 'Статус заказа ' + (OVERRIDE number(o), '') + ' не получен: неожиданный ответ ' + statusHttp() NOWAIT;
+                }
+            }
+        }
+    }
+}
+
+EXTEND FORM eOrders
+    PROPERTIES (o) READONLY statusDescription
+    PROPERTIES(o) updateStatusV2 TOOLBAR SHOWIF documentId(o)
+;

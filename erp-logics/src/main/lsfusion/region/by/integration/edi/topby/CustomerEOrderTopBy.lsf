@@ -26,12 +26,18 @@ beforeSendPurchaseOrder(EOrder o, STRING[100] provider) + {
     }
 }
 
+sendPurchaseOrderV2TopBy ABSTRACT LIST (EOrder);
+
 sendPurchaseOrderTopBy (EOrder o) {
     checkIsServer();
     IF isServer() THEN {
         newNS() <- TRUE;
-        exportAddressOrder() <- exportAddressTopBy(customer(o));
-        sendPurchaseOrder(o, loginProfileTopBy(customer(o)), passwordProfileTopBy(customer(o)), urlProfileTopBy(customer(o)), outputDirTopBy(), 'TopBy');
+        IF useV2EOrder() THEN {
+            sendPurchaseOrderV2TopBy(o);
+        } ELSE {
+            exportAddressOrder() <- exportAddressTopBy(customer(o));
+            sendPurchaseOrder(o, loginProfileTopBy(customer(o)), passwordProfileTopBy(customer(o)), urlProfileTopBy(customer(o)), outputDirTopBy(), 'TopBy');
+        }
     }
 }
 

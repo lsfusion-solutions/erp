@@ -84,6 +84,11 @@ sendPurchaseOrder (EOrder o, STRING[100] login, STRING[100] password, TEXT url, 
 
 overImportOrdrsp ABSTRACT (EOrderResponse);
 
+//разбор ORDRSP другого формата (V2 API СТТ — EANCOM): заполняет ordrsp*, ordrspEOrder и выставляет ordrspParsed
+ordrspParsed = DATA LOCAL NESTED BOOLEAN ();
+ordrspEOrder = DATA LOCAL NESTED EOrder ();
+parseOrdrsp ABSTRACT LIST (INTEGER);
+
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     IF lower(documentType(i)) == 'ordrsp' AND skipImportOrders() THEN {
         logToFile('edi', provider + ' (' + login + ') Import EOrderResponse ' + id(i) + ' skipped: orders are received via REST API');
@@ -91,9 +96,13 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
     }
     IF lower(documentType(i)) == 'ordrsp' AND NOT skipImportOrders() THEN {
         TRY {
-            IMPORT ordrsp XML FROM data(i);
+            ordrspParsed() <- NULL;
+            ordrspEOrder() <- NULL;
+            parseOrdrsp(i);
+            IF NOT ordrspParsed() THEN IMPORT ordrsp XML FROM data(i);
             ordrspOrderNumber() <- trim(ordrspOrderNumber());
-            IF eOrder(ordrspOrderNumber()) THEN {
+            ordrspEOrder() <- OVERRIDE ordrspEOrder(), eOrder(ordrspOrderNumber());
+            IF ordrspEOrder() THEN {
                 NEWSESSION NESTED LOCAL {
                     IF NOT eOrderResponse(ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber()) THEN NEW r = EOrderResponse {
                         id(r) <- ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber();
@@ -113,9 +122,9 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                             WHEN ordrspResponseType() == '29' THEN EOrderResponseType.accepted;
                         note(r) <- STRING[100](ordrspComment());
                         supplier(r) <- legalEntityStockGLN(ordrspSupplierGLN());
-                        eOrder(r) <- eOrder(ordrspOrderNumber());
-                        customer(r) <- customer(eOrder(ordrspOrderNumber()));
-                        customerStock(r) <- customerStock(eOrder(ordrspOrderNumber()));
+                        eOrder(r) <- ordrspEOrder();
+                        customer(r) <- customer(ordrspEOrder());
+                        customerStock(r) <- customerStock(ordrspEOrder());
                         IF left(ordrspDeliveryDateTimeFirst(),1) == 'T' THEN {
                             ordrspDeliveryDateTimeFirst() <- toChar(currentDate(),'yyyy-MM-dd') + ordrspDeliveryDateTimeFirst();
                         }
@@ -149,7 +158,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                             sumNDS(d) <- ordrspPriceNDS(l);
                         }
                         FOR ordrspGTIN(INTEGER l) INLINE DO {
-                            responseDetail(EOrderDetail od) <- eOrderResponseDetail(idDetail(l)) WHERE eOrder(ordrspOrderNumber()) == order(od) AND sku(l) == sku(od) AND indexSku(l) == localIndexSku(od);
+                            responseDetail(EOrderDetail od) <- eOrderResponseDetail(idDetail(l)) WHERE ordrspEOrder() == order(od) AND sku(l) == sku(od) AND indexSku(l) == localIndexSku(od);
                         }
                         overImportOrdrsp(r);
                         
@@ -290,7 +299,7 @@ overReceiveSystemMessage(INTEGER i, STRING[100] login, STRING[100] password, TEX
         }
         RETURN;
     }
-    //неплохо бы ORDRSP принимать к тому заказу к которому он относится, но пока просто помечаем как обработанный
+
     IF documentType() == 'SYSTEMMESSAGE' OR documentType() == 'ORDRSP' THEN {
         logToFile('edi', provider + ' (' + login + ') Parse Order Message ' + id(i) + ' skipped for documentType ' + documentType());
         confirmMessage(i, login, password, url, provider, disableConfirmation);

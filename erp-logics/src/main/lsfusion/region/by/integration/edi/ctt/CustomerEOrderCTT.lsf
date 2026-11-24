@@ -1,0 +1,39 @@
+MODULE CustomerEOrderCTT;
+
+REQUIRE CustomerEOrderTopBy, EOrderCTT;
+
+NAMESPACE EDI;
+
+sendPurchaseOrderV2TopBy(EOrder o) + {
+    sendPurchaseOrderV2(o, customer(o), outputDirTopBy(), 'TopBy');
+}
+
+//Ответ на заказ V2 (ORDRSP в формате EANCOM)
+
+parseOrdrsp(INTEGER i) + {
+    IF currentDocId() THEN {
+        IMPORT eancomOrdrsp XML FROM data(i);
+
+        ordrspDocumentNumber() <- STRING[48](eancomNumber());
+        ordrspResponseType() <- eancomFunction();
+        ordrspDocumentDate() <- eancomDateTime(eancomDtm('137'));
+        ordrspOrderNumber() <- STRING[48](eancomRff('ON'));
+        ordrspSupplierGLN() <- STRING[13](eancomNad('SU'));
+        ordrspBuyerGLN() <- STRING[13](eancomNad('BY'));
+        ordrspDestinationGLN() <- STRING[13](eancomNad('DP'));
+        ordrspDeliveryDateTimeFirst() <- eancomDateTimeText(left(eancomDtm('2'), 12));
+        ordrspDeliveryDateTimeSecond() <- eancomDateTimeText(substr(eancomDtm('2'), 13, 12)) IF length(eancomDtm('2')) > 12;
+        ordrspComment() <- NULL;
+
+        ordrspGTIN(INTEGER l) <- STRING[15](eancomLinGTIN(l));
+        ordrspAction(INTEGER l) <- eancomLinAction(l);
+        ordrspQuantityOrdered(INTEGER l) <- eancomQty(l, '21');
+        ordrspQuantityAccepted(INTEGER l) <- OVERRIDE eancomQty(l, '170'), (eancomQty(l, '21') IF eancomLinAction(l) = 5); //170 — подтверждённое количество; если его нет, а строка принята — принимаем заказанное
+        ordrspPriceElement(INTEGER l) <- NUMERIC[16,2](eancomPri(l, 'AAA'));
+        ordrspPriceNoNDS(INTEGER l) <- eancomMoa(l, '128');
+        ordrspPriceNDS(INTEGER l) <- eancomMoa(l, '203');
+
+        ordrspEOrder() <- eOrderByDocumentId(currentDocId());
+        ordrspParsed() <- TRUE;
+    }
+}
