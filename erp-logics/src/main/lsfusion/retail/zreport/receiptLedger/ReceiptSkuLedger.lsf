@@ -45,6 +45,15 @@ is(ReceiptSaleSkuLedger receiptSaleSkuLedger) => countReceiptSaleDetail(departme
 INDEX sku(ReceiptSaleSkuLedger o), departmentStore(o);
 INDEX date(ReceiptSaleSkuLedger o), departmentStore(o), sku(o), price(o);
 
+// при объединении товаров с отключенными событиями объекты регистра не создаются и не удаляются, поэтому строки регистра переносятся на новый товар явно
+replace(Sku s, Sku d) + {
+    IF noEventsInTransactionItem() THEN {
+        VATReceiptSaleDetail(DepartmentStore st, d, DATE dt, NUMERIC[18,6] p) <- VATReceiptSaleDetail(st, s, dt, p) WHERE VATReceiptSaleDetail(st, s, dt, p) AND NOT VATReceiptSaleDetail(st, d, dt, p);
+        DELETE ReceiptSaleSkuLedger l WHERE sku(l) = s AND receiptSaleSkuLedger(departmentStore(l), d, date(l), price(l));
+        sku(ReceiptSaleSkuLedger l) <- d WHERE sku(l) = s;
+    }
+}
+
 dateTime[DataSkuLedger] (ReceiptSaleSkuLedger ledger) += dateTimeToDateTime(date(ledger), 23:59);
 isPosted[DataSkuLedger] (ReceiptSaleSkuLedger ledger) += ledger IS ReceiptSaleSkuLedger;
 isClosed[DataSkuLedger] (ReceiptSaleSkuLedger ledger) += ledger IS ReceiptSaleSkuLedger;
@@ -108,6 +117,14 @@ receiptReturnSkuLedger = AGGR ReceiptReturnSkuLedger WHERE countReceiptReturnDet
 //INDEX departmentStore(ReceiptReturnSkuLedger o);
 INDEX sku(ReceiptReturnSkuLedger o), departmentStore(o);
 INDEX date(ReceiptReturnSkuLedger o), departmentStore(o), sku(o), price(o);
+
+replace(Sku s, Sku d) + {
+    IF noEventsInTransactionItem() THEN {
+        VATReceiptReturnDetail(DepartmentStore st, d, DATE dt, NUMERIC[18,6] p) <- VATReceiptReturnDetail(st, s, dt, p) WHERE VATReceiptReturnDetail(st, s, dt, p) AND NOT VATReceiptReturnDetail(st, d, dt, p);
+        DELETE ReceiptReturnSkuLedger l WHERE sku(l) = s AND receiptReturnSkuLedger(departmentStore(l), d, date(l), price(l));
+        sku(ReceiptReturnSkuLedger l) <- d WHERE sku(l) = s;
+    }
+}
 
 dateTime[DataSkuLedger] (ReceiptReturnSkuLedger ledger) += dateTimeToDateTime(date(ledger), 23:59);
 isPosted[DataSkuLedger] (ReceiptReturnSkuLedger ledger) += ledger IS ReceiptReturnSkuLedger;

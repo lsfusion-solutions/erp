@@ -25,6 +25,14 @@ INDEX departmentStore(DateSaleSkuLedger o);
 INDEX sku(DateSaleSkuLedger o), departmentStore(o);
 INDEX date(DateSaleSkuLedger o), departmentStore(o), sku(o);
 
+// при объединении товаров с отключенными событиями AGGR не создает и не удаляет агрегированные объекты, поэтому строки регистра переносятся на новый товар явно
+replace(Sku s, Sku d) + {
+    IF noEventsInTransactionItem() THEN {
+        DELETE DateSaleSkuLedger l WHERE sku(l) = s AND dateSaleSkuLedger(departmentStore(l), d, date(l));
+        sku(DateSaleSkuLedger l) <- d WHERE sku(l) = s;
+    }
+}
+
 dateTime[DataSkuLedger] (DateSaleSkuLedger ledger) += dateTimeToDateTime(date(ledger), 23:59);
 isPosted[DataSkuLedger] (DateSaleSkuLedger ledger) += ledger IS DateSaleSkuLedger;
 isClosed[DataSkuLedger] (DateSaleSkuLedger ledger) += ledger IS DateSaleSkuLedger;
@@ -94,6 +102,13 @@ countReceiptReturnDetail  (department, sku, date) = GROUP SUM 1 IF isPosted(Rece
 dateReturnSkuLedger = AGGR DateReturnSkuLedger WHERE countReceiptReturnDetail(DepartmentStore departmentStore, Sku sku, DATE date);// MATERIALIZED;
 INDEX sku(DateReturnSkuLedger o), departmentStore(o);
 INDEX date(DateReturnSkuLedger o), departmentStore(o), sku(o);
+
+replace(Sku s, Sku d) + {
+    IF noEventsInTransactionItem() THEN {
+        DELETE DateReturnSkuLedger l WHERE sku(l) = s AND dateReturnSkuLedger(departmentStore(l), d, date(l));
+        sku(DateReturnSkuLedger l) <- d WHERE sku(l) = s;
+    }
+}
 
 dateTime[DataSkuLedger] (DateReturnSkuLedger ledger) += dateTimeToDateTime(date(ledger), 23:59);
 isPosted[DataSkuLedger] (DateReturnSkuLedger ledger) += ledger IS DateReturnSkuLedger;

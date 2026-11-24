@@ -31,6 +31,15 @@ INDEX price(ZReportSaleSkuLedger ledger);
 INDEX ZReportSaleSkuLedger(ZReport zReport, Sku sku, NUMERIC[16,4] price);
 INDEX zReport(ZReportSaleSkuLedger o), sku(o), price(o);
 
+// при объединении товаров с отключенными событиями AGGR не создает и не удаляет агрегированные объекты, поэтому строки регистра переносятся на новый товар явно
+replace(Sku s, Sku d) + {
+    IF noEventsInTransactionItem() THEN {
+        VATReceiptSaleDetail(ZReport z, d, NUMERIC[16,4] p) <- VATReceiptSaleDetail(z, s, p) WHERE VATReceiptSaleDetail(z, s, p) AND NOT VATReceiptSaleDetail(z, d, p);
+        DELETE ZReportSaleSkuLedger l WHERE sku(l) = s AND ZReportSaleSkuLedger(zReport(l), d, price(l));
+        sku(ZReportSaleSkuLedger l) <- d WHERE sku(l) = s;
+    }
+}
+
 inFixTime 'Проводить продажи по SkuLedger в 23:59'() = DATA BOOLEAN () PREREAD;
 inFixTimeReturn 'Проводить возвраты по SkuLedger в 23:59'() = DATA BOOLEAN () PREREAD;
 
@@ -119,6 +128,14 @@ INDEX sku(ZReportReturnSkuLedger ledger);
 INDEX price(ZReportReturnSkuLedger ledger);
 INDEX ZReportReturnSkuLedger(ZReport zReport, Sku sku, NUMERIC[16,4] price);
 INDEX zReport(ZReportReturnSkuLedger o), sku(o), price(o);
+
+replace(Sku s, Sku d) + {
+    IF noEventsInTransactionItem() THEN {
+        VATReceiptReturnDetail(ZReport z, d, NUMERIC[16,4] p) <- VATReceiptReturnDetail(z, s, p) WHERE VATReceiptReturnDetail(z, s, p) AND NOT VATReceiptReturnDetail(z, d, p);
+        DELETE ZReportReturnSkuLedger l WHERE sku(l) = s AND ZReportReturnSkuLedger(zReport(l), d, price(l));
+        sku(ZReportReturnSkuLedger l) <- d WHERE sku(l) = s;
+    }
+}
 
 overDateTime (ZReportReturnSkuLedger ledger) = OVERRIDE dateTimeToDateTime(date(zReport(ledger)),'23:59' IF inFixTimeReturn()), dateTime(zReport(ledger));
 dateTime[DataSkuLedger] (ZReportReturnSkuLedger ledger) += overDateTime(ledger);
