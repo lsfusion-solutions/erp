@@ -1218,6 +1218,24 @@ needToInLedger (CollationSheet collationSheet, Sku sku) =
 outInventorySkuDetail = AGGR OutInventorySkuDetail WHERE needToOutLedger(CollationSheet collationSheet, Sku sku) MATERIALIZED INDEXED;
 inInventorySkuDetail = AGGR InInventorySkuDetail WHERE needToInLedger(CollationSheet collationSheet, Sku sku) MATERIALIZED INDEXED;
 
+// при объединении товаров с отключенными событиями AGGR не создает и не удаляет агрегированные объекты, поэтому они приводятся в соответствие сложенным остаткам явно
+overReplace(Sku od, Sku d) + {
+    IF noEventsInTransactionItem() THEN {
+        sku(OutInventorySkuDetail l) <- d WHERE sku(l) = od AND needToOutLedger(collationSheet(l), d) AND NOT outInventorySkuDetail(collationSheet(l), d);
+        DELETE OutInventorySkuDetail l WHERE sku(l) = od OR (sku(l) = d AND NOT needToOutLedger(collationSheet(l), d));
+        FOR needToOutLedger(CollationSheet cs, d) AND NOT outInventorySkuDetail(cs, d) NEW l = OutInventorySkuDetail DO {
+            collationSheet(l) <- cs;
+            sku(l) <- d;
+        }
+        sku(InInventorySkuDetail l) <- d WHERE sku(l) = od AND needToInLedger(collationSheet(l), d) AND NOT inInventorySkuDetail(collationSheet(l), d);
+        DELETE InInventorySkuDetail l WHERE sku(l) = od OR (sku(l) = d AND NOT needToInLedger(collationSheet(l), d));
+        FOR needToInLedger(CollationSheet cs, d) AND NOT inInventorySkuDetail(cs, d) NEW l = InInventorySkuDetail DO {
+            collationSheet(l) <- cs;
+            sku(l) <- d;
+        }
+    }
+}
+
 collationSheet(InventorySkuDetail inventorySkuDetail) = MULTI collationSheet[OutInventorySkuDetail](inventorySkuDetail),
     collationSheet[InInventorySkuDetail](inventorySkuDetail);
 
