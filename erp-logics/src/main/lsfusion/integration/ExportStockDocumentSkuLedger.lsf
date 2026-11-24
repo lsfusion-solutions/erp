@@ -38,6 +38,7 @@ skipDetail = DATA LOCAL BOOLEAN ();
 documentType = DATA LOCAL STRING[50]();
 idStock = DATA LOCAL STRING[100]();
 idLegalEntity = DATA LOCAL STRING[100]();
+numberDoc = DATA LOCAL STRING[100]();
 
 FORM exportDocument
     OBJECTS sl = StockDocumentLedger EXTID 'documents'
@@ -62,7 +63,8 @@ FORM exportDocument
     FILTERS active(sl), inExport(operation(sl)), inExport(stock(sl)), date(sl) >= dateFrom(), date(sl) <= dateTo(),
         (documentType() == type(sl) OR NOT documentType()), 
         (idStock() == id(stock(sl)) OR NOT idStock()), 
-        (idLegalEntity() == id(legalEntity(sl)) OR NOT idLegalEntity())
+        (idLegalEntity() == id(legalEntity(sl)) OR NOT idLegalEntity()),
+        (number(sl)==numberDoc() OR NOT numberDoc())
         
     
     OBJECTS l = SkuLedger EXTID 'documentDetails'
@@ -81,7 +83,7 @@ FORM exportDocument
 
 overExportDocuments ABSTRACT LIST();
 v1_stock_documents (FILE f) {
-    IMPORT JSON FROM f TO () dateFrom, dateTo, skipDetail, documentType, idStock, idLegalEntity
+    IMPORT JSON FROM f TO () dateFrom, dateTo, skipDetail, documentType, idStock, idLegalEntity, numberDoc
 
     IF NOT (dateFrom() AND dateTo()) THEN {
         EXPORT JSON FROM error = 'Не задан период для выгрузки.' ;
