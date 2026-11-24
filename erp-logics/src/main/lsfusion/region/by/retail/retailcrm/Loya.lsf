@@ -88,11 +88,12 @@ departmentStoreIdLoya (idLoya) = GROUP AGGR DepartmentStore departmentStore BY i
 in 'Вкл.' = DATA BOOLEAN (LoyaItemGroup, DepartmentStore);
 
 // магазины товара в группе: отмеченные в группе, а у группы, наполненной прайсами, — магазины привязанных прайсов,
-// в которых товар есть; у разных товаров группы список магазинов может быть разным
-in 'Вкл.' (Item i, LoyaItemGroup g, DepartmentStore st) = OVERRIDE
+// в которых товар есть; у разных товаров группы список магазинов может быть разным.
+// active(st) обязателен: явная отметка склада в прайсе (dataIn) активность не проверяет
+in 'Вкл.' (Item i, LoyaItemGroup g, DepartmentStore st) = (OVERRIDE
     dataIn(i, g) AND in(g, st),
     [GROUP SUM 1 IF sku(PriceListDetail d) = i AND in(priceList(d), st) AND st IS DepartmentStore AND isPosted(d)
-        AND isActive(d) AND NOT exclude(d) AND NOT resultForbidPromotion(i, st) BY loyaItemGroup(priceList(d))](g) > 0;
+        AND isActive(d) AND NOT exclude(d) AND NOT resultForbidPromotion(i, st) BY loyaItemGroup(priceList(d))](g) > 0) AND active(st);
 
 EXTEND FORM departmentStore
     PROPERTIES (d) idLoya;
@@ -550,16 +551,19 @@ synchronizeGoodGroupLinksLoya (LoyaItemGroup g) {
         }
     }
 
+    // строки с locationCode Loya принимает только методом PUT, а «все ТП» PUT не принимает (ни 0, ни -1) —
+    // если есть строки без магазина, вся выгрузка идёт POST с locationId
+    LOCAL put = BOOLEAN ();
+    put() <- useLocationCodeGoodGroupLinkLoya() AND NOT (GROUP SUM 1 IF inGroupLocation(STRING[254] s, r'-'));
+
     LOCAL links = JSON ();
+    // строка без магазина — locationId -1 («все ТП» в Loya); ноль или отсутствие поля даёт «undefined»
     links() <- JSON FROM sku = (IF inGroup(STRING[254] s) AND inGroupLocation(s, STRING[100] l) THEN s),
-                         locationId = (INTEGER(l) IF l != r'-' AND NOT useLocationCodeGoodGroupLinkLoya()),
-                         locationCode = (l IF l != r'-' AND useLocationCodeGoodGroupLinkLoya()),
+                         locationId = ((IF l = r'-' THEN -1 ELSE INTEGER(l)) IF NOT put()),
+                         locationCode = (l IF l != r'-' AND put()),
                          quantity = quantityGroup(s)
                    WHERE inGroup(s) AND inGroupLocation(s, l) AND NOT synced(s);
     IF links() THEN {
-        // строки с locationCode Loya принимает только методом PUT
-        LOCAL put = BOOLEAN ();
-        put() <- useLocationCodeGoodGroupLinkLoya() AND NOT (GROUP SUM 1 IF inGroupLocation(STRING[254] s, r'-'));
         IF logRequestsLoya() THEN
             logToFile('loya', (CONCAT ' ', IF put() THEN 'PUT' ELSE 'POST', url() + r'/upload', TEXT(links())));
         TRY {
