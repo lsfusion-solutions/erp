@@ -77,14 +77,15 @@ extraBalance 'Остаток (доп. источник)' = ABSTRACT NUMERIC[14,3
 extraPrice 'Цена (доп. источник)' = ABSTRACT NUMERIC[16,4] (Item, Store);
 extraAvailable 'В ассортименте (доп. источник)' = ABSTRACT BOOLEAN (Item, Store);
 
-storeBalance 'Остаток по системе' (Item i, Store st) = erpBalance(i, st);
-storePrice 'Цена по системе' (Item i, Store st) = retailPricingPriceA(i, headDepartment(st));
+
+storeBalance 'Остаток по системе' (Item i, Store st) = OVERRIDE erpBalance(i, st), extraBalance(i, st);
+storePrice 'Цена по системе' (Item i, Store st) = OVERRIDE retailPricingPriceA(i, headDepartment(st)), extraPrice(i, st);
 
 // Доступен на объекте — то есть в этом магазине товар вообще есть: лежит на остатке,
 // имеет действующую цену или заведён доп. источником. Этим гейтом ограничен и выбор
 // предмета в приложении (apiRowSubjects), и генерация строк ниже: без него канал
 // показывал бы весь каталог сети — десятки тысяч позиций в телефонном пикере.
-available (Item i, Store st) += TRUE IF erpBalance(i, st) OR storePrice(i, st);
+available (Item i, Store st) += TRUE IF erpBalance(i, st) OR storePrice(i, st) OR extraAvailable(i, st);
 
 // ===== Набор задания на форме «Товары» =====
 // Задание собирают там, где смотрят на товар, а объектом задачи остаётся магазин.
@@ -354,8 +355,16 @@ rowItem (Task t, Item i) =
 
 rowItem (Filling e, Item i) = rowItem(task(e), i);
 
+// Табличное поле, чьи строки наполняет хост: источник строк — хост, а предмет строки — товар.
+hostItemField (Field f) = TRUE IF rowSource(f) = 'host' AND subjectKind(f) = 'item';
+
+// Системные значения строки — по её предмету и магазину задачи. Одно определение на оба
+// пути, которыми строка получает предмет: fillRows ниже и строка, добавленная на телефоне.
+rowBalance (FillRow r) = storeBalance(subject(r) AS Item, checkObject(task(filling(r))) AS Store);
+rowPrice (FillRow r) = storePrice(subject(r) AS Item, checkObject(task(filling(r))) AS Store);
+
 fillRows (Filling e, Field f) + {
-    IF subjectKind(f) = 'item' THEN
+    IF hostItemField(f) THEN
         FOR rowItem(e, Item i) AND NOT hostRowExists(e, f, i)
             ORDER Stock.name(i), i TOP 200
             NEW r = FillRow DO {
@@ -365,11 +374,27 @@ fillRows (Filling e, Field f) + {
                 subject(r) <- i;
                 subjectName(r) <- ISTRING[150](Stock.name(i));
 
-                cellNumber(r, Column c) <- NUMERIC[14,3](storeBalance(i, checkObject(task(e)) AS Store))
+                cellNumber(r, Column c) <- NUMERIC[14,3](rowBalance(r))
                     WHERE tableField(c) = f AND code(c) = 'sysqty';
-                cellNumber(r, Column c) <- NUMERIC[14,3](storePrice(i, checkObject(task(e)) AS Store))
+                cellNumber(r, Column c) <- NUMERIC[14,3](rowPrice(r))
                     WHERE tableField(c) = f AND code(c) = 'sysprice';
             }
+}
+
+// Строку с товаром заводит не только fillRows: исполнитель добавляет позицию сам — сканом
+// у полки (apiAddRow). Ручка артефакта о колонках хоста не знает и заводит такую строку без
+// системных значений: «Остаток по системе» у добавленной позиции стоял пустым, и свести с
+// ним факт было не с чем. Поэтому событие — на любой строке, которой дали товар в поле хоста.
+//
+// Заполняются только пустые ячейки: непустую в этой же сессии положил fillRows, а у строк,
+// заведённых раньше, стоит та цифра, с которой исполнитель сверял факт, — перезаписывать её
+// сегодняшним значением задним числом нельзя. Строка r в обработчике — из условия события:
+// с собственным параметром FillRow выражение прошло бы по всем пустым ячейкам базы.
+WHEN SETCHANGED(subject(FillRow r)) AND subject(r) IS Item AND hostItemField(tableField(r)) DO {
+    cellNumber(r, Column c) <- NUMERIC[14,3](rowBalance(r))
+        WHERE tableField(c) = tableField(r) AND code(c) = 'sysqty' AND NOT cellNumber(r, c);
+    cellNumber(r, Column c) <- NUMERIC[14,3](rowPrice(r))
+        WHERE tableField(c) = tableField(r) AND code(c) = 'sysprice' AND NOT cellNumber(r, c);
 }
 
 // ===== Позиции задания на карточке задачи =====
@@ -390,9 +415,12 @@ hasItemField (Task t) = GROUP SUM 1 IF template(Field f) = template(t)
     AND rowSource(f) = 'host' AND subjectKind(f) = 'item';
 
 // Счётчик в подписи вкладки — как у «Истории», «Файлов» и «Обсуждения». Считается ровно
-// то, что во вкладке и лежит: rowItem, то есть состав задачи, а не только отмеченное
-// вручную. Пустой счёт не рисуется сам — GROUP SUM без строк даёт NULL, а не ноль.
-countRowItem (Task t) = GROUP SUM 1 IF rowItem(t, Item i);
+// то, что во вкладке и лежит: requestedItem, то есть перечисленное поимённо. Не rowItem:
+// пока ни одной позиции не перечислено, тот означает весь доступный ассортимент объекта
+// (available → действующая цена по прайсу отдела), и карточка открывалась секундами — гвард
+// hasRequested не мешает Postgres материализовать агрегат в погашенной ветке.
+// Пустой счёт не рисуется сам — GROUP SUM без строк даёт NULL, а не ноль.
+countRowItem (Task t) = GROUP SUM 1 IF requestedItem(t, Item i);
 
 // Пока в задаче не перечислена ни одна позиция, она означает «весь доступный
 // ассортимент», и добавление одной позиции молча сузило бы её до этой одной, а удаление
@@ -440,7 +468,7 @@ EXTEND FORM task
     PROPERTIES(t, ri) READONLY balanceTask, priceTask
     PROPERTIES(t, ri) removeRequestedItem TOOLBAR
     PROPERTIES(t) addRequestedItem DRAW ri TOOLBAR
-    FILTERS rowItem(t, ri)
+    FILTERS requestedItem(t, ri)
 ;
 
 DESIGN task {

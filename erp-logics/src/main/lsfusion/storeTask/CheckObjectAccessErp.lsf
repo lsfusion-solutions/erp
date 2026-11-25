@@ -1,0 +1,35 @@
+MODULE CheckObjectAccessErp;
+
+// CheckObjectAccess — overAssigned, шов «за какие объекты отвечает исполнитель»;
+// TaskPerformerEmployeeErp — сотрудник как исполнитель; CheckObjectStoreErp — магазин как
+// объект проверки; CheckObjectMachineryErp — storeMachinery, в каком магазине стоит
+// оборудование; EmployeeStock — accessCompany; Employee — limitAccess; Store — Store,
+// DepartmentStore и склад магазина (транзитивному REQUIRE не доверять)
+REQUIRE CheckObjectAccess, TaskPerformerEmployeeErp, CheckObjectStoreErp, CheckObjectMachineryErp,
+        EmployeeStock, Employee, Store;
+
+NAMESPACE StoreTask;
+
+// Доступ исполнителя к объектам — штатный доступ сотрудника к складам (вкладка «Склады»
+// карточки сотрудника), а не отдельная настройка подсистемы: заведующего не нужно
+// привязывать к магазину дважды, и при переводе он теряет магазины там же, где теряет
+// склады.
+//
+// Магазин доступен, когда разрешён доступ хотя бы к одному его отделу: склад магазина в erp
+// — это DepartmentStore, и отделов у магазина несколько. Кому доступ не ограничен
+// («Ограничить доступ» не стоит), доступен любой магазин — тот же критерий, по которому erp
+// отдаёт склады в своих ручках (accessCompany(...) OR NOT limitAccess(...) в StoreAPI и
+// ItemInfoAPI): один accessCompany такому сотруднику даёт лишь склады компании (isCompany).
+storeAccess 'Доступ по складам' (Employee e, Store st) =
+    TRUE IF e IS Employee AND st IS Store
+        AND (NOT limitAccess(e)
+             OR (GROUP MAX 1 IF accessCompany(e, DepartmentStore d) AND Store.store(d) = st)
+        );
+
+overAssigned (Employee e, Store st) += storeAccess(e, st);
+
+// Оборудование — вместе с магазином, в котором стоит: кто отвечает за магазин, отвечает и за
+// то, что в нём. Стоящее вне магазинов (на РЦ, на складе) магазина не имеет и через склады
+// недоступно.
+overAssigned (Employee e, CashRegister c) += storeAccess(e, storeMachinery(c));
+overAssigned (Employee e, Scales s) += storeAccess(e, storeMachinery(s));
