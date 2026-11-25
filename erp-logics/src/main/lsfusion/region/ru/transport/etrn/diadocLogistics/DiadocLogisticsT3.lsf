@@ -5,20 +5,26 @@ REQUIRE DiadocLogistics, DiadocLogisticsT3Form, DiadocLogisticsEvents, DiadocLog
 NAMESPACE Diadoc;
 
 // ------------------------- Т3 через Диадок: генерация + подпись + отправка ------------------------- //
-// Т3+Т4 - отдельный двухтитульный документ (delivery), Т4 - patch к нему; связь с
-// reception-документом (Т1/Т2) - через letterId/documentId в GenerateTitleXml.
 
-// для входящих перевозок своего объекта Document нет - координаты reception-документа
-// берутся из ленты docflow-событий (receptionDoc*)
-
-// ящик перевозчика: организация на документе (входящие - участник из титула, исходящие - куда ушёл наш Т1) ->
-// участник из титула (документы до появления поля) -> карточка контрагента -> ИНН из титула. Титул важнее карточки:
-// выбор в ней заполняется по первой перевозке, а в следующей перевозчик может работать через другой ящик
-carrierT3Box (ETRN.ETRN e) = OVERRIDE
+carrierT3BoxCalc (ETRN.ETRN e) = OVERRIDE
     boxOrganization(carrierOrganization(e)),
     [GROUP LAST Box b IF organization(b) == organizationParticipantId(ETRN.incomingCarrierParticipantId(e)) ORDER b](),
     diadocBox(ETRN.carrier(e)),
     [GROUP LAST Box b IF organization(b) == organizationInn(ETRN.incomingCarrierInn(e)) ORDER b]();
+
+carrierT3Box = DATA Box (ETRN.ETRN);
+
+// пустой ящик ищем заново: справочник Диадока мог быть неполным, когда он заполнялся впервые
+fillCarrierT3Box (ETRN.ETRN e) {
+    IF NOT carrierT3Box(e) THEN {
+        // третья ветка carrierT3BoxCalc - ящик перевозчика по карточке контрагента
+        fillDiadocBox(ETRN.carrier(e));
+        NEWSESSION {
+            carrierT3Box(e) <- carrierT3BoxCalc(e);
+            APPLY;
+        }
+    }
+}
 
 diadocSendT3 (ETRN.ETRN e) {
     // каждый PostMessage создаёт в Диадоке новый документ, аннулировать его нельзя;
@@ -29,10 +35,12 @@ diadocSendT3 (ETRN.ETRN e) {
         MESSAGE ETRN.captionMessage(e) + ': нет reception-документа перевозки (Т1) в Диадоке (события не получены)' NOWAIT;
         RETURN;
     }
+    fillDiadocBox(ETRN.consignee(e));
     IF NOT diadocBox(ETRN.consignee(e)) THEN {
         MESSAGE ETRN.captionMessage(e) + ': не найден ящик Диадока грузополучателя' NOWAIT;
         RETURN;
     }
+    fillCarrierT3Box(e);
     IF NOT carrierT3Box(e) THEN {
         MESSAGE ETRN.captionMessage(e) + ': не найден ящик Диадока перевозчика (получатель титула Т3). Для входящей перевозки: проверьте ИНН перевозчика на документе и обновите его организацию в справочнике Диадока по ИНН' NOWAIT;
         RETURN;
@@ -111,6 +119,8 @@ diadocSendT3 (ETRN.ETRN e) {
 
 // без ящиков партнёрство проверять не с кем - об этом скажет сама отправка
 ETRN.checkCounteragentT3 (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvider.diadoc THEN {
+    fillDiadocBox(ETRN.consignee(e));
+    fillCarrierT3Box(e);
     IF NOT (diadocBox(ETRN.consignee(e)) AND carrierT3Box(e)) THEN RETURN;
     checkCounteragent(guidBoxId(diadocBoxId(ETRN.consignee(e))), carrierT3Box(e), 'Т3, ' + ETRN.captionMessage(e), 'перевозчик');
     IF NOT counteragentCheckPassed() THEN {
@@ -124,10 +134,12 @@ ETRN.checkCounteragentT3 (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvi
 ETRN.inviteCarrier (ETRN.ETRN e) + WHEN ETRN.provider(e) == ETRN.ETRNProvider.diadoc THEN {
     // nested-свойство живёт до закрытия формы: чистим, чтобы не показать причину от прошлого нажатия
     counteragentCheckMessage() <- NULL;
+    fillDiadocBox(ETRN.consignee(e));
     IF NOT diadocBox(ETRN.consignee(e)) THEN {
         MESSAGE ETRN.captionMessage(e) + ': не найден ящик Диадока грузополучателя' NOWAIT;
         RETURN;
     }
+    fillCarrierT3Box(e);
     IF NOT carrierT3Box(e) THEN {
         MESSAGE ETRN.captionMessage(e) + ': не найден ящик Диадока перевозчика. Проверьте ИНН перевозчика на документе и обновите его организацию в справочнике Диадока по ИНН' NOWAIT;
         RETURN;
@@ -183,3 +195,11 @@ EXTEND FORM ETRN.etrns
     PROPERTIES(e) READONLY AFTER nameCarrier(e) nameCarrierCounteragentStatus
                            BACKGROUND backgroundCarrierCounteragent(e) SHOWIF isDiadocETRN()
 ;
+
+// ------------------------- Заполнение ящика по документам, созданным до его хранения ------------------------- //
+
+carrierT3BoxMigrate() {
+    diadocBox(LegalEntity l) <- diadocBoxCalc(l);
+    carrierT3Box(ETRN.ETRN e) <- carrierT3BoxCalc(e);
+}
+@defOnStartMigrate(carrierT3BoxMigrate);

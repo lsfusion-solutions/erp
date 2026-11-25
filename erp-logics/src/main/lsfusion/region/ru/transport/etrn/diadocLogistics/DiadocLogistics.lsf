@@ -122,11 +122,22 @@ organizationParticipantId (STRING[46] participantId) =
 
 // приоритет: ручной выбор -> абонент Диадока (2BM - код оператора в идентификаторе
 // участника СФ, у роуминговых записей код чужого оператора) -> не-роуминговая -> любая
-diadocBox (LegalEntity l) = OVERRIDE
+diadocBox = DATA Box(LegalEntity);
+diadocBoxId 'Ящик'  (LegalEntity l) = boxId(diadocBox(l)) CHARWIDTH 15;
+
+diadocBoxCalc (LegalEntity l) = OVERRIDE
     manualDiadocBox(l),
     [GROUP LAST Box b IF fnsParticipantId(organization(b)) LIKE '2BM%' ORDER b BY legalEntity(organization(b))](l),
     [GROUP LAST Box b IF NOT isRoaming(organization(b)) ORDER b BY legalEntity(organization(b))](l),
     [GROUP LAST Box b ORDER b BY legalEntity(organization(b))](l);
+
+// пустой ящик ищем заново: справочник Диадока мог быть неполным, когда он заполнялся впервые
+fillDiadocBox (LegalEntity l) {
+    IF NOT diadocBox(l) THEN NEWSESSION {
+        diadocBox(l) <- diadocBoxCalc(l);
+        APPLY;
+    }
+}
 
 // своя форма выбора: штатная dialogOrganizations фильтрует по своим организациям
 // (isEmployee) и для контрагента всегда пуста
@@ -140,19 +151,21 @@ FORM dialogTransportOrganizations 'Организации Диадока кон�
 changeTransportOrganization (LegalEntity l) {
     DIALOG dialogTransportOrganizations OBJECTS le = l, o = transportOrganization(l) INPUT NULL DO {
         transportOrganization(l) <- o;
+        diadocBox(l) <- diadocBoxCalc(l);
     }
 }
 
 EXTEND FORM legalEntity
-    PROPERTIES nameTransportOrganization(l) ON CHANGE changeTransportOrganization(l)
+    PROPERTIES nameTransportOrganization(l) ON CHANGE changeTransportOrganization(l),
+                diadocBoxId(l)
 ;
 
 DESIGN legalEntity {
     signerETRN {
         MOVE PROPERTY(nameTransportOrganization(l));
+        MOVE PROPERTY(diadocBoxId(l));
     }
 }
-diadocBoxId (LegalEntity l) = boxId(diadocBox(l));
 // BoxId в Signers ожидается чистым GUID с дефисами (8-4-4-4-12): убираем суффикс адреса
 // ящика и форматируем 32-символьный идентификатор
 diadocBoxIdRaw (LegalEntity l) = replace(diadocBoxId(l), '@diadoc.ru', '');

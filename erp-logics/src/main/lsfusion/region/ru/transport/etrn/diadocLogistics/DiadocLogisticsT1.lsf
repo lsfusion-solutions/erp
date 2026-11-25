@@ -12,6 +12,9 @@ diadocSendT1 (ETRN.OutgoingETRN e) {
     // после отклонённого Диадоком титула не спрашиваем - тот Т1 перевозку не создал
     IF diadocReceptionDocument(e) AND NOT ETRN.exchangeStatus(e) == ETRN.ETRNExchangeStatus.invalid THEN
         ASK 'Т1 уже отправлен в Диадок (есть связанный документ перевозки). Отправить повторно (в Диадоке создастся ещё один документ)?' DO { } ELSE RETURN;
+    fillDiadocBox(ETRN.shipper(e));
+    fillDiadocBox(ETRN.consignee(e));
+    fillDiadocBox(ETRN.carrier(e));
     IF NOT diadocBox(ETRN.shipper(e)) THEN {
         MESSAGE ETRN.captionMessage(e) + ': не найден ящик Диадока грузоотправителя' NOWAIT;
         RETURN;
