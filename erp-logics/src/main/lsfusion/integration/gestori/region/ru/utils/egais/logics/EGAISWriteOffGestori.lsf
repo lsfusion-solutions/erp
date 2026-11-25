@@ -1,6 +1,6 @@
 MODULE EGAISWriteOffGestori;
 
-REQUIRE EGAISWriteOff, EGAISActWriteOffGestori, SkuLedgerLotGestori, EGAISDocGestori, WriteOffTerminal;
+REQUIRE EGAISWriteOff, EGAISActWriteOffGestori, EGAISActWriteOffStatus, SkuLedgerLotGestori, EGAISDocGestori, WriteOffTerminal;
 
 NAMESPACE EGAIS;
 
@@ -50,14 +50,14 @@ hideFillQuantity(UserWriteOffDetail d, F2Reg r) += hideFillQuantity(userWriteOff
 
 @defineSimpleDocumentEGAISConstraint(activeActWriteOff, , writeOff, 'Списание');
 
-hideFillQuantity(UserWriteOffDetail d, F2Reg r) += lotType(sku(d)) AND r IS F2Reg;
-editQuantity(UserWriteOffDetail d, F2Reg r) += NOT (lotType(sku(d)) OR postedOrActiveActWriteOff(userWriteOff(d)));
+hideFillQuantity(UserWriteOffDetail d, F2Reg r) += lotType(sku(d)) = LotType.alcohol AND r IS F2Reg;
+editQuantity(UserWriteOffDetail d, F2Reg r) += NOT (lotType(sku(d)) = LotType.alcohol OR postedOrActiveActWriteOff(userWriteOff(d)));
 
-WHEN CHANGED(quantityLot(UserWriteOffDetail d)) AND lotType(sku(d)) AND NOT postedOrActiveActWriteOff(userWriteOff(d)) DO {
+WHEN CHANGED(quantityLot(UserWriteOffDetail d)) AND lotType(sku(d)) = LotType.alcohol AND NOT postedOrActiveActWriteOff(userWriteOff(d)) DO {
     quantity(d, F2Reg r) <- [GROUP SUM 1 IF quantity(d, Lot ll) BY f2Reg(markCode(id(ll)))](r);
 }
 
-CONSTRAINT CHANGED(quantity(UserWriteOffDetail d, F2Reg r)) AND lotType(sku(d))
+CONSTRAINT CHANGED(quantity(UserWriteOffDetail d, F2Reg r)) AND lotType(sku(d)) = LotType.alcohol
     AND NOT quantity(d, r) == [GROUP SUM 1 IF quantity(UserWriteOffDetail dd, Lot l) BY dd, f2Reg(markCode(id(l)))](d,r)
     MESSAGE 'Для маркированной продукции количество по справке Б должно соответствовать количеству марок';
 
@@ -95,7 +95,7 @@ fillQuantity (UserWriteOff s) + WHEN s IS UserWriteOff AND hasEGAISQuantity(s) T
 
 unlinkLot 'Отвязать от документа' (UserWriteOffDetail d, Lot l) {
     quantity(d, l) <- NULL;
-    IF lotType(sku(d)) THEN
+    IF lotType(sku(d)) = LotType.alcohol THEN
         quantity(d, F2Reg r) <- [GROUP SUM 1 IF quantity(d, Lot ll) BY f2Reg(markCode(id(ll)))](r);
 } TOOLBAR;
 
@@ -123,6 +123,13 @@ hideShowLots(UserWriteOffDetail w) += w IS UserWriteOffDetail;
 
 EXTEND FORM userWriteOff
     PROPERTIES(d) showLinkedLots TOOLBAR
+;
+
+nameStatusEGAIS 'Статус ЕГАИС' (WriteOff w) = nameStatus(actWriteOff(w));
+
+EXTEND FORM writeOffs
+    PROPERTIES(w) READONLY nameStatusEGAIS
+    PROPERTIES(a) READONLY regId, nameStatusAct 'Статус ЕГАИС' = nameStatus
 ;
 
 nameSkuWriteOffDetail 'Наименование товара' (ActWriteOffPosition p) = nameSku(writeOffDetail(p));
