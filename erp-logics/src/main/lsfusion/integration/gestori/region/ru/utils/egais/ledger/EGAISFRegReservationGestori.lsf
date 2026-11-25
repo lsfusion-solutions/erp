@@ -62,6 +62,22 @@ CONSTRAINT SET(availableF2Reg(F2Reg r) < 0) AND CHANGED(reservedF2Reg(r))
     AND NOT disableEGAISDocumentConstraints()
     MESSAGE 'Превышен доступный остаток по справке Б: количество уже зарезервировано другими документами';
 
+// «Заполнить» в накладной (продажа): справки Б распределяются по свободному количеству — за вычетом резерва
+// других документов и количества, уже связанного с другими строками этой накладной
+freeQuantity (Sale.UserInvoice i, F2Reg r) =
+    PREV(availableF2Reg(r) (+) (GROUP SUM reservedQuantity(Sale.ShipmentDetail sd, r) IF Sale.invoice(Sale.invoiceDetail(sd)) = i))
+    (-) (GROUP SUM EGAISSale.quantity(Sale.UserInvoiceDetail d, r) IF Sale.userInvoice(d) = i);
+
+calcFreeQuantity (Sale.UserInvoiceDetail d, F2Reg r) =
+    PARTITION UNGROUP Sale.quantity LIMIT freeQuantity(Sale.userInvoice(d), r) IF freeQuantity(Sale.userInvoice(d), r) > 0 AND EGAISSale.matches(d, r) ORDER r BY d;
+
+EGAISSale.fillQuantity (Sale.UserInvoice i) + WHEN i IS Sale.UserInvoice THEN {
+    EGAISSale.quantity(Sale.UserInvoiceDetail d, F2Reg r) <- NULL WHERE Sale.userInvoice(d) = i;
+    EGAISSale.quantity(Sale.UserInvoiceDetail d, F2Reg r) <- (GROUP SUM Sale.quantity(d, Lot l) IF f2Reg(markCode(id(l))) = r) WHERE Sale.userInvoice(d) = i;
+    FOR Sale.userInvoice(Sale.UserInvoiceDetail d) = i AND NOT EGAISSale.quantityF2Reg(d) ORDER Sale.index(d), d DO
+        EGAISSale.quantity(d, F2Reg r) <- calcFreeQuantity(d, r);
+}
+
 activeDocCountByMark(MarkCode mc) = GROUP SUM 1
     BY markCode(ActWriteOffMark m)
     IF NOT canceled(actWriteOff(actWriteOffPosition(m)))
