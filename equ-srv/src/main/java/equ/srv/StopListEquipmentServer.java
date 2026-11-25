@@ -225,9 +225,15 @@ public class StopListEquipmentServer {
         for (int i = 0; i < sldProperties.length; i++) {
             sldQuery.addProperty(sldNames[i], sldProperties[i].getExpr(sldExpr));
         }
+        //the PLU numbers of all the stocks are read in the same query instead of a query for each detail and stock
+        List<String> pluStockList = new ArrayList<>(idStockSet);
         if(scalesItemLM != null) {
-            sldQuery.addProperty("skuStopListDetail", stopListLM.findProperty("sku[StopListDetail]").getExpr(sldExpr));
-            sldQuery.and(stopListLM.findProperty("sku[StopListDetail]").getExpr(sldExpr).getWhere());
+            LP<?> skuStopListDetail = stopListLM.findProperty("sku[StopListDetail]");
+            LP<?> pluIdStockSku = scalesItemLM.findProperty("pluIdStockSku[STRING[100],Item]");
+            for (int i = 0; i < pluStockList.size(); i++) {
+                sldQuery.addProperty("pluNumber" + i, pluIdStockSku.getExpr(new DataObject(pluStockList.get(i)).getExpr(), skuStopListDetail.getExpr(sldExpr)));
+            }
+            sldQuery.and(skuStopListDetail.getExpr(sldExpr).getWhere());
         }
         sldQuery.and(stopListLM.findProperty("idBarcodeSku[StopListDetail]").getExpr(sldExpr).getWhere());
         sldQuery.and(stopListLM.findProperty("stopList[StopListDetail]").getExpr(sldExpr).compare(stopListObject, Compare.EQUALS));
@@ -235,7 +241,6 @@ public class StopListEquipmentServer {
         ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> sldResult = sldQuery.executeClasses(session);
         for (int i = 0; i < sldResult.size(); i++) {
             ImMap<Object, ObjectValue> values = sldResult.getValue(i);
-            ObjectValue skuObject = values.get("skuStopListDetail");
             String idBarcode = trim((String) values.get("idBarcodeSkuStopListDetail").getValue());
             String idItem = trim((String) values.get("idSkuStopListDetail").getValue());
             String nameItem = trim((String) values.get("nameSkuStopListDetail").getValue());
@@ -251,10 +256,10 @@ public class StopListEquipmentServer {
             BigDecimal valueVAT = (BigDecimal) values.get("valueVATSkuStopListDetail").getValue();
             BigDecimal price = (BigDecimal) values.get("priceStopListDetail").getValue();
             List<Long> barcodeObjectList = getBarcodeObjectList(trimToEmpty((String) values.get("barcodes").getValue()));
-            Map<String, Integer> stockPluNumberMap = new HashMap();
-            for(String idStock : idStockSet) {
-                Integer pluNumber = (Integer) scalesItemLM.findProperty("pluIdStockSku[STRING[100],Item]").read(session, new DataObject(idStock), skuObject);
-                stockPluNumberMap.put(idStock, pluNumber);
+            Map<String, Integer> stockPluNumberMap = new HashMap<>();
+            for (int j = 0; j < pluStockList.size(); j++) {
+                //without the ScalesItem module there are no PLU numbers
+                stockPluNumberMap.put(pluStockList.get(j), scalesItemLM != null ? (Integer) values.get("pluNumber" + j).getValue() : null);
             }
             stopListItemList.put(idBarcode, new StopListItem(stockPluNumberMap, idItem, idBarcode, nameItem, price, split,
                     null, null, null, passScales, valueVAT, null, flags, idSkuGroup,
