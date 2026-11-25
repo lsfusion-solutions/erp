@@ -1,4 +1,4 @@
-MODULE ItemEmployeeAccess;
+MODULE ItemEmployeeAccess;  // ограничивает только группы, а товары видны все. Чтобы ограничить товары - модуль Extra
 
 REQUIRE Item, EmployeeSku; // модуль EmployeeSku попадает в логику при подключении Range 
 
@@ -14,3 +14,9 @@ overReplaceToItemGroup(CustomGroup g, ItemGroup ng) + {
         dataAccess(ng, Employee e) <- access(e, itemGroup(g));
     }
 }
+
+// ----------------------------------------- Метакод по добавлению фильтра товаров на форму ----------------------- //
+
+META extendFormFilterSkuAccess(form, concrete)
+    EXTEND FORM form FILTERS (concrete IS Sku AND NOT limitAccessSkuGroup(currentUser())) OR countAccess(currentUser(), skuGroup(concrete)); // без OR NOT skuGroup(concrete)
+END
