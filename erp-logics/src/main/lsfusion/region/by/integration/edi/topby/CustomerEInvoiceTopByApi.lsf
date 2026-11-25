@@ -13,7 +13,7 @@ DESIGN integrationData {
 
 processEInvoiceMessage (INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) {
     FOR EInvoice ei = eInvoiceDeliveryNoteNumber(eDeliveryNoteNumber()) DO {
-        XMLPath(ei) <- receivedPath(archiveDir, i);
+        archiveFile(ei) <- ediFile(id(i));
         dataEDIProviderInvoice(ei) <- EDIProvider(provider) WHERE EDIProvider(provider) AND fixEDIProviderInvoice(customer(ei));
 
         IF NOT eInvoiceMessage(ei, eDocumentID(), EInvoiceMessageKind.in) THEN NEW m = EInvoiceMessage {
@@ -25,7 +25,7 @@ processEInvoiceMessage (INTEGER i, STRING[100] login, STRING[100] password, TEXT
             dateTime(m) <- eDateTime();
             code(m) <- eFunctionCode();
             type(m) <- getEInvoiceMessageType(currentDocumentType());
-            XMLPath(m) <- receivedPath(archiveDir, i);
+            archiveFile(m) <- ediFile(id(i));
         }
     }
     APPLY NESTED LOCAL;
@@ -758,7 +758,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                             dateTime(m) <- blradfMsgDateTime();
                                             code(m) <- blradfFunctionCode();
                                             type(m) <- ECreditNoteMessageType.blradf;
-                                            XMLPath(m) <- receivedPath(archiveDir, i);
+                                            archiveFile(m) <- ediFile(id(i));
                                         }
                                         APPLY NESTED LOCAL;
                                         IF canceled() THEN {
@@ -789,7 +789,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                 dateTime(m) <- blradfMsgDateTime();
                                 code(m) <- blradfFunctionCode();
                                 type(m) <- ECreditNoteMessageType.blradf;
-                                XMLPath(m) <- receivedPath(archiveDir, i);
+                                archiveFile(m) <- ediFile(id(i));
                             }
                             APPLY NESTED LOCAL;
                             IF canceled() THEN {

@@ -35,6 +35,9 @@ confirmUnprocessedDays = ABSTRACT INTEGER (SoapProfile);
 
 soapProfile (STRING[100] login) = GROUP MIN SoapProfile p BY login(p);
 profile = DATA SoapProfile (EDIFile);
+//логин профиля для колонки журнала: SOAP/ЭДиН — profile, V2 — profileV2 (реализация в CTT)
+profileLogin 'Профиль' = ABSTRACT VALUE STRING[100] (EDIFile);
+profileLogin(EDIFile f) += login(profile(f));
 
 //необработанное сообщение с такой датой снимается с очереди провайдера
 outdated (EDIFile f) = DATE(OVERRIDE documentDate(f), receivedDateTime(f)) <= subtract(currentDate(), (OVERRIDE confirmUnprocessedDays(profile(f)), 60));
@@ -225,11 +228,14 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
 overProcessEDIFile ABSTRACT LIST (EDIFile, INTEGER);
 processedEDIFile = DATA LOCAL BOOLEAN ();
 
+//V2-записи журнала: профиль подключения класса CTT Profile (не SoapProfile), обработку реализует модуль CTT
+processEDIFileV2 ABSTRACT LIST (EDIFile);
+
 //обработка из журнала: локальные свойства пакета заполняются из записи, дальше обычные ветки приёма
 processEDIFile 'Обработать' (EDIFile f) {
     NEWSESSION {
         IF NOT profile(f) THEN {
-            MESSAGE 'Не задан профиль подключения у сообщения ' + id(f) NOWAIT;
+            processEDIFileV2(f);
             RETURN;
         }
         readReceivedFile(f);
@@ -246,7 +252,7 @@ processEDIFile 'Обработать' (EDIFile f) {
         overProcessEDIFile(f, 0);
         IF NOT processedEDIFile() THEN {
             IF NOT data(0) THEN {
-                MESSAGE 'Не найдено тело сообщения ' + id(f) + (' в файле ' + receivedPath(f) IF receivedPath(f)) NOWAIT;
+                MESSAGE 'Не найдено тело сообщения ' + id(f) + (OVERRIDE ' в файле ' + receivedPath(f), '') NOWAIT;
                 RETURN;
             }
             beforeOverReceiveMessages(0, login(profile(f)), archiveDir(profile(f)));
@@ -444,6 +450,6 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
 }
 
 EXTEND FORM integrationData
-    PROPERTIES READONLY loginProfile 'Профиль' = login(profile(ef)) BACKGROUND background(ef) AFTER id(ef)
+    PROPERTIES READONLY loginProfile 'Профиль' = profileLogin(ef) BACKGROUND background(ef) AFTER id(ef)
     PROPERTIES processEDIFile(ef)
 ;

@@ -198,13 +198,21 @@ importRequestResult(FILE xml, INTEGER status, TEXT root) {
 //добавление файлов
 META openRawData (class, object, table)
     XMLPath = DATA STRING[200] (class);
+    archiveFile = DATA EDIArchiveFile (class);
+    archivePath 'Файл в архиве' (class object) = OVERRIDE path(archiveFile(object)), XMLPath(object);
     openRawData 'Открыть файл' (class object) {
-        IF XMLPath(object) THEN {
-            LOCAL file = FILE();
-            IF NOT file() THEN TRY {READ 'file://' + XMLPath(object) + '.xml' TO file;}
-            IF NOT file() THEN TRY {READ 'file://' + XMLPath(object) + '.json' TO file;}
-            IF NOT file() THEN READ 'file://' + XMLPath(object) TO file;
+        LOCAL file = FILE();
+        IF archivePath(object) THEN {
+            TRY {READ 'file://' + archivePath(object) + '.xml' TO file;}
+            IF NOT file() THEN TRY {READ 'file://' + archivePath(object) + '.json' TO file;}
+            IF NOT file() THEN TRY {READ 'file://' + archivePath(object) TO file;}
+        }
+        IF file() THEN {
             open(file());
+        } ELSE IF archiveFile(object) THEN {
+            open(archiveFile(object));
+        } ELSE IF archivePath(object) THEN {
+            MESSAGE 'Файл не найден: ' + archivePath(object);
         } ELSE {
             MESSAGE 'Отсутствует ссылка на файл';
         }
@@ -224,8 +232,15 @@ data = DATA LOCAL NESTED XMLFILE(INTEGER);
 //стороной и вернулся отправителю
 countSignatures = DATA LOCAL NESTED INTEGER (INTEGER);
 
+//файл обмена в архиве на диске; документы ссылаются на него вместо хранения пути
+CLASS ABSTRACT EDIArchiveFile 'Файл архива EDI';
+
+//путь к содержимому; WRITE мог дописать к нему расширение
+path = ABSTRACT STRING (EDIArchiveFile);
+open 'Открыть' ABSTRACT (EDIArchiveFile) TOOLBAR;
+
 //очередь принятых сообщений: объект создаётся при первом приёме id и хранит тело до успешной обработки
-CLASS EDIFile 'Файл EDI';
+CLASS EDIFile 'Файл EDI' : EDIArchiveFile;
 TABLE ediFile(EDIFile);
 
 id 'Идентификатор' = DATA STRING (EDIFile) IN id CHARWIDTH 40;
@@ -244,6 +259,9 @@ receivedDir = DATA STRING (EDIFile);
 //имя в архиве отличается от id, если провайдер прислал своё имя или сообщение распаковано
 receivedFileName = DATA STRING (EDIFile);
 receivedPath 'Файл в архиве' (EDIFile f) = receivedDir(f) + '/' + (OVERRIDE receivedFileName(f), id(f)) CHARWIDTH 60;
+//распакованное содержимое лежит рядом с исходным сообщением: журнал показывает исходное, документы — содержимое
+extractedFileName = DATA STRING (EDIFile);
+path(EDIFile f) += receivedDir(f) + '/' + (OVERRIDE extractedFileName(f), receivedFileName(f), id(f));
 
 countDaysClearEDIFileData 'За сколько дней хранить тела обработанных сообщений EDI (пусто - 30)' = DATA INTEGER ();
 
@@ -273,6 +291,13 @@ markEDIFile (STRING id, BOOLEAN processed, BOOLEAN confirmed) {
     }
 }
 
+markExtractedEDIFile (STRING id, STRING fileName) {
+    IF ediFile(id) AND NOT extractedFileName(ediFile(id)) = fileName THEN NEWSESSION {
+        extractedFileName(ediFile(id)) <- fileName;
+        APPLY;
+    }
+}
+
 receivedFile = DATA LOCAL FILE ();
 //тело из БД, иначе из архива: WRITE дописывает расширение, если в имени его нет или оно нестандартное (.edoc)
 readReceivedFile (EDIFile f) {
@@ -281,14 +306,17 @@ readReceivedFile (EDIFile f) {
     IF NOT receivedFile() AND receivedPath(f) THEN TRY { READ 'file://' + receivedPath(f) TO receivedFile; }
 }
 
-open 'Открыть' (EDIFile f) {
+open(EDIFile f) + {
     readReceivedFile(f);
     IF receivedFile() THEN {
+        //журнал хранит исходное сообщение; у распакованных ЭДиН содержимое лежит отдельным файлом
+        IF extractedFileName(f) THEN
+            MESSAGE 'Открыт исходный конверт; распакованное содержимое: ' + path(f) NOWAIT;
         open(receivedFile());
     } ELSE {
         MESSAGE 'Файл не найден: ' + (OVERRIDE receivedPath(f), 'путь не задан');
     }
-} TOOLBAR;
+}
 
 //зелёный — обработан, серый — снят с очереди без обработки, янтарный — получен повторно (вероятно, не обработан и не подтверждён)
 background (EDIFile f) = OVERRIDE (RGB(212, 237, 218) IF processedDateTime(f)), (RGB(233, 236, 239) IF confirmedDateTime(f)), (RGB(255, 243, 205) IF lastReceivedDateTime(f));

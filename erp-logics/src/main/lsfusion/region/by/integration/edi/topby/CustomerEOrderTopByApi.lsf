@@ -133,7 +133,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                         }
                         deliveryDateTime(r) <- toDateTimeFormat(ordrspDeliveryDateTimeFirst(),'yyyy-MM-ddThh24:mi:ss');
                         deliveryDateTimeSecond(r) <- toDateTimeFormat(ordrspDeliveryDateTimeSecond(),'yyyy-MM-ddThh24:mi:ss');
-                        XMLPath(r) <- receivedPath(archiveDir, i);
+                        archiveFile(r) <- ediFile(id(i));
                         
                         LOCAL indexSku = INTEGER (INTEGER);
                         LOCAL sku = Sku (INTEGER);
@@ -221,7 +221,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                         customer(a) <- customer(eOrder(desadvOrderNumber()));
                         customerStock(a) <- customerStock(eOrder(desadvOrderNumber()));
                         deliveryDateTime(a) <- desadvDeliveryDateTimeFirst();
-                        XMLPath(a) <- receivedPath(archiveDir, i);
+                        archiveFile(a) <- ediFile(id(i));
                         FOR desadvGTIN(INTEGER l) AND EOrderDespatchAdviceDetail d == eOrderDespatchAdviceDetail(desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber() + '/' + l) DO {
                             sku(d) <- OVERRIDE (GROUP MAX sku(EOrderDetail dd) IF GTINBarcode(dd) == desadvGTIN(l) AND order(dd) == eOrder(a)), skuGTIN(desadvGTIN(l));
                             dataGTIN(d) <- desadvGTIN(l);
@@ -274,7 +274,7 @@ overReceiveSystemMessage(INTEGER i, STRING[100] login, STRING[100] password, TEX
                     code(m) <- code();
                     description(m) <- OVERRIDE description(), description(code());
                     eOrder(m) <- eOrder(documentNumber());
-                    XMLPath(m) <- receivedPath(archiveDir, i);
+                    archiveFile(m) <- ediFile(id(i));
                     APPLY NESTED LOCAL;
                     IF canceled() THEN {
                         

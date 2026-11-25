@@ -191,6 +191,73 @@ FORM message
 ;
 
 currentDocId = DATA LOCAL NESTED STRING();
+//в цикле V2: запускалась ли ветка приёма хотя бы для одного файла документа (для checkReceiveResult)
+anyFileProcessed = DATA LOCAL NESTED BOOLEAN();
+
+//V2-запись журнала: профиль СТТ и id документа (на документ несколько файлов, ключ записи — id_doc + '_' + имя)
+profileV2 'Профиль V2' = DATA Profile (EDIFile);
+documentIdV2 'Id документа V2' = DATA STRING (EDIFile);
+profileLogin(EDIFile f) += login(profileV2(f));
+
+//V2: каждый файл архива — отдельная запись журнала (на один документ их несколько);
+//ключ — id документа + '_' + имя файла. id(i) к моменту вызова подменён на ключ файла,
+//исходный id документа сохраняется в currentDocId
+registerEDIFileV2 (INTEGER i, Profile p, STRING[100] archiveDir, STRING[100] provider) {
+    TRY {
+        NEWSESSION NESTED LOCAL {
+            FOR EDIFile f = ediFile(id(i)) DO {
+                lastReceivedDateTime(f) <- currentDateTime();
+                IF NOT documentDate(f) AND documentDate(i) THEN documentDate(f) <- documentDate(i);
+                IF data(i) AND NOT data(f) AND NOT processedDateTime(f) AND NOT outdated(f) THEN
+                    fillEDIFile(f, i, archiveDir);
+            }
+            IF NOT ediFile(id(i)) THEN {
+                NEW f = EDIFile {
+                    id(f) <- id(i);
+                    profileV2(f) <- p;
+                    documentIdV2(f) <- currentDocId();
+                    documentType(f) <- documentType(i);
+                    documentDate(f) <- documentDate(i);
+                    receivedDateTime(f) <- currentDateTime();
+                    fillEDIFile(f, i, archiveDir);
+                }
+            }
+            APPLY NESTED LOCAL;
+        }
+    } CATCH {
+        logToFile('edi', CONCAT '\n', provider + ' (' + login(p) + ') Register V2 file ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
+        //прерывание пользователем должно останавливать весь приём, а не только регистрацию
+        IF isSubstring(messageCaughtException(), 'interrupted') THEN throwException(messageCaughtException());
+    }
+}
+
+//обработка V2-записи из журнала: тело из записи, id документа — из documentIdV2;
+//подтверждение не отправляется (V2 — REST, SOAP-подтверждение не нужно)
+processEDIFileV2 (EDIFile f) + {
+    IF profileV2(f) THEN {
+        readReceivedFile(f);
+        data(0) <- XMLFILE(receivedFile());
+        id(0) <- id(f);
+        documentType(0) <- documentType(f);
+        documentDate(0) <- documentDate(f);
+        receivedFileName(0) <- receivedFileName(f);
+        currentDocId() <- documentIdV2(f);
+        fillStartParams();
+        startReceiveResult();
+        logToFile('edi', 'TopBy (' + login(profileV2(f)) + ') Process V2 file ' + id(f));
+        IF NOT data(0) THEN {
+            MESSAGE 'Не найдено тело сообщения ' + id(f) + (OVERRIDE ' в файле ' + receivedPath(f), '') NOWAIT;
+            RETURN;
+        }
+        overReceiveMessages(0, login(profileV2(f)), password(profileV2(f)), url(profileV2(f)), archiveDirTopBy(), TRUE, 'TopBy');
+        currentDocId() <- NULL;
+        checkReceiveResult(0, login(profileV2(f)), 'TopBy');
+        fillEndParams();
+        MESSAGE (OVERRIDE textMessage(), 'Сообщение ' + id(f) + ' обработано') NOWAIT;
+    } ELSE {
+        MESSAGE 'Не задан профиль подключения у сообщения ' + id(f) NOWAIT;
+    }
+}
 
 overImportEInvoices ABSTRACT LIST (LegalEntity, STRING);
 receiveMessagesV2 (LegalEntity le, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) {
@@ -225,6 +292,7 @@ receiveMessagesV2 (LegalEntity le, STRING[100] archiveDir, BOOLEAN disableConfir
                             logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveMessages V2: документ ' + id(i) + ' пропущен (черновик)');
                         } ELSE {
                             startReceiveResult();
+                            anyFileProcessed() <- NULL;
                             EXPORT JSON FROM value = '[' + id(i) + ']';
                             logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveMessages V2 request sent. POST /api/v1/EWAYBILL/downloadArchive/XML\n' + exportFile());
 
@@ -238,14 +306,22 @@ receiveMessagesV2 (LegalEntity le, STRING[100] archiveDir, BOOLEAN disableConfir
                                 documentType(i) <- messageType();
 
                                 receivedFileName(i) <- id(i) + '_' + regexpReplace(s, '\\.[^.]*$', '', 'g');
-                                IF archiveDir THEN {
-                                    TRY { mkdir(receivedDir(archiveDir)); }
-                                    WRITE data(i) TO receivedPath(archiveDir, i);
+                                //файл архива — отдельное сообщение журнала: ключ id_doc + '_' + имя файла;
+                                //ветки получают ключ файла через id(i), id документа остаётся в currentDocId
+                                id(i) <- receivedFileName(i);
+                                TRY { documentDate(i) <- DATETIME(dateTime(i)); }
+                                registerEDIFileV2(i, profile(le), archiveDir, provider);
+                                //повторный приём окна V2 не обрабатывает уже обработанные файлы:
+                                //иначе сбрасываются exported* и уходят парные извещения
+                                IF NOT ediFile(id(i)) OR NOT processedDateTime(ediFile(id(i))) THEN {
+                                    overReceiveMessages(i, loginProfile(le), password(profile(le)), url(profile(le)), archiveDir, disableConfirmation, provider);
+                                    anyFileProcessed() <- TRUE;
                                 }
-                                overReceiveMessages(i, loginProfile(le), password(profile(le)), url(profile(le)), archiveDir, disableConfirmation, provider);
+                                id(i) <- currentDocId();
                                 currentDocId() <- NULL;
                             }
-                            checkReceiveResult(i, loginProfile(le), provider);
+                            //все файлы документа уже обработаны — ветки не запускались, проверять результат нечего
+                            IF anyFileProcessed() THEN checkReceiveResult(i, loginProfile(le), provider);
                             receivedFileName(i) <- NULL;
                         }
                     }
