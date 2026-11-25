@@ -31,7 +31,11 @@ public class EQSSettings implements Serializable{
     
     //Пропустить выгрузку признак и тип маркировки
     private Boolean skipLotType = true;
-    
+
+    //Если true, то приём мягких чеков (подтверждений накладных) отключен.
+    //По умолчанию - true (механизм выключен), включается установкой false
+    private Boolean disableSoftCheck = true;
+
     public EQSSettings() {
     }
 
@@ -92,5 +96,13 @@ public class EQSSettings implements Serializable{
     public void setSkipLotType(Boolean skipLotType) {
         this.skipLotType = skipLotType;
     }
-    
+
+    public Boolean getDisableSoftCheck() {
+        return disableSoftCheck;
+    }
+
+    public void setDisableSoftCheck(Boolean disableSoftCheck) {
+        this.disableSoftCheck = disableSoftCheck;
+    }
+
 }

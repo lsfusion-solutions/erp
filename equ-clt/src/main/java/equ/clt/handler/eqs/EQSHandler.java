@@ -34,6 +34,9 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
 
     private FileSystemXmlApplicationContext springContext;
 
+    //кэш касс из последнего prereadFiles: нужен в requestSucceededSoftCheckInfo для connectionString'ов и групп оборудования
+    private List<CashRegisterInfo> cashRegisterInfoList = new ArrayList<>();
+
     public EQSHandler(FileSystemXmlApplicationContext springContext) {
         this.springContext = springContext;
     }
@@ -443,6 +446,12 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
                             break;
                         case 6: //Регистрация
                             currentReadRecordSet.add(id);
+                            
+                            String idSection = rs.getString(10); //department, Номер отдела
+                            String idBarcode = appendCheckDigitToBarcode(rs.getString(4), 5, appendBarcode); //barcode, Штрихкод товара
+                            
+                            if (StringUtils.isEmpty(idBarcode) && (StringUtils.isEmpty(idSection) || Objects.equals(idSection, "0")))
+                                break;
 
                             position++;
 
@@ -451,7 +460,6 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
                             CashRegisterInfo cashRegister = machineryMap.get(cash_id);
                             Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
 
-                            String idBarcode = appendCheckDigitToBarcode(rs.getString(4), 5, appendBarcode); //barcode, Штрихкод товара
                             String idItem = String.valueOf(rs.getLong(5)); //code, Код товара
                             BigDecimal totalQuantity = rs.getBigDecimal(6); //qty, Количество
                             BigDecimal price = rs.getBigDecimal(7); //price, Цена
@@ -461,7 +469,6 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
                                 discountPercent = null;
                             BigDecimal discountSum = HandlerUtils.safeAbs(rs.getBigDecimal(9)); //discount, Сумма скидки/наценки
                             sum = HandlerUtils.safeAdd(sum, rs.getBigDecimal(9)); //discountSum is negative
-                            String idSection = rs.getString(10); //department, Номер отдела
 
                             Integer flags = rs.getInt(11); //flags, Флаги: bit 0 - Возврат bit 1 - Скидка/Наценка (при любой скидке этот бит всегда = 1) bit 2 - Сторнирование/Коррекция
                             //0 - продажа, 1 - возврат, 4 - возврат со сторнированием/коррекцией
@@ -733,6 +740,112 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
                     }
                 }
             }
+        }
+    }
+
+    @Override
+    public void prereadFiles(List<CashRegisterInfo> cashRegisterList) {
+        cashRegisterInfoList = new ArrayList<>();
+        for (CashRegisterInfo cashRegister : cashRegisterList) {
+            if (fitHandler(cashRegister) && cashRegister.directory != null)
+                cashRegisterInfoList.add(cashRegister);
+        }
+    }
+
+    @Override
+    public Map<String, SoftCheckInterface.SucceededSoftCheckInfo> requestSucceededSoftCheckInfo() {
+
+        softCheckLogger.info(logPrefix + "requesting succeeded SoftCheckInfo");
+
+        Map<String, SoftCheckInterface.SucceededSoftCheckInfo> result = new HashMap<>();
+
+        EQSSettings eqsSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
+        //механизм включается только явной установкой disableSoftCheck=false (по умолчанию выключен)
+        boolean disableSoftCheck = eqsSettings == null || !Boolean.FALSE.equals(eqsSettings.getDisableSoftCheck());
+        if (disableSoftCheck) {
+            softCheckLogger.info(logPrefix + "softCheck disabled");
+            return result;
+        }
+
+        Map<Integer, Integer> numberGroupMap = new HashMap<>();
+        Set<String> directorySet = new HashSet<>();
+        for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
+            if (cashRegister.number != null && cashRegister.numberGroup != null)
+                numberGroupMap.put(cashRegister.number, cashRegister.numberGroup);
+            directorySet.add(cashRegister.directory);
+        }
+
+        for (String directory : directorySet) {
+            Connection conn = null;
+            try {
+                EQSConnectionString params = new EQSConnectionString(directory);
+                if (params.connectionString == null) {
+                    softCheckLogger.error(logPrefix + "No connectionString found for " + directory);
+                } else {
+                    softCheckLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
+                    conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
+
+                    try (Statement statement = conn.createStatement()) {
+                        //sql_no_cache is workaround of the bug: https://bugs.mysql.com/bug.php?id=31353
+                        String query = "SELECT sql_no_cache type, ecr, amount, customer, date, department FROM history WHERE new = 1 AND type IN (5, 6, 8) ORDER BY ecr, id";
+                        ResultSet rs = statement.executeQuery(query);
+
+                        int positionCount = 0;
+                        BigDecimal positionAmount = null;
+                        String customer = null;
+
+                        while (rs.next()) {
+                            int type = rs.getInt(1);
+                            switch (type) {
+                                case 5: //Открытие чека
+                                    positionCount = 0;
+                                    positionAmount = null;
+                                    customer = null;
+                                    break;
+                                case 6: //Регистрация
+                                    //учитываем только позиции с department > 0
+                                    Integer department = getDepartment(rs.getString(6));
+                                    if (department != null && department > 0) {
+                                        positionCount++;
+                                        positionAmount = rs.getBigDecimal(3);
+                                    }
+                                    break;
+                                case 8: //Закрытие чека
+                                    BigDecimal amount = rs.getBigDecimal(3);
+                                    customer = StringUtils.trimToNull(rs.getString(4));
+                                    //мягкий чек: одна позиция с нулевой суммой, нулевая сумма закрытия, номер накладной - в customer строки закрытия чека
+                                    if (customer != null && positionCount == 1 && positionAmount != null
+                                            && positionAmount.compareTo(BigDecimal.ZERO) == 0
+                                            && amount != null && amount.compareTo(BigDecimal.ZERO) == 0) {
+                                        String invoiceNumber = customer.length() >= 7 ? customer.substring(customer.length() - 7) : customer;
+                                        softCheckLogger.info(logPrefix + "found softCheck " + invoiceNumber);
+                                        result.put(invoiceNumber, new SoftCheckInterface.SucceededSoftCheckInfo(sqlTimestampToLocalDateTime(rs.getTimestamp(5)), numberGroupMap.get(rs.getInt(2))));
+                                    }
+                                    break;
+                            }
+                        }
+                    }
+                }
+            } catch (SQLException e) {
+                softCheckLogger.error(logPrefix + "failed to read softCheckInfo. Directory: " + directory, e);
+            } finally {
+                try {
+                    if (conn != null)
+                        conn.close();
+                } catch (SQLException ignored) {
+                }
+            }
+        }
+        return result;
+    }
+
+    private Integer getDepartment(String value) {
+        if (value == null)
+            return null;
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException e) {
+            return null;
         }
     }
 
