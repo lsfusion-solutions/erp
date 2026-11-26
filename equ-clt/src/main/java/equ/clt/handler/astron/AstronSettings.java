@@ -69,6 +69,9 @@ public class AstronSettings implements Serializable {
     //Не пытаться создать индексы в sales. если false т осоздаем
     private boolean skipCheckSalesIndex;
 
+    //если true, то при блокировке пользователей в таблице CLNT используется столбец DELFLAG вместо LOCKED
+    private boolean useDelFlagInsteadOfLockedInClnt;
+
     public AstronSettings() {
     }
 
@@ -239,5 +242,13 @@ public class AstronSettings implements Serializable {
 
     public void setSkipCheckSalesIndex(boolean skipCheckSalesIndex) {
         this.skipCheckSalesIndex = skipCheckSalesIndex;
+    }
+
+    public boolean isUseDelFlagInsteadOfLockedInClnt() {
+        return useDelFlagInsteadOfLockedInClnt;
+    }
+
+    public void setUseDelFlagInsteadOfLockedInClnt(boolean useDelFlagInsteadOfLockedInClnt) {
+        this.useDelFlagInsteadOfLockedInClnt = useDelFlagInsteadOfLockedInClnt;
     }
 }

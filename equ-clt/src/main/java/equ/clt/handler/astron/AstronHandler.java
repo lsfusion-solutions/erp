@@ -1683,7 +1683,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         }
     }
 
-    private void exportClnt(Connection conn, AstronConnectionString params, String tbl, List<DiscountCard> discountCardList, Integer updateNum) throws SQLException {
+    private void exportClnt(Connection conn, AstronConnectionString params, String tbl, List<DiscountCard> discountCardList, Integer updateNum, boolean useDelFlagInsteadOfLockedInClnt) throws SQLException {
         String[] keys = new String[]{"CLNTID"};
         String[] columns = getColumns(new String[]{"CLNTID", "CLNTGRPID", "COMPANYID", "PROPERTYGRPID", "CLNTNAME", "CLNTBIRTHDAY", "LOCKED", "DELFLAG", "PRIMARYEMAIL", "PRIMARYPHONE"}, updateNum);
         try (PreparedStatement ps = getPreparedStatement(conn, params, tbl, columns, keys)) {
@@ -1699,7 +1699,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             clientId, d.numberDiscountCard, extClntGrpId, social, clientGroupId, d.extInfo)); //временный лог, убрать после разбора CLNTGRPID
                     String clientName = nvl(trim(d.nameDiscountCard, 50), "");
                     String clientBirthday = d.birthdayContact != null ? d.birthdayContact.format(dateFormatter) + "000000" : null;
-                    int locked = getLocked(d.extInfo);
+                    int isLocked = getLocked(d.extInfo);
+                    int locked = useDelFlagInsteadOfLockedInClnt ? 0 : isLocked;
+                    int delFlag = useDelFlagInsteadOfLockedInClnt ? isLocked : 0;
 
                     if(params.pgsql) {
                         setObject(ps, clientId, 1); //CLNTID
@@ -1709,7 +1711,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         setObject(ps, clientName, 5); //CLNTNAME
                         setObject(ps, clientBirthday, 6); //CLNTBIRTHDAY
                         setObject(ps, locked, 7); //LOCKED
-                        setObject(ps, 0, 8); //DELFLAG
+                        setObject(ps, delFlag, 8); //DELFLAG
                         setObject(ps, null, 9); //PRIMARYEMAIL
                         setObject(ps, null, 10); //PRIMARYPHONE
                         if(updateNum != null)
@@ -1721,7 +1723,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         setObject(ps, clientName, 4, offset); //CLNTNAME
                         setObject(ps, clientBirthday, 5, offset); //CLNTBIRTHDAY
                         setObject(ps, locked, 6, offset); //LOCKED
-                        setObject(ps, 0, 7, offset); //DELFLAG
+                        setObject(ps, delFlag, 7, offset); //DELFLAG
                         setObject(ps, null, 8, offset); //PRIMARYEMAIL
                         setObject(ps, null, 9, offset); //PRIMARYPHONE
 
@@ -2315,6 +2317,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         boolean versionalScheme = astronSettings.isVersionalScheme();
         boolean exportDiscountCardExtraTables = astronSettings.isExportDiscountCardExtraTables();
         boolean waitSysLogInsteadOfDataPump = astronSettings.isWaitSysLogInsteadOfDataPump();
+        boolean useDelFlagInsteadOfLockedInClnt = astronSettings.isUseDelFlagInsteadOfLockedInClnt();
 
         for (String directory : getDirectorySet(requestExchange)) {
 
@@ -2351,7 +2354,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
                                 String clntTbl = "CLNT";
                                 Integer clntUpdateNum = getDiscountCardUpdateNum(versionalScheme, processedUpdateNums, inputUpdateNums, clntTbl);
-                                exportClnt(conn, params, clntTbl, discountCardList, clntUpdateNum);
+                                exportClnt(conn, params, clntTbl, discountCardList, clntUpdateNum, useDelFlagInsteadOfLockedInClnt);
                                 outputUpdateNums.put(clntTbl, clntUpdateNum);
 
                                 String clntFormTbl = "CLNTFORM";
