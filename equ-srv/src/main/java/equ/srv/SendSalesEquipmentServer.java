@@ -345,11 +345,9 @@ public class SendSalesEquipmentServer {
         Map<String, BigDecimal> zReportSumMap = new HashMap<>();
         if (zReportLM != null) {
             try (DataSession session = server.createSession()) {
+                LP<?> sumReceiptDetailProperty = zReportLM.findProperty("sumReceiptDetail[STRING[100]]");
                 for(String idZReport : idZReportSet) {
-                    ObjectValue zReportObject = zReportLM.findProperty("zReport[STRING]").readClasses(session, new DataObject(idZReport));
-                    if(zReportObject instanceof DataObject) {
-                        zReportSumMap.put(idZReport, (BigDecimal) zReportLM.findProperty("sumReceiptDetail[ZReport]").read(session, zReportObject));
-                    }
+                    zReportSumMap.put(idZReport, (BigDecimal) sumReceiptDetailProperty.read(session, new DataObject(idZReport)));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
