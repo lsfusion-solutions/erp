@@ -191,13 +191,20 @@ public class DataPrintWaspHandler extends DefaultScalesHandler {
             //data.clear();
     
             String pluNumber = getPluNumber(item);
+        
+            double price = item.price != null ? item.price.doubleValue() : 0;
+            double price2 = 0;
+            if (item.retailPrice != null && item.retailPrice.doubleValue() > 0) {
+                price2 = price;
+                price = item.retailPrice.doubleValue();
+            }
             
             data.segments.add("PLU");   // 1 Fixed Text "PLU"
             data.segments.add(pluNumber);     // 2 Number (ID) Number type
             data.segments.add(pluNumber);     // 3 Item Code 0 Number type (articul)
             data.segments.add("");      //4 Index Barcode String type
             data.segments.add(item.splitItem ? "3" : "2");     //5 Unit number of PLU. 3 Number : 1=weight,2=pcs, 3=kg, 4=g, 5=ton,6=lb,7=500g,8=100g, 9=1/4lb
-            data.segments.add(floatValue(item.price != null ? item.price.doubleValue() : 0)); //6 Price 0,0 SPECIAL FLOAT
+            data.segments.add(floatValue(price)); //6 Price 0,0 SPECIAL FLOAT
             data.segments.add("0,0");   // 7 Cost 0,0 SPECIAL FLOAT
             data.segments.add("0,0");   // 8 Tare 0,0 SPECIAL FLOAT
             
@@ -245,16 +252,41 @@ public class DataPrintWaspHandler extends DefaultScalesHandler {
             data.segments.add("0"); //31 Print Pack Data data 0 Number type
             data.segments.add("0"); //32 Print Pack Time data 0 Number type
             data.segments.add(item.hoursExpiry != null ? String.valueOf(item.hoursExpiry): "0"); //33 Print Shelf Data data 0 Number:number of shelf day
-            
-            data.segments.add("0"); //34 Lowwer of Discount Manual sort 0 Number type
-            data.segments.add("0"); //35 Upper of Discount Manual sort 0 Number type
+        
+            data.segments.add("1"); //34 Lowwer of Discount Manual sort 0 Number type
+            data.segments.add("1"); //35 Upper of Discount Manual sort 0 Number type
             data.segments.add("0,0"); //36 Lowwer of Discount Manual data 0,0 SPECIAL FLOAT
-            data.segments.add("0,0"); //37 Upper of Discount Manual data 0,0 SPECIAL FLOAT
-            data.segments.add("0"); //38 Auto Discount 1: Sort 0 Number type
+            data.segments.add("250,0"); //37 Upper of Discount Manual data 0,0 SPECIAL FLOAT
+        
+            if (price2 > 0) {
+                data.segments.add("1"); //38 Auto Discount 1: Sort 0 Number type
+            }
+            else {
+                data.segments.add("0"); //38 Auto Discount 1: Sort 0 Number type
+            }
+            
             data.segments.add("127"); //39 Auto Discount 1: Weekdays 127 Number type
             data.segments.add("0,0"); //40 Auto Discount 1: Range Lowwer 0,0 Number type
-            data.segments.add("0,0"); //41 Auto Discount 1: Range Upper 0,0 Number type
-            data.segments.add("0,0"); //42 Auto Discount 1: Target Value 0,0 SPECIAL FLOAT
+        
+            if (price2 > 0) {
+                data.segments.add("100,0"); //41 Auto Discount 1: Range Upper 0,0 Number type
+                data.segments.add(floatValue(price2)); //42 Auto Discount 1: Target Value 0,0 SPECIAL FLOAT
+            }
+            else {
+                data.segments.add("100,0"); //41 Auto Discount 1: Range Upper 0,0 Number type
+                data.segments.add("0,0"); //42 Auto Discount 1: Target Value 0,0 SPECIAL FLOAT
+            }
+            
+            //data.segments.add("0"); //34 Lowwer of Discount Manual sort 0 Number type
+            //data.segments.add("0"); //35 Upper of Discount Manual sort 0 Number type
+            //data.segments.add("0,0"); //36 Lowwer of Discount Manual data 0,0 SPECIAL FLOAT
+            //data.segments.add("0,0"); //37 Upper of Discount Manual data 0,0 SPECIAL FLOAT
+            //data.segments.add("0"); //38 Auto Discount 1: Sort 0 Number type
+            //data.segments.add("127"); //39 Auto Discount 1: Weekdays 127 Number type
+            //data.segments.add("0,0"); //40 Auto Discount 1: Range Lowwer 0,0 Number type
+            //data.segments.add("0,0"); //41 Auto Discount 1: Range Upper 0,0 Number type
+            //data.segments.add("0,0"); //42 Auto Discount 1: Target Value 0,0 SPECIAL FLOAT
+        
             data.segments.add("0"); // 43 Auto Discount 2: Sort 0 Number type
             data.segments.add("127"); //44 Auto Discount 2: Weekdays 127 Number type
             data.segments.add("0,0"); //45 Auto Discount 2: Range Lowwer 0,0 Number type
