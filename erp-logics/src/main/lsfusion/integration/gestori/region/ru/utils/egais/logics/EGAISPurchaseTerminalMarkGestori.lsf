@@ -10,16 +10,21 @@ expectedTTNMarkLot (UserInvoiceDetail d, Lot l) =
 
 importedTerminalDocument 'Загружен в накладную' = DATA BOOLEAN (UserInvoice, TerminalDocument);
 
+// по товару данные берутся только из последнего загруженного в накладную документа ТСД с этим товаром
+lastImportedTerminalDocument (UserInvoice i, Sku s) =
+    GROUP LAST terminalDocument(TerminalDocumentDetail tdd)
+        ORDER dateTime(terminalDocument(tdd)), terminalDocument(tdd)
+        WHERE importedTerminalDocument(i, terminalDocument(tdd)) AND sku(tdd) = s;
+
 overAddDialogTerminalToUserInvoice (UserInvoice i, TerminalDocument t) + {
     importedTerminalDocument(i, TerminalDocument ttd) <- TRUE WHERE include(ttd);
 
-    LOCAL imported = BOOLEAN (TerminalDocument);
-    imported(TerminalDocument ttd) <- importedTerminalDocument(i, ttd);
+    LOCAL last = TerminalDocument (Sku);
+    last(Sku s) <- lastImportedTerminalDocument(i, s);
 
-    IF GROUP SUM 1 IF id(TerminalLotDetail tl) AND imported(terminalDocument(tl)) AND NOT skipTerminalLot(i) THEN {
-        // марки по всем загруженным документам ТСД
+    IF GROUP SUM 1 IF id(TerminalLotDetail tl) AND terminalDocument(tl) = last(sku(terminalDocumentDetail(tl))) AND NOT skipTerminalLot(i) THEN {
         quantity(UserInvoiceDetail d, Lot l) <- (GROUP SUM 1 IF l = lot(id(TerminalLotDetail tld)) AND NOT aggregated(l)
-                AND imported(terminalDocument(tld)) AND sku(terminalDocumentDetail(tld)) = sku(d))
+                AND terminalDocument(tld) = last(sku(d)) AND sku(terminalDocumentDetail(tld)) = sku(d))
             WHERE userInvoice(d) = i;
 
         // непринятые марки из помарочного состава ТТН остаются в списке с количеством 0
@@ -30,16 +35,16 @@ overAddDialogTerminalToUserInvoice (UserInvoice i, TerminalDocument t) + {
 
 afterAddDialogTerminalToUserInvoice (UserInvoice i, TerminalDocument t) + {
     LOCAL scannedSku = NUMERIC[16,5] (Sku, UserInvoice);
-    scannedSku(Sku s, i) <- [GROUP SUM quantity(TerminalDocumentDetail tdd)
-        IF importedTerminalDocument(i, terminalDocument(tdd)) BY sku(tdd)](s);
+    scannedSku(Sku s, i) <- GROUP SUM quantity(TerminalDocumentDetail tdd)
+        IF terminalDocument(tdd) = lastImportedTerminalDocument(i, s) AND sku(tdd) = s;
 
     FOR invoice(UserInvoiceDetail o) == i DO {
         shipmentQuantity(o) <- OVERRIDE (PARTITION UNGROUP scannedSku LIMIT STRICT quantity(o)
             IF invoice(o) == i ORDER index(o), o BY sku(o), invoice(o)), 0.0;
         manufactureDate(o) <- (GROUP MAX extraDate1(TerminalDocumentDetail tdd)
-            IF importedTerminalDocument(i, terminalDocument(tdd)) AND sku(tdd) == sku(o));
+            IF terminalDocument(tdd) = lastImportedTerminalDocument(i, sku(o)) AND sku(tdd) == sku(o));
         expiryDate(o) <- (GROUP MAX extraDate2(TerminalDocumentDetail tdd)
-            IF importedTerminalDocument(i, terminalDocument(tdd)) AND sku(tdd) == sku(o));
+            IF terminalDocument(tdd) = lastImportedTerminalDocument(i, sku(o)) AND sku(tdd) == sku(o));
     }
 }
 
