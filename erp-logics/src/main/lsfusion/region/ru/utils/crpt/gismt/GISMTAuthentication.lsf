@@ -1,15 +1,18 @@
 MODULE GISMTAuthentication;
 
 REQUIRE System, Utils, Time,
-        CryptoProLegalEntity;
+        CryptoProLegalEntity, LegalEntityRu;
 
 NAMESPACE GISMT;
 
 url 'Url к стенду ГИС МТ' = DATA STRING ();
 urlTrueApi 'Url к стенду ГИС МТ(True API)' = DATA STRING ();
+unitedToken 'Единый токен UUID (вместо JWT)' = DATA BOOLEAN ();
+countMinutesTokenData 'К-во минут жизни токена'  = DATA INTEGER ();
+countMinutesToken 'К-во минут жизни токена'() = OVERRIDE countMinutesTokenData(), 480;
 
 EXTEND FORM integrationData
-    PROPERTIES() gismtUrl = url, urlTrueApi;
+    PROPERTIES() gismtUrl = url, urlTrueApi, unitedToken, countMinutesToken
 ;
 
 DESIGN integrationData {
@@ -18,6 +21,8 @@ DESIGN integrationData {
             caption = 'ГИС МТ';
             MOVE PROPERTY(gismtUrl);
             MOVE PROPERTY(urlTrueApi());
+            MOVE PROPERTY(unitedToken());
+            MOVE PROPERTY(countMinutesToken());
         }
     }
 }
@@ -32,7 +37,7 @@ getToken (STRING keyAlias, STRING keyPassword, LegalEntity l) {
         RETURN;
     }
     
-    IF NOT tokenDateTime(keyAlias) > sumMinutes(currentDateTime(), -480)  THEN { 
+    IF NOT tokenDateTime(keyAlias) > sumMinutes(currentDateTime(), - countMinutesToken())  THEN { 
         NEWSESSION {
             
             LOCAL result = JSONFILE ();
@@ -46,14 +51,20 @@ getToken (STRING keyAlias, STRING keyPassword, LegalEntity l) {
             IF signCustom(l) THEN signCustom(resultFile(), l);
             ELSE sign(RAWFILE(resultFile()), NULL, keyAlias, keyPassword);
         
-            EXPORT JSON FROM uuid = uuid(), data = encodedSignature();
+            IF unitedToken() THEN {
+                // inn обязателен, когда подпись ставит физлицо с МЧД
+                EXPORT JSON FROM uuid = uuid(), data = encodedSignature(), inn = trim(LegalEntity.inn(l)), unitedToken = TRUE;
+            } ELSE {
+                EXPORT JSON FROM uuid = uuid(), data = encodedSignature();
+            }
             
             EXTERNAL HTTP POST urlTrueApi() + '/auth/simpleSignIn' PARAMS exportFile() TO result;
             LOCAL token = STRING ();
-            IMPORT JSON FROM result() TO() token;
+            LOCAL uuidToken = STRING();
+            IMPORT JSON FROM result() TO() uuidToken, token;
             
-            token(keyAlias) <- token();
-            tokenDateTime(keyAlias) <- currentDateTime() WHERE token();
+            token(keyAlias) <- OVERRIDE uuidToken(), token();
+            tokenDateTime(keyAlias) <- currentDateTime() WHERE OVERRIDE uuidToken(), token();
             
             APPLY;
         }
