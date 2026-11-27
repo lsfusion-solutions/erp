@@ -1479,19 +1479,20 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         }
     }
 
-    private void exportPackPrcStopList(Connection conn, AstronConnectionString params, StopListInfo stopListInfo, boolean exportExtraTables, boolean delFlag, Integer maxBatchSize, Integer updateNum) throws SQLException {
+    private void exportPackPrcStopList(Connection conn, AstronConnectionString params, StopListInfo stopListInfo, String directory, boolean exportExtraTables, boolean delFlag, Integer maxBatchSize, Integer updateNum) throws SQLException {
         String[] keys = new String[]{"PACKID", "PRCLEVELID"};
         String[] columns = getColumns(new String[]{"PACKID", "PRCLEVELID", "PACKPRICE", "PACKMINPRICE", "PACKBONUSMINPRICE", "DELFLAG"}, updateNum);
         try (PreparedStatement ps = getPreparedStatement(conn, params, "PACKPRC", columns, keys)) {
             int offset = columns.length + keys.length;
 
-            //берём groupMachinery только своего хэндлера
+            //берём groupMachinery только своего хэндлера и только текущего каталога:
+            //уровни цен группы выгружаются полной транзакцией в её каталог, в чужом каталоге их нет (FK PACKPRC -> PRCLEVEL)
             Set<Integer> groupMachinerySet = new HashSet<>();
             for(Map.Entry<String, Set<MachineryInfo>> entry : stopListInfo.handlerMachineryMap.entrySet()) {
                 String handler = entry.getKey();
                 if(handler.endsWith(getClass().getName())) {
                     for(MachineryInfo machinery : entry.getValue()) {
-                        if(stopListInfo.inGroupMachineryItemMap.containsKey(machinery.numberGroup)) {
+                        if(directory.equals(machinery.directory) && stopListInfo.inGroupMachineryItemMap.containsKey(machinery.numberGroup)) {
                             groupMachinerySet.add(machinery.numberGroup);
                         }
                     }
@@ -1511,8 +1512,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             recordCount++;
                             addPackPrcRow(ps, params, nppGroupMachinery, item, null, packId, offset, exportExtraTables, item.price, 1, null, delFlag, keys.length, updateNum);
                             if(maxBatchSize != null && recordCount == maxBatchSize) {
-                                astronLogger.info(String.format("exportPackPrcStopList records: %s; items: %s; machineries: %s, packIds: %s",
-                                        recordCount, itemCount, groupMachinerySet.size(), packIdCount));
+                                astronLogger.info(String.format("exportPackPrcStopList to %s records: %s; items: %s; machineries: %s, packIds: %s",
+                                        directory, recordCount, itemCount, groupMachinerySet.size(), packIdCount));
                                 executeAndCommitBatch(ps, conn);
                                 recordCount = 0;
                                 packIdCount = 0;
@@ -1522,8 +1523,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                     }
                 } else break;
             }
-            astronLogger.info(String.format("exportPackPrcStopList records: %s; items: %s; machineries: %s, packIds: %s",
-                    recordCount, itemCount, groupMachinerySet.size(), packIdCount));
+            astronLogger.info(String.format("exportPackPrcStopList to %s records: %s; items: %s; machineries: %s, packIds: %s",
+                    directory, recordCount, itemCount, groupMachinerySet.size(), packIdCount));
             executeAndCommitBatch(ps, conn);
         }
     }
@@ -2184,7 +2185,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             outputUpdateNums.put("EXBARC", exBarcUpdateNum);
 
                             Integer packPrcUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "PACKPRC");
-                            exportPackPrcStopList(conn, params, stopListInfo, exportExtraTables, !stopListInfo.exclude, maxBatchSize, packPrcUpdateNum);
+                            exportPackPrcStopList(conn, params, stopListInfo, directory, exportExtraTables, !stopListInfo.exclude, maxBatchSize, packPrcUpdateNum);
                             outputUpdateNums.put("PACKPRC", packPrcUpdateNum);
 
                             if(versionalScheme) {
