@@ -1,6 +1,6 @@
 MODULE EInvoiceEDSTopBy;
 
-REQUIRE EInvoiceEDS, EDSTopBy;
+REQUIRE EInvoiceEDS, EDSTopBy, EDSCTT;
 
 NAMESPACE EDI;
 
@@ -167,34 +167,67 @@ getSignedDocumentSupplier(STRING[100] provider, ECreditNote e, FILE contentSubXM
 
 //V2
 
+EDSServiceCustomerV2 (EInvoice i) = OVERRIDE EDSServiceTopBy(profile(customer(i))) IF useProfileKey(profile(customer(i))), EDSServiceTopBy(customerStock(i)), EDSServiceTopBy(customer(i));
+aliasEDSServiceCustomerV2 (EInvoice i) = OVERRIDE aliasEDSService(profile(customer(i))) IF useProfileKey(profile(customer(i))), extraAliasEDSService(customerStock(i)) IF useExtraAlias(customerStock(i)), aliasEDSService(customerStock(i)), extraAliasEDSService(customer(i)) IF useExtraAlias(customer(i)), aliasEDSService(customer(i));
+passwordEDSServiceCustomerV2 (EInvoice i) = OVERRIDE passwordEDSService(profile(customer(i))) IF useProfileKey(profile(customer(i))), extraPasswordEDSService(customerStock(i)) IF useExtraAlias(customerStock(i)), passwordEDSService(customerStock(i)), extraPasswordEDSService(customer(i)) IF useExtraAlias(customer(i)), passwordEDSService(customer(i));
+
+EDSServiceSupplierV2 (EInvoice i) = OVERRIDE EDSServiceTopBy(profile(supplier(i))) IF useProfileKey(profile(supplier(i))), EDSServiceTopBy(supplierStock(i)), EDSServiceTopBy(supplier(i));
+aliasEDSServiceSupplierV2 (EInvoice i) = OVERRIDE aliasEDSService(profile(supplier(i))) IF useProfileKey(profile(supplier(i))), aliasEDSService(supplierStock(i)), aliasEDSService(supplier(i));
+passwordEDSServiceSupplierV2 (EInvoice i) = OVERRIDE passwordEDSService(profile(supplier(i))) IF useProfileKey(profile(supplier(i))), passwordEDSService(supplierStock(i)), passwordEDSService(supplier(i));
+
+EDSServiceCustomerV2 (EInvoice i, BOOLEAN interactive) = OVERRIDE (EDSServiceTopBy(currentUser()) IF interactive), EDSServiceCustomerV2(i);
+EDSServiceSupplierV2 (EInvoice i, BOOLEAN interactive) = OVERRIDE (EDSServiceTopBy(currentUser()) IF interactive), EDSServiceSupplierV2(i);
+
 getSignedDocumentCustomerV2 (STRING[100] provider, EInvoice e, STRING s, BOOLEAN interactive) + {
-    IF edsApplication(EDSServiceCustomer(provider, e)) == EDSApplication.sccp THEN {
-        IF aliasEDSServiceCustomer(e) AND (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(e)) THEN {
-            keyID() <- aliasEDSServiceCustomer(e);
-            password() <- (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(e));
-            sign(s, EDSServiceCustomer(provider, e));
-        } ELSE {
-            IF interactive THEN {
-                MESSAGE provider + ' Документ ' + deliveryNoteNumber(e) + ' не подписан: Alias или Пароль ключа не задан' NOWAIT;
+    IF provider == 'TopBy' THEN {
+        signError() <- NULL;
+        base64Signature() <- NULL;
+        LOCAL edsService = EDSService ();
+        edsService() <- EDSServiceCustomerV2(e, interactive);
+        IF edsApplication(edsService()) == EDSApplication.sccp THEN {
+            LOCAL alias = STRING[150] ();
+            LOCAL pass = STRING[100] ();
+            alias() <- OVERRIDE (aliasEDSService(currentUser()) IF interactive), aliasEDSServiceCustomerV2(e);
+            pass() <- OVERRIDE (passwordEDSService() IF interactive), (passwordEDSService(currentUser()) IF interactive), passwordEDSServiceCustomerV2(e);
+            IF alias() AND pass() THEN {
+                keyID() <- alias();
+                password() <- pass();
+                sign(s, edsService());
+            } ELSE {
+                signError() <- 'Alias или Пароль ключа не задан';
+                IF interactive THEN {
+                    MESSAGE provider + ' Документ ' + deliveryNoteNumber(e) + ' не подписан: Alias или Пароль ключа не задан' NOWAIT;
+                }
+                logToFile('edi', provider + ' error: Alias or Password for key not found');
             }
-            logToFile('edi', provider + ' error: Alias or Password for key not found');
+            RETURN;
         }
-        RETURN;
     }
 }
 
 getSignedDocumentSupplierV2 (STRING[100] provider, EInvoice e, STRING s, BOOLEAN interactive) + {
-    IF edsApplication(EDSServiceSupplier(provider, e)) == EDSApplication.sccp THEN {
-        IF aliasEDSServiceSupplier(e) AND (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(e)) THEN {
-            keyID() <- aliasEDSServiceSupplier(e);
-            password() <- (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(e));
-            sign(s, EDSServiceSupplier(provider, e));
-        } ELSE {
-            IF interactive THEN {
-                MESSAGE provider + ' Документ ' + deliveryNoteNumber(e) + ' не подписан: Alias или Пароль ключа не задан' NOWAIT;
+    IF provider == 'TopBy' THEN {
+        signError() <- NULL;
+        base64Signature() <- NULL;
+        LOCAL edsService = EDSService ();
+        edsService() <- EDSServiceSupplierV2(e, interactive);
+        IF edsApplication(edsService()) == EDSApplication.sccp THEN {
+            LOCAL alias = STRING[150] ();
+            LOCAL pass = STRING[100] ();
+            alias() <- OVERRIDE (aliasEDSService(currentUser()) IF interactive), aliasEDSServiceSupplierV2(e);
+            pass() <- OVERRIDE (passwordEDSService() IF interactive), (passwordEDSService(currentUser()) IF interactive), passwordEDSServiceSupplierV2(e);
+            IF alias() AND pass() THEN {
+                keyID() <- alias();
+                password() <- pass();
+                sign(s, edsService());
+            } ELSE {
+                signError() <- 'Alias или Пароль ключа не задан';
+                IF interactive THEN {
+                    MESSAGE provider + ' Документ ' + deliveryNoteNumber(e) + ' не подписан: Alias или Пароль ключа не задан' NOWAIT;
+                }
+                logToFile('edi', provider + ' error: Alias or Password for key not found');
             }
-            logToFile('edi', provider + ' error: Alias or Password for key not found');
+            RETURN;
         }
-        RETURN;
     }
 }

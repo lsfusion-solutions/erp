@@ -60,8 +60,14 @@ outputDirTopBy 'Папка отправленных сообщений' = DATA S
 disableConfirmationTopBy 'Отключить подтверждение сообщений' = DATA BOOLEAN ();
 confirmUnprocessedDaysTopBy 'Подтверждать необработанные сообщения старше, дней (пусто - 60)' = DATA INTEGER ();
 receiveSupplierMessagesTopBy 'Получать сообщения для поставщика' = DATA BOOLEAN ();
-useV2TopBy 'Использовать новое API (V2) для накладных' = DATA BOOLEAN () PREREAD;
-useV2EOrder 'Использовать новое API (V2) для заказов' = DATA BOOLEAN () PREREAD;
+useV2TopBy 'Использовать новое API (V2)' = DATA BOOLEAN () PREREAD;
+//устаревшая настройка до объединения флага V2, используется только миграцией
+useV2EOrder = DATA BOOLEAN ();
+
+migrateUseV2EOrder() {
+    IF useV2EOrder() THEN useV2TopBy() <- TRUE;
+}
+@defOnStartMigrate(migrateUseV2EOrder, 'Объединение флага V2 СТТ');
 
 provider(TopByProfile p) += 'TopBy' IF p IS TopByProfile;
 newNS(TopByProfile p) += TRUE IF p IS TopByProfile;
@@ -106,14 +112,15 @@ receiveMessagesV2 ABSTRACT LIST (STRING[100], BOOLEAN, STRING[100]);
 receiveOrdersV2 ABSTRACT LIST (STRING[100], BOOLEAN, STRING[100]);
 receiveMessagesTopBy () {
     IF useV2TopBy() THEN {
+        skipImportOrders() <- NULL;
         receiveMessagesV2(archiveDirTopBy(), disableConfirmationTopBy(), 'TopBy');
+        receiveOrdersV2(archiveDirTopBy(), disableConfirmationTopBy(), 'TopBy');
     } ELSE FOR login(TopByProfile p) AND password(p) AND (GROUP SUM 1 IF profileTopBy(LegalEntity le) == p) DO {
         NEWSESSION {
             lockTopBy(login(p));
             IF lockResultTopBy() THEN {
                 TRY {
                     newNS() <- TRUE;
-                    skipImportOrders() <- useV2EOrder();
                     receiveMessages(login(p), password(p), url(p), archiveDirTopBy(), disableConfirmationTopBy(), 'TopBy');
                 } FINALLY {
                     unlockTopBy(login(p));
@@ -122,10 +129,6 @@ receiveMessagesTopBy () {
                 MESSAGE 'Уже выполняется получение сообщений TopBy для ' + login(p) + '. Подождите...' NOWAIT;
             }
         }
-    }
-    IF useV2EOrder() THEN {
-        skipImportOrders() <- NULL;
-        receiveOrdersV2(archiveDirTopBy(), disableConfirmationTopBy(), 'TopBy');
     }
 }
 
@@ -139,7 +142,7 @@ listMessagesTopBy 'Просмотр очереди' (LegalEntity le) {
 } TOOLBAR;
 
 EXTEND FORM integrationData
-    PROPERTIES() archiveDirTopBy, outputDirTopBy, disableConfirmationTopBy, confirmUnprocessedDaysTopBy, useV2TopBy, useV2EOrder, receiveTopBy
+    PROPERTIES() archiveDirTopBy, outputDirTopBy, disableConfirmationTopBy, confirmUnprocessedDaysTopBy, useV2TopBy, receiveTopBy
     
     OBJECTS let = LegalEntity
     FILTERS isCompany(let)
@@ -159,7 +162,6 @@ DESIGN integrationData {
                     MOVE PROPERTY(disableConfirmationTopBy());
                     MOVE PROPERTY(confirmUnprocessedDaysTopBy());
                     MOVE PROPERTY(useV2TopBy());
-                    MOVE PROPERTY(useV2EOrder());
                     MOVE PROPERTY(receiveTopBy());
                 }
             }

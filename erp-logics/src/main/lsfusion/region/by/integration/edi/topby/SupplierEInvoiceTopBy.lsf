@@ -49,9 +49,12 @@ signAndSendConfirmSupplierV2 ABSTRACT LIST (EInvoice, LegalEntity, STRING[100]);
 signAndSendConfirmSupplier (EInvoice e) + {
     IF EDIProviderInvoice(customer(e), supplier(e)) == EDIProvider.topBy THEN {
         newNS() <- TRUE;
-
-        IF useV2TopBy() THEN {
-            signAndSendConfirmSupplierV2(e, supplier(e), 'TopBy');
+        IF exportedBlrapnSupplier(e) THEN
+            MESSAGE 'Подтверждение уже отправлено';
+        ELSE {
+            IF useV2TopBy() THEN {
+                signAndSendConfirmSupplierV2(e, supplier(e), 'TopBy');
+            }
         }
     }
 }
@@ -67,7 +70,7 @@ signAndSendSupplierEInvoiceV2 (EInvoice ei, LegalEntity le, STRING[100] outputDi
             MESSAGE provider + 'Накладная не выгружена: не задан профиль организации получателя' NOWAIT;
             RETURN;
         }
-        IF NOT EDSServiceSupplier(provider, ei) THEN {
+        IF NOT EDSServiceSupplierV2(ei, TRUE) THEN {
             logToFile('edi', provider + ' (' + loginProfile(le) + ') SendEInvoice V2: не заданы параметры EDSService');
             MESSAGE provider + ' (' + loginProfile(le) + ') Накладная не выгружена: не заданы параметры EDSService' NOWAIT;
             RETURN;
@@ -173,7 +176,7 @@ signAndSendSupplierCancelEDIV2 (EInvoice ei, LegalEntity le, STRING[100] outputD
             MESSAGE provider + 'Накладная не выгружена: не задан профиль организации получателя' NOWAIT;
             RETURN;
         }
-        IF NOT EDSServiceSupplier(provider, ei) THEN {
+        IF NOT EDSServiceSupplierV2(ei, TRUE) THEN {
             logToFile('edi', provider + ' (' + loginProfile(le) + ') SendEInvoiceCancel V2: не заданы параметры EDSService');
             MESSAGE provider + ' (' + loginProfile(le) + ') Накладная не выгружена: не заданы параметры EDSService' NOWAIT;
             RETURN;
@@ -256,91 +259,139 @@ signAndSendSupplierCancelV2 (EInvoice e) + {
     }
 }
 
-signAndSendBlrapnSupplierEInvoiceV2(EInvoice ei, LegalEntity le, STRING[100] provider) + {
+sendConfirmResponseSupplierV2 (EInvoice ei, LegalEntity le, STRING[100] provider, BOOLEAN interactive) {
     LOCAL result = FILE ();
+    sendBlrapnFault() <- TRUE;
 
     IF NOT documentId(ei) THEN {
-        logToFile('edi', provider + ' SendBlrapnEInvoice V2 ' + deliveryNoteNumber(ei) + ': не заполнен documentId');
-        MESSAGE provider + ' Извещение о прочтении накладной ' + deliveryNoteNumber(ei) + ' не выгружено: накладная не отправлялась через API V2' NOWAIT;
+        logToFile('edi', provider + ' SendConfirmResponseEInvoice V2 ' + deliveryNoteNumber(ei) + ': не заполнен documentId');
+        IF interactive THEN MESSAGE provider + ' Уведомление о подтверждении по накладной ' + deliveryNoteNumber(ei) + ' не выгружено: накладная не отправлялась через API V2' NOWAIT;
         RETURN;
     }
     TRY {
         IF NOT profile(le) THEN {
-            logToFile('edi', provider + 'SendBlrapnEInvoice V2: не задан профиль организации получателя');
-            MESSAGE provider + 'Извещение о прочтении не выгружено: не задан профиль организации получателя' NOWAIT;
+            logToFile('edi', provider + ' SendConfirmResponseEInvoice V2: не задан профиль организации поставщика');
+            IF interactive THEN MESSAGE provider + ' Уведомление о подтверждении не выгружено: не задан профиль организации поставщика' NOWAIT;
             RETURN;
         }
-        authV2(le);
+        IF NOT EDSServiceSupplierV2(ei, interactive) THEN {
+            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendConfirmResponseEInvoice V2: не заданы параметры EDSService');
+            IF interactive THEN MESSAGE provider + ' (' + loginProfile(le) + ') Уведомление о подтверждении не выгружено: не заданы параметры EDSService' NOWAIT;
+            RETURN;
+        }
+        IF interactive THEN authV2(le); ELSE ensureAuthV2(le);
         IF NOT token() THEN {
-            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendBlrapnEInvoice V2: ошибка при аутентификации');
-            MESSAGE provider + ' (' + loginProfile(le) + ') Извещение о прочтении не выгружено: ошибка при аутентификации' NOWAIT;
+            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendConfirmResponseEInvoice V2: ошибка при аутентификации');
+            IF interactive THEN MESSAGE provider + ' (' + loginProfile(le) + ') Уведомление о подтверждении не выгружено: ошибка при аутентификации' NOWAIT;
+            RETURN;
+        }
+
+        IF NOT responseDocumentId(ei) THEN loadEwaybillDetailsV2(ei, le, provider);
+        IF NOT responseDocumentId(ei) THEN {
+            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendConfirmResponseEInvoice V2 ' + deliveryNoteNumber(ei) + ': не заполнен responseDocumentId');
+            IF interactive THEN MESSAGE provider + ' (' + loginProfile(le) + ') Уведомление о подтверждении по накладной ' + deliveryNoteNumber(ei) + ' не выгружено: не найден идентификатор ответа покупателя' NOWAIT;
             RETURN;
         }
 
         exportDateTime() <- currentDateTimeMillis();
         toMilliseconds(exportDateTime());
 
-        EXPORT JSON FROM value = '[' + documentId(ei) + ']';
-        logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + 'POST EWAYBILL/markAsRead\n' + exportFile());
-        EXTERNAL HTTP POST url(profile(le)) + 'EWAYBILL/markAsRead' HEADERS headersV2 PARAMS exportFile() TO result;
+        EXPORT JSON FROM documentId = LONG(responseDocumentId(ei));
+        logToFile('edi', provider + ' (' + loginProfile(le) + '): POST draft/blrapn/EWAYBILL/create2650OnResponse?base64=true request:\n' + exportFile());
+        EXTERNAL HTTP POST url(profile(le)) + 'draft/blrapn/EWAYBILL/create2650OnResponse?base64=true' HEADERS headersV2 PARAMS exportFile() TO result;
         logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + 'response:\n' + result());
 
-        checkResponseV2(result(), 'SendBlrapnEInvoice V2 ' + deliveryNoteNumber(ei), le, provider);
+        checkResponseV2(result(), 'SendConfirmResponseEInvoice V2 ' + deliveryNoteNumber(ei), le, provider);
         IF NOT requestSucceededV2() THEN RETURN;
 
-        logToFile('edi', provider + ' (' + loginProfile(le) + ') SendBlrapnEInvoice V2 ' + deliveryNoteNumber(ei) + ' request succeeded');
+        IMPORT importSignDoc JSON FROM result();
+        IF errorDescription() != '' THEN {
+            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendConfirmResponseEInvoice V2 ' + deliveryNoteNumber(ei) + ': ' + errorDescription());
+            IF interactive THEN MESSAGE errorDescription();
+            RETURN;
+        }
+
+        getSignedDocumentSupplierV2(provider, ei, xmlBase64(), interactive);
+        IF signError() THEN {
+            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendConfirmResponseEInvoice V2 error: EWAYBILL ' + (OVERRIDE deliveryNoteNumber(ei), documentId(ei), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError());
+            IF interactive THEN MESSAGE provider + ' (' + loginProfile(le) + ') Документ не подписан: EWAYBILL ' + (OVERRIDE deliveryNoteNumber(ei), documentId(ei), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError() NOWAIT;
+            RETURN;
+        }
+        IF NOT base64Signature() THEN RETURN;
+
+        EXPORT JSON FROM id(), signatureBase64 = base64Signature();
+        logToFile('edi', provider + ' (' + loginProfile(le) + '): draft/blrapn/EWAYBILL/saveSigned2650OnResponseAndSendByActiveMq request:\n' + exportFile());
+        EXTERNAL HTTP POST url(profile(le)) + 'draft/blrapn/EWAYBILL/saveSigned2650OnResponseAndSendByActiveMq' HEADERS headersV2 PARAMS exportFile() TO result;
+        logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + 'response:\n' + result());
+
+        checkResponseV2(result(), 'SendConfirmResponseEInvoice V2 ' + deliveryNoteNumber(ei) + ' (saveSigned2650)', le, provider);
+        IF NOT requestSucceededV2() THEN RETURN;
+
+        sendBlrapnFault() <- NULL;
+        logToFile('edi', provider + ' (' + loginProfile(le) + ') SendConfirmResponseEInvoice V2 ' + deliveryNoteNumber(ei) + ' request succeeded');
+        IF interactive THEN MESSAGE provider + ' (' + loginProfile(le) + ') Уведомление о подтверждении ' + deliveryNoteNumber(ei) + ' выгружено' NOWAIT;
         exportedBlrapnSupplier(ei) <- TRUE;
         NEW em = EInvoiceMessage {
             number(em) <- STRING[35](resultMilliseconds());
             eInvoice(em) <- ei;
             dateTime(em) <- toDateTimeFormat(toChar(exportDateTime(), 'yyyy-MM-ddThh24:mi:ss'), 'yyyy-MM-ddThh24:mi:ss');
-            code(em) <- IF importedNoticeSupplier(ei) THEN '2651' ELSE '2650';
+            code(em) <- '2650';
             kind(em) <- EInvoiceMessageKind.out;
-            type(em) <- IF isTN2(ei) THEN EInvoiceMessageType.blrapn_blrdln ELSE EInvoiceMessageType.blrapn_blrwbl;
+            type(em) <- IF isTN2(ei) THEN EInvoiceMessageType.blrapn_blrdnr ELSE EInvoiceMessageType.blrapn_blrwbr;
         }
 
-        APPLY NESTED LOCAL;
-        IF canceled() THEN {
-            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendBlrapnEInvoice V2: apply canceled ' + applyMessage());
+        IF interactive THEN {
+            APPLY NESTED LOCAL;
+            IF canceled() THEN {
+                logToFile('edi', provider + ' (' + loginProfile(le) + ') SendConfirmResponseEInvoice V2: apply canceled ' + applyMessage());
+            }
         }
     } CATCH {
         logToFile('edi', CONCAT '\n', provider + ' (' + loginProfile(le) + ') error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
         importRequestResult(result(), statusHttp());
-        MESSAGE 'Извещение о прочтении не выгружено\n:' + requestError() NOWAIT;
+        IF interactive THEN MESSAGE 'Уведомление о подтверждении не выгружено:\n' + (OVERRIDE requestError(), messageCaughtException()) NOWAIT;
     }
 }
 
-signAndSendConfirmSupplierV2 (EInvoice ei, LegalEntity le, STRING[100] provider) + {
+sendConfirmNoticeSupplierV2 (EInvoice ei, LegalEntity le, STRING[100] provider, BOOLEAN interactive) {
     LOCAL result = FILE ();
+    sendBlrapnFault() <- TRUE;
 
     IF NOT documentId(ei) THEN {
         logToFile('edi', provider + ' SendConfirmEInvoiceNotice V2 ' + deliveryNoteNumber(ei) + ': не заполнен documentId');
-        MESSAGE provider + ' Уведомление о подтверждении по накладной ' + deliveryNoteNumber(ei) + ' не выгружено: накладная не отправлялась через API V2' NOWAIT;
+        IF interactive THEN MESSAGE provider + ' Уведомление о подтверждении по накладной ' + deliveryNoteNumber(ei) + ' не выгружено: накладная не отправлялась через API V2' NOWAIT;
         RETURN;
     }
     TRY {
         IF NOT profile(le) THEN {
-            logToFile('edi', provider + 'SendConfirmEInvoiceNotice V2: не задан профиль организации получателя');
-            MESSAGE provider + 'Уведомление о подтверждении не выгружено: не задан профиль организации получателя' NOWAIT;
+            logToFile('edi', provider + ' SendConfirmEInvoiceNotice V2: не задан профиль организации поставщика');
+            IF interactive THEN MESSAGE provider + ' Уведомление о подтверждении не выгружено: не задан профиль организации поставщика' NOWAIT;
             RETURN;
         }
-        IF NOT EDSServiceSupplier(provider, ei) THEN {
+        IF NOT EDSServiceSupplierV2(ei, interactive) THEN {
             logToFile('edi', provider + ' (' + loginProfile(le) + ') SendConfirmEInvoiceNotice V2: не заданы параметры EDSService');
-            MESSAGE provider + ' (' + loginProfile(le) + ') Уведомление о подтверждении не выгружено: не заданы параметры EDSService' NOWAIT;
+            IF interactive THEN MESSAGE provider + ' (' + loginProfile(le) + ') Уведомление о подтверждении не выгружено: не заданы параметры EDSService' NOWAIT;
             RETURN;
         }
-        authV2(le);
+        IF interactive THEN authV2(le); ELSE ensureAuthV2(le);
         IF NOT token() THEN {
             logToFile('edi', provider + ' (' + loginProfile(le) + ') SendConfirmEInvoiceNotice V2: ошибка при аутентификации');
-            MESSAGE provider + ' (' + loginProfile(le) + ') Уведомление о подтверждении не выгружено: ошибка при аутентификации' NOWAIT;
+            IF interactive THEN MESSAGE provider + ' (' + loginProfile(le) + ') Уведомление о подтверждении не выгружено: ошибка при аутентификации' NOWAIT;
+            RETURN;
+        }
+
+        IF NOT changeRequestId(ei) THEN loadEwaybillDetailsV2(ei, le, provider);
+        IF NOT changeRequestId(ei) THEN {
+            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendConfirmEInvoiceNotice V2 ' + deliveryNoteNumber(ei) + ': не заполнен changeRequestId');
+            IF interactive THEN MESSAGE provider + ' (' + loginProfile(le) + ') Уведомление о подтверждении по накладной ' + deliveryNoteNumber(ei) + ' не выгружено: не найден идентификатор уведомления об изменении' NOWAIT;
             RETURN;
         }
 
         exportDateTime() <- currentDateTimeMillis();
         toMilliseconds(exportDateTime());
 
-        EXPORT JSON FROM documentId = INTEGER(changeRequestId(ei));
-        logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + 'POST draft/blrapn/EWAYBILL/create2651OnBlrapn2750?base64=true request:\n' + exportFile());
+        EXPORT JSON FROM documentId = LONG(changeRequestId(ei));
+        logToFile('edi', provider + ' (' + loginProfile(le) + '): POST draft/blrapn/EWAYBILL/create2651OnBlrapn2750?base64=true request:\n' + exportFile());
         EXTERNAL HTTP POST url(profile(le)) + 'draft/blrapn/EWAYBILL/create2651OnBlrapn2750?base64=true' HEADERS headersV2 PARAMS exportFile() TO result;
         logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + 'response:\n' + result());
 
@@ -349,36 +400,73 @@ signAndSendConfirmSupplierV2 (EInvoice ei, LegalEntity le, STRING[100] provider)
 
         IMPORT importSignDoc JSON FROM result();
         IF errorDescription() != '' THEN {
-            MESSAGE errorDescription();
+            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendConfirmEInvoiceNotice V2 ' + deliveryNoteNumber(ei) + ': ' + errorDescription());
+            IF interactive THEN MESSAGE errorDescription();
             RETURN;
         }
 
-        getSignedDocumentSupplierV2(provider, ei, xmlBase64(), TRUE);
+        getSignedDocumentSupplierV2(provider, ei, xmlBase64(), interactive);
         IF signError() THEN {
             logToFile('edi', provider + ' (' + loginProfile(le) + ') SignConfirmEInvoiceNoticeV2 error: EWAYBILL ' + (OVERRIDE deliveryNoteNumber(ei), documentId(ei), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError());
-            MESSAGE provider + ' (' + loginProfile(le) + ') Документ не подписан: EWAYBILL ' + (OVERRIDE deliveryNoteNumber(ei), documentId(ei), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError() NOWAIT;
+            IF interactive THEN MESSAGE provider + ' (' + loginProfile(le) + ') Документ не подписан: EWAYBILL ' + (OVERRIDE deliveryNoteNumber(ei), documentId(ei), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError() NOWAIT;
             RETURN;
         }
         IF NOT base64Signature() THEN RETURN;
 
         EXPORT JSON FROM id(), signatureBase64 = base64Signature();
-        logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + 'draft/blrapn/EWAYBILL/saveSigned2651OnBlrapn2750AndSendByActiveMq request:\n' + exportFile());
+        logToFile('edi', provider + ' (' + loginProfile(le) + '): draft/blrapn/EWAYBILL/saveSigned2651OnBlrapn2750AndSendByActiveMq request:\n' + exportFile());
         EXTERNAL HTTP POST url(profile(le)) + 'draft/blrapn/EWAYBILL/saveSigned2651OnBlrapn2750AndSendByActiveMq' HEADERS headersV2 PARAMS exportFile() TO result;
         logToFile('edi', provider + ' (' + loginProfile(le) + '): ' + 'response:\n' + result());
 
         checkResponseV2(result(), 'SendConfirmEInvoiceNotice V2 ' + deliveryNoteNumber(ei) + ' (saveSigned2651)', le, provider);
         IF NOT requestSucceededV2() THEN RETURN;
 
+        sendBlrapnFault() <- NULL;
         logToFile('edi', provider + ' (' + loginProfile(le) + ') SendConfirmEInvoiceNotice V2 ' + deliveryNoteNumber(ei) + ' request succeeded');
-        MESSAGE provider + ' (' + loginProfile(le) + ') Уведомление о подтверждении ' + deliveryNoteNumber(ei) + ' выгружено' NOWAIT;
+        IF interactive THEN MESSAGE provider + ' (' + loginProfile(le) + ') Уведомление о подтверждении ' + deliveryNoteNumber(ei) + ' выгружено' NOWAIT;
+        exportedBlrapnSupplier(ei) <- TRUE;
+        NEW em = EInvoiceMessage {
+            number(em) <- STRING[35](resultMilliseconds());
+            eInvoice(em) <- ei;
+            dateTime(em) <- toDateTimeFormat(toChar(exportDateTime(), 'yyyy-MM-ddThh24:mi:ss'), 'yyyy-MM-ddThh24:mi:ss');
+            code(em) <- '2651';
+            kind(em) <- EInvoiceMessageKind.out;
+            type(em) <- EInvoiceMessageType.blrapn_blrapn;
+        }
 
-        APPLY NESTED LOCAL;
-        IF canceled() THEN {
-            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendConfirmEInvoiceNotice V2: apply canceled ' + applyMessage());
+        IF interactive THEN {
+            APPLY NESTED LOCAL;
+            IF canceled() THEN {
+                logToFile('edi', provider + ' (' + loginProfile(le) + ') SendConfirmEInvoiceNotice V2: apply canceled ' + applyMessage());
+            }
         }
     } CATCH {
         logToFile('edi', CONCAT '\n', provider + ' (' + loginProfile(le) + ') error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
         importRequestResult(result(), statusHttp());
-        MESSAGE 'Уведомление о подтверждении не выгружено:\n' + requestError() NOWAIT;
+        IF interactive THEN MESSAGE 'Уведомление о подтверждении не выгружено:\n' + (OVERRIDE requestError(), messageCaughtException()) NOWAIT;
+    }
+}
+
+signAndSendBlrapnSupplierEInvoiceV2 (EInvoice ei, LegalEntity le, STRING[100] provider) + {
+    IF importedNoticeSupplier(ei) THEN {
+        sendConfirmNoticeSupplierV2(ei, le, provider, TRUE);
+    } ELSE {
+        sendConfirmResponseSupplierV2(ei, le, provider, TRUE);
+    }
+}
+
+signAndSendConfirmSupplierV2 (EInvoice ei, LegalEntity le, STRING[100] provider) + {
+    sendConfirmNoticeSupplierV2(ei, le, provider, TRUE);
+}
+
+sendAutoBlrapnSupplierV2 (EInvoice ei, STRING[100] provider) + {
+    IF EDIProvider(provider) == EDIProvider.topBy THEN {
+        sendConfirmResponseSupplierV2(ei, supplier(ei), provider, NULL);
+    }
+}
+
+sendAutoBlrapn2651SupplierV2 (EInvoice ei, STRING[100] provider) + {
+    IF EDIProvider(provider) == EDIProvider.topBy THEN {
+        sendConfirmNoticeSupplierV2(ei, supplier(ei), provider, NULL);
     }
 }

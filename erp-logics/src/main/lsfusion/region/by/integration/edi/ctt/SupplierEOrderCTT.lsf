@@ -6,7 +6,9 @@ NAMESPACE EDI;
 
 //Входящий заказ (ORDERS в формате EANCOM)
 
-documentId = DATA STRING (Sale.UserOrder);
+documentId = DATA STRING (Sale.UserOrder) INDEXED;
+saleUserOrderByDocumentId (STRING docId) = GROUP MAX Sale.UserOrder o BY documentId(o);
+isOwnOrderFileV2 (STRING docType, STRING docId) += WHEN lower(docType) == 'ordrsp' AND saleUserOrderByDocumentId(docId) THEN TRUE;
 
 parseOrders(INTEGER i, STRING[100] login, STRING[100] provider) + {
     IF currentDocId() THEN {
@@ -300,8 +302,8 @@ acceptEOrderV2 'Принять' (Sale.UserOrder o) {
     }
 }
 
-EXTEND FORM Sale.orders PROPERTIES(o) processEOrderV2 PANEL SHOWIF useV2EOrder() AND orderDocumentNumber(o),
-    acceptEOrderV2 PANEL SHOWIF useV2EOrder() AND orderDocumentNumber(o);
+EXTEND FORM Sale.orders PROPERTIES(o) processEOrderV2 PANEL SHOWIF useV2TopBy() AND orderDocumentNumber(o),
+    acceptEOrderV2 PANEL SHOWIF useV2TopBy() AND orderDocumentNumber(o);
 
 DESIGN Sale.orders {
     edi {

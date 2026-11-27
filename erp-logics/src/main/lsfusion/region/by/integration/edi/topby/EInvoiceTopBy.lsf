@@ -296,6 +296,8 @@ createExportEInvoice(EInvoice e) {
     productsPositionWithAutoSum(0) <- TRUE;
 }
 
+GROUP responseDocument;
+responseDocId = DATA LOCAL STRING ();
 changeReason = DATA LOCAL STRING(INTEGER);
 id6 = DATA LOCAL STRING(INTEGER);
 signatureDate = DATA LOCAL DATE (INTEGER);
@@ -303,22 +305,37 @@ signatureTime = DATA LOCAL TIME (INTEGER);
 
 FORM importEwaybill
     PROPERTIES() id
+    PROPERTIES() IN responseDocument responseDocId EXTID 'id'
 
     OBJECTS changeRequestList = INTEGER
     PROPERTIES(changeRequestList) changeReason, id6 EXTID 'id', signatureDate, signatureTime
     FILTERS imported(changeRequestList)
 ;
 
+loadEwaybillDetailsV2 (EInvoice ei, LegalEntity le, STRING provider) {
+    IF documentId(ei) THEN {
+        LOCAL result = FILE ();
+        logToFile('edi', provider + ' (' + loginProfile(le) + ') GET /api/v1/EWAYBILL/' + documentId(ei));
+        EXTERNAL HTTP GET url(profile(le)) + 'EWAYBILL/' + documentId(ei) HEADERS headersV2 TO result;
+        IF statusHttp() == 200 THEN {
+            responseDocId() <- NULL;
+            id6(INTEGER ii) <- NULL;
+            IMPORT importEwaybill JSON FROM result();
+            changeRequestId(ei) <- GROUP LAST id6(INTEGER ii) ORDER signatureDate(ii), signatureTime(ii), ii;
+            responseDocumentId(ei) <- responseDocId();
+        } ELSE {
+            logToFile('edi', provider + ' (' + loginProfile(le) + ') GET /api/v1/EWAYBILL/' + documentId(ei) + ': неожиданный ответ ' + statusHttp());
+        }
+    }
+}
+
+overIsProfileGLN (Profile p, STRING gln) += WHEN (GROUP MAX TRUE IF profile(LegalEntity le) == p AND GLNeInvoice(le) == gln) THEN TRUE;
+
 overImportEInvoices(LegalEntity le, STRING provider) + {
     NEWSESSION NESTED LOCAL {
-        LOCAL result = FILE ();
-
-        FOR eInvoiceDeliveryNoteNumber(documentNumber(INTEGER i)) = EInvoice ei AND NOT (id1(i) == 'DRAFT') ORDER dateTime(i), i DO {
+        FOR eInvoiceDeliveryNoteNumber(documentNumber(INTEGER i)) = EInvoice ei AND ewaybillVersionChangedV2(i) ORDER dateTime(i), i DO {
             documentId(ei) <- id(i);
-            logToFile('edi', provider + ' (' + loginProfile(le) + ') GET /api/v1/EWAYBILL/' + id(i));
-            EXTERNAL HTTP GET url(profile(le)) + 'EWAYBILL/' + id(i) HEADERS headersV2 TO result;
-            IMPORT importEwaybill JSON FROM result();
-            changeRequestId(ei) <- GROUP LAST id6(INTEGER ii) ORDER signatureDate(ii), signatureTime(ii);
+            loadEwaybillDetailsV2(ei, le, provider);
         }
         APPLY NESTED LOCAL;
     }

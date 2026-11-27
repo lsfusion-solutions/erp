@@ -86,6 +86,7 @@ overImportOrdrsp ABSTRACT (EOrderResponse);
 
 //разбор ORDRSP другого формата (V2 API СТТ — EANCOM): заполняет ordrsp*, ordrspEOrder и выставляет ordrspParsed
 ordrspParsed = DATA LOCAL NESTED BOOLEAN ();
+ordrspSkipped = DATA LOCAL NESTED BOOLEAN ();
 ordrspEOrder = DATA LOCAL NESTED EOrder ();
 parseOrdrsp ABSTRACT LIST (INTEGER);
 
@@ -97,9 +98,12 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
     IF lower(documentType(i)) == 'ordrsp' AND NOT skipImportOrders() THEN {
         TRY {
             ordrspParsed() <- NULL;
+            ordrspSkipped() <- NULL;
             ordrspEOrder() <- NULL;
             parseOrdrsp(i);
-            IF NOT ordrspParsed() THEN IMPORT ordrsp XML FROM data(i);
+            IF NOT ordrspParsed() AND NOT ordrspSkipped() THEN IMPORT ordrsp XML FROM data(i);
+            IF ordrspSkipped() THEN {}
+            ELSE {
             ordrspOrderNumber() <- trim(ordrspOrderNumber());
             ordrspEOrder() <- OVERRIDE ordrspEOrder(), eOrder(ordrspOrderNumber());
             IF ordrspEOrder() THEN {
@@ -180,6 +184,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                 }
                 logToFile('edi', provider + ' (' + login + ') Import EOrderResponse ' + id(i) + ' failed: ' + 'EOrder ' + (OVERRIDE ordrspOrderNumber(), 'NULL') + ' not found');
                 responsesFailed() <- responsesFailed() + 1;
+            }
             }
         } CATCH {
             logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EOrderResponse ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());

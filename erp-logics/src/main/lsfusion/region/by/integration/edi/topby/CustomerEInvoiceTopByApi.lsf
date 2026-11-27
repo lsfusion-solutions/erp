@@ -164,11 +164,16 @@ signAndSendBlrapnCustomerEInvoice(EInvoice ei, STRING[100] login, STRING[100] pa
     }
 }
 
+sendAutoBlrapnCustomerV2 ABSTRACT LIST (EInvoice, STRING[100]);
 disableAutoBlrapn = ABSTRACT BOOLEAN (EInvoice);
 overReceiveBlrapn (EInvoiceMessage m, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, STRING[100] provider) + {
-    IF code(m) == '2560' AND isSupplier(m) AND NOT exportedBlrapnCustomer(eInvoice(m)) THEN {
+    IF code(m) == '2560' AND isSupplier(m) AND isCompany(customer(eInvoice(m))) AND NOT exportedBlrapnCustomer(eInvoice(m)) THEN {
         IF NOT disableAutoBlrapn() AND NOT disableAutoBlrapn(eInvoice(m)) THEN {
-            signAndSendBlrapnCustomerEInvoice(eInvoice(m), login, password, url, archiveDir, provider, NULL);
+            IF useV2(provider) THEN {
+                sendAutoBlrapnCustomerV2(eInvoice(m), provider);
+            } ELSE {
+                signAndSendBlrapnCustomerEInvoice(eInvoice(m), login, password, url, archiveDir, provider, NULL);
+            }
             IF sendBlrapnFault() THEN disableConfirmation(m) <- TRUE;
         }
     }

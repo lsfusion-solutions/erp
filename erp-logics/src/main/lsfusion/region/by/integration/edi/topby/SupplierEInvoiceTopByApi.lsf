@@ -401,23 +401,33 @@ signAndSendBlrapnSupplierEInvoice (EInvoice ei, STRING[100] login, STRING[100] p
     }
 }
 
+sendAutoBlrapnSupplierV2 ABSTRACT LIST (EInvoice, STRING[100]);
+sendAutoBlrapn2651SupplierV2 ABSTRACT LIST (EInvoice, STRING[100]);
+
 overReceiveBlrapn (EInvoiceMessage m, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, STRING[100] provider) + {
 
-    IF code(m) == '2560' AND isCustomer(m) AND NOT exportedBlrapnSupplier(eInvoice(m)) THEN {
+    IF code(m) == '2560' AND isCustomer(m) AND isCompany(supplier(eInvoice(m))) AND NOT exportedBlrapnSupplier(eInvoice(m)) THEN {
         IF NOT disableAutoBlrapn() THEN {
-            signAndSendBlrapnSupplierEInvoice(eInvoice(m), login, password, url, archiveDir, provider, NULL);
+            IF useV2(provider) THEN {
+                sendAutoBlrapnSupplierV2(eInvoice(m), provider);
+            } ELSE {
+                signAndSendBlrapnSupplierEInvoice(eInvoice(m), login, password, url, archiveDir, provider, NULL);
+            }
             IF sendBlrapnFault() THEN disableConfirmation(m) <- TRUE;
-            blrwbrSendCount() <- blrwbrSendCount() + 1;
+            ELSE blrwbrSendCount() <- blrwbrSendCount() + 1;
         }
     }
     
-    IF code(m) == '2750' AND isSupplier(m) THEN {
+    IF code(m) == '2750' AND isSupplier(m) AND isCompany(supplier(eInvoice(m))) THEN {
         importedNoticeSupplier(eInvoice(m)) <- TRUE;
         numberNoticeSupplier(eInvoice(m)) <- blrapnDocumentNumber();
         dateNoticeSupplier(eInvoice(m)) <- blrapnDateTime();
         
         IF NOT disableAutoBlrapn() THEN {
-            IF EDSServiceSupplier(provider, eInvoice(m)) THEN {
+            IF useV2(provider) THEN {
+                sendAutoBlrapn2651SupplierV2(eInvoice(m), provider);
+                IF sendBlrapnFault() THEN disableConfirmation(m) <- TRUE;
+            } ELSE IF EDSServiceSupplier(provider, eInvoice(m)) THEN {
                 LOCAL contentSubXML = FILE();
                 blrapnDateTime() <- currentDateTimeMillis();
                 blrapnMsgSender() <- glnSupplier(eInvoice(m));

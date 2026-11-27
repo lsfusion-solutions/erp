@@ -11,7 +11,6 @@ login 'Логин' = DATA STRING[100] (Profile);
 password 'Пароль СТТ' = DATA STRING[100] (Profile) ECHO;
 isTest 'Тестовый контур' = DATA BOOLEAN (Profile);
 useProfileKey 'Использовать ключ профиля для подписания' = DATA BOOLEAN (Profile);
-newApiEOrder 'Использовать API для заказов' = DATA BOOLEAN (LegalEntity);
 
 url(Profile p) = IF isTest(p) THEN 'https://edi-pub.ctt.by/api/v1/' ELSE 'https://edi.ctt.by/api/v1/';
 
@@ -89,10 +88,16 @@ importRequestResult (FILE json, INTEGER status) {
 errorV2 () = OVERRIDE requestError(), 'неожиданный ответ ' + statusHttp();
 
 headersV2 = DATA LOCAL NESTED STRING (STRING);
+currentProfileV2 = DATA LOCAL NESTED Profile ();
 authV2 'Авторизация V2' (LegalEntity le) {
     authenticate(profile(le));
     headersV2(STRING k) <- NULL;
+    currentProfileV2() <- profile(le) IF token();
     IF token() THEN headersV2('Authorization') <- token();
+}
+
+ensureAuthV2 (LegalEntity le) {
+    IF NOT (token() AND headersV2('Authorization') AND currentProfileV2() == profile(le)) THEN authV2(le);
 }
 
 requestSucceededV2 = DATA LOCAL BOOLEAN ();
@@ -159,6 +164,7 @@ id1 = DATA LOCAL STRING();
 last = DATA LOCAL NESTED BOOLEAN();
 totalPages = DATA LOCAL NESTED INTEGER();
 dateTime = DATA LOCAL STRING(INTEGER);
+dateTimeUpdate = DATA LOCAL STRING(INTEGER);
 documentNumber = DATA LOCAL STRING(INTEGER);
 name1 = DATA LOCAL STRING(INTEGER);
 id1 = DATA LOCAL STRING(INTEGER);
@@ -169,7 +175,7 @@ FORM importEInvoices
     PROPERTIES() last, totalPages
 
     OBJECTS content = INTEGER
-    PROPERTIES(content) id, dateTime, documentNumber
+    PROPERTIES(content) id, dateTime, dateTimeUpdate, documentNumber
     PROPERTIES(content) IN processingStatus name1 EXTID 'name', id1 EXTID 'id'
     FILTERS imported(content)
 ;
@@ -185,14 +191,38 @@ GROUP UNB;
 e0026 = DATA LOCAL STRING();
 
 FORM message
-    PROPERTIES() IN messageHeader messageType EXTID 'MessageType'
+    PROPERTIES() IN messageHeader messageType EXTID 'MessageType', msgSenderID EXTID 'MsgSenderID', msgReceiverID EXTID 'MsgReceiverID'
 
     PROPERTIES() IN UNB e0026 EXTID 'E0026'
 ;
 
 currentDocId = DATA LOCAL NESTED STRING();
-//в цикле V2: запускалась ли ветка приёма хотя бы для одного файла документа (для checkReceiveResult)
-anyFileProcessed = DATA LOCAL NESTED BOOLEAN();
+
+overIsProfileGLN = ABSTRACT CASE BOOLEAN (Profile, STRING);
+isProfileGLN (Profile p, STRING gln) =
+    (GROUP MAX TRUE IF profile(LegalEntity le) == p AND (GLN(le) == gln OR extraGLN(le) == gln))
+    OR (GROUP MAX TRUE IF profile(legalEntity(Stock st)) == p AND GLN(st) == gln)
+    OR overIsProfileGLN(p, gln);
+
+//последняя успешно обработанная или штатно пропущенная версия документа V2 ('EWAYBILL/<id>' / 'ORDERS/<id>')
+processedVersionV2 = DATA STRING[100] (STRING[100]);
+ewaybillKeyV2 (INTEGER i) = STRING[100]('EWAYBILL/' + id(i));
+ewaybillVersionV2 (INTEGER i) = STRING[100](CONCAT '|', id1(i), dateTimeUpdate(i));
+ewaybillVersionChangedV2 (INTEGER i) = id(i) AND NOT id1(i) == 'DRAFT' AND NOT processedVersionV2(ewaybillKeyV2(i)) = ewaybillVersionV2(i);
+
+parseDocumentDateV2 (INTEGER i) {
+    documentDate(i) <- NULL;
+    IF dateTime(i) THEN {
+        TRY { documentDate(i) <- DATETIME(dateTime(i)); }
+        IF NOT documentDate(i) THEN TRY { documentDate(i) <- DATETIME(ZDATETIME(dateTime(i))); }
+    }
+}
+
+orderArchiveFileV2 (STRING[100] s) = CASE
+    WHEN isSubstring(s, 'BLRAPN') THEN 4
+    WHEN isSubstring(s, 'CBLR') THEN 3
+    WHEN isSubstring(s, 'RBLR') THEN 2
+    ELSE 1;
 
 //V2-запись журнала: профиль СТТ и id документа (на документ несколько файлов, ключ записи — id_doc + '_' + имя)
 profileV2 'Профиль V2' = DATA Profile (EDIFile);
@@ -242,6 +272,8 @@ processEDIFileV2 (EDIFile f) + {
         documentDate(0) <- documentDate(f);
         receivedFileName(0) <- receivedFileName(f);
         currentDocId() <- documentIdV2(f);
+        newNS() <- TRUE;
+        skipImportOrders() <- NULL;
         fillStartParams();
         startReceiveResult();
         logToFile('edi', 'TopBy (' + login(profileV2(f)) + ') Process V2 file ' + id(f));
@@ -249,8 +281,11 @@ processEDIFileV2 (EDIFile f) + {
             MESSAGE 'Не найдено тело сообщения ' + id(f) + (OVERRIDE ' в файле ' + receivedPath(f), '') NOWAIT;
             RETURN;
         }
-        overReceiveMessages(0, login(profileV2(f)), password(profileV2(f)), url(profileV2(f)), archiveDirTopBy(), TRUE, 'TopBy');
-        currentDocId() <- NULL;
+        TRY {
+            overReceiveMessages(0, login(profileV2(f)), password(profileV2(f)), url(profileV2(f)), STRING[100](OVERRIDE receivedDir(f), archiveDirTopBy()), TRUE, 'TopBy');
+        } FINALLY {
+            currentDocId() <- NULL;
+        }
         checkReceiveResult(0, login(profileV2(f)), 'TopBy');
         fillEndParams();
         MESSAGE (OVERRIDE textMessage(), 'Сообщение ' + id(f) + ' обработано') NOWAIT;
@@ -281,6 +316,12 @@ receiveMessagesV2 (LegalEntity le, STRING[100] archiveDir, BOOLEAN disableConfir
                         BREAK;
                     }
 
+                    id(INTEGER i) <- NULL;
+                    dateTime(INTEGER i) <- NULL;
+                    dateTimeUpdate(INTEGER i) <- NULL;
+                    documentNumber(INTEGER i) <- NULL;
+                    name1(INTEGER i) <- NULL;
+                    id1(INTEGER i) <- NULL;
                     IMPORT importEInvoices JSON FROM response();
                     IF NOT (GROUP SUM 1 IF id(INTEGER i)) THEN BREAK;
                     overImportEInvoices(le, provider);
@@ -290,38 +331,65 @@ receiveMessagesV2 (LegalEntity le, STRING[100] archiveDir, BOOLEAN disableConfir
                             logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveMessages V2 warning: не заполнен статус документа ' + id(i));
                         IF id1(i) == 'DRAFT' THEN {
                             logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveMessages V2: документ ' + id(i) + ' пропущен (черновик)');
-                        } ELSE {
-                            startReceiveResult();
-                            anyFileProcessed() <- NULL;
+                        } ELSE IF NOT processedVersionV2(ewaybillKeyV2(i)) = ewaybillVersionV2(i) THEN {
                             EXPORT JSON FROM value = '[' + id(i) + ']';
                             logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveMessages V2 request sent. POST /api/v1/EWAYBILL/downloadArchive/XML\n' + exportFile());
 
                             unzipped(STRING[100] s) <- NULL;
                             EXTERNAL HTTP POST url(profile(le)) + 'EWAYBILL/downloadArchive/XML' HEADERS headersV2 PARAMS exportFile() TO unzipping;
-                            makeUnzipFile();
-                            FOR FILE f = unzipped(STRING[100] s) DO {
-                                currentDocId() <- id(i);
-                                IMPORT message XML FROM f;
-                                data(i) <- XMLFILE(f);
-                                documentType(i) <- messageType();
+                            IF statusHttp() == 200 THEN {
+                                TRY { makeUnzipFile(); }
+                                IF NOT (GROUP SUM 1 IF unzipped(STRING[100] s)) THEN {
+                                    logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveMessages V2: пустой архив для документа ' + id(i));
+                                } ELSE {
+                                    LOCAL docHasFailed = BOOLEAN ();
+                                    LOCAL docInvoiceSkipped = BOOLEAN ();
+                                    FOR FILE f = unzipped(STRING[100] s) ORDER orderArchiveFileV2(s), s DO {
+                                        currentDocId() <- id(i);
+                                        messageType() <- NULL;
+                                        msgSenderID() <- NULL;
+                                        msgReceiverID() <- NULL;
+                                        TRY { IMPORT message XML FROM f; } CATCH {
+                                            logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveMessages V2 parse header ' + id(i) + '/' + s + ' error: ' + messageCaughtException());
+                                        }
+                                        IF msgReceiverID() AND NOT isProfileGLN(profile(le), msgReceiverID()) THEN {
+                                            logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveMessages V2 ' + id(i) + '/' + s + ' skipped: MsgReceiverID ' + msgReceiverID() + ' does not belong to profile');
+                                        } ELSE {
+                                            data(i) <- XMLFILE(f);
+                                            documentType(i) <- messageType();
 
-                                receivedFileName(i) <- id(i) + '_' + regexpReplace(s, '\\.[^.]*$', '', 'g');
-                                //файл архива — отдельное сообщение журнала: ключ id_doc + '_' + имя файла;
-                                //ветки получают ключ файла через id(i), id документа остаётся в currentDocId
-                                id(i) <- receivedFileName(i);
-                                TRY { documentDate(i) <- DATETIME(dateTime(i)); }
-                                registerEDIFileV2(i, profile(le), archiveDir, provider);
-                                //повторный приём окна V2 не обрабатывает уже обработанные файлы:
-                                //иначе сбрасываются exported* и уходят парные извещения
-                                IF NOT ediFile(id(i)) OR NOT processedDateTime(ediFile(id(i))) THEN {
-                                    overReceiveMessages(i, loginProfile(le), password(profile(le)), url(profile(le)), archiveDir, disableConfirmation, provider);
-                                    anyFileProcessed() <- TRUE;
+                                            receivedFileName(i) <- id(i) + '_' + regexpReplace(s, '\\.[^.]*$', '', 'g');
+                                            //файл архива — отдельное сообщение журнала: ключ id_doc + '_' + имя файла;
+                                            //ветки получают ключ файла через id(i), id документа остаётся в currentDocId
+                                            id(i) <- receivedFileName(i);
+                                            parseDocumentDateV2(i);
+                                            registerEDIFileV2(i, profile(le), archiveDir, provider);
+                                            //повторный приём окна V2 не обрабатывает уже обработанные файлы:
+                                            //иначе сбрасываются exported* и уходят парные извещения
+                                            IF NOT ediFile(id(i)) OR NOT processedDateTime(ediFile(id(i))) THEN {
+                                                IF docInvoiceSkipped() AND lower(documentType(i)) == 'blrapn' THEN {
+                                                    logToFile('edi', provider + ' (' + loginProfile(le) + ') Import EInvoiceMessage ' + id(i) + ' skipped: invoice skipped');
+                                                    messagesSkipped() <- messagesSkipped() + 1;
+                                                } ELSE {
+                                                    startReceiveResult();
+                                                    overReceiveMessages(i, loginProfile(le), password(profile(le)), url(profile(le)), archiveDir, disableConfirmation, provider);
+                                                    IF (OVERRIDE messagesSkipped(), 0) > (OVERRIDE receiveSkippedBefore(), 0) THEN {
+                                                        IF lower(documentType(i)) == 'blrwbl' OR lower(documentType(i)) == 'blrdln' THEN docInvoiceSkipped() <- TRUE;
+                                                    } ELSE IF NOT processedDateTime(ediFile(id(i))) OR (OVERRIDE countReceiveResults(), 0) = (OVERRIDE receiveResultsBefore(), 0) THEN {
+                                                        docHasFailed() <- TRUE;
+                                                    }
+                                                    checkReceiveResult(i, loginProfile(le), provider);
+                                                }
+                                            }
+                                            id(i) <- currentDocId();
+                                        }
+                                        currentDocId() <- NULL;
+                                    }
+                                    IF NOT docHasFailed() THEN processedVersionV2(ewaybillKeyV2(i)) <- ewaybillVersionV2(i);
                                 }
-                                id(i) <- currentDocId();
-                                currentDocId() <- NULL;
+                            } ELSE {
+                                logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveMessages V2: downloadArchive ' + id(i) + ': неожиданный ответ ' + statusHttp());
                             }
-                            //все файлы документа уже обработаны — ветки не запускались, проверять результат нечего
-                            IF anyFileProcessed() THEN checkReceiveResult(i, loginProfile(le), provider);
                             receivedFileName(i) <- NULL;
                         }
                     }

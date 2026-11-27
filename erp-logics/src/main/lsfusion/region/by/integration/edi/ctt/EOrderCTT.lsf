@@ -45,12 +45,16 @@ FORM importEOrdersV2
 
 sentDocumentIdV2 (EOrder o) = GROUP MAX id(INTEGER i) IF NOT eOrderByDocumentId(id(i)) BY eOrder(documentNumber(i));
 
-processedVersionV2 = DATA STRING[100] (STRING[100]);
 keyV2 (INTEGER i) = STRING[100]('ORDERS/' + id(i));
 versionV2 (INTEGER i) = STRING[100](CONCAT '|', id1(i), responseDateTimeV2(i));
 
-receiveFailures () = (OVERRIDE responsesFailed(), 0) + (OVERRIDE supplierOrdersFailed(), 0) + (OVERRIDE despatchAdvicesFailed(), 0)
-    + (OVERRIDE orderMessagesFailed(), 0) + (OVERRIDE messagesWithoutResult(), 0);
+orderOrderArchiveFileV2 (STRING[100] s) = CASE
+    WHEN isSubstring(s, 'ORDRSP') THEN 3
+    WHEN isSubstring(s, 'CORDERS') THEN 2
+    ELSE 1;
+
+isOwnOrderFileV2 = ABSTRACT CASE BOOLEAN (STRING, STRING);
+isOwnOrderFileV2 (STRING docType, STRING docId) += WHEN (lower(docType) == 'orders' OR lower(docType) == 'corders') AND eOrderByDocumentId(docId) THEN TRUE;
 
 resolveDocumentIdV2 (EOrder o, LegalEntity le, STRING[100] provider) {
     LOCAL response = FILE ();
@@ -130,41 +134,63 @@ receiveEOrdersV2 (LegalEntity le, STRING[100] archiveDir, BOOLEAN disableConfirm
                         IF id1(i) == 'DRAFT' THEN {
                             logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveEOrders V2: документ ' + id(i) + ' пропущен (черновик)');
                         } ELSE IF NOT processedVersionV2(keyV2(i)) = versionV2(i) THEN {
-                            LOCAL failuresBefore = INTEGER ();
-                            failuresBefore() <- receiveFailures();
-                            startReceiveResult();
                             unzipped(STRING[100] s) <- NULL;
                             EXPORT JSON FROM value = '[' + id(i) + ']';
                             logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveEOrders V2 request sent. POST /api/v1/ORDERS/downloadArchive/XML\n' + exportFile());
                             EXTERNAL HTTP POST url(profile(le)) + 'ORDERS/downloadArchive/XML' HEADERS headersV2 PARAMS exportFile() TO unzipping;
-                            TRY { makeUnzipFile(); }
-                            IF NOT (GROUP SUM 1 IF unzipped(STRING[100] s)) THEN {
-                                IF unzipping() THEN {
-                                    unzipped('document.xml') <- unzipping();
-                                } ELSE {
-                                    logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveEOrders V2: пустой ответ downloadArchive для документа ' + id(i));
+                            IF statusHttp() == 200 THEN {
+                                TRY { makeUnzipFile(); }
+                                IF NOT (GROUP SUM 1 IF unzipped(STRING[100] s)) THEN {
+                                    IF unzipping() THEN {
+                                        unzipped('document.xml') <- unzipping();
+                                    } ELSE {
+                                        logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveEOrders V2: пустой ответ downloadArchive для документа ' + id(i));
+                                    }
                                 }
-                            }
-                            FOR FILE f = unzipped(STRING[100] s) DO {
-                                currentDocId() <- id(i);
-                                IMPORT message XML FROM f;
-                                data(i) <- XMLFILE(f);
-                                documentType(i) <- e0026();
+                                IF (GROUP SUM 1 IF unzipped(STRING[100] s)) THEN {
+                                    LOCAL docHasFailed = BOOLEAN ();
+                                    LOCAL docHasProcessed = BOOLEAN ();
+                                    FOR FILE f = unzipped(STRING[100] s) ORDER orderOrderArchiveFileV2(s), s DO {
+                                        currentDocId() <- id(i);
+                                        e0026() <- NULL;
+                                        messageType() <- NULL;
+                                        TRY { IMPORT message XML FROM f; } CATCH {
+                                            logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveEOrders V2 parse header ' + id(i) + '/' + s + ' error: ' + messageCaughtException());
+                                        }
+                                        data(i) <- XMLFILE(f);
+                                        documentType(i) <- OVERRIDE e0026(), messageType();
 
-                                receivedFileName(i) <- id(i) + '_' + regexpReplace(s, '\\.[^.]*$', '', 'g');
-                                IF archiveDir THEN {
-                                    TRY { mkdir(receivedDir(archiveDir)); }
-                                    WRITE data(i) TO receivedPath(archiveDir, i);
+                                        IF isOwnOrderFileV2(documentType(i), currentDocId()) THEN {
+                                            logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveEOrders V2 ' + currentDocId() + '/' + s + ' skipped: own outgoing document');
+                                        } ELSE {
+                                            receivedFileName(i) <- id(i) + '_' + regexpReplace(s, '\\.[^.]*$', '', 'g');
+                                            id(i) <- receivedFileName(i);
+                                            parseDocumentDateV2(i);
+                                            registerEDIFileV2(i, profile(le), archiveDir, provider);
+                                            IF NOT ediFile(id(i)) OR NOT processedDateTime(ediFile(id(i))) THEN {
+                                                startReceiveResult();
+                                                overReceiveMessages(i, loginProfile(le), password(profile(le)), url(profile(le)), archiveDir, disableConfirmation, provider);
+                                                IF (OVERRIDE messagesSkipped(), 0) > (OVERRIDE receiveSkippedBefore(), 0) THEN {
+                                                } ELSE IF NOT processedDateTime(ediFile(id(i))) OR (OVERRIDE countReceiveResults(), 0) = (OVERRIDE receiveResultsBefore(), 0) THEN {
+                                                    docHasFailed() <- TRUE;
+                                                } ELSE {
+                                                    docHasProcessed() <- TRUE;
+                                                }
+                                                checkReceiveResult(i, loginProfile(le), provider);
+                                            }
+                                            id(i) <- currentDocId();
+                                        }
+                                        currentDocId() <- NULL;
+                                    }
+                                    IF NOT docHasFailed() THEN {
+                                        processedVersionV2(keyV2(i)) <- versionV2(i);
+                                        IF NOT disableConfirmation AND docHasProcessed() THEN markOrdersAsReadV2(le, id(i), provider);
+                                    }
                                 }
-                                overReceiveMessages(i, loginProfile(le), password(profile(le)), url(profile(le)), archiveDir, disableConfirmation, provider);
-                                currentDocId() <- NULL;
+                            } ELSE {
+                                logToFile('edi', provider + ' (' + loginProfile(le) + ') ReceiveEOrders V2: downloadArchive ' + id(i) + ': неожиданный ответ ' + statusHttp());
                             }
-                            checkReceiveResult(i, loginProfile(le), provider);
                             receivedFileName(i) <- NULL;
-                            IF receiveFailures() = failuresBefore() THEN {
-                                processedVersionV2(keyV2(i)) <- versionV2(i);
-                                IF NOT disableConfirmation THEN markOrdersAsReadV2(le, id(i), provider);
-                            }
                         }
                     }
                     APPLY;

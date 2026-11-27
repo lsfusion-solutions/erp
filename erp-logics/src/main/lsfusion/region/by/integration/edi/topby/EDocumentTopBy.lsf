@@ -523,6 +523,11 @@ signAndSendSenderEDocumentV2(EDocument d, LegalEntity le, STRING[100] outputDir,
                             id(receiver(d), sender(d)) <- id(0);
                         }
 
+                        exportBlrdocDateTime() <- currentDateTimeMillis();
+                        toMilliseconds(exportBlrdocDateTime());
+                        name() <- 'blrdoc-' + toChar(exportBlrdocDateTime(), 'YYYY-MM-DD-HH24-MI-SS-MS');
+                        documentType() <- 'BLRDOC';
+
                         IF NOT id(d) THEN {
                             EXPORT exportBlrdocJSON OBJECTS d = d JSON;
                             EXTERNAL HTTP POST url(profile(sender(d))) + 'BLRDOC' HEADERS headers PARAMS exportFile() TO result;
@@ -535,10 +540,6 @@ signAndSendSenderEDocumentV2(EDocument d, LegalEntity le, STRING[100] outputDir,
                             eDocumentStatus(d) <- name1();
                             type(d) <- codeDocumentType(d);
 
-                            exportBlrdocDateTime() <- currentDateTimeMillis();
-                            toMilliseconds(exportBlrdocDateTime());
-                            name() <- 'blrdoc-' + toChar(exportBlrdocDateTime(), 'YYYY-MM-DD-HH24-MI-SS-MS');
-                            documentType() <- 'BLRDOC';
                             IF outputDir THEN {
                                 TRY { mkdir(outputDir + '/sent/documents/' + toChar(currentDate(), 'yyyyMMdd')); }
                                 WRITE exportFile() TO outputDir + '/sent/documents/' + toChar(currentDate(), 'yyyyMMdd') + '/' + name();
@@ -660,7 +661,7 @@ signAndSendBlrapnSenderEDocumentV2(EDocument d, LegalEntity le, STRING[100] outp
                         MESSAGE errorDescription();
                     } ELSE {
                         blrapnDateTime() <- currentDateTimeMillis();
-                        toMilliseconds(exportBlrdocDateTime());
+                        toMilliseconds(blrapnDateTime());
                         IF outputDir THEN {
                             TRY{ mkdir(outputDir + '/sent/documents/' + toChar(currentDate(), 'yyyyMMdd')); }
                             WRITE result() TO outputDir + '/sent/documents/' + toChar(currentDate(), 'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(), 'YYYY-MM-DD-HH24-MI-SS-MS');

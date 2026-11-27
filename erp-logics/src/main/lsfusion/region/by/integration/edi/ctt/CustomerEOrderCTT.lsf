@@ -33,7 +33,13 @@ parseOrdrsp(INTEGER i) + {
         ordrspPriceNoNDS(INTEGER l) <- eancomMoa(l, '128');
         ordrspPriceNDS(INTEGER l) <- eancomMoa(l, '203');
 
-        ordrspEOrder() <- eOrderByDocumentId(currentDocId());
-        ordrspParsed() <- TRUE;
+        IF NOT isCompany(legalEntityGLN(ordrspBuyerGLN())) THEN {
+            logToFile('edi', 'TopBy Import EOrderResponse ' + id(i) + ' skipped: buyer ' + (OVERRIDE ordrspBuyerGLN(), 'NULL') + ' is not a company');
+            messagesSkipped() <- messagesSkipped() + 1;
+            ordrspSkipped() <- TRUE;
+        } ELSE {
+            ordrspEOrder() <- eOrderByDocumentId(currentDocId());
+            ordrspParsed() <- TRUE;
+        }
     }
 }
