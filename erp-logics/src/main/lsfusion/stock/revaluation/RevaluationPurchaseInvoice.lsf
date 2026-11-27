@@ -55,9 +55,10 @@ typeExchange 'Тип обмена' = DATA TypeExchange (UserRevaluation);
 nameTypeExchange 'Тип обмена' = name(typeExchange(UserRevaluation document)) IN documentPrm;
 typeExchange = typeExchange(userRevaluation(UserRevaluationDetail detail));
 
-incomeManufacturingPrice (RevaluationDetail detail) = priceInvoiceDetail(detail)*rateExchange(detail);
+dataIncomeManufacturingPrice = ABSTRACT NUMERIC[16,4] (RevaluationDetail);
+incomeManufacturingPrice (RevaluationDetail detail) = OVERRIDE dataIncomeManufacturingPrice(detail), priceInvoiceDetail(detail)*rateExchange(detail);
 
-costManufacturingPrice(RevaluationDetail detail) = priceInvoiceDetail(detail)*rateExchange(detail) (+) 
+costManufacturingPrice(RevaluationDetail detail) = incomeManufacturingPrice(detail) (+) 
     extraCostPrice(invoiceDetail(detail)) (+) 
     customCostPrice(invoiceDetail(detail))(+) 
     certificateCostPrice(invoiceDetail(detail));
@@ -66,7 +67,9 @@ costManufacturingPrice(RevaluationDetail detail) = priceInvoiceDetail(detail)*ra
  addCostPriceToManufacturingPriceRevaluation 'Учитывать в цене изготовителя доп. расходы' = DATA BOOLEAN (Operation);
  addCostPriceToManufacturingPrice(UserRevaluation revaluation) <- addCostPriceToManufacturingPriceRevaluation(operation(revaluation))
      WHEN CHANGED(operation(revaluation));
-                                 
+
+
+//////qqqqqqq
 calcBaseManufacturingPrice 'Себестоимость (ед.)' (RevaluationDetail detail)= IF addCostPriceToManufacturingPrice(revaluation(detail)) 
                                     THEN costManufacturingPrice(detail)
                                     ELSE incomeManufacturingPrice(detail);
