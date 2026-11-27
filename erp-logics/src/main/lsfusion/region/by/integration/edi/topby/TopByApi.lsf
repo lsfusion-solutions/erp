@@ -174,7 +174,10 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
                 IF newNS() THEN {
                     IMPORT XML ROOT 'Data' FROM sendRequestEDIResponse() TO data = '=DocumentDataSis:Data', id = '=DocumentDataSis:Id', documentType = '=DocumentDataSis:DocumentType', documentDate = '=DocumentDataSis:DocumentDate';
                 } ELSE {
-                    IMPORT XML ROOT 'Data' FROM sendRequestEDIResponse() TO data = 'Data', id = 'Id', documentType = 'DocumentType', documentDate = 'DocumentDate';
+                    LOCAL documentDateStr = STRING (INTEGER);
+                    IMPORT XML ROOT 'Data' FROM sendRequestEDIResponse() TO data = 'Data', id = 'Id', documentType = 'DocumentType', documentDateStr = 'DocumentDate';
+                    //ЭДиН отдаёт DocumentDate в UTC ('...Z'); через ZDATETIME переводим в локальное время сервера, как в REST-проходе
+                    documentDate(INTEGER i) <- DATETIME(ZDATETIME(documentDateStr(i))) IF trim(documentDateStr(i)) != '';
                 }
                 //остаются от предыдущего приёма в том же действии (REST-проход ЭДиН, другой профиль) под чужими номерами строк
                 receivedFileName(INTEGER i) <- NULL;
@@ -248,13 +251,13 @@ processEDIFile 'Обработать' (EDIFile f) {
         fillStartParams();
         startReceiveResult();
         logToFile('edi', provider(profile(f)) + ' (' + login(profile(f)) + ') Process file ' + id(f));
+        IF NOT data(0) THEN {
+            MESSAGE 'Не найдено тело сообщения ' + id(f) + (OVERRIDE ' в файле ' + receivedPath(f), '') NOWAIT;
+            RETURN;
+        }
         processedEDIFile() <- NULL;
         overProcessEDIFile(f, 0);
         IF NOT processedEDIFile() THEN {
-            IF NOT data(0) THEN {
-                MESSAGE 'Не найдено тело сообщения ' + id(f) + (OVERRIDE ' в файле ' + receivedPath(f), '') NOWAIT;
-                RETURN;
-            }
             beforeOverReceiveMessages(0, login(profile(f)), archiveDir(profile(f)));
             overReceiveMessages(0, login(profile(f)), password(profile(f)), url(profile(f)), archiveDir(profile(f)), disableConfirmation(profile(f)), provider(profile(f)));
         }
@@ -287,10 +290,19 @@ open 'Просмотреть' (INTEGER r) {
 } TOOLBAR;
 
 confirmDocumentSoap 'Подтвердить получение' (INTEGER r, STRING login, STRING password, STRING url) {
-    EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(r) XML TO xmlFile;
-    sendRequestEDI(url, xmlFile());
-    markEDIFile(id(r), NULL, TRUE);
-    id(r) <- NULL;
+    LOCAL xml = XMLFILE();
+    EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(r) XML TO xml;
+    sendRequestEDI(url, xml());
+    logToFile('edi', '(' + login + ') ConfirmDocumentReceived ' + id(r) + ': request sent');
+    importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
+    IF requestError() THEN {
+        logToFile('edi', '(' + login + ') ConfirmDocumentReceived ' + id(r) + ': ' + requestError());
+        MESSAGE '(' + login + ') Документ ' + id(r) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+    } ELSE {
+        logToFile('edi', '(' + login + ') ConfirmDocumentReceived ' + id(r) + ': request succeeded');
+        markEDIFile(id(r), NULL, TRUE);
+        id(r) <- NULL;
+    }
 } CONFIRM TOOLBAR;
 
 FORM queryDocumentsStatus 'Очередь документов'

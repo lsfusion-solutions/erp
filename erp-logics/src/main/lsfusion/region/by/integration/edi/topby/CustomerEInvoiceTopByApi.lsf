@@ -734,7 +734,10 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                     blrapn(ec) <- STRING[14](resultMilliseconds());
                                     logToFile('edi', provider + ' SendECreditNote ' + actDifNumber(ec) + ' request succeeded');
                                     //извещение уже отправлено, поэтому подтверждаем до сохранения: при повторной обработке оно ушло бы снова
-                                    confirmMessage(i, login, password, url, provider, disableConfirmation);
+                                    IF NOT disableConfirmation AND NOT useV2(provider) THEN {
+                                        sendConfirmMessage(i, login, password, url, provider, NULL, NULL);
+                                        IF NOT requestError() THEN markEDIFile(id(i), NULL, TRUE);
+                                    }
                                     NEWSESSION NESTED LOCAL {
                                         exportedBlrapnCustomer(ec) <- TRUE;
                                         NEW em = ECreditNoteMessage {
@@ -765,6 +768,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                             logToFile('edi', provider + ' (' + login + ') Import ECreditNote ' + id(i) + ' failed: ' + applyMessage());
                                             eCreditNotesFailed() <- eCreditNotesFailed() + 1;
                                         } ELSE {
+                                            markEDIFile(id(i), TRUE, NULL);
                                             logToFile('edi', provider + ' (' + login + ') Import ECreditNote ' + id(i) + ' succeeded');
                                             blradfCount() <- blradfCount() + 1;
                                         }

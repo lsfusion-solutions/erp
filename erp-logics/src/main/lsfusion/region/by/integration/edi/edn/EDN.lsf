@@ -89,6 +89,10 @@ FORM edocument
 
 beforeOverReceiveMessages(INTEGER i, STRING[100] login, STRING[100] archiveDir) + {
     IF extract(ednProfile(login)) AND NOT skipUnzip(ednProfile(login)) THEN {
+        IF archiveDir AND data(i) AND ediFile(id(i)) AND NOT receivedDir(ediFile(id(i))) THEN {
+            TRY { mkdir(receivedDir(archiveDir)); }
+            WRITE data(i) TO receivedDir(archiveDir) + '/' + (OVERRIDE receivedFileName(ediFile(id(i))), id(i));
+        }
         unzipped(STRING[100] s) <- NULL;
         //считаем до распаковки: в распакованный документ подписи не попадают
         signatureContent(INTEGER s) <- NULL;
@@ -103,7 +107,7 @@ beforeOverReceiveMessages(INTEGER i, STRING[100] login, STRING[100] archiveDir) 
         IF archiveDir THEN {
             TRY { mkdir((OVERRIDE receivedDir(ediFile(id(i))), receivedDir(archiveDir))); }
             WRITE data(i) TO receivedPath(archiveDir, i);
-            markExtractedEDIFile(id(i), receivedFileName(i));
+            markExtractedEDIFile(id(i), receivedFileName(i), receivedDir(archiveDir));
         }
     }
 }
@@ -346,8 +350,6 @@ overReceiveMessagesEDN(INTEGER i, STRING[100] login, STRING[100] password, TEXT 
     IF documentType(i) == 'APERAK' THEN {
         processedEDIFile() <- TRUE;
         TRY {
-            fillContentEDN(i, url);
-
             IMPORT aperack XML FROM data(i);
             
             overImportAperak(i, login, password, url, archiveDir, disableConfirmation, provider);

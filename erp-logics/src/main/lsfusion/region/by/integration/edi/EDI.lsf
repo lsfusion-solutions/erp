@@ -198,7 +198,7 @@ importRequestResult(FILE xml, INTEGER status, TEXT root) {
 //добавление файлов
 META openRawData (class, object, table)
     XMLPath = DATA STRING[200] (class);
-    archiveFile = DATA EDIArchiveFile (class);
+    archiveFile = DATA EDIArchiveFile (class) INDEXED;
     archivePath 'Файл в архиве' (class object) = OVERRIDE path(archiveFile(object)), XMLPath(object);
     openRawData 'Открыть файл' (class object) {
         LOCAL file = FILE();
@@ -291,10 +291,13 @@ markEDIFile (STRING id, BOOLEAN processed, BOOLEAN confirmed) {
     }
 }
 
-markExtractedEDIFile (STRING id, STRING fileName) {
-    IF ediFile(id) AND NOT extractedFileName(ediFile(id)) = fileName THEN NEWSESSION {
-        extractedFileName(ediFile(id)) <- fileName;
-        APPLY;
+markExtractedEDIFile (STRING id, STRING fileName, STRING dir) {
+    IF ediFile(id) AND (NOT extractedFileName(ediFile(id)) = fileName OR (dir AND NOT receivedDir(ediFile(id)))) THEN NEWSESSION {
+        FOR EDIFile f = ediFile(id) DO {
+            extractedFileName(f) <- fileName;
+            receivedDir(f) <- OVERRIDE receivedDir(f), dir;
+            APPLY;
+        }
     }
 }
 
@@ -311,7 +314,7 @@ open(EDIFile f) + {
     IF receivedFile() THEN {
         //журнал хранит исходное сообщение; у распакованных ЭДиН содержимое лежит отдельным файлом
         IF extractedFileName(f) THEN
-            MESSAGE 'Открыт исходный конверт; распакованное содержимое: ' + path(f) NOWAIT;
+            MESSAGE 'Открыт исходный конверт; распакованное содержимое: ' + (OVERRIDE path(f), extractedFileName(f)) NOWAIT;
         open(receivedFile());
     } ELSE {
         MESSAGE 'Файл не найден: ' + (OVERRIDE receivedPath(f), 'путь не задан');
