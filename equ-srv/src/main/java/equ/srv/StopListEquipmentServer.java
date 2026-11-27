@@ -18,6 +18,7 @@ import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.language.action.LA;
 import lsfusion.server.language.property.LP;
 import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.action.controller.stack.ExecutionStack;
@@ -317,10 +318,9 @@ public class StopListEquipmentServer {
     public static void succeedStopList(BusinessLogics BL, ExecutionStack stack, EquipmentServer server, String numberStopList, Set<String> idStockSet) {
         if(stopListLM != null) {
             try (DataSession session = server.createSession()) {
-                DataObject stopListObject = (DataObject) stopListLM.findProperty("stopList[BPSTRING[18]]").readClasses(session, new DataObject(numberStopList));
+                LA<?> succeedStopListAction = stopListLM.findAction("succeedStopList[STRING,STRING]");
                 for (String idStock : idStockSet) {
-                    DataObject stockObject = (DataObject) stopListLM.findProperty("stock[STRING[100]]").readClasses(session, new DataObject(idStock));
-                    stopListLM.findProperty("succeeded[Stock,StopList]").change(true, session, stockObject, stopListObject);
+                    succeedStopListAction.execute(session, stack, new DataObject(numberStopList), new DataObject(idStock));
                 }
                 session.applyException(BL, stack);
             } catch (Exception e) {
